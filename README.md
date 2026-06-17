@@ -1,0 +1,567 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/happones/kinetix/main/art/logo.png" alt="Kinetix" width="200" />
+</p>
+
+<h1 align="center">Kinetix</h1>
+
+<p align="center">
+  A modern UI toolkit for Laravel + Vue 3 + Inertia.js applications.<br>
+  Built for the Laravel starter kit stack — with fluent PHP APIs, real-time components, and full i18n support.
+</p>
+
+<p align="center">
+  <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/v/happones/kinetix" alt="Latest Stable Version"></a>
+  <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/l/happones/kinetix" alt="License"></a>
+  <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/php-v/happones/kinetix" alt="PHP Version"></a>
+</p>
+
+---
+
+## What is Kinetix?
+
+Kinetix is a **Vue 3 + Inertia.js UI toolkit for Laravel**. It brings a fluent, expressive PHP API for building rich frontend interactions — starting with a full-featured notification system — designed to feel at home alongside the official Laravel starter kits.
+
+Think of it as the bridge between your Laravel backend and your Inertia/Vue frontend: write expressive PHP, get a polished, reactive UI automatically.
+
+> Kinetix is inspired by patterns from the Laravel ecosystem. It is **not** a fork or clone of any existing package — it is built from the ground up for the Inertia + Vue stack.
+
+---
+
+## Requirements
+
+| Dependency | Version |
+|---|---|
+| PHP | ^8.3 |
+| Laravel | ^11 \| ^12 \| ^13 |
+| `inertiajs/inertia-laravel` | ^2 \| ^3 |
+| Vue | ^3.5 |
+| `@inertiajs/vue3` | ^3.0 |
+| `@laravel/echo-vue` | ^2.3 *(for broadcasting)* |
+| `vue-i18n` | ^11.0 |
+| `vue-sonner` | ^2.0 |
+| `@lucide/vue` | ^1.0 |
+| Shadcn / Reka UI | any *(components.json required)* |
+
+---
+
+## Installation
+
+### 1. Require the package
+
+```bash
+composer require happones/kinetix
+```
+
+The service provider is auto-discovered by Laravel.
+
+### 2. Publish assets
+
+```bash
+# Config file → config/kinetix.php
+php artisan vendor:publish --tag=kinetix-config
+
+# Vue component → resources/js/components/kinetix/
+php artisan vendor:publish --tag=kinetix-components
+
+# Translations → lang/{en,es,fr,pt}/kinetix.php
+php artisan vendor:publish --tag=kinetix-translations
+
+# Audio assets → public/vendor/kinetix/
+php artisan vendor:publish --tag=kinetix-assets
+```
+
+### 3. Compile translations for Vue
+
+Kinetix uses [`happones/laravel-vue-i18n-generator`](https://github.com/happones/laravel-vue-i18n-generator) to compile PHP translation files into TypeScript for use in Vue components.
+
+```bash
+php artisan vue-i18n:generate
+```
+
+---
+
+## Configuration
+
+After publishing, edit `config/kinetix.php`:
+
+```php
+return [
+
+    'brand' => [
+        'name'    => env('APP_NAME', 'Kinetix'),
+        'logo'    => env('KINETIX_BRAND_LOGO', null),
+        'favicon' => env('KINETIX_BRAND_FAVICON', null),
+    ],
+
+    'assets' => [
+        'path'  => env('KINETIX_ASSETS_PATH', 'vendor/kinetix'),
+        'cache' => env('KINETIX_ASSETS_CACHE', true),
+    ],
+
+    'notifications' => [
+        // Set to true to persist notifications in the database
+        'database' => env('KINETIX_DATABASE_NOTIFICATIONS', false),
+
+        // Max unread notifications loaded per request (database mode)
+        'limit' => env('KINETIX_NOTIFICATIONS_LIMIT', 15),
+
+        'sound' => [
+            'enabled' => env('KINETIX_NOTIFICATIONS_SOUND', true),
+            'path'    => env('KINETIX_NOTIFICATIONS_SOUND_PATH', '/vendor/kinetix/notification.wav'),
+        ],
+    ],
+
+    // Uncomment to enable real-time WebSocket notifications via Laravel Echo
+    'broadcasting' => [
+        // 'echo' => [
+        //     'broadcaster'       => 'reverb',
+        //     'key'               => env('VITE_REVERB_APP_KEY'),
+        //     'wsHost'            => env('VITE_REVERB_HOST', '127.0.0.1'),
+        //     'wsPort'            => env('VITE_REVERB_PORT', 8080),
+        //     'wssPort'           => env('VITE_REVERB_PORT', 443),
+        //     'forceTLS'          => env('VITE_REVERB_SCHEME', 'https') === 'https',
+        //     'enabledTransports' => ['ws', 'wss'],
+        // ],
+    ],
+
+    // Internal API route prefix — change if it conflicts with your routes
+    'route_prefix' => env('KINETIX_ROUTE_PREFIX', '_kinetix'),
+
+    // Middleware applied to all internal Kinetix routes
+    'middleware' => ['web', 'auth'],
+
+];
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `KINETIX_DATABASE_NOTIFICATIONS` | `false` | Persist notifications to DB |
+| `KINETIX_NOTIFICATIONS_LIMIT` | `15` | Max notifications loaded per request |
+| `KINETIX_NOTIFICATIONS_SOUND` | `true` | Play sound on new notification |
+| `KINETIX_NOTIFICATIONS_SOUND_PATH` | `/vendor/kinetix/notification.wav` | Path to the audio file |
+| `KINETIX_ROUTE_PREFIX` | `_kinetix` | Prefix for internal API routes |
+
+---
+
+## Notifications
+
+Kinetix's notification system lets you build and dispatch beautiful, interactive notifications using a fluent PHP API. They appear instantly as **Sonner toasts** and are collected in a **bell-icon dropdown** in the app header.
+
+### Basic Usage
+
+```php
+use Happones\Kinetix\Notifications\Notification;
+
+Notification::make()
+    ->title('Profile updated')
+    ->description('Your changes have been saved successfully.')
+    ->success()
+    ->send();
+```
+
+### Status Levels
+
+```php
+Notification::make()->title('Done!')->success()->send();
+Notification::make()->title('Heads up')->warning()->send();
+Notification::make()->title('Error occurred')->danger()->send();
+Notification::make()->title('FYI')->info()->send();  // default
+```
+
+### Duration Control
+
+```php
+// Custom duration in milliseconds
+Notification::make()->title('Quick!')->duration(2000)->send();
+
+// Helper: set duration in seconds
+Notification::make()->title('5 second notice')->seconds(5)->send();
+
+// Never auto-close
+Notification::make()->title('Important')->persistent()->send();
+```
+
+### Database Persistence
+
+Set `KINETIX_DATABASE_NOTIFICATIONS=true` in your `.env`, then use `sendToDatabase()`:
+
+```php
+$user = User::find(1);
+
+Notification::make()
+    ->title('New assignment')
+    ->description('Ticket #4562 has been assigned to you.')
+    ->info()
+    ->sendToDatabase($user);
+```
+
+Or use `send()` — when `database` is `true` in config, it automatically routes to the DB.
+
+### Real-Time Broadcasting
+
+Push a notification instantly via WebSockets (saves to DB **and** broadcasts):
+
+```php
+Notification::make()
+    ->title('Server alert')
+    ->description('CPU usage exceeded 85%.')
+    ->danger()
+    ->broadcast($user);
+```
+
+---
+
+## Actions
+
+Attach interactive buttons or links to any notification:
+
+```php
+use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Notifications\Notification;
+
+Notification::make()
+    ->title('Backup completed')
+    ->success()
+    ->actions([
+        Action::make('view')
+            ->label('View Report')
+            ->url('/reports/backup')
+            ->button()
+            ->color('primary')
+            ->markAsRead()
+            ->close(),
+
+        Action::make('dismiss')
+            ->label('Dismiss')
+            ->link()
+            ->color('gray')
+            ->close(),
+    ])
+    ->send();
+```
+
+### Action API Reference
+
+| Method | Description |
+|---|---|
+| `::make(string $name)` | Create a new action |
+| `->label(string $label)` | Display text |
+| `->icon(string $icon, string $position = 'before')` | Lucide icon name (e.g. `'trash'`, `'check'`) |
+| `->url(string $url, bool $newTab = false)` | Navigate to a URL on click |
+| `->inertiaVisit(string $url, array $options = [])` | SPA navigation via `router.visit()` |
+| `->dispatch(string $event, array $data = [])` | Fire a `kinetix:{event}` browser CustomEvent |
+| `->button()` | Render as a filled button *(default)* |
+| `->link()` | Render as a text link |
+| `->color(string $color)` | `primary` · `success` · `warning` · `danger` · `gray` |
+| `->size(string $size)` | `xs` · `sm` · `md` · `lg` |
+| `->close()` | Dismiss notification on click |
+| `->markAsRead()` | Mark parent notification as read on click |
+| `->markAsUnread()` | Mark parent notification as unread on click |
+
+### Listening for Dispatched Events
+
+When an action uses `->dispatch('my-event', ['id' => 42])`, listen in Vue:
+
+```ts
+window.addEventListener('kinetix:my-event', (e: Event) => {
+    const { id } = (e as CustomEvent).detail; // { id: 42 }
+});
+```
+
+---
+
+## Custom Notification Classes
+
+Generate reusable, pre-configured notification classes:
+
+```bash
+php artisan kinetix:make-notification BackupSuccessNotification
+```
+
+This creates `app/Kinetix/Notifications/BackupSuccessNotification.php`:
+
+```php
+namespace App\Kinetix\Notifications;
+
+use Happones\Kinetix\Notifications\Notification;
+
+class BackupSuccessNotification extends Notification
+{
+    public function __construct()
+    {
+        parent::__construct();
+
+        $this->title('Backup completed successfully')
+             ->description('Your latest backup is ready.')
+             ->success()
+             ->duration(5000);
+    }
+}
+```
+
+Use it anywhere:
+
+```php
+BackupSuccessNotification::make()->send();
+BackupSuccessNotification::make()->sendToDatabase($user);
+```
+
+---
+
+## Frontend Integration
+
+### 1. Add the component to your layout
+
+After publishing, import and place `KinetixNotifications` in your app header. The component reads `page.props.auth.user` from Inertia automatically.
+
+**`resources/js/components/AppSidebarHeader.vue`:**
+
+```vue
+<script setup lang="ts">
+import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import KinetixNotifications from '@/components/kinetix/KinetixNotifications.vue';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import type { BreadcrumbItem } from '@/types';
+
+withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItem[] }>(), { breadcrumbs: () => [] });
+</script>
+
+<template>
+    <header class="flex h-16 shrink-0 items-center gap-2 border-b px-6">
+        <div class="flex items-center gap-2">
+            <SidebarTrigger class="-ml-1" />
+            <Breadcrumbs :breadcrumbs="breadcrumbs" />
+        </div>
+
+        <div class="ml-auto flex items-center gap-2">
+            <KinetixNotifications />
+        </div>
+    </header>
+</template>
+```
+
+### 2. Component Props
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `channelModel` | `string` | `'App.Models.User'` | Echo private channel model prefix. Change if your User model is in a different namespace. |
+
+```vue
+<!-- Default -->
+<KinetixNotifications />
+
+<!-- Custom model namespace -->
+<KinetixNotifications channel-model="App.Models.Admin" />
+```
+
+---
+
+## Real-Time Broadcasting Setup
+
+### 1. Uncomment the Echo block in `config/kinetix.php`
+
+```php
+'broadcasting' => [
+    'echo' => [
+        'broadcaster'       => 'reverb',
+        'key'               => env('VITE_REVERB_APP_KEY'),
+        'wsHost'            => env('VITE_REVERB_HOST', '127.0.0.1'),
+        'wsPort'            => env('VITE_REVERB_PORT', 8080),
+        'wssPort'           => env('VITE_REVERB_PORT', 443),
+        'forceTLS'          => env('VITE_REVERB_SCHEME', 'https') === 'https',
+        'enabledTransports' => ['ws', 'wss'],
+    ],
+],
+```
+
+### 2. Install `@laravel/echo-vue`
+
+Already included in the Laravel starter kit. If not present:
+
+```bash
+npm install @laravel/echo-vue
+```
+
+### 3. Call `configureEcho` in `resources/js/app.ts`
+
+```ts
+import { configureEcho } from '@laravel/echo-vue';
+
+// Reverb — defaults are auto-filled from VITE_ env variables
+configureEcho({
+    broadcaster: 'reverb',
+});
+```
+
+That's it. `KinetixNotifications` uses `useEchoNotification` internally and auto-connects to the authenticated user's private channel `App.Models.User.{id}`. No extra setup needed in Vue.
+
+### 4. Broadcast from PHP
+
+```php
+Notification::make()
+    ->title('New message')
+    ->info()
+    ->broadcast($user);
+```
+
+---
+
+## Multilingual Support (i18n)
+
+Kinetix ships with translations for **English**, **Spanish**, **French**, and **Portuguese**.
+
+All strings in the Vue component are driven by `vue-i18n` keys (`t('kinetix.key')`), compiled from PHP array files via `happones/laravel-vue-i18n-generator`.
+
+### Publish & compile
+
+```bash
+# Publish PHP translation files into your lang/ directory
+php artisan vendor:publish --tag=kinetix-translations --force
+
+# Compile to TypeScript for Vue
+php artisan vue-i18n:generate
+```
+
+This creates/updates `resources/js/vue-i18n-locales.ts` which is consumed automatically by the component.
+
+### Adding a new locale
+
+1. Create `lang/{locale}/kinetix.php` with the translation keys.
+2. Run `php artisan vue-i18n:generate`.
+3. Register the locale in your `vue-i18n` setup.
+
+---
+
+## Artisan Commands
+
+### `kinetix:make-notification`
+
+Generate a reusable custom notification class:
+
+```bash
+php artisan kinetix:make-notification OrderShippedNotification
+```
+
+Creates `app/Kinetix/Notifications/OrderShippedNotification.php`.
+
+---
+
+### `kinetix:send-notification`
+
+Send a test notification directly from the terminal (useful during development):
+
+```bash
+php artisan kinetix:send-notification "Server Alert" "CPU usage at 90%" --status=warning --duration=5000
+```
+
+| Argument / Option | Description |
+|---|---|
+| `title` | Notification title *(required)* |
+| `description` | Body text *(optional)* |
+| `--status` | `info` · `success` · `warning` · `danger` *(default: `info`)* |
+| `--duration` | Toast duration in ms *(default: `4000`)* |
+
+---
+
+## Architecture Overview
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  PHP (Laravel)                                               │
+│                                                              │
+│  Notification::make()                                        │
+│    ->title(...)  ->success()  ->actions([...])  ->send()    │
+│         │                                                    │
+│         ├─ send()          → session flash                   │
+│         ├─ sendToDatabase() → notifications table            │
+│         └─ broadcast()     → DB + Laravel Echo broadcast     │
+└──────────────────────────────────────────────────────────────┘
+         │ Inertia shared props (kinetix_notifications)
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Vue (Inertia)                                               │
+│                                                              │
+│  KinetixNotifications.vue                                    │
+│    ├─ watch(page.props.kinetix_notifications) → local/DB     │
+│    ├─ useEchoNotification() → real-time broadcast            │
+│    ├─ Sonner toasts on new notification                      │
+│    ├─ Bell icon with unread badge in header                  │
+│    └─ fetch() → /_kinetix/notifications/* (mark read/clear)  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### How the three delivery modes work
+
+| Mode | How to enable | How data reaches Vue |
+|---|---|---|
+| **Local** *(default)* | Always on | Session flash → Inertia shared prop on next request |
+| **Database** | `KINETIX_DATABASE_NOTIFICATIONS=true` | `unreadNotifications()` query on every request via shared prop |
+| **Broadcast** | Configure Echo + call `->broadcast($user)` | `useEchoNotification` on private user channel, plus DB reload |
+
+---
+
+## Directory Structure
+
+```
+kinetix/
+├── config/
+│   └── kinetix.php              # Published config
+├── docs/
+│   └── notifications.md         # Full notifications documentation
+├── public/
+│   └── notification.wav         # Default notification sound
+├── resources/
+│   ├── js/
+│   │   └── Components/
+│   │       └── KinetixNotifications.vue
+│   └── lang/
+│       ├── en/kinetix.php
+│       ├── es/kinetix.php
+│       ├── fr/kinetix.php
+│       └── pt/kinetix.php
+└── src/
+    ├── Actions/
+    │   └── Action.php           # Fluent action builder
+    ├── Commands/
+    │   ├── MakeNotificationCommand.php
+    │   └── SendNotificationCommand.php
+    ├── Notifications/
+    │   ├── Notification.php          # Fluent notification builder
+    │   └── KinetixLaravelNotification.php  # Laravel notification bridge
+    └── KinetixServiceProvider.php
+```
+
+---
+
+## Roadmap
+
+- [x] Notification system (local, database, broadcast)
+- [x] Fluent Action builder with dispatch events
+- [x] Real-time Echo integration (`useEchoNotification`)
+- [x] Full i18n support (en, es, fr, pt)
+- [x] Audio alerts with configurable path
+- [ ] Form builder components
+- [ ] Table / data grid components
+- [ ] Confirmation modals
+- [ ] Page-level action bars
+- [ ] Multi-panel support
+
+---
+
+## Contributing
+
+Contributions, bug reports, and feature requests are welcome. Please open an issue or submit a pull request on GitHub.
+
+---
+
+## License
+
+Kinetix is open-sourced software licensed under the [MIT license](LICENSE).
+
+---
+
+<p align="center">
+  Built with ❤️ by <a href="https://github.com/happones">happones</a>
+</p>
