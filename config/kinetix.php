@@ -1,0 +1,127 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kinetix Panel Identity
+    |--------------------------------------------------------------------------
+    |
+    | These values define the global branding of your Kinetix-powered panel.
+    | They can be overridden per-panel once panel support is added.
+    |
+    */
+    'brand' => [
+        'name'    => env('APP_NAME', 'Kinetix'),
+        'logo'    => env('KINETIX_BRAND_LOGO', null),
+        'favicon' => env('KINETIX_BRAND_FAVICON', null),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kinetix Assets
+    |--------------------------------------------------------------------------
+    |
+    | Configure where Kinetix publishes its compiled frontend assets.
+    | These are served from the public directory.
+    |
+    */
+    'assets' => [
+        'path'  => env('KINETIX_ASSETS_PATH', 'vendor/kinetix'),
+        'cache' => env('KINETIX_ASSETS_CACHE', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kinetix Notifications
+    |--------------------------------------------------------------------------
+    |
+    | Control how Kinetix handles notification delivery and persistence.
+    |
+    | - `database`: Set to true to enable database persistence via Laravel's
+    |   database channel. When false, notifications are session-based only.
+    |
+    | - `sound`: Configure audio alerts for incoming notifications.
+    |   Sound is only played for real-time (broadcast) or newly received
+    |   notifications — never on the initial page load.
+    |
+    | - `limit`: Maximum number of unread notifications to load from the
+    |   database on each page request. Only applies when database is enabled.
+    |
+    */
+    'notifications' => [
+        'database' => env('KINETIX_DATABASE_NOTIFICATIONS', false),
+
+        'limit' => env('KINETIX_NOTIFICATIONS_LIMIT', 15),
+
+        'sound' => [
+            'enabled' => env('KINETIX_NOTIFICATIONS_SOUND', true),
+            'path'    => env('KINETIX_NOTIFICATIONS_SOUND_PATH', '/vendor/kinetix/notification.wav'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Broadcasting (Real-Time Notifications)
+    |--------------------------------------------------------------------------
+    |
+    | Kinetix integrates with Laravel Echo for real-time push notifications
+    | via WebSockets. Configure the Echo connection details below.
+    |
+    | Uncomment and configure the `echo` block to enable real-time support.
+    | The broadcaster should match your Laravel `broadcasting.default` driver.
+    |
+    | Supported broadcasters: 'reverb', 'pusher', 'ably', 'null'
+    |
+    | Example with Laravel Reverb:
+    |
+    | 'echo' => [
+    |     'broadcaster' => 'reverb',
+    |     'key' => env('VITE_REVERB_APP_KEY'),
+    |     'wsHost' => env('VITE_REVERB_HOST'),
+    |     'wsPort' => env('VITE_REVERB_PORT', 8080),
+    |     'wssPort' => env('VITE_REVERB_PORT', 443),
+    |     'forceTLS' => env('VITE_REVERB_SCHEME', 'https') === 'https',
+    |     'enabledTransports' => ['ws', 'wss'],
+    | ],
+    |
+    */
+    'broadcasting' => [
+
+        // 'echo' => [
+        //     'broadcaster' => 'reverb',
+        //     'key' => env('VITE_REVERB_APP_KEY'),
+        //     'wsHost' => env('VITE_REVERB_HOST', '127.0.0.1'),
+        //     'wsPort' => env('VITE_REVERB_PORT', 8080),
+        //     'wssPort' => env('VITE_REVERB_PORT', 443),
+        //     'forceTLS' => env('VITE_REVERB_SCHEME', 'https') === 'https',
+        //     'enabledTransports' => ['ws', 'wss'],
+        // ],
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Route Configuration
+    |--------------------------------------------------------------------------
+    |
+    | The prefix used for Kinetix's internal API routes.
+    | Change this if it conflicts with your application's existing routes.
+    |
+    */
+    'route_prefix' => env('KINETIX_ROUTE_PREFIX', '_kinetix'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Middleware
+    |--------------------------------------------------------------------------
+    |
+    | The middleware stack applied to all Kinetix internal routes.
+    | You can add your own middleware here (e.g., role-based access control).
+    |
+    */
+    'middleware' => ['web', 'auth'],
+
+];
