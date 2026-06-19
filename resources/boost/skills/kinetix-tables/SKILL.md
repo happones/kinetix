@@ -94,3 +94,5 @@ defineProps<{
 - **Avoid N+1 Relationship Queries**: Eager-load all relationships on the backend query definition (e.g. `Product::with('category')`). The columns extract value state cleanly using dot-notation (`category.name`).
 - **Inline Editing Architecture**: Inline editors trigger XHR updates to `/tables/cell-update`. To prevent tampering, the model class string is encrypted (`Crypt::encryptString`) on serialization and validated before updating attributes.
 - **Client-Side Column Visibility**: Visible columns are managed client-side using `visibleColumnNames: Set<string>` inside `KinetixTable.vue`. Toggles are instant and do not require server request updates.
+- **TypeScript Type Sync**: Annotate Spatie Data classes with `#[TypeScript]` and run `php artisan typescript:transform` in the parent application to generate frontend types automatically.
+- **Teams & Multi-Tenancy**: When routing under a `{current_team}` prefix, toggle `'teams' => true` in `config/kinetix.php` to ensure Kinetix's API endpoints match and closure actions inherit the active team parameters natively.

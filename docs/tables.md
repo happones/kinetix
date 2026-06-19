@@ -191,3 +191,51 @@ Editable columns update database values instantly by sending XHR requests. To en
 1. When serializing, the table builder generates an encrypted representation of the target Eloquent model class (`Crypt::encryptString`).
 2. Cell update requests submit this encrypted token along with the record ID, column name, and new value.
 3. The backend updates endpoint decrypts the model class, confirms its validity, verifies record existence, and updates the record safely.
+
+---
+
+## Spatie Laravel Data & TypeScript Integration
+
+Kinetix uses Spatie Laravel Data under the hood to ensure full data integrity and allow developers to automatically export all table and notification DTOs as TypeScript type definitions.
+
+### Auto-Generating TypeScript Types
+
+To generate TypeScript types for Kinetix in your frontend:
+
+1. Install Spatie's TypeScript transformer in your main application:
+   ```bash
+   vendor/bin/sail composer require spatie/laravel-typescript-transformer
+   ```
+
+2. Add Kinetix Data classes to the search path in your `config/typescript-transformer.php`:
+   ```php
+   'searching_paths' => [
+       app_path(),
+       base_path('vendor/happones/kinetix/src/Data'),
+   ],
+   ```
+
+3. Run the compiler:
+   ```bash
+   vendor/bin/sail artisan typescript:transform
+   ```
+   This will generate types like `TableData`, `TableRowData`, `ColumnData`, etc. directly inside your frontend types (e.g., `resources/js/types/generated.d.ts`).
+
+---
+
+## Multi-Tenancy / Teams Support
+
+If your application scopes its routes under a tenant or team slug (e.g., `{current_team}/posts`), Kinetix can automatically adapt its routing and closure parameters.
+
+### Enabling Teams
+
+To enable teams, set the `teams` parameter to `true` in your `config/kinetix.php`:
+
+```php
+'teams' => true,
+```
+
+When enabled:
+- Kinetix automatically prefixes its internal API endpoints (e.g., cell updates, notification actions) under the active `{current_team}/`.
+- Actions that evaluate closure URLs (like `fn ($record) => route('posts.edit', $record)`) will automatically inherit the active team parameter in their route parameters using URL defaults, avoiding `Missing required parameter: current_team` errors.
+

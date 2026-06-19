@@ -16,6 +16,7 @@ This skill contains the conventions, requirements, and implementation patterns f
 - **Property Promotion**: Use PHP 8 constructor property promotion for dependency injection.
 - **TitleCase Enum Keys**: Always write Enum keys in TitleCase.
 - **Pint Formatter**: Always format modified PHP files before finishing changes.
+- **Spatie Data DTOs**: Use classes extending `Spatie\LaravelData\Data` to represent any structured data sent to Inertia/frontend. Annotate these classes with `#[TypeScript]` to enable automatic TypeScript type generation.
 
 ### Vue & TypeScript Rules
 - **TypeScript First**: Always develop Vue components with `<script setup lang="ts">`.
