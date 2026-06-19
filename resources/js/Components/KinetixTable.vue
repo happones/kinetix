@@ -441,7 +441,7 @@ const updateCell = async (
         </div>
 
         <!-- Columns Toggler Dropdown -->
-        <div class="relative">
+        <div v-if="table.columns.some((c) => c.isToggleable)" class="relative">
           <button
             class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
             @click="
