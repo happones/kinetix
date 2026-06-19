@@ -65,6 +65,9 @@ class KinetixServiceProvider extends ServiceProvider
         // Register endpoints for database notifications actions
         $this->registerNotificationRoutes();
 
+        // Register endpoints for table inline edits
+        $this->registerTableRoutes();
+
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
             $this->shareInertiaData();
@@ -160,6 +163,47 @@ class KinetixServiceProvider extends ServiceProvider
 
                     return response()->json(['status' => 'success']);
                 })->name('kinetix.notifications.delete');
+            });
+    }
+
+    /**
+     * Register routing for handling inline table edits.
+     */
+    protected function registerTableRoutes(): void
+    {
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/tables")
+            ->group(function () {
+                Route::post('cell-update', function () {
+                    $encryptedModel = request('model');
+                    $recordId       = request('recordId');
+                    $column         = request('column');
+                    $value          = request('value');
+
+                    try {
+                        $modelClass = \Illuminate\Support\Facades\Crypt::decryptString((string) $encryptedModel);
+                    } catch (\Exception $e) {
+                        return response()->json(['status' => 'error', 'message' => 'Invalid model signature.'], 400);
+                    }
+
+                    if (! class_exists($modelClass) || ! is_subclass_of($modelClass, \Illuminate\Database\Eloquent\Model::class)) {
+                        return response()->json(['status' => 'error', 'message' => 'Invalid model class.'], 400);
+                    }
+
+                    $record = $modelClass::find($recordId);
+
+                    if (! $record) {
+                        return response()->json(['status' => 'error', 'message' => 'Record not found.'], 404);
+                    }
+
+                    $record->{$column} = $value;
+                    $record->save();
+
+                    return response()->json(['status' => 'success']);
+                })->name('kinetix.tables.cell-update');
             });
     }
 

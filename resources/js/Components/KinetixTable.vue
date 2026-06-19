@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router } from "@inertiajs/vue3";
+import { router, usePage } from "@inertiajs/vue3";
 import {
   Search,
   Filter as FilterIcon,
@@ -234,6 +234,55 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
 const handleActionClick = (action: KinetixAction) => {
   if (action.url) {
     router.visit(action.url);
+  }
+};
+
+const page = usePage();
+const routePrefix = computed(() => {
+  return (page.props.kinetix_config as any)?.route_prefix ?? "_kinetix";
+});
+
+const copyToClipboard = (text: string) => {
+  if (!text) {
+    return;
+  }
+
+  navigator.clipboard.writeText(text);
+};
+
+const updateCell = async (
+  recordId: string | number,
+  columnName: string,
+  newValue: any,
+) => {
+  if (!recordId || !columnName) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/${routePrefix.value}/tables/cell-update`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN":
+          (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)
+            ?.content || "",
+      },
+      body: JSON.stringify({
+        model: props.table.model,
+        recordId: recordId,
+        column: columnName,
+        value: newValue,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (data.status === "success") {
+      router.reload({ preserveScroll: true });
+    }
+  } catch (e) {
+    console.error("Cell update failed:", e);
   }
 };
 </script>
@@ -547,6 +596,139 @@ const handleActionClick = (action: KinetixAction) => {
                   :is="resolveIcon(record.icons[col.name] || '')"
                   class="h-5 w-5"
                   :class="getIconColorClass(record.iconColors[col.name])"
+                />
+              </div>
+
+              <!-- Image Mode -->
+              <div
+                v-if="col.type === 'image' && record.values[col.name]"
+                class="inline-flex items-center"
+              >
+                <img
+                  :src="record.values[col.name]"
+                  class="object-cover"
+                  :class="
+                    col.isCircular
+                      ? 'rounded-full'
+                      : 'rounded-lg border border-neutral-200 dark:border-neutral-800'
+                  "
+                  :style="{
+                    width: (col.size || 40) + 'px',
+                    height: (col.size || 40) + 'px',
+                  }"
+                />
+              </div>
+
+              <!-- Color Mode -->
+              <div
+                v-if="col.type === 'color' && record.values[col.name]"
+                class="inline-flex items-center gap-2"
+              >
+                <div
+                  class="w-5 h-5 rounded-md border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 cursor-pointer"
+                  :style="{ backgroundColor: record.values[col.name] }"
+                  @click="
+                    col.isCopyable && copyToClipboard(record.values[col.name])
+                  "
+                  :title="
+                    col.isCopyable ? 'Click to copy color code' : undefined
+                  "
+                />
+                <span class="text-xs text-neutral-500 font-mono">{{
+                  record.values[col.name]
+                }}</span>
+              </div>
+
+              <!-- Editable: Select Mode -->
+              <div
+                v-if="col.type === 'select-input'"
+                class="inline-flex items-center"
+              >
+                <select
+                  :value="record.values[col.name]"
+                  class="text-xs rounded border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  @change="
+                    updateCell(
+                      record.id,
+                      col.name,
+                      ($event.target as HTMLSelectElement).value,
+                    )
+                  "
+                >
+                  <option
+                    v-for="(lbl, val) in col.options"
+                    :key="val"
+                    :value="val"
+                  >
+                    {{ lbl }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Editable: Toggle Mode -->
+              <div
+                v-if="col.type === 'toggle-input'"
+                class="inline-flex items-center"
+              >
+                <button
+                  type="button"
+                  class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  :class="
+                    record.values[col.name]
+                      ? 'bg-primary-600'
+                      : 'bg-neutral-200 dark:bg-neutral-700'
+                  "
+                  @click="
+                    updateCell(record.id, col.name, !record.values[col.name])
+                  "
+                >
+                  <span
+                    class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                    :class="
+                      record.values[col.name]
+                        ? 'translate-x-4'
+                        : 'translate-x-0'
+                    "
+                  />
+                </button>
+              </div>
+
+              <!-- Editable: Text Input Mode -->
+              <div
+                v-if="col.type === 'text-input'"
+                class="inline-flex items-center"
+              >
+                <input
+                  :type="col.inputType || 'text'"
+                  :value="record.values[col.name]"
+                  :placeholder="col.placeholder"
+                  class="text-xs rounded border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 w-32 text-neutral-900 dark:text-white"
+                  @change="
+                    updateCell(
+                      record.id,
+                      col.name,
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                />
+              </div>
+
+              <!-- Editable: Checkbox Mode -->
+              <div
+                v-if="col.type === 'checkbox-input'"
+                class="inline-flex items-center"
+              >
+                <input
+                  type="checkbox"
+                  :checked="!!record.values[col.name]"
+                  class="rounded border-neutral-300 dark:border-neutral-700 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                  @change="
+                    updateCell(
+                      record.id,
+                      col.name,
+                      ($event.target as HTMLInputElement).checked,
+                    )
+                  "
                 />
               </div>
             </td>

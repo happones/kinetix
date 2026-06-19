@@ -294,6 +294,7 @@ class Table implements Arrayable, JsonSerializable
             'description'           => $this->description,
             'poll'                  => $this->poll,
             'isStriped'             => $this->isStriped,
+            'model'                 => \Illuminate\Support\Facades\Crypt::encryptString($this->getModelClass()),
             'columns'               => array_map(fn ($c) => $c->toArray(), $this->columns),
             'filters'               => array_map(fn ($f) => $f->toArray(), $this->filters),
             'recordActions'         => array_map(fn ($a) => $a->toArray(), $this->recordActions),
@@ -361,6 +362,23 @@ class Table implements Arrayable, JsonSerializable
             'descriptions' => $rowDescriptions,
             'recordUrl'    => $recordUrlStr,
         ];
+    }
+
+    public function getModelClass(): string
+    {
+        if ($this->queryOrModel instanceof Builder) {
+            return $this->queryOrModel->getModel()::class;
+        }
+
+        if (is_string($this->queryOrModel)) {
+            return $this->queryOrModel;
+        }
+
+        if ($this->queryOrModel instanceof Model) {
+            return $this->queryOrModel::class;
+        }
+
+        return '';
     }
 
     public function jsonSerialize(): mixed
