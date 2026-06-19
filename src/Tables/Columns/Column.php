@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
+use Happones\Kinetix\Data\ColumnData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 
@@ -113,22 +114,50 @@ abstract class Column
     }
 
     /**
+     * Convert the column definition to ColumnData.
+     */
+    public function toData(): ColumnData
+    {
+        $extra = $this->getExtraData();
+
+        return new ColumnData(
+            name: $this->name,
+            label: $this->label,
+            isSearchable: $this->isSearchable,
+            isSortable: $this->isSortable,
+            alignment: $this->alignment,
+            isToggleable: $this->isToggleable,
+            isToggledHiddenByDefault: $this->isToggledHiddenByDefault,
+            type: $this->getType(),
+            isCopyable: $extra['isCopyable'] ?? null,
+            isCircular: $extra['isCircular'] ?? null,
+            size: $extra['size'] ?? null,
+            options: $extra['options'] ?? null,
+            isBadge: $extra['isBadge'] ?? null,
+            descriptionPosition: $extra['descriptionPosition'] ?? null,
+            inputType: $extra['inputType'] ?? null,
+            placeholder: $extra['placeholder'] ?? null,
+        );
+    }
+
+    /**
+     * Get extra attributes for subclass columns.
+     *
+     * @return array<string, mixed>
+     */
+    protected function getExtraData(): array
+    {
+        return [];
+    }
+
+    /**
      * Convert the column definition to array.
      *
      * @return array<string, mixed>
      */
     public function toArray(): array
     {
-        return [
-            'name'                     => $this->name,
-            'label'                    => $this->label,
-            'isSearchable'             => $this->isSearchable,
-            'isSortable'               => $this->isSortable,
-            'alignment'                => $this->alignment,
-            'isToggleable'             => $this->isToggleable,
-            'isToggledHiddenByDefault' => $this->isToggledHiddenByDefault,
-            'type'                     => $this->getType(),
-        ];
+        return $this->toData()->toArray();
     }
 
     abstract protected function getType(): string;

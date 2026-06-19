@@ -137,11 +137,11 @@ class TextColumn extends Column
         return $this->badgeColor ?? 'gray';
     }
 
-    public function toArray(): array
+    protected function getExtraData(): array
     {
-        return array_merge(parent::toArray(), [
+        return [
             'isBadge'             => $this->isBadge,
             'descriptionPosition' => $this->descriptionPosition,
-        ]);
+        ];
     }
 }

@@ -6,6 +6,10 @@ namespace Happones\Kinetix\Tables;
 
 use Closure;
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Data\TableData;
+use Happones\Kinetix\Data\TablePaginationData;
+use Happones\Kinetix\Data\TableStateData;
+use Happones\Kinetix\Data\TableRowData;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
 use Happones\Kinetix\Tables\Columns\TextColumn;
@@ -254,11 +258,9 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
-     * Convert the entire table configuration and data to array.
-     *
-     * @return array<string, mixed>
+     * Convert the entire table configuration and data to TableData.
      */
-    public function toArray(): array
+    public function toData(): TableData
     {
         $query = $this->getResolvedQuery();
 
@@ -275,12 +277,12 @@ class Table implements Arrayable, JsonSerializable
                 $records[] = $this->formatRecord($record);
             }
 
-            $pagination = [
-                'total'       => $paginator->total(),
-                'perPage'     => $paginator->perPage(),
-                'currentPage' => $paginator->currentPage(),
-                'lastPage'    => $paginator->lastPage(),
-            ];
+            $pagination = new TablePaginationData(
+                total: $paginator->total(),
+                perPage: $paginator->perPage(),
+                currentPage: $paginator->currentPage(),
+                lastPage: $paginator->lastPage(),
+            );
         } else {
             $items = $query->get();
 
@@ -289,40 +291,51 @@ class Table implements Arrayable, JsonSerializable
             }
         }
 
-        return [
-            'heading'               => $this->heading,
-            'description'           => $this->description,
-            'poll'                  => $this->poll,
-            'isStriped'             => $this->isStriped,
-            'model'                 => \Illuminate\Support\Facades\Crypt::encryptString($this->getModelClass()),
-            'columns'               => array_map(fn ($c) => $c->toArray(), $this->columns),
-            'filters'               => array_map(fn ($f) => $f->toArray(), $this->filters),
-            'recordActions'         => array_map(fn ($a) => $a->toArray(), $this->recordActions),
-            'toolbarActions'        => array_map(function ($a) {
-                $cloned = clone $a;
-                $cloned->resolveUrl();
-                return $cloned->toArray();
-            }, $this->toolbarActions),
-            'records'               => $records,
-            'isPaginated'           => $this->isPaginated,
-            'paginationPageOptions' => $this->paginationPageOptions,
-            'pagination'            => $pagination,
-            'state'                 => [
-                'search'    => request('search', ''),
-                'sort'      => request('sort', ''),
-                'direction' => request('direction', 'asc'),
-                'filters'   => request('filters', []),
-                'perPage'   => $perPage,
-            ],
-        ];
+        $columnsData = array_map(fn ($c) => $c->toData(), $this->columns);
+        $filtersData = array_map(fn ($f) => $f->toData(), $this->filters);
+        $recordActionsData = array_map(fn ($a) => $a->toData(), $this->recordActions);
+        $toolbarActionsData = array_map(fn ($a) => $a->toData(), $this->toolbarActions);
+
+        $state = new TableStateData(
+            search: (string) request('search', ''),
+            sort: (string) request('sort', ''),
+            direction: (string) request('direction', 'asc'),
+            filters: (array) request('filters', []),
+            perPage: $perPage,
+        );
+
+        return new TableData(
+            heading: $this->heading,
+            description: $this->description,
+            poll: $this->poll,
+            isStriped: $this->isStriped,
+            model: \Illuminate\Support\Facades\Crypt::encryptString($this->getModelClass()),
+            columns: $columnsData,
+            filters: $filtersData,
+            recordActions: $recordActionsData,
+            toolbarActions: $toolbarActionsData,
+            records: $records,
+            isPaginated: $this->isPaginated,
+            paginationPageOptions: $this->paginationPageOptions,
+            pagination: $pagination,
+            state: $state,
+        );
+    }
+
+    /**
+     * Convert the entire table configuration and data to array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return $this->toData()->toArray();
     }
 
     /**
      * Map model instance to frontend-friendly record structure.
-     *
-     * @return array<string, mixed>
      */
-    protected function formatRecord(Model $record): array
+    protected function formatRecord(Model $record): TableRowData
     {
         $rowValues       = [];
         $rowIcons        = [];
@@ -359,21 +372,19 @@ class Table implements Arrayable, JsonSerializable
 
         $resolvedActions = [];
         foreach ($this->recordActions as $action) {
-            $cloned = clone $action;
-            $cloned->resolveUrl($record);
-            $resolvedActions[] = $cloned->toArray();
+            $resolvedActions[] = $action->toData($record);
         }
 
-        return [
-            'id'           => $record->getKey(),
-            'values'       => $rowValues,
-            'icons'        => $rowIcons,
-            'iconColors'   => $rowIconColors,
-            'badgeColors'  => $rowBadgeColors,
-            'descriptions' => $rowDescriptions,
-            'recordUrl'    => $recordUrlStr,
-            'actions'      => $resolvedActions,
-        ];
+        return new TableRowData(
+            id: $record->getKey(),
+            values: $rowValues,
+            icons: $rowIcons,
+            iconColors: $rowIconColors,
+            badgeColors: $rowBadgeColors,
+            descriptions: $rowDescriptions,
+            recordUrl: $recordUrlStr,
+            actions: $resolvedActions,
+        );
     }
 
     public function getModelClass(): string

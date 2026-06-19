@@ -20,10 +20,10 @@ class ColorColumn extends Column
         return $this;
     }
 
-    public function toArray(): array
+    protected function getExtraData(): array
     {
-        return array_merge(parent::toArray(), [
+        return [
             'isCopyable' => $this->isCopyable,
-        ]);
+        ];
     }
 }

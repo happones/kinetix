@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Notifications;
 
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Data\NotificationData;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 
 class Notification
@@ -187,29 +188,35 @@ class Notification
     }
 
     /**
+     * Convert notification to NotificationData.
+     */
+    public function toData(): NotificationData
+    {
+        $actionsData = array_map(function ($action) {
+            return $action->toData();
+        }, $this->actions);
+
+        return new NotificationData(
+            id: $this->id,
+            title: $this->title,
+            description: $this->body,
+            status: $this->status,
+            duration: $this->duration,
+            icon: $this->icon,
+            iconColor: $this->iconColor,
+            actions: $actionsData,
+            created_at: now()->toIso8601String(),
+        );
+    }
+
+    /**
      * Convert notification to array format.
      *
      * @return array<string, mixed>
      */
     public function toArray(): array
     {
-        $actionsArray = array_map(function ($action) {
-            $cloned = clone $action;
-            $cloned->resolveUrl();
-            return $cloned->toArray();
-        }, $this->actions);
-
-        return [
-            'id'          => $this->id,
-            'title'       => $this->title,
-            'description' => $this->body,
-            'status'      => $this->status,
-            'duration'    => $this->duration,
-            'icon'        => $this->icon,
-            'iconColor'   => $this->iconColor,
-            'actions'     => $actionsArray,
-            'created_at'  => now()->toIso8601String(),
-        ];
+        return $this->toData()->toArray();
     }
 
     /**

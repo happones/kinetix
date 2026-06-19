@@ -63,11 +63,11 @@ class ImageColumn extends Column
         return $state;
     }
 
-    public function toArray(): array
+    protected function getExtraData(): array
     {
-        return array_merge(parent::toArray(), [
+        return [
             'isCircular' => $this->isCircular,
             'size'       => $this->size,
-        ]);
+        ];
     }
 }

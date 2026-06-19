@@ -29,11 +29,11 @@ class TextInputColumn extends Column
         return $this;
     }
 
-    public function toArray(): array
+    protected function getExtraData(): array
     {
-        return array_merge(parent::toArray(), [
+        return [
             'inputType'   => $this->inputType,
             'placeholder' => $this->placeholder,
-        ]);
+        ];
     }
 }

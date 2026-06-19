@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables\Filters;
 
 use Closure;
+use Happones\Kinetix\Data\FilterData;
 use Illuminate\Database\Eloquent\Builder;
 
 class Filter
@@ -67,18 +68,39 @@ class Filter
     }
 
     /**
+     * Convert the filter definition to FilterData.
+     */
+    public function toData(): FilterData
+    {
+        $extra = $this->getExtraData();
+
+        return new FilterData(
+            name: $this->name,
+            label: $this->label,
+            default: $this->default,
+            type: $this->getType(),
+            options: $extra['options'] ?? null,
+        );
+    }
+
+    /**
+     * Get extra attributes for subclass filters.
+     *
+     * @return array<string, mixed>
+     */
+    protected function getExtraData(): array
+    {
+        return [];
+    }
+
+    /**
      * Convert the filter definition to array for frontend rendering.
      *
      * @return array<string, mixed>
      */
     public function toArray(): array
     {
-        return [
-            'name'    => $this->name,
-            'label'   => $this->label,
-            'default' => $this->default,
-            'type'    => $this->getType(),
-        ];
+        return $this->toData()->toArray();
     }
 
     protected function getType(): string

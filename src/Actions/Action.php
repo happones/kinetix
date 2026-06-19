@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Actions;
 
+use Happones\Kinetix\Data\ActionData;
+
 class Action
 {
     protected string $name;
@@ -207,33 +209,41 @@ class Action
     }
 
     /**
+     * Convert the action to ActionData.
+     */
+    public function toData(?\Illuminate\Database\Eloquent\Model $record = null): ActionData
+    {
+        $url = $this->url;
+        if ($url instanceof \Closure) {
+            $url = ($url)($record);
+        }
+
+        return new ActionData(
+            name: $this->name,
+            label: $this->label,
+            icon: $this->icon,
+            iconPosition: $this->iconPosition,
+            url: $url,
+            shouldOpenInNewTab: $this->shouldOpenInNewTab,
+            color: $this->color,
+            size: $this->size,
+            viewType: $this->viewType,
+            shouldClose: $this->shouldClose,
+            shouldMarkAsRead: $this->shouldMarkAsRead,
+            shouldMarkAsUnread: $this->shouldMarkAsUnread,
+            dispatchEvent: $this->dispatchEvent,
+            dispatchData: $this->dispatchData,
+            inertiaVisit: $this->inertiaVisit,
+        );
+    }
+
+    /**
      * Convert the action to array format.
      *
      * @return array<string, mixed>
      */
     public function toArray(): array
     {
-        $url = $this->url;
-        if ($url instanceof \Closure) {
-            $url = null;
-        }
-
-        return [
-            'name'               => $this->name,
-            'label'              => $this->label,
-            'icon'               => $this->icon,
-            'iconPosition'       => $this->iconPosition,
-            'url'                => $url,
-            'shouldOpenInNewTab' => $this->shouldOpenInNewTab,
-            'color'              => $this->color,
-            'size'               => $this->size,
-            'viewType'           => $this->viewType,
-            'shouldClose'        => $this->shouldClose,
-            'shouldMarkAsRead'   => $this->shouldMarkAsRead,
-            'shouldMarkAsUnread' => $this->shouldMarkAsUnread,
-            'dispatchEvent'      => $this->dispatchEvent,
-            'dispatchData'       => $this->dispatchData,
-            'inertiaVisit'       => $this->inertiaVisit,
-        ];
+        return $this->toData()->toArray();
     }
 }

@@ -69,10 +69,10 @@ class SelectFilter extends Filter
         $query->where($attribute, $value);
     }
 
-    public function toArray(): array
+    protected function getExtraData(): array
     {
-        return array_merge(parent::toArray(), [
+        return [
             'options' => $this->getOptions(),
-        ]);
+        ];
     }
 }
