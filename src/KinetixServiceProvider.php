@@ -47,6 +47,8 @@ class KinetixServiceProvider extends ServiceProvider
             // Publish components
             $this->publishes([
                 __DIR__.'/../resources/js/Components' => resource_path('js/components/kinetix'),
+                __DIR__.'/../resources/js/stores'     => resource_path('js/stores'),
+                __DIR__.'/../resources/js/types'      => resource_path('js/types'),
             ], 'kinetix-components');
 
             // Publish translations directly into Laravel lang directory so generators can pick them up
@@ -91,7 +93,8 @@ class KinetixServiceProvider extends ServiceProvider
             $limit      = (int) config('kinetix.notifications.limit', 15);
 
             if ($isDatabase && auth()->check()) {
-                return auth()->user()->unreadNotifications()
+                return auth()->user()->notifications()
+                    ->latest()
                     ->take($limit)
                     ->get()
                     ->map(fn ($n) => array_merge($n->data, [
@@ -146,17 +149,17 @@ class KinetixServiceProvider extends ServiceProvider
                     return response()->json(['status' => 'success']);
                 })->name('kinetix.notifications.read-all');
 
-                Route::delete('{id}', function ($id) {
-                    auth()->user()->notifications()->where('id', $id)->delete();
-
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.notifications.delete');
-
                 Route::delete('clear-all', function () {
                     auth()->user()->notifications()->delete();
 
                     return response()->json(['status' => 'success']);
                 })->name('kinetix.notifications.clear-all');
+
+                Route::delete('{id}', function ($id) {
+                    auth()->user()->notifications()->where('id', $id)->delete();
+
+                    return response()->json(['status' => 'success']);
+                })->name('kinetix.notifications.delete');
             });
     }
 

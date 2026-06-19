@@ -25,6 +25,8 @@ class Notification
 
     protected array $actions = [];
 
+    protected mixed $recipient = null;
+
     public function __construct()
     {
         $this->id = uniqid('kinetix_', true);
@@ -36,6 +38,16 @@ class Notification
     public static function make(): static
     {
         return new static;
+    }
+
+    /**
+     * Set the recipient of the notification.
+     */
+    public function to(mixed $recipient): static
+    {
+        $this->recipient = $recipient;
+
+        return $this;
     }
 
     /**
@@ -201,6 +213,16 @@ class Notification
      */
     public function send(): static
     {
+        $isDatabase = (bool) config('kinetix.notifications.database', false);
+
+        if ($isDatabase) {
+            $recipient = $this->recipient ?? auth()->user();
+
+            if ($recipient !== null) {
+                return $this->sendToDatabase($recipient);
+            }
+        }
+
         $notifications   = session()->get('kinetix_notifications', []);
         $notifications[] = $this->toArray();
         session()->flash('kinetix_notifications', $notifications);
@@ -211,9 +233,11 @@ class Notification
     /**
      * Dispatch database notification using Laravel's database channel.
      */
-    public function sendToDatabase(mixed $recipient, bool $isEventDispatched = false): static
+    public function sendToDatabase(mixed $recipient = null, bool $isEventDispatched = false): static
     {
-        if (method_exists($recipient, 'notify')) {
+        $recipient ??= $this->recipient ?? auth()->user();
+
+        if ($recipient !== null && method_exists($recipient, 'notify')) {
             $channels = $isEventDispatched ? ['database', 'broadcast'] : ['database'];
             $recipient->notify(new KinetixLaravelNotification($this->toArray(), $channels));
         }
@@ -224,9 +248,11 @@ class Notification
     /**
      * Dispatch broadcast notification to real-time WebSockets.
      */
-    public function broadcast(mixed $recipient): static
+    public function broadcast(mixed $recipient = null): static
     {
-        if (method_exists($recipient, 'notify')) {
+        $recipient ??= $this->recipient ?? auth()->user();
+
+        if ($recipient !== null && method_exists($recipient, 'notify')) {
             $recipient->notify(new KinetixLaravelNotification($this->toArray(), ['database', 'broadcast']));
         }
 

@@ -221,5 +221,8 @@ Use Wayfinder to generate TypeScript functions for Laravel routes. Import from `
 
 Vue components must have a single root element.
 - IMPORTANT: Activate `inertia-vue-development` when working with Inertia Vue client-side patterns.
+- Always develop with TypeScript (`<script setup lang="ts">`) for Vue components to prevent runtime and build errors.
+- Do not define TypeScript interfaces/types inline in Vue files. Create a `types/` directory (either a local directory or a shared `types` directory) and place all interfaces, types, and schemas there.
+- Avoid using `else` or `else if` statements. Instead, use early returns (`if (condition) { return; }`) to keep logic flat, clean, and readable.
 
 </laravel-boost-guidelines>
