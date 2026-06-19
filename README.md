@@ -40,6 +40,7 @@ Think of it as the bridge between your Laravel backend and your Inertia/Vue fron
 | `vue-i18n` | ^11.0 |
 | `vue-sonner` | ^2.0 |
 | `@lucide/vue` | ^1.0 |
+| Pinia | ^2.3 *(required for state management)* |
 | Shadcn / Reka UI | any *(components.json required)* |
 
 ---
@@ -60,7 +61,7 @@ The service provider is auto-discovered by Laravel.
 # Config file → config/kinetix.php
 php artisan vendor:publish --tag=kinetix-config
 
-# Vue component → resources/js/components/kinetix/
+# Vue components, stores, and types → resources/js/
 php artisan vendor:publish --tag=kinetix-components
 
 # Translations → lang/{en,es,fr,pt}/kinetix.php
@@ -137,7 +138,7 @@ return [
 
 | Variable | Default | Description |
 |---|---|---|
-| `KINETIX_DATABASE_NOTIFICATIONS` | `false` | Persist notifications to DB |
+| `KINETIX_DATABASE_NOTIFICATIONS` | `false` | Dry-run / persist notifications to DB |
 | `KINETIX_NOTIFICATIONS_LIMIT` | `15` | Max notifications loaded per request |
 | `KINETIX_NOTIFICATIONS_SOUND` | `true` | Play sound on new notification |
 | `KINETIX_NOTIFICATIONS_SOUND_PATH` | `/vendor/kinetix/notification.wav` | Path to the audio file |
@@ -185,11 +186,18 @@ Notification::make()->title('Important')->persistent()->send();
 
 ### Database Persistence
 
-Set `KINETIX_DATABASE_NOTIFICATIONS=true` in your `.env`, then use `sendToDatabase()`:
+Set `KINETIX_DATABASE_NOTIFICATIONS=true` in your `.env`, and route using the fluent `to($user)` method or directly via `sendToDatabase($user)`:
 
 ```php
-$user = User::find(1);
+// Option A: Set recipient fluently (Recommended)
+Notification::make()
+    ->to($user)
+    ->title('New assignment')
+    ->description('Ticket #4562 has been assigned to you.')
+    ->info()
+    ->send(); // Automatically routes to database if configured
 
+// Option B: Pass recipient directly
 Notification::make()
     ->title('New assignment')
     ->description('Ticket #4562 has been assigned to you.')
@@ -197,18 +205,26 @@ Notification::make()
     ->sendToDatabase($user);
 ```
 
-Or use `send()` — when `database` is `true` in config, it automatically routes to the DB.
-
 ### Real-Time Broadcasting
 
-Push a notification instantly via WebSockets (saves to DB **and** broadcasts):
+Push a notification instantly via WebSockets (saves to DB **and** broadcasts). You can chain `to($user)` and call `broadcast()` or pass the user directly to `broadcast($user)`:
 
 ```php
+// Option A: Set recipient fluently (Recommended)
+Notification::make()
+    ->to($user)
+    ->title('Server alert')
+    ->description('CPU usage exceeded 85%.')
+    ->danger()
+    ->broadcast();
+
+// Option B: Pass recipient directly
 Notification::make()
     ->title('Server alert')
     ->description('CPU usage exceeded 85%.')
     ->danger()
     ->broadcast($user);
+```
 ```
 
 ---

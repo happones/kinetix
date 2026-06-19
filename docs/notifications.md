@@ -10,6 +10,7 @@ Kinetix provides a beautiful, modern notification system designed specifically f
 - **Laravel**: 11, 12, or 13+
 - **Inertia.js**: v3
 - **Vue**: v3
+- **Pinia**: Required (for state management)
 - **Shadcn / Reka-UI**: Required (includes `vue-sonner` and `@lucide/vue`)
 - **i18n**: Compatible with `happones/laravel-vue-i18n-generator`
 
@@ -128,9 +129,18 @@ Notification::make()
 
 ### Persist to Database
 
-By default, all notifications are session-based flash messages. To persist to the database, set `KINETIX_DATABASE_NOTIFICATIONS=true` in your `.env`, then call `->sendToDatabase($user)`:
+By default, all notifications are session-based flash messages. To persist to the database, set `KINETIX_DATABASE_NOTIFICATIONS=true` in your `.env`, and either route using the fluent `to($user)` method or directly via `sendToDatabase($user)`:
 
 ```php
+// Option A: Set recipient fluently (Recommended)
+Notification::make()
+    ->to($user)
+    ->title('New task assigned')
+    ->description('Ticket #4562 has been assigned to you.')
+    ->info()
+    ->send(); // Automatically routes to database if configured
+
+// Option B: Pass recipient directly
 Notification::make()
     ->title('New task assigned')
     ->description('Ticket #4562 has been assigned to you.')
@@ -138,13 +148,20 @@ Notification::make()
     ->sendToDatabase($user);
 ```
 
-Or use `->send()` when `database` is `true` in config — it automatically routes to the database.
-
 ### Real-Time Broadcasting
 
-To broadcast in real-time via WebSockets (requires Laravel Echo + Reverb/Pusher):
+To broadcast in real-time via WebSockets (saves to DB **and** broadcasts):
 
 ```php
+// Option A: Set recipient fluently (Recommended)
+Notification::make()
+    ->to($user)
+    ->title('Server alert')
+    ->description('CPU usage exceeded 85%.')
+    ->danger()
+    ->broadcast();
+
+// Option B: Pass recipient directly
 Notification::make()
     ->title('Server alert')
     ->description('CPU usage exceeded 85%.')
