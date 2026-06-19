@@ -215,15 +215,15 @@ class Action
     {
         $url = $this->url;
         if ($url instanceof \Closure) {
-            if (config('kinetix.teams', false)) {
-                $team = request()->route('current_team')
-                    ?? (auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->id : null);
+            $team = request()->route('current_team')
+                ?? request()->route('team')
+                ?? (config('kinetix.teams', false) && auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->id : null);
 
-                if ($team) {
-                    \Illuminate\Support\Facades\URL::defaults([
-                        'current_team' => $team,
-                    ]);
-                }
+            if ($team) {
+                \Illuminate\Support\Facades\URL::defaults([
+                    'current_team' => $team,
+                    'team'         => $team,
+                ]);
             }
 
             $url = ($url)($record);
