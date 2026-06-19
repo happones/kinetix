@@ -102,7 +102,7 @@ class Action
      */
     public function resolveUrl(?\Illuminate\Database\Eloquent\Model $record = null): void
     {
-        if ($this->url instanceof \Closure && $record !== null) {
+        if ($this->url instanceof \Closure) {
             $this->url = ($this->url)($record);
         }
     }

@@ -193,7 +193,11 @@ class Notification
      */
     public function toArray(): array
     {
-        $actionsArray = array_map(fn ($action) => $action->toArray(), $this->actions);
+        $actionsArray = array_map(function ($action) {
+            $cloned = clone $action;
+            $cloned->resolveUrl();
+            return $cloned->toArray();
+        }, $this->actions);
 
         return [
             'id'          => $this->id,

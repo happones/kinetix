@@ -298,7 +298,11 @@ class Table implements Arrayable, JsonSerializable
             'columns'               => array_map(fn ($c) => $c->toArray(), $this->columns),
             'filters'               => array_map(fn ($f) => $f->toArray(), $this->filters),
             'recordActions'         => array_map(fn ($a) => $a->toArray(), $this->recordActions),
-            'toolbarActions'        => array_map(fn ($a) => $a->toArray(), $this->toolbarActions),
+            'toolbarActions'        => array_map(function ($a) {
+                $cloned = clone $a;
+                $cloned->resolveUrl();
+                return $cloned->toArray();
+            }, $this->toolbarActions),
             'records'               => $records,
             'isPaginated'           => $this->isPaginated,
             'paginationPageOptions' => $this->paginationPageOptions,
