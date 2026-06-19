@@ -217,13 +217,39 @@ class Action
         if ($url instanceof \Closure) {
             $team = request()->route('current_team')
                 ?? request()->route('team')
-                ?? (config('kinetix.teams', false) && auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->id : null);
+                ?? (config('kinetix.teams', false) && auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam : null);
 
             if ($team) {
-                \Illuminate\Support\Facades\URL::defaults([
+                $defaults = [
                     'current_team' => $team,
                     'team'         => $team,
-                ]);
+                ];
+
+                if (is_object($team)) {
+                    if (method_exists($team, 'getRouteKeyName') && method_exists($team, 'getRouteKey')) {
+                        $keyName = $team->getRouteKeyName();
+                        $keyValue = $team->getRouteKey();
+                        $defaults["current_team:{$keyName}"] = $team;
+                        $defaults["team:{$keyName}"]         = $team;
+                        $defaults["current_team:{$keyName}"] = $keyValue;
+                        $defaults["team:{$keyName}"]         = $keyValue;
+                    }
+                    if (isset($team->slug)) {
+                        $defaults['current_team:slug'] = $team->slug;
+                        $defaults['team:slug']         = $team->slug;
+                    }
+                    if (isset($team->id)) {
+                        $defaults['current_team:id'] = $team->id;
+                        $defaults['team:id']         = $team->id;
+                    }
+                } else {
+                    $defaults['current_team:slug'] = $team;
+                    $defaults['team:slug']         = $team;
+                    $defaults['current_team:id']   = $team;
+                    $defaults['team:id']           = $team;
+                }
+
+                \Illuminate\Support\Facades\URL::defaults($defaults);
             }
 
             $url = ($url)($record);
