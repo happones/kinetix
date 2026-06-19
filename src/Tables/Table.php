@@ -353,6 +353,13 @@ class Table implements Arrayable, JsonSerializable
             $recordUrlStr = ($this->recordUrl)($record);
         }
 
+        $resolvedActions = [];
+        foreach ($this->recordActions as $action) {
+            $cloned = clone $action;
+            $cloned->resolveUrl($record);
+            $resolvedActions[] = $cloned->toArray();
+        }
+
         return [
             'id'           => $record->getKey(),
             'values'       => $rowValues,
@@ -361,6 +368,7 @@ class Table implements Arrayable, JsonSerializable
             'badgeColors'  => $rowBadgeColors,
             'descriptions' => $rowDescriptions,
             'recordUrl'    => $recordUrlStr,
+            'actions'      => $resolvedActions,
         ];
     }
 

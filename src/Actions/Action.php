@@ -14,7 +14,7 @@ class Action
 
     protected ?string $iconPosition = 'before'; // 'before' | 'after'
 
-    protected ?string $url = null;
+    protected string|\Closure|null $url = null;
 
     protected bool $shouldOpenInNewTab = false;
 
@@ -86,13 +86,25 @@ class Action
 
     /**
      * Set the URL that the action should navigate to.
+     *
+     * @param string|\Closure $url
      */
-    public function url(string $url, bool $shouldOpenInNewTab = false): static
+    public function url(string|\Closure $url, bool $shouldOpenInNewTab = false): static
     {
         $this->url                = $url;
         $this->shouldOpenInNewTab = $shouldOpenInNewTab;
 
         return $this;
+    }
+
+    /**
+     * Resolve the URL closure for the given record.
+     */
+    public function resolveUrl(?\Illuminate\Database\Eloquent\Model $record = null): void
+    {
+        if ($this->url instanceof \Closure && $record !== null) {
+            $this->url = ($this->url)($record);
+        }
     }
 
     /**
@@ -201,12 +213,17 @@ class Action
      */
     public function toArray(): array
     {
+        $url = $this->url;
+        if ($url instanceof \Closure) {
+            $url = null;
+        }
+
         return [
             'name'               => $this->name,
             'label'              => $this->label,
             'icon'               => $this->icon,
             'iconPosition'       => $this->iconPosition,
-            'url'                => $this->url,
+            'url'                => $url,
             'shouldOpenInNewTab' => $this->shouldOpenInNewTab,
             'color'              => $this->color,
             'size'               => $this->size,

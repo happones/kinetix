@@ -740,7 +740,7 @@ const updateCell = async (
             >
               <div class="flex items-center justify-end gap-2">
                 <button
-                  v-for="(action, idx) in table.recordActions"
+                  v-for="(action, idx) in record.actions"
                   :key="idx"
                   class="inline-flex items-center gap-1 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
                   @click.stop="handleActionClick(action)"
