@@ -80,9 +80,20 @@ class KinetixServiceProvider extends ServiceProvider
     protected function shareInertiaData(): void
     {
         Inertia::share('kinetix_config', function () {
+            $routePrefix = config('kinetix.route_prefix', '_kinetix');
+
+            if (config('kinetix.teams', false)) {
+                $team = request()->route('current_team')
+                    ?? (auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->id : null);
+                
+                if ($team) {
+                    $routePrefix = "{$team}/{$routePrefix}";
+                }
+            }
+
             return [
                 'database'     => (bool) config('kinetix.notifications.database', false),
-                'route_prefix' => config('kinetix.route_prefix', '_kinetix'),
+                'route_prefix' => $routePrefix,
                 'sound'        => [
                     'enabled' => (bool) config('kinetix.notifications.sound.enabled', true),
                     'path'    => config('kinetix.notifications.sound.path', '/vendor/kinetix/notification.wav'),
@@ -137,6 +148,10 @@ class KinetixServiceProvider extends ServiceProvider
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);
 
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/' . $prefix;
+        }
+
         Route::middleware($middleware)
             ->prefix("{$prefix}/notifications")
             ->group(function () {
@@ -173,6 +188,10 @@ class KinetixServiceProvider extends ServiceProvider
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/' . $prefix;
+        }
 
         Route::middleware($middleware)
             ->prefix("{$prefix}/tables")

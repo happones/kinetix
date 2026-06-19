@@ -215,6 +215,17 @@ class Action
     {
         $url = $this->url;
         if ($url instanceof \Closure) {
+            if (config('kinetix.teams', false)) {
+                $team = request()->route('current_team')
+                    ?? (auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->id : null);
+
+                if ($team) {
+                    \Illuminate\Support\Facades\URL::defaults([
+                        'current_team' => $team,
+                    ]);
+                }
+            }
+
             $url = ($url)($record);
         }
 

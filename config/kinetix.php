@@ -104,6 +104,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Teams (Multi-Tenancy)
+    |--------------------------------------------------------------------------
+    |
+    | Set this to true if your application uses team-scoped or tenant-scoped
+    | routing (e.g., Jetstream Teams). This will scope Kinetix's internal
+    | routes and automatically configure URL default parameters for actions.
+    |
+    */
+    'teams' => env('KINETIX_TEAMS_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Route Configuration
     |--------------------------------------------------------------------------
     |
