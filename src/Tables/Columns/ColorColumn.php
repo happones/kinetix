@@ -13,6 +13,29 @@ class ColorColumn extends Column
         return 'color';
     }
 
+    public function getState(\Illuminate\Database\Eloquent\Model $record): mixed
+    {
+        $value = parent::getState($record);
+
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof \Happones\Kinetix\Support\Contracts\HasColor) {
+            return $value->getColor();
+        }
+
+        if ($value instanceof \BackedEnum) {
+            return $value->value;
+        }
+
+        if ($value instanceof \UnitEnum) {
+            return $value->name;
+        }
+
+        return $value;
+    }
+
     public function copyable(bool $condition = true): static
     {
         $this->isCopyable = $condition;

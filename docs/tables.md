@@ -239,3 +239,86 @@ When enabled:
 - Kinetix automatically prefixes its internal API endpoints (e.g., cell updates, notification actions) under the active `{current_team}/`.
 - Actions that evaluate closure URLs (like `fn ($record) => route('posts.edit', $record)`) will automatically inherit the active team parameter in their route parameters using URL defaults, avoiding `Missing required parameter: current_team` errors.
 
+---
+
+## Enum Support & Contracts
+
+When working with model attributes cast to Enums, Kinetix can automatically resolve their display labels, colors, icons, and select options using contracts (interfaces) and concerns (traits).
+
+### Mapped Contracts
+
+Implement the following contracts inside your Enums to provide metadata:
+
+- `Happones\Kinetix\Support\Contracts\HasLabel`: Defines the human-friendly label for the enum.
+- `Happones\Kinetix\Support\Contracts\HasColor`: Defines the theme color status (`primary`, `success`, `warning`, `danger`, `gray`) for badges and icons.
+- `Happones\Kinetix\Support\Contracts\HasIcon`: Defines the Lucide icon name for icon columns.
+
+#### Example Enum Definition
+
+```php
+namespace App\Enums;
+
+use Happones\Kinetix\Support\Contracts\HasLabel;
+use Happones\Kinetix\Support\Contracts\HasColor;
+use Happones\Kinetix\Support\Contracts\HasIcon;
+use Happones\Kinetix\Support\Concerns\HasLabelOptions;
+
+enum PostStatus: string implements HasLabel, HasColor, HasIcon
+{
+    use HasLabelOptions;
+
+    case Draft = 'draft';
+    case Published = 'published';
+    case Archived = 'archived';
+
+    public function getLabel(): ?string
+    {
+        return match ($this) {
+            self::Draft => 'Borrador',
+            self::Published => 'Publicado',
+            self::Archived => 'Archivado',
+        };
+    }
+
+    public function getColor(): ?string
+    {
+        return match ($this) {
+            self::Draft => 'gray',
+            self::Published => 'success',
+            self::Archived => 'danger',
+        };
+    }
+
+    public function getIcon(): ?string
+    {
+        return match ($this) {
+            self::Draft => 'edit-3',
+            self::Published => 'check-circle-2',
+            self::Archived => 'x-circle',
+        };
+    }
+}
+```
+
+### Column & Filter Integration
+
+1. **TextColumn**: Automatically renders the value of `getLabel()` if the Enum implements `HasLabel`.
+   - If `badge()` is enabled, it automatically uses the color returned by `getColor()` as the badge color if the Enum implements `HasColor`.
+2. **IconColumn**: Automatically resolves the icon from `getIcon()` and the color from `getColor()` if the Enum implements `HasIcon` and `HasColor`.
+3. **ColorColumn**: Automatically resolves the color value from `getColor()` if the Enum implements `HasColor`.
+4. **SelectColumn & SelectFilter**: You can pass the Enum class directly to `options()`. It will automatically build the option list mapping values to labels:
+   ```php
+   // Dropdown options automatically generated from PostStatus Enum cases
+   SelectColumn::make('status')->options(PostStatus::class)
+   SelectFilter::make('status')->options(PostStatus::class)
+   ```
+
+### Reusable Concern: `HasLabelOptions`
+
+Include `use Happones\Kinetix\Support\Concerns\HasLabelOptions;` inside your Enum to get a static helper method to generate option arrays:
+
+```php
+$options = PostStatus::options();
+// Returns: ['draft' => 'Borrador', 'published' => 'Publicado', 'archived' => 'Archivado']
+```
+

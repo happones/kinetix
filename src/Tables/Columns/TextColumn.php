@@ -87,6 +87,15 @@ class TextColumn extends Column
             return null;
         }
 
+        // Auto-resolve Enums to their labels
+        if ($value instanceof \Happones\Kinetix\Support\Contracts\HasLabel) {
+            $value = $value->getLabel();
+        } elseif ($value instanceof \BackedEnum) {
+            $value = $value->value;
+        } elseif ($value instanceof \UnitEnum) {
+            $value = $value->name;
+        }
+
         // Apply date formatting
         if ($this->dateFormat !== null) {
             if ($value instanceof CarbonInterface) {
@@ -130,6 +139,12 @@ class TextColumn extends Column
      */
     public function getBadgeColor(Model $record): string
     {
+        $rawState = parent::getState($record);
+
+        if ($rawState instanceof \Happones\Kinetix\Support\Contracts\HasColor) {
+            return $rawState->getColor() ?? 'gray';
+        }
+
         if ($this->badgeColor instanceof Closure) {
             return ($this->badgeColor)($this->getState($record), $record);
         }

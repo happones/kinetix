@@ -68,6 +68,10 @@ class IconColumn extends Column
     {
         $state = $this->getState($record);
 
+        if ($state instanceof \Happones\Kinetix\Support\Contracts\HasIcon) {
+            return $state->getIcon();
+        }
+
         if ($this->isBoolean) {
             return (bool) $state ? 'check-circle' : 'x-circle';
         }
@@ -91,6 +95,10 @@ class IconColumn extends Column
     public function getIconColor(Model $record): string
     {
         $state = $this->getState($record);
+
+        if ($state instanceof \Happones\Kinetix\Support\Contracts\HasColor) {
+            return $state->getColor() ?? 'gray';
+        }
 
         if ($this->isBoolean) {
             return (bool) $state ? 'success' : 'danger';
