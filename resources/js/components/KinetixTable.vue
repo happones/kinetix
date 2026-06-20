@@ -19,15 +19,19 @@ import {
   Plus,
 } from "@lucide/vue";
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type {
   KinetixTableData,
   KinetixTableRecord,
   KinetixAction,
 } from "@/types";
+import KinetixCheckbox from "./KinetixCheckbox.vue";
 
 const props = defineProps<{
   table: KinetixTableData;
 }>();
+
+const { t } = useI18n();
 
 const showFilters = ref(false);
 const showColumns = ref(false);
@@ -321,7 +325,7 @@ const updateCell = async (
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search records..."
+            :placeholder="t('kinetix.search_records')"
             class="pl-9 pr-4 py-2 text-sm w-full rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 text-neutral-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
             @input="onSearchInput"
           />
@@ -356,7 +360,7 @@ const updateCell = async (
             "
           >
             <FilterIcon class="h-3.5 w-3.5" />
-            Filters
+            {{ t("kinetix.filters") }}
             <span
               v-if="Object.keys(activeFilters).length > 0"
               class="ml-1 w-4 h-4 text-[10px] font-bold rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center shrink-0"
@@ -375,13 +379,13 @@ const updateCell = async (
             >
               <span
                 class="text-xs font-bold text-neutral-900 dark:text-white uppercase tracking-wider"
-                >Table Filters</span
+                >{{ t("kinetix.table_filters") }}</span
               >
               <button
                 class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-white"
                 @click="clearFilters"
               >
-                Reset
+                {{ t("kinetix.reset") }}
               </button>
             </div>
             <div class="space-y-4">
@@ -406,7 +410,7 @@ const updateCell = async (
                     )
                   "
                 >
-                  <option value="">All</option>
+                  <option value="">{{ t("kinetix.all") }}</option>
                   <option
                     v-for="(lbl, val) in filter.options"
                     :key="val"
@@ -416,25 +420,22 @@ const updateCell = async (
                   </option>
                 </select>
 
-                <label
+                <div
                   v-if="filter.type === 'checkbox'"
-                  class="inline-flex items-center gap-2 cursor-pointer mt-1"
+                  class="flex items-center gap-2 mt-1"
                 >
-                  <input
-                    type="checkbox"
+                  <KinetixCheckbox
+                    :id="'filter-' + filter.name"
                     :checked="!!activeFilters[filter.name]"
-                    class="rounded border-neutral-300 dark:border-neutral-700 text-primary-600"
-                    @change="
-                      setFilter(
-                        filter.name,
-                        ($event.target as HTMLInputElement).checked,
-                      )
-                    "
+                    @change="setFilter(filter.name, $event)"
                   />
-                  <span class="text-xs text-neutral-700 dark:text-neutral-300"
-                    >Enable filter</span
+                  <label
+                    :for="'filter-' + filter.name"
+                    class="text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer select-none"
                   >
-                </label>
+                    {{ t("kinetix.enable_filter") }}
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -450,7 +451,7 @@ const updateCell = async (
             "
           >
             <SlidersHorizontal class="h-3.5 w-3.5" />
-            Columns
+            {{ t("kinetix.columns") }}
           </button>
 
           <!-- Columns Panel -->
@@ -461,24 +462,26 @@ const updateCell = async (
             <div
               class="text-xs font-bold text-neutral-900 dark:text-white border-b border-neutral-100 dark:border-neutral-900 pb-2 mb-2 uppercase tracking-wider"
             >
-              Toggle Columns
+              {{ t("kinetix.toggle_columns") }}
             </div>
             <div class="space-y-2 max-h-60 overflow-y-auto">
-              <label
+              <div
                 v-for="col in table.columns.filter((c) => c.isToggleable)"
                 :key="col.name"
-                class="flex items-center gap-2 cursor-pointer py-0.5 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded px-1.5"
+                class="flex items-center gap-2 py-0.5 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded px-1.5"
               >
-                <input
-                  type="checkbox"
+                <KinetixCheckbox
+                  :id="'col-' + col.name"
                   :checked="isColumnVisible(col.name)"
-                  class="rounded border-neutral-300 dark:border-neutral-700 text-primary-600"
                   @change="toggleColumn(col.name)"
                 />
-                <span class="text-xs text-neutral-700 dark:text-neutral-300">{{
-                  col.label
-                }}</span>
-              </label>
+                <label
+                  :for="'col-' + col.name"
+                  class="text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer select-none flex-1 py-1"
+                >
+                  {{ col.label }}
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -718,17 +721,9 @@ const updateCell = async (
                 v-if="col.type === 'checkbox-input'"
                 class="inline-flex items-center"
               >
-                <input
-                  type="checkbox"
+                <KinetixCheckbox
                   :checked="!!record.values[col.name]"
-                  class="rounded border-neutral-300 dark:border-neutral-700 text-primary-600 focus:ring-primary-500 cursor-pointer"
-                  @change="
-                    updateCell(
-                      record.id,
-                      col.name,
-                      ($event.target as HTMLInputElement).checked,
-                    )
-                  "
+                  @change="updateCell(record.id, col.name, $event)"
                 />
               </div>
             </td>
@@ -765,7 +760,7 @@ const updateCell = async (
               "
               class="px-6 py-12 text-center text-sm text-neutral-400 dark:text-neutral-500"
             >
-              No records found.
+              {{ t("kinetix.no_records_found") }}
             </td>
           </tr>
         </tbody>
@@ -778,11 +773,11 @@ const updateCell = async (
       class="p-6 border-t border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4"
     >
       <div class="text-xs text-neutral-500 dark:text-neutral-400">
-        Total:
+        {{ t("kinetix.total") }}
         <span class="font-bold text-neutral-700 dark:text-neutral-300">{{
           table.pagination.total
         }}</span>
-        records.
+        {{ t("kinetix.records") }}
       </div>
 
       <!-- Page Buttons -->
@@ -836,7 +831,7 @@ const updateCell = async (
       <div
         class="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400"
       >
-        <span>Per page:</span>
+        <span>{{ t("kinetix.per_page") }}</span>
         <select
           :value="table.state.perPage"
           class="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white px-2.5 py-1.5 focus:outline-none"

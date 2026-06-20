@@ -80,7 +80,7 @@ Import `KinetixTable` and bind the serialized table prop:
 
 ```vue
 <script setup lang="ts">
-import KinetixTable from '@/Components/KinetixTable.vue';
+import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixTableData } from '@/types';
 
 defineProps<{

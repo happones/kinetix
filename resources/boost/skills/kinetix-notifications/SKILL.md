@@ -128,4 +128,10 @@ php artisan vendor:publish --tag=kinetix-components --force
         </div>
     </header>
 </template>
+
+---
+
+## Best Practices
+
+- **Translations & Documentation**: Do not hardcode strings; always define them in translations and keep documentation updated for any new components or options.
 ```

@@ -530,7 +530,7 @@ kinetix/
 │   └── notification.wav         # Default notification sound
 ├── resources/
 │   ├── js/
-│   │   └── Components/
+│   │   └── components/
 │   │       └── KinetixNotifications.vue
 │   └── lang/
 │       ├── en/kinetix.php

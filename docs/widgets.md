@@ -115,7 +115,7 @@ Import `KinetixWidgetsGrid` into your page template and supply custom slots for 
 
 ```vue
 <script setup lang="ts">
-import KinetixWidgetsGrid from '@/Components/KinetixWidgetsGrid.vue';
+import KinetixWidgetsGrid from '@/components/kinetix/KinetixWidgetsGrid.vue';
 import type { KinetixWidgetsGridData } from '@/types';
 
 defineProps<{

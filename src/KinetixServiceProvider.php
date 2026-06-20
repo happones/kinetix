@@ -46,7 +46,7 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish components
             $this->publishes([
-                __DIR__.'/../resources/js/Components' => resource_path('js/components/kinetix'),
+                __DIR__.'/../resources/js/components' => resource_path('js/components/kinetix'),
                 __DIR__.'/../resources/js/stores'     => resource_path('js/stores'),
                 __DIR__.'/../resources/js/types'      => resource_path('js/types'),
             ], 'kinetix-components');

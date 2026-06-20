@@ -72,7 +72,7 @@ In your Inertia page, mount the grid and supply slots for any custom widgets if 
 
 ```vue
 <script setup lang="ts">
-import KinetixWidgetsGrid from '@/Components/KinetixWidgetsGrid.vue';
+import KinetixWidgetsGrid from '@/components/kinetix/KinetixWidgetsGrid.vue';
 import type { KinetixWidgetsGridData } from '@/types';
 
 defineProps<{
@@ -93,3 +93,4 @@ defineProps<{
 - **Unovis / Shadcn Charting Conventions**: 
   - Charts are powered by `@unovis/vue` and `@unovis/ts`.
   - **IMPORTANT**: If your chart uses string category labels on the X-axis (e.g. `'Jan'`, `'Feb'`), mapping them directly will trigger continuous scale `NaN` errors. To prevent this, map the X coordinate to consecutive integers (`0, 1, 2, ...`). Supply those index coordinates to the `:tickValues` prop of `<VisAxis type="x" />`, and translate them back to string labels inside the `:tickFormat` lookup function.
+- **Translations & Documentation**: Do not hardcode strings; always define them in translations and keep documentation updated for any new components or options.

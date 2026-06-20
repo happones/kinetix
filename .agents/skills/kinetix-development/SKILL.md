@@ -24,6 +24,13 @@ This skill contains the conventions, requirements, and implementation patterns f
 - **Flat Logic**: Avoid `else` or `else if` statements in script setups. Use early returns (`if (condition) { return; }`) to keep logic clean and readable.
 - **Relative Sibling Imports**: Import sibling Vue components relatively (`./Sibling.vue`) to ensure paths do not break when published.
 - **Pure-CSS Grid Variables**: To prevent Tailwind class purging, map responsive grid spans to inline CSS variables (e.g. `--col-span-md`) and resolve them inside `<style scoped>` media queries.
+- **Shadcn Checkboxes**: Always use the custom `<KinetixCheckbox>` component instead of raw HTML `<input type="checkbox">` to maintain the Shadcn design aesthetic across filters, column toggles, and editable table columns.
+
+### Localization & Documentation Rules
+- **Translations (i18n)**: Never hardcode user-facing text strings inside Vue components. Always load them using the Vue-i18n `t()` helper under the `kinetix` namespace (e.g. `t('kinetix.key_name')`).
+- **Language PHP Files**: Define matching translation key/value pairs in all language folders under `resources/lang/` (`en`, `es`, `fr`, `pt`).
+- **Sync Documentation**: Whenever new options, components, or configurations are created, always update the relevant markdown files in `docs/` and workspace development skills.
+- **Mandatory Translation & Documentation Checklist**: Whenever creating new components, modules, or features, you **MUST** ensure all corresponding documentation (in `docs/`) and translations (in `resources/lang/` for English, Spanish, French, and Portuguese) are fully written, synchronized, and completed. Do not leave placeholder text or skip translation file updates.
 
 ---
 

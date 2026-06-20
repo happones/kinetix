@@ -74,7 +74,7 @@ Include `<KinetixTable />` in your template and bind the table data structure:
 
 ```vue
 <script setup lang="ts">
-import KinetixTable from '@/Components/KinetixTable.vue';
+import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixTableData } from '@/types';
 
 defineProps<{
@@ -96,3 +96,5 @@ defineProps<{
 - **Client-Side Column Visibility**: Visible columns are managed client-side using `visibleColumnNames: Set<string>` inside `KinetixTable.vue`. Toggles are instant and do not require server request updates.
 - **TypeScript Type Sync**: Annotate Spatie Data classes with `#[TypeScript]` and run `php artisan typescript:transform` in the parent application to generate frontend types automatically.
 - **Teams & Multi-Tenancy**: When routing under a `{current_team}` prefix, toggle `'teams' => true` in `config/kinetix.php` to ensure Kinetix's API endpoints match and closure actions inherit the active team parameters natively.
+- **Shadcn Checkboxes**: Always use `<KinetixCheckbox>` for table filters, column toggles, and editable checkbox cells to ensure consistent UI styling.
+- **Translations & Documentation**: Do not hardcode strings; always define them in translations and keep documentation updated for any new components or options.
