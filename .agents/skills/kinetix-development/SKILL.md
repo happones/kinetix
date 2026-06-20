@@ -147,3 +147,34 @@ $table = Table::make(User::query())
 ### Security & Cell Updates
 - In-table edits trigger XHR requests to `/tables/cell-update`.
 - To prevent parameter tampering, the backend model class is securely encrypted (`Crypt::encryptString`) on serialization. The controller decrypts this token to validate and load the target model class dynamically.
+
+---
+
+## 5. Kinetix Forms
+
+Forms are fluent form schema builders that resolve validation, hydration, dehydration, and serialization.
+
+### Backend Layout & Schema
+```php
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Forms\Components\Grid;
+use Happones\Kinetix\Forms\Components\Section;
+use Happones\Kinetix\Forms\Components\TextInput;
+
+$form = Form::make($record)
+    ->schema([
+        Section::make('Basic Details')
+            ->schema([
+                Grid::make(12)->schema([
+                    TextInput::make('first_name')->columnSpan(6)->required(),
+                    TextInput::make('last_name')->columnSpan(6)->required(),
+                ]),
+            ]),
+    ]);
+```
+
+### Components & Fields Architecture
+- **Base Components**: All form elements extend `Component`, managing column spans and operation visibility constraints (`hiddenOn`, `visibleOn`).
+- **Base Fields**: All actual input controls extend `Field`, inheriting validation rules (`rules()`, `required()`, `maxLength()`), defaultValue configurations, and hydration/dehydration callbacks.
+- **Select Fields**: Automatically reflect PHP Enums if a subclass of `UnitEnum` is passed to the `options()` method.
+
