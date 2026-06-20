@@ -52,15 +52,19 @@ const visibleColumnNames = ref<Set<string>>(
 const isColumnVisible = (name: string) => visibleColumnNames.value.has(name);
 
 const toggleColumn = (name: string) => {
-  if (visibleColumnNames.value.has(name)) {
-    if (visibleColumnNames.value.size > 1) {
-      visibleColumnNames.value.delete(name);
+  const newSet = new Set(visibleColumnNames.value);
+
+  if (newSet.has(name)) {
+    if (newSet.size > 1) {
+      newSet.delete(name);
+      visibleColumnNames.value = newSet;
     }
 
     return;
   }
 
-  visibleColumnNames.value.add(name);
+  newSet.add(name);
+  visibleColumnNames.value = newSet;
 };
 
 const columnsToRender = computed(() => {
