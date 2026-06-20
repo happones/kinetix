@@ -38,6 +38,25 @@ class Form implements Arrayable, JsonSerializable
             $this->model = get_class($record);
             $this->operation = $record->exists ? 'edit' : 'create';
         }
+
+        $this->schema = $this->buildSchema();
+    }
+
+    protected function buildSchema(): array
+    {
+        return [];
+    }
+
+    public static function render(?Model $record = null, mixed $fillData = null): array
+    {
+        $form = static::make($record);
+        if ($fillData !== null) {
+            $form->fill($fillData);
+        } elseif ($record !== null) {
+            $form->fill($record);
+        }
+
+        return $form->toArray();
     }
 
     public static function make(?Model $record = null): static
@@ -153,7 +172,7 @@ class Form implements Arrayable, JsonSerializable
         $fields = $this->getFields();
 
         foreach ($fields as $name => $field) {
-            if (!$field->isHidden($this->operation, $this->record)) {
+            if (!$field->isHidden($this->operation, $this->record) && $field->isSaved()) {
                 $value = $data[$name] ?? $field->getDefaultValue($this->record);
                 $state[$name] = $field->dehydrate($value, $this->record);
             }

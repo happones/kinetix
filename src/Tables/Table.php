@@ -73,6 +73,35 @@ class Table implements Arrayable, JsonSerializable
     public function __construct(mixed $queryOrModel)
     {
         $this->queryOrModel = $queryOrModel;
+        $this->columns = $this->buildColumns();
+        $this->filters = $this->buildFilters();
+        $this->recordActions = $this->buildRecordActions();
+        $this->toolbarActions = $this->buildToolbarActions();
+    }
+
+    protected function buildColumns(): array
+    {
+        return [];
+    }
+
+    protected function buildFilters(): array
+    {
+        return [];
+    }
+
+    protected function buildRecordActions(): array
+    {
+        return [];
+    }
+
+    protected function buildToolbarActions(): array
+    {
+        return [];
+    }
+
+    public static function render(mixed $queryOrModel): array
+    {
+        return static::make($queryOrModel)->toArray();
     }
 
     /**

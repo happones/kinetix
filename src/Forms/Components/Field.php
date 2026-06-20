@@ -28,6 +28,9 @@ abstract class Field extends Component
 
     protected mixed $suffix = null;
 
+    protected bool $isSaved = true;
+
+
     /**
      * @var array<int, mixed>
      */
@@ -323,5 +326,17 @@ abstract class Field extends Component
     protected function getFieldOptions(?Model $record = null): ?array
     {
         return null;
+    }
+
+    public function saved(bool $condition = true): static
+    {
+        $this->isSaved = $condition;
+
+        return $this;
+    }
+
+    public function isSaved(): bool
+    {
+        return $this->isSaved;
     }
 }

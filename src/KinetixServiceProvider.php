@@ -6,6 +6,7 @@ namespace Happones\Kinetix;
 
 use Happones\Kinetix\Commands\MakeNotificationCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
+use Happones\Kinetix\Commands\MakeResourceCommand;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
@@ -37,6 +38,7 @@ class KinetixServiceProvider extends ServiceProvider
             $this->commands([
                 MakeNotificationCommand::class,
                 SendNotificationCommand::class,
+                MakeResourceCommand::class,
             ]);
 
             // Publish config
