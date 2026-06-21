@@ -14,7 +14,7 @@ Activate this skill when:
 - Designing database list grids for model directories.
 - Registering column types (`TextColumn`, `IconColumn`, `ImageColumn`, `ColorColumn`) to format model values.
 - Creating inline cell editors (`SelectColumn`, `ToggleColumn`, `TextInputColumn`, `CheckboxColumn`).
-- Appending select-dropdown or checkbox query filters using `Filter` or `SelectFilter`.
+- Appending query filters: `Filter` (checkbox), `SelectFilter`, `MultiSelectFilter` (whereIn), `TernaryFilter` (boolean tri-state), `DateFilter`, `DateTimeFilter`, `DateRangeFilter` (with optional `->calendar()` shadcn/Reka range calendar), `NumberRangeFilter`.
 - Attaching row-level record actions or header toolbar buttons.
 - Styling table rows with custom CSS background status classes.
 

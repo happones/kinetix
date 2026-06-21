@@ -46,6 +46,11 @@ class Table implements Arrayable, JsonSerializable
      */
     protected array $toolbarActions = [];
 
+    /**
+     * @var array<int, Action>
+     */
+    protected array $bulkActions = [];
+
     protected ?string $heading = null;
 
     protected ?string $description = null;
@@ -66,6 +71,12 @@ class Table implements Arrayable, JsonSerializable
     protected bool $isStriped = false;
 
     /**
+     * Optional prefix for this table's query-string params, so multiple tables
+     * (e.g. relation managers) on one page don't clash. Empty = unprefixed.
+     */
+    protected string $queryPrefix = '';
+
+    /**
      * Create a new table builder instance.
      *
      * @param Builder|Model|string $queryOrModel Eloquent query builder, model instance, or model class string.
@@ -77,6 +88,7 @@ class Table implements Arrayable, JsonSerializable
         $this->filters = $this->buildFilters();
         $this->recordActions = $this->buildRecordActions();
         $this->toolbarActions = $this->buildToolbarActions();
+        $this->bulkActions = $this->buildBulkActions();
     }
 
     protected function buildColumns(): array
@@ -95,6 +107,11 @@ class Table implements Arrayable, JsonSerializable
     }
 
     protected function buildToolbarActions(): array
+    {
+        return [];
+    }
+
+    protected function buildBulkActions(): array
     {
         return [];
     }
@@ -162,6 +179,18 @@ class Table implements Arrayable, JsonSerializable
         return $this;
     }
 
+    /**
+     * Set actions that operate on the selected rows.
+     *
+     * @param array<int, Action> $actions
+     */
+    public function bulkActions(array $actions): static
+    {
+        $this->bulkActions = $actions;
+
+        return $this;
+    }
+
     public function heading(string $heading): static
     {
         $this->heading = $heading;
@@ -224,6 +253,24 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Namespace this table's query-string params (e.g. 'posts_' → posts_search, posts_page).
+     */
+    public function queryPrefix(string $prefix): static
+    {
+        $this->queryPrefix = $prefix;
+
+        return $this;
+    }
+
+    /**
+     * Read a request param using this table's prefix.
+     */
+    protected function param(string $key, mixed $default = null): mixed
+    {
+        return request($this->queryPrefix.$key, $default);
+    }
+
+    /**
      * Build and resolve the Eloquent query applying request inputs.
      */
     protected function getResolvedQuery(): Builder
@@ -241,7 +288,7 @@ class Table implements Arrayable, JsonSerializable
         }
 
         // Apply searching
-        $search = request('search');
+        $search = $this->param('search');
         if ($search !== null && $search !== '') {
             $query->where(function (Builder $q) use ($search) {
                 foreach ($this->columns as $column) {
@@ -261,8 +308,8 @@ class Table implements Arrayable, JsonSerializable
         }
 
         // Apply sorting
-        $sort      = request('sort');
-        $direction = request('direction', 'asc');
+        $sort      = $this->param('sort');
+        $direction = $this->param('direction', 'asc');
         if ($sort !== null && $sort !== '') {
             // Only allow direct columns to prevent join validation errors
             if (!str_contains($sort, '.')) {
@@ -271,7 +318,7 @@ class Table implements Arrayable, JsonSerializable
         }
 
         // Apply active filters
-        $activeFilters = request('filters', []);
+        $activeFilters = $this->param('filters', []);
         if (is_array($activeFilters)) {
             foreach ($activeFilters as $filterName => $value) {
                 if ($value !== null && $value !== '') {
@@ -297,10 +344,10 @@ class Table implements Arrayable, JsonSerializable
         $records = [];
         $pagination = null;
 
-        $perPage = (int) request('perPage', (string) $this->defaultPaginationPageOption);
+        $perPage = (int) $this->param('perPage', (string) $this->defaultPaginationPageOption);
 
         if ($this->isPaginated) {
-            $paginator = $query->paginate($perPage);
+            $paginator = $query->paginate($perPage, ['*'], $this->queryPrefix.'page');
 
             foreach ($paginator->items() as $record) {
                 $records[] = $this->formatRecord($record);
@@ -320,16 +367,25 @@ class Table implements Arrayable, JsonSerializable
             }
         }
 
+        $editableColumns = [];
+        foreach ($this->columns as $column) {
+            if ($column->isEditable()) {
+                $editableColumns[] = $column->getName();
+            }
+        }
+
         $columnsData = array_map(fn ($c) => $c->toData(), $this->columns);
         $filtersData = array_map(fn ($f) => $f->toData(), $this->filters);
-        $recordActionsData = array_map(fn ($a) => $a->toData(), $this->recordActions);
-        $toolbarActionsData = array_map(fn ($a) => $a->toData(), $this->toolbarActions);
+        // Drop actions the current user is not authorized to see.
+        $recordActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->recordActions)));
+        $toolbarActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->toolbarActions)));
+        $bulkActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
 
         $state = new TableStateData(
-            search: (string) request('search', ''),
-            sort: (string) request('sort', ''),
-            direction: (string) request('direction', 'asc'),
-            filters: (array) request('filters', []),
+            search: (string) $this->param('search', ''),
+            sort: (string) $this->param('sort', ''),
+            direction: (string) $this->param('direction', 'asc'),
+            filters: (array) $this->param('filters', []),
             perPage: $perPage,
         );
 
@@ -338,16 +394,21 @@ class Table implements Arrayable, JsonSerializable
             description: $this->description,
             poll: $this->poll,
             isStriped: $this->isStriped,
-            model: \Illuminate\Support\Facades\Crypt::encryptString($this->getModelClass()),
+            model: \Illuminate\Support\Facades\Crypt::encrypt([
+                'model'   => $this->getModelClass(),
+                'columns' => $editableColumns,
+            ]),
             columns: $columnsData,
             filters: $filtersData,
             recordActions: $recordActionsData,
             toolbarActions: $toolbarActionsData,
+            bulkActions: $bulkActionsData,
             records: $records,
             isPaginated: $this->isPaginated,
             paginationPageOptions: $this->paginationPageOptions,
             pagination: $pagination,
             state: $state,
+            queryPrefix: $this->queryPrefix,
         );
     }
 
@@ -401,7 +462,10 @@ class Table implements Arrayable, JsonSerializable
 
         $resolvedActions = [];
         foreach ($this->recordActions as $action) {
-            $resolvedActions[] = $action->toData($record);
+            $data = $action->toData($record);
+            if ($data !== null) {
+                $resolvedActions[] = $data;
+            }
         }
 
         return new TableRowData(
@@ -426,11 +490,7 @@ class Table implements Arrayable, JsonSerializable
             return $this->queryOrModel;
         }
 
-        if ($this->queryOrModel instanceof Model) {
-            return $this->queryOrModel::class;
-        }
-
-        return '';
+        return $this->queryOrModel::class;
     }
 
     public function jsonSerialize(): mixed

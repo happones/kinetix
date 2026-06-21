@@ -14,6 +14,14 @@ export interface KinetixAction {
   dispatchEvent?: string;
   dispatchData?: Record<string, unknown>;
   inertiaVisit?: { method?: string; [key: string]: unknown };
+  requiresConfirmation: boolean;
+  modalHeading?: string | null;
+  modalDescription?: string | null;
+  modalIcon?: string | null;
+  modalSubmitActionLabel?: string | null;
+  modalCancelActionLabel?: string | null;
+  type?: "action" | "group";
+  actions?: KinetixAction[] | null;
 }
 
 export interface KinetixNotification {
@@ -78,8 +86,23 @@ export interface KinetixTableFilter {
   name: string;
   label: string;
   default: any;
-  type: "checkbox" | "select";
+  type:
+    | "checkbox"
+    | "select"
+    | "ternary"
+    | "multi-select"
+    | "date"
+    | "datetime"
+    | "date-range"
+    | "number-range";
   options?: Record<string, string>;
+  useCalendar?: boolean;
+  numberOfMonths?: number;
+  locale?: string | null;
+  weekdayFormat?: "narrow" | "short" | "long" | null;
+  fixedWeeks?: boolean;
+  minValue?: string | null;
+  maxValue?: string | null;
 }
 
 export interface KinetixTableRecord {
@@ -95,6 +118,69 @@ export interface KinetixTableRecord {
   recordUrl: string | null;
 }
 
+export interface KinetixImportColumn {
+  name: string;
+  label: string;
+  isRequired: boolean;
+  guesses: string[];
+}
+
+export interface KinetixImportOptions {
+  delimiter: string;
+  enclosure: string;
+  skipLines: number;
+  hasHeader: boolean;
+}
+
+export interface KinetixImportPreview {
+  headers: string[];
+  rows: (string | null)[][];
+  columns: KinetixImportColumn[];
+  options: KinetixImportOptions;
+  autoMapping: Record<string, number | null>;
+  fileToken: string;
+  totalRows: number;
+}
+
+export interface KinetixInfolistEntry {
+  type:
+    | "text"
+    | "icon"
+    | "image"
+    | "color"
+    | "section"
+    | "grid"
+    | "fieldset"
+    | "tabs"
+    | "tab";
+  name?: string;
+  label?: string;
+  columnSpan: number | string | Record<string, number | string>;
+  state?: any;
+  placeholder?: string;
+  icon?: string | null;
+  color?: string | null;
+  url?: string | null;
+  openUrlInNewTab: boolean;
+  isBadge?: boolean | null;
+  isCopyable?: boolean | null;
+  isCircular?: boolean | null;
+  size?: number | string | null;
+  isInline: boolean;
+  extraAttributes?: Record<string, string> | null;
+  // Layout components
+  schema?: KinetixInfolistEntry[] | null;
+  heading?: string | null;
+  description?: string | null;
+  columns?: number | null;
+}
+
+export interface KinetixInfolistData {
+  schema: KinetixInfolistEntry[];
+  columns: number;
+  operation: string;
+}
+
 export interface KinetixTableData {
   heading: string | null;
   description: string | null;
@@ -104,6 +190,7 @@ export interface KinetixTableData {
   filters: KinetixTableFilter[];
   recordActions: KinetixAction[];
   toolbarActions: KinetixAction[];
+  bulkActions: KinetixAction[];
   records: KinetixTableRecord[];
   isPaginated: boolean;
   paginationPageOptions: number[];
@@ -120,4 +207,11 @@ export interface KinetixTableData {
     filters: Record<string, any>;
     perPage: number;
   };
+  queryPrefix: string;
+}
+
+export interface KinetixRelationManagerData {
+  title: string;
+  relationship: string;
+  table: KinetixTableData;
 }

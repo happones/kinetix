@@ -165,8 +165,111 @@ Renders as a checkbox.
 
 ### 2. `SelectFilter`
 Renders as a dropdown select.
-- `options(array|Closure $options)`: Dropdown option pairs.
+- `options(array|Closure|string $options)`: Dropdown option pairs, a closure, or an Enum class (auto-mapped to value→label).
 - `attribute(string $attribute)`: Maps query parameters directly to database columns. If omitted, defaults to the filter name.
+
+### 3. `MultiSelectFilter`
+Renders as a checkbox list; matches any selected value via `whereIn`. Extends `SelectFilter` (same `options()`, including Enum classes).
+
+```php
+use Happones\Kinetix\Tables\Filters\MultiSelectFilter;
+
+MultiSelectFilter::make('status')->options(PostStatus::class);
+```
+
+### 4. `TernaryFilter`
+A tri-state dropdown (All / true / false) for boolean columns.
+
+```php
+use Happones\Kinetix\Tables\Filters\TernaryFilter;
+
+TernaryFilter::make('is_active')
+    ->trueLabel('Active')
+    ->falseLabel('Inactive');
+
+// Custom queries per branch (e.g. for nullable columns):
+TernaryFilter::make('email_verified')
+    ->queries(
+        true: fn ($q) => $q->whereNotNull('email_verified_at'),
+        false: fn ($q) => $q->whereNull('email_verified_at'),
+    );
+```
+
+| Method | Description |
+|---|---|
+| `attribute(string)` | Column to filter (defaults to the filter name) |
+| `trueLabel(string)` / `falseLabel(string)` | Option labels (default `Yes` / `No`) |
+| `queries(Closure $true, Closure $false)` | Custom query per selection |
+
+### 5. `DateRangeFilter`
+Two date inputs (from / to); filters `whereDate >= from` and `<= to`. Either bound is optional.
+
+```php
+use Happones\Kinetix\Tables\Filters\DateRangeFilter;
+
+DateRangeFilter::make('created_at');
+DateRangeFilter::make('published')->attribute('published_at');
+
+// Optional shadcn-style range calendar (Reka UI) instead of two native inputs:
+DateRangeFilter::make('created_at')->calendar();
+
+// Calendar options — months() / locale() imply ->calendar():
+DateRangeFilter::make('created_at')->months(2)->locale('es');
+```
+
+The `->calendar()` variant renders `KinetixRangeCalendar.vue`, which wraps Reka UI's `RangeCalendar` (the same primitive shadcn-vue's calendar is built on). It requires `reka-ui` and `@internationalized/date` in the host app (already present for shadcn-vue users; declared as optional peer dependencies).
+
+| Method | Description |
+|---|---|
+| `->calendar(bool = true)` | Use the calendar variant instead of native inputs |
+| `->months(int)` | Number of month grids shown side by side (implies `calendar()`) |
+| `->locale(string)` | BCP-47 locale for weekday/month names, e.g. `'es'`, `'fr'` (implies `calendar()`) |
+| `->weekdayFormat(string)` | Weekday header labels: `'narrow'` (default), `'short'`, `'long'` (implies `calendar()`) |
+| `->fixedWeeks(bool = true)` | Always render 6 week rows for a constant calendar height (implies `calendar()`) |
+| `->minValue(string)` | Earliest selectable date (`'Y-m-d'`); earlier dates are disabled (implies `calendar()`) |
+| `->maxValue(string)` | Latest selectable date (`'Y-m-d'`); later dates are disabled (implies `calendar()`) |
+
+### 6. `NumberRangeFilter`
+Two number inputs (min / max); filters `>= min` and `<= max`. Either bound is optional.
+
+```php
+use Happones\Kinetix\Tables\Filters\NumberRangeFilter;
+
+NumberRangeFilter::make('price');
+```
+
+### 7. `DateFilter`
+A single date input. Defaults to matching that exact day (`whereDate =`); configurable.
+
+```php
+use Happones\Kinetix\Tables\Filters\DateFilter;
+
+DateFilter::make('published_at');
+DateFilter::make('published_at')->operator('>='); // on or after
+```
+
+### 8. `DateTimeFilter`
+A single `datetime-local` input. Defaults to "on or after" (`>=`); configurable via `operator()`. The `T` separator is normalized to a SQL datetime.
+
+```php
+use Happones\Kinetix\Tables\Filters\DateTimeFilter;
+
+DateTimeFilter::make('starts_at');
+DateTimeFilter::make('ends_at')->operator('<=');
+```
+
+### 9. `TrashedFilter`
+Soft-delete scope filter for `SoftDeletes` models. Blank = active records only (default), *With deleted* = `withTrashed()`, *Only deleted* = `onlyTrashed()`.
+
+```php
+use Happones\Kinetix\Tables\Filters\TrashedFilter;
+
+Table::make(User::query())->filters([TrashedFilter::make()]);
+```
+
+Pair it with `RestoreAction` / `ForceDeleteAction` record actions (see [Actions](actions.md#8-prebuilt-crud-actions)), which only appear on trashed rows.
+
+> Range and multi-select filters submit structured values (`{from,to}`, `{min,max}`, or an array). Each table namespaces its own filter query-string params (see `queryPrefix`), so multiple filtered tables coexist on one page.
 
 ---
 
@@ -182,6 +285,29 @@ $table->recordActions([
 ```
 
 Header-level toolbar actions can also be defined via `$table->toolbarActions([ ... ])`.
+
+---
+
+## Bulk Actions
+
+`bulkActions([ ... ])` enables row selection. A select-all + per-row checkbox column appears, and when rows are selected a bulk action bar shows the action buttons plus a selected count and a clear button.
+
+```php
+$table->bulkActions([
+    Action::make('delete')->label('Delete selected')->icon('trash')->color('danger')
+        ->requiresConfirmation('Delete the selected records?')
+        ->inertiaVisit(route('posts.bulk-destroy'), ['method' => 'delete']),
+
+    Action::make('export')->label('Export')->icon('download')
+        ->dispatch('export-selected'),
+]);
+```
+
+The selected record ids are sent automatically:
+- **`inertiaVisit`** actions receive them as `ids` in the request payload (`$request->input('ids')`).
+- **`dispatch`** actions receive them in the event detail: `e.detail.ids`.
+
+Destructive bulk actions support `requiresConfirmation()` (a confirmation modal gates them), and they respect `authorize()` / `visible()` like any action — e.g. `->authorize('deleteAny', Post::class)`.
 
 ---
 

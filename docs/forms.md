@@ -245,6 +245,138 @@ Hidden::make('referrer_id')
     ->default(fn () => request('ref'));
 ```
 
+### 8. `Radio`
+A single-choice radio group. Extends `Select`, so it shares the same `options()` API — including automatic PHP Enum reflection.
+
+```php
+use Happones\Kinetix\Forms\Components\Radio;
+
+Radio::make('plan')
+    ->options(['free' => 'Free', 'pro' => 'Pro', 'team' => 'Team'])
+    ->default('free');
+
+// Enum-backed, laid out horizontally
+Radio::make('status')
+    ->options(PostStatus::class)
+    ->inline();
+```
+
+| Method | Description |
+|---|---|
+| `->options(array\|Closure\|string)` | Choices map, closure, or Enum class (inherited from `Select`) |
+| `->inline(bool = true)` | Lay options out horizontally instead of stacked |
+
+### 9. `CheckboxList`
+A multi-choice list whose value is an **array** of the selected keys. Extends `Select` for option handling. Pair it with an `array` cast (or JSON column) on the model.
+
+```php
+use Happones\Kinetix\Forms\Components\CheckboxList;
+
+CheckboxList::make('permissions')
+    ->options([
+        'posts.create' => 'Create posts',
+        'posts.delete' => 'Delete posts',
+    ])
+    ->inline();
+```
+
+| Method | Description |
+|---|---|
+| `->options(array\|Closure\|string)` | Choices map, closure, or Enum class (inherited from `Select`) |
+| `->inline(bool = true)` | Lay checkboxes out horizontally instead of stacked |
+
+### 10. `ColorPicker`
+A native color swatch paired with a hex text input. The stored value is the hex string (e.g. `#4f46e5`).
+
+```php
+use Happones\Kinetix\Forms\Components\ColorPicker;
+
+ColorPicker::make('brand_color')
+    ->default('#4f46e5');
+```
+
+### 11. `TagsInput`
+A free-text tag editor. The stored value is an **array of strings**. Type and press <kbd>Enter</kbd> or `,` to add a tag; <kbd>Backspace</kbd> on an empty input removes the last tag. Pair it with an `array` cast.
+
+```php
+use Happones\Kinetix\Forms\Components\TagsInput;
+
+TagsInput::make('skills')
+    ->placeholder('Add a skill and press Enter');
+```
+
+Local typing state is encapsulated in the dedicated `KinetixTagsInput.vue` component, so the buffer never leaks across fields.
+
+### 12. `KeyValue`
+An editable map of key/value string pairs. The stored value is an **associative array** (object). Pair it with an `array` cast.
+
+```php
+use Happones\Kinetix\Forms\Components\KeyValue;
+
+KeyValue::make('metadata');
+```
+
+Row labels (`Key`, `Value`, `Add row`) come from the `kinetix` i18n namespace. Rendering and local row state live in `KinetixKeyValue.vue`, which resyncs from the parent only when the external value differs — avoiding an emit→prop feedback loop.
+
+### 13. `Repeater`
+Repeats a sub-schema over a list of items. The stored value is an **array of objects**, one per item. Pair it with an `array` cast (or a JSON column). Items can be added, removed, and reordered.
+
+```php
+use Happones\Kinetix\Forms\Components\Repeater;
+use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Forms\Components\Select;
+
+Repeater::make('line_items')
+    ->schema([
+        TextInput::make('description')->columnSpan(8)->required(),
+        TextInput::make('quantity')->numeric()->columnSpan(2),
+        Select::make('unit')->options(['ea' => 'each', 'kg' => 'kg'])->columnSpan(2),
+    ])
+    ->minItems(1)
+    ->maxItems(20)
+    ->addActionLabel('Add line item');
+```
+
+| Method | Description |
+|---|---|
+| `->schema(array)` | The fields repeated for each item |
+| `->minItems(int)` | Minimum items (disables removing below it) |
+| `->maxItems(int)` | Maximum items (disables adding above it) |
+| `->addActionLabel(string)` | Custom "add" button label (defaults to `kinetix.add_item`) |
+
+**Architecture note:** `KinetixFormSchema` renders each item by recursing into itself with the item object as its scoped `values`, so any field type — including nested `Grid`/`Section` — works inside a repeater. New blank items are seeded from each sub-field's `defaultValue`. Validation treats the repeater as a single array-valued field (per-item rules are not auto-expanded in this version).
+
+### 14. `FileUpload`
+Uploads files to a storage disk and stores the resulting **path** (a string, or an array of strings when `multiple()`). Uploads happen immediately via a dedicated endpoint; the field value is the stored path(s).
+
+```php
+use Happones\Kinetix\Forms\Components\FileUpload;
+
+FileUpload::make('avatar')
+    ->image()
+    ->disk('public')
+    ->directory('avatars')
+    ->maxSize(1024); // KB
+
+FileUpload::make('attachments')
+    ->multiple()
+    ->maxFiles(5)
+    ->acceptedFileTypes(['application/pdf', 'docx'])
+    ->directory('docs');
+```
+
+| Method | Description |
+|---|---|
+| `->disk(string)` | Storage disk (default `public`) |
+| `->directory(string)` | Target directory (default `uploads`) |
+| `->multiple(bool = true)` | Accept multiple files (value becomes an array) |
+| `->image()` | Restrict to images and render thumbnail previews |
+| `->acceptedFileTypes(array)` | MIME types (`image/png`) and/or extensions (`pdf`) |
+| `->maxSize(int)` | Max size per file in kilobytes |
+| `->maxFiles(int)` | Max number of files (multiple mode) |
+
+**Security:** the storage config (disk, directory, constraints) is signed into an encrypted `uploadToken` sent to the client; the upload endpoint (`uploads/store`) decrypts it, re-validates the file against the constraints, and stores it — the client can never choose an arbitrary disk/directory. A matching `uploads/delete` endpoint removes a file, constrained to the configured directory. Rendering and upload state live in `KinetixFileUpload.vue`. Pre-existing values render their preview via the `public` disk URL convention (`/storage/{path}`) or any absolute URL.
+
 ---
 
 ## 5. Operations & Visibility Constraints

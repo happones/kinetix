@@ -10,4 +10,9 @@ class ToggleColumn extends Column
     {
         return 'toggle-input';
     }
+
+    public function isEditable(): bool
+    {
+        return true;
+    }
 }

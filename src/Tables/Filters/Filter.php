@@ -80,6 +80,13 @@ class Filter
             default: $this->default,
             type: $this->getType(),
             options: $extra['options'] ?? null,
+            useCalendar: $extra['useCalendar'] ?? false,
+            numberOfMonths: $extra['numberOfMonths'] ?? 1,
+            locale: $extra['locale'] ?? null,
+            weekdayFormat: $extra['weekdayFormat'] ?? null,
+            fixedWeeks: $extra['fixedWeeks'] ?? false,
+            minValue: $extra['minValue'] ?? null,
+            maxValue: $extra['maxValue'] ?? null,
         );
     }
 

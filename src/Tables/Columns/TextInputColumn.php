@@ -36,4 +36,9 @@ class TextInputColumn extends Column
             'placeholder' => $this->placeholder,
         ];
     }
+
+    public function isEditable(): bool
+    {
+        return true;
+    }
 }

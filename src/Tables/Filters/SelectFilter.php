@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Builder;
 class SelectFilter extends Filter
 {
     /**
-     * @var array<string, string>|Closure
+     * @var array<string, string>|Closure|class-string
      */
-    protected array|Closure $options = [];
+    protected array|Closure|string $options = [];
 
     protected ?string $attribute = null;
 
@@ -68,7 +68,7 @@ class SelectFilter extends Filter
             return $options;
         }
 
-        return $this->options;
+        return is_array($this->options) ? $this->options : [];
     }
 
     public function apply(Builder $query, mixed $value): void

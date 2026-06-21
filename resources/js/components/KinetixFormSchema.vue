@@ -1,11 +1,21 @@
 <script setup lang="ts">
+import { Plus, Trash2, ChevronUp, ChevronDown } from "@lucide/vue";
+import { SwitchRoot, SwitchThumb } from "reka-ui";
+import { useI18n } from "vue-i18n";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
+import KinetixFileUpload from "./KinetixFileUpload.vue";
+import KinetixKeyValue from "./KinetixKeyValue.vue";
+import KinetixRadioGroup from "./KinetixRadioGroup.vue";
+import KinetixSelect from "./KinetixSelect.vue";
+import KinetixTagsInput from "./KinetixTagsInput.vue";
 
-defineProps<{
+const props = defineProps<{
   schema: any[];
   values: Record<string, any>;
   errors: Record<string, string>;
 }>();
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
   (e: "update:value", name: string, value: any): void;
@@ -21,6 +31,84 @@ const getColumnSpan = (span: any) => {
   }
 
   return undefined;
+};
+
+// Toggle a value inside a multi-select array (used by checkbox-list fields).
+const toggleArrayValue = (current: any, optionValue: string, checked: boolean) => {
+  const next = Array.isArray(current) ? [...current] : [];
+  const index = next.indexOf(optionValue);
+
+  if (checked && index === -1) {
+    next.push(optionValue);
+  }
+
+  if (!checked && index !== -1) {
+    next.splice(index, 1);
+  }
+
+  return next;
+};
+
+const isInArray = (current: any, optionValue: string) =>
+  Array.isArray(current) && current.includes(optionValue);
+
+// --- Repeater helpers ---------------------------------------------------------
+// Build a blank item from the sub-schema's field defaults (recursing layouts).
+const buildBlankItem = (schema: any[]) => {
+  const item: Record<string, any> = {};
+
+  const walk = (nodes: any[]) => {
+    for (const node of nodes) {
+      if (Array.isArray(node.schema)) {
+        walk(node.schema);
+        continue;
+      }
+
+      if (node.name) {
+        item[node.name] = node.defaultValue ?? null;
+      }
+    }
+  };
+
+  walk(schema);
+
+  return item;
+};
+
+const repeaterItems = (name: string): Record<string, any>[] =>
+  Array.isArray(props.values[name]) ? props.values[name] : [];
+
+const updateRepeaterItem = (
+  name: string,
+  index: number,
+  fieldName: string,
+  value: any,
+) => {
+  const next = [...repeaterItems(name)];
+  next[index] = { ...next[index], [fieldName]: value };
+  emit("update:value", name, next);
+};
+
+const addRepeaterItem = (name: string, schema: any[]) => {
+  emit("update:value", name, [...repeaterItems(name), buildBlankItem(schema)]);
+};
+
+const removeRepeaterItem = (name: string, index: number) => {
+  const next = [...repeaterItems(name)];
+  next.splice(index, 1);
+  emit("update:value", name, next);
+};
+
+const moveRepeaterItem = (name: string, index: number, direction: number) => {
+  const next = [...repeaterItems(name)];
+  const target = index + direction;
+
+  if (target < 0 || target >= next.length) {
+    return;
+  }
+
+  [next[index], next[target]] = [next[target], next[index]];
+  emit("update:value", name, next);
 };
 </script>
 
@@ -46,18 +134,18 @@ const getColumnSpan = (span: any) => {
     <!-- Section Card Layout -->
     <div
       v-else-if="comp.type === 'section'"
-      class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 shadow-sm"
+      class="rounded-xl border border-input bg-background shadow-sm"
       :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
     >
-      <div class="p-6 pb-4 border-b border-neutral-100 dark:border-neutral-900">
+      <div class="p-6 pb-4 border-b border-border">
         <h3
-          class="font-semibold leading-none tracking-tight text-neutral-900 dark:text-white"
+          class="font-semibold leading-none tracking-tight text-foreground"
         >
           {{ comp.heading }}
         </h3>
         <p
           v-if="comp.description"
-          class="text-sm text-neutral-500 dark:text-neutral-400 mt-1.5"
+          class="text-sm text-muted-foreground mt-1.5"
         >
           {{ comp.description }}
         </p>
@@ -89,7 +177,7 @@ const getColumnSpan = (span: any) => {
       <label
         v-if="comp.type !== 'hidden' && comp.label"
         :for="comp.name"
-        class="text-sm font-medium leading-none text-neutral-700 dark:text-neutral-300"
+        class="text-sm font-medium leading-none text-foreground"
       >
         {{ comp.label }}
       </label>
@@ -104,7 +192,7 @@ const getColumnSpan = (span: any) => {
           :type="comp.inputType || 'text'"
           :placeholder="comp.placeholder"
           :disabled="comp.isDisabled"
-          class="h-9 w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 dark:focus-visible:ring-neutral-300 disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           @input="
             emit(
               'update:value',
@@ -114,25 +202,16 @@ const getColumnSpan = (span: any) => {
           "
         />
 
-        <!-- Select -->
-        <select
+        <!-- Select (Reka UI) -->
+        <KinetixSelect
           v-else-if="comp.type === 'select'"
           :id="comp.name"
           :value="values[comp.name]"
+          :options="comp.options"
+          :placeholder="comp.placeholder"
           :disabled="comp.isDisabled"
-          class="flex h-9 w-full items-center justify-between rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-3 py-2 text-sm shadow-sm placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-950 dark:focus:ring-neutral-300 disabled:cursor-not-allowed disabled:opacity-50"
-          @change="
-            emit(
-              'update:value',
-              comp.name,
-              ($event.target as HTMLSelectElement).value,
-            )
-          "
-        >
-          <option v-for="(lbl, val) in comp.options" :key="val" :value="val">
-            {{ lbl }}
-          </option>
-        </select>
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
 
         <!-- Checkbox -->
         <div
@@ -147,30 +226,18 @@ const getColumnSpan = (span: any) => {
           />
         </div>
 
-        <!-- Toggle Switch -->
+        <!-- Toggle Switch (Reka UI) -->
         <div v-else-if="comp.type === 'toggle'" class="flex items-center py-1">
-          <button
-            type="button"
-            role="switch"
-            :aria-checked="!!values[comp.name]"
+          <SwitchRoot
+            :model-value="!!values[comp.name]"
             :disabled="comp.isDisabled"
-            class="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 dark:focus-visible:ring-neutral-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 disabled:cursor-not-allowed disabled:opacity-50"
-            :class="
-              values[comp.name]
-                ? 'bg-neutral-900 dark:bg-neutral-50'
-                : 'bg-neutral-200 dark:bg-neutral-800'
-            "
-            @click="
-              if (!comp.isDisabled) {
-                emit('update:value', comp.name, !values[comp.name]);
-              }
-            "
+            class="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+            @update:model-value="emit('update:value', comp.name, $event)"
           >
-            <span
-              class="pointer-events-none block h-4 w-4 rounded-full bg-white dark:bg-neutral-900 shadow-lg ring-0 transition-transform"
-              :class="values[comp.name] ? 'translate-x-4' : 'translate-x-0'"
+            <SwitchThumb
+              class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0"
             />
-          </button>
+          </SwitchRoot>
         </div>
 
         <!-- Textarea -->
@@ -181,7 +248,7 @@ const getColumnSpan = (span: any) => {
           :placeholder="comp.placeholder"
           :disabled="comp.isDisabled"
           v-bind="comp.extraInputAttributes"
-          class="flex min-h-[80px] w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-3 py-2 text-sm shadow-sm placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 dark:focus-visible:ring-neutral-300 disabled:cursor-not-allowed disabled:opacity-50"
+          class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           @input="
             emit(
               'update:value',
@@ -198,7 +265,7 @@ const getColumnSpan = (span: any) => {
           :value="values[comp.name]"
           type="datetime-local"
           :disabled="comp.isDisabled"
-          class="h-9 w-full rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 dark:focus-visible:ring-neutral-300 disabled:cursor-not-allowed disabled:opacity-50"
+          class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           @input="
             emit(
               'update:value',
@@ -206,6 +273,179 @@ const getColumnSpan = (span: any) => {
               ($event.target as HTMLInputElement).value,
             )
           "
+        />
+
+        <!-- Radio Group (Reka UI) -->
+        <KinetixRadioGroup
+          v-else-if="comp.type === 'radio'"
+          :value="values[comp.name]"
+          :options="comp.options"
+          :inline="comp.isInline"
+          :disabled="comp.isDisabled"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Checkbox List -->
+        <div
+          v-else-if="comp.type === 'checkbox-list'"
+          class="gap-2"
+          :class="comp.isInline ? 'flex flex-wrap items-center gap-4' : 'flex flex-col'"
+        >
+          <label
+            v-for="(lbl, val) in comp.options"
+            :key="val"
+            class="flex items-center gap-2 text-sm text-foreground"
+            :class="comp.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'"
+          >
+            <KinetixCheckbox
+              :checked="isInArray(values[comp.name], String(val))"
+              :disabled="comp.isDisabled"
+              @change="
+                emit(
+                  'update:value',
+                  comp.name,
+                  toggleArrayValue(values[comp.name], String(val), $event),
+                )
+              "
+            />
+            {{ lbl }}
+          </label>
+        </div>
+
+        <!-- Color Picker -->
+        <div
+          v-else-if="comp.type === 'color-picker'"
+          class="flex items-center gap-2"
+        >
+          <input
+            type="color"
+            :value="values[comp.name] || '#000000'"
+            :disabled="comp.isDisabled"
+            class="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-input bg-background p-1 disabled:cursor-not-allowed disabled:opacity-50"
+            @input="
+              emit(
+                'update:value',
+                comp.name,
+                ($event.target as HTMLInputElement).value,
+              )
+            "
+          />
+          <input
+            :id="comp.name"
+            :value="values[comp.name]"
+            type="text"
+            :placeholder="comp.placeholder || '#000000'"
+            :disabled="comp.isDisabled"
+            class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm font-mono shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            @input="
+              emit(
+                'update:value',
+                comp.name,
+                ($event.target as HTMLInputElement).value,
+              )
+            "
+          />
+        </div>
+
+        <!-- Repeater -->
+        <div v-else-if="comp.type === 'repeater'" class="space-y-3">
+          <div
+            v-for="(item, idx) in values[comp.name] || []"
+            :key="idx"
+            class="relative rounded-lg border border-input bg-muted/40 p-4"
+          >
+            <div class="mb-3 flex items-center justify-between">
+              <span
+                class="text-xs font-semibold text-muted-foreground"
+              >
+                #{{ idx + 1 }}
+              </span>
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30"
+                  :disabled="idx === 0"
+                  @click="moveRepeaterItem(comp.name, idx, -1)"
+                >
+                  <ChevronUp class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30"
+                  :disabled="idx === (values[comp.name] || []).length - 1"
+                  @click="moveRepeaterItem(comp.name, idx, 1)"
+                >
+                  <ChevronDown class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30"
+                  :disabled="
+                    !!comp.minItems &&
+                    (values[comp.name] || []).length <= comp.minItems
+                  "
+                  @click="removeRepeaterItem(comp.name, idx)"
+                >
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-12 gap-4">
+              <KinetixFormSchema
+                :schema="comp.schema"
+                :values="item"
+                :errors="errors"
+                @update:value="
+                  (name, val) => updateRepeaterItem(comp.name, idx, name, val)
+                "
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-md border border-dashed border-input px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            :disabled="
+              !!comp.maxItems &&
+              (values[comp.name] || []).length >= comp.maxItems
+            "
+            @click="addRepeaterItem(comp.name, comp.schema)"
+          >
+            <Plus class="h-3.5 w-3.5" />
+            {{ comp.addActionLabel || t("kinetix.add_item") }}
+          </button>
+        </div>
+
+        <!-- Tags Input -->
+        <KinetixTagsInput
+          v-else-if="comp.type === 'tags-input'"
+          :value="values[comp.name]"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Key-Value -->
+        <KinetixKeyValue
+          v-else-if="comp.type === 'key-value'"
+          :value="values[comp.name]"
+          :disabled="comp.isDisabled"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- File Upload -->
+        <KinetixFileUpload
+          v-else-if="comp.type === 'file-upload'"
+          :value="values[comp.name]"
+          :upload-token="comp.uploadToken"
+          :is-multiple="comp.isMultiple"
+          :accepted-file-types="comp.acceptedFileTypes"
+          :max-size="comp.maxSize"
+          :is-image="comp.isImage"
+          :max-files="comp.maxFiles"
+          :disabled="comp.isDisabled"
+          @update:value="(v) => emit('update:value', comp.name, v)"
         />
 
         <!-- Hidden Field -->
@@ -219,7 +459,7 @@ const getColumnSpan = (span: any) => {
       <!-- Validation Error -->
       <p
         v-if="errors[comp.name]"
-        class="text-xs font-semibold text-red-500 dark:text-red-900 mt-1"
+        class="text-xs font-semibold text-destructive mt-1"
       >
         {{ errors[comp.name] }}
       </p>

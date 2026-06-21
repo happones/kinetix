@@ -15,23 +15,26 @@ class TableData extends Data
      * @param array<int, FilterData> $filters
      * @param array<int, ActionData> $recordActions
      * @param array<int, ActionData> $toolbarActions
+     * @param array<int, ActionData> $bulkActions
      * @param array<int, TableRowData> $records
      * @param array<int, int> $paginationPageOptions
      */
     public function __construct(
-        public string $heading,
+        public ?string $heading,
         public ?string $description,
-        public ?int $poll,
+        public ?string $poll,
         public bool $isStriped,
         public string $model,
         public array $columns,
         public array $filters,
         public array $recordActions,
         public array $toolbarActions,
+        public array $bulkActions,
         public array $records,
         public bool $isPaginated,
         public array $paginationPageOptions,
         public ?TablePaginationData $pagination,
         public TableStateData $state,
+        public string $queryPrefix = '',
     ) {}
 }

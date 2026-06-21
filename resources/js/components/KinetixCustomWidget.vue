@@ -8,18 +8,18 @@ defineProps<{
 
 <template>
   <div
-    class="kinetix-custom-card border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/50 backdrop-blur-sm rounded-xl p-6 transition-all duration-300 hover:shadow-md"
+    class="kinetix-custom-card border border-border bg-card backdrop-blur-sm rounded-xl p-6 transition-all duration-300 hover:shadow-md"
   >
     <div v-if="widget.title || widget.description" class="mb-4">
       <h3
         v-if="widget.title"
-        class="text-base font-semibold text-neutral-900 dark:text-white leading-6"
+        class="text-base font-semibold text-foreground leading-6"
       >
         {{ widget.title }}
       </h3>
       <p
         v-if="widget.description"
-        class="text-xs text-neutral-500 dark:text-neutral-400 mt-1"
+        class="text-xs text-muted-foreground mt-1"
       >
         {{ widget.description }}
       </p>

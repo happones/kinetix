@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Check } from "@lucide/vue";
+import { CheckboxIndicator, CheckboxRoot } from "reka-ui";
 import { computed } from "vue";
 
 const props = withDefaults(
@@ -22,40 +23,27 @@ const emit = defineEmits<{
   (e: "change", value: boolean): void;
 }>();
 
-const isChecked = computed(() => {
-  if (props.checked !== undefined) {
-    return props.checked;
-  }
+const isChecked = computed(() =>
+  props.checked !== undefined ? props.checked : props.modelValue,
+);
 
-  return props.modelValue;
-});
-
-const toggle = () => {
-  if (props.disabled) {
-    return;
-  }
-
-  const newValue = !isChecked.value;
-  emit("update:modelValue", newValue);
-  emit("change", newValue);
+const onUpdate = (value: boolean | "indeterminate") => {
+  const next = value === true;
+  emit("update:modelValue", next);
+  emit("change", next);
 };
 </script>
 
 <template>
-  <button
+  <CheckboxRoot
     :id="id"
-    type="button"
-    role="checkbox"
-    :aria-checked="isChecked"
+    :model-value="isChecked"
     :disabled="disabled"
-    class="peer h-4 w-4 shrink-0 rounded border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 dark:focus-visible:ring-neutral-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 transition-colors flex items-center justify-center cursor-pointer select-none"
-    :class="[
-      isChecked
-        ? 'bg-neutral-900 border-neutral-900 text-white dark:bg-neutral-50 dark:border-neutral-50 dark:text-neutral-900'
-        : 'bg-white border-neutral-300 text-transparent dark:bg-neutral-900 dark:border-neutral-700',
-    ]"
-    @click="toggle"
+    class="peer flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-input shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+    @update:model-value="onUpdate"
   >
-    <Check v-if="isChecked" class="h-3 w-3 stroke-[3]" />
-  </button>
+    <CheckboxIndicator class="flex items-center justify-center text-current">
+      <Check class="h-3 w-3 stroke-[3]" />
+    </CheckboxIndicator>
+  </CheckboxRoot>
 </template>

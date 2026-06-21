@@ -69,7 +69,19 @@ php artisan vendor:publish --tag=kinetix-translations
 
 # Audio assets → public/vendor/kinetix/
 php artisan vendor:publish --tag=kinetix-assets
+
+# Fallback design tokens — only if your app is NOT a shadcn-vue starter kit
+php artisan vendor:publish --tag=kinetix-styles
 ```
+
+### Theming (shadcn tokens)
+
+Kinetix is built for the **Vue + shadcn-vue** starter-kit stack. Its components:
+
+- Style with shadcn's **semantic design tokens** (`bg-background`, `text-foreground`, `bg-primary`, `border-input`, `ring-ring`, `bg-muted`, …), so they inherit your app's theme, palette, radius and dark mode automatically.
+- Build interactive primitives on **[Reka UI](https://reka-ui.com/)** (the headless library shadcn-vue itself wraps) for accessible checkboxes, switches, calendars, etc.
+
+Kinetix does **not** import your copied `@/components/ui/*` files (those vary per app and would break builds); instead it reuses the same *foundation* — Reka UI + the shadcn token contract. In a shadcn-vue starter kit the CSS variables already exist; otherwise publish the fallback tokens with `--tag=kinetix-styles` and import `resources/css/kinetix.css`.
 
 ### 3. Compile translations for Vue
 
@@ -452,6 +464,24 @@ This creates/updates `resources/js/vue-i18n-locales.ts` which is consumed automa
 
 ## Artisan Commands
 
+### Generators
+
+Scaffold independent, reusable Kinetix classes under `app/Kinetix/`:
+
+| Command | Generates |
+|---|---|
+| `kinetix:make-resource {Name}` | Full CRUD resource (PHP resource + controller + Vue pages); `--generate`, `--simple`, `--soft-deletes` |
+| `kinetix:make-action {Name}` | `app/Kinetix/Actions/{Name}` |
+| `kinetix:make-table {Name}` | `app/Kinetix/Tables/{Name}` |
+| `kinetix:make-form {Name}` | `app/Kinetix/Forms/{Name}` |
+| `kinetix:make-infolist {Name}` | `app/Kinetix/Infolists/{Name}` |
+| `kinetix:make-importer {Name}` | `app/Kinetix/Importers/{Name}` |
+| `kinetix:make-exporter {Name}` | `app/Kinetix/Exporters/{Name}` |
+| `kinetix:make-relation-manager {Name} --relationship=posts` | `app/Kinetix/RelationManagers/{Name}` |
+| `kinetix:make-notification {Name}` | `app/Kinetix/Notifications/{Name}` |
+
+All generators accept `--force` to overwrite an existing file.
+
 ### `kinetix:make-notification`
 
 Generate a reusable custom notification class:
@@ -558,11 +588,50 @@ kinetix/
 - [x] Real-time Echo integration (`useEchoNotification`)
 - [x] Full i18n support (en, es, fr, pt)
 - [x] Audio alerts with configurable path
-- [ ] Form builder components
-- [ ] Table / data grid components
-- [ ] Confirmation modals
-- [ ] Page-level action bars
+- [x] Form builder components
+- [x] Table / data grid components
+- [x] Infolist (read-only record views)
+- [x] Confirmation modals
+- [x] Page-level action bars
 - [ ] Multi-panel support
+
+---
+
+## Testing
+
+Kinetix ships a PHPUnit suite built on `orchestra/testbench` (an in-memory SQLite app — no external services required):
+
+```bash
+composer test
+# or
+vendor/bin/phpunit
+```
+
+Tests live in `tests/` (`Happones\Kinetix\Tests\` namespace) and cover the form/table/infolist/import/export builders plus the inline-edit security boundary.
+
+### Static analysis
+
+Kinetix is analysed with [Larastan](https://github.com/larastan/larastan) (PHPStan for Laravel) at **level 5**:
+
+```bash
+composer analyse
+# or
+vendor/bin/phpstan analyse
+```
+
+Configuration lives in `phpstan.neon`. The intentional `::make()` → `new static()` builder pattern and host-app `User` model members (`Notifiable`, optional teams) are documented as ignored; everything else is clean.
+
+### Frontend (Vue) tests
+
+Vue components are tested with [Vitest](https://vitest.dev/) + [`@vue/test-utils`](https://test-utils.vuejs.org/) (happy-dom environment):
+
+```bash
+npm install
+npm run test:unit        # single run
+npm run test:unit:watch  # watch mode
+```
+
+Specs live next to the components in `resources/js/components/__tests__/`. The `@` alias resolves to `resources/js` (see `vitest.config.ts`). Components that use `vue-i18n` should be mounted with an i18n instance via `global.plugins`.
 
 ---
 

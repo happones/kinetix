@@ -9,9 +9,9 @@ use Closure;
 class SelectColumn extends Column
 {
     /**
-     * @var array<string, string>|Closure
+     * @var array<string, string>|Closure|class-string
      */
-    protected array|Closure $options = [];
+    protected array|Closure|string $options = [];
 
     protected function getType(): string
     {
@@ -55,7 +55,7 @@ class SelectColumn extends Column
             return $options;
         }
 
-        return $this->options;
+        return is_array($this->options) ? $this->options : [];
     }
 
     protected function getExtraData(): array
@@ -63,5 +63,10 @@ class SelectColumn extends Column
         return [
             'options' => $this->getOptions(),
         ];
+    }
+
+    public function isEditable(): bool
+    {
+        return true;
     }
 }

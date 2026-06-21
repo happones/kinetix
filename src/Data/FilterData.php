@@ -20,5 +20,13 @@ class FilterData extends Data
         public string $type,
         // SelectFilter specific
         public ?array $options = null,
+        // DateRangeFilter specific — render the shadcn-style range calendar
+        public bool $useCalendar = false,
+        public int $numberOfMonths = 1,
+        public ?string $locale = null,
+        public ?string $weekdayFormat = null,
+        public bool $fixedWeeks = false,
+        public ?string $minValue = null,
+        public ?string $maxValue = null,
     ) {}
 }

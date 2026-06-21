@@ -7,6 +7,13 @@ namespace Happones\Kinetix;
 use Happones\Kinetix\Commands\MakeNotificationCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\MakeResourceCommand;
+use Happones\Kinetix\Commands\MakeActionCommand;
+use Happones\Kinetix\Commands\MakeTableCommand;
+use Happones\Kinetix\Commands\MakeFormCommand;
+use Happones\Kinetix\Commands\MakeInfolistCommand;
+use Happones\Kinetix\Commands\MakeImporterCommand;
+use Happones\Kinetix\Commands\MakeExporterCommand;
+use Happones\Kinetix\Commands\MakeRelationManagerCommand;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
@@ -39,6 +46,13 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeNotificationCommand::class,
                 SendNotificationCommand::class,
                 MakeResourceCommand::class,
+                MakeActionCommand::class,
+                MakeTableCommand::class,
+                MakeFormCommand::class,
+                MakeInfolistCommand::class,
+                MakeImporterCommand::class,
+                MakeExporterCommand::class,
+                MakeRelationManagerCommand::class,
             ]);
 
             // Publish config
@@ -48,15 +62,22 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish components
             $this->publishes([
-                __DIR__.'/../resources/js/components' => resource_path('js/components/kinetix'),
-                __DIR__.'/../resources/js/stores'     => resource_path('js/stores'),
-                __DIR__.'/../resources/js/types'      => resource_path('js/types'),
+                __DIR__.'/../resources/js/components'   => resource_path('js/components/kinetix'),
+                __DIR__.'/../resources/js/composables'  => resource_path('js/composables'),
+                __DIR__.'/../resources/js/stores'       => resource_path('js/stores'),
+                __DIR__.'/../resources/js/types'        => resource_path('js/types'),
             ], 'kinetix-components');
 
             // Publish translations directly into Laravel lang directory so generators can pick them up
             $this->publishes([
                 __DIR__.'/../resources/lang' => lang_path(),
             ], 'kinetix-translations');
+
+            // Publish the fallback shadcn design tokens (only needed if the app
+            // doesn't already define them, e.g. outside a shadcn-vue starter kit).
+            $this->publishes([
+                __DIR__.'/../resources/css/kinetix.css' => resource_path('css/kinetix.css'),
+            ], 'kinetix-styles');
 
             // Publish public assets (sounds, etc.)
             $this->publishes([
@@ -69,6 +90,15 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register endpoints for table inline edits
         $this->registerTableRoutes();
+
+        // Register endpoints for the import preview & dispatch flow
+        $this->registerImportRoutes();
+
+        // Register the export download endpoint
+        $this->registerExportRoutes();
+
+        // Register the file-upload endpoints used by the FileUpload field
+        $this->registerUploadRoutes();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -201,17 +231,26 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('cell-update', function () {
                     $encryptedModel = request('model');
                     $recordId       = request('recordId');
-                    $column         = request('column');
+                    $column         = (string) request('column');
                     $value          = request('value');
 
                     try {
-                        $modelClass = \Illuminate\Support\Facades\Crypt::decryptString((string) $encryptedModel);
+                        $payload = \Illuminate\Support\Facades\Crypt::decrypt((string) $encryptedModel);
                     } catch (\Exception $e) {
                         return response()->json(['status' => 'error', 'message' => 'Invalid model signature.'], 400);
                     }
 
-                    if (! class_exists($modelClass) || ! is_subclass_of($modelClass, \Illuminate\Database\Eloquent\Model::class)) {
+                    $modelClass      = is_array($payload) ? ($payload['model'] ?? null) : null;
+                    $editableColumns = is_array($payload) ? ($payload['columns'] ?? []) : [];
+
+                    if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, \Illuminate\Database\Eloquent\Model::class)) {
                         return response()->json(['status' => 'error', 'message' => 'Invalid model class.'], 400);
+                    }
+
+                    // Only columns explicitly declared as editable on the table may be written,
+                    // preventing tampering with arbitrary (e.g. privileged) attributes.
+                    if (! is_array($editableColumns) || ! in_array($column, $editableColumns, true)) {
+                        return response()->json(['status' => 'error', 'message' => 'Column is not editable.'], 403);
                     }
 
                     $record = $modelClass::find($recordId);
@@ -225,6 +264,75 @@ class KinetixServiceProvider extends ServiceProvider
 
                     return response()->json(['status' => 'success']);
                 })->name('kinetix.tables.cell-update');
+            });
+    }
+
+    /**
+     * Register routing for the import preview and dispatch flow.
+     */
+    protected function registerImportRoutes(): void
+    {
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/' . $prefix;
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/imports")
+            ->group(function () {
+                Route::post('upload', [\Happones\Kinetix\Imports\ImportController::class, 'upload'])
+                    ->name('kinetix.imports.upload');
+
+                Route::post('preview', [\Happones\Kinetix\Imports\ImportController::class, 'preview'])
+                    ->name('kinetix.imports.preview');
+
+                Route::post('start', [\Happones\Kinetix\Imports\ImportController::class, 'start'])
+                    ->name('kinetix.imports.start');
+            });
+    }
+
+    /**
+     * Register the file-upload endpoints for the FileUpload form field.
+     */
+    protected function registerUploadRoutes(): void
+    {
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/' . $prefix;
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/uploads")
+            ->group(function () {
+                Route::post('store', [\Happones\Kinetix\Forms\UploadController::class, 'store'])
+                    ->name('kinetix.uploads.store');
+
+                Route::post('delete', [\Happones\Kinetix\Forms\UploadController::class, 'delete'])
+                    ->name('kinetix.uploads.delete');
+            });
+    }
+
+    /**
+     * Register the export download endpoint.
+     *
+     * Registered without the team prefix so the signed download URL can be built
+     * from a queued job that has no team route context. Access is guarded by the
+     * signed token plus the configured middleware.
+     */
+    protected function registerExportRoutes(): void
+    {
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/exports")
+            ->group(function () {
+                Route::get('download', [\Happones\Kinetix\Exports\ExportController::class, 'download'])
+                    ->name('kinetix.exports.download');
             });
     }
 

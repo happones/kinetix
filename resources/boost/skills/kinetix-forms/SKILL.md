@@ -12,7 +12,7 @@ metadata:
 
 Activate this skill when:
 - Building input forms for resource pages or action modals.
-- Adding fields like `TextInput`, `Select`, `Checkbox`, `Toggle`, `DateTimePicker`, `Textarea`, or `Hidden`.
+- Adding fields like `TextInput`, `Select`, `Checkbox`, `Toggle`, `DateTimePicker`, `Textarea`, `Hidden`, `Radio`, `CheckboxList`, `ColorPicker`, `TagsInput`, `KeyValue`, `Repeater`, or `FileUpload`.
 - Structuring form grids using `Grid::make()` or container cards using `Section::make()`.
 - Adding Laravel validation rules dynamically to inputs (`required()`, `maxLength()`, `rules()`).
 - Using lifecycle hooks (`afterStateHydrated()`, `dehydrateStateUsing()`).

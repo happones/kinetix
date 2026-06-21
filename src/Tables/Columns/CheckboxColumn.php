@@ -10,4 +10,9 @@ class CheckboxColumn extends Column
     {
         return 'checkbox-input';
     }
+
+    public function isEditable(): bool
+    {
+        return true;
+    }
 }

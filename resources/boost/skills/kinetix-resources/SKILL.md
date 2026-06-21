@@ -15,6 +15,7 @@ Activate this skill when:
 - Building controllers that map models to Kinetix tables and forms.
 - Designing standard Inertia.js views to display listings and forms.
 - Scoping operations under tenant/team parameters (e.g. `{current_team}/posts`).
+- Managing a parent record's related records (hasMany/belongsToMany) on its edit/show page via **Relation Managers**.
 
 ## Documentation
 
@@ -200,6 +201,41 @@ const handleSubmit = (values: Record<string, any>) => {
     </div>
 </template>
 ```
+
+---
+
+## Relation Managers
+
+To manage a parent's related records on its edit/show page, extend `RelationManager`. It scopes a Kinetix Table to `$parent->{relationship}()` and namespaces its query string (`posts_search`, `posts_page`, …) so multiple managers coexist.
+
+```php
+use Happones\Kinetix\Resources\RelationManager;
+use Happones\Kinetix\Tables\Table;
+use Happones\Kinetix\Tables\Columns\TextColumn;
+
+class PostsRelationManager extends RelationManager
+{
+    protected static string $relationship = 'posts';
+
+    public function table(Table $table): Table
+    {
+        return $table->columns([
+            TextColumn::make('title')->searchable()->sortable(),
+        ]);
+    }
+}
+
+// Edit/show controller
+return inertia('Users/Edit', [
+    'relations' => [PostsRelationManager::make($user)->toArray()],
+]);
+```
+
+```vue
+<KinetixRelationManager v-for="r in relations" :key="r.relationship" :manager="r" />
+```
+
+For multiple standalone tables on one page (without a relation), call `Table::make($q)->queryPrefix('foo_')` directly. Full reference: [Relation Managers](file:///home/happones/Plugins/Php/kinetix/docs/relation-managers.md).
 
 ---
 

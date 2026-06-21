@@ -21,7 +21,7 @@ class ColumnData extends Data
         public string $alignment = 'left',
         public bool $isToggleable = false,
         public bool $isToggledHiddenByDefault = false,
-        public string $type,
+        public string $type = 'text',
         // ColorColumn specific
         public ?bool $isCopyable = null,
         // ImageColumn specific

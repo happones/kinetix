@@ -31,6 +31,7 @@ class FormFieldData extends Data
         public ?string $prefix = null,
         public ?string $suffix = null,
         public ?string $inputType = null,
+        public bool $isInline = false,
         public ?array $options = null,
         public ?array $extraAttributes = null,
         public ?array $extraInputAttributes = null,
@@ -40,5 +41,16 @@ class FormFieldData extends Data
         public ?string $heading = null,
         public ?string $description = null,
         public ?int $columns = null,
+        // Repeater specific
+        public ?int $minItems = null,
+        public ?int $maxItems = null,
+        public ?string $addActionLabel = null,
+        // File upload specific
+        public bool $isMultiple = false,
+        public ?array $acceptedFileTypes = null,
+        public ?int $maxSize = null,
+        public bool $isImage = false,
+        public ?int $maxFiles = null,
+        public ?string $uploadToken = null,
     ) {}
 }

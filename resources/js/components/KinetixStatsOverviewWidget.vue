@@ -82,7 +82,7 @@ const getDescriptionColorClass = (color?: string) => {
     return "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/30";
   }
 
-  return "text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-900/30";
+  return "text-muted-foreground bg-muted/40";
 };
 
 const getSparklineColor = (color?: string) => {
@@ -161,13 +161,13 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
     <div v-if="widget.title || widget.description" class="mb-4">
       <h3
         v-if="widget.title"
-        class="text-base font-semibold text-neutral-900 dark:text-white leading-6"
+        class="text-base font-semibold text-foreground leading-6"
       >
         {{ widget.title }}
       </h3>
       <p
         v-if="widget.description"
-        class="text-xs text-neutral-500 dark:text-neutral-400 mt-1"
+        class="text-xs text-muted-foreground mt-1"
       >
         {{ widget.description }}
       </p>
@@ -221,17 +221,17 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
       <div
         v-for="(stat, index) in stats"
         :key="index"
-        class="kinetix-stat-card border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/50 backdrop-blur-sm rounded-xl p-6 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group"
+        class="kinetix-stat-card border border-border bg-card backdrop-blur-sm rounded-xl p-6 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group"
       >
         <div class="flex justify-between items-start gap-4">
           <div class="flex-1 min-w-0">
             <span
-              class="text-sm font-medium text-neutral-500 dark:text-neutral-400 block truncate"
+              class="text-sm font-medium text-muted-foreground block truncate"
             >
               {{ stat.label }}
             </span>
             <span
-              class="text-3xl font-bold text-neutral-900 dark:text-white mt-2 block tracking-tight"
+              class="text-3xl font-bold text-foreground mt-2 block tracking-tight"
             >
               {{ stat.value }}
             </span>

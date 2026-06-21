@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Resources;
 
 use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Tables\Table;
 
 abstract class Resource
@@ -55,6 +56,24 @@ abstract class Resource
     public static function form(Form $form): Form
     {
         return $form;
+    }
+
+    /**
+     * Get the default infolist instance for the read-only view page.
+     */
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist;
+    }
+
+    /**
+     * The relation manager classes shown on the resource's edit/view page.
+     *
+     * @return array<int, class-string<RelationManager>>
+     */
+    public static function relationManagers(): array
+    {
+        return [];
     }
 
     /**

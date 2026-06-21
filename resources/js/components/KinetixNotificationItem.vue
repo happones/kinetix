@@ -42,7 +42,7 @@ const getNotificationIcon = (notif: KinetixNotification) => {
 // Resolve custom colors/classes for the notification icon
 const getNotificationIconClass = (notif: KinetixNotification) => {
   if (notif.type === "order") {
-    return "text-neutral-500 dark:text-neutral-400";
+    return "text-muted-foreground";
   }
 
   switch (notif.status) {
@@ -55,7 +55,7 @@ const getNotificationIconClass = (notif: KinetixNotification) => {
     case "info":
       return "text-blue-500";
     default:
-      return "text-neutral-500 dark:text-neutral-400";
+      return "text-muted-foreground";
   }
 };
 
@@ -93,7 +93,7 @@ const formatTime = (dateStr: string) => {
 
 <template>
   <div
-    class="relative flex gap-3 px-6 py-4 transition-colors hover:bg-neutral-50/50 dark:hover:bg-neutral-900/30"
+    class="relative flex gap-3 px-6 py-4 transition-colors hover:bg-accent/50"
     :class="[notif.read ? '' : 'border-l-2 border-primary bg-primary/[0.02]']"
   >
     <!-- Icon -->
@@ -106,17 +106,17 @@ const formatTime = (dateStr: string) => {
     <!-- Content -->
     <div class="min-w-0 flex-1" @click="store.markAsRead(notif.id)">
       <p
-        class="text-sm leading-tight font-semibold break-words text-neutral-900 dark:text-neutral-100"
+        class="text-sm leading-tight font-semibold break-words text-foreground"
         :class="{ 'font-bold': !notif.read }"
       >
         {{ notif.title }}
       </p>
-      <p class="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+      <p class="mt-0.5 text-xs text-muted-foreground">
         {{ formatTime(notif.created_at) }}
       </p>
       <p
         v-if="notif.description"
-        class="mt-1.5 text-sm leading-normal break-words text-neutral-500 dark:text-neutral-400"
+        class="mt-1.5 text-sm leading-normal break-words text-muted-foreground"
       >
         {{ notif.description }}
       </p>
@@ -146,7 +146,7 @@ const formatTime = (dateStr: string) => {
     <!-- Close Button -->
     <button
       @click.stop="store.removeNotification(notif.id)"
-      class="absolute top-4 right-4 cursor-pointer text-neutral-400/60 transition-colors hover:text-neutral-950 dark:text-neutral-500/60 dark:hover:text-neutral-200"
+      class="absolute top-4 right-4 cursor-pointer text-muted-foreground/60 transition-colors hover:text-foreground"
       :aria-label="t('kinetix.delete')"
     >
       <X class="h-4 w-4" />

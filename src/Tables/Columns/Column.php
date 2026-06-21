@@ -151,6 +151,14 @@ abstract class Column
     }
 
     /**
+     * Whether this column supports inline editing via the cell-update endpoint.
+     */
+    public function isEditable(): bool
+    {
+        return false;
+    }
+
+    /**
      * Convert the column definition to array.
      *
      * @return array<string, mixed>

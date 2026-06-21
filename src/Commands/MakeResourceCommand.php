@@ -63,7 +63,7 @@ class MakeResourceCommand extends Command
         $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes);
 
         // 3. Create Vue frontend pages
-        $this->createVuePages($pluralName, $pluralSlug, $simple, $softDeletes, $formFields, $tableColumns);
+        $this->createVuePages($modelName, $pluralName, $pluralSlug, $simple, $softDeletes, $formFields, $tableColumns);
 
         $this->info("\nKinetix Resource [{$modelName}] scaffolded successfully!");
         $this->comment("Next steps:");
@@ -441,6 +441,7 @@ PHP;
      * Generate Vue page views.
      */
     protected function createVuePages(
+        string $modelName,
         string $pluralName,
         string $pluralSlug,
         bool $simple,
