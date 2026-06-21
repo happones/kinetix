@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Actions;
 
 use Happones\Kinetix\Data\ActionData;
+use Happones\Kinetix\Support\Concerns\HasAuthorization;
+use Illuminate\Database\Eloquent\Model;
 
 class Action
 {
+    use HasAuthorization;
+
     protected string $name;
 
     protected string $label;
@@ -49,6 +53,18 @@ class Action
      * @var array<string, mixed>|null
      */
     protected ?array $inertiaVisit = null;
+
+    protected bool $requiresConfirmation = false;
+
+    protected ?string $modalHeading = null;
+
+    protected ?string $modalDescription = null;
+
+    protected ?string $modalIcon = null;
+
+    protected ?string $modalSubmitActionLabel = null;
+
+    protected ?string $modalCancelActionLabel = null;
 
     public function __construct(string $name)
     {
@@ -181,6 +197,75 @@ class Action
     }
 
     /**
+     * Require the user to confirm via a modal before the action runs.
+     *
+     * Optionally pass the modal heading directly: `requiresConfirmation('Delete user?')`.
+     */
+    public function requiresConfirmation(bool|string $condition = true): static
+    {
+        if (is_string($condition)) {
+            $this->requiresConfirmation = true;
+            $this->modalHeading = $condition;
+
+            return $this;
+        }
+
+        $this->requiresConfirmation = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Set the confirmation modal heading.
+     */
+    public function modalHeading(string $heading): static
+    {
+        $this->modalHeading = $heading;
+
+        return $this;
+    }
+
+    /**
+     * Set the confirmation modal description / body text.
+     */
+    public function modalDescription(string $description): static
+    {
+        $this->modalDescription = $description;
+
+        return $this;
+    }
+
+    /**
+     * Set the confirmation modal icon (Lucide name, e.g. 'alert-triangle').
+     */
+    public function modalIcon(string $icon): static
+    {
+        $this->modalIcon = $icon;
+
+        return $this;
+    }
+
+    /**
+     * Set the label for the confirm button.
+     */
+    public function modalSubmitActionLabel(string $label): static
+    {
+        $this->modalSubmitActionLabel = $label;
+
+        return $this;
+    }
+
+    /**
+     * Set the label for the cancel button.
+     */
+    public function modalCancelActionLabel(string $label): static
+    {
+        $this->modalCancelActionLabel = $label;
+
+        return $this;
+    }
+
+    /**
      * Dispatch a custom browser event when the action is clicked.
      * In Vue, listen with `window.addEventListener('kinetix:event-name', handler)`.
      *
@@ -209,10 +294,14 @@ class Action
     }
 
     /**
-     * Convert the action to ActionData.
+     * Convert the action to ActionData, or null when hidden/unauthorized.
      */
-    public function toData(?\Illuminate\Database\Eloquent\Model $record = null): ActionData
+    public function toData(?Model $record = null): ?ActionData
     {
+        if (!$this->shouldRender($record)) {
+            return null;
+        }
+
         $url = $this->url;
         if ($url instanceof \Closure) {
             $reflection = new \ReflectionFunction($url);
@@ -277,16 +366,44 @@ class Action
             dispatchEvent: $this->dispatchEvent,
             dispatchData: $this->dispatchData,
             inertiaVisit: $this->inertiaVisit,
+            requiresConfirmation: $this->requiresConfirmation,
+            modalHeading: $this->modalHeading,
+            modalDescription: $this->modalDescription,
+            modalIcon: $this->modalIcon,
+            modalSubmitActionLabel: $this->modalSubmitActionLabel,
+            modalCancelActionLabel: $this->modalCancelActionLabel,
         );
     }
 
     /**
-     * Convert the action to array format.
+     * Convert the action to array format (empty when hidden/unauthorized).
      *
      * @return array<string, mixed>
      */
     public function toArray(): array
     {
-        return $this->toData()->toArray();
+        return $this->toData()?->toArray() ?? [];
+    }
+
+    /**
+     * Serialize a set of actions for a context, dropping any that are hidden or
+     * unauthorized. Prefer this over mapping toArray() so the payload only ever
+     * contains actions the current user may perform.
+     *
+     * @param array<int, Action|\Happones\Kinetix\Actions\ActionGroup> $actions
+     * @return array<int, array<string, mixed>>
+     */
+    public static function toArrayMany(array $actions, ?Model $record = null): array
+    {
+        $serialized = [];
+
+        foreach ($actions as $action) {
+            $data = $action->toData($record);
+            if ($data !== null) {
+                $serialized[] = $data->toArray();
+            }
+        }
+
+        return $serialized;
     }
 }

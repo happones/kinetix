@@ -13,6 +13,7 @@ class ActionData extends Data
     /**
      * @param array<string, mixed> $dispatchData
      * @param array<string, mixed>|null $inertiaVisit
+     * @param array<int, ActionData>|null $actions
      */
     public function __construct(
         public string $name,
@@ -30,5 +31,13 @@ class ActionData extends Data
         public ?string $dispatchEvent = null,
         public array $dispatchData = [],
         public ?array $inertiaVisit = null,
+        public bool $requiresConfirmation = false,
+        public ?string $modalHeading = null,
+        public ?string $modalDescription = null,
+        public ?string $modalIcon = null,
+        public ?string $modalSubmitActionLabel = null,
+        public ?string $modalCancelActionLabel = null,
+        public string $type = 'action',
+        public ?array $actions = null,
     ) {}
 }
