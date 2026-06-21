@@ -4,6 +4,12 @@ import {
   Search,
   Filter as FilterIcon,
   SlidersHorizontal,
+  CheckCircle2,
+  XCircle,
+  Trash2,
+  Edit3,
+  Eye,
+  Plus,
 } from "@lucide/vue";
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from "reka-ui";
 import { ref, computed } from "vue";
