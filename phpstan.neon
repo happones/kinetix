@@ -1,0 +1,29 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+
+    paths:
+        - src
+
+    ignoreErrors:
+        # Kinetix builders use the intentional `::make()` → `new static()` static-factory
+        # pattern. Subclasses keep a compatible constructor by design, so this is safe.
+        -
+            identifier: new.static
+
+        # These members resolve on the host application's User model — the Notifiable
+        # trait (notifications/unreadNotifications) and optional team support
+        # (currentTeam). The package cannot type a foreign model.
+        - '#undefined (property|method) Illuminate\\Foundation\\Auth\\User::(\$)?(notifications|unreadNotifications|currentTeam)#'
+
+        # Public-API trait consumed by host applications, not used inside the package.
+        -
+            identifier: trait.unused
+            path: src/Support/Concerns/HasLabelOptions.php
+
+        # Soft-delete scopes exist on SoftDeletes models, not the base query Builder.
+        -
+            message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder.*::(withTrashed|onlyTrashed)\(\)#'
+            path: src/Tables/Filters/TrashedFilter.php
