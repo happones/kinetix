@@ -1,12 +1,5 @@
 <script setup lang="ts">
-import {
-  CheckCircle2,
-  XCircle,
-  Edit3,
-  Trash2,
-  Eye,
-  Plus,
-} from "@lucide/vue";
+import { CheckCircle2, XCircle, Edit3, Trash2, Eye, Plus } from "@lucide/vue";
 import KinetixCheckbox from "../KinetixCheckbox.vue";
 import KinetixSelect from "../KinetixSelect.vue";
 
@@ -45,7 +38,12 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update-cell", recordId: string | number, colName: string, value: any): void;
+  (
+    e: "update-cell",
+    recordId: string | number,
+    colName: string,
+    value: any,
+  ): void;
   (e: "copy-to-clipboard", value: string): void;
 }>();
 
@@ -123,10 +121,7 @@ const getIconColorClass = (color?: string | null) => {
   </span>
 
   <!-- Text Normal Mode -->
-  <div
-    v-else-if="col.type === 'text' && !col.isBadge"
-    class="flex flex-col"
-  >
+  <div v-else-if="col.type === 'text' && !col.isBadge" class="flex flex-col">
     <span
       v-if="
         record.descriptions[col.name] &&
@@ -169,9 +164,7 @@ const getIconColorClass = (color?: string | null) => {
       :src="record.values[col.name]"
       class="object-cover"
       :class="
-        col.isCircular
-          ? 'rounded-full'
-          : 'rounded-lg border border-border'
+        col.isCircular ? 'rounded-full' : 'rounded-lg border border-border'
       "
       :style="{
         width: (col.size || 40) + 'px',
@@ -191,9 +184,7 @@ const getIconColorClass = (color?: string | null) => {
       @click="
         col.isCopyable && emit('copy-to-clipboard', record.values[col.name])
       "
-      :title="
-        col.isCopyable ? 'Click to copy color code' : undefined
-      "
+      :title="col.isCopyable ? 'Click to copy color code' : undefined"
     />
     <span class="text-xs text-muted-foreground font-mono">{{
       record.values[col.name]
@@ -213,45 +204,36 @@ const getIconColorClass = (color?: string | null) => {
   </div>
 
   <!-- Editable: Toggle Mode -->
-  <div
-    v-else-if="col.type === 'toggle-input'"
-    class="inline-flex items-center"
-  >
+  <div v-else-if="col.type === 'toggle-input'" class="inline-flex items-center">
     <button
       type="button"
       class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-ring"
-      :class="
-        record.values[col.name]
-          ? 'bg-primary'
-          : 'bg-muted'
-      "
+      :class="record.values[col.name] ? 'bg-primary' : 'bg-muted'"
       @click="
         emit('update-cell', record.id, col.name, !record.values[col.name])
       "
     >
       <span
         class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-        :class="
-          record.values[col.name]
-            ? 'translate-x-4'
-            : 'translate-x-0'
-        "
+        :class="record.values[col.name] ? 'translate-x-4' : 'translate-x-0'"
       />
     </button>
   </div>
 
   <!-- Editable: Text Input Mode -->
-  <div
-    v-else-if="col.type === 'text-input'"
-    class="inline-flex items-center"
-  >
+  <div v-else-if="col.type === 'text-input'" class="inline-flex items-center">
     <input
       :type="col.inputType || 'text'"
       :value="record.values[col.name]"
       :placeholder="col.placeholder ?? ''"
       class="text-xs rounded border border-border bg-background px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring w-32 text-foreground"
       @change="
-        emit('update-cell', record.id, col.name, ($event.target as HTMLInputElement).value)
+        emit(
+          'update-cell',
+          record.id,
+          col.name,
+          ($event.target as HTMLInputElement).value,
+        )
       "
     />
   </div>

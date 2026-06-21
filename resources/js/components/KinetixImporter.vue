@@ -228,7 +228,10 @@ const canStart = computed(() => {
 
   return preview.value.columns
     .filter((column) => column.isRequired)
-    .every((column) => mapping[column.name] !== null && mapping[column.name] !== undefined);
+    .every(
+      (column) =>
+        mapping[column.name] !== null && mapping[column.name] !== undefined,
+    );
 });
 
 const startImport = async () => {
@@ -273,9 +276,7 @@ const startImport = async () => {
 <template>
   <div class="space-y-5">
     <!-- File upload -->
-    <div
-      class="rounded-xl border border-dashed border-input p-6 text-center"
-    >
+    <div class="rounded-xl border border-dashed border-input p-6 text-center">
       <UploadCloud class="mx-auto h-8 w-8 text-muted-foreground" />
       <div class="mt-3 flex items-center justify-center gap-3">
         <input
@@ -305,16 +306,14 @@ const startImport = async () => {
 
     <template v-if="preview">
       <!-- CSV options -->
-      <div
-        class="rounded-xl border border-border p-4"
-      >
-        <h3
-          class="mb-3 text-sm font-semibold text-foreground"
-        >
+      <div class="rounded-xl border border-border p-4">
+        <h3 class="mb-3 text-sm font-semibold text-foreground">
           {{ t("kinetix.csv_options") }}
         </h3>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <div class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <div
+            class="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+          >
             {{ t("kinetix.delimiter") }}
             <KinetixSelect
               :value="options.delimiter"
@@ -322,7 +321,9 @@ const startImport = async () => {
               @update:value="options.delimiter = $event"
             />
           </div>
-          <div class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <div
+            class="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+          >
             {{ t("kinetix.enclosure") }}
             <KinetixSelect
               :value="options.enclosure"
@@ -330,7 +331,9 @@ const startImport = async () => {
               @update:value="options.enclosure = $event"
             />
           </div>
-          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <label
+            class="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+          >
             {{ t("kinetix.omit_lines") }}
             <input
               v-model.number="options.skipLines"
@@ -365,12 +368,8 @@ const startImport = async () => {
       </div>
 
       <!-- Column mapping -->
-      <div
-        class="rounded-xl border border-border p-4"
-      >
-        <h3
-          class="mb-3 text-sm font-semibold text-foreground"
-        >
+      <div class="rounded-xl border border-border p-4">
+        <h3 class="mb-3 text-sm font-semibold text-foreground">
           {{ t("kinetix.column_mapping") }}
         </h3>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -402,9 +401,7 @@ const startImport = async () => {
       </div>
 
       <!-- Preview table -->
-      <div
-        class="overflow-x-auto rounded-xl border border-border"
-      >
+      <div class="overflow-x-auto rounded-xl border border-border">
         <table class="min-w-full text-sm">
           <thead class="bg-muted/40">
             <tr>

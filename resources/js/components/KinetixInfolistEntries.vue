@@ -180,9 +180,7 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
             v-if="entry.icon"
             class="h-4 w-4 text-muted-foreground"
           />
-          <h3
-            class="font-semibold leading-none tracking-tight text-foreground"
-          >
+          <h3 class="font-semibold leading-none tracking-tight text-foreground">
             {{ entry.heading }}
           </h3>
         </div>
@@ -293,10 +291,7 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
       </span>
 
       <!-- Empty placeholder -->
-      <span
-        v-if="isEmpty(entry.state)"
-        class="text-sm text-muted-foreground"
-      >
+      <span v-if="isEmpty(entry.state)" class="text-sm text-muted-foreground">
         {{ entry.placeholder ?? "—" }}
       </span>
 

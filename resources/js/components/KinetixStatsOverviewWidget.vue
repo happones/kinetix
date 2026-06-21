@@ -165,10 +165,7 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
       >
         {{ widget.title }}
       </h3>
-      <p
-        v-if="widget.description"
-        class="text-xs text-muted-foreground mt-1"
-      >
+      <p v-if="widget.description" class="text-xs text-muted-foreground mt-1">
         {{ widget.description }}
       </p>
     </div>
@@ -221,61 +218,64 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
       <div
         v-for="(stat, index) in stats"
         :key="index"
-        class="kinetix-stat-card border border-border bg-card backdrop-blur-sm rounded-xl p-6 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group"
+        data-slot="card"
+        class="kinetix-stat-card border border-border bg-card text-card-foreground flex flex-col gap-6 rounded-xl py-6 shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group"
       >
-        <div class="flex justify-between items-start gap-4">
-          <div class="flex-1 min-w-0">
-            <span
-              class="text-sm font-medium text-muted-foreground block truncate"
+        <div data-slot="card-content" class="px-6 flex flex-col gap-4">
+          <div class="flex justify-between items-start gap-4">
+            <div class="flex-1 min-w-0">
+              <span
+                class="text-sm font-medium text-muted-foreground block truncate"
+              >
+                {{ stat.label }}
+              </span>
+              <span
+                class="text-3xl font-bold text-foreground mt-2 block tracking-tight"
+              >
+                {{ stat.value }}
+              </span>
+            </div>
+
+            <!-- Sparkline Chart -->
+            <div
+              v-if="stat.chart && stat.chart.length >= 2"
+              class="w-[120px] h-[40px] shrink-0 mt-1"
             >
-              {{ stat.label }}
-            </span>
-            <span
-              class="text-3xl font-bold text-foreground mt-2 block tracking-tight"
-            >
-              {{ stat.value }}
-            </span>
+              <svg class="w-full h-full overflow-visible" viewBox="0 0 120 40">
+                <path
+                  :d="getSparklinePath(stat.chart, 120, 40).area"
+                  :fill="getSparklineColor(stat.descriptionColor).fill"
+                  stroke="none"
+                />
+                <path
+                  :d="getSparklinePath(stat.chart, 120, 40).line"
+                  fill="none"
+                  :stroke="getSparklineColor(stat.descriptionColor).stroke"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
           </div>
 
-          <!-- Sparkline Chart -->
+          <!-- Description / Trend Badge -->
           <div
-            v-if="stat.chart && stat.chart.length >= 2"
-            class="w-[120px] h-[40px] shrink-0 mt-1"
+            v-if="stat.description"
+            class="flex items-center gap-1.5 flex-wrap"
           >
-            <svg class="w-full h-full overflow-visible" viewBox="0 0 120 40">
-              <path
-                :d="getSparklinePath(stat.chart, 120, 40).area"
-                :fill="getSparklineColor(stat.descriptionColor).fill"
-                stroke="none"
+            <span
+              class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full shrink-0"
+              :class="getDescriptionColorClass(stat.descriptionColor)"
+            >
+              <component
+                :is="getStatIcon(stat.descriptionIcon)"
+                v-if="stat.descriptionIcon && getStatIcon(stat.descriptionIcon)"
+                class="w-3.5 h-3.5"
               />
-              <path
-                :d="getSparklinePath(stat.chart, 120, 40).line"
-                fill="none"
-                :stroke="getSparklineColor(stat.descriptionColor).stroke"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+              {{ stat.description }}
+            </span>
           </div>
-        </div>
-
-        <!-- Description / Trend Badge -->
-        <div
-          v-if="stat.description"
-          class="mt-4 flex items-center gap-1.5 flex-wrap"
-        >
-          <span
-            class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full shrink-0"
-            :class="getDescriptionColorClass(stat.descriptionColor)"
-          >
-            <component
-              :is="getStatIcon(stat.descriptionIcon)"
-              v-if="stat.descriptionIcon && getStatIcon(stat.descriptionIcon)"
-              class="w-3.5 h-3.5"
-            />
-            {{ stat.description }}
-          </span>
         </div>
       </div>
     </div>

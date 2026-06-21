@@ -35,11 +35,7 @@ const getSortIcon = (name: string) => {
 <template>
   <thead class="bg-muted/40">
     <tr>
-      <th
-        v-if="hasBulkActions"
-        scope="col"
-        class="w-10 px-4 py-3"
-      >
+      <th v-if="hasBulkActions" scope="col" class="w-10 px-4 py-3">
         <KinetixCheckbox
           :checked="allOnPageSelected"
           @change="emit('toggle-all-on-page', $event)"
@@ -58,7 +54,7 @@ const getSortIcon = (name: string) => {
         <button
           v-if="col.isSortable"
           type="button"
-          class="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+          class="inline-flex items-center gap-1 hover:text-foreground transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md"
           @click="emit('toggle-sort', col.name)"
         >
           {{ col.label }}
@@ -66,11 +62,7 @@ const getSortIcon = (name: string) => {
         </button>
         <span v-else>{{ col.label }}</span>
       </th>
-      <th
-        v-if="hasRecordActions"
-        scope="col"
-        class="relative px-6 py-3"
-      >
+      <th v-if="hasRecordActions" scope="col" class="relative px-6 py-3">
         <span class="sr-only">Actions</span>
       </th>
     </tr>

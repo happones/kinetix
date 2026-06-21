@@ -37,28 +37,33 @@ const getRowValues = (row: any) => {
 
 <template>
   <div
-    class="kinetix-table-card border border-border bg-card backdrop-blur-sm rounded-xl p-6 transition-all duration-300 hover:shadow-md overflow-hidden"
+    data-slot="card"
+    class="kinetix-table-card border border-border bg-card text-card-foreground flex flex-col gap-6 rounded-xl py-6 shadow-sm transition-all duration-300 hover:shadow-md overflow-hidden"
   >
-    <div v-if="widget.title || widget.description" class="mb-4">
+    <div
+      v-if="widget.title || widget.description"
+      data-slot="card-header"
+      class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6"
+    >
       <h3
         v-if="widget.title"
-        class="text-base font-semibold text-foreground leading-6"
+        data-slot="card-title"
+        class="text-base font-semibold leading-none text-foreground"
       >
         {{ widget.title }}
       </h3>
       <p
         v-if="widget.description"
-        class="text-xs text-muted-foreground mt-1"
+        data-slot="card-description"
+        class="text-xs text-muted-foreground"
       >
         {{ widget.description }}
       </p>
     </div>
 
-    <div class="overflow-x-auto -mx-6 -mb-6">
+    <div data-slot="card-content" class="overflow-x-auto -mx-6 -mb-6">
       <div class="inline-block min-w-full align-middle">
-        <table
-          class="min-w-full divide-y divide-border"
-        >
+        <table class="min-w-full divide-y divide-border">
           <thead class="bg-muted/40">
             <tr>
               <th
@@ -71,9 +76,7 @@ const getRowValues = (row: any) => {
               </th>
             </tr>
           </thead>
-          <tbody
-            class="divide-y divide-border bg-transparent"
-          >
+          <tbody class="divide-y divide-border bg-transparent">
             <tr
               v-for="(row, rowIndex) in rows"
               :key="rowIndex"

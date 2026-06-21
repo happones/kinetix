@@ -57,7 +57,10 @@ describe("KinetixRangeCalendar", () => {
 
   it("disables dates beyond maxValue", () => {
     const wrapper = mount(KinetixRangeCalendar, {
-      props: { value: { from: "2026-03-05", to: null }, maxValue: "2026-03-10" },
+      props: {
+        value: { from: "2026-03-05", to: null },
+        maxValue: "2026-03-10",
+      },
     });
 
     // Days after the 10th of March are out of range and disabled.

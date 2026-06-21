@@ -62,23 +62,23 @@ const resolveIcon = (name?: string | null) => {
 
 const getButtonClass = (action: KinetixAction) => {
   if (action.viewType === "link") {
-    return "text-foreground hover:text-foreground underline-offset-4 hover:underline bg-transparent";
+    return "text-primary underline-offset-4 hover:underline bg-transparent";
   }
 
   if (action.color === "danger") {
-    return "bg-rose-600 text-white hover:bg-rose-600/90";
+    return "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60";
   }
 
   if (action.color === "success") {
-    return "bg-emerald-600 text-white hover:bg-emerald-600/90";
+    return "bg-emerald-600 text-white hover:bg-emerald-600/90 focus-visible:ring-emerald-500/20 dark:focus-visible:ring-emerald-500/40";
   }
 
   if (action.color === "warning") {
-    return "bg-amber-500 text-white hover:bg-amber-500/90";
+    return "bg-amber-500 text-white hover:bg-amber-500/90 focus-visible:ring-amber-500/20 dark:focus-visible:ring-amber-500/40";
   }
 
   if (action.color === "gray") {
-    return "border border-border bg-popover text-foreground hover:bg-accent";
+    return "border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50";
   }
 
   return "bg-primary text-primary-foreground hover:bg-primary/90";
@@ -86,18 +86,22 @@ const getButtonClass = (action: KinetixAction) => {
 
 const getSizeClass = (size?: string) => {
   if (size === "xs") {
-    return "h-7 px-2.5 text-xs";
+    return "h-7 rounded-md px-2.5 text-xs gap-1";
+  }
+
+  if (size === "sm") {
+    return "h-8 rounded-md px-3 has-[>svg]:px-2.5 text-xs gap-1.5";
   }
 
   if (size === "md") {
-    return "h-10 px-5 text-sm";
+    return "h-10 rounded-md px-5 has-[>svg]:px-4 text-sm gap-2";
   }
 
   if (size === "lg") {
-    return "h-11 px-6 text-base";
+    return "h-11 rounded-md px-6 has-[>svg]:px-4 text-base gap-2";
   }
 
-  return "h-9 px-4 text-sm";
+  return "h-9 px-4 text-sm gap-2";
 };
 </script>
 
@@ -112,10 +116,7 @@ const getSizeClass = (size?: string) => {
       >
         {{ heading }}
       </h1>
-      <p
-        v-if="description"
-        class="mt-1 text-sm text-muted-foreground"
-      >
+      <p v-if="description" class="mt-1 text-sm text-muted-foreground">
         {{ description }}
       </p>
     </div>
@@ -132,7 +133,7 @@ const getSizeClass = (size?: string) => {
             action.viewType === 'link' && action.url ? action.url : undefined
           "
           role="button"
-          class="inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
+          class="inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 cursor-pointer"
           :class="[getButtonClass(action), getSizeClass(action.size)]"
           @click.prevent="requestAction(action)"
         >

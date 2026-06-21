@@ -74,15 +74,15 @@ onBeforeUnmount(() => {
 
 const getConfirmButtonClass = (color?: string | null) => {
   if (color === "danger") {
-    return "bg-rose-600 text-white hover:bg-rose-600/90";
+    return "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60";
   }
 
   if (color === "success") {
-    return "bg-emerald-600 text-white hover:bg-emerald-600/90";
+    return "bg-emerald-600 text-white hover:bg-emerald-600/90 focus-visible:ring-emerald-500/20 dark:focus-visible:ring-emerald-500/40";
   }
 
   if (color === "warning") {
-    return "bg-amber-500 text-white hover:bg-amber-500/90";
+    return "bg-amber-500 text-white hover:bg-amber-500/90 focus-visible:ring-amber-500/20 dark:focus-visible:ring-amber-500/40";
   }
 
   return "bg-primary text-primary-foreground hover:bg-primary/90";
@@ -165,14 +165,14 @@ const getIconWrapperClass = (color?: string | null) => {
             <div class="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                class="inline-flex h-9 items-center justify-center rounded-md border border-border bg-popover px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 text-foreground"
                 @click="cancel"
               >
                 {{ cancelLabel ?? t("kinetix.cancel") }}
               </button>
               <button
                 type="button"
-                class="inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 h-9 px-4 py-2 has-[>svg]:px-3"
                 :class="getConfirmButtonClass(color)"
                 @click="confirm"
               >

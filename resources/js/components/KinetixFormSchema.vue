@@ -34,7 +34,11 @@ const getColumnSpan = (span: any) => {
 };
 
 // Toggle a value inside a multi-select array (used by checkbox-list fields).
-const toggleArrayValue = (current: any, optionValue: string, checked: boolean) => {
+const toggleArrayValue = (
+  current: any,
+  optionValue: string,
+  checked: boolean,
+) => {
   const next = Array.isArray(current) ? [...current] : [];
   const index = next.indexOf(optionValue);
 
@@ -138,15 +142,10 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
       :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
     >
       <div class="p-6 pb-4 border-b border-border">
-        <h3
-          class="font-semibold leading-none tracking-tight text-foreground"
-        >
+        <h3 class="font-semibold leading-none tracking-tight text-foreground">
           {{ comp.heading }}
         </h3>
-        <p
-          v-if="comp.description"
-          class="text-sm text-muted-foreground mt-1.5"
-        >
+        <p v-if="comp.description" class="text-sm text-muted-foreground mt-1.5">
           {{ comp.description }}
         </p>
       </div>
@@ -289,13 +288,21 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
         <div
           v-else-if="comp.type === 'checkbox-list'"
           class="gap-2"
-          :class="comp.isInline ? 'flex flex-wrap items-center gap-4' : 'flex flex-col'"
+          :class="
+            comp.isInline
+              ? 'flex flex-wrap items-center gap-4'
+              : 'flex flex-col'
+          "
         >
           <label
             v-for="(lbl, val) in comp.options"
             :key="val"
             class="flex items-center gap-2 text-sm text-foreground"
-            :class="comp.isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'"
+            :class="
+              comp.isDisabled
+                ? 'cursor-not-allowed opacity-50'
+                : 'cursor-pointer'
+            "
           >
             <KinetixCheckbox
               :checked="isInArray(values[comp.name], String(val))"
@@ -355,9 +362,7 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
             class="relative rounded-lg border border-input bg-muted/40 p-4"
           >
             <div class="mb-3 flex items-center justify-between">
-              <span
-                class="text-xs font-semibold text-muted-foreground"
-              >
+              <span class="text-xs font-semibold text-muted-foreground">
                 #{{ idx + 1 }}
               </span>
               <div class="flex items-center gap-1">

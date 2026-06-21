@@ -89,9 +89,7 @@ const { t } = useI18n();
         </div>
 
         <!-- List / Empty state -->
-        <div
-          class="flex-1 divide-y divide-border overflow-y-auto"
-        >
+        <div class="flex-1 divide-y divide-border overflow-y-auto">
           <div
             v-if="notifications.length === 0"
             class="flex h-full flex-col items-center justify-center gap-2 px-6 py-20 text-center"
@@ -101,9 +99,7 @@ const { t } = useI18n();
             >
               <Bell class="h-6 w-6 text-muted-foreground" />
             </div>
-            <p
-              class="text-sm font-medium text-foreground"
-            >
+            <p class="text-sm font-medium text-foreground">
               {{ t("kinetix.no_notifications") }}
             </p>
             <p class="text-xs text-muted-foreground">
@@ -111,10 +107,7 @@ const { t } = useI18n();
             </p>
           </div>
 
-          <div
-            v-else
-            class="divide-y divide-border"
-          >
+          <div v-else class="divide-y divide-border">
             <KinetixNotificationItem
               v-for="notif in notifications"
               :key="notif.id"

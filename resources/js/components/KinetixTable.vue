@@ -11,7 +11,12 @@ import {
   Eye,
   Plus,
 } from "@lucide/vue";
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from "reka-ui";
+import {
+  PopoverContent,
+  PopoverPortal,
+  PopoverRoot,
+  PopoverTrigger,
+} from "reka-ui";
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -97,8 +102,6 @@ const resolveIcon = (name?: string) => {
   return standardIconMap[name.toLowerCase()] || null;
 };
 
-
-
 // Reload data from server. Params are namespaced by the table's queryPrefix so
 // multiple tables (e.g. relation managers) coexist; any unrelated/foreign query
 // params already in the URL are preserved.
@@ -155,8 +158,6 @@ const isSorted = (name: string) => {
   return props.table.state.sort === name;
 };
 
-
-
 const toggleSort = (name: string) => {
   if (isSorted(name)) {
     const nextDir = props.table.state.direction === "asc" ? "desc" : "asc";
@@ -168,14 +169,14 @@ const toggleSort = (name: string) => {
   triggerReload({ sort: name, direction: "asc" });
 };
 
-const getFilterOptions = (options: Record<string, string> | null | undefined) => {
+const getFilterOptions = (
+  options: Record<string, string> | null | undefined,
+) => {
   return {
     "": t("kinetix.all"),
     ...(options || {}),
   };
 };
-
-
 
 // Filters
 const setFilter = (name: string, value: any) => {
@@ -219,8 +220,6 @@ const toggleMulti = (name: string, val: string, checked: boolean) => {
 
   setFilter(name, current);
 };
-
-
 
 // Row Click
 const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
@@ -373,21 +372,25 @@ const updateCell = async (
 
 <template>
   <div
-    class="kinetix-table-wrapper border border-border bg-card backdrop-blur-sm rounded-xl overflow-hidden shadow-sm"
+    data-slot="card"
+    class="kinetix-table-wrapper border border-border bg-card text-card-foreground backdrop-blur-sm rounded-xl overflow-hidden shadow-sm flex flex-col"
   >
     <!-- Header Controls -->
     <div
+      data-slot="card-header"
       class="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4"
     >
       <div>
         <h3
           v-if="table.heading"
-          class="text-base font-bold text-foreground leading-6"
+          data-slot="card-title"
+          class="text-base font-semibold leading-none text-foreground"
         >
           {{ table.heading }}
         </h3>
         <p
           v-if="table.description"
+          data-slot="card-description"
           class="text-xs text-muted-foreground mt-1"
         >
           {{ table.description }}
@@ -401,7 +404,9 @@ const updateCell = async (
           v-if="table.columns.some((c) => c.isSearchable)"
           class="relative min-w-[200px]"
         >
-          <Search class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search
+            class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+          />
           <input
             v-model="searchQuery"
             type="text"
@@ -419,7 +424,7 @@ const updateCell = async (
           />
           <button
             v-else
-            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3 has-[>svg]:px-2.5"
             @click="handleActionClick(action)"
           >
             <component
@@ -436,7 +441,7 @@ const updateCell = async (
           <PopoverRoot v-model:open="showFilters">
             <PopoverTrigger as-child>
               <button
-                class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-border text-foreground bg-background hover:bg-accent transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+                class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md px-3 has-[>svg]:px-2.5"
                 :class="{
                   'border-primary bg-primary/10 text-primary':
                     Object.keys(activeFilters).length > 0,
@@ -467,7 +472,7 @@ const updateCell = async (
                     >{{ t("kinetix.table_filters") }}</span
                   >
                   <button
-                    class="text-xs text-muted-foreground hover:text-foreground"
+                    class="text-xs text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:underline underline-offset-4"
                     @click="clearFilters"
                   >
                     {{ t("kinetix.reset") }}
@@ -485,7 +490,9 @@ const updateCell = async (
                     >
 
                     <KinetixSelect
-                      v-if="filter.type === 'select' || filter.type === 'ternary'"
+                      v-if="
+                        filter.type === 'select' || filter.type === 'ternary'
+                      "
                       :value="activeFilters[filter.name] ?? ''"
                       :options="getFilterOptions(filter.options)"
                       @update:value="setFilter(filter.name, $event)"
@@ -627,7 +634,9 @@ const updateCell = async (
                       >
                         <KinetixCheckbox
                           :checked="isMultiSelected(filter.name, String(val))"
-                          @change="toggleMulti(filter.name, String(val), $event)"
+                          @change="
+                            toggleMulti(filter.name, String(val), $event)
+                          "
                         />
                         {{ lbl }}
                       </label>
@@ -644,7 +653,7 @@ const updateCell = async (
           <PopoverRoot v-model:open="showColumns">
             <PopoverTrigger as-child>
               <button
-                class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-border text-foreground bg-background hover:bg-accent transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+                class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md px-3 has-[>svg]:px-2.5"
               >
                 <SlidersHorizontal class="h-3.5 w-3.5" />
                 {{ t("kinetix.columns") }}
@@ -701,10 +710,10 @@ const updateCell = async (
           v-for="(action, i) in table.bulkActions"
           :key="i"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+          class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 h-8 rounded-md px-3 has-[>svg]:px-2.5"
           :class="
             action.color === 'danger'
-              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              ? 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60'
               : 'bg-primary text-primary-foreground hover:bg-primary/90'
           "
           @click="requestBulkAction(action)"
@@ -719,7 +728,7 @@ const updateCell = async (
       </div>
       <button
         type="button"
-        class="ml-auto text-xs text-muted-foreground hover:text-foreground"
+        class="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:underline underline-offset-4"
         @click="clearSelection"
       >
         {{ t("kinetix.clear_selection") }}
@@ -728,9 +737,7 @@ const updateCell = async (
 
     <!-- HTML Table -->
     <div class="overflow-x-auto">
-      <table
-        class="min-w-full divide-y divide-border"
-      >
+      <table class="min-w-full divide-y divide-border">
         <KinetixTableHead
           :columns-to-render="columnsToRender"
           :sort="table.state.sort"
@@ -754,9 +761,7 @@ const updateCell = async (
               table.isStriped && rowIndex % 2 === 1
                 ? 'bg-muted/30'
                 : 'bg-transparent',
-              record.recordUrl
-                ? 'hover:bg-muted/40'
-                : 'hover:bg-muted/30',
+              record.recordUrl ? 'hover:bg-muted/40' : 'hover:bg-muted/30',
             ]"
             @click="handleRowClick(record, $event)"
           >
@@ -777,9 +782,7 @@ const updateCell = async (
               :class="[
                 col.alignment === 'center' ? 'text-center' : '',
                 col.alignment === 'right' ? 'text-right' : 'text-left',
-                col.type === 'text' && !col.isBadge
-                  ? 'text-foreground'
-                  : '',
+                col.type === 'text' && !col.isBadge ? 'text-foreground' : '',
               ]"
             >
               <KinetixTableCell
@@ -804,7 +807,7 @@ const updateCell = async (
                   />
                   <button
                     v-else
-                    class="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                    class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 text-muted-foreground hover:text-foreground h-8 rounded-md px-2"
                     @click.stop="handleActionClick(action)"
                   >
                     <component

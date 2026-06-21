@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { parseDate  } from "@internationalized/date";
-import type {DateValue} from "@internationalized/date";
+import { parseDate } from "@internationalized/date";
+import type { DateValue } from "@internationalized/date";
 import { ChevronLeft, ChevronRight } from "@lucide/vue";
 import {
   RangeCalendarCell,
@@ -91,9 +91,7 @@ const range = computed({
       >
         <ChevronLeft class="h-4 w-4" />
       </RangeCalendarPrev>
-      <RangeCalendarHeading
-        class="text-sm font-medium text-foreground"
-      />
+      <RangeCalendarHeading class="text-sm font-medium text-foreground" />
       <RangeCalendarNext
         class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
       >

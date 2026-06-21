@@ -20,7 +20,9 @@ const emit = defineEmits<{
   <RadioGroupRoot
     :model-value="value !== null && value !== undefined ? String(value) : ''"
     :disabled="disabled"
-    :class="inline ? 'flex flex-wrap items-center gap-4' : 'flex flex-col gap-2'"
+    :class="
+      inline ? 'flex flex-wrap items-center gap-4' : 'flex flex-col gap-2'
+    "
     @update:model-value="emit('update:value', $event as string)"
   >
     <label

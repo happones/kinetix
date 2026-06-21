@@ -9,9 +9,7 @@ defineProps<{
 
 <template>
   <section class="space-y-3">
-    <h2
-      class="text-lg font-semibold tracking-tight text-foreground"
-    >
+    <h2 class="text-lg font-semibold tracking-tight text-foreground">
       {{ manager.title }}
     </h2>
 

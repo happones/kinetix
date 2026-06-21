@@ -60,10 +60,10 @@ const getPerPageOptions = (options?: number[]) => {
     </div>
 
     <div class="flex items-center gap-4">
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1">
         <button
           type="button"
-          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+          class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-8 rounded-md text-muted-foreground"
           :disabled="pagination.currentPage === 1"
           @click="emit('change-page', 1)"
         >
@@ -71,7 +71,7 @@ const getPerPageOptions = (options?: number[]) => {
         </button>
         <button
           type="button"
-          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+          class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-8 rounded-md text-muted-foreground"
           :disabled="pagination.currentPage === 1"
           @click="emit('change-page', pagination.currentPage - 1)"
         >
@@ -87,7 +87,7 @@ const getPerPageOptions = (options?: number[]) => {
         </span>
         <button
           type="button"
-          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+          class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-8 rounded-md text-muted-foreground"
           :disabled="pagination.currentPage === pagination.lastPage"
           @click="emit('change-page', pagination.currentPage + 1)"
         >
@@ -95,7 +95,7 @@ const getPerPageOptions = (options?: number[]) => {
         </button>
         <button
           type="button"
-          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
+          class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 size-8 rounded-md text-muted-foreground"
           :disabled="pagination.currentPage === pagination.lastPage"
           @click="emit('change-page', pagination.lastPage)"
         >

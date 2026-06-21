@@ -190,7 +190,10 @@ const remove = async (path: string) => {
       class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-input p-5 text-center transition-colors hover:border-ring"
       :class="disabled ? 'pointer-events-none opacity-50' : ''"
     >
-      <Loader2 v-if="uploading" class="h-6 w-6 animate-spin text-muted-foreground" />
+      <Loader2
+        v-if="uploading"
+        class="h-6 w-6 animate-spin text-muted-foreground"
+      />
       <UploadCloud v-else class="h-6 w-6 text-muted-foreground" />
       <span class="text-sm text-muted-foreground">
         {{ uploading ? t("kinetix.uploading") : t("kinetix.choose_file") }}
@@ -206,20 +209,13 @@ const remove = async (path: string) => {
       />
     </label>
 
-    <p
-      v-if="errorMessage"
-      class="text-xs font-semibold text-destructive"
-    >
+    <p v-if="errorMessage" class="text-xs font-semibold text-destructive">
       {{ errorMessage }}
     </p>
 
     <!-- Uploaded files -->
     <div v-if="paths().length > 0" class="flex flex-wrap gap-3">
-      <div
-        v-for="path in paths()"
-        :key="path"
-        class="relative"
-      >
+      <div v-for="path in paths()" :key="path" class="relative">
         <img
           v-if="isImage"
           :src="previewUrl(path)"
@@ -231,7 +227,9 @@ const remove = async (path: string) => {
           class="flex h-20 w-32 flex-col items-center justify-center gap-1 rounded-lg border border-input bg-muted p-2"
         >
           <FileText class="h-5 w-5 text-muted-foreground" />
-          <span class="w-full truncate text-center text-[10px] text-muted-foreground">
+          <span
+            class="w-full truncate text-center text-[10px] text-muted-foreground"
+          >
             {{ basename(path) }}
           </span>
         </div>
