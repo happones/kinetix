@@ -20,12 +20,19 @@ import {
 } from "@lucide/vue";
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  executeAction,
+  useActionConfirmation,
+} from "@/composables/useKinetixActions";
 import type {
   KinetixTableData,
   KinetixTableRecord,
   KinetixAction,
 } from "@/types";
+import KinetixActionDropdown from "./KinetixActionDropdown.vue";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
+import KinetixConfirmModal from "./KinetixConfirmModal.vue";
+import KinetixRangeCalendar from "./KinetixRangeCalendar.vue";
 
 const props = defineProps<{
   table: KinetixTableData;
@@ -110,7 +117,7 @@ const getBadgeColorClass = (color?: string) => {
     return "text-sky-700 bg-sky-50 border border-sky-200 dark:text-sky-300 dark:bg-sky-950/30 dark:border-sky-800";
   }
 
-  return "text-neutral-600 bg-neutral-50 border border-neutral-200 dark:text-neutral-300 dark:bg-neutral-900/30 dark:border-neutral-800";
+  return "text-muted-foreground bg-muted border border-border";
 };
 
 const getIconColorClass = (color?: string) => {
@@ -130,12 +137,16 @@ const getIconColorClass = (color?: string) => {
     return "text-sky-500";
   }
 
-  return "text-neutral-400 dark:text-neutral-500";
+  return "text-muted-foreground";
 };
 
-// Reload data from server
+// Reload data from server. Params are namespaced by the table's queryPrefix so
+// multiple tables (e.g. relation managers) coexist; any unrelated/foreign query
+// params already in the URL are preserved.
 const triggerReload = (newParams: Record<string, any>) => {
-  const queryParams = {
+  const prefix = props.table.queryPrefix ?? "";
+
+  const base: Record<string, any> = {
     search: searchQuery.value,
     sort: props.table.state.sort,
     direction: props.table.state.direction,
@@ -145,10 +156,30 @@ const triggerReload = (newParams: Record<string, any>) => {
     ...newParams,
   };
 
-  router.get(window.location.pathname, queryParams, {
-    preserveState: true,
-    preserveScroll: true,
+  const own: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(base)) {
+    own[`${prefix}${key}`] = value;
+  }
+
+  // Keep query params that belong to other tables/widgets on the page.
+  const ownsKey = (key: string) =>
+    ["search", "sort", "direction", "perPage", "page"].some(
+      (k) => key === `${prefix}${k}`,
+    ) || key.startsWith(`${prefix}filters`);
+
+  const preserved: Record<string, any> = {};
+  new URLSearchParams(window.location.search).forEach((value, key) => {
+    if (!ownsKey(key)) {
+      preserved[key] = value;
+    }
   });
+
+  router.get(
+    window.location.pathname,
+    { ...preserved, ...own },
+    { preserveState: true, preserveScroll: true },
+  );
 };
 
 // Debounced search
@@ -199,6 +230,38 @@ const clearFilters = () => {
   triggerReload({ filters: {}, page: 1 });
 };
 
+// Update one bound of a range filter (date-range / number-range).
+const setRangePart = (
+  name: string,
+  part: "from" | "to" | "min" | "max",
+  value: any,
+) => {
+  setFilter(name, { ...(activeFilters.value[name] || {}), [part]: value });
+};
+
+const isMultiSelected = (name: string, val: string) => {
+  const current = activeFilters.value[name];
+
+  return Array.isArray(current) && current.includes(val);
+};
+
+const toggleMulti = (name: string, val: string, checked: boolean) => {
+  const current = Array.isArray(activeFilters.value[name])
+    ? [...activeFilters.value[name]]
+    : [];
+  const index = current.indexOf(val);
+
+  if (checked && index === -1) {
+    current.push(val);
+  }
+
+  if (!checked && index !== -1) {
+    current.splice(index, 1);
+  }
+
+  setFilter(name, current);
+};
+
 // Pagination links helper
 const paginationPages = computed(() => {
   if (!props.table.pagination) {
@@ -239,10 +302,84 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
   }
 };
 
-const handleActionClick = (action: KinetixAction) => {
-  if (action.url) {
-    router.visit(action.url);
+// Action execution + confirmation gating live in a shared composable so tables
+// and page action bars behave identically.
+const {
+  pendingAction,
+  isConfirmOpen,
+  requestAction,
+  confirm: onConfirmAction,
+  cancel: onCancelAction,
+} = useActionConfirmation();
+
+const handleActionClick = (action: KinetixAction) => requestAction(action);
+
+// --- Row selection + bulk actions ---------------------------------------------
+const selectedIds = ref<Set<string | number>>(new Set());
+const selectionCount = computed(() => selectedIds.value.size);
+
+const isRowSelected = (id: string | number) => selectedIds.value.has(id);
+
+const toggleRow = (id: string | number, checked: boolean) => {
+  const next = new Set(selectedIds.value);
+
+  if (checked) {
+    next.add(id);
+  } else {
+    next.delete(id);
   }
+
+  selectedIds.value = next;
+};
+
+const allOnPageSelected = computed(
+  () =>
+    props.table.records.length > 0 &&
+    props.table.records.every((r) => selectedIds.value.has(r.id)),
+);
+
+const toggleAllOnPage = (checked: boolean) => {
+  const next = new Set(selectedIds.value);
+  props.table.records.forEach((r) =>
+    checked ? next.add(r.id) : next.delete(r.id),
+  );
+  selectedIds.value = next;
+};
+
+const clearSelection = () => {
+  selectedIds.value = new Set();
+};
+
+// Bulk actions send the selected ids; destructive ones gate on a confirm modal.
+const bulkPending = ref<KinetixAction | null>(null);
+const isBulkConfirmOpen = ref(false);
+
+const runBulkAction = (action: KinetixAction) => {
+  executeAction(action, { ids: Array.from(selectedIds.value) });
+  clearSelection();
+};
+
+const requestBulkAction = (action: KinetixAction) => {
+  if (action.requiresConfirmation) {
+    bulkPending.value = action;
+    isBulkConfirmOpen.value = true;
+
+    return;
+  }
+
+  runBulkAction(action);
+};
+
+const onBulkConfirm = () => {
+  if (bulkPending.value) {
+    runBulkAction(bulkPending.value);
+  }
+
+  bulkPending.value = null;
+};
+
+const onBulkCancel = () => {
+  bulkPending.value = null;
 };
 
 const page = usePage();
@@ -297,22 +434,22 @@ const updateCell = async (
 
 <template>
   <div
-    class="kinetix-table-wrapper border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900/50 backdrop-blur-sm rounded-xl overflow-hidden shadow-sm"
+    class="kinetix-table-wrapper border border-border bg-card backdrop-blur-sm rounded-xl overflow-hidden shadow-sm"
   >
     <!-- Header Controls -->
     <div
-      class="p-6 border-b border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4"
+      class="p-6 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4"
     >
       <div>
         <h3
           v-if="table.heading"
-          class="text-base font-bold text-neutral-900 dark:text-white leading-6"
+          class="text-base font-bold text-foreground leading-6"
         >
           {{ table.heading }}
         </h3>
         <p
           v-if="table.description"
-          class="text-xs text-neutral-500 dark:text-neutral-400 mt-1"
+          class="text-xs text-muted-foreground mt-1"
         >
           {{ table.description }}
         </p>
@@ -325,37 +462,42 @@ const updateCell = async (
           v-if="table.columns.some((c) => c.isSearchable)"
           class="relative min-w-[200px]"
         >
-          <Search class="absolute left-3 top-2.5 h-4 w-4 text-neutral-400" />
+          <Search class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             v-model="searchQuery"
             type="text"
             :placeholder="t('kinetix.search_records')"
-            class="pl-9 pr-4 py-2 text-sm w-full rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 text-neutral-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+            class="pl-9 pr-4 py-2 text-sm w-full rounded-lg border border-border bg-muted/40 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             @input="onSearchInput"
           />
         </div>
 
         <!-- Custom Header Toolbar Actions -->
-        <button
-          v-for="(action, i) in table.toolbarActions"
-          :key="i"
-          class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
-          @click="handleActionClick(action)"
-        >
-          <component
-            :is="resolveIcon(action.icon)"
-            v-if="action.icon"
-            class="h-3.5 w-3.5"
+        <template v-for="(action, i) in table.toolbarActions" :key="i">
+          <KinetixActionDropdown
+            v-if="action.type === 'group'"
+            :group="action"
           />
-          {{ action.label }}
-        </button>
+          <button
+            v-else
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            @click="handleActionClick(action)"
+          >
+            <component
+              :is="resolveIcon(action.icon)"
+              v-if="action.icon"
+              class="h-3.5 w-3.5"
+            />
+            {{ action.label }}
+          </button>
+        </template>
 
         <!-- Filters Popover Trigger -->
         <div v-if="table.filters.length > 0" class="relative">
           <button
-            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-border text-foreground bg-background hover:bg-accent transition-colors"
             :class="{
-              'border-primary-500 bg-primary-50/10 text-primary-500':
+              'border-primary bg-primary/10 text-primary':
                 Object.keys(activeFilters).length > 0,
             }"
             @click="
@@ -367,7 +509,7 @@ const updateCell = async (
             {{ t("kinetix.filters") }}
             <span
               v-if="Object.keys(activeFilters).length > 0"
-              class="ml-1 w-4 h-4 text-[10px] font-bold rounded-full bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center shrink-0"
+              class="ml-1 w-4 h-4 text-[10px] font-bold rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0"
             >
               {{ Object.keys(activeFilters).length }}
             </span>
@@ -376,17 +518,17 @@ const updateCell = async (
           <!-- Popover Panel -->
           <div
             v-if="showFilters"
-            class="absolute right-0 mt-2 w-72 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-4 shadow-lg z-20"
+            class="absolute right-0 mt-2 w-72 rounded-lg border border-border bg-popover p-4 shadow-lg z-20"
           >
             <div
-              class="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-900 pb-2 mb-3"
+              class="flex items-center justify-between border-b border-border pb-2 mb-3"
             >
               <span
-                class="text-xs font-bold text-neutral-900 dark:text-white uppercase tracking-wider"
+                class="text-xs font-bold text-foreground uppercase tracking-wider"
                 >{{ t("kinetix.table_filters") }}</span
               >
               <button
-                class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-white"
+                class="text-xs text-muted-foreground hover:text-foreground"
                 @click="clearFilters"
               >
                 {{ t("kinetix.reset") }}
@@ -399,14 +541,14 @@ const updateCell = async (
                 class="flex flex-col gap-1.5"
               >
                 <label
-                  class="text-xs font-semibold text-neutral-500 dark:text-neutral-400"
+                  class="text-xs font-semibold text-muted-foreground"
                   >{{ filter.label }}</label
                 >
 
                 <select
-                  v-if="filter.type === 'select'"
+                  v-if="filter.type === 'select' || filter.type === 'ternary'"
                   :value="activeFilters[filter.name] || ''"
-                  class="w-full text-xs rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white p-2 focus:outline-none"
+                  class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none"
                   @change="
                     setFilter(
                       filter.name,
@@ -435,9 +577,134 @@ const updateCell = async (
                   />
                   <label
                     :for="'filter-' + filter.name"
-                    class="text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer select-none"
+                    class="text-xs text-foreground cursor-pointer select-none"
                   >
                     {{ t("kinetix.enable_filter") }}
+                  </label>
+                </div>
+
+                <!-- Date range — shadcn calendar variant -->
+                <KinetixRangeCalendar
+                  v-if="filter.type === 'date-range' && filter.useCalendar"
+                  :value="activeFilters[filter.name]"
+                  :number-of-months="filter.numberOfMonths"
+                  :locale="filter.locale"
+                  :weekday-format="filter.weekdayFormat"
+                  :fixed-weeks="filter.fixedWeeks"
+                  :min-value="filter.minValue"
+                  :max-value="filter.maxValue"
+                  @update:value="setFilter(filter.name, $event)"
+                />
+
+                <!-- Single date -->
+                <input
+                  v-if="filter.type === 'date'"
+                  type="date"
+                  :value="activeFilters[filter.name] || ''"
+                  class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none"
+                  @change="
+                    setFilter(
+                      filter.name,
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                />
+
+                <!-- Single datetime -->
+                <input
+                  v-if="filter.type === 'datetime'"
+                  type="datetime-local"
+                  :value="activeFilters[filter.name] || ''"
+                  class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none"
+                  @change="
+                    setFilter(
+                      filter.name,
+                      ($event.target as HTMLInputElement).value,
+                    )
+                  "
+                />
+
+                <!-- Date range — native inputs -->
+                <div
+                  v-if="filter.type === 'date-range' && !filter.useCalendar"
+                  class="flex items-center gap-2"
+                >
+                  <input
+                    type="date"
+                    :value="(activeFilters[filter.name] || {}).from || ''"
+                    class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none"
+                    @change="
+                      setRangePart(
+                        filter.name,
+                        'from',
+                        ($event.target as HTMLInputElement).value,
+                      )
+                    "
+                  />
+                  <span class="text-xs text-muted-foreground">–</span>
+                  <input
+                    type="date"
+                    :value="(activeFilters[filter.name] || {}).to || ''"
+                    class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none"
+                    @change="
+                      setRangePart(
+                        filter.name,
+                        'to',
+                        ($event.target as HTMLInputElement).value,
+                      )
+                    "
+                  />
+                </div>
+
+                <!-- Number range -->
+                <div
+                  v-if="filter.type === 'number-range'"
+                  class="flex items-center gap-2"
+                >
+                  <input
+                    type="number"
+                    :placeholder="t('kinetix.min')"
+                    :value="(activeFilters[filter.name] || {}).min ?? ''"
+                    class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none"
+                    @input="
+                      setRangePart(
+                        filter.name,
+                        'min',
+                        ($event.target as HTMLInputElement).value,
+                      )
+                    "
+                  />
+                  <span class="text-xs text-muted-foreground">–</span>
+                  <input
+                    type="number"
+                    :placeholder="t('kinetix.max')"
+                    :value="(activeFilters[filter.name] || {}).max ?? ''"
+                    class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none"
+                    @input="
+                      setRangePart(
+                        filter.name,
+                        'max',
+                        ($event.target as HTMLInputElement).value,
+                      )
+                    "
+                  />
+                </div>
+
+                <!-- Multi-select -->
+                <div
+                  v-if="filter.type === 'multi-select'"
+                  class="flex flex-col gap-1.5 max-h-44 overflow-y-auto pr-1"
+                >
+                  <label
+                    v-for="(lbl, val) in filter.options"
+                    :key="val"
+                    class="flex items-center gap-2 text-xs text-foreground cursor-pointer select-none"
+                  >
+                    <KinetixCheckbox
+                      :checked="isMultiSelected(filter.name, String(val))"
+                      @change="toggleMulti(filter.name, String(val), $event)"
+                    />
+                    {{ lbl }}
                   </label>
                 </div>
               </div>
@@ -448,7 +715,7 @@ const updateCell = async (
         <!-- Columns Toggler Dropdown -->
         <div v-if="table.columns.some((c) => c.isToggleable)" class="relative">
           <button
-            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-border text-foreground bg-background hover:bg-accent transition-colors"
             @click="
               showColumns = !showColumns;
               showFilters = false;
@@ -461,10 +728,10 @@ const updateCell = async (
           <!-- Columns Panel -->
           <div
             v-if="showColumns"
-            class="absolute right-0 mt-2 w-56 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 shadow-lg z-20"
+            class="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-popover p-3 shadow-lg z-20"
           >
             <div
-              class="text-xs font-bold text-neutral-900 dark:text-white border-b border-neutral-100 dark:border-neutral-900 pb-2 mb-2 uppercase tracking-wider"
+              class="text-xs font-bold text-foreground border-b border-border pb-2 mb-2 uppercase tracking-wider"
             >
               {{ t("kinetix.toggle_columns") }}
             </div>
@@ -472,7 +739,7 @@ const updateCell = async (
               <div
                 v-for="col in table.columns.filter((c) => c.isToggleable)"
                 :key="col.name"
-                class="flex items-center gap-2 py-0.5 hover:bg-neutral-50 dark:hover:bg-neutral-900 rounded px-1.5"
+                class="flex items-center gap-2 py-0.5 hover:bg-accent rounded px-1.5"
               >
                 <KinetixCheckbox
                   :id="'col-' + col.name"
@@ -481,7 +748,7 @@ const updateCell = async (
                 />
                 <label
                   :for="'col-' + col.name"
-                  class="text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer select-none flex-1 py-1"
+                  class="text-xs text-foreground cursor-pointer select-none flex-1 py-1"
                 >
                   {{ col.label }}
                 </label>
@@ -492,18 +759,66 @@ const updateCell = async (
       </div>
     </div>
 
+    <!-- Bulk action bar (visible when rows are selected) -->
+    <div
+      v-if="table.bulkActions.length > 0 && selectionCount > 0"
+      class="flex flex-wrap items-center gap-3 border-b border-border bg-muted/40 px-6 py-3"
+    >
+      <span class="text-xs font-semibold text-muted-foreground">
+        {{ t("kinetix.selected", { count: selectionCount }) }}
+      </span>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          v-for="(action, i) in table.bulkActions"
+          :key="i"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors"
+          :class="
+            action.color === 'danger'
+              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          "
+          @click="requestBulkAction(action)"
+        >
+          <component
+            :is="resolveIcon(action.icon)"
+            v-if="action.icon"
+            class="h-3.5 w-3.5"
+          />
+          {{ action.label }}
+        </button>
+      </div>
+      <button
+        type="button"
+        class="ml-auto text-xs text-muted-foreground hover:text-foreground"
+        @click="clearSelection"
+      >
+        {{ t("kinetix.clear_selection") }}
+      </button>
+    </div>
+
     <!-- HTML Table -->
     <div class="overflow-x-auto">
       <table
-        class="min-w-full divide-y divide-neutral-200 dark:divide-neutral-800"
+        class="min-w-full divide-y divide-border"
       >
-        <thead class="bg-neutral-50 dark:bg-neutral-900/30">
+        <thead class="bg-muted/40">
           <tr>
+            <th
+              v-if="table.bulkActions.length > 0"
+              scope="col"
+              class="w-10 px-4 py-3"
+            >
+              <KinetixCheckbox
+                :checked="allOnPageSelected"
+                @change="toggleAllOnPage($event)"
+              />
+            </th>
             <th
               v-for="col in columnsToRender"
               :key="col.name"
               scope="col"
-              class="px-6 py-3 text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider"
+              class="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
               :class="[
                 col.alignment === 'center' ? 'text-center' : '',
                 col.alignment === 'right' ? 'text-right' : 'text-left',
@@ -511,7 +826,7 @@ const updateCell = async (
             >
               <button
                 v-if="col.isSortable"
-                class="inline-flex items-center gap-1 hover:text-neutral-800 dark:hover:text-white transition-colors"
+                class="inline-flex items-center gap-1 hover:text-foreground transition-colors"
                 @click="toggleSort(col.name)"
               >
                 {{ col.label }}
@@ -529,7 +844,7 @@ const updateCell = async (
           </tr>
         </thead>
         <tbody
-          class="divide-y divide-neutral-200 dark:divide-neutral-800"
+          class="divide-y divide-border"
           :class="{ 'divide-none': table.isStriped }"
         >
           <tr
@@ -539,14 +854,24 @@ const updateCell = async (
             :class="[
               record.recordUrl ? 'cursor-pointer' : '',
               table.isStriped && rowIndex % 2 === 1
-                ? 'bg-neutral-50/50 dark:bg-neutral-900/10'
+                ? 'bg-muted/30'
                 : 'bg-transparent',
               record.recordUrl
-                ? 'hover:bg-neutral-50/40 dark:hover:bg-neutral-900/20'
-                : 'hover:bg-neutral-50/20 dark:hover:bg-neutral-900/10',
+                ? 'hover:bg-muted/40'
+                : 'hover:bg-muted/30',
             ]"
             @click="handleRowClick(record, $event)"
           >
+            <td
+              v-if="table.bulkActions.length > 0"
+              class="w-10 px-4 py-4"
+              @click.stop
+            >
+              <KinetixCheckbox
+                :checked="isRowSelected(record.id)"
+                @change="toggleRow(record.id, $event)"
+              />
+            </td>
             <td
               v-for="col in columnsToRender"
               :key="col.name"
@@ -555,7 +880,7 @@ const updateCell = async (
                 col.alignment === 'center' ? 'text-center' : '',
                 col.alignment === 'right' ? 'text-right' : 'text-left',
                 col.type === 'text' && !col.isBadge
-                  ? 'text-neutral-700 dark:text-neutral-300'
+                  ? 'text-foreground'
                   : '',
               ]"
             >
@@ -578,7 +903,7 @@ const updateCell = async (
                     record.descriptions[col.name] &&
                     record.descriptions[col.name].position === 'above'
                   "
-                  class="text-[11px] text-neutral-400 dark:text-neutral-500 mb-0.5"
+                  class="text-[11px] text-muted-foreground mb-0.5"
                 >
                   {{ record.descriptions[col.name].text }}
                 </span>
@@ -588,7 +913,7 @@ const updateCell = async (
                     record.descriptions[col.name] &&
                     record.descriptions[col.name].position === 'below'
                   "
-                  class="text-[11px] text-neutral-400 dark:text-neutral-500 mt-0.5"
+                  class="text-[11px] text-muted-foreground mt-0.5"
                 >
                   {{ record.descriptions[col.name].text }}
                 </span>
@@ -617,7 +942,7 @@ const updateCell = async (
                   :class="
                     col.isCircular
                       ? 'rounded-full'
-                      : 'rounded-lg border border-neutral-200 dark:border-neutral-800'
+                      : 'rounded-lg border border-border'
                   "
                   :style="{
                     width: (col.size || 40) + 'px',
@@ -632,7 +957,7 @@ const updateCell = async (
                 class="inline-flex items-center gap-2"
               >
                 <div
-                  class="w-5 h-5 rounded-md border border-neutral-200 dark:border-neutral-700 shadow-sm shrink-0 cursor-pointer"
+                  class="w-5 h-5 rounded-md border border-border shadow-sm shrink-0 cursor-pointer"
                   :style="{ backgroundColor: record.values[col.name] }"
                   @click="
                     col.isCopyable && copyToClipboard(record.values[col.name])
@@ -641,7 +966,7 @@ const updateCell = async (
                     col.isCopyable ? 'Click to copy color code' : undefined
                   "
                 />
-                <span class="text-xs text-neutral-500 font-mono">{{
+                <span class="text-xs text-muted-foreground font-mono">{{
                   record.values[col.name]
                 }}</span>
               </div>
@@ -653,7 +978,7 @@ const updateCell = async (
               >
                 <select
                   :value="record.values[col.name]"
-                  class="text-xs rounded border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white p-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  class="text-xs rounded border border-border bg-background text-foreground p-1.5 focus:outline-none focus:ring-1 focus:ring-ring"
                   @change="
                     updateCell(
                       record.id,
@@ -679,11 +1004,11 @@ const updateCell = async (
               >
                 <button
                   type="button"
-                  class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-ring"
                   :class="
                     record.values[col.name]
-                      ? 'bg-primary-600'
-                      : 'bg-neutral-200 dark:bg-neutral-700'
+                      ? 'bg-primary'
+                      : 'bg-muted'
                   "
                   @click="
                     updateCell(record.id, col.name, !record.values[col.name])
@@ -709,7 +1034,7 @@ const updateCell = async (
                   :type="col.inputType || 'text'"
                   :value="record.values[col.name]"
                   :placeholder="col.placeholder"
-                  class="text-xs rounded border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500 w-32 text-neutral-900 dark:text-white"
+                  class="text-xs rounded border border-border bg-background px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring w-32 text-foreground"
                   @change="
                     updateCell(
                       record.id,
@@ -738,19 +1063,24 @@ const updateCell = async (
               class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
             >
               <div class="flex items-center justify-end gap-2">
-                <button
-                  v-for="(action, idx) in record.actions"
-                  :key="idx"
-                  class="inline-flex items-center gap-1 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
-                  @click.stop="handleActionClick(action)"
-                >
-                  <component
-                    :is="resolveIcon(action.icon)"
-                    v-if="action.icon"
-                    class="h-3.5 w-3.5"
+                <template v-for="(action, idx) in record.actions" :key="idx">
+                  <KinetixActionDropdown
+                    v-if="action.type === 'group'"
+                    :group="action"
                   />
-                  <span>{{ action.label }}</span>
-                </button>
+                  <button
+                    v-else
+                    class="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                    @click.stop="handleActionClick(action)"
+                  >
+                    <component
+                      :is="resolveIcon(action.icon)"
+                      v-if="action.icon"
+                      class="h-3.5 w-3.5"
+                    />
+                    <span>{{ action.label }}</span>
+                  </button>
+                </template>
               </div>
             </td>
           </tr>
@@ -760,9 +1090,10 @@ const updateCell = async (
             <td
               :colspan="
                 columnsToRender.length +
-                (table.recordActions.length > 0 ? 1 : 0)
+                (table.recordActions.length > 0 ? 1 : 0) +
+                (table.bulkActions.length > 0 ? 1 : 0)
               "
-              class="px-6 py-12 text-center text-sm text-neutral-400 dark:text-neutral-500"
+              class="px-6 py-12 text-center text-sm text-muted-foreground"
             >
               {{ t("kinetix.no_records_found") }}
             </td>
@@ -774,11 +1105,11 @@ const updateCell = async (
     <!-- Footer Pagination -->
     <div
       v-if="table.isPaginated && table.pagination"
-      class="p-6 border-t border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4"
+      class="p-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4"
     >
-      <div class="text-xs text-neutral-500 dark:text-neutral-400">
+      <div class="text-xs text-muted-foreground">
         {{ t("kinetix.total") }}
-        <span class="font-bold text-neutral-700 dark:text-neutral-300">{{
+        <span class="font-bold text-foreground">{{
           table.pagination.total
         }}</span>
         {{ t("kinetix.records") }}
@@ -787,14 +1118,14 @@ const updateCell = async (
       <!-- Page Buttons -->
       <div class="flex items-center gap-1">
         <button
-          class="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
           :disabled="table.pagination.currentPage === 1"
           @click="triggerReload({ page: 1 })"
         >
           <ChevronsLeft class="h-4 w-4" />
         </button>
         <button
-          class="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
           :disabled="table.pagination.currentPage === 1"
           @click="triggerReload({ page: table.pagination.currentPage - 1 })"
         >
@@ -807,8 +1138,8 @@ const updateCell = async (
           class="w-9 h-9 rounded-lg text-xs font-semibold border transition-all"
           :class="[
             p === table.pagination.currentPage
-              ? 'bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 border-neutral-900 dark:border-white shadow-sm'
-              : 'border-neutral-200 dark:border-neutral-800 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800',
+              ? 'bg-primary text-primary-foreground border-foreground dark:border-white shadow-sm'
+              : 'border-border text-muted-foreground hover:bg-accent',
           ]"
           @click="triggerReload({ page: p })"
         >
@@ -816,14 +1147,14 @@ const updateCell = async (
         </button>
 
         <button
-          class="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
           :disabled="table.pagination.currentPage === table.pagination.lastPage"
           @click="triggerReload({ page: table.pagination.currentPage + 1 })"
         >
           <ChevronRight class="h-4 w-4" />
         </button>
         <button
-          class="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+          class="p-2 rounded-lg border border-border text-muted-foreground hover:bg-accent disabled:opacity-50 transition-colors"
           :disabled="table.pagination.currentPage === table.pagination.lastPage"
           @click="triggerReload({ page: table.pagination.lastPage })"
         >
@@ -833,12 +1164,12 @@ const updateCell = async (
 
       <!-- Page Size selector -->
       <div
-        class="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400"
+        class="flex items-center gap-2 text-xs text-muted-foreground"
       >
         <span>{{ t("kinetix.per_page") }}</span>
         <select
           :value="table.state.perPage"
-          class="rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white px-2.5 py-1.5 focus:outline-none"
+          class="rounded-md border border-border bg-background text-foreground px-2.5 py-1.5 focus:outline-none"
           @change="
             triggerReload({
               perPage: ($event.target as HTMLSelectElement).value,
@@ -856,6 +1187,32 @@ const updateCell = async (
         </select>
       </div>
     </div>
+
+    <!-- Confirmation modal for actions that require it -->
+    <KinetixConfirmModal
+      v-model:open="isConfirmOpen"
+      :heading="pendingAction?.modalHeading"
+      :description="pendingAction?.modalDescription"
+      :icon="pendingAction?.modalIcon"
+      :color="pendingAction?.color"
+      :submit-label="pendingAction?.modalSubmitActionLabel"
+      :cancel-label="pendingAction?.modalCancelActionLabel"
+      @confirm="onConfirmAction"
+      @cancel="onCancelAction"
+    />
+
+    <!-- Confirmation modal for bulk actions -->
+    <KinetixConfirmModal
+      v-model:open="isBulkConfirmOpen"
+      :heading="bulkPending?.modalHeading"
+      :description="bulkPending?.modalDescription"
+      :icon="bulkPending?.modalIcon"
+      :color="bulkPending?.color"
+      :submit-label="bulkPending?.modalSubmitActionLabel"
+      :cancel-label="bulkPending?.modalCancelActionLabel"
+      @confirm="onBulkConfirm"
+      @cancel="onBulkCancel"
+    />
   </div>
 </template>
 
