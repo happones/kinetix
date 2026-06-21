@@ -6,6 +6,7 @@ import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import type { KinetixImportPreview } from "@/types";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
+import KinetixSelect from "./KinetixSelect.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -53,6 +54,24 @@ const enclosureOptions = [
   { value: "'", label: "Single quote ( ' )" },
   { value: "", label: "None" },
 ];
+
+const delimiterOptionsMap = computed(() => {
+  const map: Record<string, string> = {};
+  delimiterOptions.forEach((opt) => {
+    map[opt.value] = opt.label;
+  });
+
+  return map;
+});
+
+const enclosureOptionsMap = computed(() => {
+  const map: Record<string, string> = {};
+  enclosureOptions.forEach((opt) => {
+    map[opt.value] = opt.label;
+  });
+
+  return map;
+});
 
 const xsrfToken = (): string => {
   const match = document.cookie
@@ -165,9 +184,26 @@ const usedIndexes = (exceptColumn: string): Set<number> => {
   return used;
 };
 
-const setMapping = (column: string, event: Event) => {
-  const value = (event.target as HTMLSelectElement).value;
+const setMapping = (column: string, value: string) => {
   mapping[column] = value === "" ? null : Number(value);
+};
+
+const getMappingOptions = (headers: string[]) => {
+  const record: Record<string, string> = {
+    "": t("kinetix.not_mapped"),
+  };
+
+  headers.forEach((header, index) => {
+    record[String(index)] = header;
+  });
+
+  return record;
+};
+
+const getDisabledMappingKeys = (columnName: string) => {
+  const used = usedIndexes(columnName);
+
+  return Array.from(used).map(String);
 };
 
 // Reverse lookup: which target column label (if any) a header is mapped to.
@@ -278,28 +314,22 @@ const startImport = async () => {
           {{ t("kinetix.csv_options") }}
         </h3>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+          <div class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             {{ t("kinetix.delimiter") }}
-            <select
-              v-model="options.delimiter"
-              class="h-9 rounded-md border border-border bg-popover px-2 text-sm"
-            >
-              <option v-for="d in delimiterOptions" :key="d.value" :value="d.value">
-                {{ d.label }}
-              </option>
-            </select>
-          </label>
-          <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            <KinetixSelect
+              :value="options.delimiter"
+              :options="delimiterOptionsMap"
+              @update:value="options.delimiter = $event"
+            />
+          </div>
+          <div class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             {{ t("kinetix.enclosure") }}
-            <select
-              v-model="options.enclosure"
-              class="h-9 rounded-md border border-border bg-popover px-2 text-sm"
-            >
-              <option v-for="e in enclosureOptions" :key="e.label" :value="e.value">
-                {{ e.label }}
-              </option>
-            </select>
-          </label>
+            <KinetixSelect
+              :value="options.enclosure"
+              :options="enclosureOptionsMap"
+              @update:value="options.enclosure = $event"
+            />
+          </div>
           <label class="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
             {{ t("kinetix.omit_lines") }}
             <input
@@ -354,26 +384,19 @@ const startImport = async () => {
               <span v-if="column.isRequired" class="text-rose-500">*</span>
             </span>
             <ArrowRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <select
-              :value="mapping[column.name] ?? ''"
-              class="h-9 w-1/2 rounded-md border bg-popover px-2 text-sm"
-              :class="
-                column.isRequired && mapping[column.name] === null
-                  ? 'border-rose-300 dark:border-rose-800'
-                  : 'border-border'
-              "
-              @change="setMapping(column.name, $event)"
-            >
-              <option value="">{{ t("kinetix.not_mapped") }}</option>
-              <option
-                v-for="(header, index) in preview.headers"
-                :key="index"
-                :value="index"
-                :disabled="usedIndexes(column.name).has(index)"
-              >
-                {{ header }}
-              </option>
-            </select>
+            <div class="w-1/2">
+              <KinetixSelect
+                :value="mapping[column.name] ?? ''"
+                :options="getMappingOptions(preview.headers)"
+                :disabled-keys="getDisabledMappingKeys(column.name)"
+                :class="
+                  column.isRequired && mapping[column.name] === null
+                    ? 'border-rose-300 dark:border-rose-800'
+                    : ''
+                "
+                @update:value="setMapping(column.name, $event)"
+              />
+            </div>
           </div>
         </div>
       </div>
