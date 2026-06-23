@@ -66,7 +66,60 @@ php artisan vue-i18n:generate
 
 Run this again whenever you publish translations or add a locale.
 
-## 4. Mount the global components
+## 4. Configure Vue i18n
+
+Since Kinetix uses `vue-i18n` for UI localization, you must install it and register the translation messages generated in the previous step.
+
+### 4.1 Install the dependency
+
+Install `vue-i18n` version 11 using your preferred package manager:
+
+::: code-group
+```bash [npm]
+npm install vue-i18n@11
+```
+```bash [pnpm]
+pnpm add vue-i18n@11
+```
+```bash [yarn]
+yarn add vue-i18n@11
+```
+:::
+
+### 4.2 Register in your entry file
+
+In your main Inertia entry file (typically `resources/js/app.ts` or `resources/js/app.js`), register `vue-i18n` using the `withApp` method. This allows you to resolve the locale dynamically from the server-side page props:
+
+```typescript
+import { createApp, h } from 'vue'
+import { createInertiaApp } from '@inertiajs/vue3'
+import { createI18n } from 'vue-i18n'
+// Import compiled translation messages
+import messages from './vue-i18n-locales'
+
+createInertiaApp({
+  resolve: name => {
+    // ...
+  },
+  setup({ el, App, props, plugin }) {
+    createApp({ render: () => h(App, props) })
+      .use(plugin)
+      .mount(el)
+  },
+  withApp(app, { page }) {
+    const i18n = createI18n({
+      legacy: false, // Required for Composition API
+      locale: page.props.locale as string | undefined, // Load dynamically from Inertia page props
+      fallbackLocale: 'en',
+      messages,
+    })
+
+    app.use(i18n)
+  },
+})
+```
+
+## 5. Mount the global components
 
 Add these once near the root of your Inertia layout so toasts, notifications and
 modals work app-wide:
@@ -100,7 +153,7 @@ toast. Use **`<KinetixToaster />`** (token-themed, dark-mode-safe) and remove an
 other `<Toaster>` your starter kit mounts. See [Notifications](/notifications).
 :::
 
-## 5. Build
+## 6. Build
 
 ```bash
 npm run build   # or: npm run dev
