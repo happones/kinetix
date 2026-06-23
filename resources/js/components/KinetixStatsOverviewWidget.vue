@@ -16,7 +16,10 @@ import {
   CheckCircle,
 } from "@lucide/vue";
 import { computed } from "vue";
+import { statusSoftClass } from "@/composables/useStatusColor";
 import type { KinetixWidget, KinetixStat } from "@/types";
+import Card from "./primitives/Card.vue";
+import CardContent from "./primitives/CardContent.vue";
 
 const props = defineProps<{
   widget: KinetixWidget;
@@ -65,25 +68,7 @@ const getStatIcon = (iconName?: string) => {
   return null;
 };
 
-const getDescriptionColorClass = (color?: string) => {
-  if (color === "success") {
-    return "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30";
-  }
-
-  if (color === "danger") {
-    return "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30";
-  }
-
-  if (color === "warning") {
-    return "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30";
-  }
-
-  if (color === "info") {
-    return "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/30";
-  }
-
-  return "text-muted-foreground bg-muted/40";
-};
+const getDescriptionColorClass = (color?: string) => statusSoftClass(color);
 
 const getSparklineColor = (color?: string) => {
   if (color === "success") {
@@ -215,13 +200,12 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
         </defs>
       </svg>
 
-      <div
+      <Card
         v-for="(stat, index) in stats"
         :key="index"
-        data-slot="card"
-        class="kinetix-stat-card border border-border bg-card text-card-foreground flex flex-col gap-6 rounded-xl py-6 shadow-sm relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group"
+        class="kinetix-stat-card relative overflow-hidden transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group"
       >
-        <div data-slot="card-content" class="px-6 flex flex-col gap-4">
+        <CardContent class="flex flex-col gap-4">
           <div class="flex justify-between items-start gap-4">
             <div class="flex-1 min-w-0">
               <span
@@ -276,8 +260,8 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
               {{ stat.description }}
             </span>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>

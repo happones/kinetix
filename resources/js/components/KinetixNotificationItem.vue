@@ -47,13 +47,13 @@ const getNotificationIconClass = (notif: KinetixNotification) => {
 
   switch (notif.status) {
     case "success":
-      return "text-green-500";
+      return "text-success";
     case "warning":
-      return "text-amber-500";
+      return "text-warning";
     case "danger":
-      return "text-red-500";
+      return "text-destructive";
     case "info":
-      return "text-blue-500";
+      return "text-info";
     default:
       return "text-muted-foreground";
   }
@@ -134,7 +134,7 @@ const formatTime = (dateStr: string) => {
           class="cursor-pointer text-sm font-medium transition-colors hover:underline"
           :class="[
             action.color === 'danger'
-              ? 'text-red-500 hover:text-red-600'
+              ? 'text-destructive hover:text-destructive/80'
               : 'text-primary hover:text-primary/80',
           ]"
         >

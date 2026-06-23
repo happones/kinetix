@@ -380,7 +380,7 @@ const startImport = async () => {
           >
             <span class="w-1/2 truncate text-sm text-foreground">
               {{ column.label }}
-              <span v-if="column.isRequired" class="text-rose-500">*</span>
+              <span v-if="column.isRequired" class="text-destructive">*</span>
             </span>
             <ArrowRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <div class="w-1/2">
@@ -390,7 +390,7 @@ const startImport = async () => {
                 :disabled-keys="getDisabledMappingKeys(column.name)"
                 :class="
                   column.isRequired && mapping[column.name] === null
-                    ? 'border-rose-300 dark:border-rose-800'
+                    ? 'border-destructive/40'
                     : ''
                 "
                 @update:value="setMapping(column.name, $event)"
@@ -413,7 +413,7 @@ const startImport = async () => {
                 <div>{{ header }}</div>
                 <div
                   v-if="columnForHeader(index)"
-                  class="mt-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+                  class="mt-0.5 text-[10px] font-medium text-success"
                 >
                   → {{ columnForHeader(index) }}
                 </div>
@@ -432,7 +432,7 @@ const startImport = async () => {
                 class="px-3 py-2 text-muted-foreground whitespace-nowrap"
                 :class="
                   columnForHeader(colIndex)
-                    ? 'bg-emerald-50/40 dark:bg-emerald-950/10'
+                    ? 'bg-success/10'
                     : ''
                 "
               >
@@ -447,7 +447,7 @@ const startImport = async () => {
       <div class="flex justify-end">
         <button
           type="button"
-          class="inline-flex h-10 items-center gap-2 rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-600/90 disabled:cursor-not-allowed disabled:opacity-50"
+          class="inline-flex h-10 items-center gap-2 rounded-md bg-success px-5 text-sm font-semibold text-success-foreground hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-50"
           :disabled="!canStart || starting"
           @click="startImport"
         >

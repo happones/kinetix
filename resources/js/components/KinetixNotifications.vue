@@ -147,6 +147,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("keydown", handleKeyDown);
+  // Stop the Echo subscription so it doesn't leak past the component's life.
+  echoStop();
   // Ensure scroll is unlocked when component unmounts
   document.body.style.overflow = "";
 });

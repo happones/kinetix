@@ -16,13 +16,35 @@ import {
 } from "@lucide/vue";
 import { reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import type { KinetixInfolistEntry } from "@/types";
+import type { KinetixAction, KinetixInfolistEntry } from "@/types";
+import {
+  statusBadgeClass as getBadgeColorClass,
+  statusTextClass,
+} from "@/composables/useStatusColor";
+import { useActionConfirmation } from "@/composables/useKinetixActions";
+import { resolveIcon as resolveActionIcon } from "@/composables/useKinetixIcons";
+import { actionButtonVariant, buttonVariants } from "@/composables/useShadcnVariants";
+import KinetixActionDropdown from "./KinetixActionDropdown.vue";
+import KinetixConfirmModal from "./KinetixConfirmModal.vue";
+
+const getTextColorClass = (color?: string | null) =>
+  statusTextClass(color, "text-foreground");
+const getIconColorClass = (color?: string | null) =>
+  statusTextClass(color, "text-muted-foreground");
 
 defineProps<{
   schema: KinetixInfolistEntry[];
 }>();
 
 const { t } = useI18n();
+
+// Section header actions. Each recursive instance handles the actions of the
+// sections it renders, with its own confirmation modal (only one opens at a time).
+const { pendingAction, isConfirmOpen, requestAction, confirm, cancel } =
+  useActionConfirmation();
+
+const sectionActionClass = (action: KinetixAction) =>
+  buttonVariants({ variant: actionButtonVariant(action.color), size: "sm" });
 
 // Active tab index per Tabs entry, keyed by its position in this schema list.
 const activeTab = reactive<Record<number, number>>({});
@@ -31,89 +53,10 @@ const setActiveTab = (entryIndex: number, tabIndex: number) => {
   activeTab[entryIndex] = tabIndex;
 };
 
-// Static icon map keeps Lucide imports tree-shakeable and avoids dynamic resolution.
-const standardIconMap: Record<string, any> = {
-  check: Check,
-  "check-circle": CheckCircle2,
-  x: X,
-  "x-circle": XCircle,
-  circle: Circle,
-  star: Star,
-  mail: Mail,
-  phone: Phone,
-  calendar: Calendar,
-  user: User,
-  info: Info,
-};
-
-const resolveIcon = (name?: string | null) => {
-  if (!name) {
-    return null;
-  }
-
-  return standardIconMap[name.toLowerCase()] || Circle;
-};
-
-// Tailwind-safe color classes (no dynamic class names to survive JIT purging).
-const getBadgeColorClass = (color?: string | null) => {
-  if (color === "success") {
-    return "text-emerald-700 bg-emerald-50 border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800";
-  }
-
-  if (color === "danger") {
-    return "text-rose-700 bg-rose-50 border border-rose-200 dark:text-rose-300 dark:bg-rose-950/30 dark:border-rose-800";
-  }
-
-  if (color === "warning") {
-    return "text-amber-700 bg-amber-50 border border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-800";
-  }
-
-  if (color === "info" || color === "primary") {
-    return "text-sky-700 bg-sky-50 border border-sky-200 dark:text-sky-300 dark:bg-sky-950/30 dark:border-sky-800";
-  }
-
-  return "text-muted-foreground bg-muted border border-border";
-};
-
-const getTextColorClass = (color?: string | null) => {
-  if (color === "success") {
-    return "text-emerald-600 dark:text-emerald-400";
-  }
-
-  if (color === "danger") {
-    return "text-rose-600 dark:text-rose-400";
-  }
-
-  if (color === "warning") {
-    return "text-amber-600 dark:text-amber-400";
-  }
-
-  if (color === "info" || color === "primary") {
-    return "text-sky-600 dark:text-sky-400";
-  }
-
-  return "text-foreground";
-};
-
-const getIconColorClass = (color?: string | null) => {
-  if (color === "success") {
-    return "text-emerald-500";
-  }
-
-  if (color === "danger") {
-    return "text-rose-500";
-  }
-
-  if (color === "warning") {
-    return "text-amber-500";
-  }
-
-  if (color === "info" || color === "primary") {
-    return "text-sky-500";
-  }
-
-  return "text-muted-foreground";
-};
+// Resolve through the shared Kinetix icon map (entry, section, tab & action
+// icons), falling back to a neutral circle for unknown non-empty names.
+const resolveIcon = (name?: string | null) =>
+  name ? (resolveActionIcon(name) ?? Circle) : null;
 
 const getColumnSpan = (span: KinetixInfolistEntry["columnSpan"]) => {
   if (span === "full") {
@@ -171,25 +114,54 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
       :style="{ gridColumn: getColumnSpan(entry.columnSpan) }"
     >
       <div
-        v-if="entry.heading || entry.description"
+        v-if="entry.heading || entry.description || (entry.actions?.length ?? 0) > 0"
         class="p-6 pb-4 border-b border-border"
       >
-        <div class="flex items-center gap-2">
-          <component
-            :is="resolveIcon(entry.icon)"
-            v-if="entry.icon"
-            class="h-4 w-4 text-muted-foreground"
-          />
-          <h3 class="font-semibold leading-none tracking-tight text-foreground">
-            {{ entry.heading }}
-          </h3>
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <component
+                :is="resolveIcon(entry.icon)"
+                v-if="entry.icon"
+                class="h-4 w-4 text-muted-foreground"
+              />
+              <h3
+                v-if="entry.heading"
+                class="font-semibold leading-none tracking-tight text-foreground"
+              >
+                {{ entry.heading }}
+              </h3>
+            </div>
+            <p
+              v-if="entry.description"
+              class="text-sm text-muted-foreground mt-1.5"
+            >
+              {{ entry.description }}
+            </p>
+          </div>
+
+          <!-- Section header actions -->
+          <div
+            v-if="(entry.actions?.length ?? 0) > 0"
+            class="flex shrink-0 items-center gap-2"
+          >
+            <template v-for="(action, ai) in entry.actions" :key="`sa-${ai}`">
+              <KinetixActionDropdown
+                v-if="action.type === 'group'"
+                :group="action"
+              />
+              <button
+                v-else
+                type="button"
+                :class="sectionActionClass(action)"
+                @click="requestAction(action)"
+              >
+                <component :is="resolveIcon(action.icon)" v-if="action.icon" />
+                {{ action.label }}
+              </button>
+            </template>
+          </div>
         </div>
-        <p
-          v-if="entry.description"
-          class="text-sm text-muted-foreground mt-1.5"
-        >
-          {{ entry.description }}
-        </p>
       </div>
       <div class="p-6">
         <div
@@ -337,7 +309,7 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
         >
           <Check
             v-if="copiedName === entry.name"
-            class="h-3.5 w-3.5 text-emerald-500"
+            class="h-3.5 w-3.5 text-success"
           />
           <Copy v-else class="h-3.5 w-3.5" />
         </button>
@@ -363,7 +335,7 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
         :href="entry.url"
         :target="entry.openUrlInNewTab ? '_blank' : undefined"
         :rel="entry.openUrlInNewTab ? 'noopener noreferrer' : undefined"
-        class="inline-flex w-fit items-center gap-1 text-sm font-medium text-sky-600 dark:text-sky-400 hover:underline"
+        class="inline-flex w-fit items-center gap-1 text-sm font-medium text-info hover:underline"
       >
         <component
           :is="resolveIcon(entry.icon)"
@@ -394,11 +366,24 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
         >
           <Check
             v-if="copiedName === entry.name"
-            class="h-3.5 w-3.5 text-emerald-500"
+            class="h-3.5 w-3.5 text-success"
           />
           <Copy v-else class="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
   </template>
+
+  <!-- Confirmation modal for section actions that require it. -->
+  <KinetixConfirmModal
+    v-model:open="isConfirmOpen"
+    :heading="pendingAction?.modalHeading"
+    :description="pendingAction?.modalDescription"
+    :icon="pendingAction?.modalIcon"
+    :color="pendingAction?.color"
+    :submit-label="pendingAction?.modalSubmitActionLabel"
+    :cancel-label="pendingAction?.modalCancelActionLabel"
+    @confirm="confirm"
+    @cancel="cancel"
+  />
 </template>

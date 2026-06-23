@@ -2,6 +2,8 @@
 import { Plus, Trash2 } from "@lucide/vue";
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { cn } from "./primitives/cn";
+import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
 
 interface Pair {
   key: string;
@@ -85,26 +87,35 @@ const removeRow = (index: number) => {
       :key="index"
       class="flex items-center gap-2"
     >
-      <input
-        v-model="row.key"
-        type="text"
-        :disabled="disabled"
-        :placeholder="t('kinetix.key')"
-        class="h-9 w-1/3 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-        @input="commit"
-      />
-      <input
-        v-model="row.value"
-        type="text"
-        :disabled="disabled"
-        :placeholder="t('kinetix.value')"
-        class="h-9 flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-        @input="commit"
-      />
+      <div class="w-1/3">
+        <input
+          v-model="row.key"
+          type="text"
+          :disabled="disabled"
+          :placeholder="t('kinetix.key')"
+          :class="inputClass"
+          @input="commit"
+        />
+      </div>
+      <div class="flex-1">
+        <input
+          v-model="row.value"
+          type="text"
+          :disabled="disabled"
+          :placeholder="t('kinetix.value')"
+          :class="inputClass"
+          @input="commit"
+        />
+      </div>
       <button
         v-if="!disabled"
         type="button"
-        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+        :class="
+          cn(
+            buttonVariants({ variant: 'outline', size: 'icon' }),
+            'shrink-0 hover:text-destructive hover:border-destructive/40',
+          )
+        "
         @click="removeRow(index)"
       >
         <Trash2 class="h-4 w-4" />

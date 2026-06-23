@@ -1,28 +1,19 @@
 <script setup lang="ts">
 import { router, usePage } from "@inertiajs/vue3";
-import {
-  Search,
-  Filter as FilterIcon,
-  SlidersHorizontal,
-  CheckCircle2,
-  XCircle,
-  Trash2,
-  Edit3,
-  Eye,
-  Plus,
-} from "@lucide/vue";
+import { Search, Filter as FilterIcon, SlidersHorizontal } from "@lucide/vue";
 import {
   PopoverContent,
   PopoverPortal,
   PopoverRoot,
   PopoverTrigger,
 } from "reka-ui";
-import { ref, computed } from "vue";
+import { ref, computed, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   executeAction,
   useActionConfirmation,
 } from "@/composables/useKinetixActions";
+import { resolveIcon } from "@/composables/useKinetixIcons";
 import type {
   KinetixTableData,
   KinetixTableRecord,
@@ -32,16 +23,39 @@ import KinetixActionDropdown from "./KinetixActionDropdown.vue";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
 import KinetixConfirmModal from "./KinetixConfirmModal.vue";
 import KinetixRangeCalendar from "./KinetixRangeCalendar.vue";
+import KinetixDatePicker from "./KinetixDatePicker.vue";
+import KinetixDateTimePicker from "./KinetixDateTimePicker.vue";
 import KinetixSelect from "./KinetixSelect.vue";
 import KinetixTableCell from "./Table/KinetixTableCell.vue";
 import KinetixTableHead from "./Table/KinetixTableHead.vue";
 import KinetixTablePagination from "./Table/KinetixTablePagination.vue";
+import { cn } from "./primitives/cn";
+import {
+  actionButtonVariant,
+  buttonVariants,
+} from "@/composables/useShadcnVariants";
 
 const props = defineProps<{
   table: KinetixTableData;
 }>();
 
 const { t } = useI18n();
+
+// shadcn-vue (new-york) button UI for table actions. Record actions default to
+// a light `ghost` so rows stay clean; toolbar/bulk actions default to the solid
+// primary button. An explicit action color is always respected (danger →
+// destructive, etc.).
+const recordActionClass = (action: { color?: string | null }) =>
+  buttonVariants({
+    variant: action.color ? actionButtonVariant(action.color) : "ghost",
+    size: "sm",
+  });
+
+const primaryActionClass = (action: { color?: string | null }) =>
+  buttonVariants({
+    variant: action.color ? actionButtonVariant(action.color) : "default",
+    size: "sm",
+  });
 
 const showFilters = ref(false);
 const showColumns = ref(false);
@@ -82,25 +96,6 @@ const columnsToRender = computed(() => {
 });
 
 // Standard icon mappings
-const standardIconMap: Record<string, any> = {
-  edit: Edit3,
-  delete: Trash2,
-  view: Eye,
-  create: Plus,
-  plus: Plus,
-  check: CheckCircle2,
-  "check-circle": CheckCircle2,
-  x: XCircle,
-  "x-circle": XCircle,
-};
-
-const resolveIcon = (name?: string) => {
-  if (!name) {
-    return null;
-  }
-
-  return standardIconMap[name.toLowerCase()] || null;
-};
 
 // Reload data from server. Params are namespaced by the table's queryPrefix so
 // multiple tables (e.g. relation managers) coexist; any unrelated/foreign query
@@ -152,6 +147,9 @@ const onSearchInput = () => {
     triggerReload({ search: searchQuery.value, page: 1 });
   }, 400);
 };
+
+// Avoid a pending debounced reload firing after the table unmounts.
+onBeforeUnmount(() => clearTimeout(searchTimeout));
 
 // Sorting
 const isSorted = (name: string) => {
@@ -362,7 +360,8 @@ const updateCell = async (
     const data = await response.json();
 
     if (data.status === "success") {
-      router.reload({ preserveScroll: true });
+      // reload() preserves scroll and state by default.
+      router.reload();
     }
   } catch (e) {
     console.error("Cell update failed:", e);
@@ -424,14 +423,10 @@ const updateCell = async (
           />
           <button
             v-else
-            class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 bg-primary text-primary-foreground hover:bg-primary/90 h-8 px-3 has-[>svg]:px-2.5"
+            :class="primaryActionClass(action)"
             @click="handleActionClick(action)"
           >
-            <component
-              :is="resolveIcon(action.icon)"
-              v-if="action.icon"
-              class="h-3.5 w-3.5"
-            />
+            <component :is="resolveIcon(action.icon)" v-if="action.icon" />
             {{ action.label }}
           </button>
         </template>
@@ -441,11 +436,12 @@ const updateCell = async (
           <PopoverRoot v-model:open="showFilters">
             <PopoverTrigger as-child>
               <button
-                class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md px-3 has-[>svg]:px-2.5"
-                :class="{
-                  'border-primary bg-primary/10 text-primary':
-                    Object.keys(activeFilters).length > 0,
-                }"
+                :class="[
+                  buttonVariants({ variant: 'outline', size: 'sm' }),
+                  Object.keys(activeFilters).length > 0
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : '',
+                ]"
               >
                 <FilterIcon class="h-3.5 w-3.5" />
                 {{ t("kinetix.filters") }}
@@ -528,9 +524,17 @@ const updateCell = async (
                       @update:value="setFilter(filter.name, $event)"
                     />
 
-                    <!-- Single date -->
+                    <!-- Single date — shadcn calendar by default -->
+                    <KinetixDatePicker
+                      v-if="filter.type === 'date' && filter.useCalendar"
+                      :value="activeFilters[filter.name] || null"
+                      :locale="filter.locale"
+                      :min-value="filter.minValue"
+                      :max-value="filter.maxValue"
+                      @update:value="setFilter(filter.name, $event)"
+                    />
                     <input
-                      v-if="filter.type === 'date'"
+                      v-else-if="filter.type === 'date'"
                       type="date"
                       :value="activeFilters[filter.name] || ''"
                       class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
@@ -542,9 +546,17 @@ const updateCell = async (
                       "
                     />
 
-                    <!-- Single datetime -->
+                    <!-- Single datetime — shadcn picker by default -->
+                    <KinetixDateTimePicker
+                      v-if="filter.type === 'datetime' && filter.useCalendar"
+                      :value="activeFilters[filter.name] || null"
+                      :locale="filter.locale"
+                      :minute-step="filter.minuteStep"
+                      :hour12="filter.hour12"
+                      @update:value="setFilter(filter.name, $event)"
+                    />
                     <input
-                      v-if="filter.type === 'datetime'"
+                      v-else-if="filter.type === 'datetime'"
                       type="datetime-local"
                       :value="activeFilters[filter.name] || ''"
                       class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
@@ -652,9 +664,7 @@ const updateCell = async (
         <div v-if="table.columns.some((c) => c.isToggleable)">
           <PopoverRoot v-model:open="showColumns">
             <PopoverTrigger as-child>
-              <button
-                class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-8 rounded-md px-3 has-[>svg]:px-2.5"
-              >
+              <button :class="buttonVariants({ variant: 'outline', size: 'sm' })">
                 <SlidersHorizontal class="h-3.5 w-3.5" />
                 {{ t("kinetix.columns") }}
               </button>
@@ -710,19 +720,10 @@ const updateCell = async (
           v-for="(action, i) in table.bulkActions"
           :key="i"
           type="button"
-          class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 h-8 rounded-md px-3 has-[>svg]:px-2.5"
-          :class="
-            action.color === 'danger'
-              ? 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-          "
+          :class="primaryActionClass(action)"
           @click="requestBulkAction(action)"
         >
-          <component
-            :is="resolveIcon(action.icon)"
-            v-if="action.icon"
-            class="h-3.5 w-3.5"
-          />
+          <component :is="resolveIcon(action.icon)" v-if="action.icon" />
           {{ action.label }}
         </button>
       </div>
@@ -736,7 +737,7 @@ const updateCell = async (
     </div>
 
     <!-- HTML Table -->
-    <div class="overflow-x-auto">
+    <div class="kinetix-scroll-x overflow-x-auto">
       <table class="min-w-full divide-y divide-border">
         <KinetixTableHead
           :columns-to-render="columnsToRender"
@@ -745,6 +746,7 @@ const updateCell = async (
           :has-bulk-actions="table.bulkActions.length > 0"
           :has-record-actions="table.recordActions.length > 0"
           :all-on-page-selected="allOnPageSelected"
+          :sticky-actions="table.stickyActions"
           @toggle-all-on-page="toggleAllOnPage"
           @toggle-sort="toggleSort"
         />
@@ -798,6 +800,11 @@ const updateCell = async (
             <td
               v-if="table.recordActions.length > 0"
               class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+              :class="
+                table.stickyActions
+                  ? 'sticky right-0 z-10 bg-card border-l border-border group-hover:bg-muted/30'
+                  : ''
+              "
             >
               <div class="flex items-center justify-end gap-2">
                 <template v-for="(action, idx) in record.actions" :key="idx">
@@ -807,13 +814,12 @@ const updateCell = async (
                   />
                   <button
                     v-else
-                    class="inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 text-muted-foreground hover:text-foreground h-8 rounded-md px-2"
+                    :class="recordActionClass(action)"
                     @click.stop="handleActionClick(action)"
                   >
                     <component
                       :is="resolveIcon(action.icon)"
                       v-if="action.icon"
-                      class="h-3.5 w-3.5"
                     />
                     <span>{{ action.label }}</span>
                   </button>
@@ -837,6 +843,28 @@ const updateCell = async (
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Footer actions bar (e.g. Export all) -->
+    <div
+      v-if="(table.footerActions?.length ?? 0) > 0"
+      class="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3"
+    >
+      <template v-for="(action, i) in table.footerActions" :key="`footer-${i}`">
+        <KinetixActionDropdown
+          v-if="action.type === 'group'"
+          :group="action"
+        />
+        <button
+          v-else
+          type="button"
+          :class="primaryActionClass(action)"
+          @click="handleActionClick(action)"
+        >
+          <component :is="resolveIcon(action.icon)" v-if="action.icon" />
+          {{ action.label }}
+        </button>
+      </template>
     </div>
 
     <!-- Footer Pagination -->
@@ -879,5 +907,28 @@ const updateCell = async (
 <style scoped>
 .kinetix-table-wrapper {
   width: 100%;
+}
+
+/* shadcn-style scrollbar: thin, rounded, muted thumb (tokens resolve in
+   shadcn-vue v4 apps and via the published kinetix.css fallback). */
+.kinetix-scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border, #d4d4d8) transparent;
+}
+.kinetix-scroll-x::-webkit-scrollbar {
+  height: 0.625rem;
+  width: 0.625rem;
+}
+.kinetix-scroll-x::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kinetix-scroll-x::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  background-color: var(--color-border, #d4d4d8);
+}
+.kinetix-scroll-x:hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-muted-foreground, #a1a1aa);
 }
 </style>

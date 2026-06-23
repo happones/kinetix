@@ -11,6 +11,11 @@ import {
 } from "@unovis/vue";
 import { computed } from "vue";
 import type { KinetixWidget } from "@/types";
+import Card from "./primitives/Card.vue";
+import CardHeader from "./primitives/CardHeader.vue";
+import CardTitle from "./primitives/CardTitle.vue";
+import CardDescription from "./primitives/CardDescription.vue";
+import CardContent from "./primitives/CardContent.vue";
 
 const props = defineProps<{
   widget: KinetixWidget;
@@ -159,34 +164,16 @@ const pieTooltipTemplate = (d: any) => {
 </script>
 
 <template>
-  <div
-    data-slot="card"
-    class="kinetix-chart-card border border-border bg-card text-card-foreground flex flex-col gap-6 rounded-xl py-6 shadow-sm transition-all duration-300 hover:shadow-md"
-  >
-    <div
-      v-if="widget.title || widget.description"
-      data-slot="card-header"
-      class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6"
-    >
-      <h3
-        v-if="widget.title"
-        data-slot="card-title"
-        class="text-base font-semibold leading-none text-foreground"
-      >
-        {{ widget.title }}
-      </h3>
-      <p
-        v-if="widget.description"
-        data-slot="card-description"
-        class="text-xs text-muted-foreground"
-      >
+  <Card class="kinetix-chart-card transition-all duration-300 hover:shadow-md">
+    <CardHeader v-if="widget.title || widget.description">
+      <CardTitle v-if="widget.title" class="text-base">{{ widget.title }}</CardTitle>
+      <CardDescription v-if="widget.description" class="text-xs">
         {{ widget.description }}
-      </p>
-    </div>
+      </CardDescription>
+    </CardHeader>
 
-    <div
-      data-slot="card-content"
-      class="px-6 relative w-full h-[320px] text-muted-foreground font-sans"
+    <CardContent
+      class="relative w-full h-[320px] text-muted-foreground font-sans"
     >
       <!-- Circular Charts (Pie/Donut) -->
       <VisSingleContainer v-if="isCircular" :data="pieData" height="300">
@@ -225,8 +212,8 @@ const pieTooltipTemplate = (d: any) => {
         <VisCrosshair />
         <VisTooltip :template="tooltipTemplate" />
       </VisXYContainer>
-    </div>
-  </div>
+    </CardContent>
+  </Card>
 </template>
 
 <style scoped>

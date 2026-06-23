@@ -14,6 +14,7 @@ export interface KinetixAction {
   dispatchEvent?: string;
   dispatchData?: Record<string, unknown>;
   inertiaVisit?: { method?: string; [key: string]: unknown };
+  httpRequest?: { method?: string; toast?: string; [key: string]: unknown };
   requiresConfirmation: boolean;
   modalHeading?: string | null;
   modalDescription?: string | null;
@@ -22,6 +23,9 @@ export interface KinetixAction {
   modalCancelActionLabel?: string | null;
   type?: "action" | "group";
   actions?: KinetixAction[] | null;
+  isDownload?: boolean;
+  isPreview?: boolean;
+  previewType?: string | null;
 }
 
 export interface KinetixNotification {
@@ -36,6 +40,25 @@ export interface KinetixNotification {
   iconColor?: string;
   actions?: KinetixAction[];
   type?: string;
+}
+
+/** Public-safe Kinetix runtime config shared with Inertia page props. */
+export interface KinetixConfig {
+  database: boolean;
+  route_prefix: string;
+  sound: { enabled: boolean; path: string };
+  broadcasting: Record<string, unknown> | null;
+}
+
+/**
+ * Inertia shared props Kinetix relies on. Pass to `usePage<KinetixSharedProps>()`
+ * to type `kinetix_config` / `kinetix_notifications` / `auth` without `as any`.
+ */
+export interface KinetixSharedProps {
+  kinetix_config?: KinetixConfig;
+  kinetix_notifications?: KinetixNotification[];
+  auth?: { user?: { id: number | string } | null };
+  [key: string]: unknown;
 }
 
 export interface KinetixStat {
@@ -80,6 +103,7 @@ export interface KinetixTableColumn {
   isToggleable: boolean;
   isToggledHiddenByDefault: boolean;
   type: string;
+  isBadge?: boolean;
 }
 
 export interface KinetixTableFilter {
@@ -103,6 +127,8 @@ export interface KinetixTableFilter {
   fixedWeeks?: boolean;
   minValue?: string | null;
   maxValue?: string | null;
+  minuteStep?: number;
+  hour12?: boolean;
 }
 
 export interface KinetixTableRecord {
@@ -116,6 +142,7 @@ export interface KinetixTableRecord {
     { text: string | null; position: "above" | "below" }
   >;
   recordUrl: string | null;
+  actions?: KinetixAction[];
 }
 
 export interface KinetixImportColumn {
@@ -173,6 +200,7 @@ export interface KinetixInfolistEntry {
   heading?: string | null;
   description?: string | null;
   columns?: number | null;
+  actions?: KinetixAction[];
 }
 
 export interface KinetixInfolistData {
@@ -186,11 +214,13 @@ export interface KinetixTableData {
   description: string | null;
   poll: string | null;
   isStriped: boolean;
+  model: string;
   columns: KinetixTableColumn[];
   filters: KinetixTableFilter[];
   recordActions: KinetixAction[];
   toolbarActions: KinetixAction[];
   bulkActions: KinetixAction[];
+  footerActions?: KinetixAction[];
   records: KinetixTableRecord[];
   isPaginated: boolean;
   paginationPageOptions: number[];
@@ -199,6 +229,8 @@ export interface KinetixTableData {
     perPage: number;
     currentPage: number;
     lastPage: number;
+    from: number | null;
+    to: number | null;
   } | null;
   state: {
     search: string;
@@ -208,10 +240,49 @@ export interface KinetixTableData {
     perPage: number;
   };
   queryPrefix: string;
+  stickyActions?: boolean;
 }
 
 export interface KinetixRelationManagerData {
   title: string;
   relationship: string;
   table: KinetixTableData;
+}
+
+export interface KinetixPlanData {
+  id: number | string | null;
+  name: string;
+  slug: string;
+  description: string | null;
+  monthlyPrice: number | null;
+  yearlyPrice: number | null;
+  features: Record<string, any>;
+  highlightedFeatures: string[];
+  isFeatured: boolean;
+  isFree: boolean;
+  sortOrder: number;
+}
+
+export interface KinetixPaymentMethod {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
+export interface KinetixInvoice {
+  id: string;
+  date: string;
+  total: string;
+  status: string;
+  url: string;
+}
+
+export interface KinetixSubscriptionData {
+  active: boolean;
+  onGracePeriod: boolean;
+  status: string;
+  endsAt: string | null;
+  stripePrice: string | null;
 }

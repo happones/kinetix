@@ -2,6 +2,7 @@
 import { AlertTriangle, X } from "@lucide/vue";
 import { onBeforeUnmount, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { statusButtonClass, statusSoftClass } from "@/composables/useStatusColor";
 
 const props = withDefaults(
   defineProps<{
@@ -72,37 +73,9 @@ onBeforeUnmount(() => {
   }
 });
 
-const getConfirmButtonClass = (color?: string | null) => {
-  if (color === "danger") {
-    return "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60";
-  }
+const getConfirmButtonClass = (color?: string | null) => statusButtonClass(color);
 
-  if (color === "success") {
-    return "bg-emerald-600 text-white hover:bg-emerald-600/90 focus-visible:ring-emerald-500/20 dark:focus-visible:ring-emerald-500/40";
-  }
-
-  if (color === "warning") {
-    return "bg-amber-500 text-white hover:bg-amber-500/90 focus-visible:ring-amber-500/20 dark:focus-visible:ring-amber-500/40";
-  }
-
-  return "bg-primary text-primary-foreground hover:bg-primary/90";
-};
-
-const getIconWrapperClass = (color?: string | null) => {
-  if (color === "danger") {
-    return "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400";
-  }
-
-  if (color === "success") {
-    return "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400";
-  }
-
-  if (color === "warning") {
-    return "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400";
-  }
-
-  return "bg-muted text-muted-foreground";
-};
+const getIconWrapperClass = (color?: string | null) => statusSoftClass(color);
 </script>
 
 <template>
@@ -165,14 +138,14 @@ const getIconWrapperClass = (color?: string | null) => {
             <div class="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 text-foreground"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-4 py-2 has-[>svg]:px-3 text-foreground"
                 @click="cancel"
               >
                 {{ cancelLabel ?? t("kinetix.cancel") }}
               </button>
               <button
                 type="button"
-                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 h-9 px-4 py-2 has-[>svg]:px-3"
+                class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] h-9 px-4 py-2 has-[>svg]:px-3"
                 :class="getConfirmButtonClass(color)"
                 @click="confirm"
               >

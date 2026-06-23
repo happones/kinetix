@@ -64,7 +64,7 @@ const selectValue = computed(() => {
     <SelectTrigger
       v-bind="$attrs"
       :id="id"
-      class="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+      class="flex h-9 w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:bg-input/30 dark:hover:bg-input/50 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
     >
       <SelectValue :placeholder="placeholder ?? ''" />
       <SelectIcon as-child>
@@ -84,13 +84,13 @@ const selectValue = computed(() => {
             :key="val"
             :value="val === '' ? '__EMPTY__' : String(val)"
             :disabled="disabledKeys?.includes(String(val))"
-            class="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+            class="relative flex w-full cursor-default select-none items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <span
-              class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center"
+              class="absolute right-2 flex size-3.5 items-center justify-center"
             >
               <SelectItemIndicator>
-                <Check class="h-4 w-4" />
+                <Check class="size-4" />
               </SelectItemIndicator>
             </span>
             <SelectItemText>{{ label }}</SelectItemText>

@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import type { KinetixWidget } from "@/types";
+import Card from "./primitives/Card.vue";
+import CardHeader from "./primitives/CardHeader.vue";
+import CardTitle from "./primitives/CardTitle.vue";
+import CardDescription from "./primitives/CardDescription.vue";
+import CardContent from "./primitives/CardContent.vue";
 
 defineProps<{
   widget: KinetixWidget;
@@ -7,35 +12,18 @@ defineProps<{
 </script>
 
 <template>
-  <div
-    data-slot="card"
-    class="kinetix-custom-card border border-border bg-card text-card-foreground flex flex-col gap-6 rounded-xl py-6 shadow-sm transition-all duration-300 hover:shadow-md"
-  >
-    <div
-      v-if="widget.title || widget.description"
-      data-slot="card-header"
-      class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6"
-    >
-      <h3
-        v-if="widget.title"
-        data-slot="card-title"
-        class="text-base font-semibold leading-none text-foreground"
-      >
-        {{ widget.title }}
-      </h3>
-      <p
-        v-if="widget.description"
-        data-slot="card-description"
-        class="text-xs text-muted-foreground"
-      >
+  <Card class="kinetix-custom-card transition-all duration-300 hover:shadow-md">
+    <CardHeader v-if="widget.title || widget.description">
+      <CardTitle v-if="widget.title" class="text-base">{{ widget.title }}</CardTitle>
+      <CardDescription v-if="widget.description" class="text-xs">
         {{ widget.description }}
-      </p>
-    </div>
+      </CardDescription>
+    </CardHeader>
 
-    <div data-slot="card-content" class="kinetix-custom-content px-6">
+    <CardContent class="kinetix-custom-content">
       <slot />
-    </div>
-  </div>
+    </CardContent>
+  </Card>
 </template>
 
 <style scoped>

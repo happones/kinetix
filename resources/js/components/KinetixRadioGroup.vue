@@ -33,7 +33,7 @@ const emit = defineEmits<{
     >
       <RadioGroupItem
         :value="String(val)"
-        class="flex aspect-square h-4 w-4 items-center justify-center rounded-full border border-input text-primary shadow-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary"
+        class="flex aspect-square size-4 shrink-0 items-center justify-center rounded-full border border-input text-primary shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:bg-input/30 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary"
       >
         <RadioGroupIndicator class="flex items-center justify-center">
           <span class="h-2 w-2 rounded-full bg-primary" />

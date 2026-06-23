@@ -81,7 +81,7 @@ const { t } = useI18n();
             <button
               @click="store.clearAll"
               :disabled="notifications.length === 0"
-              class="cursor-pointer text-sm font-medium text-red-500 transition-colors hover:text-red-600 disabled:opacity-40"
+              class="cursor-pointer text-sm font-medium text-destructive transition-colors hover:text-destructive/80 disabled:opacity-40"
             >
               {{ t("kinetix.clear_all") }}
             </button>

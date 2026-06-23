@@ -33,6 +33,15 @@
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
+
+    /* Kinetix status tokens — shadcn has no success/warning/info, so Kinetix
+       ships them. Override these in your own theme to re-skin status colors. */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 26 90% 37%;
+    --warning-foreground: 0 0% 100%;
+    --info: 200 98% 39%;
+    --info-foreground: 0 0% 100%;
 }
 
 .dark {
@@ -55,6 +64,14 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+
+    /* Brighter status tones for dark backgrounds. */
+    --success: 142 69% 58%;
+    --success-foreground: 142 80% 10%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 26 83% 14%;
+    --info: 198 93% 60%;
+    --info-foreground: 204 80% 16%;
 }
 
 /* Tailwind v4: expose the tokens as color/radius utilities (bg-background, etc.). */
@@ -75,6 +92,12 @@
     --color-accent-foreground: hsl(var(--accent-foreground));
     --color-destructive: hsl(var(--destructive));
     --color-destructive-foreground: hsl(var(--destructive-foreground));
+    --color-success: hsl(var(--success));
+    --color-success-foreground: hsl(var(--success-foreground));
+    --color-warning: hsl(var(--warning));
+    --color-warning-foreground: hsl(var(--warning-foreground));
+    --color-info: hsl(var(--info));
+    --color-info-foreground: hsl(var(--info-foreground));
     --color-border: hsl(var(--border));
     --color-input: hsl(var(--input));
     --color-ring: hsl(var(--ring));

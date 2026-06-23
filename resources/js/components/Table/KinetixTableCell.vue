@@ -2,6 +2,13 @@
 import { CheckCircle2, XCircle, Edit3, Trash2, Eye, Plus } from "@lucide/vue";
 import KinetixCheckbox from "../KinetixCheckbox.vue";
 import KinetixSelect from "../KinetixSelect.vue";
+import {
+  statusBadgeClass as getBadgeColorClass,
+  statusTextClass,
+} from "@/composables/useStatusColor";
+
+const getIconColorClass = (color?: string | null) =>
+  statusTextClass(color, "text-muted-foreground");
 
 interface Column {
   name: string;
@@ -10,6 +17,7 @@ interface Column {
   isBadge?: boolean;
   alignment?: "left" | "center" | "right" | null;
   isCircular?: boolean;
+  isPreviewable?: boolean;
   size?: number | null;
   isCopyable?: boolean;
   options?: Record<string, string> | null;
@@ -18,7 +26,7 @@ interface Column {
 }
 
 interface RecordDescription {
-  text: string;
+  text: string | null;
   position: "above" | "below";
 }
 
@@ -31,11 +39,25 @@ interface TableRecord {
   badgeColors: Record<string, string | null>;
 }
 
-defineProps<{
+const props = defineProps<{
   col: Column;
   record: TableRecord;
   rowIndex: number;
 }>();
+
+const openImagePreview = (): void => {
+  const url = props.record.values[props.col.name];
+
+  if (!url) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("kinetix:preview", {
+      detail: { url, type: "image", label: props.col.label },
+    }),
+  );
+};
 
 const emit = defineEmits<{
   (
@@ -69,45 +91,6 @@ const resolveIcon = (name?: string) => {
 };
 
 // Colors mapping
-const getBadgeColorClass = (color?: string | null) => {
-  if (color === "success") {
-    return "text-emerald-700 bg-emerald-50 border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-800";
-  }
-
-  if (color === "danger") {
-    return "text-rose-700 bg-rose-50 border border-rose-200 dark:text-rose-300 dark:bg-rose-950/30 dark:border-rose-800";
-  }
-
-  if (color === "warning") {
-    return "text-amber-700 bg-amber-50 border border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-800";
-  }
-
-  if (color === "info") {
-    return "text-sky-700 bg-sky-50 border border-sky-200 dark:text-sky-300 dark:bg-sky-950/30 dark:border-sky-800";
-  }
-
-  return "text-muted-foreground bg-muted border border-border";
-};
-
-const getIconColorClass = (color?: string | null) => {
-  if (color === "success") {
-    return "text-emerald-500";
-  }
-
-  if (color === "danger") {
-    return "text-rose-500";
-  }
-
-  if (color === "warning") {
-    return "text-amber-500";
-  }
-
-  if (color === "info") {
-    return "text-sky-500";
-  }
-
-  return "text-muted-foreground";
-};
 </script>
 
 <template>
@@ -163,13 +146,17 @@ const getIconColorClass = (color?: string | null) => {
     <img
       :src="record.values[col.name]"
       class="object-cover"
-      :class="
-        col.isCircular ? 'rounded-full' : 'rounded-lg border border-border'
-      "
+      :class="[
+        col.isCircular ? 'rounded-full' : 'rounded-lg border border-border',
+        col.isPreviewable
+          ? 'cursor-zoom-in transition-shadow hover:ring-2 hover:ring-ring'
+          : '',
+      ]"
       :style="{
         width: (col.size || 40) + 'px',
         height: (col.size || 40) + 'px',
       }"
+      @click.stop="col.isPreviewable ? openImagePreview() : undefined"
     />
   </div>
 
@@ -207,15 +194,19 @@ const getIconColorClass = (color?: string | null) => {
   <div v-else-if="col.type === 'toggle-input'" class="inline-flex items-center">
     <button
       type="button"
-      class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-1 focus:ring-ring"
-      :class="record.values[col.name] ? 'bg-primary' : 'bg-muted'"
+      class="relative inline-flex h-[1.15rem] w-8 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+      :class="record.values[col.name] ? 'bg-primary' : 'bg-input dark:bg-input/80'"
       @click="
         emit('update-cell', record.id, col.name, !record.values[col.name])
       "
     >
       <span
-        class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-        :class="record.values[col.name] ? 'translate-x-4' : 'translate-x-0'"
+        class="pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform"
+        :class="
+          record.values[col.name]
+            ? 'translate-x-[calc(100%-2px)] dark:bg-primary-foreground'
+            : 'translate-x-0 dark:bg-foreground'
+        "
       />
     </button>
   </div>

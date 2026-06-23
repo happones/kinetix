@@ -16,6 +16,7 @@ const props = defineProps<{
   hasBulkActions: boolean;
   hasRecordActions: boolean;
   allOnPageSelected: boolean;
+  stickyActions?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -62,7 +63,12 @@ const getSortIcon = (name: string) => {
         </button>
         <span v-else>{{ col.label }}</span>
       </th>
-      <th v-if="hasRecordActions" scope="col" class="relative px-6 py-3">
+      <th
+        v-if="hasRecordActions"
+        scope="col"
+        class="relative px-6 py-3"
+        :class="stickyActions ? 'sticky right-0 z-20 bg-muted border-l border-border' : ''"
+      >
         <span class="sr-only">Actions</span>
       </th>
     </tr>

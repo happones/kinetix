@@ -8,6 +8,10 @@ import KinetixKeyValue from "./KinetixKeyValue.vue";
 import KinetixRadioGroup from "./KinetixRadioGroup.vue";
 import KinetixSelect from "./KinetixSelect.vue";
 import KinetixTagsInput from "./KinetixTagsInput.vue";
+import KinetixDatePicker from "./KinetixDatePicker.vue";
+import KinetixDateTimePicker from "./KinetixDateTimePicker.vue";
+import { cn } from "./primitives/cn";
+import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
 const props = defineProps<{
   schema: any[];
@@ -191,7 +195,7 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :type="comp.inputType || 'text'"
           :placeholder="comp.placeholder"
           :disabled="comp.isDisabled"
-          class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          :class="inputClass"
           @input="
             emit(
               'update:value',
@@ -230,11 +234,11 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           <SwitchRoot
             :model-value="!!values[comp.name]"
             :disabled="comp.isDisabled"
-            class="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+            class="peer inline-flex h-[1.15rem] w-8 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80"
             @update:model-value="emit('update:value', comp.name, $event)"
           >
             <SwitchThumb
-              class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0"
+              class="pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0 dark:data-[state=unchecked]:bg-foreground dark:data-[state=checked]:bg-primary-foreground"
             />
           </SwitchRoot>
         </div>
@@ -247,7 +251,7 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :placeholder="comp.placeholder"
           :disabled="comp.isDisabled"
           v-bind="comp.extraInputAttributes"
-          class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          :class="textareaClass"
           @input="
             emit(
               'update:value',
@@ -257,14 +261,45 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           "
         />
 
-        <!-- DateTime Picker -->
+        <!-- Date Picker (shadcn calendar by default, native when ->native()) -->
+        <KinetixDatePicker
+          v-else-if="comp.type === 'date-picker' && comp.useCalendar"
+          :value="values[comp.name]"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          :locale="comp.dateLocale"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+        <input
+          v-else-if="comp.type === 'date-picker'"
+          :id="comp.name"
+          :value="values[comp.name]"
+          type="date"
+          :disabled="comp.isDisabled"
+          :class="inputClass"
+          @input="
+            emit('update:value', comp.name, ($event.target as HTMLInputElement).value)
+          "
+        />
+
+        <!-- DateTime Picker (shadcn by default, native when ->native()) -->
+        <KinetixDateTimePicker
+          v-else-if="comp.type === 'datetime-picker' && comp.useCalendar"
+          :value="values[comp.name]"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          :locale="comp.dateLocale"
+          :minute-step="comp.minuteStep"
+          :hour12="comp.hour12"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
         <input
           v-else-if="comp.type === 'datetime-picker'"
           :id="comp.name"
           :value="values[comp.name]"
           type="datetime-local"
           :disabled="comp.isDisabled"
-          class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          :class="inputClass"
           @input="
             emit(
               'update:value',
@@ -343,7 +378,7 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
             type="text"
             :placeholder="comp.placeholder || '#000000'"
             :disabled="comp.isDisabled"
-            class="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm font-mono shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            :class="cn(inputClass, 'font-mono')"
             @input="
               emit(
                 'update:value',

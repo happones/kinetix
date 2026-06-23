@@ -2,7 +2,11 @@ import { router, usePage } from "@inertiajs/vue3";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { toast } from "vue-sonner";
-import type { KinetixAction, KinetixNotification } from "@/types";
+import type {
+  KinetixAction,
+  KinetixNotification,
+  KinetixSharedProps,
+} from "@/types";
 
 export const useNotificationsStore = defineStore("kinetixNotifications", () => {
   const notifications = ref<KinetixNotification[]>([]);
@@ -10,7 +14,7 @@ export const useNotificationsStore = defineStore("kinetixNotifications", () => {
   const seenNotificationIds = ref<Set<string>>(new Set());
   const isInitialized = ref(false);
 
-  const page = usePage();
+  const page = usePage<KinetixSharedProps>();
 
   const isDatabaseMode = computed(() => {
     return !!page.props.kinetix_config?.database;
@@ -86,8 +90,15 @@ export const useNotificationsStore = defineStore("kinetixNotifications", () => {
         method,
         headers: {
           "Content-Type": "application/json",
+          // `Accept: application/json` makes Laravel return JSON status codes
+          // (401/419/…) on auth/CSRF failures instead of a 302 redirect that
+          // `fetch` would silently follow to a 200 HTML page — which looks like
+          // success and leaves the request (e.g. a delete) silently un-applied.
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
           "X-XSRF-TOKEN": getXsrfToken(),
         },
+        credentials: "same-origin",
       });
 
       if (!response.ok) {
@@ -107,6 +118,18 @@ export const useNotificationsStore = defineStore("kinetixNotifications", () => {
         `Kinetix notifications request failed: ${method} ${url}`,
         e,
       );
+
+      // The optimistic mutation already removed/changed the item locally; the
+      // server rejected it, so re-sync from the server to restore the truth
+      // (the item reappears, signalling the action did not take effect).
+      router.reload({
+        only: ["kinetix_notifications"],
+        onSuccess: () => {
+          if (page.props.kinetix_notifications) {
+            syncFromProps(page.props.kinetix_notifications);
+          }
+        },
+      });
     }
   };
 

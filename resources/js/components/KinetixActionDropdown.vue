@@ -1,19 +1,5 @@
 <script setup lang="ts">
-import {
-  Check,
-  CheckCircle2,
-  XCircle,
-  Trash2,
-  Edit3,
-  Eye,
-  Plus,
-  Download,
-  Upload,
-  Pencil,
-  Settings,
-  Circle,
-  MoreVertical,
-} from "@lucide/vue";
+import { Circle, MoreVertical } from "@lucide/vue";
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -24,6 +10,8 @@ import {
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useActionConfirmation } from "@/composables/useKinetixActions";
+import { resolveIcon as resolveKinetixIcon } from "@/composables/useKinetixIcons";
+import { statusInteractiveTextClass } from "@/composables/useStatusColor";
 import type { KinetixAction } from "@/types";
 import KinetixConfirmModal from "./KinetixConfirmModal.vue";
 
@@ -37,49 +25,12 @@ const { pendingAction, isConfirmOpen, requestAction, confirm, cancel } =
 
 const isOpen = ref(false);
 
-const standardIconMap: Record<string, any> = {
-  edit: Edit3,
-  pencil: Pencil,
-  delete: Trash2,
-  trash: Trash2,
-  view: Eye,
-  eye: Eye,
-  create: Plus,
-  plus: Plus,
-  check: Check,
-  "check-circle": CheckCircle2,
-  x: XCircle,
-  "x-circle": XCircle,
-  download: Download,
-  upload: Upload,
-  settings: Settings,
-  "ellipsis-vertical": MoreVertical,
-  "more-vertical": MoreVertical,
-};
+// No name → the dropdown trigger's default (vertical ellipsis); unknown → Circle.
+const resolveIcon = (name?: string | null) =>
+  name ? (resolveKinetixIcon(name) ?? Circle) : MoreVertical;
 
-const resolveIcon = (name?: string | null) => {
-  if (!name) {
-    return MoreVertical;
-  }
-
-  return standardIconMap[name.toLowerCase()] || Circle;
-};
-
-const getItemColorClass = (color?: string | null) => {
-  if (color === "danger") {
-    return "text-rose-600 dark:text-rose-400 focus:text-rose-600 dark:focus:text-rose-400";
-  }
-
-  if (color === "success") {
-    return "text-emerald-600 dark:text-emerald-400 focus:text-emerald-600 dark:focus:text-emerald-400";
-  }
-
-  if (color === "warning") {
-    return "text-amber-600 dark:text-amber-400 focus:text-amber-600 dark:focus:text-amber-400";
-  }
-
-  return "text-foreground";
-};
+const getItemColorClass = (color?: string | null) =>
+  statusInteractiveTextClass(color);
 
 const onItemClick = (action: KinetixAction) => {
   requestAction(action);
@@ -91,7 +42,7 @@ const onItemClick = (action: KinetixAction) => {
     <DropdownMenuRoot v-model:open="isOpen">
       <DropdownMenuTrigger
         type="button"
-        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3 has-[>svg]:px-2.5"
+        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3 has-[>svg]:px-2.5"
         :aria-label="group.label || t('kinetix.more_actions')"
       >
         <component :is="resolveIcon(group.icon)" class="h-4 w-4" />

@@ -39,11 +39,11 @@ const onUpdate = (value: boolean | "indeterminate") => {
     :id="id"
     :model-value="isChecked"
     :disabled="disabled"
-    class="peer flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-input shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+    class="peer flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input shadow-xs transition-shadow outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:bg-input/30 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary"
     @update:model-value="onUpdate"
   >
-    <CheckboxIndicator class="flex items-center justify-center text-current">
-      <Check class="h-3 w-3 stroke-[3]" />
+    <CheckboxIndicator class="flex items-center justify-center text-current transition-none">
+      <Check class="size-3.5" />
     </CheckboxIndicator>
   </CheckboxRoot>
 </template>

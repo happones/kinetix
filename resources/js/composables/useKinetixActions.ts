@@ -1,10 +1,20 @@
 import { router } from "@inertiajs/vue3";
 import { ref } from "vue";
+import { toast } from "vue-sonner";
 import type { KinetixAction } from "@/types";
+
+/** Read Laravel's XSRF-TOKEN cookie for fetch() requests. */
+function xsrfToken(): string {
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("XSRF-TOKEN="));
+
+  return match ? decodeURIComponent(match.split("=")[1]) : "";
+}
 
 /**
  * Execute a Kinetix action's behaviour: fire a browser event, perform an
- * Inertia visit, open a new tab, or navigate (internal SPA visit vs external).
+ * Inertia visit, fire a background HTTP request, open a new tab, or navigate.
  *
  * Shared by tables, page action bars, and any component that renders actions.
  */
@@ -32,7 +42,64 @@ export function executeAction(
     return;
   }
 
+  // Background HTTP request (plain XHR, no Inertia) — e.g. ExportAction. The
+  // endpoint may return JSON; show a toast instead of navigating.
+  if (action.httpRequest && action.url) {
+    const { method = "post", toast: toastMessage } = action.httpRequest;
+
+    fetch(action.url, {
+      method: String(method).toUpperCase(),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-XSRF-TOKEN": xsrfToken(),
+      },
+      body: JSON.stringify(extraData ?? {}),
+      credentials: "same-origin",
+    })
+      .then((response) => {
+        if (response.ok) {
+          if (toastMessage) {
+            toast.success(toastMessage as string);
+          }
+        } else {
+          toast.error("Request failed.");
+        }
+      })
+      .catch(() => toast.error("Request failed."));
+
+    return;
+  }
+
   if (!action.url) {
+    return;
+  }
+
+  // Open the file in the global preview lightbox instead of navigating.
+  if (action.isPreview) {
+    window.dispatchEvent(
+      new CustomEvent("kinetix:preview", {
+        detail: {
+          url: action.url,
+          type: action.previewType ?? "auto",
+          label: action.label,
+        },
+      }),
+    );
+
+    return;
+  }
+
+  // Force a file download (attachment) instead of navigating.
+  if (action.isDownload) {
+    const link = document.createElement("a");
+    link.href = action.url;
+    link.download = "";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
     return;
   }
 
