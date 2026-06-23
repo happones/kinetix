@@ -172,6 +172,7 @@ JS;
                 $withAppCode = <<<'JS'
     withApp(app, { page }) {
         const i18n = createI18n({
+            legacy: false,
             locale: page.props.locale as string | undefined,
             messages: Locale,
         });
