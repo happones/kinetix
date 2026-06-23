@@ -5,3 +5,7 @@
 .DS_Store
 npm-debug.log
 yarn-error.log
+/docs/.vitepress/dist
+/docs/.vitepress/cache
+.phpunit.result.cache
+.claude

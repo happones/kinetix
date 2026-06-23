@@ -1,11 +1,11 @@
 ---
 name: kinetix-development
-description: Development guide, structure rules, and best practices for Kinetix Notifications, Widgets, and Tables.
+description: Development guide, structure rules, and best practices for Kinetix Notifications, Widgets, Tables, Forms, Infolists, Actions, Import/Export, and Relation Managers.
 ---
 
 # Kinetix Development Skill
 
-This skill contains the conventions, requirements, and implementation patterns for Kinetix **Notifications**, **Widgets**, and **Tables**. Refer to this guide whenever creating new features or refactoring components.
+This skill contains the conventions, requirements, and implementation patterns for Kinetix **Notifications**, **Widgets**, **Tables**, **Forms**, **Infolists**, **Actions** (+ confirmation modals, authorization, bulk), **Import/Export**, and **Relation Managers**. Refer to this guide whenever creating new features or refactoring components.
 
 ---
 
@@ -25,6 +25,11 @@ This skill contains the conventions, requirements, and implementation patterns f
 - **Relative Sibling Imports**: Import sibling Vue components relatively (`./Sibling.vue`) to ensure paths do not break when published.
 - **Pure-CSS Grid Variables**: To prevent Tailwind class purging, map responsive grid spans to inline CSS variables (e.g. `--col-span-md`) and resolve them inside `<style scoped>` media queries.
 - **Shadcn Checkboxes**: Always use the custom `<KinetixCheckbox>` component instead of raw HTML `<input type="checkbox">` to maintain the Shadcn design aesthetic across filters, column toggles, and editable table columns.
+- **shadcn design tokens (REQUIRED)**: Style with shadcn's semantic token classes — `bg-background`/`text-foreground`, `bg-card`, `bg-popover`/`text-popover-foreground`, `bg-primary`/`text-primary-foreground`, `bg-muted`/`text-muted-foreground`, `bg-accent`, `border-border`/`border-input`, `ring-ring`, `bg-destructive`, `rounded-md` (→`--radius`). Do NOT hardcode `neutral-*`/`emerald-*`/`rose-*`/`amber-*`/`sky-*` raw palette classes — they ignore the host app's theme/dark mode. (All components are token-based; a fallback token CSS ships under `--tag=kinetix-styles`.)
+- **Status colors → tokens (REQUIRED)**: Map `success`/`danger`/`warning`/`info`/`primary` via the shared `@/composables/useStatusColor` helpers — `statusBadgeClass` (tinted badge), `statusTextClass` (text/icon), `statusInteractiveTextClass` (text + `focus:` variant), `statusSoftClass` (text on tinted bg), `statusButtonClass` (solid filled button). `danger`→`destructive`; `success`/`warning`/`info` are Kinetix tokens shipped in `kinetix.css` (light+dark, overridable). NEVER interpolate class names (`focus:${x}`) — Tailwind JIT only sees static literals, so keep all class strings literal inside the util. Chart series use an intentional categorical hex palette (not status), leave it.
+- **Interactive primitives via Reka UI**: Build accessible widgets on Reka UI (the headless lib shadcn-vue wraps), never by importing the consumer's copied `@/components/ui/*` files (per-app, unguaranteed, break builds). In use: `KinetixCheckbox` (CheckboxRoot), Forms toggle + the table `toggle-input` cell (SwitchRoot / manual button), `KinetixSelect` (SelectRoot), `KinetixRadioGroup` (RadioGroupRoot), `KinetixRangeCalendar` (RangeCalendarRoot). `reka-ui` + `@internationalized/date` are optional peer deps.
+- **new-york-v4 focus/shape tokens (REQUIRED on every interactive control)**: shadcn-vue new-york-v4 dropped the v3 focus ring (`focus-visible:ring-2 ring-ring ring-offset-2` / `focus:ring-1`) — use the v4 set: `outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]` + `aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40`, `shadow-xs` (not `shadow-sm`), `transition-[color,box-shadow]`/`transition-shadow`, and `dark:bg-input/30` on bordered inputs. **The token is `ring-[3px]`, NOT `ring-3`** (`ring-3` is not on Tailwind v4's ring scale → emits no ring). Switch v4: `h-[1.15rem] w-8` track + `size-4` thumb + `data-[state=checked]:translate-x-[calc(100%-2px)]` + `dark:data-[state=unchecked]:bg-input/80` / `dark:data-[state=*]:bg-foreground|primary-foreground` thumb. Checkbox `rounded-[4px] size-4` + icon `size-3.5`. Select item: check indicator on the RIGHT (`pr-8 pl-2`, `right-2`). Don't hardcode thumb colors (`bg-white`) — use `bg-background`/token.
+- **Non-Reka elements via parity primitives (REQUIRED)**: For Card/Button/Badge/Input/ScrollArea (built "from scratch", not Reka), use Kinetix's own primitives that mirror shadcn-vue **new-york-v4** EXACTLY — Card family + `ScrollArea`/`ScrollBar` (Reka ScrollArea*) in `components/primitives/*` (Card v4 structure: `flex flex-col gap-6 py-6` card + `px-6` sections + `data-slot`; use `cn` from `./primitives/cn`), and `composables/useShadcnVariants` (`buttonVariants`/`badgeVariants`/`inputClass`/`textareaClass`). The DateTimePicker time columns use `ScrollArea`. Import these via RELATIVE paths (`./primitives/Card.vue`) — `@/components/ui/*` would resolve to the CONSUMER's files post-publish. Do NOT re-hand-roll `rounded-xl border ... p-6` card markup; reuse the primitives. shadcn Badge is a `rounded-full` pill; Kinetix soft status badges (`useStatusColor`) are a separate Filament-style element. No new deps (`cn` is a local 4-line join, not clsx/tailwind-merge). **Settled decision (do not revisit): Kinetix is self-contained — it does NOT import or re-publish the host's `@/components/ui` shadcn-vue files, and it does NOT ship a parallel public UI kit (`KinetixButton` etc. do not exist; buttons/badges/inputs are token class strings).** shadcn-vue is copy-paste (not an npm pkg): the starter kit ships only a SUBSET, with variant/version drift, so importing host ui = hard build failures for the consumer. We reuse shadcn's *foundation* — the same tokens (→ pixel-identical look + dark mode) and the same headless lib (Reka UI, a real declared peer dep) — not its copied files. The `primitives/` are an internal implementation detail, not "the UI".
 
 ### Localization & Documentation Rules
 - **Translations (i18n)**: Never hardcode user-facing text strings inside Vue components. Always load them using the Vue-i18n `t()` helper under the `kinetix` namespace (e.g. `t('kinetix.key_name')`).
@@ -68,6 +73,12 @@ Notification::make()
 - `KinetixNotificationTrigger.vue`: Renders the bell trigger and unread counter badge.
 - `KinetixNotificationDrawer.vue`: The sliding sheet sidebar listing all database notifications.
 - `KinetixNotificationItem.vue`: Individual notification item managing action dispatchers.
+
+### Toasts
+- Toasts use `vue-sonner` (store `triggerToast` → `toast.success/warning/error/info`); mount **`<KinetixToaster />`** once, and REMOVE any other `<Toaster>` (vue-sonner has ONE global queue → every mounted Toaster renders every toast, so a leftover raw Toaster repaints it light). KinetixToaster fixes dark-mode contrast by **redefining the CSS vars vue-sonner reads** via `style` (`--normal-bg`/`--normal-text`/`--normal-border` → `--popover`/`--popover-foreground`/`--border`), NOT by class overrides — class overrides (`group-[.toaster]:bg-background`) lose the specificity war vs `[data-sonner-toast]` when `vue-sonner/style.css` loads after Tailwind (→ stubborn white toast under `.dark`). Mirrors shadcn-vue new-york-v4 Sonner exactly. Forwards all Toaster props.
+
+### Broadcasting system notifications
+- System notifications (export/import done) broadcast in real time when **`Notification::shouldBroadcast()`** is true = `kinetix.notifications.broadcast` (env `KINETIX_NOTIFICATIONS_BROADCAST`) **OR** the `kinetix.broadcasting.echo` block is set. When true the recipient is notified via channels `['database','broadcast']` (persisted AND pushed); otherwise database-only. Use the dedicated `notifications.broadcast` flag if you wired Echo/Reverb yourself (don't tie it to the kinetix echo frontend block). Real-time delivery also needs: server `BROADCAST_CONNECTION` set (reverb/pusher), the queue worker running (the Laravel notification is `ShouldQueue`), and `<KinetixNotifications />` mounted (it subscribes via `@laravel/echo-vue` to `private-App.Models.User.{id}`).
 
 ---
 
@@ -140,13 +151,28 @@ $table = Table::make(User::query())
 ### Column Types
 - `TextColumn`: String grids, badges, custom carbon date formats, currency formats, and text truncation.
 - `IconColumn`: Boolean checks and conditional icon statuses.
-- `ImageColumn`: Thumbnail previews with sizing and circular shape options.
+- `ImageColumn`: Thumbnail previews with sizing and circular shape options. `->preview()` opens a zoomable lightbox. `->disk('s3')` (or the global `kinetix.filesystem.disk`, default `public`) resolves stored paths to URLs via `Storage::disk()->url()` in `Table::formatRecord()`; absolute URLs pass through. **Filesystem**: `config('kinetix.filesystem.disk')` (default `public`) is the global disk for EVERYTHING that stores/serves files — `FileUpload` (uploads), `ImageColumn`/`ImageEntry` (asset URLs), and `ExportProcessor`/`ImportController`/`ImportProcessor` (export artifacts + import temp files). Per-instance `->disk()` overrides on the components. Resolve the disk + bridge cloud disks to a local path via `Happones\Kinetix\Support\KinetixDisk` (`name()`, `localReadablePath()`, `discardTemp()`) — CSV/XLSX read/write need a real local path, so s3 etc. stream to a temp file. Exports write to a temp file then `putFileAs` on the disk; the download token carries the disk.
 - `ColorColumn`: Color swatches supporting one-click clipboard copying.
-- **Inline Editors**: `SelectColumn`, `ToggleColumn`, `TextInputColumn`, and `CheckboxColumn` provide live database modifications.
+- **Inline Editors**: `SelectColumn`, `ToggleColumn`, `TextInputColumn`, and `CheckboxColumn` provide live database modifications (each overrides `isEditable()` → true).
+
+### Filters
+- `Filter` (checkbox + custom `query()`), `SelectFilter` (`options()` accepts an Enum class), `MultiSelectFilter` (checkbox list → `whereIn`), `TernaryFilter` (All/true/false for booleans; `trueLabel`/`falseLabel`/`queries()`), `DateFilter` (single date, `operator()` default `=`), `DateTimeFilter` (single datetime, default `>=`), `DateRangeFilter` (`{from,to}` → `whereDate`), `NumberRangeFilter` (`{min,max}`), `TrashedFilter` (SoftDeletes: blank=active, `with`→`withTrashed()`, `only`→`onlyTrashed()`).
+- **Date filters default to the shadcn calendar** (Reka), NOT native inputs. `DateFilter`→`KinetixDatePicker`, `DateTimeFilter`→`KinetixDateTimePicker` (calendar + scrollable hour/minute button columns; `->twelveHour()` adds an AM/PM column; `->minuteStep()`), `DateRangeFilter`→`KinetixRangeCalendar` (`->months()/->weekdayFormat()/->fixedWeeks()/->minValue()/->maxValue()`). Call **`->native()`** on any of them to fall back to the plain native `<input>`. `->locale()` sets the BCP-47 calendar locale.
+- Range/multi filters submit structured values (object/array); the active-filter loop passes them to `apply()` which guards empty selections. New filter types need a render branch in `KinetixTable.vue` + a `type` in `KinetixTableFilter`.
+
+### Action sections (header / footer / bulk)
+- **`Table::toolbarActions([...])`** (alias **`headerActions()`**) → top toolbar, next to search/filters. **This is where table-level Import/Export buttons go** (e.g. an `Action` that `->inertiaVisit(route('...export'))` or `->dispatch('open-importer')` to open a `<KinetixImporter>`). Renders solid primary buttons via `primaryActionClass`.
+- **`Table::footerActions([...])`** → a bar below the table (next to pagination), e.g. "Export all". Serialized as `TableData.footerActions`; rendered like the toolbar.
+- **Both contexts**: place the SAME `Action` in `toolbarActions`/`footerActions` AND `bulkActions` — toolbar/footer act on the whole (filtered) table, bulk merges the selected `ids` into the payload. So one Export action covers "export all" and "export selected".
+
+### Bulk Actions & Query Prefix
+- `Table::bulkActions([Action,...])` enables row selection (select-all + per-row checkbox) + a bulk bar; selected ids are sent (`inertiaVisit`→request `ids`; `dispatch`→`e.detail.ids`). Confirmation gated by a second confirm modal.
+- `Table::queryPrefix('posts_')` namespaces query-string params (`posts_search`/`posts_page`/…) so multiple tables (e.g. relation managers) coexist; `KinetixTable.vue` preserves foreign params on reload.
+- `Table::stickyActions()` (optional, default off) pins the record-actions column to the right edge (`sticky right-0` on header th `bg-muted` + body td `bg-card` + `border-l`) so actions stay visible during horizontal scroll. Serialized as `TableData.stickyActions`.
 
 ### Security & Cell Updates
-- In-table edits trigger XHR requests to `/tables/cell-update`.
-- To prevent parameter tampering, the backend model class is securely encrypted (`Crypt::encryptString`) on serialization. The controller decrypts this token to validate and load the target model class dynamically.
+- In-table edits trigger XHR requests to `{prefix}/tables/cell-update`.
+- To prevent parameter tampering, the table's `model` token encrypts BOTH the model class AND the list of **editable column names** (`Crypt::encrypt(['model'=>…,'columns'=>[…]])`). The controller decrypts it, validates the model class, and **returns 403 unless the requested column is in the editable list** — so a user cannot write arbitrary columns (e.g. `is_admin`). Keep this guarantee when changing inline editing.
 
 ---
 
@@ -176,5 +202,116 @@ $form = Form::make($record)
 ### Components & Fields Architecture
 - **Base Components**: All form elements extend `Component`, managing column spans and operation visibility constraints (`hiddenOn`, `visibleOn`).
 - **Base Fields**: All actual input controls extend `Field`, inheriting validation rules (`rules()`, `required()`, `maxLength()`), defaultValue configurations, and hydration/dehydration callbacks.
-- **Select Fields**: Automatically reflect PHP Enums if a subclass of `UnitEnum` is passed to the `options()` method.
+- **Available Fields**: `TextInput`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `DatePicker`, `DateTimePicker`, `Hidden`, `Radio`, `CheckboxList`, `ColorPicker`, `TagsInput`, `KeyValue`, `Repeater`, `FileUpload`.
+- **DatePicker / DateTimePicker default to the shadcn calendar** (`KinetixDatePicker` / `KinetixDateTimePicker`), NOT native inputs. `->native()` opts back to native `<input>`; `->locale()`, `DateTimePicker->minuteStep()`/`->twelveHour()` (AM/PM column). Inputs/textareas/buttons across forms reuse `inputClass`/`textareaClass`/`buttonVariants` from `@/composables/useShadcnVariants` — don't re-hand-roll field/button class strings.
+- **Select-derived**: `Radio` and `CheckboxList` extend `Select` to reuse `options()` (incl. Enum reflection). `CheckboxList` stores an **array** (pair with an `array` cast). Both support `inline()`.
+- **Array/Object fields**: `TagsInput` (string array) and `KeyValue` (object) keep ephemeral edit state in their own components (`KinetixTagsInput`/`KinetixKeyValue`) to avoid leaks. `Repeater` repeats a `schema()` over an array-of-objects (`minItems`/`maxItems`/`addActionLabel`; rendered by recursing `KinetixFormSchema` per item; extends `Field` so validation treats it as one array field).
+- **FileUpload**: stores path(s); uploads via `{prefix}/uploads/store` (+ `uploads/delete`). Storage config (disk/dir/constraints) is signed into an encrypted `uploadToken` and re-validated server-side — the client can't target arbitrary disks. State in `KinetixFileUpload`.
+- **Field-specific serialization**: override `toData()`, call `parent::toData()`, then mutate the returned `FormFieldData` (e.g. `$data->inputType`, `$data->isInline`) — mirror `TextInput`.
+- **Select Fields**: `options()` accepts array, `Closure`, or a `UnitEnum` class (auto value→label). Rendered by `KinetixSelect` (Reka `SelectRoot`); `Radio` by `KinetixRadioGroup` (Reka), `Toggle` by Reka `SwitchRoot`, `Checkbox` by `KinetixCheckbox` (Reka).
+
+---
+
+## 6. Kinetix Infolists
+
+Read-only, schema-driven record display — the display twin of Forms. State is resolved/formatted server-side; the Vue layer (`KinetixInfolist` → recursive `KinetixInfolistEntries`) is stateless (no watchers/leaks).
+
+```php
+use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Infolists\Components\{Section, TextEntry, IconEntry};
+
+Infolist::make($user)->schema([
+    Section::make('Account')->icon('user')->columns(12)->schema([
+        TextEntry::make('email')->icon('mail')->copyable()->columnSpan(6),
+        TextEntry::make('status')->badge()->color(fn ($s) => $s === 'active' ? 'success' : 'gray'),
+        IconEntry::make('is_verified')->boolean(),
+        TextEntry::make('created_at')->dateTime(),
+    ]),
+]);
+```
+
+- **Entries**: `TextEntry` (badge/date/dateTime/money/limit/copyable/url/inlineLabel), `IconEntry` (boolean / options/colors maps), `ImageEntry` (circular/square/size/defaultImageUrl), `ColorEntry` (copyable hex). Base `Entry` resolves via `getRawState()` (dot-notation + `state()` + `default()`) → `formatStateUsing()` → type formatting; honours `HasLabel`/`HasColor`/`HasIcon` enum contracts.
+- **Layouts**: `Section` (titled card), `Grid`, `Fieldset` (labelled bordered group), `Tabs`/`Tab` (switchable panels; active tab tracked client-side per instance, hidden tabs stripped on serialize).
+- **Resource hook**: `Resource::infolist(Infolist $infolist)` parallels `form()`/`table()`.
+
+---
+
+## 7. Kinetix Actions, Authorization & Bulk
+
+The fluent `Actions\Action` builder powers notification buttons, table record/toolbar/bulk actions, and page headers.
+
+- **Prebuilt CRUD actions**: `ViewAction`/`EditAction`/`DeleteAction` (record actions; default policy abilities `view`/`update`/`delete`; Delete also `requiresConfirmation()`+danger), `CreateAction` (toolbar; pass `->authorize('create', Model::class)`), `RestoreAction`/`ForceDeleteAction` (SoftDeletes; abilities `restore`/`forceDelete`, visible only when `$record->trashed()`).
+- **`->request()` vs `->inertiaVisit()`**: `->inertiaVisit($url,['method'=>'post'])` does a `router.visit()` and REQUIRES the endpoint to return an Inertia response (redirect/render) — a JSON response pops Inertia's error modal. For fire-and-forget JSON endpoints (queue + notify), use **`->request($url,['method'=>'post','toast'=>trans('…')])`** → plain `fetch()` (XSRF token added) + a success toast, no navigation. `executeAction` handles both; bulk `ids`/extraData go in the request body.
+- **Export/Import actions (prebuilt, Filament-style)**: `ExportAction::make()->exporter(ProductExporter::class)` (uses `->request()` → "Export queued" toast, then a download notification when done) — POSTs the exporter token to the built-in `kinetix.exports.start` endpoint which dispatches the queued export; in `toolbarActions`/`headerActions` it exports the exporter's `query()`, in `bulkActions` it sends the selected `ids` (scope with `query()->when($this->parameter('ids'), …)`). `ImportAction::make()->importer(ProductImporter::class)` — dispatches `kinetix:open-importer` (importer token); mount the global `<KinetixImportModal />` once to show `KinetixImporter` in a dialog. Both are normal Actions (label/icon/color/authorize). Exporter/Importer expose `token()`/`fromToken()`.
+- **File actions**: `DownloadAction` (forces a browser download of `->url(...)`; `Action::download()` is the underlying flag) and `PreviewAction` (`->url(...)` opens in the global file-preview lightbox — image/pdf, `->preview('image'|'pdf'|'auto')` / `Action::preview($type)`). Both customizable (`->color()`/`->icon()`/`->label()`). They route the resolved per-row URL via `executeAction` (download = synthetic `<a download>` click; preview = `kinetix:preview` event). Mount `<KinetixFilePreview />` once in the layout (like the notification components) for image-column previews and PreviewActions to work. PDFs render **inline** via `<object type="application/pdf">` + `<iframe>` fallback (never external).
+- **Action icons & colors**: all prebuilt actions ship a default icon + color (edit/gray, view/gray, delete=trash/danger, create=plus/primary, restore=rotate-ccw/gray, forceDelete=trash-2/danger, download/gray, preview=eye/gray). Override with `->icon('name')`/`->color('...')`, or **disable the icon with `->icon(null)`**. Icons resolve through the SHARED `@/composables/useKinetixIcons` `resolveIcon()` map (single source for table/dropdown/page-header) — add new lucide names there, not per-component, to avoid "missing icon" drift.
+- **Route binding**: `->url(fn ($record) => route('posts.edit', $record))` resolves via Laravel `getRouteKey()`, so custom `getRouteKeyName()` (slug, uuid) is respected — the full model is handed to the closure. The row `id` (`getKey()`/PK) is only used for bulk/cell-update `whereKey`.
+- **Confirmation modals**: `requiresConfirmation(bool|string)` + `modalHeading()/modalDescription()/modalIcon()/modalSubmitActionLabel()/modalCancelActionLabel()` → serialized on `ActionData`; rendered by leak-safe `KinetixConfirmModal.vue` (Escape/overlay close, listener torn down on unmount).
+- **Authorization (server-side, secure)**: `Action`/`ActionGroup` use the `HasAuthorization` trait — `->authorize(string $ability, $subject = null)` (`Gate::allows`, subject defaults to the record), `->authorize(Closure|bool)`, `->visible()`/`->hidden()`. `toData()` returns **null** when not visible/authorized; `Table` filters those out (definitions + per-row). **Unauthorized actions are NEVER serialized to the client** — don't rely on client-side hiding. Record-action templates with no row defer string-ability checks to the per-row pass. For manual contexts use `Action::toArrayMany([...], $record)`.
+- **Action groups**: `ActionGroup::make([Action,...])` → `ActionData` `type:'group'` + nested `actions` (unauthorized children dropped); rendered by `KinetixActionDropdown.vue`.
+- **Execution composable**: `@/composables/useKinetixActions` (`executeAction(action, extraData?)` + `useActionConfirmation()`) is shared by table, page header, and dropdown — route new action UIs through it.
+- **Page action bars**: `KinetixPageHeader.vue` (title + description + actions row). **Bulk**: see §4.
+
+---
+
+## 8. Kinetix Import / Export
+
+Queue-backed CSV/Excel import (smart mapping preview) + export (download notification). Excel via `phpoffice/phpspreadsheet`; CSV native.
+
+- **Import**: extend `Importer` (`getColumns()` of `ImportColumn`, `$model`, `resolveRecord()` for upsert, `importRow()`, `chunkSize()`/`queue()`). `Importer::guessMapping($headers)` auto-maps headers→columns (normalized, **collision-free**). Endpoints `imports/upload|preview|start` (importer class + stored file are encrypted tokens). `ImportProcessor` (ShouldQueue) maps by header index, validates column `rules()`, chunked transactions, deletes temp file, sends a completion notification. UI: `KinetixImporter.vue` (CSV options + mapping `<select>` per target, auto-selected + collision-disabled, preview, start gated on required).
+- **Export**: extend `Exporter` (`getColumns()` of `ExportColumn`, `$model`/`query()`, `format()` csv|xlsx, `chunkSize()`, `export(?Model $recipient)`). `ExportProcessor` (ShouldQueue) streams via `FileWriter`, then sends an **"Export ready" notification with a signed Download action**; `kinetix.exports.download` (token-guarded, no team prefix).
+- **Generators**: `kinetix:make-importer`, `kinetix:make-exporter`. Docs: [docs/import-export.md].
+
+---
+
+## 9. Kinetix Relation Managers
+
+Manage a parent record's related records on its edit/show page; a thin composition over `Table`.
+
+```php
+use Happones\Kinetix\Resources\RelationManager;
+use Happones\Kinetix\Tables\Table;
+use Happones\Kinetix\Tables\Columns\TextColumn;
+
+class PostsRelationManager extends RelationManager
+{
+    protected static string $relationship = 'posts';
+    public function table(Table $table): Table
+    {
+        return $table->columns([TextColumn::make('title')->searchable()]);
+    }
+}
+// Page: ['relations' => [PostsRelationManager::make($user)->toArray()]] → <KinetixRelationManager :manager="r" />
+```
+
+- Scoping: `getRelationshipQuery()` = `$parent->{relationship}()->getQuery()` (parent FK constraints auto-applied). The table is given `queryPrefix("{relationship}_")`. CRUD via ordinary `Action`s pointing at your routes. `Resource::relationManagers(): array` lists the managers. **Per-page visibility**: `RelationManager::$visibleOn = ['edit','view']` (default both) + overridable static `isVisibleOn($page)` (for per-record logic, the `canViewForRecord` analogue); `Resource::relationManagersFor($page)` returns only the managers visible on that page — build each edit/view page's list with it, not raw `relationManagers()`. Serializes to `RelationManagerData {title, relationship, table}`; rendered by `KinetixRelationManager.vue`.
+
+---
+
+## 10. Kinetix Billing (optional, Cashier + Stripe)
+
+Optional module wrapping Laravel Cashier. **Off by default** (`kinetix.billing.enabled`); Cashier is a *suggested* dep — guard every Cashier call (`method_exists`), since the `Billable`/`HasPlan` traits live on the host's configurable billable.
+
+```php
+use Happones\Kinetix\Billing\Plan;
+use Happones\Kinetix\Billing\BillingManager;
+
+$user->canUseFeature('capabilities.api');                 // HasPlan on the billable; dot-path features
+BillingManager::for($user)->subscribe('pro', $pm, 'monthly'); // free=downgrade, paid=swap/create
+Route::post('/x', ...)->middleware('plan.feature:capabilities.api');
+```
+
+- `Plan` (dot-path JSON `features`: `canUseFeature`/`hasReachedLimit`(null=unlimited)/`priceFor`/`stripePriceId`/`isFree`). `BillingManager` = Cashier orchestration; `BillingController`+`BillingRoutes::register()` = zero-config endpoints. `PlanFeatureMiddleware` = `plan.feature:dotpath`.
+- Vue (token-only; UI labels via `t('kinetix.billing_*')`, data via props): `KinetixPricingTable`/`KinetixPlanCard` (capability rows from a `featureLabels` dot-path map — never hardcode app keys), `KinetixPaymentMethods`, `KinetixSubscriptionStatus`, `KinetixInvoicesTable`. `useKinetixBilling(endpoints)` = Inertia visits; `useKinetixStripe` = Stripe Elements styled from shadcn tokens resolved to `rgb()`, re-themed on `<html>` toggle, leak-safe teardown (verify light+dark). ALL Kinetix Vue components use vue-i18n `t('kinetix.*')` for fixed UI text (no English-default label props) — keys live in `resources/lang/*/kinetix.php` (en/es/fr/pt), tests inject the shared `__tests__/i18n.ts` plugin.
+- Scaffold: `php artisan kinetix:make-billing --seeder`. Full guide: `docs/billing.md`.
+
+---
+
+## Generators (Artisan)
+
+`kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
+
+## Testing & Static Analysis
+
+- **PHPUnit + orchestra/testbench** (`vendor/bin/phpunit`, in-memory sqlite) under `tests/` (`Happones\Kinetix\Tests\`). **Larastan/PHPStan level 5** (`vendor/bin/phpstan analyse`, config `phpstan.neon`). **Vitest + @vue/test-utils + happy-dom** for Vue (`npm run test:unit`, specs in `resources/js/components/__tests__/`; i18n components need an i18n plugin via `global.plugins`). Every change must keep all three green.
 

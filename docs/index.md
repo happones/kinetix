@@ -5,7 +5,8 @@ hero:
   text: "The UI toolkit for Laravel + Vue + Inertia"
   tagline: "Filament-style fluent PHP APIs, real-time components and full i18n — built for the Laravel starter-kit stack (Vue 3 · Inertia · shadcn-vue)."
   image:
-    src: /logo.png
+    light: /logo.png
+    dark: /logo_w.png
     alt: Kinetix
   actions:
     - theme: brand

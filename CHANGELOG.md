@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-22
+
+### Added
+
+- GitHub repository CI/CD workflow configurations for automated PHP/JS testing and VitePress site deployment.
+- Standardized Issue and Pull Request templates for the open-source repository.
+- Comprehensive submodules development reference guidelines inside `.agents/skills/kinetix-development/SKILL.md`.
+- Integration of the official VitePress Mermaid plugin (`vitepress-plugin-mermaid`) for markdown diagrams.
+- Dedicated VitePress theme logos for light and dark modes (`logo.png`/`logo_w.png`) and custom favicon (`icon.png`).
+- Standardized MIT License file for open-source compliance.
+
+## [0.1.0] - 2026-06-22
+
 ### Added
 
 - Custom UI primitives (`Dialog`, `Popover`, `Select`, `ScrollArea`) styled with shadcn v4 tokens.
