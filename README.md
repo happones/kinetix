@@ -10,7 +10,8 @@
 <p align="center">
   <a href="https://github.com/happones/kinetix/actions/workflows/ci.yml"><img src="https://github.com/happones/kinetix/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/v/happones/kinetix" alt="Latest Stable Version"></a>
-  <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/l/happones/kinetix" alt="License"></a>
+  <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/dt/happones/kinetix" alt="Total Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/packagist/l/happones/kinetix" alt="License"></a>
   <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/php-v/happones/kinetix" alt="PHP Version"></a>
 </p>
 
