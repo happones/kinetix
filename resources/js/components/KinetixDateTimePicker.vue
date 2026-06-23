@@ -1,0 +1,220 @@
+<script setup lang="ts">
+import { CalendarIcon } from "@lucide/vue";
+import {
+  PopoverContent,
+  PopoverPortal,
+  PopoverRoot,
+  PopoverTrigger,
+} from "reka-ui";
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import KinetixCalendar from "./KinetixCalendar.vue";
+import ScrollArea from "./primitives/ScrollArea.vue";
+import { cn } from "./primitives/cn";
+import { buttonVariants } from "@/composables/useShadcnVariants";
+
+const { t } = useI18n();
+
+const props = withDefaults(
+  defineProps<{
+    /** Selected value as an ISO 'Y-m-dTH:i' string (always 24h storage). */
+    value?: string | null;
+    /** Render a plain native <input type="datetime-local"> instead. */
+    native?: boolean;
+    /** Use a 12-hour clock with an AM/PM column instead of 24-hour. */
+    hour12?: boolean;
+    disabled?: boolean;
+    /** Overrides the default `kinetix.datetime_placeholder`. */
+    placeholder?: string | null;
+    locale?: string | null;
+    minuteStep?: number;
+  }>(),
+  {
+    value: null,
+    native: false,
+    hour12: false,
+    disabled: false,
+    placeholder: null,
+    locale: null,
+    minuteStep: 5,
+  },
+);
+
+const emit = defineEmits<{
+  (e: "update:value", value: string | null): void;
+}>();
+
+const open = ref(false);
+const pad = (n: number) => String(n).padStart(2, "0");
+
+const datePart = computed(() => (props.value ? props.value.slice(0, 10) : null));
+const hour24 = computed(() => Number(props.value?.slice(11, 13) ?? "0") || 0);
+const minute = computed(() => Number(props.value?.slice(14, 16) ?? "0") || 0);
+const isPm = computed(() => hour24.value >= 12);
+const displayHour = computed(() => hour24.value % 12 || 12);
+
+const hours = computed(() =>
+  props.hour12
+    ? Array.from({ length: 12 }, (_, i) => i + 1)
+    : Array.from({ length: 24 }, (_, i) => i),
+);
+const minutes = computed(() =>
+  Array.from({ length: Math.ceil(60 / props.minuteStep) }, (_, i) => i * props.minuteStep),
+);
+
+const formatted = computed(() => {
+  if (!props.value || !datePart.value) {
+    return props.value;
+  }
+
+  const [y, m, d] = datePart.value.split("-").map(Number);
+
+  return new Date(y, m - 1, d, hour24.value, minute.value).toLocaleString(
+    props.locale || undefined,
+    {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: props.hour12,
+    },
+  );
+});
+
+const todayIso = () => {
+  const now = new Date();
+
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
+
+const emitParts = (date: string, h: number, m: number) =>
+  emit("update:value", `${date}T${pad(h)}:${pad(m)}`);
+
+const onDateSelect = (date: string | null) => {
+  if (date) {
+    emitParts(date, hour24.value, minute.value);
+  }
+};
+
+const setHour24 = (h: number) =>
+  emitParts(datePart.value ?? todayIso(), h, minute.value);
+
+// In 12h mode the clicked hour is 1-12; map it to 24h keeping the AM/PM half.
+const setHour12 = (h: number) =>
+  emitParts(datePart.value ?? todayIso(), (h % 12) + (isPm.value ? 12 : 0), minute.value);
+
+const setMinute = (m: number) =>
+  emitParts(datePart.value ?? todayIso(), hour24.value, m);
+
+const setMeridiem = (meridiem: "AM" | "PM") => {
+  const h = hour24.value;
+  const next =
+    meridiem === "PM" && h < 12 ? h + 12 : meridiem === "AM" && h >= 12 ? h - 12 : h;
+
+  emitParts(datePart.value ?? todayIso(), next, minute.value);
+};
+
+const timeBtn = (active: boolean) =>
+  cn(
+    buttonVariants({ variant: active ? "default" : "ghost", size: "icon-sm" }),
+    "aspect-square shrink-0 sm:w-full",
+  );
+</script>
+
+<template>
+  <input
+    v-if="native"
+    type="datetime-local"
+    :value="value"
+    :disabled="disabled"
+    @input="emit('update:value', ($event.target as HTMLInputElement).value || null)"
+  />
+
+  <PopoverRoot v-else v-model:open="open">
+    <PopoverTrigger
+      :disabled="disabled"
+      :class="
+        cn(
+          buttonVariants({ variant: 'outline' }),
+          'w-full justify-start text-left font-normal',
+          !value && 'text-muted-foreground',
+        )
+      "
+    >
+      <CalendarIcon class="mr-2 h-4 w-4" />
+      {{ formatted ?? placeholder ?? t("kinetix.datetime_placeholder") }}
+    </PopoverTrigger>
+    <PopoverPortal>
+      <PopoverContent
+        align="start"
+        :side-offset="4"
+        class="z-50 w-auto rounded-md border border-border bg-popover p-0 shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+      >
+        <div class="sm:flex">
+          <KinetixCalendar
+            class="border-0"
+            :value="datePart"
+            :locale="locale"
+            @update:value="onDateSelect"
+          />
+          <div
+            class="flex h-[260px] divide-x divide-border border-t border-border sm:border-t-0 sm:border-l"
+          >
+            <!-- Hours -->
+            <ScrollArea class="h-full" type="always">
+              <div class="flex flex-col gap-1 p-2">
+                <button
+                  v-for="h in hours"
+                  :key="`h-${h}`"
+                  type="button"
+                  :class="
+                    timeBtn(
+                      datePart != null && (hour12 ? displayHour === h : hour24 === h),
+                    )
+                  "
+                  @click="hour12 ? setHour12(h) : setHour24(h)"
+                >
+                  {{ pad(h) }}
+                </button>
+              </div>
+            </ScrollArea>
+            <!-- Minutes -->
+            <ScrollArea class="h-full" type="always">
+              <div class="flex flex-col gap-1 p-2">
+                <button
+                  v-for="m in minutes"
+                  :key="`m-${m}`"
+                  type="button"
+                  :class="timeBtn(datePart != null && minute === m)"
+                  @click="setMinute(m)"
+                >
+                  {{ pad(m) }}
+                </button>
+              </div>
+            </ScrollArea>
+            <!-- AM/PM (12h only) -->
+            <ScrollArea v-if="hour12" class="h-full">
+              <div class="flex flex-col gap-1 p-2">
+                <button
+                  v-for="meridiem in ['AM', 'PM']"
+                  :key="meridiem"
+                  type="button"
+                  :class="
+                    timeBtn(
+                      datePart != null &&
+                        ((meridiem === 'AM' && !isPm) || (meridiem === 'PM' && isPm)),
+                    )
+                  "
+                  @click="setMeridiem(meridiem as 'AM' | 'PM')"
+                >
+                  {{ meridiem }}
+                </button>
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+      </PopoverContent>
+    </PopoverPortal>
+  </PopoverRoot>
+</template>
