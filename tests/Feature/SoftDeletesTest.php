@@ -49,7 +49,7 @@ class SoftDeletesTest extends TestCase
 
         Gate::define('restore', fn ($user, $widget) => true);
         Gate::define('forceDelete', fn ($user, $widget) => true);
-        $this->actingAs(new TrashUser());
+        $this->actingAs(new TrashUser);
     }
 
     public function test_trashed_filter_default_shows_only_active(): void
@@ -78,7 +78,7 @@ class SoftDeletesTest extends TestCase
 
     public function test_restore_action_only_visible_for_trashed_records(): void
     {
-        $active = TrashWidget::first();
+        $active  = TrashWidget::first();
         $trashed = TrashWidget::onlyTrashed()->first();
 
         $this->assertNull(RestoreAction::make()->toData($active));
@@ -87,7 +87,7 @@ class SoftDeletesTest extends TestCase
 
     public function test_force_delete_action_only_visible_for_trashed_records(): void
     {
-        $active = TrashWidget::first();
+        $active  = TrashWidget::first();
         $trashed = TrashWidget::onlyTrashed()->first();
 
         $this->assertNull(ForceDeleteAction::make()->toData($active));

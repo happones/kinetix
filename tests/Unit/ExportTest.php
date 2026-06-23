@@ -28,7 +28,7 @@ class ExportTest extends TestCase
 {
     public function test_headings_use_labels(): void
     {
-        $this->assertSame(['Full Name', 'Email', 'Score'], (new SampleExporter())->headings());
+        $this->assertSame(['Full Name', 'Email', 'Score'], (new SampleExporter)->headings());
     }
 
     public function test_csv_writer_writes_rows(): void

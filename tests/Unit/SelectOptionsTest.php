@@ -11,7 +11,7 @@ use Happones\Kinetix\Tests\TestCase;
 
 enum SampleStatus: string implements HasLabel
 {
-    case Draft = 'draft';
+    case Draft     = 'draft';
     case Published = 'published';
 
     public function getLabel(): string

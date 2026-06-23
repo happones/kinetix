@@ -58,4 +58,28 @@ class BulkActionsTest extends TestCase
         $this->assertCount(1, $data->bulkActions);
         $this->assertSame('allowed', $data->bulkActions[0]->name);
     }
+
+    public function test_footer_actions_are_serialized(): void
+    {
+        $data = Table::make(BulkWidget::query())
+            ->footerActions([Action::make('export-all')->label('Export all')])
+            ->toData();
+
+        $this->assertCount(1, $data->footerActions);
+        $this->assertSame('export-all', $data->footerActions[0]->name);
+    }
+
+    public function test_same_action_can_live_in_both_toolbar_and_bulk(): void
+    {
+        // An "Export" usable for the whole table (toolbar) and selected rows (bulk).
+        $export = Action::make('export')->label('Export')->icon('download');
+
+        $data = Table::make(BulkWidget::query())
+            ->toolbarActions([$export])
+            ->bulkActions([$export])
+            ->toData();
+
+        $this->assertSame('export', $data->toolbarActions[0]->name);
+        $this->assertSame('export', $data->bulkActions[0]->name);
+    }
 }

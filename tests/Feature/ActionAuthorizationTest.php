@@ -45,7 +45,7 @@ class ActionAuthorizationTest extends TestCase
         Gate::define('update', fn ($user, AuthWidget $widget) => $widget->editable);
         Gate::define('delete', fn ($user, AuthWidget $widget) => false);
 
-        $this->actingAs(new AuthUser());
+        $this->actingAs(new AuthUser);
     }
 
     public function test_edit_action_is_authorized_for_an_editable_record(): void

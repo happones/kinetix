@@ -145,14 +145,26 @@ class FiltersTest extends TestCase
 
     public function test_date_range_calendar_variant_serializes_flag(): void
     {
-        $native = DateRangeFilter::make('published_at')->toData();
-        $calendar = DateRangeFilter::make('published_at')->calendar()->toData();
+        // shadcn calendar is the default; ->native() opts out to native inputs.
+        $calendar = DateRangeFilter::make('published_at')->toData();
+        $native   = DateRangeFilter::make('published_at')->native()->toData();
 
-        $this->assertFalse($native->useCalendar);
         $this->assertTrue($calendar->useCalendar);
+        $this->assertFalse($native->useCalendar);
         $this->assertSame('date-range', $calendar->type);
         $this->assertSame(1, $calendar->numberOfMonths);
         $this->assertNull($calendar->locale);
+    }
+
+    public function test_date_and_datetime_filters_default_to_calendar(): void
+    {
+        $this->assertTrue(DateFilter::make('published_at')->toData()->useCalendar);
+        $this->assertFalse(DateFilter::make('published_at')->native()->toData()->useCalendar);
+
+        $datetime = DateTimeFilter::make('logged_at')->minuteStep(15)->toData();
+        $this->assertTrue($datetime->useCalendar);
+        $this->assertSame(15, $datetime->minuteStep);
+        $this->assertFalse(DateTimeFilter::make('logged_at')->native()->toData()->useCalendar);
     }
 
     public function test_date_range_calendar_options_serialize(): void

@@ -42,7 +42,7 @@ class TableModelClassTest extends TestCase
 
     public function test_model_class_resolved_from_model_instance(): void
     {
-        $this->assertSame(TblThing::class, Table::make(new TblThing())->getModelClass());
+        $this->assertSame(TblThing::class, Table::make(new TblThing)->getModelClass());
     }
 
     public function test_model_class_resolved_from_class_string(): void

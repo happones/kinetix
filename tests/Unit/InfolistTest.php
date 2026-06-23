@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Unit;
 
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Infolists\Components\Fieldset;
+use Happones\Kinetix\Infolists\Components\Section;
 use Happones\Kinetix\Infolists\Components\Tab;
 use Happones\Kinetix\Infolists\Components\Tabs;
 use Happones\Kinetix\Infolists\Components\TextEntry;
@@ -35,6 +37,28 @@ class InfolistTest extends TestCase
         $this->assertSame('open', $data->state);
         $this->assertSame('success', $data->color);
         $this->assertTrue($data->isBadge);
+    }
+
+    public function test_section_header_actions_serialize(): void
+    {
+        $data = Section::make('Profile')
+            ->actions([
+                Action::make('edit')->label('Edit')->icon('edit'),
+                Action::make('archive')->label('Archive')->authorize(false),
+            ])
+            ->schema([TextEntry::make('name')])
+            ->toData('view', null);
+
+        // Authorized action kept, unauthorized one dropped.
+        $this->assertCount(1, $data->actions);
+        $this->assertSame('edit', $data->actions[0]->name);
+    }
+
+    public function test_section_without_actions_serializes_null(): void
+    {
+        $data = Section::make('Profile')->schema([TextEntry::make('name')])->toData('view', null);
+
+        $this->assertNull($data->actions);
     }
 
     public function test_fieldset_layout_serializes(): void

@@ -53,6 +53,37 @@ class TableTest extends TestCase
         $this->assertSame('posts_', $data['queryPrefix']);
     }
 
+    public function test_pagination_serializes_from_and_to(): void
+    {
+        // Regression: the frontend "Showing :from to :to of :total" line read
+        // pagination.from / pagination.to, which the DTO did not send.
+        TblItem::create(['name' => 'a']);
+        TblItem::create(['name' => 'b']);
+        TblItem::create(['name' => 'c']);
+
+        $data = Table::make(TblItem::query())
+            ->columns([TextColumn::make('name')])
+            ->toArray();
+
+        $this->assertSame(3, $data['pagination']['total']);
+        $this->assertSame(1, $data['pagination']['from']);
+        $this->assertSame(3, $data['pagination']['to']);
+    }
+
+    public function test_sticky_actions_flag_serializes(): void
+    {
+        $default = Table::make(TblItem::query())
+            ->columns([TextColumn::make('name')])
+            ->toArray();
+        $this->assertFalse($default['stickyActions']);
+
+        $sticky = Table::make(TblItem::query())
+            ->columns([TextColumn::make('name')])
+            ->stickyActions()
+            ->toArray();
+        $this->assertTrue($sticky['stickyActions']);
+    }
+
     public function test_string_poll_serializes(): void
     {
         // Regression: TableData::$poll was ?int but the setter accepts a string.

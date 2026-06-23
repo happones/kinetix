@@ -5,24 +5,26 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests;
 
 use Happones\Kinetix\KinetixServiceProvider;
+use Illuminate\Foundation\Application;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Spatie\LaravelData\LaravelDataServiceProvider;
 
 abstract class TestCase extends Orchestra
 {
     /**
-     * @param \Illuminate\Foundation\Application $app
+     * @param  Application              $app
      * @return array<int, class-string>
      */
     protected function getPackageProviders($app): array
     {
         return [
-            \Spatie\LaravelData\LaravelDataServiceProvider::class,
+            LaravelDataServiceProvider::class,
             KinetixServiceProvider::class,
         ];
     }
 
     /**
-     * @param \Illuminate\Foundation\Application $app
+     * @param Application $app
      */
     protected function defineEnvironment($app): void
     {

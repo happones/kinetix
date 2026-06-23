@@ -88,7 +88,7 @@ class ImportTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'kx').'.csv';
         file_put_contents($path, "name\nOmar\n\n"); // trailing blank line
 
-        $read = FileReader::read($path, new ImportOptionsData());
+        $read = FileReader::read($path, new ImportOptionsData);
 
         $this->assertSame(['name'], $read['headers']);
         $this->assertSame([['Omar']], $read['rows']);
@@ -110,14 +110,14 @@ class ImportTest extends TestCase
     }
 
     /**
-     * @param array<string, int|null> $mapping
+     * @param  array<string, int|null>          $mapping
      * @return array<string, array<int, mixed>>
      */
     private function invokeMappedRules(array $mapping): array
     {
-        $job = new ImportProcessor(RuledImporter::class, '/tmp/x.csv', [], $mapping);
+        $job    = new ImportProcessor(RuledImporter::class, '/tmp/x.csv', [], $mapping);
         $method = new ReflectionMethod($job, 'mappedRules');
 
-        return $method->invoke($job, new RuledImporter());
+        return $method->invoke($job, new RuledImporter);
     }
 }
