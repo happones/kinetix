@@ -23,7 +23,19 @@ parameters:
             identifier: trait.unused
             path: src/Support/Concerns/HasLabelOptions.php
 
+        # Billing trait added to the host app's Cashier billable model (User/Team).
+        # Cashier's subscription() lives on the foreign billable, not inside the package.
+        -
+            identifier: trait.unused
+            path: src/Billing/Concerns/HasPlan.php
+
         # Soft-delete scopes exist on SoftDeletes models, not the base query Builder.
         -
             message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder.*::(withTrashed|onlyTrashed)\(\)#'
             path: src/Tables/Filters/TrashedFilter.php
+
+        # Cashier methods live on the host app's Billable model (a suggested dep,
+        # configured at runtime), not on the generic base Model the package types.
+        -
+            message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::(newSubscription|addPaymentMethod|hasDefaultPaymentMethod|updateDefaultPaymentMethod|findPaymentMethod|downloadInvoice)\(\)#'
+            path: src/Billing/BillingManager.php

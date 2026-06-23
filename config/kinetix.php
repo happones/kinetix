@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use Happones\Kinetix\Billing\Plan;
 
 return [
 
@@ -35,6 +36,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Kinetix Filesystem
+    |--------------------------------------------------------------------------
+    |
+    | The default filesystem disk used for file uploads (FileUpload field) and
+    | for resolving asset URLs (ImageColumn). Defaults to "public"; point it at
+    | any configured disk (e.g. "s3"). Per-component overrides are available via
+    | FileUpload::disk() and ImageColumn::disk().
+    |
+    */
+    'filesystem' => [
+        'disk' => env('KINETIX_FILESYSTEM_DISK', 'public'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Kinetix Notifications
     |--------------------------------------------------------------------------
     |
@@ -53,6 +69,12 @@ return [
     */
     'notifications' => [
         'database' => env('KINETIX_DATABASE_NOTIFICATIONS', false),
+
+        // Broadcast system notifications (export/import done, etc.) in real time
+        // via Laravel's broadcast channel — independent of how you configured
+        // Laravel Echo. Enable this if you set up Echo/Reverb yourself instead
+        // of filling the `broadcasting.echo` block below.
+        'broadcast' => env('KINETIX_NOTIFICATIONS_BROADCAST', false),
 
         'limit' => env('KINETIX_NOTIFICATIONS_LIMIT', 15),
 
@@ -135,5 +157,45 @@ return [
     |
     */
     'middleware' => ['web', 'auth'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Billing (optional — requires laravel/cashier + @stripe/stripe-js)
+    |--------------------------------------------------------------------------
+    |
+    | The Kinetix Billing module wraps Laravel Cashier (Stripe) to provide
+    | plans, pricing tables, subscriptions, invoices and payment methods.
+    | It only activates when `enabled` is true AND laravel/cashier is installed.
+    | `billable` is the Cashier Billable model (User, Team, Organization, …).
+    |
+    */
+    'billing' => [
+        'enabled'    => env('KINETIX_BILLING_ENABLED', false),
+        'billable'   => env('KINETIX_BILLING_BILLABLE', 'App\\Models\\User'),
+        'plan_model' => env('KINETIX_BILLING_PLAN_MODEL', Plan::class),
+
+        // Cashier subscription "type" (Cashier's default is 'default').
+        'subscription' => env('KINETIX_BILLING_SUBSCRIPTION', 'default'),
+
+        // Currency symbol used when formatting prices in the UI.
+        'currency'        => env('KINETIX_BILLING_CURRENCY', 'USD'),
+        'currency_symbol' => env('KINETIX_BILLING_CURRENCY_SYMBOL', '$'),
+
+        // Product label shown on downloaded invoices.
+        'product' => env('KINETIX_BILLING_PRODUCT', 'Subscription'),
+
+        // Inertia page component the bundled BillingController renders.
+        'view' => env('KINETIX_BILLING_VIEW', 'Billing/Index'),
+
+        // Optionally resolve a different billable from the authenticated user
+        // (e.g. fn ($user) => $user->currentTeam). Null = the user itself.
+        'resolve_billable' => null,
+
+        // Route registration for the bundled BillingController.
+        'auto_routes'  => env('KINETIX_BILLING_AUTO_ROUTES', false),
+        'route_prefix' => env('KINETIX_BILLING_ROUTE_PREFIX', 'billing'),
+        'route_name'   => env('KINETIX_BILLING_ROUTE_NAME', 'billing.'),
+        'middleware'   => ['web', 'auth'],
+    ],
 
 ];

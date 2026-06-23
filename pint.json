@@ -1,0 +1,15 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "no_unused_imports": true,
+        "ordered_imports": true,
+        "phpdoc_align": true,
+        "phpdoc_order": true,
+        "binary_operator_spaces": {
+            "default": "align_single_space_minimal",
+            "operators": {
+                "|": "no_space"
+            }
+        }
+    }
+}
