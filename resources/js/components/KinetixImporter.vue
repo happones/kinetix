@@ -430,11 +430,7 @@ const startImport = async () => {
                 v-for="(header, colIndex) in preview.headers"
                 :key="colIndex"
                 class="px-3 py-2 text-muted-foreground whitespace-nowrap"
-                :class="
-                  columnForHeader(colIndex)
-                    ? 'bg-success/10'
-                    : ''
-                "
+                :class="columnForHeader(colIndex) ? 'bg-success/10' : ''"
               >
                 {{ row[colIndex] }}
               </td>

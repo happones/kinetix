@@ -664,7 +664,9 @@ const updateCell = async (
         <div v-if="table.columns.some((c) => c.isToggleable)">
           <PopoverRoot v-model:open="showColumns">
             <PopoverTrigger as-child>
-              <button :class="buttonVariants({ variant: 'outline', size: 'sm' })">
+              <button
+                :class="buttonVariants({ variant: 'outline', size: 'sm' })"
+              >
                 <SlidersHorizontal class="h-3.5 w-3.5" />
                 {{ t("kinetix.columns") }}
               </button>
@@ -851,10 +853,7 @@ const updateCell = async (
       class="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3"
     >
       <template v-for="(action, i) in table.footerActions" :key="`footer-${i}`">
-        <KinetixActionDropdown
-          v-if="action.type === 'group'"
-          :group="action"
-        />
+        <KinetixActionDropdown v-if="action.type === 'group'" :group="action" />
         <button
           v-else
           type="button"

@@ -32,15 +32,23 @@ describe("Card primitives (new-york-v4 parity)", () => {
   });
 
   it("CardHeader / CardContent / CardFooter use px-6", () => {
-    expect(mount(CardHeader).get('[data-slot="card-header"]').classes()).toContain("px-6");
-    expect(mount(CardContent).get('[data-slot="card-content"]').classes()).toContain("px-6");
-    expect(mount(CardFooter).get('[data-slot="card-footer"]').classes()).toContain("px-6");
+    expect(
+      mount(CardHeader).get('[data-slot="card-header"]').classes(),
+    ).toContain("px-6");
+    expect(
+      mount(CardContent).get('[data-slot="card-content"]').classes(),
+    ).toContain("px-6");
+    expect(
+      mount(CardFooter).get('[data-slot="card-footer"]').classes(),
+    ).toContain("px-6");
   });
 
   it("merges a custom class via the class prop", () => {
     const wrapper = mount(Card, { props: { class: "justify-between" } });
 
-    expect(wrapper.get('[data-slot="card"]').classes()).toContain("justify-between");
+    expect(wrapper.get('[data-slot="card"]').classes()).toContain(
+      "justify-between",
+    );
   });
 });
 

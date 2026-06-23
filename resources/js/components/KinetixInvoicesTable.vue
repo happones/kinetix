@@ -33,7 +33,10 @@ const emit = defineEmits<{
     </CardHeader>
 
     <CardContent>
-      <p v-if="invoices.length === 0" class="text-sm italic text-muted-foreground">
+      <p
+        v-if="invoices.length === 0"
+        class="text-sm italic text-muted-foreground"
+      >
         {{ t("kinetix.billing_no_invoices") }}
       </p>
 
@@ -41,9 +44,15 @@ const emit = defineEmits<{
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-border text-left text-muted-foreground">
-              <th class="py-2 pr-4 font-medium">{{ t("kinetix.billing_date") }}</th>
-              <th class="py-2 pr-4 font-medium">{{ t("kinetix.billing_total") }}</th>
-              <th class="py-2 pr-4 font-medium">{{ t("kinetix.billing_status") }}</th>
+              <th class="py-2 pr-4 font-medium">
+                {{ t("kinetix.billing_date") }}
+              </th>
+              <th class="py-2 pr-4 font-medium">
+                {{ t("kinetix.billing_total") }}
+              </th>
+              <th class="py-2 pr-4 font-medium">
+                {{ t("kinetix.billing_status") }}
+              </th>
               <th class="py-2"></th>
             </tr>
           </thead>

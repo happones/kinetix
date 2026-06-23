@@ -35,7 +35,9 @@ const emit = defineEmits<{
   (e: "update:cycle", cycle: "monthly" | "yearly"): void;
 }>();
 
-const hasYearly = computed(() => props.plans.some((plan) => plan.yearlyPrice != null));
+const hasYearly = computed(() =>
+  props.plans.some((plan) => plan.yearlyPrice != null),
+);
 
 const columns = computed(() => {
   const count = Math.min(props.plans.length, 4);

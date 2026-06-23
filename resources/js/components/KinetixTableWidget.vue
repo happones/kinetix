@@ -45,7 +45,9 @@ const getRowValues = (row: any) => {
     class="kinetix-table-card overflow-hidden transition-all duration-300 hover:shadow-md"
   >
     <CardHeader v-if="widget.title || widget.description">
-      <CardTitle v-if="widget.title" class="text-base">{{ widget.title }}</CardTitle>
+      <CardTitle v-if="widget.title" class="text-base">{{
+        widget.title
+      }}</CardTitle>
       <CardDescription v-if="widget.description" class="text-xs">
         {{ widget.description }}
       </CardDescription>

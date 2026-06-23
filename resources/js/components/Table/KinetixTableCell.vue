@@ -195,7 +195,9 @@ const resolveIcon = (name?: string) => {
     <button
       type="button"
       class="relative inline-flex h-[1.15rem] w-8 shrink-0 cursor-pointer items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-      :class="record.values[col.name] ? 'bg-primary' : 'bg-input dark:bg-input/80'"
+      :class="
+        record.values[col.name] ? 'bg-primary' : 'bg-input dark:bg-input/80'
+      "
       @click="
         emit('update-cell', record.id, col.name, !record.values[col.name])
       "

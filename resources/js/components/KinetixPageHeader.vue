@@ -37,9 +37,7 @@ const actionClass = (action: KinetixAction) =>
   cn(
     buttonVariants({
       variant:
-        action.viewType === "link"
-          ? "link"
-          : actionButtonVariant(action.color),
+        action.viewType === "link" ? "link" : actionButtonVariant(action.color),
       size: actionButtonSize(action.size),
     }),
     "cursor-pointer",

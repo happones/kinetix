@@ -35,7 +35,10 @@ describe("KinetixPlanCard", () => {
     const wrapper = mount(KinetixPlanCard, {
       props: {
         plan: proPlan,
-        featureLabels: { "capabilities.api": "API access", "capabilities.sso": "SSO" },
+        featureLabels: {
+          "capabilities.api": "API access",
+          "capabilities.sso": "SSO",
+        },
       },
     });
 
@@ -63,7 +66,15 @@ describe("KinetixPlanCard", () => {
 });
 
 describe("KinetixPricingTable", () => {
-  const freePlan = { ...proPlan, id: 0, name: "Free", slug: "free", monthlyPrice: 0, yearlyPrice: null, isFree: true };
+  const freePlan = {
+    ...proPlan,
+    id: 0,
+    name: "Free",
+    slug: "free",
+    monthlyPrice: 0,
+    yearlyPrice: null,
+    isFree: true,
+  };
 
   it("renders one card per plan and marks the current plan active", () => {
     const wrapper = mount(KinetixPricingTable, {
@@ -99,7 +110,13 @@ describe("KinetixSubscriptionStatus", () => {
   it("shows the cancel button for an active subscription", () => {
     const wrapper = mount(KinetixSubscriptionStatus, {
       props: {
-        subscription: { active: true, onGracePeriod: false, status: "active", endsAt: null, stripePrice: "p" },
+        subscription: {
+          active: true,
+          onGracePeriod: false,
+          status: "active",
+          endsAt: null,
+          stripePrice: "p",
+        },
         cancelLabel: "Cancel subscription",
       },
     });
@@ -110,7 +127,13 @@ describe("KinetixSubscriptionStatus", () => {
   it("shows the resume button when on grace period and emits resume", async () => {
     const wrapper = mount(KinetixSubscriptionStatus, {
       props: {
-        subscription: { active: true, onGracePeriod: true, status: "active", endsAt: "2030-01-01", stripePrice: "p" },
+        subscription: {
+          active: true,
+          onGracePeriod: true,
+          status: "active",
+          endsAt: "2030-01-01",
+          stripePrice: "p",
+        },
         resumeLabel: "Resume subscription",
       },
     });
@@ -122,7 +145,10 @@ describe("KinetixSubscriptionStatus", () => {
 
   it("renders the empty state with no subscription", () => {
     const wrapper = mount(KinetixSubscriptionStatus, {
-      props: { subscription: null, emptyLabel: "No active subscription found." },
+      props: {
+        subscription: null,
+        emptyLabel: "No active subscription found.",
+      },
     });
 
     expect(wrapper.text()).toContain("No active subscription found.");
@@ -132,7 +158,13 @@ describe("KinetixSubscriptionStatus", () => {
 
 describe("KinetixInvoicesTable", () => {
   const invoices = [
-    { id: "in_1", date: "Jan 1, 2030", total: "$29.00", status: "paid", url: "https://x/in_1.pdf" },
+    {
+      id: "in_1",
+      date: "Jan 1, 2030",
+      total: "$29.00",
+      status: "paid",
+      url: "https://x/in_1.pdf",
+    },
   ];
 
   it("renders invoice rows", () => {

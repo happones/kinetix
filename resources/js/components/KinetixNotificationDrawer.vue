@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { X, Bell } from "@lucide/vue";
 import { storeToRefs } from "pinia";
+import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useNotificationsStore } from "@/stores/notifications";
 import KinetixNotificationItem from "./KinetixNotificationItem.vue";
@@ -8,11 +9,16 @@ import KinetixNotificationItem from "./KinetixNotificationItem.vue";
 const store = useNotificationsStore();
 const { notifications, isOpen, unreadCount } = storeToRefs(store);
 const { t } = useI18n();
+
+const isMounted = ref(false);
+onMounted(() => {
+  isMounted.value = true;
+});
 </script>
 
 <template>
   <!-- Drawer Portal (Teleport to body) -->
-  <Teleport to="body">
+  <Teleport v-if="isMounted" to="body">
     <!-- Backdrop -->
     <Transition
       enter-active-class="transition-opacity ease-out duration-300"

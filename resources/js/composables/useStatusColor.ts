@@ -66,7 +66,8 @@ const SOLID_BUTTON: Record<string, string> = {
 /** Soft badge: tinted background, status text, subtle border. */
 export function statusBadgeClass(color?: KinetixStatusColor): string {
   return (
-    BADGE[color as string] ?? "text-muted-foreground bg-muted border border-border"
+    BADGE[color as string] ??
+    "text-muted-foreground bg-muted border border-border"
   );
 }
 

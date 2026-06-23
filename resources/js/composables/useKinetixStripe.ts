@@ -48,7 +48,8 @@ function resolveToken(token: string, fallback: string): string {
     .trim();
 
   // Bare HSL channels need wrapping; full colors are used as-is.
-  const expression = raw === "" ? fallback : HSL_CHANNELS.test(raw) ? `hsl(${raw})` : raw;
+  const expression =
+    raw === "" ? fallback : HSL_CHANNELS.test(raw) ? `hsl(${raw})` : raw;
 
   const probe = document.createElement("span");
   probe.style.color = expression;
@@ -173,7 +174,10 @@ export function useKinetixStripe(options: UseKinetixStripeOptions) {
     });
 
     if (result.error) {
-      return { paymentMethodId: null, error: result.error.message ?? "Card error." };
+      return {
+        paymentMethodId: null,
+        error: result.error.message ?? "Card error.",
+      };
     }
 
     return {

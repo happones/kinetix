@@ -61,7 +61,9 @@ const resolvedType = computed<"image" | "pdf" | "other">(() => {
   return "other";
 });
 
-const downloadHref = computed(() => detail.value?.downloadUrl ?? detail.value?.url ?? "");
+const downloadHref = computed(
+  () => detail.value?.downloadUrl ?? detail.value?.url ?? "",
+);
 
 function onPreview(event: Event): void {
   const next = (event as CustomEvent<PreviewDetail>).detail;
@@ -88,7 +90,9 @@ onBeforeUnmount(() => window.removeEventListener("kinetix:preview", onPreview));
       <DialogContent
         class="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[92vw] max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
       >
-        <div class="flex items-center justify-between gap-2 border-b border-border p-3">
+        <div
+          class="flex items-center justify-between gap-2 border-b border-border p-3"
+        >
           <DialogTitle class="truncate px-1 text-sm font-medium">
             {{ detail?.label ?? "" }}
           </DialogTitle>
@@ -111,7 +115,9 @@ onBeforeUnmount(() => window.removeEventListener("kinetix:preview", onPreview));
             >
               <Download class="h-4 w-4" />
             </a>
-            <DialogClose :class="cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }))">
+            <DialogClose
+              :class="cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }))"
+            >
               <X class="h-4 w-4" />
             </DialogClose>
           </div>

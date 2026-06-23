@@ -23,7 +23,10 @@ import {
 } from "@/composables/useStatusColor";
 import { useActionConfirmation } from "@/composables/useKinetixActions";
 import { resolveIcon as resolveActionIcon } from "@/composables/useKinetixIcons";
-import { actionButtonVariant, buttonVariants } from "@/composables/useShadcnVariants";
+import {
+  actionButtonVariant,
+  buttonVariants,
+} from "@/composables/useShadcnVariants";
 import KinetixActionDropdown from "./KinetixActionDropdown.vue";
 import KinetixConfirmModal from "./KinetixConfirmModal.vue";
 
@@ -114,7 +117,9 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
       :style="{ gridColumn: getColumnSpan(entry.columnSpan) }"
     >
       <div
-        v-if="entry.heading || entry.description || (entry.actions?.length ?? 0) > 0"
+        v-if="
+          entry.heading || entry.description || (entry.actions?.length ?? 0) > 0
+        "
         class="p-6 pb-4 border-b border-border"
       >
         <div class="flex items-start justify-between gap-4">

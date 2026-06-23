@@ -51,7 +51,10 @@ describe("KinetixFilePreview", () => {
 
     wrapper.unmount();
 
-    expect(remove).toHaveBeenCalledWith("kinetix:preview", expect.any(Function));
+    expect(remove).toHaveBeenCalledWith(
+      "kinetix:preview",
+      expect.any(Function),
+    );
     remove.mockRestore();
   });
 });
@@ -80,8 +83,12 @@ describe("executeAction preview/download", () => {
     const click = vi.fn();
     const create = vi
       .spyOn(document, "createElement")
-      .mockImplementation(() => ({ click, remove: vi.fn(), setAttribute: vi.fn() }) as any);
-    const append = vi.spyOn(document.body, "appendChild").mockImplementation((n) => n);
+      .mockImplementation(
+        () => ({ click, remove: vi.fn(), setAttribute: vi.fn() }) as any,
+      );
+    const append = vi
+      .spyOn(document.body, "appendChild")
+      .mockImplementation((n) => n);
 
     executeAction({
       name: "download",

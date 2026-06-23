@@ -108,7 +108,9 @@ async function handleAdd(): Promise<void> {
   <Card>
     <CardHeader>
       <CardTitle>{{ t("kinetix.billing_payment_method") }}</CardTitle>
-      <CardDescription>{{ t("kinetix.billing_payment_method_desc") }}</CardDescription>
+      <CardDescription>{{
+        t("kinetix.billing_payment_method_desc")
+      }}</CardDescription>
     </CardHeader>
 
     <CardContent>

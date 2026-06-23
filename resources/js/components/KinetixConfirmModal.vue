@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { AlertTriangle, X } from "@lucide/vue";
-import { onBeforeUnmount, watch } from "vue";
+import { onBeforeUnmount, watch, ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import { statusButtonClass, statusSoftClass } from "@/composables/useStatusColor";
+import {
+  statusButtonClass,
+  statusSoftClass,
+} from "@/composables/useStatusColor";
 
 const props = withDefaults(
   defineProps<{
@@ -31,6 +34,11 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const isMounted = ref(false);
+onMounted(() => {
+  isMounted.value = true;
+});
 
 const cancel = () => {
   emit("update:open", false);
@@ -73,13 +81,14 @@ onBeforeUnmount(() => {
   }
 });
 
-const getConfirmButtonClass = (color?: string | null) => statusButtonClass(color);
+const getConfirmButtonClass = (color?: string | null) =>
+  statusButtonClass(color);
 
 const getIconWrapperClass = (color?: string | null) => statusSoftClass(color);
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport v-if="isMounted" to="body">
     <Transition
       enter-active-class="transition-opacity duration-150"
       enter-from-class="opacity-0"

@@ -47,7 +47,9 @@ const emit = defineEmits<{
 const open = ref(false);
 const pad = (n: number) => String(n).padStart(2, "0");
 
-const datePart = computed(() => (props.value ? props.value.slice(0, 10) : null));
+const datePart = computed(() =>
+  props.value ? props.value.slice(0, 10) : null,
+);
 const hour24 = computed(() => Number(props.value?.slice(11, 13) ?? "0") || 0);
 const minute = computed(() => Number(props.value?.slice(14, 16) ?? "0") || 0);
 const isPm = computed(() => hour24.value >= 12);
@@ -59,7 +61,10 @@ const hours = computed(() =>
     : Array.from({ length: 24 }, (_, i) => i),
 );
 const minutes = computed(() =>
-  Array.from({ length: Math.ceil(60 / props.minuteStep) }, (_, i) => i * props.minuteStep),
+  Array.from(
+    { length: Math.ceil(60 / props.minuteStep) },
+    (_, i) => i * props.minuteStep,
+  ),
 );
 
 const formatted = computed(() => {
@@ -102,7 +107,11 @@ const setHour24 = (h: number) =>
 
 // In 12h mode the clicked hour is 1-12; map it to 24h keeping the AM/PM half.
 const setHour12 = (h: number) =>
-  emitParts(datePart.value ?? todayIso(), (h % 12) + (isPm.value ? 12 : 0), minute.value);
+  emitParts(
+    datePart.value ?? todayIso(),
+    (h % 12) + (isPm.value ? 12 : 0),
+    minute.value,
+  );
 
 const setMinute = (m: number) =>
   emitParts(datePart.value ?? todayIso(), hour24.value, m);
@@ -110,7 +119,11 @@ const setMinute = (m: number) =>
 const setMeridiem = (meridiem: "AM" | "PM") => {
   const h = hour24.value;
   const next =
-    meridiem === "PM" && h < 12 ? h + 12 : meridiem === "AM" && h >= 12 ? h - 12 : h;
+    meridiem === "PM" && h < 12
+      ? h + 12
+      : meridiem === "AM" && h >= 12
+        ? h - 12
+        : h;
 
   emitParts(datePart.value ?? todayIso(), next, minute.value);
 };
@@ -128,7 +141,9 @@ const timeBtn = (active: boolean) =>
     type="datetime-local"
     :value="value"
     :disabled="disabled"
-    @input="emit('update:value', ($event.target as HTMLInputElement).value || null)"
+    @input="
+      emit('update:value', ($event.target as HTMLInputElement).value || null)
+    "
   />
 
   <PopoverRoot v-else v-model:open="open">
@@ -170,7 +185,8 @@ const timeBtn = (active: boolean) =>
                   type="button"
                   :class="
                     timeBtn(
-                      datePart != null && (hour12 ? displayHour === h : hour24 === h),
+                      datePart != null &&
+                        (hour12 ? displayHour === h : hour24 === h),
                     )
                   "
                   @click="hour12 ? setHour12(h) : setHour24(h)"
@@ -203,7 +219,8 @@ const timeBtn = (active: boolean) =>
                   :class="
                     timeBtn(
                       datePart != null &&
-                        ((meridiem === 'AM' && !isPm) || (meridiem === 'PM' && isPm)),
+                        ((meridiem === 'AM' && !isPm) ||
+                          (meridiem === 'PM' && isPm)),
                     )
                   "
                   @click="setMeridiem(meridiem as 'AM' | 'PM')"

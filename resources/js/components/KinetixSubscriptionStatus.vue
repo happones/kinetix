@@ -44,7 +44,9 @@ const formattedEndsAt = computed(() => {
     <CardContent class="space-y-4">
       <div v-if="subscription" class="flex flex-col gap-2">
         <div class="flex items-center justify-between">
-          <span class="text-sm text-muted-foreground">{{ t("kinetix.billing_status") }}</span>
+          <span class="text-sm text-muted-foreground">{{
+            t("kinetix.billing_status")
+          }}</span>
           <span
             class="inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize"
             :class="
@@ -56,7 +58,10 @@ const formattedEndsAt = computed(() => {
             {{ subscription.status }}
           </span>
         </div>
-        <div v-if="formattedEndsAt" class="text-xs font-medium text-muted-foreground">
+        <div
+          v-if="formattedEndsAt"
+          class="text-xs font-medium text-muted-foreground"
+        >
           {{ t("kinetix.billing_expires_on") }}: {{ formattedEndsAt }}
         </div>
       </div>
@@ -69,7 +74,12 @@ const formattedEndsAt = computed(() => {
       <button
         v-if="!subscription.onGracePeriod"
         type="button"
-        :class="cn(buttonVariants({ variant: 'outline' }), 'w-full text-destructive hover:bg-destructive/10')"
+        :class="
+          cn(
+            buttonVariants({ variant: 'outline' }),
+            'w-full text-destructive hover:bg-destructive/10',
+          )
+        "
         @click="emit('cancel')"
       >
         {{ t("kinetix.billing_cancel_subscription") }}

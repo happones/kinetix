@@ -278,7 +278,11 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :disabled="comp.isDisabled"
           :class="inputClass"
           @input="
-            emit('update:value', comp.name, ($event.target as HTMLInputElement).value)
+            emit(
+              'update:value',
+              comp.name,
+              ($event.target as HTMLInputElement).value,
+            )
           "
         />
 

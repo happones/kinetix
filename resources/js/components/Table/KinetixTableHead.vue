@@ -67,7 +67,11 @@ const getSortIcon = (name: string) => {
         v-if="hasRecordActions"
         scope="col"
         class="relative px-6 py-3"
-        :class="stickyActions ? 'sticky right-0 z-20 bg-muted border-l border-border' : ''"
+        :class="
+          stickyActions
+            ? 'sticky right-0 z-20 bg-muted border-l border-border'
+            : ''
+        "
       >
         <span class="sr-only">Actions</span>
       </th>

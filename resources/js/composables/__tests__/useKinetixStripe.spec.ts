@@ -59,7 +59,10 @@ describe("useKinetixStripe", () => {
     confirmCardSetup.mockReset();
     document.documentElement.className = "";
     document.documentElement.style.setProperty("--foreground", "240 10% 3.9%");
-    document.documentElement.style.setProperty("--muted-foreground", "240 5% 64.9%");
+    document.documentElement.style.setProperty(
+      "--muted-foreground",
+      "240 5% 64.9%",
+    );
     document.documentElement.style.setProperty("--destructive", "0 72% 50%");
     installFakeStripe();
   });
@@ -110,7 +113,9 @@ describe("useKinetixStripe", () => {
   });
 
   it("surfaces Stripe errors from confirmCardSetup", async () => {
-    confirmCardSetup.mockResolvedValue({ error: { message: "Card declined." } });
+    confirmCardSetup.mockResolvedValue({
+      error: { message: "Card declined." },
+    });
 
     const wrapper = mount(makeHarness());
     await (wrapper.vm as any).mount(document.createElement("div"));

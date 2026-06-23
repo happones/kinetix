@@ -66,7 +66,10 @@ const capabilities = computed(() =>
 function hasFeature(path: string): boolean {
   const value = path
     .split(".")
-    .reduce<any>((acc, part) => (acc == null ? undefined : acc[part]), props.plan.features);
+    .reduce<any>(
+      (acc, part) => (acc == null ? undefined : acc[part]),
+      props.plan.features,
+    );
 
   if (typeof value === "boolean") {
     return value;
@@ -113,13 +116,17 @@ const ctaLabel = computed(() =>
           ★
         </span>
       </CardTitle>
-      <CardDescription v-if="plan.description">{{ plan.description }}</CardDescription>
+      <CardDescription v-if="plan.description">{{
+        plan.description
+      }}</CardDescription>
     </CardHeader>
 
     <CardContent>
       <div class="text-3xl font-bold">
         {{ currencySymbol }}{{ Math.floor(price ?? 0) }}
-        <span class="text-sm font-normal text-muted-foreground">{{ periodLabel }}</span>
+        <span class="text-sm font-normal text-muted-foreground">{{
+          periodLabel
+        }}</span>
       </div>
 
       <ul class="mt-6 space-y-2.5 text-sm">
@@ -142,7 +149,10 @@ const ctaLabel = computed(() =>
           :key="cap.path"
           class="flex items-start gap-2"
         >
-          <Check v-if="cap.granted" class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <Check
+            v-if="cap.granted"
+            class="mt-0.5 h-4 w-4 shrink-0 text-primary"
+          />
           <X v-else class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" />
           <span
             :class="
@@ -171,7 +181,10 @@ const ctaLabel = computed(() =>
         :disabled="loading || !canSubscribe"
         @click="emit('subscribe', plan)"
       >
-        <Loader2 v-if="loading && isSelected" class="mr-2 h-4 w-4 animate-spin" />
+        <Loader2
+          v-if="loading && isSelected"
+          class="mr-2 h-4 w-4 animate-spin"
+        />
         {{ ctaLabel }}
       </button>
     </CardFooter>

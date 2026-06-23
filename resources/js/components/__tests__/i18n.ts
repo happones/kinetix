@@ -39,7 +39,8 @@ export const i18n = createI18n({
         billing_total: "Total",
         billing_no_invoices: "No invoices yet.",
         billing_payment_method: "Payment method",
-        billing_payment_method_desc: "Choose an existing card or add a new one.",
+        billing_payment_method_desc:
+          "Choose an existing card or add a new one.",
         billing_add_card: "Add new card",
         billing_add_payment_method: "Add payment method",
         billing_default: "Default",

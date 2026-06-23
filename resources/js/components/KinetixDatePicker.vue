@@ -83,7 +83,9 @@ const onCalendarSelect = (next: string | null) => {
     :min="minValue || undefined"
     :max="maxValue || undefined"
     :class="inputClass"
-    @input="emit('update:value', ($event.target as HTMLInputElement).value || null)"
+    @input="
+      emit('update:value', ($event.target as HTMLInputElement).value || null)
+    "
   />
 
   <PopoverRoot v-else v-model:open="open">
