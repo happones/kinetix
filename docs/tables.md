@@ -36,6 +36,7 @@ public function index()
         ->heading('Blog Posts')
         ->description('Manage your application articles.')
         ->striped()
+        ->stickyActions() // optional: pin the actions column while scrolling horizontally
         ->columns([
             TextColumn::make('title')
                 ->searchable()
@@ -132,6 +133,8 @@ Displays image thumbnail previews:
 - `square()`: Renders image as rounded square (default).
 - `size(int|string $size)`: Dimensions in pixels (defaults to 40px).
 - `defaultImageUrl(string|Closure $url)`: Fallback URL if state is null.
+- `disk(string $disk)`: Resolve stored paths through a specific disk (e.g. `'s3'`). Defaults to the global `kinetix.filesystem.disk` (`public`). Stored paths become public URLs via `Storage::disk($disk)->url()`; values that are already absolute (`http(s)://`, `//`, `/…`, `data:`) pass through untouched.
+- `preview()`: Makes the thumbnail clickable to open a zoomable lightbox. Requires `<KinetixFilePreview />` mounted once in the layout (see [Actions → File actions](actions.md)).
 
 ### 4. `ColorColumn`
 Displays visual color swatch blocks:
@@ -201,33 +204,31 @@ TernaryFilter::make('email_verified')
 | `trueLabel(string)` / `falseLabel(string)` | Option labels (default `Yes` / `No`) |
 | `queries(Closure $true, Closure $false)` | Custom query per selection |
 
+> **Date filters use the shadcn calendar by default.** `DateFilter`, `DateTimeFilter` and `DateRangeFilter` all render a Reka UI calendar popover out of the box. Call **`->native()`** on any of them to fall back to plain native `<input>` controls. They require `reka-ui` and `@internationalized/date` in the host app (already present for shadcn-vue users; declared as optional peer dependencies).
+
 ### 5. `DateRangeFilter`
-Two date inputs (from / to); filters `whereDate >= from` and `<= to`. Either bound is optional.
+A from / to range; filters `whereDate >= from` and `<= to`. Either bound is optional. Renders `KinetixRangeCalendar.vue` (Reka UI `RangeCalendar`) by default.
 
 ```php
 use Happones\Kinetix\Tables\Filters\DateRangeFilter;
 
-DateRangeFilter::make('created_at');
+DateRangeFilter::make('created_at');                       // shadcn range calendar
 DateRangeFilter::make('published')->attribute('published_at');
 
-// Optional shadcn-style range calendar (Reka UI) instead of two native inputs:
-DateRangeFilter::make('created_at')->calendar();
-
-// Calendar options — months() / locale() imply ->calendar():
+DateRangeFilter::make('created_at')->native();             // native from/to inputs
 DateRangeFilter::make('created_at')->months(2)->locale('es');
 ```
 
-The `->calendar()` variant renders `KinetixRangeCalendar.vue`, which wraps Reka UI's `RangeCalendar` (the same primitive shadcn-vue's calendar is built on). It requires `reka-ui` and `@internationalized/date` in the host app (already present for shadcn-vue users; declared as optional peer dependencies).
-
 | Method | Description |
 |---|---|
-| `->calendar(bool = true)` | Use the calendar variant instead of native inputs |
-| `->months(int)` | Number of month grids shown side by side (implies `calendar()`) |
-| `->locale(string)` | BCP-47 locale for weekday/month names, e.g. `'es'`, `'fr'` (implies `calendar()`) |
-| `->weekdayFormat(string)` | Weekday header labels: `'narrow'` (default), `'short'`, `'long'` (implies `calendar()`) |
-| `->fixedWeeks(bool = true)` | Always render 6 week rows for a constant calendar height (implies `calendar()`) |
-| `->minValue(string)` | Earliest selectable date (`'Y-m-d'`); earlier dates are disabled (implies `calendar()`) |
-| `->maxValue(string)` | Latest selectable date (`'Y-m-d'`); later dates are disabled (implies `calendar()`) |
+| `->native(bool = true)` | Use two native date inputs instead of the calendar |
+| `->calendar(bool = true)` | Explicitly use the calendar variant (the default) |
+| `->months(int)` | Number of month grids shown side by side |
+| `->locale(string)` | BCP-47 locale for weekday/month names, e.g. `'es'`, `'fr'` |
+| `->weekdayFormat(string)` | Weekday header labels: `'narrow'` (default), `'short'`, `'long'` |
+| `->fixedWeeks(bool = true)` | Always render 6 week rows for a constant calendar height |
+| `->minValue(string)` | Earliest selectable date (`'Y-m-d'`); earlier dates are disabled |
+| `->maxValue(string)` | Latest selectable date (`'Y-m-d'`); later dates are disabled |
 
 ### 6. `NumberRangeFilter`
 Two number inputs (min / max); filters `>= min` and `<= max`. Either bound is optional.
@@ -239,23 +240,25 @@ NumberRangeFilter::make('price');
 ```
 
 ### 7. `DateFilter`
-A single date input. Defaults to matching that exact day (`whereDate =`); configurable.
+A single date. Defaults to matching that exact day (`whereDate =`); configurable. Renders `KinetixDatePicker` (shadcn calendar) by default; `->native()` for a native input. `->locale()`, `->minValue()`, `->maxValue()` configure the calendar.
 
 ```php
 use Happones\Kinetix\Tables\Filters\DateFilter;
 
-DateFilter::make('published_at');
-DateFilter::make('published_at')->operator('>='); // on or after
+DateFilter::make('published_at');                  // shadcn calendar
+DateFilter::make('published_at')->operator('>=');  // on or after
+DateFilter::make('published_at')->native();        // native date input
 ```
 
 ### 8. `DateTimeFilter`
-A single `datetime-local` input. Defaults to "on or after" (`>=`); configurable via `operator()`. The `T` separator is normalized to a SQL datetime.
+A single date + time. Defaults to "on or after" (`>=`); configurable via `operator()`. Renders `KinetixDateTimePicker` (calendar + scrollable hour/minute columns) by default; `->native()` for a native `datetime-local`. `->minuteStep()` sets the minute granularity and `->twelveHour()` adds an AM/PM column.
 
 ```php
 use Happones\Kinetix\Tables\Filters\DateTimeFilter;
 
-DateTimeFilter::make('starts_at');
-DateTimeFilter::make('ends_at')->operator('<=');
+DateTimeFilter::make('starts_at')->minuteStep(15);
+DateTimeFilter::make('ends_at')->operator('<=')->twelveHour();
+DateTimeFilter::make('ends_at')->native();
 ```
 
 ### 9. `TrashedFilter`
@@ -284,7 +287,29 @@ $table->recordActions([
 ]);
 ```
 
-Header-level toolbar actions can also be defined via `$table->toolbarActions([ ... ])`.
+### Header / toolbar & footer actions
+
+Table-level actions (not tied to a row) live in two slots:
+
+```php
+// Top toolbar (next to search/filters). `headerActions()` is an alias.
+$table->toolbarActions([
+    Action::make('create')->label('New post')->icon('plus')->url('/posts/create'),
+    Action::make('import')->label('Import')->icon('upload')->dispatch('open-importer'),
+    Action::make('export')->label('Export')->icon('download')
+        ->inertiaVisit(route('posts.export')),
+]);
+
+// A bar below the table, next to pagination (e.g. "Export all").
+$table->footerActions([
+    Action::make('export-all')->label('Export all')->icon('download')
+        ->inertiaVisit(route('posts.export')),
+]);
+```
+
+**Where do Import / Export go?** As **header/toolbar actions** (they act on the whole, filtered table). Export = an action that hits your export route (which dispatches `ExportProcessor`). Import = an action that opens your `<KinetixImporter>` (e.g. `->dispatch('open-importer')` toggling its visibility), since the importer is a standalone preview component.
+
+**Supporting both whole-table and selected-rows:** place the *same* `Action` in `toolbarActions`/`footerActions` **and** in `bulkActions`. The toolbar/footer copy runs against the whole table; the bulk copy automatically receives the selected `ids` (see below). One Export action → "export all" + "export selected".
 
 ---
 
@@ -308,6 +333,8 @@ The selected record ids are sent automatically:
 - **`dispatch`** actions receive them in the event detail: `e.detail.ids`.
 
 Destructive bulk actions support `requiresConfirmation()` (a confirmation modal gates them), and they respect `authorize()` / `visible()` like any action — e.g. `->authorize('deleteAny', Post::class)`.
+
+**Exporting selected rows:** see the full recipe — one Export action shared between the toolbar (export all) and bulk (export selected `ids`) — in [Import / Export → Recipe: export from a table](import-export.md#recipe-export-from-a-table--toolbar-all--bulk-selected).
 
 ---
 

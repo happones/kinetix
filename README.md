@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/happones/kinetix/main/art/logo.png" alt="Kinetix" width="200" />
+  <img src="https://raw.githubusercontent.com/happones/kinetix/main/art/logo.png" alt="Kinetix — The Hybrid-Driven Framework for Laravel & Vue" width="360" />
 </p>
-
-<h1 align="center">Kinetix</h1>
 
 <p align="center">
   A modern UI toolkit for Laravel + Vue 3 + Inertia.js applications.<br>
@@ -10,9 +8,14 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/happones/kinetix/actions/workflows/ci.yml"><img src="https://github.com/happones/kinetix/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/v/happones/kinetix" alt="Latest Stable Version"></a>
   <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/l/happones/kinetix" alt="License"></a>
   <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/php-v/happones/kinetix" alt="PHP Version"></a>
+</p>
+
+<p align="center">
+  <a href="https://happones.github.io/kinetix/"><strong>📖 Documentation</strong></a>
 </p>
 
 ---
@@ -82,6 +85,40 @@ Kinetix is built for the **Vue + shadcn-vue** starter-kit stack. Its components:
 - Build interactive primitives on **[Reka UI](https://reka-ui.com/)** (the headless library shadcn-vue itself wraps) for accessible checkboxes, switches, calendars, etc.
 
 Kinetix does **not** import your copied `@/components/ui/*` files (those vary per app and would break builds); instead it reuses the same *foundation* — Reka UI + the shadcn token contract. In a shadcn-vue starter kit the CSS variables already exist; otherwise publish the fallback tokens with `--tag=kinetix-styles` and import `resources/css/kinetix.css`.
+
+#### Status tokens (`success` · `warning` · `info`)
+
+shadcn ships `destructive` but has no success/warning/info colors, so Kinetix adds three themeable status tokens — used by badges, stat chips, confirmation modals, notifications and action colors. They're defined in the fallback `kinetix.css` (light + dark) and exposed as utilities (`bg-success`, `text-warning`, `border-info/20`, `text-success-foreground`, …). Re-skin them by overriding the variables in your own theme:
+
+```css
+:root {
+  --success: 142 76% 36%;  --success-foreground: 0 0% 100%;
+  --warning: 26 90% 37%;   --warning-foreground: 0 0% 100%;
+  --info:    200 98% 39%;  --info-foreground: 0 0% 100%;
+}
+.dark {
+  --success: 142 69% 58%;  --warning: 43 96% 56%;  --info: 198 93% 60%;
+  /* …foregrounds… */
+}
+```
+
+> If your app defines its own design tokens but not these three, add the six lines above so Tailwind generates the `*-success/warning/info` utilities. The `danger` status maps to the built-in `destructive` token.
+
+#### shadcn-vue parity primitives
+
+For the elements that aren't Reka UI primitives (Card, Button, Badge, Input), Kinetix ships its own internal building blocks that mirror the official [shadcn-vue **new-york-v4**](https://github.com/unovue/shadcn-vue/tree/dev/apps/v4/registry/new-york-v4/ui) class strings **exactly**, so they match the registry design without importing your per-app `@/components/ui/*`:
+
+- **Card family** — `components/primitives/{Card,CardHeader,CardTitle,CardDescription,CardAction,CardContent,CardFooter}.vue` (v4 structure: `flex flex-col gap-6 py-6` card + `px-6` sections).
+- **ScrollArea / ScrollBar** — `components/primitives/{ScrollArea,ScrollBar}.vue` (Reka `ScrollArea*`) for custom scroll regions (e.g. the DateTimePicker time columns).
+- **Variant helpers** — `composables/useShadcnVariants.ts` → `buttonVariants({variant,size})`, `badgeVariants({variant})`, `inputClass` (literal class strings, JIT-safe).
+
+```vue
+<script setup>
+import Card from "@/components/kinetix/primitives/Card.vue";
+import CardHeader from "@/components/kinetix/primitives/CardHeader.vue";
+import { buttonVariants } from "@/composables/useShadcnVariants";
+</script>
+```
 
 ### 3. Compile translations for Vue
 
@@ -470,7 +507,7 @@ Scaffold independent, reusable Kinetix classes under `app/Kinetix/`:
 
 | Command | Generates |
 |---|---|
-| `kinetix:make-resource {Name}` | Full CRUD resource (PHP resource + controller + Vue pages); `--generate`, `--simple`, `--soft-deletes` |
+| `kinetix:make-resource {Name}` | Full CRUD resource (PHP resource + controller + Vue pages); `--generate`, `--simple`, `--soft-deletes`, `--team` (team-scoped routes/queries; auto-on when `kinetix.teams`) |
 | `kinetix:make-action {Name}` | `app/Kinetix/Actions/{Name}` |
 | `kinetix:make-table {Name}` | `app/Kinetix/Tables/{Name}` |
 | `kinetix:make-form {Name}` | `app/Kinetix/Forms/{Name}` |
@@ -479,6 +516,7 @@ Scaffold independent, reusable Kinetix classes under `app/Kinetix/`:
 | `kinetix:make-exporter {Name}` | `app/Kinetix/Exporters/{Name}` |
 | `kinetix:make-relation-manager {Name} --relationship=posts` | `app/Kinetix/RelationManagers/{Name}` |
 | `kinetix:make-notification {Name}` | `app/Kinetix/Notifications/{Name}` |
+| `kinetix:make-billing` | Billing page `resources/js/pages/Billing/Index.vue` (`--seeder` adds a `PlanSeeder`) |
 
 All generators accept `--force` to overwrite an existing file.
 
@@ -508,6 +546,39 @@ php artisan kinetix:send-notification "Server Alert" "CPU usage at 90%" --status
 | `description` | Body text *(optional)* |
 | `--status` | `info` · `success` · `warning` · `danger` *(default: `info`)* |
 | `--duration` | Toast duration in ms *(default: `4000`)* |
+
+---
+
+## Billing (optional, Cashier + Stripe)
+
+An optional billing/pricing module that wraps [Laravel Cashier](https://laravel.com/docs/billing) behind Kinetix classes and Vue components — drop in a pricing table, payment-method manager, subscription status, and invoices list by calling components and classes, no bespoke billing code.
+
+```bash
+composer require laravel/cashier && php artisan migrate
+php artisan vendor:publish --tag=kinetix-billing-migrations && php artisan migrate
+php artisan kinetix:make-billing --seeder
+```
+
+```php
+use Laravel\Cashier\Billable;
+use Happones\Kinetix\Billing\Concerns\HasPlan;
+
+class User extends Authenticatable
+{
+    use Billable, HasPlan;
+}
+
+// Feature gating from anywhere
+$user->canUseFeature('capabilities.api');
+Route::post('/export', ...)->middleware('plan.feature:capabilities.api');
+```
+
+- **Plans** with nested JSON `features` resolved by dot-path (`canUseFeature`, `hasReachedLimit`, `priceFor`, `isFree`).
+- **`BillingManager`** wraps Cashier (subscribe/swap/cancel/resume, payment methods, invoices). Free plans downgrade; paid plans swap or create.
+- **Vue**: `KinetixPricingTable`, `KinetixPlanCard`, `KinetixPaymentMethods`, `KinetixSubscriptionStatus`, `KinetixInvoicesTable` + `useKinetixBilling`. The Stripe Elements card field is styled from your **shadcn tokens** and re-themed automatically in light/dark mode via `useKinetixStripe`.
+- Off by default (`KINETIX_BILLING_ENABLED`); Cashier is a suggested dependency.
+
+Full guide: [docs/billing.md](docs/billing.md).
 
 ---
 

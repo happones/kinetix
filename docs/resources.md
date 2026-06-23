@@ -151,6 +151,9 @@ php artisan kinetix:make-resource {ModelName} [options]
 | `--simple` | Creates a single-page resource with CRUD modals inside the index page instead of separate views. |
 | `--soft-deletes` | Automatically adds soft delete filters (`withTrashed`) and registers restore/force-delete controller actions. |
 | `--generate` | Reflects database table column data types to automatically populate the resource's Form and Table schemas. |
+| `--team` | Team-aware scaffold: routes nested under the `{current_team}` segment, `index()` query scoped to `currentTeam`, and `team_id` set on create. Auto-enabled when `kinetix.teams` is `true`. Adjust the `team_id` column/scope to your schema. |
+
+> **Teams scope.** Kinetix's own endpoints (inline edits, imports, uploads, exports) already prefix with `{current_team}` when `kinetix.teams` is on. Your **resource's** routes and query scoping are *not* automatic — use `--team` so the generated controller filters by the current team and the routes nest under the team segment.
 
 ### Example CLI Executions
 ```bash
@@ -159,6 +162,9 @@ php artisan kinetix:make-resource Product --generate
 
 # Scaffold simple single-page modal CRUD with soft deletes
 php artisan kinetix:make-resource Client --simple --soft-deletes --generate
+
+# Team-aware resource (scopes queries + routes to the current team)
+php artisan kinetix:make-resource Project --team --generate
 ```
 
 ---

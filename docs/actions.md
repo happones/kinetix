@@ -2,7 +2,7 @@
 
 Kinetix Actions are a fluent PHP builder for interactive buttons and links. The same `Action` class powers notification buttons, **table record actions**, and **table toolbar actions**. This guide focuses on building actions and gating destructive ones behind a **confirmation modal**.
 
-> For notification-specific action behaviour (`markAsRead()`, `close()`), see the [main README](../README.md#actions).
+> For notification-specific action behaviour (`markAsRead()`, `close()`), see the [main README](https://github.com/happones/kinetix#actions).
 
 ---
 
@@ -29,8 +29,29 @@ Action::make('edit')
 | `->inertiaVisit(string $url, array $options = [])` | SPA visit via `router.visit()` (supports `method`) |
 | `->dispatch(string $event, array $data = [])` | Fire a `kinetix:{event}` browser event |
 | `->button()` / `->link()` | Render style |
-| `->color(string)` | `primary` · `success` · `warning` · `danger` · `gray` |
+| `->color(string)` | `primary` · `secondary` · `success` · `warning` · `info` · `danger` · `gray` |
+| `->icon(?string, $position = 'before')` | Lucide icon name; pass `null` to remove it |
 | `->size(string)` | `xs` · `sm` · `md` · `lg` |
+
+Colors map to shadcn tokens (themeable, dark-mode aware), so you can reproduce the "classic" admin palette per action when you want it:
+
+| Color | Token | Looks like |
+|---|---|---|
+| `primary` | `primary` | brand/solid |
+| `info` | `info` | **blue** (e.g. View/Show) |
+| `warning` | `warning` | **amber/yellow** (e.g. Edit) |
+| `success` | `success` | **green** (e.g. Create) |
+| `danger` | `destructive` | **red** (e.g. Delete) |
+| `gray` / `secondary` | `outline` / `secondary` | neutral |
+
+```php
+ViewAction::make()->color('info'),      // blue
+EditAction::make()->color('warning'),   // amber
+CreateAction::make()->color('success'), // green
+// DeleteAction is danger (red) by default
+```
+
+> **shadcn guidance:** by default Kinetix keeps secondary actions neutral (`outline`/`ghost`) and only `delete` red — distinguishing actions by **icon**, which is the idiomatic shadcn approach. Reach for the colored palette above only if you specifically want the classic colored-button look; it stays token-based either way.
 
 ---
 
@@ -95,6 +116,15 @@ graph TD
 ```
 
 When `requiresConfirmation()` is set, clicking the action button opens `KinetixConfirmModal.vue` instead of running immediately. The action runs only on confirm.
+
+### `->inertiaVisit()` vs `->request()`
+
+| Method | Use when | Behaviour |
+|---|---|---|
+| `->inertiaVisit($url, ['method' => 'post'])` | The route returns an **Inertia response** (`redirect()`/`back()`/`Inertia::render`) | `router.visit()` — full Inertia visit (updates page props). |
+| `->request($url, ['method' => 'post', 'toast' => '…'])` | The route returns **JSON** and you just want a background call + a toast (no navigation) | Plain `fetch()` XHR (with the XSRF token); shows the `toast` on success. **No Inertia involvement.** |
+
+> **Avoiding Inertia's "invalid response" modal:** an `->inertiaVisit()` to an endpoint that returns JSON (instead of an Inertia redirect/render) makes Inertia pop its error modal. For fire-and-forget endpoints (queue a job, then notify), use `->request()` so no Inertia visit happens. This is exactly what `ExportAction` uses — click → background POST → "Export queued" toast → a download notification arrives when the job finishes.
 
 ---
 
@@ -234,6 +264,8 @@ Wire any new action-rendering component through this composable so behaviour sta
 
 `ActionGroup` collapses several actions into a single dropdown trigger — useful for keeping record rows and toolbars compact.
 
+> **Where ActionGroups work:** `recordActions`, `toolbarActions`/`headerActions`, and `footerActions` render groups as dropdowns. **`bulkActions` do not** — the bulk bar renders flat buttons and a dropdown wouldn't forward the selected `ids`. So you **can** put an Export (or any) action inside a group in the toolbar/header/footer (it acts on the whole/filtered table), but for **export-selected** use a flat `bulkActions` entry (see [Tables → Bulk Actions](tables.md#bulk-actions)). The same Export `Action` can be both: inside a toolbar group **and** a flat bulk action.
+
 ```php
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\ActionGroup;
@@ -308,6 +340,28 @@ Table::make(Post::query())
 `RestoreAction` / `ForceDeleteAction` are for `SoftDeletes` models and auto-hide on non-trashed records (via a `visible()` check on `$record->trashed()`). Pair them with a `TrashedFilter` ([Tables → Filters](tables.md)).
 
 Labels come from the `kinetix` i18n namespace and respect the active locale.
+
+### File actions: `DownloadAction` & `PreviewAction`
+
+```php
+use Happones\Kinetix\Actions\DownloadAction;
+use Happones\Kinetix\Actions\PreviewAction;
+
+$table->recordActions([
+    PreviewAction::make()->url(fn ($doc) => route('docs.show', $doc)),         // image/pdf detected from the URL
+    PreviewAction::make()->preview('pdf')->url(fn ($doc) => $doc->pdf_url),     // force a type
+    DownloadAction::make()->url(fn ($doc) => route('docs.download', $doc)),     // direct download
+]);
+```
+
+| Action | Defaults | Behaviour |
+|---|---|---|
+| `PreviewAction` | label `Preview`, icon `eye`, color `gray` | Opens `url` in the file-preview lightbox (zoomable image / embedded PDF, with a download button). `->preview('image'\|'pdf'\|'auto')` sets the type. |
+| `DownloadAction` | label `Download`, icon `download`, color `gray` | Forces a browser download of `url` (synthetic `<a download>` click). |
+
+Both are plain `Action`s, so `->color()`, `->icon()`, `->label()`, `->authorize()`, `->visible()` all apply. The underlying flags are `Action::download()` and `Action::preview($type)`.
+
+> **Mount the lightbox once.** For `PreviewAction` (and `ImageColumn::preview()`) to render, add `<KinetixFilePreview />` once in your app layout — it listens for the `kinetix:preview` window event, like the notification components.
 
 ---
 

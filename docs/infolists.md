@@ -393,6 +393,69 @@ return inertia('Users/Show', ['infolist' => $infolist->toArray()]);
 
 ---
 
+## 8b. Recipe: a record "Show" page with tabs + actions
+
+A polished detail page: the record's data organized in **tabs**, plus **Edit / Delete actions** in a page header. Infolists are read-only and have no inline actions, so the actions live in a **`KinetixPageHeader`** (or `Action::toArrayMany()`) next to the infolist — wire them to your routes.
+
+**1. The infolist with tabs:**
+
+```php
+use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Infolists\Components\{Tabs, Tab, Section, TextEntry};
+
+$infolist = Infolist::make($user)->schema([
+    Tabs::make()->tabs([
+        Tab::make('Profile')->icon('user')->columns(2)->schema([
+            TextEntry::make('name'),
+            TextEntry::make('email')->copyable(),
+            TextEntry::make('status')->badge()
+                ->color(fn ($s) => $s === 'active' ? 'success' : 'gray'),
+            TextEntry::make('created_at')->dateTime(),
+        ]),
+        Tab::make('Billing')->icon('credit-card')->schema([
+            Section::make('Plan')->schema([
+                TextEntry::make('plan.name')->label('Current plan'),
+                TextEntry::make('plan.price')->money('USD'),
+            ]),
+        ]),
+    ]),
+]);
+```
+
+**2. Page actions** (header) — built server-side and passed to the page:
+
+```php
+use Happones\Kinetix\Actions\{EditAction, DeleteAction};
+
+return inertia('Users/Show', [
+    'infolist' => $infolist->toArray(),
+    'actions'  => \Happones\Kinetix\Actions\Action::toArrayMany([
+        EditAction::make()->url(fn () => route('users.edit', $user)),
+        DeleteAction::make()->inertiaVisit(route('users.destroy', $user), ['method' => 'delete']),
+    ], $user),
+]);
+```
+
+**3. The Vue page** pairs a header (actions) with the infolist:
+
+```vue
+<script setup lang="ts">
+import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
+import KinetixInfolist from '@/components/kinetix/KinetixInfolist.vue';
+
+defineProps<{ infolist: any; actions: any[] }>();
+</script>
+
+<template>
+  <KinetixPageHeader heading="User details" :actions="actions" />
+  <KinetixInfolist :schema="infolist" />
+</template>
+```
+
+The `Tabs`/`Section` layouts render as a tabbed card with sections inside; `EditAction`/`DeleteAction` respect `authorize()` (drop when unauthorized) and route binding, exactly like in tables.
+
+---
+
 ## 9. TypeScript Types
 
 Serialized infolists map to generated TypeScript interfaces (`KinetixInfolistData`, `KinetixInfolistEntry`) in `resources/js/types/index.ts`, kept in sync via Spatie's Laravel TypeScript Transformer.

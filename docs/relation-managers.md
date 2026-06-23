@@ -130,8 +130,112 @@ $relations = array_map(
 );
 ```
 
+### Per-page visibility (edit vs. view)
+
+By default a relation manager shows on **both** the edit and the view (show) page.
+Restrict it with the `$visibleOn` property:
+
+```php
+class CommentsRelationManager extends RelationManager
+{
+    protected static string $relationship = 'comments';
+
+    // Only on the read-only view page, never on edit.
+    protected static array $visibleOn = ['view'];
+}
+```
+
+Then build each page's list with `relationManagersFor($page)` instead of the raw
+`relationManagers()`, so each page only gets the managers meant for it:
+
+```php
+// edit controller → only managers visible on 'edit'
+$relations = array_map(
+    fn (string $manager) => $manager::make($user)->toArray(),
+    UserResource::relationManagersFor('edit'),
+);
+
+// view/show controller → managers visible on 'view'
+$relations = array_map(
+    fn (string $manager) => $manager::make($user)->toArray(),
+    UserResource::relationManagersFor('view'),
+);
+```
+
+For per-record logic (Filament's `canViewForRecord`), override `isVisibleOn()` on
+the manager:
+
+```php
+public static function isVisibleOn(string $page): bool
+{
+    return $page === 'view'; // or inspect the page + any context you pass in
+}
+```
+
 ---
 
 ## 5. Query-string namespacing (`Table::queryPrefix`)
 
 Relation managers rely on the same `Table::queryPrefix('posts_')` mechanism you can use directly when placing **multiple tables on one page**. With a prefix, the table reads `posts_search`, `posts_sort`, `posts_direction`, `posts_perPage`, `posts_filters[…]`, and paginates with a `posts_page` page name; `KinetixTable.vue` sends those prefixed params and preserves any foreign params already in the URL. An empty prefix (the default) keeps the classic unprefixed behaviour.
+
+---
+
+## 6. Recipe: full CRUD inside a relation manager
+
+A complete "Posts of this User" panel with **create** (toolbar), **edit/delete** (per row), all scoped to the parent. CRUD is wired through ordinary `Action`s pointing at nested routes.
+
+**1. The relation manager** — table + actions (the query is auto-scoped to `$user->posts()`):
+
+```php
+namespace App\Kinetix\RelationManagers;
+
+use App\Models\Post;
+use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Actions\DeleteAction;
+use Happones\Kinetix\Actions\EditAction;
+use Happones\Kinetix\Resources\RelationManager;
+use Happones\Kinetix\Tables\Columns\TextColumn;
+use Happones\Kinetix\Tables\Table;
+
+class PostsRelationManager extends RelationManager
+{
+    protected static string $relationship = 'posts';
+
+    public function table(Table $table): Table
+    {
+        // $this->parent is the User; the query is constrained to its posts.
+        return $table
+            ->columns([
+                TextColumn::make('title')->searchable()->sortable(),
+                TextColumn::make('status')->badge(),
+            ])
+            ->toolbarActions([
+                Action::make('create')->label('New post')->icon('plus')
+                    ->url(fn () => route('users.posts.create', $this->parent)),
+            ])
+            ->recordActions([
+                EditAction::make()->url(fn (Post $post) => route('users.posts.edit', [$this->parent, $post])),
+                DeleteAction::make()->inertiaVisit(
+                    fn (Post $post) => route('users.posts.destroy', [$this->parent, $post]),
+                    ['method' => 'delete'],
+                ),
+            ]);
+    }
+}
+```
+
+**2. Nested routes** for the relation's CRUD:
+
+```php
+Route::prefix('users/{user}')->name('users.posts.')->group(function () {
+    Route::get('posts/create', [UserPostController::class, 'create'])->name('create');
+    Route::post('posts', [UserPostController::class, 'store'])->name('store');
+    Route::get('posts/{post}/edit', [UserPostController::class, 'edit'])->name('edit');
+    Route::put('posts/{post}', [UserPostController::class, 'update'])->name('update');
+    Route::delete('posts/{post}', [UserPostController::class, 'destroy'])->name('destroy');
+});
+```
+
+**3. Render it on the parent's edit page** (see §3) — the create/edit actions navigate to the nested form pages, and `delete` issues a scoped Inertia `DELETE`. After a mutation, redirect back to the parent edit page and the relation table refreshes.
+
+> Route binding is respected: passing the models to `route(...)` uses each model's `getRouteKey()` (so slug/uuid keys work). Authorize per row with `EditAction::make()->authorize('update')`, etc. — unauthorized actions are dropped from the payload.

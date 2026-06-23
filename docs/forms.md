@@ -223,15 +223,28 @@ Textarea::make('bio')
 
 ---
 
-### 6. `DateTimePicker`
-Renders a datetime-local pick input.
+### 6. `DatePicker` & `DateTimePicker`
+Both render the **shadcn calendar by default** (Reka UI popover) — `DatePicker` a single-date calendar, `DateTimePicker` a calendar plus scrollable hour/minute button columns. Call `->native()` to fall back to a plain native `<input type="date">` / `datetime-local`.
 
 ```php
+use Happones\Kinetix\Forms\Components\DatePicker;
 use Happones\Kinetix\Forms\Components\DateTimePicker;
 
+DatePicker::make('published_at')->locale('es');          // shadcn calendar
+DatePicker::make('published_at')->native();              // native input
+
 DateTimePicker::make('scheduled_at')
-    ->label('Schedule Release');
+    ->label('Schedule Release')
+    ->minuteStep(15)     // 15-minute increments
+    ->twelveHour();      // 12h clock with an AM/PM column
 ```
+
+| Method | Applies to | Description |
+|---|---|---|
+| `->native()` | both | Render the native input instead of the shadcn calendar |
+| `->locale(string)` | both | BCP-47 calendar locale (`'es'`, `'fr'`, `'en-US'`) |
+| `->minuteStep(int)` | DateTimePicker | Minute granularity for the time column (default 5) |
+| `->twelveHour()` | DateTimePicker | 12-hour clock with an AM/PM column |
 
 ---
 
@@ -367,7 +380,7 @@ FileUpload::make('attachments')
 
 | Method | Description |
 |---|---|
-| `->disk(string)` | Storage disk (default `public`) |
+| `->disk(string)` | Storage disk; defaults to the global `kinetix.filesystem.disk` (`public`). Set to any disk (e.g. `s3`). |
 | `->directory(string)` | Target directory (default `uploads`) |
 | `->multiple(bool = true)` | Accept multiple files (value becomes an array) |
 | `->image()` | Restrict to images and render thumbnail previews |
