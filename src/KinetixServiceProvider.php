@@ -6,6 +6,7 @@ namespace Happones\Kinetix;
 
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
+use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
 use Happones\Kinetix\Commands\MakeBillingCommand;
 use Happones\Kinetix\Commands\MakeExporterCommand;
@@ -64,6 +65,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeExporterCommand::class,
                 MakeRelationManagerCommand::class,
                 MakeBillingCommand::class,
+                InstallCommand::class,
             ]);
 
             // Publish config

@@ -66,34 +66,55 @@ php artisan vue-i18n:generate
 
 Run this again whenever you publish translations or add a locale.
 
-## 4. Configure Vue i18n
+## 4. Run the installer
 
-Since Kinetix uses `vue-i18n` for UI localization, you must install it and register the translation messages generated in the previous step.
+Kinetix provides an installer command that automatically installs front-end dependencies (`pinia`, `vue-i18n`), creates a Pinia store setup, and registers both Pinia and Vue i18n inside your main Inertia entry file (`app.ts` / `app.js`):
 
-### 4.1 Install the dependency
+```bash
+php artisan kinetix:install
+```
 
-Install `vue-i18n` version 11 using your preferred package manager:
+::: details Manual Installation & Configuration
+
+If you prefer to configure everything manually:
+
+### 4.1 Install dependencies
+
+Install `pinia` and `vue-i18n` version 11 using your package manager:
 
 ::: code-group
 ```bash [npm]
-npm install vue-i18n@11
+npm install pinia vue-i18n@11
 ```
 ```bash [pnpm]
-pnpm add vue-i18n@11
+pnpm add pinia vue-i18n@11
 ```
 ```bash [yarn]
-yarn add vue-i18n@11
+yarn add pinia vue-i18n@11
 ```
 :::
 
-### 4.2 Register in your entry file
+### 4.2 Initialize Pinia store
 
-In your main Inertia entry file (typically `resources/js/app.ts` or `resources/js/app.js`), register `vue-i18n` using the `withApp` method. This allows you to resolve the locale dynamically from the server-side page props:
+Create a `stores/index.ts` (or `index.js`) file inside `resources/js/`:
+
+```typescript
+import { createPinia } from 'pinia'
+
+const pinia = createPinia()
+
+export default pinia
+```
+
+### 4.3 Register in your entry file
+
+In your main Inertia entry file (typically `resources/js/app.ts` or `resources/js/app.js`), register `vue-i18n` and `pinia` using the `withApp` method:
 
 ```typescript
 import { createApp, h } from 'vue'
 import { createInertiaApp } from '@inertiajs/vue3'
 import { createI18n } from 'vue-i18n'
+import pinia from '@/stores'
 // Import compiled translation messages
 import messages from './vue-i18n-locales'
 
@@ -115,9 +136,11 @@ createInertiaApp({
     })
 
     app.use(i18n)
+    app.use(pinia)
   },
 })
 ```
+:::
 
 ## 5. Mount the global components
 
