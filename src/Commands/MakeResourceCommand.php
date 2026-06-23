@@ -20,6 +20,7 @@ class MakeResourceCommand extends Command
                             {name : The name of the resource (e.g. Post)} 
                             {--simple : Create a single-page resource with modals rather than separate pages}
                             {--soft-deletes : Add soft delete filters, columns, and actions}
+                            {--team : Scaffold team-aware routes & queries (auto-enabled when kinetix.teams is true)}
                             {--generate : Read database table columns to automatically populate form and table schemas}';
 
     /**
@@ -35,21 +36,24 @@ class MakeResourceCommand extends Command
     public function handle(): int
     {
         $name = $this->argument('name');
-        
+
         // Normalize name to singular StudlyCase
-        $modelName = ucfirst(Str::camel(Str::singular($name)));
+        $modelName     = ucfirst(Str::camel(Str::singular($name)));
         $resourceClass = "{$modelName}Resource";
-        $pluralName = Str::plural($modelName);
-        $pluralSlug = Str::kebab($pluralName);
-        
-        $simple = $this->option('simple');
+        $pluralName    = Str::plural($modelName);
+        $pluralSlug    = Str::kebab($pluralName);
+
+        $simple      = $this->option('simple');
         $softDeletes = $this->option('soft-deletes');
-        $generate = $this->option('generate');
+        $generate    = $this->option('generate');
+        // Team-aware when explicitly requested or when the package teams mode is on.
+        $teams = $this->option('team') || (bool) config('kinetix.teams', false);
 
         // Check if model exists
         $modelClass = $this->resolveModelClass($modelName);
-        if (!$modelClass) {
+        if (! $modelClass) {
             $this->error("Eloquent Model App\\Models\\{$modelName} does not exist. Please create the model first.");
+
             return self::FAILURE;
         }
 
@@ -60,18 +64,32 @@ class MakeResourceCommand extends Command
         $this->createResourceClass($modelName, $resourceClass, $formFields, $tableColumns);
 
         // 2. Create Resource Controller
-        $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes);
+        $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes, $teams);
 
         // 3. Create Vue frontend pages
         $this->createVuePages($modelName, $pluralName, $pluralSlug, $simple, $softDeletes, $formFields, $tableColumns);
 
         $this->info("\nKinetix Resource [{$modelName}] scaffolded successfully!");
-        $this->comment("Next steps:");
-        $this->line("1. Add the resource route to your routes/web.php file:");
-        $this->line("   Route::resource('{$pluralSlug}', \\App\\Http\\Controllers\\Kinetix\\{$modelName}Controller::class);");
-        if ($softDeletes) {
-            $this->line("   Route::post('{$pluralSlug}/{id}/restore', [\\App\\Http\\Controllers\\Kinetix\\{$modelName}Controller::class, 'restore'])->name('{$pluralSlug}.restore');");
-            $this->line("   Route::delete('{$pluralSlug}/{id}/force-delete', [\\App\\Http\\Controllers\\Kinetix\\{$modelName}Controller::class, 'forceDelete'])->name('{$pluralSlug}.force-delete');");
+        $this->comment('Next steps:');
+        $this->line('1. Add the resource route to your routes/web.php file:');
+
+        $controllerRef = "\\App\\Http\\Controllers\\Kinetix\\{$modelName}Controller::class";
+
+        if ($teams) {
+            $this->line('   // Team-aware: nest under the {current_team} segment Kinetix uses.');
+            $this->line("   Route::prefix('{current_team}')->group(function () {");
+            $this->line("       Route::resource('{$pluralSlug}', {$controllerRef});");
+            if ($softDeletes) {
+                $this->line("       Route::post('{$pluralSlug}/{id}/restore', [{$controllerRef}, 'restore'])->name('{$pluralSlug}.restore');");
+                $this->line("       Route::delete('{$pluralSlug}/{id}/force-delete', [{$controllerRef}, 'forceDelete'])->name('{$pluralSlug}.force-delete');");
+            }
+            $this->line('   });');
+        } else {
+            $this->line("   Route::resource('{$pluralSlug}', {$controllerRef});");
+            if ($softDeletes) {
+                $this->line("   Route::post('{$pluralSlug}/{id}/restore', [{$controllerRef}, 'restore'])->name('{$pluralSlug}.restore');");
+                $this->line("   Route::delete('{$pluralSlug}/{id}/force-delete', [{$controllerRef}, 'forceDelete'])->name('{$pluralSlug}.force-delete');");
+            }
         }
 
         return self::SUCCESS;
@@ -100,36 +118,37 @@ class MakeResourceCommand extends Command
      */
     protected function getSchemaDefinitions(string $modelClass, bool $generate, bool $softDeletes): array
     {
-        $formFields = [];
+        $formFields   = [];
         $tableColumns = [];
 
-        if (!$generate) {
-            $formFields[] = "                TextInput::make('title')->required(),";
+        if (! $generate) {
+            $formFields[]   = "                TextInput::make('title')->required(),";
             $tableColumns[] = "                TextColumn::make('title')->searchable()->sortable(),";
+
             return [$formFields, $tableColumns];
         }
 
         try {
-            $model = new $modelClass();
+            $model     = new $modelClass;
             $tableName = $model->getTable();
 
             if (method_exists(Schema::class, 'getColumns')) {
                 $columns = Schema::getColumns($tableName);
             } else {
                 $columnNames = Schema::getColumnListing($tableName);
-                $columns = [];
+                $columns     = [];
                 foreach ($columnNames as $colName) {
                     $columns[] = [
-                        'name' => $colName,
+                        'name'      => $colName,
                         'type_name' => 'string',
-                        'nullable' => true,
+                        'nullable'  => true,
                     ];
                 }
             }
 
             foreach ($columns as $column) {
-                $colName = $column['name'];
-                $colType = strtolower($column['type_name'] ?? 'string');
+                $colName    = $column['name'];
+                $colType    = strtolower($column['type_name'] ?? 'string');
                 $isNullable = $column['nullable'] ?? true;
 
                 // Skip IDs and timestamps
@@ -137,43 +156,43 @@ class MakeResourceCommand extends Command
                     continue;
                 }
 
-                $formRule = "";
-                $tableRule = "";
+                $formRule  = '';
+                $tableRule = '';
 
                 if ($colType === 'boolean' || $colType === 'tinyint' || Str::startsWith($colName, 'is_')) {
-                    $formRule = "                Toggle::make('{$colName}')";
+                    $formRule  = "                Toggle::make('{$colName}')";
                     $tableRule = "                ToggleColumn::make('{$colName}')";
                 } elseif (Str::contains($colName, 'email')) {
-                    $formRule = "                TextInput::make('{$colName}')->email()";
+                    $formRule  = "                TextInput::make('{$colName}')->email()";
                     $tableRule = "                TextColumn::make('{$colName}')";
                 } elseif ($colType === 'text') {
-                    $formRule = "                Textarea::make('{$colName}')";
+                    $formRule  = "                Textarea::make('{$colName}')";
                     $tableRule = "                TextColumn::make('{$colName}')->limit(50)";
                 } elseif (in_array($colType, ['datetime', 'timestamp', 'date'], true)) {
-                    $formRule = "                DateTimePicker::make('{$colName}')";
+                    $formRule  = "                DateTimePicker::make('{$colName}')";
                     $tableRule = "                TextColumn::make('{$colName}')->dateTime()";
                 } elseif (Str::contains($colType, 'int') || in_array($colType, ['decimal', 'float', 'double'], true)) {
-                    $formRule = "                TextInput::make('{$colName}')->numeric()";
+                    $formRule  = "                TextInput::make('{$colName}')->numeric()";
                     $tableRule = "                TextColumn::make('{$colName}')->sortable()";
                 } else {
-                    $formRule = "                TextInput::make('{$colName}')";
+                    $formRule  = "                TextInput::make('{$colName}')";
                     $tableRule = "                TextColumn::make('{$colName}')->searchable()->sortable()";
                 }
 
-                if (!$isNullable) {
-                    $formRule .= "->required()";
+                if (! $isNullable) {
+                    $formRule .= '->required()';
                 }
 
-                $formFields[] = $formRule . ",";
-                $tableColumns[] = $tableRule . ",";
+                $formFields[]   = $formRule.',';
+                $tableColumns[] = $tableRule.',';
             }
 
             if (empty($formFields)) {
-                $formFields[] = "                TextInput::make('title')->required(),";
+                $formFields[]   = "                TextInput::make('title')->required(),";
                 $tableColumns[] = "                TextColumn::make('title')->searchable()->sortable(),";
             }
         } catch (\Exception $e) {
-            $formFields[] = "                TextInput::make('title')->required(),";
+            $formFields[]   = "                TextInput::make('title')->required(),";
             $tableColumns[] = "                TextColumn::make('title')->searchable()->sortable(),";
         }
 
@@ -186,13 +205,13 @@ class MakeResourceCommand extends Command
     protected function createResourceClass(string $modelName, string $resourceClass, array $formFields, array $tableColumns): void
     {
         $directory = app_path('Kinetix/Resources');
-        $filePath = "{$directory}/{$resourceClass}.php";
+        $filePath  = "{$directory}/{$resourceClass}.php";
 
-        if (!File::isDirectory($directory)) {
+        if (! File::isDirectory($directory)) {
             File::makeDirectory($directory, 0755, true);
         }
 
-        $formFieldsStr = implode("\n", $formFields);
+        $formFieldsStr   = implode("\n", $formFields);
         $tableColumnsStr = implode("\n", $tableColumns);
 
         $template = <<<PHP
@@ -250,18 +269,29 @@ PHP;
         string $pluralName,
         string $pluralSlug,
         bool $simple,
-        bool $softDeletes
+        bool $softDeletes,
+        bool $teams = false
     ): void {
         $directory = app_path('Http/Controllers/Kinetix');
-        $filePath = "{$directory}/{$modelName}Controller.php";
+        $filePath  = "{$directory}/{$modelName}Controller.php";
 
-        if (!File::isDirectory($directory)) {
+        if (! File::isDirectory($directory)) {
             File::makeDirectory($directory, 0755, true);
         }
 
-        $softDeletesTraits = "";
-        $softDeletesMethods = "";
-        $routePrefix = $pluralSlug;
+        // Team-aware index signature, base query, and create expression. Adjust
+        // the `team_id` column / scope to match your application's team schema.
+        $indexParams = $teams ? 'Request $request' : '';
+        $indexQuery  = $teams
+            ? "{$modelName}::where('team_id', \$request->user()->currentTeam->id)"
+            : "{$modelName}::query()";
+        $createExpr = $teams
+            ? "{$modelName}::create(array_merge(\$form->getState(\$request->all()), ['team_id' => \$request->user()->currentTeam->id]))"
+            : "{$modelName}::create(\$form->getState(\$request->all()))";
+
+        $softDeletesTraits  = '';
+        $softDeletesMethods = '';
+        $routePrefix        = $pluralSlug;
 
         if ($softDeletes) {
             $softDeletesMethods = <<<PHP
@@ -302,9 +332,9 @@ use Illuminate\Http\Request;
 
 class {$modelName}Controller extends Controller
 {
-    public function index()
+    public function index({$indexParams})
     {
-        \$query = {$modelName}::query();
+        \$query = {$indexQuery};
 PHP;
             if ($softDeletes) {
                 $template .= "\n        \$query = \$query->withTrashed();";
@@ -325,7 +355,7 @@ PHP;
         \$form = {$resourceClass}::form(Form::make(new {$modelName}()));
         \$form->validate(\$request->all());
 
-        {$modelName}::create(\$form->getState(\$request->all()));
+        {$createExpr};
 
         return redirect()->route('{$routePrefix}.index')->with('message', 'Record created successfully.');
     }
@@ -367,9 +397,9 @@ use Illuminate\Http\Request;
 
 class {$modelName}Controller extends Controller
 {
-    public function index()
+    public function index({$indexParams})
     {
-        \$query = {$modelName}::query();
+        \$query = {$indexQuery};
 PHP;
             if ($softDeletes) {
                 $template .= "\n        \$query = \$query->withTrashed();";
@@ -397,7 +427,7 @@ PHP;
         \$form = {$resourceClass}::form(Form::make(new {$modelName}()));
         \$form->validate(\$request->all());
 
-        {$modelName}::create(\$form->getState(\$request->all()));
+        {$createExpr};
 
         return redirect()->route('{$routePrefix}.index')->with('message', 'Record created successfully.');
     }
@@ -451,7 +481,7 @@ PHP;
     ): void {
         $directory = resource_path("js/pages/Kinetix/{$pluralName}");
 
-        if (!File::isDirectory($directory)) {
+        if (! File::isDirectory($directory)) {
             File::makeDirectory($directory, 0755, true);
         }
 

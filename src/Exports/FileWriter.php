@@ -65,8 +65,8 @@ class FileWriter
             return;
         }
 
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
+        $spreadsheet = new Spreadsheet;
+        $sheet       = $spreadsheet->getActiveSheet();
         $sheet->fromArray($this->buffer, null, 'A1', true);
 
         $writer = $this->format === 'xlsx'

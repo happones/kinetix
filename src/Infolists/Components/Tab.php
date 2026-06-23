@@ -67,7 +67,7 @@ class Tab extends Component
         }
 
         $label = $this->label instanceof Closure ? ($this->label)($record) : $this->label;
-        $icon = $this->icon instanceof Closure ? ($this->icon)($record) : $this->icon;
+        $icon  = $this->icon instanceof Closure ? ($this->icon)($record) : $this->icon;
 
         $childData = [];
         foreach ($this->schema as $component) {

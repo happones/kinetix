@@ -6,7 +6,10 @@ namespace Happones\Kinetix\Tables\Columns;
 
 use Carbon\CarbonInterface;
 use Closure;
+use Happones\Kinetix\Support\Contracts\HasColor;
+use Happones\Kinetix\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class TextColumn extends Column
 {
@@ -66,7 +69,7 @@ class TextColumn extends Column
 
     public function description(string|Closure $description, string $position = 'below'): static
     {
-        $this->description = $description;
+        $this->description         = $description;
         $this->descriptionPosition = $position;
 
         return $this;
@@ -88,7 +91,7 @@ class TextColumn extends Column
         }
 
         // Auto-resolve Enums to their labels
-        if ($value instanceof \Happones\Kinetix\Support\Contracts\HasLabel) {
+        if ($value instanceof HasLabel) {
             $value = $value->getLabel();
         } elseif ($value instanceof \BackedEnum) {
             $value = $value->value;
@@ -101,13 +104,13 @@ class TextColumn extends Column
             if ($value instanceof CarbonInterface) {
                 $value = $value->format($this->dateFormat);
             } elseif (is_string($value)) {
-                $value = \Illuminate\Support\Carbon::parse($value)->format($this->dateFormat);
+                $value = Carbon::parse($value)->format($this->dateFormat);
             }
         }
 
         // Apply money formatting
         if ($this->currencyCode !== null) {
-            $value = '$' . number_format((float) $value, 2) . ' ' . $this->currencyCode;
+            $value = '$'.number_format((float) $value, 2).' '.$this->currencyCode;
         }
 
         // Apply string limits
@@ -141,7 +144,7 @@ class TextColumn extends Column
     {
         $rawState = parent::getState($record);
 
-        if ($rawState instanceof \Happones\Kinetix\Support\Contracts\HasColor) {
+        if ($rawState instanceof HasColor) {
             return $rawState->getColor() ?? 'gray';
         }
 

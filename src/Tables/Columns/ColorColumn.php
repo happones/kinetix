@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables\Columns;
 
+use Happones\Kinetix\Support\Contracts\HasColor;
+use Illuminate\Database\Eloquent\Model;
+
 class ColorColumn extends Column
 {
     protected bool $isCopyable = false;
@@ -13,7 +16,7 @@ class ColorColumn extends Column
         return 'color';
     }
 
-    public function getState(\Illuminate\Database\Eloquent\Model $record): mixed
+    public function getState(Model $record): mixed
     {
         $value = parent::getState($record);
 
@@ -21,7 +24,7 @@ class ColorColumn extends Column
             return null;
         }
 
-        if ($value instanceof \Happones\Kinetix\Support\Contracts\HasColor) {
+        if ($value instanceof HasColor) {
             return $value->getColor();
         }
 

@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Actions;
 use Happones\Kinetix\Data\ActionData;
 use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\URL;
 
 class Action
 {
@@ -36,6 +37,12 @@ class Action
 
     protected bool $shouldMarkAsUnread = false;
 
+    protected bool $isDownload = false;
+
+    protected bool $isPreview = false;
+
+    protected ?string $previewType = null; // 'auto' | 'image' | 'pdf'
+
     /**
      * Inertia-style dispatch event (dispatched to the parent page component).
      * Works like Livewire's $dispatch / Inertia's event system.
@@ -53,6 +60,15 @@ class Action
      * @var array<string, mixed>|null
      */
     protected ?array $inertiaVisit = null;
+
+    /**
+     * Background HTTP request options (fire-and-forget XHR, not an Inertia
+     * visit — so the endpoint may return JSON without triggering Inertia's
+     * "invalid response" modal). Shape: {method, toast?}.
+     *
+     * @var array<string, mixed>|null
+     */
+    protected ?array $httpRequest = null;
 
     protected bool $requiresConfirmation = false;
 
@@ -94,7 +110,11 @@ class Action
      * Set an icon to display inside the action button.
      * Use the icon name from `@lucide/vue` (e.g. 'trash', 'check').
      */
-    public function icon(string $icon, string $position = 'before'): static
+    /**
+     * Set the action's icon, or pass null to remove it (e.g. on a prebuilt
+     * action whose default icon you don't want).
+     */
+    public function icon(?string $icon, string $position = 'before'): static
     {
         $this->icon         = $icon;
         $this->iconPosition = $position;
@@ -104,8 +124,6 @@ class Action
 
     /**
      * Set the URL that the action should navigate to.
-     *
-     * @param string|\Closure $url
      */
     public function url(string|\Closure $url, bool $shouldOpenInNewTab = false): static
     {
@@ -116,9 +134,31 @@ class Action
     }
 
     /**
+     * Force the browser to download `url` (attachment) instead of navigating.
+     */
+    public function download(bool $condition = true): static
+    {
+        $this->isDownload = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Open `url` in the file-preview modal (image / PDF) instead of navigating.
+     * Pass an explicit type, or leave 'auto' to detect from the URL extension.
+     */
+    public function preview(string $type = 'auto'): static
+    {
+        $this->isPreview   = true;
+        $this->previewType = $type;
+
+        return $this;
+    }
+
+    /**
      * Resolve the URL closure for the given record.
      */
-    public function resolveUrl(?\Illuminate\Database\Eloquent\Model $record = null): void
+    public function resolveUrl(?Model $record = null): void
     {
         if ($this->url instanceof \Closure) {
             $this->url = ($this->url)($record);
@@ -205,7 +245,7 @@ class Action
     {
         if (is_string($condition)) {
             $this->requiresConfirmation = true;
-            $this->modalHeading = $condition;
+            $this->modalHeading         = $condition;
 
             return $this;
         }
@@ -281,11 +321,29 @@ class Action
 
     /**
      * Trigger an Inertia router.visit() when the action is clicked.
-     * Equivalent to router.visit(url, options).
+     * Equivalent to router.visit(url, options). The URL may be a Closure
+     * receiving the record, so per-row actions can build a per-record URL
+     * (e.g. a DELETE to `route('posts.destroy', $post)`).
      *
      * @param array<string, mixed> $options
      */
-    public function inertiaVisit(string $url, array $options = []): static
+    /**
+     * Fire a background HTTP request (plain XHR, NOT an Inertia visit) when
+     * clicked — use when the endpoint returns JSON and you just want a toast,
+     * without navigating or triggering Inertia's response modal. Options:
+     * `method` (default 'post') and `toast` (success message to show).
+     *
+     * @param array<string, mixed> $options
+     */
+    public function request(string|\Closure $url, array $options = []): static
+    {
+        $this->url         = $url;
+        $this->httpRequest = array_merge(['method' => 'post'], $options);
+
+        return $this;
+    }
+
+    public function inertiaVisit(string|\Closure $url, array $options = []): static
     {
         $this->url          = $url;
         $this->inertiaVisit = array_merge(['method' => 'get'], $options);
@@ -298,7 +356,7 @@ class Action
      */
     public function toData(?Model $record = null): ?ActionData
     {
-        if (!$this->shouldRender($record)) {
+        if (! $this->shouldRender($record)) {
             return null;
         }
 
@@ -321,8 +379,8 @@ class Action
 
                     if (is_object($team)) {
                         if (method_exists($team, 'getRouteKeyName') && method_exists($team, 'getRouteKey')) {
-                            $keyName = $team->getRouteKeyName();
-                            $keyValue = $team->getRouteKey();
+                            $keyName                             = $team->getRouteKeyName();
+                            $keyValue                            = $team->getRouteKey();
                             $defaults["current_team:{$keyName}"] = $team;
                             $defaults["team:{$keyName}"]         = $team;
                             $defaults["current_team:{$keyName}"] = $keyValue;
@@ -343,7 +401,7 @@ class Action
                         $defaults['team:id']           = $team;
                     }
 
-                    \Illuminate\Support\Facades\URL::defaults($defaults);
+                    URL::defaults($defaults);
                 }
 
                 $url = ($url)($record);
@@ -366,12 +424,16 @@ class Action
             dispatchEvent: $this->dispatchEvent,
             dispatchData: $this->dispatchData,
             inertiaVisit: $this->inertiaVisit,
+            httpRequest: $this->httpRequest,
             requiresConfirmation: $this->requiresConfirmation,
             modalHeading: $this->modalHeading,
             modalDescription: $this->modalDescription,
             modalIcon: $this->modalIcon,
             modalSubmitActionLabel: $this->modalSubmitActionLabel,
             modalCancelActionLabel: $this->modalCancelActionLabel,
+            isDownload: $this->isDownload,
+            isPreview: $this->isPreview,
+            previewType: $this->previewType,
         );
     }
 
@@ -390,7 +452,7 @@ class Action
      * unauthorized. Prefer this over mapping toArray() so the payload only ever
      * contains actions the current user may perform.
      *
-     * @param array<int, Action|\Happones\Kinetix\Actions\ActionGroup> $actions
+     * @param  array<int, Action|ActionGroup>   $actions
      * @return array<int, array<string, mixed>>
      */
     public static function toArrayMany(array $actions, ?Model $record = null): array

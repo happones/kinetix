@@ -36,7 +36,7 @@ abstract class Resource
     public static function getModel(): string
     {
         if (static::$model === null) {
-            throw new \RuntimeException('Static property $model must be set on ' . static::class);
+            throw new \RuntimeException('Static property $model must be set on '.static::class);
         }
 
         return static::$model;
@@ -74,6 +74,20 @@ abstract class Resource
     public static function relationManagers(): array
     {
         return [];
+    }
+
+    /**
+     * The relation manager classes that should appear on the given page
+     * ('edit' | 'view'), filtered by each manager's `isVisibleOn()`.
+     *
+     * @return array<int, class-string<RelationManager>>
+     */
+    public static function relationManagersFor(string $page): array
+    {
+        return array_values(array_filter(
+            static::relationManagers(),
+            static fn (string $relationManager): bool => $relationManager::isVisibleOn($page),
+        ));
     }
 
     /**

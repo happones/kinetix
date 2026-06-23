@@ -8,10 +8,12 @@ use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Exports\Exporter;
 use Happones\Kinetix\Exports\FileWriter;
 use Happones\Kinetix\Notifications\Notification;
+use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\File;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Crypt;
@@ -29,30 +31,34 @@ class ExportProcessor implements ShouldQueue
 
     /**
      * @param class-string<Exporter> $exporterClass
-     * @param class-string|null $recipientClass
+     * @param class-string|null      $recipientClass
+     * @param array<string, mixed>   $parameters
      */
     public function __construct(
         protected string $exporterClass,
         protected ?string $recipientClass = null,
         protected int|string|null $recipientId = null,
+        protected array $parameters = [],
     ) {}
 
     public function handle(): void
     {
         /** @var Exporter $exporter */
-        $exporter = new $this->exporterClass();
-        $format = $exporter->format();
+        $exporter = (new $this->exporterClass)->withParameters($this->parameters);
+        $format   = $exporter->format();
 
-        $storedName = Str::uuid()->toString().'.'.$format;
+        $storedName   = Str::uuid()->toString().'.'.$format;
         $relativePath = $this->directory.'/'.$storedName;
+        $disk         = KinetixDisk::name();
 
-        Storage::makeDirectory($this->directory);
-        $absolutePath = Storage::path($relativePath);
+        // Write to a local temp file (the writer needs a real path), then put it
+        // on the configured disk so exports work on any driver (local, s3, …).
+        $tempPath = (string) tempnam(sys_get_temp_dir(), 'kinetix_export_');
 
-        $writer = new FileWriter($absolutePath, $format);
+        $writer = new FileWriter($tempPath, $format);
         $writer->writeRow($exporter->headings());
 
-        $exporter->query()->chunk($exporter->chunkSize(), function ($records) use ($writer, $exporter): void {
+        $exporter->resolveExportQuery()->chunk($exporter->chunkSize(), function ($records) use ($writer, $exporter): void {
             foreach ($records as $record) {
                 $writer->writeRow($exporter->mapRecord($record));
             }
@@ -60,9 +66,12 @@ class ExportProcessor implements ShouldQueue
 
         $writer->close();
 
+        Storage::disk($disk)->putFileAs($this->directory, new File($tempPath), $storedName);
+        @unlink($tempPath);
+
         $downloadName = $exporter->fileName().'.'.$format;
-        $token = Crypt::encrypt(['path' => $relativePath, 'name' => $downloadName]);
-        $url = route('kinetix.exports.download', ['token' => $token]);
+        $token        = Crypt::encrypt(['disk' => $disk, 'path' => $relativePath, 'name' => $downloadName]);
+        $url          = route('kinetix.exports.download', ['token' => $token]);
 
         $this->notify($url);
     }
@@ -93,7 +102,7 @@ class ExportProcessor implements ShouldQueue
                     ->url($url, true),
             ]);
 
-        if (config('kinetix.broadcasting.echo')) {
+        if (Notification::shouldBroadcast()) {
             $notification->broadcast($recipient);
 
             return;

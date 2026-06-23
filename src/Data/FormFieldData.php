@@ -12,11 +12,11 @@ class FormFieldData extends Data
 {
     /**
      * @param array<string, mixed>|int|string|null $columnSpan
-     * @param array<string, string>|null $options
-     * @param array<string, string>|null $extraAttributes
-     * @param array<string, string>|null $extraInputAttributes
-     * @param array<string, string>|null $extraFieldWrapperAttributes
-     * @param array<int, FormFieldData>|null $schema
+     * @param array<string, string>|null           $options
+     * @param array<string, string>|null           $extraAttributes
+     * @param array<string, string>|null           $extraInputAttributes
+     * @param array<string, string>|null           $extraFieldWrapperAttributes
+     * @param array<int, FormFieldData>|null       $schema
      */
     public function __construct(
         public string $type,
@@ -52,5 +52,10 @@ class FormFieldData extends Data
         public bool $isImage = false,
         public ?int $maxFiles = null,
         public ?string $uploadToken = null,
+        // Date / DateTime picker specific — shadcn calendar by default.
+        public bool $useCalendar = false,
+        public ?string $dateLocale = null,
+        public int $minuteStep = 5,
+        public bool $hour12 = false,
     ) {}
 }

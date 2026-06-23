@@ -36,13 +36,13 @@ class NumberRangeFilter extends Filter
             return;
         }
 
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return;
         }
 
         $attribute = $this->attribute ?? $this->name;
-        $min = $value['min'] ?? null;
-        $max = $value['max'] ?? null;
+        $min       = $value['min']    ?? null;
+        $max       = $value['max']    ?? null;
 
         if ($min !== null && $min !== '') {
             $query->where($attribute, '>=', $min);

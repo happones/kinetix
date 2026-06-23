@@ -22,11 +22,11 @@ abstract class GeneratorCommand extends Command
 
     public function handle(): int
     {
-        $class = Str::studly($this->argument('name'));
+        $class     = Str::studly($this->argument('name'));
         $directory = app_path('Kinetix/'.$this->subNamespace());
-        $path = $directory.'/'.$class.'.php';
+        $path      = $directory.'/'.$class.'.php';
 
-        if (File::exists($path) && !$this->option('force')) {
+        if (File::exists($path) && ! $this->option('force')) {
             $this->error("{$class} already exists at [{$this->relativePath($path)}]. Use --force to overwrite.");
 
             return self::FAILURE;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Infolists\Components;
 
 use Closure;
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\InfolistEntryData;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,6 +21,13 @@ class Section extends Component
      * @var array<int, Component>
      */
     protected array $schema = [];
+
+    /**
+     * Header actions rendered in the section's top-right corner.
+     *
+     * @var array<int, Action>
+     */
+    protected array $actions = [];
 
     protected int $columns = 12;
 
@@ -66,6 +74,18 @@ class Section extends Component
         return $this;
     }
 
+    /**
+     * Set header actions for the section (e.g. an Edit button next to the title).
+     *
+     * @param array<int, Action> $actions
+     */
+    public function actions(array $actions): static
+    {
+        $this->actions = $actions;
+
+        return $this;
+    }
+
     protected function getType(): string
     {
         return 'section';
@@ -77,9 +97,9 @@ class Section extends Component
             return null;
         }
 
-        $heading = $this->heading instanceof Closure ? ($this->heading)($record) : $this->heading;
+        $heading     = $this->heading instanceof Closure ? ($this->heading)($record) : $this->heading;
         $description = $this->description instanceof Closure ? ($this->description)($record) : $this->description;
-        $icon = $this->icon instanceof Closure ? ($this->icon)($record) : $this->icon;
+        $icon        = $this->icon instanceof Closure ? ($this->icon)($record) : $this->icon;
 
         $childData = [];
         foreach ($this->schema as $component) {
@@ -89,14 +109,21 @@ class Section extends Component
             }
         }
 
+        // Auth-filtered header actions, resolved against the record.
+        $actionsData = array_values(array_filter(array_map(
+            fn (Action $action) => $action->toData($record),
+            $this->actions,
+        )));
+
         return new InfolistEntryData(
             type: $this->getType(),
             columnSpan: $this->columnSpan,
             icon: $icon !== null ? (string) $icon : null,
             schema: $childData,
-            heading: $heading !== null ? (string) $heading : null,
+            heading: $heading         !== null ? (string) $heading : null,
             description: $description !== null ? (string) $description : null,
             columns: $this->columns,
+            actions: $actionsData !== [] ? $actionsData : null,
         );
     }
 }

@@ -68,7 +68,7 @@ class Section extends Component
             return null;
         }
 
-        $heading = $this->heading instanceof Closure ? ($this->heading)($record) : $this->heading;
+        $heading     = $this->heading instanceof Closure ? ($this->heading)($record) : $this->heading;
         $description = $this->description instanceof Closure ? ($this->description)($record) : $this->description;
 
         $childData = [];
@@ -83,7 +83,7 @@ class Section extends Component
             type: $this->getType(),
             columnSpan: $this->columnSpan,
             schema: $childData,
-            heading: $heading !== null ? (string) $heading : null,
+            heading: $heading         !== null ? (string) $heading : null,
             description: $description !== null ? (string) $description : null,
             columns: $this->columns,
         );

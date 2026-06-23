@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Crypt;
 
 class FileUpload extends Field
 {
-    protected string $disk = 'public';
+    /** Null = fall back to the global `kinetix.filesystem.disk` config. */
+    protected ?string $disk = null;
 
     protected string $directory = 'uploads';
 
@@ -39,6 +40,14 @@ class FileUpload extends Field
         $this->disk = $disk;
 
         return $this;
+    }
+
+    /**
+     * The resolved disk: the explicit one, else the global filesystem default.
+     */
+    protected function resolveDisk(): string
+    {
+        return $this->disk ?? (string) config('kinetix.filesystem.disk', 'public');
     }
 
     public function directory(string $directory): static
@@ -99,16 +108,16 @@ class FileUpload extends Field
             return null;
         }
 
-        $data->isMultiple = $this->isMultiple;
+        $data->isMultiple        = $this->isMultiple;
         $data->acceptedFileTypes = $this->acceptedFileTypes ?: null;
-        $data->maxSize = $this->maxSize;
-        $data->isImage = $this->isImage;
-        $data->maxFiles = $this->maxFiles;
+        $data->maxSize           = $this->maxSize;
+        $data->isImage           = $this->isImage;
+        $data->maxFiles          = $this->maxFiles;
 
         // Storage configuration is signed so the client cannot tamper with the
         // target disk/directory or bypass the file constraints on upload.
         $data->uploadToken = Crypt::encrypt([
-            'disk'      => $this->disk,
+            'disk'      => $this->resolveDisk(),
             'directory' => $this->directory,
             'accept'    => $this->acceptedFileTypes,
             'maxSize'   => $this->maxSize,

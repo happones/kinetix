@@ -6,8 +6,69 @@ namespace Happones\Kinetix\Forms\Components;
 
 class DateTimePicker extends Field
 {
+    protected bool $useCalendar = true;
+
+    protected ?string $dateLocale = null;
+
+    protected int $minuteStep = 5;
+
+    protected bool $hour12 = false;
+
     protected function getType(): string
     {
         return 'datetime-picker';
+    }
+
+    /**
+     * Use a 12-hour clock with an AM/PM column instead of 24-hour.
+     */
+    public function twelveHour(bool $condition = true): static
+    {
+        $this->hour12 = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Opt out of the shadcn picker and render a plain native datetime input.
+     */
+    public function native(bool $condition = true): static
+    {
+        $this->useCalendar = ! $condition;
+
+        return $this;
+    }
+
+    /**
+     * BCP-47 locale for the calendar (e.g. 'es', 'fr', 'en-US').
+     */
+    public function locale(string $locale): static
+    {
+        $this->dateLocale = $locale;
+
+        return $this;
+    }
+
+    /**
+     * Minute granularity for the time selects (default 5).
+     */
+    public function minuteStep(int $step): static
+    {
+        $this->minuteStep = max(1, $step);
+
+        return $this;
+    }
+
+    /**
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool}
+     */
+    protected function dateConfig(): array
+    {
+        return [
+            'useCalendar' => $this->useCalendar,
+            'locale'      => $this->dateLocale,
+            'minuteStep'  => $this->minuteStep,
+            'hour12'      => $this->hour12,
+        ];
     }
 }

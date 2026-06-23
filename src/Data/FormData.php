@@ -11,8 +11,8 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 class FormData extends Data
 {
     /**
-     * @param array<int, FormFieldData> $schema
-     * @param array<string, mixed> $data
+     * @param array<int, FormFieldData>         $schema
+     * @param array<string, mixed>              $data
      * @param array<string, array<int, string>> $rules
      */
     public function __construct(

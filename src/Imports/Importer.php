@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Imports;
 
+use Happones\Kinetix\Data\ImportColumnData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
@@ -46,11 +47,11 @@ abstract class Importer
     {
         $class = Crypt::decryptString($token);
 
-        if (!class_exists($class) || !is_subclass_of($class, self::class)) {
+        if (! class_exists($class) || ! is_subclass_of($class, self::class)) {
             throw new RuntimeException('Invalid importer token.');
         }
 
-        return new $class();
+        return new $class;
     }
 
     /**
@@ -86,19 +87,19 @@ abstract class Importer
      */
     public function importRow(array $data): void
     {
-        $model = static::getModel();
-        $record = $this->resolveRecord($data) ?? new $model();
+        $model  = static::getModel();
+        $record = $this->resolveRecord($data) ?? new $model;
 
         foreach (static::getColumns() as $column) {
             $name = $column->getName();
 
-            if (!array_key_exists($name, $data)) {
+            if (! array_key_exists($name, $data)) {
                 continue;
             }
 
             $value = $column->castState($data[$name]);
 
-            if (!$column->fillRecord($record, $value, $data)) {
+            if (! $column->fillRecord($record, $value, $data)) {
                 $record->setAttribute($name, $value);
             }
         }
@@ -112,12 +113,12 @@ abstract class Importer
      * Each target column claims the first header (by name/alias match) that no
      * earlier column has already claimed, so one source column is never reused.
      *
-     * @param array<int, string> $headers
+     * @param  array<int, string>      $headers
      * @return array<string, int|null> column name => header index (or null when unmatched)
      */
     public static function guessMapping(array $headers): array
     {
-        $mapping = [];
+        $mapping           = [];
         $usedHeaderIndexes = [];
 
         foreach (static::getColumns() as $column) {
@@ -129,7 +130,7 @@ abstract class Importer
                 }
 
                 if ($column->matchesHeader($header)) {
-                    $matchedIndex = $index;
+                    $matchedIndex        = $index;
                     $usedHeaderIndexes[] = $index;
                     break;
                 }
@@ -144,7 +145,7 @@ abstract class Importer
     /**
      * Serialize the importer's columns for the frontend.
      *
-     * @return array<int, \Happones\Kinetix\Data\ImportColumnData>
+     * @return array<int, ImportColumnData>
      */
     public static function getColumnsData(): array
     {

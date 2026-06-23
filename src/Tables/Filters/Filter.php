@@ -79,14 +79,16 @@ class Filter
             label: $this->label,
             default: $this->default,
             type: $this->getType(),
-            options: $extra['options'] ?? null,
-            useCalendar: $extra['useCalendar'] ?? false,
+            options: $extra['options']               ?? null,
+            useCalendar: $extra['useCalendar']       ?? false,
             numberOfMonths: $extra['numberOfMonths'] ?? 1,
-            locale: $extra['locale'] ?? null,
-            weekdayFormat: $extra['weekdayFormat'] ?? null,
-            fixedWeeks: $extra['fixedWeeks'] ?? false,
-            minValue: $extra['minValue'] ?? null,
-            maxValue: $extra['maxValue'] ?? null,
+            locale: $extra['locale']                 ?? null,
+            weekdayFormat: $extra['weekdayFormat']   ?? null,
+            fixedWeeks: $extra['fixedWeeks']         ?? false,
+            minValue: $extra['minValue']             ?? null,
+            maxValue: $extra['maxValue']             ?? null,
+            minuteStep: $extra['minuteStep']         ?? 5,
+            hour12: $extra['hour12']                 ?? false,
         );
     }
 

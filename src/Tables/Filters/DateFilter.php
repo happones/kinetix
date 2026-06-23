@@ -12,6 +12,14 @@ class DateFilter extends Filter
 
     protected string $operator = '=';
 
+    protected bool $useCalendar = true;
+
+    protected ?string $locale = null;
+
+    protected ?string $minValue = null;
+
+    protected ?string $maxValue = null;
+
     protected function getType(): string
     {
         return 'date';
@@ -35,6 +43,59 @@ class DateFilter extends Filter
         $this->operator = $operator;
 
         return $this;
+    }
+
+    /**
+     * Opt out of the shadcn calendar and render a plain native date input.
+     */
+    public function native(bool $condition = true): static
+    {
+        $this->useCalendar = ! $condition;
+
+        return $this;
+    }
+
+    /**
+     * BCP-47 locale for the calendar (e.g. 'es', 'fr', 'en-US').
+     */
+    public function locale(string $locale): static
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
+    /**
+     * Earliest selectable date (ISO 'Y-m-d').
+     */
+    public function minValue(string $date): static
+    {
+        $this->minValue = $date;
+
+        return $this;
+    }
+
+    /**
+     * Latest selectable date (ISO 'Y-m-d').
+     */
+    public function maxValue(string $date): static
+    {
+        $this->maxValue = $date;
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function getExtraData(): array
+    {
+        return [
+            'useCalendar' => $this->useCalendar,
+            'locale'      => $this->locale,
+            'minValue'    => $this->minValue,
+            'maxValue'    => $this->maxValue,
+        ];
     }
 
     public function apply(Builder $query, mixed $value): void

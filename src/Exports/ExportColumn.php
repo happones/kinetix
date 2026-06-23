@@ -20,7 +20,7 @@ class ExportColumn
 
     public function __construct(string $name)
     {
-        $this->name = $name;
+        $this->name  = $name;
         $this->label = (string) str(str_replace('.', ' ', $name))->headline();
     }
 

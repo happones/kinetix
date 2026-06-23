@@ -53,7 +53,7 @@ class TernaryFilter extends Filter
      */
     public function queries(Closure $true, Closure $false): static
     {
-        $this->trueQuery = $true;
+        $this->trueQuery  = $true;
         $this->falseQuery = $false;
 
         return $this;
@@ -70,7 +70,7 @@ class TernaryFilter extends Filter
             return;
         }
 
-        if (!$isTrue && $this->falseQuery !== null) {
+        if (! $isTrue && $this->falseQuery !== null) {
             ($this->falseQuery)($query);
 
             return;

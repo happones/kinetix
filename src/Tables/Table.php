@@ -8,15 +8,17 @@ use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\TableData;
 use Happones\Kinetix\Data\TablePaginationData;
-use Happones\Kinetix\Data\TableStateData;
 use Happones\Kinetix\Data\TableRowData;
+use Happones\Kinetix\Data\TableStateData;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
+use Happones\Kinetix\Tables\Columns\ImageColumn;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Filters\Filter;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
 
 class Table implements Arrayable, JsonSerializable
@@ -51,6 +53,11 @@ class Table implements Arrayable, JsonSerializable
      */
     protected array $bulkActions = [];
 
+    /**
+     * @var array<int, Action>
+     */
+    protected array $footerActions = [];
+
     protected ?string $heading = null;
 
     protected ?string $description = null;
@@ -70,6 +77,8 @@ class Table implements Arrayable, JsonSerializable
 
     protected bool $isStriped = false;
 
+    protected bool $stickyActions = false;
+
     /**
      * Optional prefix for this table's query-string params, so multiple tables
      * (e.g. relation managers) on one page don't clash. Empty = unprefixed.
@@ -83,12 +92,13 @@ class Table implements Arrayable, JsonSerializable
      */
     public function __construct(mixed $queryOrModel)
     {
-        $this->queryOrModel = $queryOrModel;
-        $this->columns = $this->buildColumns();
-        $this->filters = $this->buildFilters();
-        $this->recordActions = $this->buildRecordActions();
+        $this->queryOrModel   = $queryOrModel;
+        $this->columns        = $this->buildColumns();
+        $this->filters        = $this->buildFilters();
+        $this->recordActions  = $this->buildRecordActions();
         $this->toolbarActions = $this->buildToolbarActions();
-        $this->bulkActions = $this->buildBulkActions();
+        $this->bulkActions    = $this->buildBulkActions();
+        $this->footerActions  = $this->buildFooterActions();
     }
 
     protected function buildColumns(): array
@@ -112,6 +122,11 @@ class Table implements Arrayable, JsonSerializable
     }
 
     protected function buildBulkActions(): array
+    {
+        return [];
+    }
+
+    protected function buildFooterActions(): array
     {
         return [];
     }
@@ -180,6 +195,17 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Alias of {@see toolbarActions()} — header-level actions (e.g. Create,
+     * Import, Export) rendered in the table's top toolbar.
+     *
+     * @param array<int, Action> $actions
+     */
+    public function headerActions(array $actions): static
+    {
+        return $this->toolbarActions($actions);
+    }
+
+    /**
      * Set actions that operate on the selected rows.
      *
      * @param array<int, Action> $actions
@@ -187,6 +213,21 @@ class Table implements Arrayable, JsonSerializable
     public function bulkActions(array $actions): static
     {
         $this->bulkActions = $actions;
+
+        return $this;
+    }
+
+    /**
+     * Set actions rendered in a bar below the table (next to pagination), e.g.
+     * "Export all". Place the same Action in both {@see bulkActions()} and here
+     * (or the toolbar) to support both whole-table and selected-rows contexts —
+     * the bulk invocation merges the selected `ids` into the action payload.
+     *
+     * @param array<int, Action> $actions
+     */
+    public function footerActions(array $actions): static
+    {
+        $this->footerActions = $actions;
 
         return $this;
     }
@@ -253,6 +294,17 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Pin the record-actions column to the right edge so it stays visible while
+     * the table scrolls horizontally.
+     */
+    public function stickyActions(bool $condition = true): static
+    {
+        $this->stickyActions = $condition;
+
+        return $this;
+    }
+
+    /**
      * Namespace this table's query-string params (e.g. 'posts_' → posts_search, posts_page).
      */
     public function queryPrefix(string $prefix): static
@@ -312,7 +364,7 @@ class Table implements Arrayable, JsonSerializable
         $direction = $this->param('direction', 'asc');
         if ($sort !== null && $sort !== '') {
             // Only allow direct columns to prevent join validation errors
-            if (!str_contains($sort, '.')) {
+            if (! str_contains($sort, '.')) {
                 $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
             }
         }
@@ -341,7 +393,7 @@ class Table implements Arrayable, JsonSerializable
         $query = $this->getResolvedQuery();
 
         // Paginate if enabled
-        $records = [];
+        $records    = [];
         $pagination = null;
 
         $perPage = (int) $this->param('perPage', (string) $this->defaultPaginationPageOption);
@@ -358,6 +410,8 @@ class Table implements Arrayable, JsonSerializable
                 perPage: $paginator->perPage(),
                 currentPage: $paginator->currentPage(),
                 lastPage: $paginator->lastPage(),
+                from: $paginator->firstItem(),
+                to: $paginator->lastItem(),
             );
         } else {
             $items = $query->get();
@@ -377,9 +431,10 @@ class Table implements Arrayable, JsonSerializable
         $columnsData = array_map(fn ($c) => $c->toData(), $this->columns);
         $filtersData = array_map(fn ($f) => $f->toData(), $this->filters);
         // Drop actions the current user is not authorized to see.
-        $recordActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->recordActions)));
+        $recordActionsData  = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->recordActions)));
         $toolbarActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->toolbarActions)));
-        $bulkActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
+        $bulkActionsData    = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
+        $footerActionsData  = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->footerActions)));
 
         $state = new TableStateData(
             search: (string) $this->param('search', ''),
@@ -394,7 +449,8 @@ class Table implements Arrayable, JsonSerializable
             description: $this->description,
             poll: $this->poll,
             isStriped: $this->isStriped,
-            model: \Illuminate\Support\Facades\Crypt::encrypt([
+            stickyActions: $this->stickyActions,
+            model: Crypt::encrypt([
                 'model'   => $this->getModelClass(),
                 'columns' => $editableColumns,
             ]),
@@ -403,6 +459,7 @@ class Table implements Arrayable, JsonSerializable
             recordActions: $recordActionsData,
             toolbarActions: $toolbarActionsData,
             bulkActions: $bulkActionsData,
+            footerActions: $footerActionsData,
             records: $records,
             isPaginated: $this->isPaginated,
             paginationPageOptions: $this->paginationPageOptions,
@@ -434,8 +491,11 @@ class Table implements Arrayable, JsonSerializable
         $rowDescriptions = [];
 
         foreach ($this->columns as $column) {
-            $colName             = $column->getName();
-            $state               = $column->getState($record);
+            $colName = $column->getName();
+            // Image columns resolve their stored path to a disk URL.
+            $state = $column instanceof ImageColumn
+                ? $column->getImageUrl($record)
+                : $column->getState($record);
             $rowValues[$colName] = $state;
 
             if ($column instanceof IconColumn) {

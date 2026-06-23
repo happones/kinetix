@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
+use Happones\Kinetix\Support\Contracts\HasColor;
+use Happones\Kinetix\Support\Contracts\HasIcon;
 use Illuminate\Database\Eloquent\Model;
 
 class IconColumn extends Column
@@ -68,7 +70,7 @@ class IconColumn extends Column
     {
         $state = $this->getState($record);
 
-        if ($state instanceof \Happones\Kinetix\Support\Contracts\HasIcon) {
+        if ($state instanceof HasIcon) {
             return $state->getIcon();
         }
 
@@ -96,7 +98,7 @@ class IconColumn extends Column
     {
         $state = $this->getState($record);
 
-        if ($state instanceof \Happones\Kinetix\Support\Contracts\HasColor) {
+        if ($state instanceof HasColor) {
             return $state->getColor() ?? 'gray';
         }
 

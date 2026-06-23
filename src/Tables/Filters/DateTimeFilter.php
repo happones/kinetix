@@ -12,6 +12,14 @@ class DateTimeFilter extends Filter
 
     protected string $operator = '>=';
 
+    protected bool $useCalendar = true;
+
+    protected ?string $locale = null;
+
+    protected int $minuteStep = 5;
+
+    protected bool $hour12 = false;
+
     protected function getType(): string
     {
         return 'datetime';
@@ -35,6 +43,59 @@ class DateTimeFilter extends Filter
         $this->operator = $operator;
 
         return $this;
+    }
+
+    /**
+     * Opt out of the shadcn picker and render a plain native datetime input.
+     */
+    public function native(bool $condition = true): static
+    {
+        $this->useCalendar = ! $condition;
+
+        return $this;
+    }
+
+    /**
+     * BCP-47 locale for the calendar (e.g. 'es', 'fr', 'en-US').
+     */
+    public function locale(string $locale): static
+    {
+        $this->locale = $locale;
+
+        return $this;
+    }
+
+    /**
+     * Minute granularity for the time buttons (default 5).
+     */
+    public function minuteStep(int $step): static
+    {
+        $this->minuteStep = max(1, $step);
+
+        return $this;
+    }
+
+    /**
+     * Use a 12-hour clock with an AM/PM column instead of 24-hour.
+     */
+    public function twelveHour(bool $condition = true): static
+    {
+        $this->hour12 = $condition;
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function getExtraData(): array
+    {
+        return [
+            'useCalendar' => $this->useCalendar,
+            'locale'      => $this->locale,
+            'minuteStep'  => $this->minuteStep,
+            'hour12'      => $this->hour12,
+        ];
     }
 
     public function apply(Builder $query, mixed $value): void

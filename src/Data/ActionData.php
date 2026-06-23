@@ -11,8 +11,8 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 class ActionData extends Data
 {
     /**
-     * @param array<string, mixed> $dispatchData
-     * @param array<string, mixed>|null $inertiaVisit
+     * @param array<string, mixed>        $dispatchData
+     * @param array<string, mixed>|null   $inertiaVisit
      * @param array<int, ActionData>|null $actions
      */
     public function __construct(
@@ -31,6 +31,7 @@ class ActionData extends Data
         public ?string $dispatchEvent = null,
         public array $dispatchData = [],
         public ?array $inertiaVisit = null,
+        public ?array $httpRequest = null,
         public bool $requiresConfirmation = false,
         public ?string $modalHeading = null,
         public ?string $modalDescription = null,
@@ -39,5 +40,10 @@ class ActionData extends Data
         public ?string $modalCancelActionLabel = null,
         public string $type = 'action',
         public ?array $actions = null,
+        // Force a file download of `url` instead of navigating.
+        public bool $isDownload = false,
+        // Open `url` in the file-preview modal (image/pdf) instead of navigating.
+        public bool $isPreview = false,
+        public ?string $previewType = null,
     ) {}
 }

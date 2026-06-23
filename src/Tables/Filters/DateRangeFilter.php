@@ -10,7 +10,7 @@ class DateRangeFilter extends Filter
 {
     protected ?string $attribute = null;
 
-    protected bool $useCalendar = false;
+    protected bool $useCalendar = true;
 
     protected int $numberOfMonths = 1;
 
@@ -40,12 +40,22 @@ class DateRangeFilter extends Filter
     }
 
     /**
-     * Render the shadcn-style range calendar (Reka UI) instead of two native
-     * date inputs. Requires reka-ui + @internationalized/date in the host app.
+     * Render the shadcn-style range calendar (Reka UI). On by default — call
+     * {@see native()} to fall back to two plain native date inputs.
      */
     public function calendar(bool $condition = true): static
     {
         $this->useCalendar = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Opt out of the shadcn calendar and render plain native date inputs.
+     */
+    public function native(bool $condition = true): static
+    {
+        $this->useCalendar = ! $condition;
 
         return $this;
     }
@@ -56,7 +66,7 @@ class DateRangeFilter extends Filter
     public function months(int $count): static
     {
         $this->numberOfMonths = max(1, $count);
-        $this->useCalendar = true;
+        $this->useCalendar    = true;
 
         return $this;
     }
@@ -66,7 +76,7 @@ class DateRangeFilter extends Filter
      */
     public function locale(string $locale): static
     {
-        $this->locale = $locale;
+        $this->locale      = $locale;
         $this->useCalendar = true;
 
         return $this;
@@ -78,7 +88,7 @@ class DateRangeFilter extends Filter
     public function weekdayFormat(string $format): static
     {
         $this->weekdayFormat = $format;
-        $this->useCalendar = true;
+        $this->useCalendar   = true;
 
         return $this;
     }
@@ -88,7 +98,7 @@ class DateRangeFilter extends Filter
      */
     public function fixedWeeks(bool $condition = true): static
     {
-        $this->fixedWeeks = $condition;
+        $this->fixedWeeks  = $condition;
         $this->useCalendar = true;
 
         return $this;
@@ -99,7 +109,7 @@ class DateRangeFilter extends Filter
      */
     public function minValue(string $date): static
     {
-        $this->minValue = $date;
+        $this->minValue    = $date;
         $this->useCalendar = true;
 
         return $this;
@@ -110,7 +120,7 @@ class DateRangeFilter extends Filter
      */
     public function maxValue(string $date): static
     {
-        $this->maxValue = $date;
+        $this->maxValue    = $date;
         $this->useCalendar = true;
 
         return $this;
@@ -140,13 +150,13 @@ class DateRangeFilter extends Filter
             return;
         }
 
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return;
         }
 
         $attribute = $this->attribute ?? $this->name;
-        $from = $value['from'] ?? null;
-        $to = $value['to'] ?? null;
+        $from      = $value['from']   ?? null;
+        $to        = $value['to']     ?? null;
 
         if ($from !== null && $from !== '') {
             $query->whereDate($attribute, '>=', $from);

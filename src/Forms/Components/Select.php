@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms\Components;
 
 use Closure;
+use Happones\Kinetix\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Model;
 
 class Select extends Field
@@ -45,11 +46,11 @@ class Select extends Field
         if (is_string($this->options) && is_subclass_of($this->options, \UnitEnum::class)) {
             $options = [];
             foreach ($this->options::cases() as $case) {
-                $label = $case instanceof \Happones\Kinetix\Support\Contracts\HasLabel
+                $label = $case instanceof HasLabel
                     ? $case->getLabel()
                     : ($case instanceof \BackedEnum ? $case->value : $case->name);
 
-                $value = $case instanceof \BackedEnum ? $case->value : $case->name;
+                $value                    = $case instanceof \BackedEnum ? $case->value : $case->name;
                 $options[(string) $value] = $label;
             }
 

@@ -12,8 +12,8 @@ class InfolistEntryData extends Data
 {
     /**
      * @param array<string, mixed>|int|string|null $columnSpan
-     * @param array<int, InfolistEntryData>|null $schema
-     * @param array<string, string>|null $extraAttributes
+     * @param array<int, InfolistEntryData>|null   $schema
+     * @param array<string, string>|null           $extraAttributes
      */
     public function __construct(
         public string $type,
@@ -37,5 +37,7 @@ class InfolistEntryData extends Data
         public ?string $heading = null,
         public ?string $description = null,
         public ?int $columns = null,
+        // Section header actions (array of ActionData).
+        public ?array $actions = null,
     ) {}
 }

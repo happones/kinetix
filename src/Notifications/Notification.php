@@ -257,6 +257,17 @@ class Notification
     }
 
     /**
+     * Whether system notifications (export/import done, etc.) should be
+     * broadcast in real time. True when `kinetix.notifications.broadcast` is on
+     * OR the `kinetix.broadcasting.echo` block is configured.
+     */
+    public static function shouldBroadcast(): bool
+    {
+        return (bool) config('kinetix.notifications.broadcast', false)
+            || (bool) config('kinetix.broadcasting.echo');
+    }
+
+    /**
      * Dispatch broadcast notification to real-time WebSockets.
      */
     public function broadcast(mixed $recipient = null): static

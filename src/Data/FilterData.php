@@ -28,5 +28,8 @@ class FilterData extends Data
         public bool $fixedWeeks = false,
         public ?string $minValue = null,
         public ?string $maxValue = null,
+        // DateTimeFilter specific — minute granularity + 12h clock toggle.
+        public int $minuteStep = 5,
+        public bool $hour12 = false,
     ) {}
 }

@@ -111,7 +111,7 @@ abstract class Entry extends Component
 
     public function url(string|Closure $url, bool $shouldOpenInNewTab = false): static
     {
-        $this->url = $url;
+        $this->url             = $url;
         $this->openUrlInNewTab = $shouldOpenInNewTab;
 
         return $this;
@@ -262,9 +262,9 @@ abstract class Entry extends Component
             return null;
         }
 
-        $label = $this->label instanceof Closure ? ($this->label)($record) : $this->label;
+        $label       = $this->label instanceof Closure ? ($this->label)($record) : $this->label;
         $placeholder = $this->placeholder instanceof Closure ? ($this->placeholder)($record) : $this->placeholder;
-        $extra = $this->getExtraData($record);
+        $extra       = $this->getExtraData($record);
 
         return new InfolistEntryData(
             type: $this->getType(),
@@ -277,11 +277,11 @@ abstract class Entry extends Component
             color: $this->getColor($record),
             url: $this->getUrl($record),
             openUrlInNewTab: $this->openUrlInNewTab,
-            isBadge: $extra['isBadge'] ?? null,
+            isBadge: $extra['isBadge']       ?? null,
             isCopyable: $extra['isCopyable'] ?? null,
             isCircular: $extra['isCircular'] ?? null,
-            size: $extra['size'] ?? null,
-            isInline: $extra['isInline'] ?? false,
+            size: $extra['size']             ?? null,
+            isInline: $extra['isInline']     ?? false,
             extraAttributes: $this->extraAttributes ?: null,
         );
     }

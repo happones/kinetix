@@ -11,12 +11,12 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 class TableRowData extends Data
 {
     /**
-     * @param array<string, mixed> $values
-     * @param array<string, string|null> $icons
-     * @param array<string, string> $iconColors
-     * @param array<string, string> $badgeColors
+     * @param array<string, mixed>                                      $values
+     * @param array<string, string|null>                                $icons
+     * @param array<string, string>                                     $iconColors
+     * @param array<string, string>                                     $badgeColors
      * @param array<string, array{text: string|null, position: string}> $descriptions
-     * @param array<int, ActionData> $actions
+     * @param array<int, ActionData>                                    $actions
      */
     public function __construct(
         public mixed $id,

@@ -7,11 +7,10 @@ namespace Happones\Kinetix\Imports;
 use Happones\Kinetix\Data\ImportOptionsData;
 use Happones\Kinetix\Data\ImportPreviewData;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
+use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 use Throwable;
 
 class ImportController
@@ -39,7 +38,7 @@ class ImportController
             return response()->json(['message' => 'Invalid importer.'], 422);
         }
 
-        $path = $request->file('file')->store($this->storageDirectory);
+        $path = $request->file('file')->store($this->storageDirectory, KinetixDisk::name());
 
         return response()->json(
             $this->buildPreview($importer, $path, $this->optionsFromRequest($request))->toArray()
@@ -58,7 +57,7 @@ class ImportController
 
         try {
             $importer = Importer::fromToken($request->string('importer')->toString());
-            $path = $this->resolvePath($request->string('fileToken')->toString());
+            $path     = $this->resolvePath($request->string('fileToken')->toString());
         } catch (Throwable $e) {
             return response()->json(['message' => 'Invalid import session.'], 422);
         }
@@ -81,7 +80,7 @@ class ImportController
 
         try {
             $importer = Importer::fromToken($request->string('importer')->toString());
-            $path = $this->resolvePath($request->string('fileToken')->toString());
+            $path     = $this->resolvePath($request->string('fileToken')->toString());
         } catch (Throwable $e) {
             return response()->json(['message' => 'Invalid import session.'], 422);
         }
@@ -92,7 +91,7 @@ class ImportController
         // isset() is false for both absent keys and null values, covering "not mapped".
         $missing = array_filter(
             $importer::getRequiredColumns(),
-            fn (string $column) => !isset($mapping[$column])
+            fn (string $column) => ! isset($mapping[$column])
         );
 
         if ($missing !== []) {
@@ -104,14 +103,20 @@ class ImportController
 
         $user = $request->user();
 
-        ImportProcessor::dispatch(
+        $pending = ImportProcessor::dispatch(
             $importer::class,
             $path,
             $this->optionsFromRequest($request)->toArray(),
             $mapping,
             $user !== null ? $user::class : null,
             $user?->getKey(),
-        )->onQueue($importer->queue() ?? config('queue.default'));
+        );
+
+        // Use the connection's default queue unless the importer pins a specific
+        // one — config('queue.default') is the connection name, not a queue.
+        if (($queue = $importer->queue()) !== null) {
+            $pending->onQueue($queue);
+        }
 
         return response()->json(['status' => 'queued']);
     }
@@ -121,10 +126,14 @@ class ImportController
      */
     protected function buildPreview(Importer $importer, string $path, ImportOptionsData $options): ImportPreviewData
     {
-        $absolutePath = Storage::path($path);
+        [$absolutePath, $isTemp] = KinetixDisk::localReadablePath(KinetixDisk::name(), $path);
 
-        $parsed = FileReader::read($absolutePath, $options, $this->previewRows);
-        $total = FileReader::countRows($absolutePath, $options);
+        try {
+            $parsed = FileReader::read($absolutePath, $options, $this->previewRows);
+            $total  = FileReader::countRows($absolutePath, $options);
+        } finally {
+            KinetixDisk::discardTemp($absolutePath, $isTemp);
+        }
 
         return new ImportPreviewData(
             headers: $parsed['headers'],
@@ -145,7 +154,7 @@ class ImportController
         $path = Crypt::decryptString($token);
 
         // Constrain access to the import storage directory to prevent traversal.
-        if (!str_starts_with($path, $this->storageDirectory.'/') || str_contains($path, '..')) {
+        if (! str_starts_with($path, $this->storageDirectory.'/') || str_contains($path, '..')) {
             throw new \RuntimeException('Invalid file token.');
         }
 

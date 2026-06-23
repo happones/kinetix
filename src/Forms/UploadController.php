@@ -39,7 +39,7 @@ class UploadController
             return response()->json(['message' => $validator->errors()->first('file')], 422);
         }
 
-        $disk = (string) ($config['disk'] ?? 'public');
+        $disk      = (string) ($config['disk'] ?? config('kinetix.filesystem.disk', 'public'));
         $directory = (string) ($config['directory'] ?? 'uploads');
 
         $path = $request->file('file')->store($directory, $disk);
@@ -68,11 +68,11 @@ class UploadController
             return response()->json(['message' => 'Invalid upload field.'], 422);
         }
 
-        $disk = (string) ($config['disk'] ?? 'public');
+        $disk      = (string) ($config['disk'] ?? config('kinetix.filesystem.disk', 'public'));
         $directory = trim((string) ($config['directory'] ?? 'uploads'), '/');
-        $path = $request->string('path')->toString();
+        $path      = $request->string('path')->toString();
 
-        if (!str_starts_with($path, $directory.'/') || str_contains($path, '..')) {
+        if (! str_starts_with($path, $directory.'/') || str_contains($path, '..')) {
             return response()->json(['message' => 'Invalid file path.'], 403);
         }
 
@@ -84,26 +84,26 @@ class UploadController
     /**
      * Build Laravel validation rules for the uploaded file from the field config.
      *
-     * @param array<string, mixed> $config
+     * @param  array<string, mixed> $config
      * @return array<int, string>
      */
     protected function buildRules(array $config): array
     {
         $rules = ['required', 'file'];
 
-        if (!empty($config['image'])) {
+        if (! empty($config['image'])) {
             $rules[] = 'image';
         }
 
-        if (!empty($config['maxSize'])) {
+        if (! empty($config['maxSize'])) {
             $rules[] = 'max:'.(int) $config['maxSize'];
         }
 
         $accept = $config['accept'] ?? [];
 
         if (is_array($accept) && $accept !== []) {
-            $mimeTypes = array_filter($accept, fn ($type) => str_contains((string) $type, '/'));
-            $extensions = array_filter($accept, fn ($type) => !str_contains((string) $type, '/'));
+            $mimeTypes  = array_filter($accept, fn ($type) => str_contains((string) $type, '/'));
+            $extensions = array_filter($accept, fn ($type) => ! str_contains((string) $type, '/'));
 
             if ($mimeTypes !== []) {
                 $rules[] = 'mimetypes:'.implode(',', $mimeTypes);

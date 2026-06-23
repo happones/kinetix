@@ -24,6 +24,14 @@ abstract class RelationManager implements Arrayable, JsonSerializable
      */
     protected static ?string $title = null;
 
+    /**
+     * Pages this relation manager appears on. Defaults to both the edit and the
+     * view (show) page; restrict to one with e.g. `['view']`.
+     *
+     * @var array<int, string>
+     */
+    protected static array $visibleOn = ['edit', 'view'];
+
     protected ?Model $parent = null;
 
     public function __construct(?Model $parent = null)
@@ -49,6 +57,15 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     public static function getRelationship(): string
     {
         return static::$relationship;
+    }
+
+    /**
+     * Whether this relation manager should be shown on the given page
+     * ('edit' | 'view'). Override for per-record logic if needed.
+     */
+    public static function isVisibleOn(string $page): bool
+    {
+        return in_array($page, static::$visibleOn, true);
     }
 
     /**

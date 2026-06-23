@@ -31,10 +31,10 @@ class FileReader
     public static function countRows(string $path, ImportOptionsData $options): int
     {
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        $overhead = $options->skipLines + ($options->hasHeader ? 1 : 0);
+        $overhead  = $options->skipLines + ($options->hasHeader ? 1 : 0);
 
         if (in_array($extension, ['csv', 'txt', 'tsv'], true)) {
-            $lines = 0;
+            $lines  = 0;
             $handle = fopen($path, 'r');
 
             if ($handle === false) {
@@ -53,7 +53,7 @@ class FileReader
         $reader = IOFactory::createReaderForFile($path);
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($path);
-        $highestRow = $spreadsheet->getActiveSheet()->getHighestDataRow();
+        $highestRow  = $spreadsheet->getActiveSheet()->getHighestDataRow();
         $spreadsheet->disconnectWorksheets();
 
         return max(0, $highestRow - $overhead);
@@ -64,7 +64,7 @@ class FileReader
      */
     protected static function readCsv(string $path, ImportOptionsData $options, ?int $limit): array
     {
-        $rows = [];
+        $rows   = [];
         $handle = fopen($path, 'r');
 
         if ($handle === false) {
@@ -107,7 +107,7 @@ class FileReader
         $reader = IOFactory::createReaderForFile($path);
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($path);
-        $sheet = $spreadsheet->getActiveSheet();
+        $sheet       = $spreadsheet->getActiveSheet();
 
         $allRows = $sheet->toArray(null, true, false, false);
         $spreadsheet->disconnectWorksheets();
@@ -116,7 +116,7 @@ class FileReader
             $allRows = array_slice($allRows, $options->skipLines);
         }
 
-        $rows = [];
+        $rows    = [];
         $maxRows = $limit !== null ? $limit + ($options->hasHeader ? 1 : 0) : null;
 
         foreach ($allRows as $record) {
@@ -133,7 +133,7 @@ class FileReader
     /**
      * Split raw rows into headers + data, generating headers when the file has none.
      *
-     * @param array<int, array<int, string|null>> $rows
+     * @param  array<int, array<int, string|null>>                                           $rows
      * @return array{headers: array<int, string>, rows: array<int, array<int, string|null>>}
      */
     protected static function splitHeader(array $rows, ImportOptionsData $options): array
@@ -144,13 +144,13 @@ class FileReader
 
         if ($options->hasHeader) {
             $headerRow = array_shift($rows);
-            $headers = array_map(static fn ($value) => (string) $value, $headerRow);
+            $headers   = array_map(static fn ($value) => (string) $value, $headerRow);
 
             return ['headers' => $headers, 'rows' => array_values($rows)];
         }
 
         $columnCount = count($rows[0]);
-        $headers = [];
+        $headers     = [];
         for ($i = 0; $i < $columnCount; $i++) {
             $headers[] = 'Column '.($i + 1);
         }

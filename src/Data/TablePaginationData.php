@@ -15,5 +15,7 @@ class TablePaginationData extends Data
         public int $perPage,
         public int $currentPage,
         public int $lastPage,
+        public ?int $from = null,
+        public ?int $to = null,
     ) {}
 }

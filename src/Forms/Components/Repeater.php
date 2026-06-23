@@ -75,9 +75,9 @@ class Repeater extends Field
             }
         }
 
-        $data->schema = $childData;
-        $data->minItems = $this->minItems;
-        $data->maxItems = $this->maxItems;
+        $data->schema         = $childData;
+        $data->minItems       = $this->minItems;
+        $data->maxItems       = $this->maxItems;
         $data->addActionLabel = $this->addActionLabel;
 
         return $data;

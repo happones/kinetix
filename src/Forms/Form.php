@@ -34,8 +34,8 @@ class Form implements Arrayable, JsonSerializable
     public function __construct(?Model $record = null)
     {
         if ($record !== null) {
-            $this->record = $record;
-            $this->model = get_class($record);
+            $this->record    = $record;
+            $this->model     = get_class($record);
             $this->operation = $record->exists ? 'edit' : 'create';
         }
 
@@ -96,11 +96,11 @@ class Form implements Arrayable, JsonSerializable
     public function fill(mixed $data = []): static
     {
         if ($data instanceof Model) {
-            $this->record = $data;
-            $this->model = get_class($data);
+            $this->record    = $data;
+            $this->model     = get_class($data);
             $this->operation = $data->exists ? 'edit' : 'create';
 
-            $fields = $this->getFields();
+            $fields        = $this->getFields();
             $extractedData = [];
             foreach ($fields as $name => $field) {
                 $value = data_get($data, $name);
@@ -108,7 +108,7 @@ class Form implements Arrayable, JsonSerializable
                     $value = $field->getDefaultValue($data);
                 }
 
-                $value = $field->hydrate($value, $data);
+                $value                = $field->hydrate($value, $data);
                 $extractedData[$name] = $value;
             }
             $this->data = $extractedData;
@@ -117,8 +117,8 @@ class Form implements Arrayable, JsonSerializable
 
             $fields = $this->getFields();
             foreach ($fields as $name => $field) {
-                if (!array_key_exists($name, $this->data)) {
-                    $val = $field->getDefaultValue($this->record);
+                if (! array_key_exists($name, $this->data)) {
+                    $val               = $field->getDefaultValue($this->record);
                     $this->data[$name] = $field->hydrate($val, $this->record);
                 }
             }
@@ -134,10 +134,10 @@ class Form implements Arrayable, JsonSerializable
      */
     public function getValidationRules(): array
     {
-        $rules = [];
+        $rules  = [];
         $fields = $this->getFields();
         foreach ($fields as $name => $field) {
-            if (!$field->isHidden($this->operation, $this->record)) {
+            if (! $field->isHidden($this->operation, $this->record)) {
                 $rules[$name] = $field->getRules($this->record);
             }
         }
@@ -152,7 +152,7 @@ class Form implements Arrayable, JsonSerializable
      */
     public function validate(array $inputData = []): array
     {
-        $data = array_merge($this->data, $inputData);
+        $data  = array_merge($this->data, $inputData);
         $rules = $this->getValidationRules();
 
         $validator = Validator::make($data, $rules);
@@ -167,13 +167,13 @@ class Form implements Arrayable, JsonSerializable
      */
     public function getState(array $inputData = []): array
     {
-        $data = array_merge($this->data, $inputData);
-        $state = [];
+        $data   = array_merge($this->data, $inputData);
+        $state  = [];
         $fields = $this->getFields();
 
         foreach ($fields as $name => $field) {
-            if (!$field->isHidden($this->operation, $this->record) && $field->isSaved()) {
-                $value = $data[$name] ?? $field->getDefaultValue($this->record);
+            if (! $field->isHidden($this->operation, $this->record) && $field->isSaved()) {
+                $value        = $data[$name] ?? $field->getDefaultValue($this->record);
                 $state[$name] = $field->dehydrate($value, $this->record);
             }
         }
@@ -198,7 +198,7 @@ class Form implements Arrayable, JsonSerializable
      * Extract fields recursively.
      *
      * @param array<int, Component> $components
-     * @param array<string, Field> $fields
+     * @param array<string, Field>  $fields
      */
     protected function extractFields(array $components, array &$fields): void
     {

@@ -7,7 +7,6 @@ namespace Happones\Kinetix\Tables\Columns;
 use Closure;
 use Happones\Kinetix\Data\ColumnData;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
 
 abstract class Column
 {
@@ -69,7 +68,7 @@ abstract class Column
 
     public function toggleable(bool $isToggleable = true, bool $isToggledHiddenByDefault = false): static
     {
-        $this->isToggleable = $isToggleable;
+        $this->isToggleable             = $isToggleable;
         $this->isToggledHiddenByDefault = $isToggledHiddenByDefault;
 
         return $this;
@@ -129,14 +128,15 @@ abstract class Column
             isToggleable: $this->isToggleable,
             isToggledHiddenByDefault: $this->isToggledHiddenByDefault,
             type: $this->getType(),
-            isCopyable: $extra['isCopyable'] ?? null,
-            isCircular: $extra['isCircular'] ?? null,
-            size: $extra['size'] ?? null,
-            options: $extra['options'] ?? null,
-            isBadge: $extra['isBadge'] ?? null,
+            isCopyable: $extra['isCopyable']                   ?? null,
+            isCircular: $extra['isCircular']                   ?? null,
+            size: $extra['size']                               ?? null,
+            isPreviewable: $extra['isPreviewable']             ?? null,
+            options: $extra['options']                         ?? null,
+            isBadge: $extra['isBadge']                         ?? null,
             descriptionPosition: $extra['descriptionPosition'] ?? null,
-            inputType: $extra['inputType'] ?? null,
-            placeholder: $extra['placeholder'] ?? null,
+            inputType: $extra['inputType']                     ?? null,
+            placeholder: $extra['placeholder']                 ?? null,
         );
     }
 

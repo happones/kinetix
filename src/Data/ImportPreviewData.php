@@ -11,10 +11,10 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 class ImportPreviewData extends Data
 {
     /**
-     * @param array<int, string> $headers
+     * @param array<int, string>                  $headers
      * @param array<int, array<int, string|null>> $rows
-     * @param array<int, ImportColumnData> $columns
-     * @param array<string, int|null> $autoMapping Map of target column name => source header index (or null)
+     * @param array<int, ImportColumnData>        $columns
+     * @param array<string, int|null>             $autoMapping Map of target column name => source header index (or null)
      */
     public function __construct(
         public array $headers,

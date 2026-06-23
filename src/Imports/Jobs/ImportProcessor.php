@@ -8,6 +8,7 @@ use Happones\Kinetix\Data\ImportOptionsData;
 use Happones\Kinetix\Imports\FileReader;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Notifications\Notification;
+use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -26,10 +27,10 @@ class ImportProcessor implements ShouldQueue
     use SerializesModels;
 
     /**
-     * @param class-string<Importer> $importerClass
-     * @param array<string, mixed> $options
-     * @param array<string, int|null> $mapping column name => source header index
-     * @param class-string|null $recipientClass
+     * @param class-string<Importer>  $importerClass
+     * @param array<string, mixed>    $options
+     * @param array<string, int|null> $mapping        column name => source header index
+     * @param class-string|null       $recipientClass
      */
     public function __construct(
         protected string $importerClass,
@@ -43,16 +44,24 @@ class ImportProcessor implements ShouldQueue
     public function handle(): void
     {
         /** @var Importer $importer */
-        $importer = new $this->importerClass();
-        $options = ImportOptionsData::from($this->options);
+        $importer = new $this->importerClass;
+        $options  = ImportOptionsData::from($this->options);
 
-        $parsed = FileReader::read(Storage::path($this->path), $options);
+        $disk                 = KinetixDisk::name();
+        [$localPath, $isTemp] = KinetixDisk::localReadablePath($disk, $this->path);
+
+        try {
+            $parsed = FileReader::read($localPath, $options);
+        } finally {
+            KinetixDisk::discardTemp($localPath, $isTemp);
+        }
+
         $rows = $parsed['rows'];
 
         $rules = $this->mappedRules($importer);
 
         $imported = 0;
-        $failed = 0;
+        $failed   = 0;
 
         foreach (array_chunk($rows, max(1, $importer->chunkSize())) as $chunk) {
             DB::transaction(function () use ($chunk, $importer, $rules, &$imported, &$failed): void {
@@ -75,7 +84,7 @@ class ImportProcessor implements ShouldQueue
             });
         }
 
-        Storage::delete($this->path);
+        Storage::disk($disk)->delete($this->path);
 
         $this->notify($imported, $failed);
     }
@@ -83,7 +92,7 @@ class ImportProcessor implements ShouldQueue
     /**
      * Translate a raw source row into a column-name keyed array using the mapping.
      *
-     * @param array<int, string|null> $row
+     * @param  array<int, string|null> $row
      * @return array<string, mixed>
      */
     protected function mapRow(array $row): array
@@ -148,7 +157,7 @@ class ImportProcessor implements ShouldQueue
             ->body((string) $body)
             ->status($failed > 0 ? 'warning' : 'success');
 
-        if (config('kinetix.broadcasting.echo')) {
+        if (Notification::shouldBroadcast()) {
             $notification->broadcast($recipient);
 
             return;

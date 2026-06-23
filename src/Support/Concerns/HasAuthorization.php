@@ -48,7 +48,7 @@ trait HasAuthorization
      */
     public function authorize(string|Closure|bool $ability, mixed $arguments = null): static
     {
-        $this->authorizeUsing = $ability;
+        $this->authorizeUsing     = $ability;
         $this->authorizeArguments = $arguments;
 
         return $this;
@@ -67,10 +67,10 @@ trait HasAuthorization
         }
 
         if ($this->isVisible instanceof Closure) {
-            if ($record !== null && !($this->isVisible)($record)) {
+            if ($record !== null && ! ($this->isVisible)($record)) {
                 return false;
             }
-        } elseif (!$this->isVisible) {
+        } elseif (! $this->isVisible) {
             return false;
         }
 

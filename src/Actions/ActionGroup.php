@@ -100,7 +100,7 @@ class ActionGroup
      */
     public function toData(?Model $record = null): ?ActionData
     {
-        if (!$this->shouldRender($record)) {
+        if (! $this->shouldRender($record)) {
             return null;
         }
 

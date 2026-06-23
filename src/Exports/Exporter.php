@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Exports;
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
 
 abstract class Exporter
@@ -15,6 +16,29 @@ abstract class Exporter
      * The Eloquent model exported by default.
      */
     protected static ?string $model = null;
+
+    /**
+     * A signed token identifying this exporter class, safe to send to the
+     * frontend (used by ExportAction to hit the export-start endpoint).
+     */
+    public static function token(): string
+    {
+        return Crypt::encryptString(static::class);
+    }
+
+    /**
+     * Resolve an exporter instance from a signed token, validating the class.
+     */
+    public static function fromToken(string $token): self
+    {
+        $class = Crypt::decryptString($token);
+
+        if (! class_exists($class) || ! is_subclass_of($class, self::class)) {
+            throw new RuntimeException('Invalid exporter token.');
+        }
+
+        return new $class;
+    }
 
     /**
      * Define the columns written to the export file.
@@ -40,6 +64,26 @@ abstract class Exporter
         $model = static::getModel();
 
         return $model::query();
+    }
+
+    /**
+     * The query actually exported: {@see query()} automatically narrowed to the
+     * selected `ids` when the export was triggered from a bulk action. This is
+     * what the processor runs, so a bulk export of N selected rows exports
+     * exactly those N — no need to read `parameter('ids')` in your `query()`.
+     */
+    public function resolveExportQuery(): Builder
+    {
+        $query = $this->query();
+
+        /** @var array<int, mixed> $ids */
+        $ids = (array) $this->parameter('ids', []);
+
+        if ($ids !== []) {
+            $query->whereKey($ids);
+        }
+
+        return $query;
     }
 
     /**
@@ -89,14 +133,51 @@ abstract class Exporter
     }
 
     /**
-     * Dispatch the queued export. The recipient receives a download notification.
+     * Runtime parameters passed to the queued export (e.g. selected `ids`,
+     * filters). Read them in {@see query()} via {@see parameter()}.
+     *
+     * @var array<string, mixed>
      */
-    public function export(?Model $recipient = null): void
+    protected array $parameters = [];
+
+    /**
+     * @param array<string, mixed> $parameters
+     */
+    public function withParameters(array $parameters): static
     {
-        ExportProcessor::dispatch(
+        $this->parameters = $parameters;
+
+        return $this;
+    }
+
+    /**
+     * Read a runtime parameter (set via {@see withParameters()} / {@see export()}).
+     */
+    public function parameter(string $key, mixed $default = null): mixed
+    {
+        return $this->parameters[$key] ?? $default;
+    }
+
+    /**
+     * Dispatch the queued export. The recipient receives a download notification.
+     * `$parameters` (e.g. `['ids' => [...]]`) reach the exporter inside the job.
+     *
+     * @param array<string, mixed> $parameters
+     */
+    public function export(?Model $recipient = null, array $parameters = []): void
+    {
+        $pending = ExportProcessor::dispatch(
             static::class,
             $recipient !== null ? $recipient::class : null,
             $recipient?->getKey(),
-        )->onQueue($this->queue() ?? config('queue.default'));
+            $parameters !== [] ? $parameters : $this->parameters,
+        );
+
+        // Only pin a specific queue when the exporter defines one; otherwise use
+        // the connection's default queue. (Passing config('queue.default') here
+        // is the connection NAME, not a queue — Horizon would never pick it up.)
+        if (($queue = $this->queue()) !== null) {
+            $pending->onQueue($queue);
+        }
     }
 }

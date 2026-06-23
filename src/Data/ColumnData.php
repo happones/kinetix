@@ -27,6 +27,7 @@ class ColumnData extends Data
         // ImageColumn specific
         public ?bool $isCircular = null,
         public ?int $size = null,
+        public ?bool $isPreviewable = null,
         // SelectColumn specific
         public ?array $options = null,
         // TextColumn specific

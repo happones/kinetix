@@ -17,7 +17,7 @@ class MakeRelationManagerCommand extends GeneratorCommand
 
     protected function stub(string $class): string
     {
-        $namespace = $this->namespace();
+        $namespace    = $this->namespace();
         $relationship = $this->option('relationship') ?: 'items';
 
         return <<<PHP
@@ -34,6 +34,9 @@ class MakeRelationManagerCommand extends GeneratorCommand
         class {$class} extends RelationManager
         {
             protected static string \$relationship = '{$relationship}';
+
+            // Pages this manager appears on. Restrict with e.g. ['view'] or ['edit'].
+            protected static array \$visibleOn = ['edit', 'view'];
 
             public function table(Table \$table): Table
             {

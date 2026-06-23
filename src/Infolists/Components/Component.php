@@ -93,7 +93,7 @@ abstract class Component
 
         if ($this->visibleOn !== null) {
             $visibleOn = is_array($this->visibleOn) ? $this->visibleOn : [$this->visibleOn];
-            if (!in_array($operation, $visibleOn, true)) {
+            if (! in_array($operation, $visibleOn, true)) {
                 return true;
             }
         }
@@ -107,10 +107,10 @@ abstract class Component
         }
 
         if ($this->isVisible instanceof Closure) {
-            if (!($this->isVisible)($record)) {
+            if (! ($this->isVisible)($record)) {
                 return true;
             }
-        } elseif (!$this->isVisible) {
+        } elseif (! $this->isVisible) {
             return true;
         }
 

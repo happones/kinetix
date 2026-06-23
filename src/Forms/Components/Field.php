@@ -30,7 +30,6 @@ abstract class Field extends Component
 
     protected bool $isSaved = true;
 
-
     /**
      * @var array<int, mixed>
      */
@@ -167,7 +166,7 @@ abstract class Field extends Component
      */
     public function rules(mixed $rules): static
     {
-        $rules = is_array($rules) ? $rules : [$rules];
+        $rules       = is_array($rules) ? $rules : [$rules];
         $this->rules = array_merge($this->rules, $rules);
 
         return $this;
@@ -291,10 +290,10 @@ abstract class Field extends Component
             return null;
         }
 
-        $label = $this->label instanceof Closure ? ($this->label)($record) : $this->label;
+        $label       = $this->label instanceof Closure ? ($this->label)($record) : $this->label;
         $placeholder = $this->placeholder instanceof Closure ? ($this->placeholder)($record) : $this->placeholder;
-        $prefix = $this->prefix instanceof Closure ? ($this->prefix)($record) : $this->prefix;
-        $suffix = $this->suffix instanceof Closure ? ($this->suffix)($record) : $this->suffix;
+        $prefix      = $this->prefix instanceof Closure ? ($this->prefix)($record) : $this->prefix;
+        $suffix      = $this->suffix instanceof Closure ? ($this->suffix)($record) : $this->suffix;
 
         $isDisabled = $this->isDisabled;
         if ($isDisabled instanceof Closure) {
@@ -317,7 +316,21 @@ abstract class Field extends Component
             extraAttributes: $this->extraAttributes ?: null,
             extraInputAttributes: $this->extraInputAttributes ?: null,
             extraFieldWrapperAttributes: $this->extraFieldWrapperAttributes ?: null,
+            useCalendar: $this->dateConfig()['useCalendar'],
+            dateLocale: $this->dateConfig()['locale'],
+            minuteStep: $this->dateConfig()['minuteStep'],
+            hour12: $this->dateConfig()['hour12'],
         );
+    }
+
+    /**
+     * Date/DateTime picker configuration. Overridden by DatePicker/DateTimePicker.
+     *
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool}
+     */
+    protected function dateConfig(): array
+    {
+        return ['useCalendar' => false, 'locale' => null, 'minuteStep' => 5, 'hour12' => false];
     }
 
     /**
