@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-23
+
+### Added
+
+- Automated installer command `php artisan kinetix:install` to initialize frontend dependencies (Pinia, Vue i18n).
+- Setup guide details for integrating Vue i18n dynamically using Inertia's `withApp` option in the main entry file (`app.ts` / `app.js`).
+
 ## [0.1.1] - 2026-06-22
 
 ### Added
