@@ -1,0 +1,145 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Happones\Kinetix\Billing;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
+
+/**
+ * A billing plan. Features are a nested JSON structure (usage limits + capability
+ * flags) resolved via dot-notation, e.g. `usage.seats`, `capabilities.api`.
+ *
+ * @property string                    $name
+ * @property string                    $slug
+ * @property string|null               $description
+ * @property numeric-string|float|null $monthly_price
+ * @property numeric-string|float|null $yearly_price
+ * @property string|null               $stripe_monthly_price_id
+ * @property string|null               $stripe_yearly_price_id
+ * @property array<string, mixed>|null $features
+ * @property array<int, string>|null   $highlighted_features
+ * @property bool                      $is_featured
+ * @property bool                      $is_active
+ * @property int                       $sort_order
+ */
+class Plan extends Model
+{
+    protected $table = 'plans';
+
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'name',
+        'slug',
+        'description',
+        'monthly_price',
+        'yearly_price',
+        'stripe_monthly_price_id',
+        'stripe_yearly_price_id',
+        'features',
+        'highlighted_features',
+        'is_featured',
+        'is_active',
+        'sort_order',
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'features'             => 'array',
+        'highlighted_features' => 'array',
+        'is_featured'          => 'boolean',
+        'is_active'            => 'boolean',
+        'monthly_price'        => 'decimal:2',
+        'yearly_price'         => 'decimal:2',
+        'sort_order'           => 'integer',
+    ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Plan $plan): void {
+            if (empty($plan->slug) && ! empty($plan->name)) {
+                $plan->slug = Str::slug($plan->name);
+            }
+        });
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeFeatured(Builder $query): Builder
+    {
+        return $query->where('is_featured', true);
+    }
+
+    public function scopeOrdered(Builder $query): Builder
+    {
+        return $query->orderBy('sort_order')->orderBy('monthly_price');
+    }
+
+    /**
+     * Raw feature value at a dot-path (e.g. 'usage.seats'), or $default.
+     */
+    public function featureValue(string $path, mixed $default = null): mixed
+    {
+        return data_get($this->features, $path, $default);
+    }
+
+    /**
+     * Whether the plan grants a feature: booleans as-is, arrays when non-empty,
+     * everything else by truthiness (0 / null = denied).
+     */
+    public function canUseFeature(string $path): bool
+    {
+        $value = data_get($this->features, $path);
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_array($value)) {
+            return count($value) > 0;
+        }
+
+        return (bool) $value;
+    }
+
+    /**
+     * Whether a usage count has reached the plan's limit at $path.
+     * A null limit means unlimited.
+     */
+    public function hasReachedLimit(string $path, int $count): bool
+    {
+        $limit = data_get($this->features, $path);
+
+        if ($limit === null) {
+            return false;
+        }
+
+        return $count >= (int) $limit;
+    }
+
+    public function priceFor(string $cycle = 'monthly'): ?float
+    {
+        $value = $cycle === 'yearly' ? $this->yearly_price : $this->monthly_price;
+
+        return $value === null ? null : (float) $value;
+    }
+
+    public function stripePriceId(string $cycle = 'monthly'): ?string
+    {
+        return $cycle === 'yearly' ? $this->stripe_yearly_price_id : $this->stripe_monthly_price_id;
+    }
+
+    public function isFree(): bool
+    {
+        return (float) $this->monthly_price <= 0.0;
+    }
+}
