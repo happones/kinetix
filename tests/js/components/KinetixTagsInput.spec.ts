@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import KinetixTagsInput from "../KinetixTagsInput.vue";
+import KinetixTagsInput from "@/components/KinetixTagsInput.vue";
 
 describe("KinetixTagsInput", () => {
   it("renders the existing tags", () => {

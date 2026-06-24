@@ -1,7 +1,7 @@
 import { config, mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import KinetixDatePicker from "../KinetixDatePicker.vue";
-import KinetixDateTimePicker from "../KinetixDateTimePicker.vue";
+import KinetixDatePicker from "@/components/KinetixDatePicker.vue";
+import KinetixDateTimePicker from "@/components/KinetixDateTimePicker.vue";
 import { i18n } from "./i18n";
 
 config.global.plugins = [i18n];

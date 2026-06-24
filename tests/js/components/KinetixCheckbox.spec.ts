@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import KinetixCheckbox from "../KinetixCheckbox.vue";
+import KinetixCheckbox from "@/components/KinetixCheckbox.vue";
 
 describe("KinetixCheckbox", () => {
   it("reflects the checked prop via aria-checked", () => {

@@ -37,6 +37,13 @@ This skill contains the conventions, requirements, and implementation patterns f
 - **Sync Documentation**: Whenever new options, components, or configurations are created, always update the relevant markdown files in `docs/` and workspace development skills.
 - **Mandatory Translation & Documentation Checklist**: Whenever creating new components, modules, or features, you **MUST** ensure all corresponding documentation (in `docs/`) and translations (in `resources/lang/` for English, Spanish, French, and Portuguese) are fully written, synchronized, and completed. Do not leave placeholder text or skip translation file updates.
 
+### Versioning & Releases
+- **Semantic Versioning (REQUIRED)**: this package follows [SemVer](https://semver.org) (`MAJOR.MINOR.PATCH`). Bug fixes → PATCH, backward-compatible features → MINOR, breaking changes → MAJOR (pre-1.0, breaking changes may land in MINOR). Releases are git tags; `composer.json` carries no hardcoded version.
+- **Changelog**: every change gets a `CHANGELOG.md` entry (Keep a Changelog). Mark **(published)** anything that changes files consumers receive via `vendor:publish` (components, stores, types, lang, config). Do not mutate an already-published version; cut a new one.
+
+### Test Layout
+- **Frontend specs live in `tests/js/`** (NOT under `resources/js/`), so `vendor:publish` never copies test files into a consumer's app. Vitest `include` points at `tests/js/**`; specs import source via the `@` alias (`@/components/...`, `@/composables/...`, `@/stores/...`). PHP tests live in `tests/` (Testbench). Keep all four suites green: `testbench package:test`, `phpstan`, `pint --test`, `vitest` + `vue-tsc`.
+
 ---
 
 ## 2. Kinetix Notifications

@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import KinetixRadioGroup from "../KinetixRadioGroup.vue";
-import KinetixSelect from "../KinetixSelect.vue";
+import KinetixRadioGroup from "@/components/KinetixRadioGroup.vue";
+import KinetixSelect from "@/components/KinetixSelect.vue";
 
 describe("KinetixSelect", () => {
   it("renders a combobox trigger", () => {

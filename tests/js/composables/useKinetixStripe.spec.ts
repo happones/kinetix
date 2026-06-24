@@ -1,7 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
-import { useKinetixStripe } from "../useKinetixStripe";
+import { useKinetixStripe } from "@/composables/useKinetixStripe";
 
 interface FakeElement {
   type: string;

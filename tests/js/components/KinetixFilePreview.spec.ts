@@ -1,7 +1,7 @@
 import { config, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
-import KinetixFilePreview from "../KinetixFilePreview.vue";
+import KinetixFilePreview from "@/components/KinetixFilePreview.vue";
 import { executeAction } from "@/composables/useKinetixActions";
 import { i18n } from "./i18n";
 

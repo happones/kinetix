@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { createI18n } from "vue-i18n";
-import KinetixFormSchema from "../KinetixFormSchema.vue";
+import KinetixFormSchema from "@/components/KinetixFormSchema.vue";
 
 const i18n = createI18n({
   legacy: false,

@@ -1,8 +1,8 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import KinetixCustomWidget from "../KinetixCustomWidget.vue";
-import KinetixStatsOverviewWidget from "../KinetixStatsOverviewWidget.vue";
-import KinetixTableWidget from "../KinetixTableWidget.vue";
+import KinetixCustomWidget from "@/components/KinetixCustomWidget.vue";
+import KinetixStatsOverviewWidget from "@/components/KinetixStatsOverviewWidget.vue";
+import KinetixTableWidget from "@/components/KinetixTableWidget.vue";
 
 const baseWidget = {
   id: "w1",

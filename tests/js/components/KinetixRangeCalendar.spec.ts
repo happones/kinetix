@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import KinetixRangeCalendar from "../KinetixRangeCalendar.vue";
+import KinetixRangeCalendar from "@/components/KinetixRangeCalendar.vue";
 
 describe("KinetixRangeCalendar", () => {
   it("mounts the shadcn/Reka range calendar with a preset range", () => {

@@ -11,6 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: "happy-dom",
-    include: ["resources/js/**/*.{test,spec}.ts"],
+    // Specs live under tests/js (outside the publishable resources/js tree) so
+    // they are never copied into a consumer's app by `vendor:publish`.
+    include: ["tests/js/**/*.{test,spec}.ts"],
   },
 });

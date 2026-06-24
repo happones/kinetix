@@ -1,10 +1,10 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import Card from "../primitives/Card.vue";
-import CardContent from "../primitives/CardContent.vue";
-import CardFooter from "../primitives/CardFooter.vue";
-import CardHeader from "../primitives/CardHeader.vue";
-import { cn } from "../primitives/cn";
+import Card from "@/components/primitives/Card.vue";
+import CardContent from "@/components/primitives/CardContent.vue";
+import CardFooter from "@/components/primitives/CardFooter.vue";
+import CardHeader from "@/components/primitives/CardHeader.vue";
+import { cn } from "@/components/primitives/cn";
 import {
   badgeVariants,
   buttonVariants,

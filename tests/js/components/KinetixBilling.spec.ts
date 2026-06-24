@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { i18n } from "./i18n";
 
 config.global.plugins = [i18n];
-import KinetixInvoicesTable from "../KinetixInvoicesTable.vue";
-import KinetixPlanCard from "../KinetixPlanCard.vue";
-import KinetixPricingTable from "../KinetixPricingTable.vue";
-import KinetixSubscriptionStatus from "../KinetixSubscriptionStatus.vue";
+import KinetixInvoicesTable from "@/components/KinetixInvoicesTable.vue";
+import KinetixPlanCard from "@/components/KinetixPlanCard.vue";
+import KinetixPricingTable from "@/components/KinetixPricingTable.vue";
+import KinetixSubscriptionStatus from "@/components/KinetixSubscriptionStatus.vue";
 
 const proPlan = {
   id: 1,

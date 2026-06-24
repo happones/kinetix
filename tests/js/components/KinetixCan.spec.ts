@@ -13,7 +13,7 @@ vi.mock("@inertiajs/vue3", () => ({
   }),
 }));
 
-import KinetixCan from "../KinetixCan.vue";
+import KinetixCan from "@/components/KinetixCan.vue";
 
 describe("KinetixCan", () => {
   it("renders the default slot when the permission is granted", () => {

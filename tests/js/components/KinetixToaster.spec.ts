@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import KinetixToaster from "../KinetixToaster.vue";
+import KinetixToaster from "@/components/KinetixToaster.vue";
 
 describe("KinetixToaster", () => {
   it("mounts the sonner Toaster with token-based classes", () => {

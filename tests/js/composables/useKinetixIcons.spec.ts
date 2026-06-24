@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveIcon } from "../useKinetixIcons";
+import { resolveIcon } from "@/composables/useKinetixIcons";
 
 describe("resolveIcon", () => {
   it("resolves every prebuilt action icon name to a component", () => {

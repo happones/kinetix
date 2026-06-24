@@ -1,7 +1,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import type { KinetixPermissionFeature } from "@/types";
-import KinetixPermissionMatrix from "../KinetixPermissionMatrix.vue";
+import KinetixPermissionMatrix from "@/components/KinetixPermissionMatrix.vue";
 import { i18n } from "./i18n";
 
 const features: KinetixPermissionFeature[] = [

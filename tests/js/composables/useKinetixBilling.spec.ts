@@ -10,7 +10,7 @@ vi.mock("@inertiajs/vue3", () => ({
   },
 }));
 
-import { useKinetixBilling } from "../useKinetixBilling";
+import { useKinetixBilling } from "@/composables/useKinetixBilling";
 
 const endpoints = {
   subscribe: "/billing/subscribe",

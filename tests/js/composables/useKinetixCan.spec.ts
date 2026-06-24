@@ -12,7 +12,7 @@ vi.mock("@inertiajs/vue3", () => ({
   }),
 }));
 
-import { useKinetixCan } from "../useKinetixCan";
+import { useKinetixCan } from "@/composables/useKinetixCan";
 
 describe("useKinetixCan", () => {
   it("checks single permissions", () => {
