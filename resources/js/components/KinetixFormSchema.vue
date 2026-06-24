@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
 import KinetixFileUpload from "./KinetixFileUpload.vue";
 import KinetixKeyValue from "./KinetixKeyValue.vue";
+import KinetixLabel from "./KinetixLabel.vue";
 import KinetixRadioGroup from "./KinetixRadioGroup.vue";
 import KinetixSelect from "./KinetixSelect.vue";
 import KinetixTagsInput from "./KinetixTagsInput.vue";
@@ -177,13 +178,12 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
       class="space-y-1.5 flex flex-col"
     >
       <!-- Label -->
-      <label
+      <KinetixLabel
         v-if="comp.type !== 'hidden' && comp.label"
         :for="comp.name"
-        class="text-sm font-medium leading-none text-foreground"
       >
         {{ comp.label }}
-      </label>
+      </KinetixLabel>
 
       <!-- Field Container -->
       <div class="relative w-full">

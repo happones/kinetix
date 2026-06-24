@@ -3,6 +3,7 @@ import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
 import type { KinetixPermissionFeature, KinetixRole } from "@/types";
+import KinetixLabel from "./KinetixLabel.vue";
 import KinetixPermissionMatrix from "./KinetixPermissionMatrix.vue";
 
 const props = defineProps<{
@@ -40,9 +41,7 @@ function submit(): void {
 <template>
   <div class="space-y-4">
     <div>
-      <label class="mb-1 block text-sm font-medium text-foreground">{{
-        t("kinetix.role_name")
-      }}</label>
+      <KinetixLabel class="mb-1">{{ t("kinetix.role_name") }}</KinetixLabel>
       <input v-model="name" type="text" :class="inputClass" />
     </div>
 

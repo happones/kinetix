@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
+import KinetixLabel from "./KinetixLabel.vue";
 import KinetixSelect from "./KinetixSelect.vue";
 
 /**
@@ -40,17 +41,16 @@ function submit(): void {
 </script>
 
 <template>
+  <!-- items-end keeps the inputs and the (label-less) submit button bottom-aligned;
+       every control is h-9 so tops align too. -->
   <form
     class="flex flex-col gap-3 sm:flex-row sm:items-end"
     @submit.prevent="submit"
   >
-    <div class="flex-1 space-y-1">
-      <label
-        class="text-sm font-medium text-foreground"
-        for="kinetix-member-email"
-      >
+    <div class="flex-1 space-y-2">
+      <KinetixLabel for="kinetix-member-email">
         {{ t("kinetix.member_email") }}
-      </label>
+      </KinetixLabel>
       <input
         id="kinetix-member-email"
         v-model="email"
@@ -61,13 +61,10 @@ function submit(): void {
       />
     </div>
 
-    <div class="space-y-1">
-      <label
-        class="text-sm font-medium text-foreground"
-        for="kinetix-member-role"
-      >
+    <div class="space-y-2 sm:w-44">
+      <KinetixLabel for="kinetix-member-role">
         {{ t("kinetix.member_role") }}
-      </label>
+      </KinetixLabel>
       <KinetixSelect
         id="kinetix-member-role"
         :value="role"
@@ -77,7 +74,7 @@ function submit(): void {
       />
     </div>
 
-    <button type="submit" :class="buttonVariants({ size: 'sm' })">
+    <button type="submit" :class="buttonVariants()">
       {{ t("kinetix.member_provision") }}
     </button>
   </form>

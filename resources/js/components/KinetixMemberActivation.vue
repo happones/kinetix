@@ -2,6 +2,7 @@
 import { useForm } from "@inertiajs/vue3";
 import { useI18n } from "vue-i18n";
 import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
+import KinetixLabel from "./KinetixLabel.vue";
 
 /**
  * The public set-password screen a provisioned member lands on from their
@@ -41,13 +42,10 @@ function submit(): void {
     </div>
 
     <form class="space-y-4" @submit.prevent="submit">
-      <div class="space-y-1">
-        <label
-          class="text-sm font-medium text-foreground"
-          for="activation-name"
-        >
+      <div class="space-y-2">
+        <KinetixLabel for="activation-name">
           {{ t("kinetix.activation_name") }}
-        </label>
+        </KinetixLabel>
         <input
           id="activation-name"
           v-model="form.name"
@@ -60,13 +58,10 @@ function submit(): void {
         </p>
       </div>
 
-      <div class="space-y-1">
-        <label
-          class="text-sm font-medium text-foreground"
-          for="activation-password"
-        >
+      <div class="space-y-2">
+        <KinetixLabel for="activation-password">
           {{ t("kinetix.activation_password") }}
-        </label>
+        </KinetixLabel>
         <input
           id="activation-password"
           v-model="form.password"
@@ -79,13 +74,10 @@ function submit(): void {
         </p>
       </div>
 
-      <div class="space-y-1">
-        <label
-          class="text-sm font-medium text-foreground"
-          for="activation-password-confirm"
-        >
+      <div class="space-y-2">
+        <KinetixLabel for="activation-password-confirm">
           {{ t("kinetix.activation_password_confirm") }}
-        </label>
+        </KinetixLabel>
         <input
           id="activation-password-confirm"
           v-model="form.password_confirmation"

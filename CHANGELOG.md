@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-06-24
+
+### Added
+
+- **(published)** `KinetixLabel` — the shadcn-vue new-york-v4 `Label` (built on
+  Reka UI's `Label`), so form field labels stop being hand-styled `<label>`s.
+  Adopted in `KinetixFormSchema`, `KinetixRoleForm` and the membership components.
+
+### Fixed
+
+- **(published)** Membership provisioning form alignment: the "Add member" button
+  used `size: 'sm'` (`h-8`) next to `h-9` inputs/select, so with `items-end` it
+  sat ~4px low. It now uses the default (`h-9`) button — every control is `h-9`,
+  so labels, inputs, the role select and the button line up. Label↔input spacing
+  normalized to `space-y-2`.
+
+### Changed
+
+- `kinetix-development` skill: field labels must use `<KinetixLabel>` (not raw
+  `<label>`), and a note to align rows by matching the `h-9` control height
+  (default button, `items-end`) rather than nudging with margins.
+
 ## [0.4.3] - 2026-06-23
 
 ### Fixed
