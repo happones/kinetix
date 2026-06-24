@@ -13,11 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-23
+
 ### Added
 
 - `kinetix-membership` Laravel Boost skill, and a Membership section in the
   `kinetix-development` skill — documenting the admin-provisioned onboarding
   module shipped in 0.4.0.
+- `kinetix-development` skill rule requiring a consumer-facing Boost skill
+  (`resources/boost/skills/kinetix-<feature>/SKILL.md`) for every new feature.
+- Documented the `HasTeams` × spatie `HasRoles` `teams()` trait collision and its
+  fix (PHP trait conflict resolution — `insteadof` + `as` alias) in the
+  permissions guide (§4) and the `kinetix-permissions` skill.
 
 ## [0.4.0] - 2026-06-23
 

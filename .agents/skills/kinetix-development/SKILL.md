@@ -36,6 +36,7 @@ This skill contains the conventions, requirements, and implementation patterns f
 - **Language PHP Files**: Define matching translation key/value pairs in all language folders under `resources/lang/` (`en`, `es`, `fr`, `pt`).
 - **Sync Documentation**: Whenever new options, components, or configurations are created, always update the relevant markdown files in `docs/` and workspace development skills.
 - **Mandatory Translation & Documentation Checklist**: Whenever creating new components, modules, or features, you **MUST** ensure all corresponding documentation (in `docs/`) and translations (in `resources/lang/` for English, Spanish, French, and Portuguese) are fully written, synchronized, and completed. Do not leave placeholder text or skip translation file updates.
+- **Boost Skill Per Feature (REQUIRED)**: Every new feature/module MUST also ship a consumer-facing Laravel Boost skill at `resources/boost/skills/kinetix-<feature>/SKILL.md` (Laravel Boost auto-discovers that directory — no manifest to edit). Mirror an existing one (e.g. `kinetix-permissions` / `kinetix-membership`): frontmatter `name` + a `description` listing concrete activation triggers, then config, backend usage, frontend usage, and a link to the `docs/<feature>.md` page. Add a matching numbered section to THIS development skill in the same change. A feature is not "done" until both skills exist alongside the `docs/` page and translations.
 
 ### Versioning & Releases
 - **Semantic Versioning (REQUIRED)**: this package follows [SemVer](https://semver.org) (`MAJOR.MINOR.PATCH`). Bug fixes → PATCH, backward-compatible features → MINOR, breaking changes → MAJOR (pre-1.0, breaking changes may land in MINOR). Releases are git tags; `composer.json` carries no hardcoded version.
@@ -323,6 +324,7 @@ Feature-scoped roles and permissions integrated with `spatie/laravel-permission`
 - **Sync Command**: `php artisan kinetix:permissions:sync` (with `--prune`) synchronizes the registry to Spatie database tables.
 - **Middleware**: `SetPermissionsTeam` maps the active `currentTeam` of the user to Spatie's active team id configuration under `kinetix.permissions.teams`.
 - **Super-Admin Bypass**: `Gate::before` callback bypasses checks for users carrying the configured `super_admin_role`.
+- **`HasTeams` × `HasRoles` trait collision**: when the host `User` uses both the starter-kit teams trait and spatie's `HasRoles`, PHP fatals because both declare `teams()` (`...HasTeams::teams ... collision with ...HasRoles::teams`). Fix in the `User` model with trait conflict resolution — keep the starter-kit relation public and alias spatie's: `use HasRoles, HasTeams { HasTeams::teams insteadof HasRoles; HasRoles::teams as protected roleTeams; }`. Safe because Kinetix bridges team scope via `currentTeam` + `PermissionRegistrar` (`SetPermissionsTeam`), never `$user->teams()`. Documented in `docs/permissions.md` §4.
 
 ---
 

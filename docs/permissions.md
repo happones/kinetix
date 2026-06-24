@@ -155,6 +155,50 @@ If your application scopes roles and permissions per team:
 
 This ensures roles and permissions are resolved only within the context of the active team.
 
+### Trait collision with the starter-kit's `HasTeams`
+
+If your `User` model uses **both** the starter-kit's teams trait and spatie's
+`HasRoles`, PHP aborts at boot with a fatal trait-method collision — both traits
+declare a `teams()` method:
+
+```
+Symfony\Component\ErrorHandler\Error\FatalError
+Trait method App\Concerns\HasTeams::teams has not been applied as
+App\Models\User::teams, because of collision with
+Spatie\Permission\Traits\HasRoles::teams
+```
+
+Resolve it in the `User` model with PHP's trait conflict resolution. Keep the
+**starter-kit** relation as the public `User::teams()` (your app, routes and
+Inertia rely on it for actual team membership) and alias spatie's method out of
+the way:
+
+```php
+use App\Concerns\HasTeams;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasRoles, HasTeams {
+        HasTeams::teams insteadof HasRoles;       // real team membership wins
+        HasRoles::teams as protected roleTeams;   // park spatie's behind an alias
+    }
+
+    // ...
+}
+```
+
+This is safe with Kinetix: team-scoped permissions are bridged through the user's
+`currentTeam` and spatie's `PermissionRegistrar` (the `kinetix.permissions.team`
+middleware, `SetPermissionsTeam`) — **not** through `$user->teams()`. So keeping
+the starter-kit relation as `teams()` does not affect how Kinetix resolves roles
+or permissions per team.
+
+> Order matters: `insteadof` names the trait whose method to **keep**; `as`
+> aliases the discarded one so it stays callable under a new name. If your spatie
+> version actually relies on its own `teams()` internally, alias the starter-kit
+> method instead and have your app call the team relation under that alias.
+
 ---
 
 ## 5. Frontend Authorization (Vue / Inertia)

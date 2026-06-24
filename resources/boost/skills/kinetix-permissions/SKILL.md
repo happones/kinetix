@@ -35,6 +35,29 @@ Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, defaul
 ],
 ```
 
+### Teams: `HasTeams` × `HasRoles` trait collision
+
+If the host `User` uses both the starter-kit teams trait and spatie's `HasRoles`,
+PHP fatals at boot — both declare `teams()`:
+
+```
+Trait method App\Concerns\HasTeams::teams has not been applied as
+App\Models\User::teams, because of collision with Spatie\Permission\Traits\HasRoles::teams
+```
+
+Resolve it in the `User` model, keeping the starter-kit relation public:
+
+```php
+use HasRoles, HasTeams {
+    HasTeams::teams insteadof HasRoles;       // real team membership wins
+    HasRoles::teams as protected roleTeams;   // park spatie's behind an alias
+}
+```
+
+Safe with Kinetix — team-scoped permissions bridge through `currentTeam` +
+`PermissionRegistrar` (`kinetix.permissions.team` middleware), not `$user->teams()`.
+See `docs/permissions.md` §4.
+
 ---
 
 ## Backend Usage
