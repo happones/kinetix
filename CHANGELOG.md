@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-23
+
+### Added
+
+- Permissions foundation (optional — `spatie/laravel-permission`): a feature-scoped
+  registry (`KinetixPermissions::feature()/resource()`) with `{feature}.{ability}`
+  keys, hybrid source (auto-CRUD from Resources via `permissionFeature()` + explicit
+  features), `kinetix:permissions:sync` command (with `--prune`), a `super-admin`
+  Gate bypass, and a `kinetix.permissions.team` middleware that bridges spatie's
+  team id to the starter-kit `currentTeam`. Config under `kinetix.permissions`.
+
+### Fixed
+
+- `php artisan kinetix:install` no longer injects the TypeScript cast
+  (`as string | undefined`) into a JavaScript entry file (`app.js`), which was a
+  syntax error; the cast is now emitted only for `.ts` entries. Added a test suite
+  for the installer (TS/JS injection, store creation, idempotency).
+
 ## [0.2.1] - 2026-06-23
 
 ### Fixed

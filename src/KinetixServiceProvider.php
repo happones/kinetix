@@ -17,17 +17,22 @@ use Happones\Kinetix\Commands\MakeNotificationCommand;
 use Happones\Kinetix\Commands\MakeRelationManagerCommand;
 use Happones\Kinetix\Commands\MakeResourceCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
+use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Imports\ImportController;
+use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
+use Happones\Kinetix\Permissions\PermissionRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
+use Spatie\Permission\PermissionRegistrar;
 
 class KinetixServiceProvider extends ServiceProvider
 {
@@ -40,6 +45,9 @@ class KinetixServiceProvider extends ServiceProvider
             __DIR__.'/../config/kinetix.php',
             'kinetix'
         );
+
+        // The permission registry accumulates feature definitions app-wide.
+        $this->app->singleton(PermissionRegistry::class);
     }
 
     /**
@@ -65,6 +73,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeExporterCommand::class,
                 MakeRelationManagerCommand::class,
                 MakeBillingCommand::class,
+                PermissionsSyncCommand::class,
                 InstallCommand::class,
             ]);
 
@@ -121,9 +130,46 @@ class KinetixServiceProvider extends ServiceProvider
         // Register the optional Billing module (middleware alias + opt-in routes)
         $this->registerBilling();
 
+        // Register the optional Permissions module (super-admin gate + team middleware)
+        $this->registerPermissions();
+
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
             $this->shareInertiaData();
+        }
+    }
+
+    /**
+     * Wire the optional Permissions module. Enforcement still flows through
+     * Laravel's Gate (Kinetix actions already use it); this only adds the
+     * super-admin bypass and the spatie team-id bridge.
+     */
+    protected function registerPermissions(): void
+    {
+        // The team-id bridge middleware is always aliased; it no-ops unless
+        // `kinetix.permissions.teams` is on and spatie is installed.
+        if (class_exists(PermissionRegistrar::class)) {
+            $this->app['router']->aliasMiddleware(
+                'kinetix.permissions.team',
+                SetPermissionsTeam::class,
+            );
+        }
+
+        if (! config('kinetix.permissions.enabled', false)) {
+            return;
+        }
+
+        // A super-admin role bypasses every gate check.
+        $superAdmin = (string) config('kinetix.permissions.super_admin_role', 'super-admin');
+
+        if ($superAdmin !== '') {
+            Gate::before(function ($user, string $ability) use ($superAdmin): ?bool {
+                if (method_exists($user, 'hasRole') && $user->hasRole($superAdmin)) {
+                    return true;
+                }
+
+                return null;
+            });
         }
     }
 

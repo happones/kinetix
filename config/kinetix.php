@@ -160,6 +160,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Permissions (optional — requires spatie/laravel-permission)
+    |--------------------------------------------------------------------------
+    |
+    | Kinetix layers a feature-scoped roles & permissions system on top of
+    | spatie/laravel-permission. Enforcement still flows through Laravel's Gate
+    | (Kinetix actions already use it), so this only adds authoring + UI.
+    |
+    | - `teams`: scope roles/permissions per team. When true, Kinetix wires
+    |   spatie's team id to the starter-kit `currentTeam` via middleware.
+    | - `super_admin_role`: a role that bypasses every gate check (Gate::before).
+    | - `guard`: the auth guard permissions are registered under.
+    |
+    */
+    'permissions' => [
+        'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
+        'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
+        'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
+        'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Billing (optional — requires laravel/cashier + @stripe/stripe-js)
     |--------------------------------------------------------------------------
     |

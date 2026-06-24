@@ -21,7 +21,11 @@
         "spatie/laravel-typescript-transformer": "^2.0",
         "larastan/larastan": "^3.0",
         "laravel/cashier": "^15.0|^16.0",
-        "laravel/pint": "^1.0"
+        "laravel/pint": "^1.0",
+        "spatie/laravel-permission": "^6.0"
+    },
+    "suggest": {
+        "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions."
     },
     "autoload": {
         "psr-4": {

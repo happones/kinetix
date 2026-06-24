@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Resources;
 
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Tables\Table;
 
 abstract class Resource
@@ -88,6 +89,30 @@ abstract class Resource
             static::relationManagers(),
             static fn (string $relationManager): bool => $relationManager::isVisibleOn($page),
         ));
+    }
+
+    /**
+     * The permission feature name for this resource, or null to opt out of the
+     * Kinetix permissions registry. Override to enable (e.g. return 'posts').
+     */
+    public static function permissionFeature(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Register this resource's permissions on the registry. Defaults to a CRUD
+     * feature when {@see permissionFeature()} is set; override for custom abilities.
+     */
+    public static function registerPermissions(PermissionRegistry $registry): void
+    {
+        $feature = static::permissionFeature();
+
+        if ($feature === null) {
+            return;
+        }
+
+        $registry->feature($feature)->crud();
     }
 
     /**

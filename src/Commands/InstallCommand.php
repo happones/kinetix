@@ -77,9 +77,7 @@ class InstallCommand extends Command
         }
 
         $this->info("Installing npm dependencies using {$packageManager}...");
-        $exitCode = 0;
-        $output   = [];
-        exec('cd '.base_path()." && {$packageManager} install", $output, $exitCode);
+        $exitCode = $this->runPackageInstall($packageManager);
 
         if ($exitCode !== 0) {
             $this->warn("Failed to run '{$packageManager} install'. Please run it manually later.");
@@ -169,11 +167,17 @@ JS;
             }
 
             if ($setupPos !== false) {
-                $withAppCode = <<<'JS'
+                // Only emit the TypeScript cast when the entry file is .ts —
+                // injecting `as string | undefined` into a .js file is a syntax error.
+                $localeLine = $ext === 'ts'
+                    ? 'locale: page.props.locale as string | undefined,'
+                    : 'locale: page.props.locale,';
+
+                $withAppCode = <<<JS
     withApp(app, { page }) {
         const i18n = createI18n({
             legacy: false,
-            locale: page.props.locale as string | undefined,
+            {$localeLine}
             messages: Locale,
         });
 
@@ -198,5 +202,18 @@ JS;
         $this->info('Kinetix installation and configuration completed successfully!');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Run the detected package manager's install. Extracted so it can be
+     * overridden (e.g. in tests) without shelling out.
+     */
+    protected function runPackageInstall(string $packageManager): int
+    {
+        $exitCode = 0;
+        $output   = [];
+        exec('cd '.base_path()." && {$packageManager} install", $output, $exitCode);
+
+        return $exitCode;
     }
 }
