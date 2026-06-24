@@ -126,4 +126,31 @@ return [
     'save_failed'        => 'Could not save.',
     'deleted'            => 'Deleted.',
     'delete_failed'      => 'Could not delete.',
+
+    // Membership & provisioning
+    'members_title'               => 'Members',
+    'member_email'                => 'Email',
+    'member_role'                 => 'Role',
+    'member_provision'            => 'Add member',
+    'member_resend'               => 'Resend',
+    'member_revoke'               => 'Remove',
+    'no_members'                  => 'No members yet.',
+    'member_status_pending'       => 'Pending',
+    'member_status_active'        => 'Active',
+    'member_status_revoked'       => 'Revoked',
+    'member_provisioned'          => 'Invitation sent.',
+    'member_provision_failed'     => 'Could not add member.',
+    'member_role_updated'         => 'Role updated.',
+    'member_revoked'              => 'Member removed.',
+    'activation_title'            => 'Set your password',
+    'activation_name'             => 'Your name',
+    'activation_password'         => 'Password',
+    'activation_password_confirm' => 'Confirm password',
+    'activation_submit'           => 'Activate account',
+
+    // Membership emails
+    'member_activation_subject' => 'Activate your :app account',
+    'member_activation_intro'   => 'You have been added to :app. Set a password to activate your account.',
+    'member_activation_button'  => 'Activate account',
+    'member_activation_expiry'  => 'This link will expire soon. If it has expired, ask an administrator to resend it.',
 ];

@@ -88,6 +88,18 @@ export interface KinetixRole {
   permissions: string[];
 }
 
+/** A provisioned member (pending/active/revoked) from the Membership module. */
+export interface KinetixMemberProvision {
+  id: number | string | null;
+  email: string;
+  name: string | null;
+  role: string;
+  status: "pending" | "active" | "revoked";
+  expired: boolean;
+  activatedAt: string | null;
+  expiresAt: string | null;
+}
+
 export interface KinetixStat {
   label: string;
   value: string | number;

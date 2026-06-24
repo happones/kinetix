@@ -126,4 +126,31 @@ return [
     'save_failed'        => 'Échec de l’enregistrement.',
     'deleted'            => 'Supprimé.',
     'delete_failed'      => 'Échec de la suppression.',
+
+    // Membres et approvisionnement
+    'members_title'               => 'Membres',
+    'member_email'                => 'E-mail',
+    'member_role'                 => 'Rôle',
+    'member_provision'            => 'Ajouter un membre',
+    'member_resend'               => 'Renvoyer',
+    'member_revoke'               => 'Retirer',
+    'no_members'                  => 'Aucun membre pour le moment.',
+    'member_status_pending'       => 'En attente',
+    'member_status_active'        => 'Actif',
+    'member_status_revoked'       => 'Révoqué',
+    'member_provisioned'          => 'Invitation envoyée.',
+    'member_provision_failed'     => 'Impossible d’ajouter le membre.',
+    'member_role_updated'         => 'Rôle mis à jour.',
+    'member_revoked'              => 'Membre retiré.',
+    'activation_title'            => 'Définissez votre mot de passe',
+    'activation_name'             => 'Votre nom',
+    'activation_password'         => 'Mot de passe',
+    'activation_password_confirm' => 'Confirmer le mot de passe',
+    'activation_submit'           => 'Activer le compte',
+
+    // E-mails d’adhésion
+    'member_activation_subject' => 'Activez votre compte :app',
+    'member_activation_intro'   => 'Vous avez été ajouté à :app. Définissez un mot de passe pour activer votre compte.',
+    'member_activation_button'  => 'Activer le compte',
+    'member_activation_expiry'  => 'Ce lien expirera bientôt. S’il a expiré, demandez à un administrateur de le renvoyer.',
 ];

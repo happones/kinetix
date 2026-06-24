@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-23
+
+### Added
+
+- **Membership & Provisioning** (optional — `KINETIX_MEMBERSHIP_ENABLED`). An
+  admin-provisioned onboarding model as an alternative to the starter-kit's
+  self-serve team invitations: an admin adds an email + role, the person
+  activates by setting a password via a single-use, expiring signed link. No
+  personal team is created and the role is a dynamic Kinetix role drawn from a
+  curated `assignable_roles` allow-list — so a provisioner can never escalate
+  someone to `admin`. The allow-list is enforced at provision **and** activation
+  time.
+- Registers a `members` feature (`members.viewAny` / `provision` / `update` /
+  `revoke`) with the permission registry, so it appears in the permission matrix
+  and `kinetix:permissions:sync`. Management endpoints are team-aware and gated
+  through Laravel's Gate like `roles.manage`; activation endpoints are public but
+  protected by a temporary signed URL.
+- Kinetix never touches the host's team pivot — optional `attach_member` /
+  `detach_member` config callables let the host (de)attach the activated user to
+  its own team membership.
+- **(published)** Vue components `KinetixMemberList`, `KinetixMemberProvisioner`
+  and `KinetixMemberActivation`, the `useKinetixMembers` composable, the
+  `KinetixMemberProvision` TypeScript type and `member_*` / `activation_*`
+  translations (en/es/fr/pt).
+- Publishable `kinetix_member_provisions` migration
+  (`--tag=kinetix-membership-migrations`).
+- Documentation: new **Membership & Provisioning** guide.
+
 ## [0.3.2] - 2026-06-23
 
 ### Fixed

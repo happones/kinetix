@@ -182,6 +182,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Membership & Provisioning (optional)
+    |--------------------------------------------------------------------------
+    |
+    | An admin-provisioned onboarding model — an alternative to the starter-kit's
+    | self-serve team invitations. An admin adds an email + role; the person
+    | activates by setting a password. No personal team is created and the role
+    | is a dynamic Kinetix role, so members never become owners or admins.
+    |
+    | - `assignable_roles`: the only roles a provisioner may assign. This is the
+    |   guard that keeps "added members" from ever becoming admin.
+    | - `user_model`: the host's User model, created on activation.
+    | - `attach_member` / `detach_member`: optional callables to (de)attach the
+    |   user to the host's own team pivot — Kinetix never touches it directly.
+    |   Signature: fn ($user, MemberProvision $provision) => void.
+    | - `activation_view`: Inertia page rendered for the set-password screen.
+    |
+    */
+    'membership' => [
+        'enabled'           => env('KINETIX_MEMBERSHIP_ENABLED', false),
+        'teams'             => env('KINETIX_MEMBERSHIP_TEAMS', false),
+        'user_model'        => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
+        'assignable_roles'  => ['editor', 'viewer'],
+        'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
+        'activation_view'   => env('KINETIX_MEMBERSHIP_ACTIVATION_VIEW', 'Kinetix/MemberActivation'),
+        'redirect_after'    => env('KINETIX_MEMBERSHIP_REDIRECT', '/'),
+        'attach_member'     => null,
+        'detach_member'     => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Billing (optional — requires laravel/cashier + @stripe/stripe-js)
     |--------------------------------------------------------------------------
     |

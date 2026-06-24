@@ -126,4 +126,31 @@ return [
     'save_failed'        => 'Não foi possível salvar.',
     'deleted'            => 'Excluído.',
     'delete_failed'      => 'Não foi possível excluir.',
+
+    // Membros e provisionamento
+    'members_title'               => 'Membros',
+    'member_email'                => 'E-mail',
+    'member_role'                 => 'Papel',
+    'member_provision'            => 'Adicionar membro',
+    'member_resend'               => 'Reenviar',
+    'member_revoke'               => 'Remover',
+    'no_members'                  => 'Ainda não há membros.',
+    'member_status_pending'       => 'Pendente',
+    'member_status_active'        => 'Ativo',
+    'member_status_revoked'       => 'Revogado',
+    'member_provisioned'          => 'Convite enviado.',
+    'member_provision_failed'     => 'Não foi possível adicionar o membro.',
+    'member_role_updated'         => 'Papel atualizado.',
+    'member_revoked'              => 'Membro removido.',
+    'activation_title'            => 'Defina sua senha',
+    'activation_name'             => 'Seu nome',
+    'activation_password'         => 'Senha',
+    'activation_password_confirm' => 'Confirmar senha',
+    'activation_submit'           => 'Ativar conta',
+
+    // E-mails de associação
+    'member_activation_subject' => 'Ative sua conta no :app',
+    'member_activation_intro'   => 'Você foi adicionado ao :app. Defina uma senha para ativar sua conta.',
+    'member_activation_button'  => 'Ativar conta',
+    'member_activation_expiry'  => 'Este link expirará em breve. Se já expirou, peça a um administrador para reenviá-lo.',
 ];

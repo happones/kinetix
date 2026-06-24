@@ -81,7 +81,10 @@ export default withMermaid(
       {
         text: "Authorization",
         collapsed: false,
-        items: [{ text: "Roles & Permissions", link: "/permissions" }],
+        items: [
+          { text: "Roles & Permissions", link: "/permissions" },
+          { text: "Membership & Provisioning", link: "/membership" },
+        ],
       },
       {
         text: "Billing",
