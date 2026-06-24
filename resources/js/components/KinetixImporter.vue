@@ -4,6 +4,7 @@ import { UploadCloud, Loader2, ArrowRight } from "@lucide/vue";
 import { computed, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
+import { kinetixFetch } from "@/composables/useKinetixHttp";
 import type { KinetixImportPreview } from "@/types";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
 import KinetixSelect from "./KinetixSelect.vue";
@@ -73,14 +74,6 @@ const enclosureOptionsMap = computed(() => {
   return map;
 });
 
-const xsrfToken = (): string => {
-  const match = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("XSRF-TOKEN="));
-
-  return match ? decodeURIComponent(match.split("=")[1]) : "";
-};
-
 const applyPreview = (data: KinetixImportPreview) => {
   preview.value = data;
   options.delimiter = data.options.delimiter;
@@ -118,17 +111,12 @@ const upload = async () => {
   body.append("hasHeader", options.hasHeader ? "1" : "0");
 
   try {
-    const response = await fetch(`/${prefix.value}/imports/upload`, {
-      method: "POST",
-      headers: { Accept: "application/json", "X-XSRF-TOKEN": xsrfToken() },
-      body,
-    });
+    const data = await kinetixFetch<KinetixImportPreview>(
+      `/${prefix.value}/imports/upload`,
+      { method: "POST", body },
+    );
 
-    if (!response.ok) {
-      throw await response.json().catch(() => ({}));
-    }
-
-    applyPreview(await response.json());
+    applyPreview(data as KinetixImportPreview);
   } catch (error: any) {
     errorMessage.value = error?.message ?? t("kinetix.import_failed");
   } finally {
@@ -145,25 +133,19 @@ const applyOptions = async () => {
   errorMessage.value = null;
 
   try {
-    const response = await fetch(`/${prefix.value}/imports/preview`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-XSRF-TOKEN": xsrfToken(),
+    const data = await kinetixFetch<KinetixImportPreview>(
+      `/${prefix.value}/imports/preview`,
+      {
+        method: "POST",
+        body: {
+          importer: props.importer,
+          fileToken: preview.value.fileToken,
+          ...options,
+        },
       },
-      body: JSON.stringify({
-        importer: props.importer,
-        fileToken: preview.value.fileToken,
-        ...options,
-      }),
-    });
+    );
 
-    if (!response.ok) {
-      throw await response.json().catch(() => ({}));
-    }
-
-    applyPreview(await response.json());
+    applyPreview(data as KinetixImportPreview);
   } catch (error: any) {
     errorMessage.value = error?.message ?? t("kinetix.import_failed");
   } finally {
@@ -243,24 +225,15 @@ const startImport = async () => {
   errorMessage.value = null;
 
   try {
-    const response = await fetch(`/${prefix.value}/imports/start`, {
+    await kinetixFetch(`/${prefix.value}/imports/start`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-XSRF-TOKEN": xsrfToken(),
-      },
-      body: JSON.stringify({
+      body: {
         importer: props.importer,
         fileToken: preview.value.fileToken,
         mapping,
         ...options,
-      }),
+      },
     });
-
-    if (!response.ok) {
-      throw await response.json().catch(() => ({}));
-    }
 
     toast.success(t("kinetix.import_started"));
     preview.value = null;

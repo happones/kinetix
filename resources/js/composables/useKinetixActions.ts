@@ -1,16 +1,8 @@
 import { router } from "@inertiajs/vue3";
 import { ref } from "vue";
 import { toast } from "vue-sonner";
+import { kinetixFetch } from "@/composables/useKinetixHttp";
 import type { KinetixAction } from "@/types";
-
-/** Read Laravel's XSRF-TOKEN cookie for fetch() requests. */
-function xsrfToken(): string {
-  const match = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("XSRF-TOKEN="));
-
-  return match ? decodeURIComponent(match.split("=")[1]) : "";
-}
 
 /**
  * Execute a Kinetix action's behaviour: fire a browser event, perform an
@@ -47,23 +39,10 @@ export function executeAction(
   if (action.httpRequest && action.url) {
     const { method = "post", toast: toastMessage } = action.httpRequest;
 
-    fetch(action.url, {
-      method: String(method).toUpperCase(),
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-XSRF-TOKEN": xsrfToken(),
-      },
-      body: JSON.stringify(extraData ?? {}),
-      credentials: "same-origin",
-    })
-      .then((response) => {
-        if (response.ok) {
-          if (toastMessage) {
-            toast.success(toastMessage as string);
-          }
-        } else {
-          toast.error("Request failed.");
+    kinetixFetch(action.url, { method: String(method), body: extraData ?? {} })
+      .then(() => {
+        if (toastMessage) {
+          toast.success(toastMessage as string);
         }
       })
       .catch(() => toast.error("Request failed."));

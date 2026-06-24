@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-06-23
+
+### Fixed
+
+- Inline table edits (`cell-update`) now send the `XSRF-TOKEN` cookie like the rest
+  of Kinetix, instead of relying on a `<meta name="csrf-token">` tag that Inertia
+  apps usually don't render (which could fail with a 419).
+
+### Changed
+
+- All stateful `fetch` calls consolidated into a single `useKinetixHttp` helper
+  (`kinetixFetch` + `xsrfToken`), removing duplicated XSRF/header logic across the
+  actions, roles, notifications store, file upload, importer and table components.
+
 ## [0.3.1] - 2026-06-23
 
 ### Fixed

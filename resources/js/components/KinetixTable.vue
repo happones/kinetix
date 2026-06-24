@@ -13,6 +13,7 @@ import {
   executeAction,
   useActionConfirmation,
 } from "@/composables/useKinetixActions";
+import { kinetixFetch } from "@/composables/useKinetixHttp";
 import { resolveIcon } from "@/composables/useKinetixIcons";
 import type {
   KinetixTableData,
@@ -341,25 +342,20 @@ const updateCell = async (
   }
 
   try {
-    const response = await fetch(`/${routePrefix.value}/tables/cell-update`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-TOKEN":
-          (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)
-            ?.content || "",
+    const data = await kinetixFetch<{ status?: string }>(
+      `/${routePrefix.value}/tables/cell-update`,
+      {
+        method: "POST",
+        body: {
+          model: props.table.model,
+          recordId,
+          column: columnName,
+          value: newValue,
+        },
       },
-      body: JSON.stringify({
-        model: props.table.model,
-        recordId: recordId,
-        column: columnName,
-        value: newValue,
-      }),
-    });
+    );
 
-    const data = await response.json();
-
-    if (data.status === "success") {
+    if (data?.status === "success") {
       // reload() preserves scroll and state by default.
       router.reload();
     }

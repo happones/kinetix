@@ -3,6 +3,7 @@ import { usePage } from "@inertiajs/vue3";
 import { UploadCloud, X, FileText, Loader2 } from "@lucide/vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { kinetixFetch } from "@/composables/useKinetixHttp";
 
 const props = withDefaults(
   defineProps<{
@@ -84,32 +85,17 @@ const previewUrl = (path: string): string => {
 
 const basename = (path: string): string => path.split("/").pop() ?? path;
 
-const xsrfToken = (): string => {
-  const match = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("XSRF-TOKEN="));
-
-  return match ? decodeURIComponent(match.split("=")[1]) : "";
-};
-
 const uploadOne = async (file: File): Promise<string | null> => {
   const body = new FormData();
   body.append("file", file);
   body.append("token", props.uploadToken);
 
-  const response = await fetch(`/${prefix.value}/uploads/store`, {
-    method: "POST",
-    headers: { Accept: "application/json", "X-XSRF-TOKEN": xsrfToken() },
-    body,
-  });
+  const result = await kinetixFetch<{ path?: string }>(
+    `/${prefix.value}/uploads/store`,
+    { method: "POST", body },
+  );
 
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-
-    throw new Error(payload.message ?? t("kinetix.upload_failed"));
-  }
-
-  return (await response.json()).path ?? null;
+  return result?.path ?? null;
 };
 
 const onSelect = async (event: Event) => {
@@ -164,14 +150,9 @@ const remove = async (path: string) => {
   errorMessage.value = null;
 
   try {
-    await fetch(`/${prefix.value}/uploads/delete`, {
+    await kinetixFetch(`/${prefix.value}/uploads/delete`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "X-XSRF-TOKEN": xsrfToken(),
-      },
-      body: JSON.stringify({ path, token: props.uploadToken }),
+      body: { path, token: props.uploadToken },
     });
   } catch {
     // Even if the server-side delete fails, drop it from the field value.
