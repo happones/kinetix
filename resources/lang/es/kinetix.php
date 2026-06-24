@@ -126,4 +126,31 @@ return [
     'save_failed'        => 'No se pudo guardar.',
     'deleted'            => 'Eliminado.',
     'delete_failed'      => 'No se pudo eliminar.',
+
+    // Miembros y aprovisionamiento
+    'members_title'               => 'Miembros',
+    'member_email'                => 'Correo',
+    'member_role'                 => 'Rol',
+    'member_provision'            => 'Agregar miembro',
+    'member_resend'               => 'Reenviar',
+    'member_revoke'               => 'Quitar',
+    'no_members'                  => 'Aún no hay miembros.',
+    'member_status_pending'       => 'Pendiente',
+    'member_status_active'        => 'Activo',
+    'member_status_revoked'       => 'Revocado',
+    'member_provisioned'          => 'Invitación enviada.',
+    'member_provision_failed'     => 'No se pudo agregar el miembro.',
+    'member_role_updated'         => 'Rol actualizado.',
+    'member_revoked'              => 'Miembro eliminado.',
+    'activation_title'            => 'Define tu contraseña',
+    'activation_name'             => 'Tu nombre',
+    'activation_password'         => 'Contraseña',
+    'activation_password_confirm' => 'Confirmar contraseña',
+    'activation_submit'           => 'Activar cuenta',
+
+    // Correos de membresía
+    'member_activation_subject' => 'Activa tu cuenta de :app',
+    'member_activation_intro'   => 'Te agregaron a :app. Define una contraseña para activar tu cuenta.',
+    'member_activation_button'  => 'Activar cuenta',
+    'member_activation_expiry'  => 'Este enlace caducará pronto. Si ya expiró, pide a un administrador que lo reenvíe.',
 ];

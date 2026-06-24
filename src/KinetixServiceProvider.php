@@ -22,6 +22,7 @@ use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Imports\ImportController;
+use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
@@ -107,6 +108,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000000_create_kinetix_plans_table.php' => database_path('migrations/2026_01_01_000000_create_kinetix_plans_table.php'),
             ], 'kinetix-billing-migrations');
 
+            // Publish the optional Membership module's provisions migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000001_create_kinetix_member_provisions_table.php' => database_path('migrations/2026_01_01_000001_create_kinetix_member_provisions_table.php'),
+            ], 'kinetix-membership-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -133,6 +139,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Permissions module (super-admin gate + team middleware)
         $this->registerPermissions();
+
+        // Register the optional Membership module (admin provisioning + activation)
+        $this->registerMembership();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -211,6 +220,72 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::delete('roles/{role}', [PermissionController::class, 'destroy'])
                     ->name('kinetix.permissions.roles.destroy');
             });
+    }
+
+    /**
+     * Wire the optional Membership module: an admin-provisioned alternative to
+     * self-serve team invitations. Registers the `members.*` abilities (so they
+     * appear in the permission matrix / sync) and the management + activation
+     * routes. Authorization flows through the Gate exactly like `roles.manage`.
+     */
+    protected function registerMembership(): void
+    {
+        if (! config('kinetix.membership.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('members')
+            ->label('Members')
+            ->abilities([
+                'viewAny'   => 'View members',
+                'provision' => 'Add / invite members',
+                'update'    => 'Change member role',
+                'revoke'    => 'Remove members',
+            ]);
+
+        $this->registerMembershipRoutes();
+    }
+
+    /**
+     * Register the membership management endpoints (teams-aware prefix, gated by
+     * `members.*`) and the public, signed activation endpoints (no auth).
+     */
+    protected function registerMembershipRoutes(): void
+    {
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/members")
+            ->group(function () {
+                Route::get('/', [MembershipController::class, 'index'])
+                    ->name('kinetix.members.index');
+                Route::post('/', [MembershipController::class, 'store'])
+                    ->name('kinetix.members.store');
+                Route::post('{provision}/resend', [MembershipController::class, 'resend'])
+                    ->name('kinetix.members.resend');
+                Route::put('{provision}', [MembershipController::class, 'update'])
+                    ->name('kinetix.members.update');
+                Route::delete('{provision}', [MembershipController::class, 'destroy'])
+                    ->name('kinetix.members.destroy');
+            });
+
+        // Public set-password flow. GET and POST share the same path so a single
+        // temporary signed URL validates for both (the form posts back to itself).
+        Route::middleware(['web', 'signed'])->group(function () {
+            Route::get('members/activate/{provision}', [MembershipController::class, 'showActivation'])
+                ->name('kinetix.membership.activate.show');
+            Route::post('members/activate/{provision}', [MembershipController::class, 'activate'])
+                ->name('kinetix.membership.activate');
+        });
     }
 
     /**

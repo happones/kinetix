@@ -2,6 +2,7 @@ import { router, usePage } from "@inertiajs/vue3";
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { toast } from "vue-sonner";
+import { kinetixFetch } from "@/composables/useKinetixHttp";
 import type {
   KinetixAction,
   KinetixNotification,
@@ -70,40 +71,12 @@ export const useNotificationsStore = defineStore("kinetixNotifications", () => {
     }
   };
 
-  const getXsrfToken = (): string => {
-    const cookies = document.cookie.split(";");
-
-    for (const cookie of cookies) {
-      const [name, value] = cookie.trim().split("=");
-
-      if (name === "XSRF-TOKEN") {
-        return decodeURIComponent(value);
-      }
-    }
-
-    return "";
-  };
-
   const sendRequest = async (url: string, method: string): Promise<void> => {
     try {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          // `Accept: application/json` makes Laravel return JSON status codes
-          // (401/419/…) on auth/CSRF failures instead of a 302 redirect that
-          // `fetch` would silently follow to a 200 HTML page — which looks like
-          // success and leaves the request (e.g. a delete) silently un-applied.
-          Accept: "application/json",
-          "X-Requested-With": "XMLHttpRequest",
-          "X-XSRF-TOKEN": getXsrfToken(),
-        },
-        credentials: "same-origin",
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // kinetixFetch sends the XSRF token + Accept/X-Requested-With (so Laravel
+      // returns JSON errors instead of a 302 fetch would silently follow) and
+      // throws on a non-2xx response.
+      await kinetixFetch(url, { method });
 
       router.reload({
         only: ["kinetix_notifications"],
