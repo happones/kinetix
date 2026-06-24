@@ -326,6 +326,21 @@ Feature-scoped roles and permissions integrated with `spatie/laravel-permission`
 
 ---
 
+## 12. Kinetix Membership (optional, admin-provisioned onboarding)
+
+Admin-provisioned membership — an **alternative** to the starter-kit's self-serve team invitations. An admin adds an email + role; the person activates by setting a password via a single-use signed link. No personal team is created and the role is a dynamic Kinetix role drawn from a curated allow-list. **Off by default** (`kinetix.membership.enabled`).
+
+- **Provisions table**: `kinetix_member_provisions` (Kinetix's own directory: `team_id` nullable, `email`, `name`, `role`, `invited_by`, `user_id`, `status` pending|active|revoked, `expires_at`/`activated_at`). NO foreign-key constraints — the host's `teams`/`users` schema is unknown. The host `User` is created only on activation (no orphaned, password-less accounts). Migration publishes under `--tag=kinetix-membership-migrations`.
+- **Abilities**: registers a `members` feature (`viewAny`/`provision`/`update`/`revoke`) with `PermissionRegistry` when enabled, so it shows in the matrix + sync. Management endpoints (`MembershipController`) are team-aware and gated via `Gate::authorize('members.*')` exactly like `roles.manage`; ids resolved by route-param NAME (the `{current_team}` prefix would shift positional args).
+- **Allow-list = the security boundary**: `membership.assignable_roles` (default `['editor','viewer']`) is the ONLY set a provisioner may assign — `assertAssignable()` rejects anything else with 422, enforced at provision AND re-checked at activation (config could change between the two). This is what guarantees "added members never become admin". The role dropdown is driven by the same list (returned from the `index` endpoint).
+- **Activation**: `URL::temporarySignedRoute('kinetix.membership.activate.show', …)` — no bespoke token column; validity = the signature plus the provision still being `pending`/unexpired (else 410). GET + POST share the same path so one signed URL covers both (the form posts back to itself). On success: create `user_model`, run optional `attach_member` callback, `assignRole` inside `withTeam()` (pins spatie's team id to the provision's team, then restores), mark `active`, `Auth::login`.
+- **Host decoupling**: Kinetix NEVER touches the host's team pivot. `attach_member`/`detach_member` config callables (`fn ($user, MemberProvision $provision) => void`) let the host (de)attach its own membership row; the `index`/`revoke`/role-change all operate on the provisions table + spatie roles only.
+- **Notification**: `MemberActivationNotification` (ShouldQueue, mail) sends the signed link; subject/body via `__('kinetix.member_activation_*')`.
+- **Vue (published, token-only, vue-i18n)**: `KinetixMemberList` (drop-in directory: embeds the form + lists members with status badge, role `<select>`, resend/revoke), `KinetixMemberProvisioner` (presentational form — props `assignableRoles`, emits `submit`), `KinetixMemberActivation` (public set-password page — props `email`/`action`, Inertia `useForm` posts to the signed `action`). Composable `useKinetixMembers` (`load`/`provision`/`resend`/`updateRole`/`revoke` + reactive `provisions`/`assignableRoles`). Type `KinetixMemberProvision`; keys `member_*`/`activation_*` in all four langs. Render the activation page via `config('kinetix.membership.activation_view')` (default `Kinetix/MemberActivation`).
+- Full guide: `docs/membership.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

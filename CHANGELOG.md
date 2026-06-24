@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `kinetix-membership` Laravel Boost skill, and a Membership section in the
+  `kinetix-development` skill — documenting the admin-provisioned onboarding
+  module shipped in 0.4.0.
+
 ## [0.4.0] - 2026-06-23
 
 ### Added
