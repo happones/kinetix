@@ -112,4 +112,18 @@ return [
     'pick_date'            => 'Escolher data',
     'datetime_placeholder' => 'DD/MM/AAAA hh:mm',
     'preview_unavailable'  => 'Pré-visualização indisponível para este tipo de arquivo.',
+
+    // Papéis e permissões
+    'save'               => 'Salvar',
+    'select_all'         => 'Selecionar tudo',
+    'search_permissions' => 'Buscar permissões…',
+    'role_name'          => 'Nome do papel',
+    'roles_title'        => 'Papéis e permissões',
+    'create_role'        => 'Novo papel',
+    'no_roles'           => 'Ainda não há papéis.',
+    'confirm_delete'     => 'Excluir?',
+    'saved'              => 'Salvo.',
+    'save_failed'        => 'Não foi possível salvar.',
+    'deleted'            => 'Excluído.',
+    'delete_failed'      => 'Não foi possível excluir.',
 ];

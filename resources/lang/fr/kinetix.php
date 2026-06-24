@@ -112,4 +112,18 @@ return [
     'pick_date'            => 'Choisir une date',
     'datetime_placeholder' => 'JJ/MM/AAAA hh:mm',
     'preview_unavailable'  => 'Aperçu non disponible pour ce type de fichier.',
+
+    // Rôles et permissions
+    'save'               => 'Enregistrer',
+    'select_all'         => 'Tout sélectionner',
+    'search_permissions' => 'Rechercher des permissions…',
+    'role_name'          => 'Nom du rôle',
+    'roles_title'        => 'Rôles et permissions',
+    'create_role'        => 'Nouveau rôle',
+    'no_roles'           => 'Aucun rôle pour le moment.',
+    'confirm_delete'     => 'Supprimer ?',
+    'saved'              => 'Enregistré.',
+    'save_failed'        => 'Échec de l’enregistrement.',
+    'deleted'            => 'Supprimé.',
+    'delete_failed'      => 'Échec de la suppression.',
 ];

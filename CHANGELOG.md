@@ -17,12 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Permissions foundation (optional — `spatie/laravel-permission`): a feature-scoped
-  registry (`KinetixPermissions::feature()/resource()`) with `{feature}.{ability}`
-  keys, hybrid source (auto-CRUD from Resources via `permissionFeature()` + explicit
-  features), `kinetix:permissions:sync` command (with `--prune`), a `super-admin`
-  Gate bypass, and a `kinetix.permissions.team` middleware that bridges spatie's
-  team id to the starter-kit `currentTeam`. Config under `kinetix.permissions`.
+- **Roles & Permissions** (optional — `spatie/laravel-permission`). Enforcement
+  flows through Laravel's Gate (Kinetix actions already use it); this adds authoring,
+  management and frontend gating:
+  - **Registry**: feature-scoped `KinetixPermissions::feature()/resource()` with
+    `{feature}.{ability}` keys; hybrid source (auto-CRUD from Resources via
+    `permissionFeature()` + explicit features); `kinetix:permissions:sync` (`--prune`).
+  - **Backend**: `super-admin` Gate bypass; a `kinetix.permissions.team` middleware
+    bridging spatie's team id to the starter-kit `currentTeam`; the
+    `kinetix_permissions` Inertia prop (resolved permissions/roles — no host
+    middleware editing); role-management endpoints (`{prefix}/permissions/...`, gated
+    by `roles.manage`); `RoleData` / `PermissionFeatureData` DTOs; `KinetixRolesSeeder`
+    (super-admin/admin/editor/viewer preset). Config under `kinetix.permissions`.
+  - **Frontend (published)**: `useKinetixCan` composable, `<KinetixCan>` gate, `v-can`
+    directive (via the `KinetixPermissions` plugin), and a drop-in `KinetixRoleManager`
+    / `KinetixRoleForm` / `KinetixPermissionMatrix` (feature-grouped, search,
+    select-all). i18n in en/es/fr/pt.
 
 ### Fixed
 

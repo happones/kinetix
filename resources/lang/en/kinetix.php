@@ -112,4 +112,18 @@ return [
     'pick_date'            => 'Pick a date',
     'datetime_placeholder' => 'MM/DD/YYYY hh:mm',
     'preview_unavailable'  => 'Preview not available for this file type.',
+
+    // Roles & permissions
+    'save'               => 'Save',
+    'select_all'         => 'Select all',
+    'search_permissions' => 'Search permissions…',
+    'role_name'          => 'Role name',
+    'roles_title'        => 'Roles & Permissions',
+    'create_role'        => 'New role',
+    'no_roles'           => 'No roles yet.',
+    'confirm_delete'     => 'Delete?',
+    'saved'              => 'Saved.',
+    'save_failed'        => 'Could not save.',
+    'deleted'            => 'Deleted.',
+    'delete_failed'      => 'Could not delete.',
 ];

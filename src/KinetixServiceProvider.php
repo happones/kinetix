@@ -23,6 +23,7 @@ use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Imports\ImportController;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
+use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -159,6 +160,9 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
+        // The built-in feature that guards the role-management endpoints/UI.
+        app(PermissionRegistry::class)->feature('roles')->label('Roles & Permissions')->ability('manage', 'Manage roles');
+
         // A super-admin role bypasses every gate check.
         $superAdmin = (string) config('kinetix.permissions.super_admin_role', 'super-admin');
 
@@ -171,6 +175,42 @@ class KinetixServiceProvider extends ServiceProvider
                 return null;
             });
         }
+
+        $this->registerPermissionRoutes();
+    }
+
+    /**
+     * Register the role-management endpoints (teams-aware prefix, team middleware,
+     * gated by `roles.manage`). Only when the feature is enabled and spatie is present.
+     */
+    protected function registerPermissionRoutes(): void
+    {
+        if (! class_exists(PermissionRegistrar::class)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix       = '{current_team}/'.$prefix;
+            $middleware[] = 'kinetix.permissions.team';
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/permissions")
+            ->group(function () {
+                Route::get('features', [PermissionController::class, 'features'])
+                    ->name('kinetix.permissions.features');
+                Route::get('roles', [PermissionController::class, 'roles'])
+                    ->name('kinetix.permissions.roles');
+                Route::post('roles', [PermissionController::class, 'store'])
+                    ->name('kinetix.permissions.roles.store');
+                Route::put('roles/{role}', [PermissionController::class, 'update'])
+                    ->name('kinetix.permissions.roles.update');
+                Route::delete('roles/{role}', [PermissionController::class, 'destroy'])
+                    ->name('kinetix.permissions.roles.destroy');
+            });
     }
 
     /**
@@ -219,6 +259,27 @@ class KinetixServiceProvider extends ServiceProvider
             }
 
             return session()->get('kinetix_notifications', []);
+        });
+
+        // The authenticated user's resolved permission keys + role names, so the
+        // SPA can gate UI (useKinetixCan / <Can>) without the host app having to
+        // wire its own HandleInertiaRequests. Empty unless the feature is on.
+        Inertia::share('kinetix_permissions', function () {
+            $user = auth()->user();
+
+            if (! config('kinetix.permissions.enabled', false) || $user === null) {
+                return ['enabled' => false, 'permissions' => [], 'roles' => []];
+            }
+
+            return [
+                'enabled'     => true,
+                'permissions' => method_exists($user, 'getAllPermissions')
+                    ? $user->getAllPermissions()->pluck('name')->values()->all()
+                    : [],
+                'roles' => method_exists($user, 'getRoleNames')
+                    ? $user->getRoleNames()->values()->all()
+                    : [],
+            ];
         });
     }
 

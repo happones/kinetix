@@ -57,8 +57,35 @@ export interface KinetixConfig {
 export interface KinetixSharedProps {
   kinetix_config?: KinetixConfig;
   kinetix_notifications?: KinetixNotification[];
+  kinetix_permissions?: KinetixPermissionState;
   auth?: { user?: { id: number | string } | null };
   [key: string]: unknown;
+}
+
+/** The authenticated user's resolved permissions, shared via Inertia. */
+export interface KinetixPermissionState {
+  enabled: boolean;
+  permissions: string[];
+  roles: string[];
+}
+
+export interface KinetixPermissionAbility {
+  key: string;
+  label: string;
+  permission: string;
+}
+
+/** A permission feature (resource/module) and its abilities, for the matrix UI. */
+export interface KinetixPermissionFeature {
+  name: string;
+  label: string;
+  abilities: KinetixPermissionAbility[];
+}
+
+export interface KinetixRole {
+  id: number | string | null;
+  name: string;
+  permissions: string[];
 }
 
 export interface KinetixStat {

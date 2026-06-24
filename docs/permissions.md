@@ -22,8 +22,8 @@ Enable permissions in your `config/kinetix.php` file:
 
 ```php
 'permissions' => [
-    // Enable the permissions registry & super-admin gate checks
-    'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', true),
+    // Enable the permissions registry & super-admin gate checks (opt-in)
+    'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
 
     // Enable multi-tenant/team support for permissions
     'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
@@ -159,80 +159,106 @@ This ensures roles and permissions are resolved only within the context of the a
 
 ## 5. Frontend Authorization (Vue / Inertia)
 
-To enforce permissions on your Vue frontend (e.g., to hide buttons, navigation links, or entire pages based on the user's role/permissions):
+Kinetix **automatically shares** the authenticated user's resolved permissions and
+roles via the `kinetix_permissions` Inertia prop — you do **not** need to edit your
+`HandleInertiaRequests`. Gate your UI with the shipped helpers, using the same
+`{feature}.{ability}` keys the backend enforces. All checks are reactive (they
+update when Inertia replaces the page props, e.g. after a role change).
 
-### 5.1 Sharing Permissions with Inertia
-
-Expose the authenticated user's permissions in your host application's `HandleInertiaRequests` middleware (typically `app/Http/Middleware/HandleInertiaRequests.php`):
-
-```php
-public function share(Request $request): array
-{
-    return array_merge(parent::share($request), [
-        'auth' => [
-            'user' => $request->user() ? [
-                'id'          => $request->user()->id,
-                'name'        => $request->user()->name,
-                // Pass the list of permission keys to the client
-                'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
-            ] : null,
-        ],
-    ]);
-}
-```
-
-### 5.2 Vue Permission Helper (`can`)
-
-In your Vue components, you can define a helper function using the `usePage` hook from `@inertiajs/vue3` to check if the current user possesses a permission:
+### 5.1 `useKinetixCan` composable
 
 ```vue
 <script setup lang="ts">
-import { computed } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { useKinetixCan } from '@/composables/useKinetixCan'
 
-const page = usePage()
-
-// Helper to check if a permission is granted
-const can = (permission: string): boolean => {
-  const permissions = (page.props.auth as any)?.user?.permissions ?? []
-  return permissions.includes(permission)
-}
+const { can, canAny, canAll, hasRole } = useKinetixCan()
 </script>
 
 <template>
-  <div>
-    <!-- Render content conditionally based on feature/ability keys -->
-    <button v-if="can('posts.create')" class="btn-primary">
-      Create Post
-    </button>
-  </div>
+  <button v-if="can('posts.create')">Create Post</button>
+  <nav v-if="canAny(['posts.viewAny', 'users.viewAny'])">…</nav>
+  <AdminPanel v-if="hasRole('admin')" />
 </template>
 ```
 
-### 5.3 Global Helper (Optional)
+### 5.2 `<KinetixCan>` component
 
-To avoid importing and defining the helper in every component, you can register `can` globally inside your `app.ts` / `app.js` entry file:
+Best when you want a fallback (`#denied`) or role checks:
+
+```vue
+<KinetixCan permission="posts.update">
+  <EditButton />
+  <template #denied><span class="text-muted-foreground">Read only</span></template>
+</KinetixCan>
+
+<!-- any-of by default; pass `require-all` for all-of -->
+<KinetixCan :permission="['posts.create', 'posts.update']" require-all>…</KinetixCan>
+
+<KinetixCan role="admin">…</KinetixCan>
+```
+
+### 5.3 `v-can` directive
+
+Register the plugin once in your entry file, then use `v-can` for lightweight
+show/hide (an element with a failing check is hidden):
 
 ```typescript
+import { KinetixPermissions } from '@/plugins/kinetixPermissions'
+
 createInertiaApp({
   // ...
   setup({ el, App, props, plugin }) {
-    const app = createApp({ render: () => h(App, props) })
+    createApp({ render: () => h(App, props) })
       .use(plugin)
-      
-    // Register global property
-    app.config.globalProperties.$can = (permission: string): boolean => {
-      const permissions = (props.initialPage.props.auth as any)?.user?.permissions ?? []
-      return permissions.includes(permission)
-    }
-
-    app.mount(el)
+      .use(KinetixPermissions)
+      .mount(el)
   },
 })
 ```
 
-You can then use it directly in your templates without setup imports:
-
 ```html
-<button v-if="$can('posts.create')">Create Post</button>
+<button v-can="'posts.create'">Create</button>
+<a v-can="['posts.update', 'posts.view']">Edit</a>  <!-- any-of -->
+```
+
+> Prefer `<KinetixCan>` when you need a fallback slot or role checks; `v-can` is a
+> minimal `display` toggle.
+
+---
+
+## 6. Role Management UI
+
+Drop in `<KinetixRoleManager>` to let admins create roles and assign permissions —
+grouped by feature, with search and per-feature select-all. Gate it behind the
+built-in `roles.manage` ability:
+
+```vue
+<KinetixCan permission="roles.manage">
+  <KinetixRoleManager />
+</KinetixCan>
+```
+
+It talks to the built-in endpoints registered under your Kinetix route prefix
+(team-aware), all gated by `roles.manage` (super-admin bypasses):
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `{prefix}/permissions/features` | Permission catalog grouped by feature |
+| `GET` | `{prefix}/permissions/roles` | List roles with their permissions |
+| `POST` | `{prefix}/permissions/roles` | Create a role |
+| `PUT` | `{prefix}/permissions/roles/{role}` | Rename / sync a role's permissions |
+| `DELETE` | `{prefix}/permissions/roles/{role}` | Delete a role |
+
+Need a custom flow? Compose `KinetixPermissionMatrix` (the feature-grouped grid,
+`v-model` of permission keys) with `useKinetixRoles` (the CRUD composable).
+
+### Seeding starter roles
+
+`KinetixRolesSeeder` layers a classic RBAC preset on top of the registry —
+`super-admin` (bypasses every gate), `admin` (all permissions), `editor`
+(everything except `delete`/`forceDelete`) and `viewer` (read-only):
+
+```bash
+php artisan kinetix:permissions:sync   # materialize permissions first
+php artisan db:seed --class="Happones\\Kinetix\\Permissions\\KinetixRolesSeeder"
 ```

@@ -14,21 +14,21 @@ Activate this skill when:
 - Registering feature or resource permissions using the `KinetixPermissions` facade.
 - Enforcing resource-level permissions by overriding `permissionFeature()` or `registerPermissions()`.
 - Running the `php artisan kinetix:permissions:sync` command to synchronize registry definitions to Spatie permissions.
-- Sharing user permissions with Inertia page props inside `HandleInertiaRequests.php`.
-- Implementing frontend role or permission authorization checks in Vue templates using custom wrappers or global `$can` / local `can()` helper.
+- Gating Vue UI with the shipped helpers (`useKinetixCan`, `<KinetixCan>`, `v-can`).
+- Managing roles via `<KinetixRoleManager>` / `KinetixPermissionMatrix` or the role endpoints.
 - Implementing multi-tenant/team scoped permissions with the `kinetix.permissions.team` middleware.
 
 ## Documentation
 
-For full details, reference the [Kinetix Permissions Documentation](file:///home/happones/Plugins/Php/kinetix/docs/permissions.md).
+For full details, reference `docs/permissions.md` (published at https://happones.github.io/kinetix/permissions).
 
 ## Configuration
 
-Ensure the permissions module is enabled in `config/kinetix.php`:
+Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, default off):
 
 ```php
 'permissions' => [
-    'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', true),
+    'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
     'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
     'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
@@ -94,36 +94,17 @@ php artisan kinetix:permissions:sync --prune
 
 ## Frontend Usage
 
-### 1. Exposing Permissions in Inertia
-Share the user permissions in `app/Http/Middleware/HandleInertiaRequests.php`:
+Kinetix shares the user's resolved permissions/roles via the `kinetix_permissions`
+Inertia prop automatically — **do not** hand-edit `HandleInertiaRequests`. Gate UI
+with the shipped helpers (all reactive, keyed by `{feature}.{ability}`).
 
-```php
-public function share(Request $request): array
-{
-    return array_merge(parent::share($request), [
-        'auth' => [
-            'user' => $request->user() ? [
-                'id'          => $request->user()->id,
-                'name'        => $request->user()->name,
-                'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
-            ] : null,
-        ],
-    ]);
-}
-```
-
-### 2. Checking Permissions in Vue Components
-Define a local helper using `usePage()`:
+### 1. `useKinetixCan` composable
 
 ```vue
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3'
+import { useKinetixCan } from '@/composables/useKinetixCan'
 
-const page = usePage()
-const can = (permission: string): boolean => {
-  const permissions = (page.props.auth as any)?.user?.permissions ?? []
-  return permissions.includes(permission)
-}
+const { can, canAny, canAll, hasRole } = useKinetixCan()
 </script>
 
 <template>
@@ -131,16 +112,32 @@ const can = (permission: string): boolean => {
 </template>
 ```
 
-### 3. Registering Global `$can` Helper
-In your `app.ts` / `app.js` entry file:
+### 2. `<KinetixCan>` component (supports a `#denied` slot, `require-all`, `role`)
 
-```typescript
-app.config.globalProperties.$can = (permission: string): boolean => {
-  const permissions = (props.initialPage.props.auth as any)?.user?.permissions ?? []
-  return permissions.includes(permission)
-}
+```vue
+<KinetixCan permission="posts.update">
+  <EditButton />
+  <template #denied>Read only</template>
+</KinetixCan>
 ```
-And check in template directly:
+
+### 3. `v-can` directive
+
+Register once: `app.use(KinetixPermissions)` (from `@/plugins/kinetixPermissions`), then:
+
 ```html
-<button v-if="$can('posts.create')">Create Post</button>
+<button v-can="'posts.create'">Create</button>
+```
+
+### 4. Role management UI
+
+Drop in `<KinetixRoleManager>` (gate it behind `roles.manage`). It uses the endpoints
+`{prefix}/permissions/{features,roles}` (CRUD, gated by `roles.manage`). For custom
+flows compose `KinetixPermissionMatrix` (`v-model` of permission keys) with
+`useKinetixRoles`. Seed starter roles with `KinetixRolesSeeder`.
+
+```vue
+<KinetixCan permission="roles.manage">
+  <KinetixRoleManager />
+</KinetixCan>
 ```
