@@ -157,9 +157,9 @@ This ensures roles and permissions are resolved only within the context of the a
 
 ### Trait collision with the starter-kit's `HasTeams`
 
-If your `User` model uses **both** the starter-kit's teams trait and spatie's
-`HasRoles`, PHP aborts at boot with a fatal trait-method collision — both traits
-declare a `teams()` method:
+`spatie/laravel-permission` v8 (the Laravel 13 line) ships a `teams()` method on
+`HasRoles`. So does the starter-kit's `HasTeams` trait. When your `User` uses
+both, PHP aborts at boot with a fatal trait-method collision:
 
 ```
 Symfony\Component\ErrorHandler\Error\FatalError
@@ -168,10 +168,15 @@ App\Models\User::teams, because of collision with
 Spatie\Permission\Traits\HasRoles::teams
 ```
 
-Resolve it in the `User` model with PHP's trait conflict resolution. Keep the
-**starter-kit** relation as the public `User::teams()` (your app, routes and
-Inertia rely on it for actual team membership) and alias spatie's method out of
-the way:
+The two `teams()` mean different things:
+
+| Trait | What `teams()` returns |
+|---|---|
+| `HasTeams` (starter kit) | The user's **team memberships** — `belongsToMany(Team, 'team_members')`. Much of `HasTeams` calls `$this->teams()` (`belongsToTeam`, `personalTeam`, `toUserTeams`, `fallbackTeam`, …), and so does your app/Inertia. |
+| `HasRoles` (spatie v8) | A **convenience** relation: the teams the user has *roles* on (`morphToMany` over `model_has_roles`). Spatie never calls it internally — team scoping runs off `getPermissionsTeamId()` in the `PermissionRegistrar`, not this relation. |
+
+So the starter-kit `teams()` **must** win. Resolve it in the `User` model with
+PHP's trait conflict resolution — `insteadof` alone is enough:
 
 ```php
 use App\Concerns\HasTeams;
@@ -180,24 +185,32 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     use HasRoles, HasTeams {
-        HasTeams::teams insteadof HasRoles;       // real team membership wins
-        HasRoles::teams as protected roleTeams;   // park spatie's behind an alias
+        HasTeams::teams insteadof HasRoles;   // keep the starter-kit relation as User::teams()
     }
 
     // ...
 }
 ```
 
-This is safe with Kinetix: team-scoped permissions are bridged through the user's
-`currentTeam` and spatie's `PermissionRegistrar` (the `kinetix.permissions.team`
-middleware, `SetPermissionsTeam`) — **not** through `$user->teams()`. So keeping
-the starter-kit relation as `teams()` does not affect how Kinetix resolves roles
-or permissions per team.
+If you also want spatie's relation, keep it under an alias (optional — most apps
+never need it):
 
-> Order matters: `insteadof` names the trait whose method to **keep**; `as`
-> aliases the discarded one so it stays callable under a new name. If your spatie
-> version actually relies on its own `teams()` internally, alias the starter-kit
-> method instead and have your app call the team relation under that alias.
+```php
+use HasRoles, HasTeams {
+    HasTeams::teams insteadof HasRoles;
+    HasRoles::teams as roleTeams;             // → teams the user has roles on
+}
+```
+
+This is safe with Kinetix: team-scoped permissions are bridged through the user's
+`currentTeam` and the `PermissionRegistrar` (the `kinetix.permissions.team`
+middleware, `SetPermissionsTeam`) — **not** through `$user->teams()`. Discarding
+or aliasing spatie's `teams()` does not affect how roles or permissions resolve
+per team.
+
+> `insteadof` names the trait method to **keep**; the other is excluded. `as` is
+> only needed if you want the excluded method to stay callable under a new name —
+> it does not by itself resolve the collision.
 
 ---
 

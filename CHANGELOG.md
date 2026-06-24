@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-06-23
+
+### Changed
+
+- Corrected the `HasTeams` × spatie `HasRoles` `teams()` collision guidance for
+  `spatie/laravel-permission` **v8** (Laravel 13): v8 ships `teams()` as a
+  convenience relation it never calls internally (scoping uses
+  `getPermissionsTeamId()`), so `insteadof` alone resolves the collision — the
+  alias is optional, not required. Permissions guide (§4), the `kinetix-permissions`
+  skill and the `kinetix-development` skill updated, with a table contrasting what
+  each `teams()` returns.
+
 ## [0.4.1] - 2026-06-23
 
 ### Added
