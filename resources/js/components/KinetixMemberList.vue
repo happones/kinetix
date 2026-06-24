@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
-import { buttonVariants } from "@/composables/useShadcnVariants";
 import { useKinetixMembers } from "@/composables/useKinetixMembers";
+import { buttonVariants } from "@/composables/useShadcnVariants";
+import {
+  statusBadgeClass,
+  type KinetixStatusColor,
+} from "@/composables/useStatusColor";
 import type { KinetixMemberProvision } from "@/types";
 import KinetixMemberProvisioner from "./KinetixMemberProvisioner.vue";
+import KinetixSelect from "./KinetixSelect.vue";
 
 /**
  * Drop-in members directory for the admin-provisioned onboarding model — the
@@ -27,6 +32,20 @@ const { t } = useI18n();
 
 const rowKey = (member: KinetixMemberProvision): string | number =>
   member.id ?? member.email;
+
+/** KinetixSelect expects a `{ value: label }` record. */
+const roleOptions = computed<Record<string, string>>(() =>
+  Object.fromEntries(assignableRoles.value.map((r) => [r, r])),
+);
+
+const STATUS_COLOR: Record<
+  KinetixMemberProvision["status"],
+  KinetixStatusColor
+> = {
+  pending: "warning",
+  active: "success",
+  revoked: "gray",
+};
 
 onMounted(load);
 
@@ -115,26 +134,19 @@ function statusLabel(status: KinetixMemberProvision["status"]): string {
 
         <div class="flex items-center gap-2">
           <span
-            class="rounded-full px-2 py-0.5 text-xs"
-            :class="{
-              'bg-muted text-muted-foreground': member.status !== 'active',
-              'bg-primary/10 text-primary': member.status === 'active',
-            }"
+            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+            :class="statusBadgeClass(STATUS_COLOR[member.status])"
           >
             {{ statusLabel(member.status) }}
           </span>
 
-          <select
-            :value="member.role"
-            class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground"
-            @change="
-              onRoleChange(member, ($event.target as HTMLSelectElement).value)
-            "
-          >
-            <option v-for="r in assignableRoles" :key="r" :value="r">
-              {{ r }}
-            </option>
-          </select>
+          <div class="w-32">
+            <KinetixSelect
+              :value="member.role"
+              :options="roleOptions"
+              @update:value="onRoleChange(member, $event)"
+            />
+          </div>
 
           <button
             v-if="member.status === 'pending'"

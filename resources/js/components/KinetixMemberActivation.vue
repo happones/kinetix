@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm } from "@inertiajs/vue3";
 import { useI18n } from "vue-i18n";
-import { buttonVariants } from "@/composables/useShadcnVariants";
+import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
 
 /**
  * The public set-password screen a provisioned member lands on from their
@@ -53,7 +53,7 @@ function submit(): void {
           v-model="form.name"
           type="text"
           required
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+          :class="inputClass"
         />
         <p v-if="form.errors.name" class="text-xs text-destructive">
           {{ form.errors.name }}
@@ -72,7 +72,7 @@ function submit(): void {
           v-model="form.password"
           type="password"
           required
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+          :class="inputClass"
         />
         <p v-if="form.errors.password" class="text-xs text-destructive">
           {{ form.errors.password }}
@@ -91,7 +91,7 @@ function submit(): void {
           v-model="form.password_confirmation"
           type="password"
           required
-          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+          :class="inputClass"
         />
       </div>
 

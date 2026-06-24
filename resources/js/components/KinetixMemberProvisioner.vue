@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { buttonVariants } from "@/composables/useShadcnVariants";
+import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
+import KinetixSelect from "./KinetixSelect.vue";
 
 /**
  * The provisioning form — substitute for the starter-kit's InviteMemberModal.
@@ -21,6 +22,11 @@ const { t } = useI18n();
 
 const email = ref("");
 const role = ref(props.assignableRoles[0] ?? "");
+
+/** KinetixSelect expects a `{ value: label }` record. */
+const roleOptions = computed<Record<string, string>>(() =>
+  Object.fromEntries(props.assignableRoles.map((r) => [r, r])),
+);
 
 function submit(): void {
   if (!email.value || !role.value) {
@@ -50,7 +56,7 @@ function submit(): void {
         v-model="email"
         type="email"
         required
-        class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+        :class="inputClass"
         :placeholder="t('kinetix.member_email')"
       />
     </div>
@@ -62,16 +68,13 @@ function submit(): void {
       >
         {{ t("kinetix.member_role") }}
       </label>
-      <select
+      <KinetixSelect
         id="kinetix-member-role"
-        v-model="role"
-        required
-        class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-      >
-        <option v-for="r in assignableRoles" :key="r" :value="r">
-          {{ r }}
-        </option>
-      </select>
+        :value="role"
+        :options="roleOptions"
+        :placeholder="t('kinetix.member_role')"
+        @update:value="role = $event"
+      />
     </div>
 
     <button type="submit" :class="buttonVariants({ size: 'sm' })">

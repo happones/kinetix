@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-06-23
+
+### Fixed
+
+- **(published)** The Membership components now use the Reka UI / shadcn-vue
+  new-york-v4 primitives instead of raw HTML: `KinetixMemberProvisioner` and
+  `KinetixMemberList` render the role picker via `<KinetixSelect>`, inputs via
+  `inputClass`, and the status badge via `statusBadgeClass`; `KinetixMemberActivation`
+  uses `inputClass`. No hand-rolled field/select markup remains — aligns the
+  0.4.0 components with the rest of the toolkit.
+
+### Added
+
+- `kinetix-development` skill rule: every control and style must trace back to
+  Reka UI + shadcn-vue new-york-v4 — use the Kinetix Reka primitives
+  (`KinetixSelect`/`KinetixCheckbox`/…) and the canonical class helpers
+  (`inputClass`/`buttonVariants`/`badgeVariants`/`useStatusColor`), never native
+  controls or invented styles.
+
 ## [0.4.2] - 2026-06-23
 
 ### Changed
