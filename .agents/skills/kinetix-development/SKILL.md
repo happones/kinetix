@@ -307,6 +307,18 @@ Route::post('/x', ...)->middleware('plan.feature:capabilities.api');
 
 ---
 
+## 11. Kinetix Permissions (optional, Spatie Laravel Permission)
+
+Feature-scoped roles and permissions integrated with `spatie/laravel-permission`. Enforcement flows through Laravel's Gate; this system adds sync commands, super-admin bypasses, and multi-tenant bridging.
+
+- **Registry**: Central registry `PermissionRegistry` maps features and resource classes. Register resources via `KinetixPermissions::resource(...)` or features via `KinetixPermissions::feature('name')`.
+- **Resource Integration**: Define `permissionFeature()` on the resource to auto-register standard CRUD abilities (`viewAny`/`view`/`create`/`update`/`delete`), and override `registerPermissions(PermissionRegistry $registry)` for custom abilities.
+- **Sync Command**: `php artisan kinetix:permissions:sync` (with `--prune`) synchronizes the registry to Spatie database tables.
+- **Middleware**: `SetPermissionsTeam` maps the active `currentTeam` of the user to Spatie's active team id configuration under `kinetix.permissions.teams`.
+- **Super-Admin Bypass**: `Gate::before` callback bypasses checks for users carrying the configured `super_admin_role`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
