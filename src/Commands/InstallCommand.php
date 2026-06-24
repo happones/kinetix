@@ -14,7 +14,9 @@ class InstallCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kinetix:install';
+    protected $signature = 'kinetix:install
+        {--charts : Also install chart/widget dependencies (@unovis/vue, @unovis/ts)}
+        {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}';
 
     /**
      * The console command description.
@@ -45,27 +47,45 @@ class InstallCommand extends Command
             return self::FAILURE;
         }
 
-        // Add Pinia & Vue i18n to package.json dependencies
+        // Front-end runtime dependencies the published Kinetix components import.
+        // (vue and @inertiajs/vue3 are assumed present from the starter kit.)
         if (! isset($packageJson['dependencies'])) {
             $packageJson['dependencies'] = [];
         }
 
-        $updatedJson = false;
-        if (! isset($packageJson['dependencies']['pinia'])) {
-            $packageJson['dependencies']['pinia'] = '^2.3.1';
-            $updatedJson                          = true;
-        }
-        if (! isset($packageJson['dependencies']['vue-i18n'])) {
-            $packageJson['dependencies']['vue-i18n'] = '^11.0.0';
-            $updatedJson                             = true;
+        $dependencies = [
+            'pinia'                   => '^2.3.1',
+            'vue-i18n'                => '^11.0.0',
+            'reka-ui'                 => '^2.0.0',
+            '@internationalized/date' => '^3.0.0',
+            '@lucide/vue'             => '^1.0.0',
+            'vue-sonner'              => '^2.0.0',
+        ];
+
+        // Opt-in, feature-specific dependencies.
+        if ($this->option('charts')) {
+            $dependencies['@unovis/vue'] = '^1.3.0';
+            $dependencies['@unovis/ts']  = '^1.3.0';
         }
 
-        if ($updatedJson) {
+        if ($this->option('broadcasting')) {
+            $dependencies['@laravel/echo-vue'] = '^2.3.0';
+        }
+
+        $added = [];
+        foreach ($dependencies as $name => $version) {
+            if (! isset($packageJson['dependencies'][$name])) {
+                $packageJson['dependencies'][$name] = $version;
+                $added[]                            = $name;
+            }
+        }
+
+        if ($added !== []) {
             File::put(
                 $packageJsonPath,
                 json_encode($packageJson, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES).PHP_EOL
             );
-            $this->info('Added pinia and vue-i18n to package.json dependencies.');
+            $this->info('Added to package.json dependencies: '.implode(', ', $added).'.');
         }
 
         // Determine package manager

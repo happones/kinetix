@@ -44,12 +44,15 @@ class InstallCommandTest extends TestCase
         parent::tearDown();
     }
 
-    private function runInstaller(): void
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function runInstaller(array $options = []): void
     {
         $command = new TestableInstallCommand;
         $command->setLaravel($this->app);
 
-        (new CommandTester($command))->execute([]);
+        (new CommandTester($command))->execute($options);
     }
 
     private function seedEntryFile(string $ext): void
@@ -73,12 +76,31 @@ JS);
 
         $this->runInstaller();
 
-        $package = json_decode(File::get($this->base.'/package.json'), true);
-        $this->assertArrayHasKey('pinia', $package['dependencies']);
-        $this->assertArrayHasKey('vue-i18n', $package['dependencies']);
+        $deps = json_decode(File::get($this->base.'/package.json'), true)['dependencies'];
+
+        // Core runtime deps the published components import.
+        foreach (['pinia', 'vue-i18n', 'reka-ui', '@internationalized/date', '@lucide/vue', 'vue-sonner'] as $dep) {
+            $this->assertArrayHasKey($dep, $deps, "expected {$dep} to be added");
+        }
+
+        // Feature-specific deps are NOT added without their flags.
+        $this->assertArrayNotHasKey('@unovis/vue', $deps);
+        $this->assertArrayNotHasKey('@laravel/echo-vue', $deps);
 
         $this->assertTrue(File::exists($this->base.'/resources/js/stores/index.ts'));
         $this->assertStringContainsString('createPinia', File::get($this->base.'/resources/js/stores/index.ts'));
+    }
+
+    public function test_optional_dependencies_are_added_with_flags(): void
+    {
+        $this->seedEntryFile('ts');
+
+        $this->runInstaller(['--charts' => true, '--broadcasting' => true]);
+
+        $deps = json_decode(File::get($this->base.'/package.json'), true)['dependencies'];
+        $this->assertArrayHasKey('@unovis/vue', $deps);
+        $this->assertArrayHasKey('@unovis/ts', $deps);
+        $this->assertArrayHasKey('@laravel/echo-vue', $deps);
     }
 
     public function test_it_injects_with_app_with_the_typescript_cast_for_ts_entry(): void

@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `php artisan kinetix:install` now installs the front-end runtime dependencies the
+  published components import (`reka-ui`, `@internationalized/date`, `@lucide/vue`,
+  `vue-sonner` — plus `pinia`/`vue-i18n`), so a fresh install no longer fails with
+  Vite *"Failed to resolve import …"*. Optional deps via `--charts`
+  (`@unovis/*`) and `--broadcasting` (`@laravel/echo-vue`); all documented.
 - `php artisan kinetix:install` no longer injects the TypeScript cast
   (`as string | undefined`) into a JavaScript entry file (`app.js`), which was a
   syntax error; the cast is now emitted only for `.ts` entries. Added a test suite

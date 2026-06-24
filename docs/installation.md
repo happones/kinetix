@@ -68,11 +68,28 @@ Run this again whenever you publish translations or add a locale.
 
 ## 4. Run the installer
 
-Kinetix provides an installer command that automatically installs front-end dependencies (`pinia`, `vue-i18n`), creates a Pinia store setup, and registers both Pinia and Vue i18n inside your main Inertia entry file (`app.ts` / `app.js`):
+Kinetix's published Vue components import a few npm packages. The installer adds
+them to your `package.json` and installs them, creates a Pinia store, and registers
+Pinia + Vue i18n in your Inertia entry file (`app.ts` / `app.js`):
 
 ```bash
 php artisan kinetix:install
+
+# add chart/widget deps (@unovis/vue, @unovis/ts):
+php artisan kinetix:install --charts
+
+# add real-time notification deps (@laravel/echo-vue):
+php artisan kinetix:install --broadcasting
 ```
+
+It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are
+assumed from your starter kit): `pinia`, `vue-i18n`, `reka-ui`,
+`@internationalized/date`, `@lucide/vue`, `vue-sonner`. The `--charts` and
+`--broadcasting` flags add the optional, feature-specific packages.
+
+> If you see a Vite error like *Failed to resolve import "@internationalized/date"*,
+> a required dependency is missing — run `php artisan kinetix:install` (or install
+> the package listed above manually).
 
 ::: details Manual Installation & Configuration
 
@@ -80,17 +97,18 @@ If you prefer to configure everything manually:
 
 ### 4.1 Install dependencies
 
-Install `pinia` and `vue-i18n` version 11 using your package manager:
+Install the core runtime dependencies (add `@unovis/vue @unovis/ts` for charts and
+`@laravel/echo-vue` for broadcasting):
 
 ::: code-group
 ```bash [npm]
-npm install pinia vue-i18n@11
+npm install pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner
 ```
 ```bash [pnpm]
-pnpm add pinia vue-i18n@11
+pnpm add pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner
 ```
 ```bash [yarn]
-yarn add pinia vue-i18n@11
+yarn add pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner
 ```
 :::
 
