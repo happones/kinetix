@@ -98,7 +98,7 @@ function submit(): void {
       <button
         type="submit"
         :disabled="form.processing"
-        :class="buttonVariants({ class: 'w-full' })"
+        :class="[buttonVariants(), 'w-full']"
       >
         {{ t("kinetix.activation_submit") }}
       </button>
