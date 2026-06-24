@@ -153,10 +153,86 @@ If your application scopes roles and permissions per team:
    ```
 2. Apply the `kinetix.permissions.team` middleware to your routes or global middleware stack.
 
-This middleware automatically reads the current active team from the authenticated user (`$user->currentTeam`) and sets it on Spatie's permission registrar using:
+This ensures roles and permissions are resolved only within the context of the active team.
+
+---
+
+## 5. Frontend Authorization (Vue / Inertia)
+
+To enforce permissions on your Vue frontend (e.g., to hide buttons, navigation links, or entire pages based on the user's role/permissions):
+
+### 5.1 Sharing Permissions with Inertia
+
+Expose the authenticated user's permissions in your host application's `HandleInertiaRequests` middleware (typically `app/Http/Middleware/HandleInertiaRequests.php`):
 
 ```php
-app(PermissionRegistrar::class)->setPermissionsTeamId($teamId);
+public function share(Request $request): array
+{
+    return array_merge(parent::share($request), [
+        'auth' => [
+            'user' => $request->user() ? [
+                'id'          => $request->user()->id,
+                'name'        => $request->user()->name,
+                // Pass the list of permission keys to the client
+                'permissions' => $request->user()->getAllPermissions()->pluck('name')->toArray(),
+            ] : null,
+        ],
+    ]);
+}
 ```
 
-This ensures roles and permissions are resolved only within the context of the active team.
+### 5.2 Vue Permission Helper (`can`)
+
+In your Vue components, you can define a helper function using the `usePage` hook from `@inertiajs/vue3` to check if the current user possesses a permission:
+
+```vue
+<script setup lang="ts">
+import { computed } from 'vue'
+import { usePage } from '@inertiajs/vue3'
+
+const page = usePage()
+
+// Helper to check if a permission is granted
+const can = (permission: string): boolean => {
+  const permissions = (page.props.auth as any)?.user?.permissions ?? []
+  return permissions.includes(permission)
+}
+</script>
+
+<template>
+  <div>
+    <!-- Render content conditionally based on feature/ability keys -->
+    <button v-if="can('posts.create')" class="btn-primary">
+      Create Post
+    </button>
+  </div>
+</template>
+```
+
+### 5.3 Global Helper (Optional)
+
+To avoid importing and defining the helper in every component, you can register `can` globally inside your `app.ts` / `app.js` entry file:
+
+```typescript
+createInertiaApp({
+  // ...
+  setup({ el, App, props, plugin }) {
+    const app = createApp({ render: () => h(App, props) })
+      .use(plugin)
+      
+    // Register global property
+    app.config.globalProperties.$can = (permission: string): boolean => {
+      const permissions = (props.initialPage.props.auth as any)?.user?.permissions ?? []
+      return permissions.includes(permission)
+    }
+
+    app.mount(el)
+  },
+})
+```
+
+You can then use it directly in your templates without setup imports:
+
+```html
+<button v-if="$can('posts.create')">Create Post</button>
+```
