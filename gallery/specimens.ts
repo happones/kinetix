@@ -12,6 +12,24 @@ import KinetixPricingTable from "@/components/KinetixPricingTable.vue";
 import KinetixStatsOverviewWidget from "@/components/KinetixStatsOverviewWidget.vue";
 import KinetixRangeCalendar from "@/components/KinetixRangeCalendar.vue";
 import KinetixFileUpload from "@/components/KinetixFileUpload.vue";
+import KinetixSelect from "@/components/KinetixSelect.vue";
+import KinetixRadioGroup from "@/components/KinetixRadioGroup.vue";
+import KinetixTagsInput from "@/components/KinetixTagsInput.vue";
+import KinetixKeyValue from "@/components/KinetixKeyValue.vue";
+import KinetixCalendar from "@/components/KinetixCalendar.vue";
+import KinetixPageHeader from "@/components/KinetixPageHeader.vue";
+import KinetixImpersonationBanner from "@/components/KinetixImpersonationBanner.vue";
+import KinetixActionDropdown from "@/components/KinetixActionDropdown.vue";
+import KinetixMemberActivation from "@/components/KinetixMemberActivation.vue";
+import KinetixPermissionMatrix from "@/components/KinetixPermissionMatrix.vue";
+import KinetixActivityLog from "@/components/KinetixActivityLog.vue";
+import KinetixRoleManager from "@/components/KinetixRoleManager.vue";
+import KinetixMemberList from "@/components/KinetixMemberList.vue";
+import KinetixSubscriptionStatus from "@/components/KinetixSubscriptionStatus.vue";
+import KinetixInvoicesTable from "@/components/KinetixInvoicesTable.vue";
+import KinetixChartWidget from "@/components/KinetixChartWidget.vue";
+import KinetixCustomWidget from "@/components/KinetixCustomWidget.vue";
+import KinetixTableWidget from "@/components/KinetixTableWidget.vue";
 
 export interface Specimen {
   name: string;
@@ -146,6 +164,61 @@ const statsWidget = {
   },
 };
 
+// --- Misc fixtures -----------------------------------------------------------
+const permissionFeatures = [
+  {
+    name: "users", label: "Users",
+    abilities: [
+      { name: "users.view", label: "View" },
+      { name: "users.create", label: "Create" },
+      { name: "users.delete", label: "Delete" },
+    ],
+  },
+  {
+    name: "orders", label: "Orders",
+    abilities: [
+      { name: "orders.view", label: "View" },
+      { name: "orders.refund", label: "Refund" },
+    ],
+  },
+];
+
+const pageActions = [
+  { label: "New order", icon: "plus", color: "primary", type: "button", openUrlInNewTab: false },
+  { label: "Export", icon: "download", color: null, type: "button", openUrlInNewTab: false },
+];
+
+const actionGroup = {
+  type: "group", label: "Actions", icon: "ellipsis-vertical", color: null,
+  actions: [
+    { label: "Edit", icon: "edit", color: null, type: "button", openUrlInNewTab: false },
+    { label: "Delete", icon: "trash", color: "danger", type: "button", openUrlInNewTab: false },
+  ],
+};
+
+const invoices = [
+  { id: "in_1042", date: "Jun 1, 2026", total: "$29.00", status: "paid", url: "#" },
+  { id: "in_1010", date: "May 1, 2026", total: "$29.00", status: "paid", url: "#" },
+];
+
+const chartWidget = {
+  id: "chart", type: "chart", columnSpan: 12, sort: 0, title: "Revenue", description: null,
+  data: {
+    chartType: "line",
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+    datasets: [{ label: "2026", data: [12, 19, 15, 22, 28, 26] }],
+  },
+};
+
+const tableWidget = {
+  id: "tw", type: "table", columnSpan: 12, sort: 0, title: "Top products", description: null,
+  data: { headers: ["Product", "Sales"], rows: [["Widget A", "1,204"], ["Widget B", "980"], ["Widget C", "610"]] },
+};
+
+const customWidget = {
+  id: "cw", type: "custom", columnSpan: 12, sort: 0, title: "Release notes", description: "Latest changes", data: {},
+};
+
 export const specimens: Specimen[] = [
   { name: "wizard-default", title: "Wizard — default", component: KinetixWizard, frame: "card", width: 640, props: { steps: wizardSteps, variant: "default", step: 1 }, slots: wizardSlots },
   { name: "wizard-gradient", title: "Wizard — gradient", component: KinetixWizard, frame: "card", width: 640, props: { steps: wizardSteps, variant: "gradient", step: 1 }, slots: wizardSlots },
@@ -167,6 +240,32 @@ export const specimens: Specimen[] = [
   { name: "token-manager", title: "API token manager", component: KinetixTokenManager, width: 720 },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },
   { name: "gdpr-panel", title: "GDPR self-service panel", component: KinetixGdprPanel, width: 640, props: { requirePassword: true } },
+
+  // --- Form controls ---------------------------------------------------------
+  { name: "select", title: "Select", component: KinetixSelect, frame: "card", width: 420, props: { value: "editor", options: { admin: "Admin", editor: "Editor", viewer: "Viewer" } } },
+  { name: "radio-group", title: "Radio group", component: KinetixRadioGroup, frame: "card", width: 420, props: { value: "yearly", options: { monthly: "Monthly", yearly: "Yearly" }, inline: true } },
+  { name: "tags-input", title: "Tags input", component: KinetixTagsInput, frame: "card", width: 480, props: { value: ["vue", "laravel", "inertia"] } },
+  { name: "key-value", title: "Key-value", component: KinetixKeyValue, frame: "card", width: 520, props: { value: { Plan: "Pro", Seats: "10" } } },
+  { name: "calendar", title: "Calendar", component: KinetixCalendar, frame: "card", width: 460, props: { value: "2026-06-15", numberOfMonths: 1 } },
+
+  // --- Feature UIs -----------------------------------------------------------
+  { name: "page-header", title: "Page header", component: KinetixPageHeader, frame: "card", width: 720, props: { heading: "Orders", description: "Manage your store's orders.", actions: pageActions } },
+  { name: "impersonation-banner", title: "Impersonation banner", component: KinetixImpersonationBanner, width: 720 },
+  { name: "action-dropdown", title: "Action dropdown", component: KinetixActionDropdown, frame: "card", width: 360, props: { group: actionGroup } },
+  { name: "permission-matrix", title: "Permission matrix", component: KinetixPermissionMatrix, frame: "card", width: 680, props: { features: permissionFeatures, modelValue: ["users.view", "orders.view"] } },
+  { name: "member-activation", title: "Member activation", component: KinetixMemberActivation, frame: "card", width: 520, props: { email: "grace@example.com", action: "#" } },
+  { name: "activity-log", title: "Activity log", component: KinetixActivityLog, frame: "card", width: 640 },
+  { name: "role-manager", title: "Role manager", component: KinetixRoleManager, frame: "card", width: 720 },
+  { name: "member-list", title: "Member list", component: KinetixMemberList, frame: "card", width: 760 },
+
+  // --- Billing ---------------------------------------------------------------
+  { name: "subscription-status", title: "Subscription status", component: KinetixSubscriptionStatus, frame: "card", width: 560, props: { subscription: { active: true, onGracePeriod: false, status: "active", endsAt: null, stripePrice: "price_pro" } } },
+  { name: "invoices-table", title: "Invoices table", component: KinetixInvoicesTable, frame: "card", width: 640, props: { invoices } },
+
+  // --- Widgets ---------------------------------------------------------------
+  { name: "chart-widget", title: "Chart widget", component: KinetixChartWidget, width: 700, props: { widget: chartWidget } },
+  { name: "table-widget", title: "Table widget", component: KinetixTableWidget, width: 560, props: { widget: tableWidget } },
+  { name: "custom-widget", title: "Custom widget", component: KinetixCustomWidget, width: 520, props: { widget: customWidget }, slots: { default: () => h("p", { class: "text-sm text-muted-foreground" }, "Anything can go inside a custom widget.") } },
   {
     name: "table-summaries", title: "Table with summaries", component: KinetixTable, width: 720,
     props: {

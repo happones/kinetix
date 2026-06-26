@@ -25,6 +25,21 @@ A schema-driven form (`Section` → grid of fields) — see [Forms](/forms).
 
 ![File upload dropzone](/screenshots/file-upload.png)
 
+### Form controls
+
+`<KinetixSelect>`, `<KinetixRadioGroup>`, `<KinetixTagsInput>`,
+`<KinetixKeyValue>`, `<KinetixCalendar>`.
+
+![Select](/screenshots/select.png)
+
+![Radio group](/screenshots/radio-group.png)
+
+![Tags input](/screenshots/tags-input.png)
+
+![Key-value](/screenshots/key-value.png)
+
+![Calendar](/screenshots/calendar.png)
+
 ### Table with summaries
 
 A `Table` with a `Sum` summarizer in the footer — see [Tables → Summaries](/tables#summaries).
@@ -67,6 +82,20 @@ The standalone `<KinetixWizard>` — see the [Wizard guide](/wizard).
 
 ![GDPR self-service panel](/screenshots/gdpr-panel.png)
 
+### Member list & activation
+
+`<KinetixMemberList>` and `<KinetixMemberActivation>` — see [Membership](/membership).
+
+![Member list](/screenshots/member-list.png)
+
+![Member activation](/screenshots/member-activation.png)
+
+### Impersonation banner
+
+`<KinetixImpersonationBanner>` — see [Impersonation](/impersonation).
+
+![Impersonation banner](/screenshots/impersonation-banner.png)
+
 ## SaaS platform
 
 ### Pricing table
@@ -92,6 +121,46 @@ The standalone `<KinetixWizard>` — see the [Wizard guide](/wizard).
 `<KinetixWebhookManager>` — see [Webhooks](/webhooks).
 
 ![Webhook manager](/screenshots/webhook-manager.png)
+
+### Roles & permissions
+
+`<KinetixRoleManager>` and `<KinetixPermissionMatrix>` — see [Permissions](/permissions).
+
+![Role manager](/screenshots/role-manager.png)
+
+![Permission matrix](/screenshots/permission-matrix.png)
+
+### Activity log
+
+`<KinetixActivityLog>` — see [Activity](/activity).
+
+![Activity log](/screenshots/activity-log.png)
+
+### Subscription & invoices
+
+`<KinetixSubscriptionStatus>` and `<KinetixInvoicesTable>` — see [Billing](/billing).
+
+![Subscription status](/screenshots/subscription-status.png)
+
+![Invoices table](/screenshots/invoices-table.png)
+
+### Dashboard widgets
+
+`<KinetixChartWidget>`, `<KinetixTableWidget>`, `<KinetixCustomWidget>` — see [Widgets](/widgets).
+
+![Chart widget](/screenshots/chart-widget.png)
+
+![Table widget](/screenshots/table-widget.png)
+
+![Custom widget](/screenshots/custom-widget.png)
+
+### Page header & action menu
+
+`<KinetixPageHeader>` and `<KinetixActionDropdown>`.
+
+![Page header](/screenshots/page-header.png)
+
+![Action dropdown](/screenshots/action-dropdown.png)
 
 ---
 

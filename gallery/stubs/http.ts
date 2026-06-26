@@ -55,6 +55,65 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
     },
   },
   {
+    match: /\/activity$/,
+    data: {
+      data: [
+        {
+          id: 1, event: "updated", description: null,
+          causerName: "Ada Lovelace", causerId: 1,
+          subjectType: "Order", subjectId: 1042,
+          changes: { old: { status: "pending" }, attributes: { status: "paid" } },
+          createdAt: "2026-06-20T10:00:00Z",
+        },
+        {
+          id: 2, event: "created", description: null,
+          causerName: "Grace Hopper", causerId: 2,
+          subjectType: "Order", subjectId: 1043,
+          changes: { old: {}, attributes: {} },
+          createdAt: "2026-06-19T16:30:00Z",
+        },
+      ],
+      pagination: { current_page: 1, last_page: 1 },
+    },
+  },
+  {
+    match: /\/permissions\/features$/,
+    data: [
+      {
+        name: "users", label: "Users",
+        abilities: [
+          { name: "users.view", label: "View" },
+          { name: "users.create", label: "Create" },
+          { name: "users.delete", label: "Delete" },
+        ],
+      },
+      {
+        name: "orders", label: "Orders",
+        abilities: [
+          { name: "orders.view", label: "View" },
+          { name: "orders.refund", label: "Refund" },
+        ],
+      },
+    ],
+  },
+  {
+    match: /\/permissions\/roles$/,
+    data: [
+      { id: 1, name: "admin", permissions: ["users.view", "users.create", "users.delete", "orders.view", "orders.refund"] },
+      { id: 2, name: "editor", permissions: ["users.view", "orders.view"] },
+    ],
+  },
+  {
+    match: /\/members$/,
+    data: {
+      provisions: [
+        { id: 1, email: "ada@example.com", name: "Ada Lovelace", role: "editor", status: "active", expired: false, activatedAt: "2026-06-10T09:00:00Z", expiresAt: null },
+        { id: 2, email: "grace@example.com", name: null, role: "viewer", status: "pending", expired: false, activatedAt: null, expiresAt: "2026-07-01T00:00:00Z" },
+      ],
+      assignable_roles: ["editor", "viewer"],
+    },
+  },
+  {
     match: /\/onboarding$/,
     data: {
       steps: [

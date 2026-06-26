@@ -13,12 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Impersonation banner**: the "Return to your account" button inherited the
+  banner's white text, making the label invisible on the banner's background.
+  It now uses `text-foreground` explicitly. (Surfaced by the new screenshot
+  tooling.)
+
 ### Tooling / Docs
 
 - **Automated component screenshots.** A Vite gallery (`gallery/`) renders each
   component with mock props + real translations + shadcn tokens, and a Playwright
   script (`scripts/screenshots.mjs`, `npm run screenshots`) captures light/dark
-  2× PNGs into `docs/public/screenshots/` for embedding in the docs. New
+  2× PNGs into `docs/public/screenshots/` for embedding in the docs. **33
+  components** are now wired (all major UI surfaces), shown on the new
   [Component previews](docs/component-previews.md) page. Dev-only — nothing
   ships to consumers.
 

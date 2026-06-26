@@ -22,7 +22,7 @@ const { active, impersonatedName, leave } = useKinetixImpersonation();
     }}</span>
     <button
       type="button"
-      :class="buttonVariants({ variant: 'outline', size: 'sm' })"
+      :class="[buttonVariants({ variant: 'outline', size: 'sm' }), 'text-foreground']"
       @click="leave"
     >
       {{ t("kinetix.impersonation_leave") }}

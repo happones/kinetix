@@ -6,7 +6,11 @@ import { defineComponent, h } from "vue";
  * actually happens (screenshots are static).
  */
 const page = {
-  props: { kinetix_config: { route_prefix: "_kinetix" } },
+  props: {
+    kinetix_config: { route_prefix: "_kinetix" },
+    // Surfaced for the impersonation banner specimen.
+    kinetix_impersonation: { active: true, user: { id: 1, name: "Ada Lovelace" } },
+  },
   url: "/",
   component: "Gallery",
   version: null as string | null,
