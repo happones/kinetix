@@ -252,7 +252,15 @@ return [
     |
     */
     'webhooks' => [
-        'enabled'        => env('KINETIX_WEBHOOKS_ENABLED', false),
+        'enabled' => env('KINETIX_WEBHOOKS_ENABLED', false),
+
+        // Delivery driver: 'auto' uses spatie/laravel-webhook-server when installed
+        // (its tuned retries/backoff), otherwise the native queued job. Force with
+        // 'spatie' / 'native'. Note: the spatie driver signs with spatie's header
+        // (config webhook-server.signature_header_name, default 'Signature') and
+        // uses spatie's tries/timeout config.
+        'driver' => env('KINETIX_WEBHOOKS_DRIVER', 'auto'),
+
         'teams'          => env('KINETIX_WEBHOOKS_TEAMS', false),
         'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
         'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),

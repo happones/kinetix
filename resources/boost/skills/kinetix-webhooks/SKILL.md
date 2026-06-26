@@ -30,6 +30,7 @@ php artisan migrate
 ```php
 'webhooks' => [
     'enabled'        => env('KINETIX_WEBHOOKS_ENABLED', false),
+    'driver'         => env('KINETIX_WEBHOOKS_DRIVER', 'auto'), // auto | spatie | native
     'teams'          => env('KINETIX_WEBHOOKS_TEAMS', false),
     'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false), // dev/testing only
     'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
@@ -58,8 +59,13 @@ KinetixWebhooks::fire('order.created', ['id' => $order->id]);  // domain code
 - **SSRF** (`WebhookUrlGuard`): rejects non-HTTP(S) + private/loopback/link-local/
   reserved IPs (incl. `169.254.169.254`), at save time and before each delivery.
   `allow_private=true` permits local hosts.
-- **Retries** via the queue (`tries`/backoff); every attempt logged. Prune with
-  `kinetix:webhooks:prune`.
+- **Driver** (`WebhookDispatcher::usesWebhookServer()`): `auto` uses
+  `spatie/laravel-webhook-server` when installed (its retries/backoff), else the
+  native job. With spatie, deliveries are logged via a listener on its
+  `WebhookCallSucceeded/Failed` events (correlated by `meta`), the signature uses
+  spatie's `Signature` header, and retries/timeout come from spatie's config.
+- **Retries** (native driver) via the queue (`tries`/backoff); every attempt
+  logged. Prune with `kinetix:webhooks:prune`.
 - Endpoints (gated `webhooks.manage`): `GET/POST {prefix}/webhooks`,
   `PUT/DELETE {prefix}/webhooks/{endpoint}`, `{endpoint}/rotate`, `{endpoint}/test`,
   `{endpoint}/logs`, `logs/{log}/redeliver`.

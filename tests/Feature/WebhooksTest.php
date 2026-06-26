@@ -53,6 +53,9 @@ class WebhooksTest extends TestCase
 
         $app['config']->set('cache.default', 'array');
         $app['config']->set('kinetix.webhooks.enabled', true);
+        // spatie/laravel-webhook-server is installed (dev dep), which would flip
+        // the `auto` driver to spatie; pin this suite to the native delivery job.
+        $app['config']->set('kinetix.webhooks.driver', 'native');
     }
 
     protected function setUp(): void

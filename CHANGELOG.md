@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-06-26
+
+### Added
+
+- **Webhooks now prefer `spatie/laravel-webhook-server`** when installed (its
+  tuned retries/backoff), via a new `webhooks.driver` config (`auto` by default;
+  falls back to the native queued job; force with `spatie` / `native`).
+  `spatie/laravel-webhook-server` added to `suggest`.
+  - The dispatcher routes through spatie's `WebhookCall` (re-checking SSRF, since
+    spatie delivers directly) and tags each call with `meta` so a listener on
+    spatie's `WebhookCallSucceeded`/`WebhookCallFailed` events records the same
+    `WebhookLog` entries — the dashboard stays consistent across drivers.
+  - Driver differences documented: with spatie, the signature uses spatie's
+    `Signature` header and retries/timeout come from spatie's own config.
+
 ## [0.10.0] - 2026-06-26
 
 ### Added

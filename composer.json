@@ -25,13 +25,15 @@
         "spatie/laravel-permission": "^6.0",
         "spatie/laravel-activitylog": "^4.8",
         "laravel/pennant": "^1.0",
-        "laravel/scout": "^10.0"
+        "laravel/scout": "^10.0",
+        "spatie/laravel-webhook-server": "^3.0"
     },
     "suggest": {
         "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions.",
         "spatie/laravel-activitylog": "Preferred driver for the Kinetix activity feature (^4.8). When installed, Kinetix logs through it instead of its native store.",
         "laravel/pennant": "Preferred driver for the Kinetix feature-flags feature (^1.0). When installed, Kinetix resolves flags through Pennant; otherwise a native evaluator is used.",
-        "laravel/scout": "Search driver for the Kinetix spotlight command palette (^10.0). When a searched model is Searchable, spotlight routes through Scout; otherwise it uses a LIKE query."
+        "laravel/scout": "Search driver for the Kinetix spotlight command palette (^10.0). When a searched model is Searchable, spotlight routes through Scout; otherwise it uses a LIKE query.",
+        "spatie/laravel-webhook-server": "Preferred delivery driver for the Kinetix webhooks feature (^3.0). When installed, deliveries route through its tuned retries/backoff; otherwise Kinetix's native queued job is used."
     },
     "autoload": {
         "psr-4": {

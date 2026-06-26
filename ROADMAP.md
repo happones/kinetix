@@ -140,7 +140,7 @@ Global `Cmd+K` search over models, navigation and actions.
 - **UI**: `<KinetixSpotlight>` built on Reka `Dialog` + `Listbox` (no native
   controls, per the design rules).
 
-## Stage 6 — Webhooks (`v0.10.0`) — ✅ shipped (native)
+## Stage 6 — Webhooks (`v0.10.0`, spatie driver `v0.10.1`) — ✅ shipped
 
 Let customers hook platform events into their own services. Highest complexity —
 shipped last, on top of the event spine.

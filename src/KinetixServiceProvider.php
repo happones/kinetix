@@ -43,6 +43,7 @@ use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Webhooks\LogSpatieWebhookCall;
 use Happones\Kinetix\Webhooks\WebhookController;
 use Happones\Kinetix\Webhooks\WebhookDispatcher;
 use Happones\Kinetix\Webhooks\WebhookEventRegistry;
@@ -55,6 +56,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Spatie\Permission\PermissionRegistrar;
+use Spatie\WebhookServer\Events\WebhookCallFailedEvent;
+use Spatie\WebhookServer\Events\WebhookCallSucceededEvent;
 
 class KinetixServiceProvider extends ServiceProvider
 {
@@ -542,6 +545,15 @@ class KinetixServiceProvider extends ServiceProvider
         app(PermissionRegistry::class)->feature('webhooks')
             ->label('Webhooks')
             ->ability('manage', 'Manage webhooks');
+
+        // When delivering through spatie/laravel-webhook-server, bridge its
+        // per-attempt events into the Kinetix delivery log.
+        if (app(WebhookDispatcher::class)->usesWebhookServer()) {
+            $this->app['events']->listen([
+                WebhookCallSucceededEvent::class,
+                WebhookCallFailedEvent::class,
+            ], LogSpatieWebhookCall::class);
+        }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);

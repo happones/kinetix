@@ -17,6 +17,8 @@ php artisan migrate
 ```php
 'webhooks' => [
     'enabled'        => env('KINETIX_WEBHOOKS_ENABLED', false),
+    // auto = spatie/laravel-webhook-server when installed, else the native job.
+    'driver'         => env('KINETIX_WEBHOOKS_DRIVER', 'auto'),
     'teams'          => env('KINETIX_WEBHOOKS_TEAMS', false),
     // Permit private/loopback URLs — dev/testing only (SSRF risk in production).
     'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
@@ -139,7 +141,25 @@ Team-aware, under the Kinetix route prefix, gated by `webhooks.manage`:
 | `GET` | `{prefix}/webhooks/{endpoint}/logs` | Delivery logs |
 | `POST` | `{prefix}/webhooks/logs/{log}/redeliver` | Re-queue a delivery |
 
-> **Want spatie's delivery engine?** A bridge to
-> [`spatie/laravel-webhook-server`](https://github.com/spatie/laravel-webhook-server)
-> (its tuned retries/backoff) is a planned opt-in — see `ROADMAP.md`. The native
-> driver above is the default and powers the dashboard's delivery logs.
+---
+
+## 7. Delivery driver
+
+With `driver = auto` (default), Kinetix delivers through
+[`spatie/laravel-webhook-server`](https://github.com/spatie/laravel-webhook-server)
+when it's installed — inheriting its tuned retries/backoff — and falls back to the
+native queued job otherwise. Force either with `driver = 'spatie'` / `'native'`.
+
+Either way the **dashboard delivery logs are populated** and the **SSRF guard runs
+before every delivery**. Two driver-specific differences to know:
+
+- **Signature header**: the native driver sends `X-Kinetix-Signature`; the spatie
+  driver uses spatie's `Signature` header (configurable via
+  `config('webhook-server.signature_header_name')`). Both are HMAC-SHA256 of the
+  raw body — verify against whichever your driver sends.
+- **Retries/timeout**: with the spatie driver these come from spatie's own config
+  (`webhook-server.tries` / `timeout_in_seconds`), not `kinetix.webhooks.*`.
+
+Kinetix logs spatie's per-attempt outcomes by listening to its
+`WebhookCallSucceeded`/`WebhookCallFailed` events (correlated by a `meta` tag), so
+your dashboard stays consistent across drivers.
