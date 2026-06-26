@@ -29,6 +29,9 @@ use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
 use Happones\Kinetix\Forms\SearchController;
 use Happones\Kinetix\Forms\UploadController;
+use Happones\Kinetix\Gdpr\GdprController;
+use Happones\Kinetix\Gdpr\GdprManager;
+use Happones\Kinetix\Gdpr\GdprRegistry;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
@@ -117,6 +120,10 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The wizard completion manager (backs the gating middleware).
         $this->app->singleton(WizardManager::class);
+
+        // The GDPR data-section registry + manager.
+        $this->app->singleton(GdprRegistry::class);
+        $this->app->singleton(GdprManager::class);
     }
 
     /**
@@ -264,6 +271,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Wizards module (gating middleware + completion)
         $this->registerWizards();
+
+        // Register the optional GDPR module (export my data + account deletion)
+        $this->registerGdpr();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -714,6 +724,36 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('{slug}', [WizardController::class, 'status'])->name('kinetix.wizards.status');
                 Route::post('{slug}/complete', [WizardController::class, 'complete'])->name('kinetix.wizards.complete');
+            });
+    }
+
+    /**
+     * Wire the optional GDPR module: self-service "export my data" + account
+     * deletion endpoints (each user acts only on their own account, team-aware
+     * prefix, no admin ability).
+     */
+    protected function registerGdpr(): void
+    {
+        if (! config('kinetix.gdpr.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/gdpr")
+            ->group(function () {
+                Route::post('export', [GdprController::class, 'export'])->name('kinetix.gdpr.export');
+                Route::post('delete', [GdprController::class, 'destroy'])->name('kinetix.gdpr.delete');
             });
     }
 

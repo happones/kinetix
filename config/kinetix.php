@@ -307,6 +307,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | GDPR self-service (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Lets users export their personal data and delete their account. Register
+    | the data sections with KinetixGdpr::export('profile', fn ($user) => ...).
+    | Deletion either 'anonymize's the configured PII columns or hard-'delete's
+    | the record; override entirely with KinetixGdpr::deleteUsing(...).
+    |
+    */
+    'gdpr' => [
+        'enabled' => env('KINETIX_GDPR_ENABLED', false),
+
+        // 'anonymize' scrubs the columns below; 'delete' removes the record.
+        'deletion' => env('KINETIX_GDPR_DELETION', 'anonymize'),
+
+        // Require the user's current password before exporting/deleting.
+        'require_password' => env('KINETIX_GDPR_REQUIRE_PASSWORD', true),
+
+        // @var array<string, mixed> column => replacement value (or closure) on anonymize
+        'anonymize' => [
+            // 'name'  => 'Deleted user',
+            // 'email' => null,
+        ],
+
+        // Where the SPA navigates after the account is deleted.
+        'redirect' => env('KINETIX_GDPR_REDIRECT', '/'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Onboarding (optional)
     |--------------------------------------------------------------------------
     |

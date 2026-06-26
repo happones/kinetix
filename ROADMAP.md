@@ -192,7 +192,10 @@ shipped last, on top of the event spine.
   `Average`, `Count`, `Range`, custom) via `Column::summarize()`, computed over
   the full filtered dataset, with number/money formatting — and `ExportColumn::summarize()`
   to append a totals row to CSV/XLSX exports.
-- **GDPR self-service** — "export my data" (reuses Export) + account deletion.
+- **GDPR self-service (`v0.19.0`) — ✅ shipped.** "Download my data" (queued JSON
+  dump of registered sections, delivered via notification) + password-gated
+  account deletion (anonymize or hard-delete, customizable), with a drop-in
+  `<KinetixGdprPanel>`.
 
 ---
 

@@ -221,6 +221,23 @@ return [
     'tour_skip' => 'Passer',
     'tour_done' => 'Terminé',
 
+    // RGPD libre-service
+    'gdpr_export_title'           => 'Téléchargez vos données',
+    'gdpr_export_desc'            => 'Demandez une copie de vos données personnelles. Nous vous enverrons un lien de téléchargement lorsqu’elle sera prête.',
+    'gdpr_export_button'          => 'Demander l’export',
+    'gdpr_export_queued'          => 'Votre export est en préparation. Vous serez notifié lorsqu’il sera prêt.',
+    'gdpr_export_failed'          => 'Impossible de démarrer l’export. Veuillez réessayer.',
+    'gdpr_export_ready'           => 'Votre export de données est prêt',
+    'gdpr_export_ready_body'      => 'L’export de vos données personnelles est terminé et prêt à être téléchargé.',
+    'gdpr_delete_title'           => 'Supprimez votre compte',
+    'gdpr_delete_desc'            => 'Supprime définitivement votre compte et vos données personnelles. Cette action est irréversible.',
+    'gdpr_delete_button'          => 'Supprimer le compte',
+    'gdpr_delete_confirm_heading' => 'Supprimer votre compte ?',
+    'gdpr_delete_confirm_body'    => 'Cela supprime définitivement votre compte et vos données personnelles. Cette action est irréversible.',
+    'gdpr_password'               => 'Confirmez votre mot de passe',
+    'gdpr_password_incorrect'     => 'Le mot de passe est incorrect.',
+    'gdpr_delete_failed'          => 'Impossible de supprimer votre compte. Veuillez réessayer.',
+
     // Résumés de tableau
     'summary_total' => 'Total',
 

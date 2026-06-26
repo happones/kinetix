@@ -221,6 +221,23 @@ return [
     'tour_skip' => 'Skip',
     'tour_done' => 'Done',
 
+    // GDPR self-service
+    'gdpr_export_title'           => 'Download your data',
+    'gdpr_export_desc'            => 'Request a copy of your personal data. We will email you a download link when it is ready.',
+    'gdpr_export_button'          => 'Request data export',
+    'gdpr_export_queued'          => 'Your data export is being prepared. You will be notified when it is ready.',
+    'gdpr_export_failed'          => 'Could not start the export. Please try again.',
+    'gdpr_export_ready'           => 'Your data export is ready',
+    'gdpr_export_ready_body'      => 'Your personal data export has finished and is ready to download.',
+    'gdpr_delete_title'           => 'Delete your account',
+    'gdpr_delete_desc'            => 'Permanently delete your account and personal data. This cannot be undone.',
+    'gdpr_delete_button'          => 'Delete account',
+    'gdpr_delete_confirm_heading' => 'Delete your account?',
+    'gdpr_delete_confirm_body'    => 'This permanently removes your account and personal data. This action cannot be undone.',
+    'gdpr_password'               => 'Confirm your password',
+    'gdpr_password_incorrect'     => 'The password is incorrect.',
+    'gdpr_delete_failed'          => 'Could not delete your account. Please try again.',
+
     // Table summaries
     'summary_total' => 'Total',
 

@@ -105,6 +105,7 @@ export default withMermaid(
           { text: "Webhooks", link: "/webhooks" },
           { text: "Developer Tokens", link: "/tokens" },
           { text: "Onboarding", link: "/onboarding" },
+          { text: "GDPR self-service", link: "/gdpr" },
         ],
       },
     ],

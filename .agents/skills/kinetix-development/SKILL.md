@@ -495,6 +495,20 @@ Roadmap v0.17.0. Two surfaces sharing one Vue core (`KinetixWizard`):
 
 ---
 
+## 23. Kinetix GDPR (self-service data export + account deletion)
+
+Roadmap v0.19.0. Config block `gdpr` (`enabled`, `deletion` = anonymize|delete, `require_password`, `anonymize` map column→value|closure, `redirect`). No migration (reuses the exports download route + notifications). **Self-service, no admin ability.**
+
+- **Registry/facade** (`GdprRegistry` singleton; `KinetixGdpr::export($name, fn($user)=>mixed)` registers data sections; `KinetixGdpr::deleteUsing(fn($user)=>void)` overrides deletion).
+- **`GdprManager`** (singleton): `collect($user)` runs sections (Arrayable→toArray) → `array`; `purge($user)` = custom handler ?? (`deletion==='delete'` → `$user->delete()`) ?? anonymize (apply map, save, soft-delete if SoftDeletes).
+- **`GdprController`** (self-service): `export` dispatches `GdprExportJob`; `destroy` validates password via `Hash::check` against `getAuthPassword()` (when `require_password`), `purge`s, `Auth::logout()` + session invalidate, returns `{redirect}`. Aborts 401 unauthenticated, 422 on wrong password.
+- **`GdprExportJob`** (queued): `collect` → pretty JSON → store under `kinetix-exports/<uuid>.json` on the Kinetix disk → notify with a download `Action` (reuses `kinetix.exports.download` route + Crypt token, same as `ExportProcessor`).
+- **Routes** (team-aware prefix, only when `gdpr.enabled`): `POST {prefix}/gdpr/export`, `POST {prefix}/gdpr/delete`.
+- **Vue (published)**: `KinetixGdprPanel` (Reka `Dialog` confirm, password field when `:require-password`; on delete → `router.visit(redirect)`), `useKinetixGdpr` (`exportData`/`deleteAccount(password?)`). i18n `gdpr_*`.
+- Tests: `GdprTest` (export dispatch, collect, password gate, anonymize/delete/custom, job writes JSON, 401), `useKinetixGdpr.spec.ts`. Full guide: `docs/gdpr.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

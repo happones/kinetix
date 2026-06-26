@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-06-26
+
+### Added
+
+- **GDPR self-service** (optional): two privacy actions for users.
+  - **Download my data**: register sections with
+    `KinetixGdpr::export('profile', fn ($user) => …)`; a queued `GdprExportJob`
+    builds a JSON dump of all sections, stores it on the Kinetix disk, and
+    notifies the user with a download link (reusing the exports download route).
+  - **Delete my account**: `POST {prefix}/gdpr/delete` validates the current
+    password (when `kinetix.gdpr.require_password`), then **anonymizes** the
+    configured PII columns or **hard-deletes** the record (`kinetix.gdpr.deletion`),
+    and logs the user out. Override entirely with `KinetixGdpr::deleteUsing(...)`.
+  - **`<KinetixGdprPanel />`** (**published**) renders both actions (delete behind
+    a password-gated confirmation dialog); `useKinetixGdpr` for a custom UI.
+    Enabled via `KINETIX_GDPR_ENABLED`. i18n `gdpr_*` (en/es/fr/pt).
+
 ## [0.18.0] - 2026-06-26
 
 ### Added

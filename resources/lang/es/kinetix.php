@@ -221,6 +221,23 @@ return [
     'tour_skip' => 'Omitir',
     'tour_done' => 'Listo',
 
+    // GDPR autoservicio
+    'gdpr_export_title'           => 'Descarga tus datos',
+    'gdpr_export_desc'            => 'Solicita una copia de tus datos personales. Te avisaremos con un enlace de descarga cuando esté lista.',
+    'gdpr_export_button'          => 'Solicitar exportación',
+    'gdpr_export_queued'          => 'Tu exportación se está preparando. Se te notificará cuando esté lista.',
+    'gdpr_export_failed'          => 'No se pudo iniciar la exportación. Inténtalo de nuevo.',
+    'gdpr_export_ready'           => 'Tu exportación de datos está lista',
+    'gdpr_export_ready_body'      => 'La exportación de tus datos personales ha finalizado y está lista para descargar.',
+    'gdpr_delete_title'           => 'Elimina tu cuenta',
+    'gdpr_delete_desc'            => 'Elimina permanentemente tu cuenta y tus datos personales. Esta acción no se puede deshacer.',
+    'gdpr_delete_button'          => 'Eliminar cuenta',
+    'gdpr_delete_confirm_heading' => '¿Eliminar tu cuenta?',
+    'gdpr_delete_confirm_body'    => 'Esto elimina permanentemente tu cuenta y tus datos personales. Esta acción no se puede deshacer.',
+    'gdpr_password'               => 'Confirma tu contraseña',
+    'gdpr_password_incorrect'     => 'La contraseña es incorrecta.',
+    'gdpr_delete_failed'          => 'No se pudo eliminar tu cuenta. Inténtalo de nuevo.',
+
     // Resúmenes de tabla
     'summary_total' => 'Total',
 
