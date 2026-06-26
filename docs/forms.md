@@ -150,6 +150,63 @@ Section::make('General Profile')
     ])
 ```
 
+### 3. Fieldset
+A lighter labelled grouping than `Section` — a bordered `<fieldset>` with a `<legend>`, no card chrome. Supports `columns()` and nesting.
+
+```php
+use Happones\Kinetix\Forms\Components\Fieldset;
+
+Fieldset::make('Address')
+    ->columns(6)
+    ->schema([
+        TextInput::make('city')->columnSpan(4),
+        TextInput::make('zip')->columnSpan(2),
+    ])
+```
+
+### 4. Tabs
+A tabbed container (Reka UI). Each `Tab` holds its own schema and may carry an `icon()` (any [Kinetix icon name](/actions#icons)). Fields inside every tab are still validated and saved — switching tabs is purely visual.
+
+```php
+use Happones\Kinetix\Forms\Components\Tabs;
+use Happones\Kinetix\Forms\Components\Tab;
+
+Tabs::make()->tabs([
+    Tab::make('Profile')->schema([
+        TextInput::make('name'),
+    ]),
+    Tab::make('Security')->icon('settings')->schema([
+        TextInput::make('password'),
+    ]),
+])
+```
+
+### 5. Split
+A responsive flex row: children sit side-by-side from the `md` breakpoint and stack on small screens.
+
+```php
+use Happones\Kinetix\Forms\Components\Split;
+
+Split::make([
+    TextInput::make('first_name'),
+    TextInput::make('last_name'),
+])
+```
+
+### 6. Placeholder
+A read-only display block (label + content). It holds no field state and is never validated or saved — handy for showing computed/derived info inside a form.
+
+```php
+use Happones\Kinetix\Forms\Components\Placeholder;
+
+Placeholder::make('Account ID')
+    ->content(fn ($record) => $record?->id ?? '—')
+```
+
+All layout components share the base `columnSpan()`, `visible()/hidden()` and `visibleOn()/hiddenOn()` methods, and nest arbitrarily.
+
+> The **Wizard** layout (multi-step forms) and the standalone `<KinetixWizard>` page component ship in a later release — see the [Onboarding](/onboarding) and roadmap entries.
+
 ---
 
 ## 4. Fields & Form Inputs API

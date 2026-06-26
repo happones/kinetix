@@ -1,6 +1,6 @@
 ---
 name: kinetix-forms
-description: "Handles dynamic forms builder schemas, layout components (grid/section), field types (TextInput, Select, Toggle), validation, and lifecycle hooks in Kinetix. Activates when creating, modifying, or rendering form views."
+description: "Handles dynamic forms builder schemas, layout components (grid/section/fieldset/tabs/split/placeholder), field types (TextInput, Select, Toggle), validation, and lifecycle hooks in Kinetix. Activates when creating, modifying, or rendering form views."
 license: MIT
 metadata:
   author: happones
@@ -13,7 +13,7 @@ metadata:
 Activate this skill when:
 - Building input forms for resource pages or action modals.
 - Adding fields like `TextInput`, `Select`, `Checkbox`, `Toggle`, `DateTimePicker`, `Textarea`, `Hidden`, `Radio`, `CheckboxList`, `ColorPicker`, `TagsInput`, `KeyValue`, `Repeater`, or `FileUpload`.
-- Structuring form grids using `Grid::make()` or container cards using `Section::make()`.
+- Structuring layouts: `Grid::make(n)`, `Section::make()` (card), `Fieldset::make()` (bordered legend), `Tabs::make()->tabs([Tab::make()->icon()->schema()])`, `Split::make([...])` (responsive flex row), `Placeholder::make()->content()` (read-only, not a field). All nest and share `columnSpan()`/`visible()`/`hidden()`.
 - Adding Laravel validation rules dynamically to inputs (`required()`, `maxLength()`, `rules()`).
 - Using lifecycle hooks (`afterStateHydrated()`, `dehydrateStateUsing()`).
 

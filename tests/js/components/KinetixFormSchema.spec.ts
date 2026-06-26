@@ -53,4 +53,66 @@ describe("KinetixFormSchema", () => {
 
     expect(wrapper.emitted("update:value")?.[0]).toEqual(["active", true]);
   });
+
+  it("renders a fieldset with its legend and nested field", () => {
+    const wrapper = mountSchema([
+      {
+        type: "fieldset",
+        heading: "Address",
+        columnSpan: "full",
+        columns: 12,
+        schema: [
+          { type: "text-input", name: "city", label: "City", columnSpan: 6 },
+        ],
+      },
+    ]);
+
+    expect(wrapper.find("fieldset").exists()).toBe(true);
+    expect(wrapper.find("legend").text()).toBe("Address");
+    expect(wrapper.find("#city").exists()).toBe(true);
+  });
+
+  it("renders a placeholder as read-only label + content (no input)", () => {
+    const wrapper = mountSchema([
+      {
+        type: "placeholder",
+        label: "Status",
+        content: "Active",
+        columnSpan: "full",
+      },
+    ]);
+
+    expect(wrapper.text()).toContain("Status");
+    expect(wrapper.text()).toContain("Active");
+    expect(wrapper.find("input").exists()).toBe(false);
+  });
+
+  it("renders tabs with a trigger per tab and shows the first panel", () => {
+    const wrapper = mountSchema([
+      {
+        type: "tabs",
+        columnSpan: "full",
+        schema: [
+          {
+            type: "tab",
+            heading: "Profile",
+            columns: 12,
+            schema: [{ type: "text-input", name: "name", label: "Name" }],
+          },
+          {
+            type: "tab",
+            heading: "Security",
+            columns: 12,
+            schema: [{ type: "text-input", name: "pw", label: "Password" }],
+          },
+        ],
+      },
+    ]);
+
+    const triggers = wrapper.findAll('[role="tab"]');
+    expect(triggers).toHaveLength(2);
+    expect(triggers[0].text()).toContain("Profile");
+    // First tab's field is rendered in the active panel.
+    expect(wrapper.find("#name").exists()).toBe(true);
+  });
 });

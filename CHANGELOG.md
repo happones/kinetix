@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-06-26
+
+### Added
+
+- **Form layout components** — rounding out Filament-style layouts alongside the
+  existing `Grid` and `Section`:
+  - **`Fieldset`** — a labelled, bordered `<fieldset>`/`<legend>` group with
+    `columns()` and nesting.
+  - **`Tabs`** + **`Tab`** — a Reka UI tab strip; each `Tab` has its own schema
+    and an optional `icon()`. Fields in every tab are still validated and saved.
+  - **`Split`** — a responsive flex row (side-by-side from `md`, stacked below).
+  - **`Placeholder`** — a read-only `label` + `content` display block, excluded
+    from validation and dehydration.
+  - All nest arbitrarily and share `columnSpan()` / `visible()` / `hidden()` /
+    `visibleOn()` / `hiddenOn()`. Nested fields anywhere in a layout are
+    auto-discovered for validation/hydration. (**published** — Vue renderer +
+    new `KinetixFormTabs` component.) Adds `icon` / `content` to `FormFieldData`.
+
+### Note
+
+- The **Wizard** layout and the standalone `<KinetixWizard>` page component (with
+  variants and a completion-gating middleware) are planned for v0.17.0.
+
 ## [0.15.0] - 2026-06-26
 
 ### Added

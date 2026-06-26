@@ -180,6 +180,14 @@ shipped last, on top of the event spine.
 - **Onboarding (`v0.15.0`) — ✅ shipped.** First-run checklist (backend-driven,
   auto/manual steps, per-user/team progress), reusable `<KinetixEmptyState>`, and
   a dependency-free `<KinetixTour>` product tour.
+- **Form layout components (`v0.16.0`) — ✅ shipped.** Filament-style layouts to
+  round out `Grid`/`Section`: `Fieldset`, `Tabs`/`Tab` (Reka), `Split`
+  (responsive flex), and read-only `Placeholder`. All nest and share
+  `columnSpan`/`visible`/`hidden`.
+- **Wizard (`v0.17.0`) — next.** A multi-step `Wizard` form layout **and** a
+  standalone `<KinetixWizard>` usable in any page (account setup, gated flows),
+  with shadcn variants and a completion-gating middleware
+  (`kinetix.wizard:slug`) backed by Kinetix-persisted per-user state.
 - **GDPR self-service** — "export my data" (reuses Export) + account deletion.
 
 ---

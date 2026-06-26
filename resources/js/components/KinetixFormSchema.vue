@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
 import KinetixCombobox from "./KinetixCombobox.vue";
 import KinetixFileUpload from "./KinetixFileUpload.vue";
+import KinetixFormTabs from "./KinetixFormTabs.vue";
 import KinetixKeyValue from "./KinetixKeyValue.vue";
 import KinetixLabel from "./KinetixLabel.vue";
 import KinetixRadioGroup from "./KinetixRadioGroup.vue";
@@ -170,6 +171,70 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           />
         </div>
       </div>
+    </div>
+
+    <!-- Fieldset Layout (labelled <fieldset>) -->
+    <fieldset
+      v-else-if="comp.type === 'fieldset'"
+      class="rounded-lg border border-border p-4"
+      :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+    >
+      <legend
+        v-if="comp.heading"
+        class="px-1 text-sm font-medium text-foreground"
+      >
+        {{ comp.heading }}
+      </legend>
+      <div
+        class="grid gap-4"
+        :style="{
+          gridTemplateColumns: `repeat(${comp.columns || 12}, minmax(0, 1fr))`,
+        }"
+      >
+        <KinetixFormSchema
+          :schema="comp.schema"
+          :values="values"
+          :errors="errors"
+          @update:value="(name, val) => emit('update:value', name, val)"
+        />
+      </div>
+    </fieldset>
+
+    <!-- Tabs Layout (Reka UI) -->
+    <div
+      v-else-if="comp.type === 'tabs'"
+      :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+    >
+      <KinetixFormTabs
+        :tabs="comp.schema"
+        :values="values"
+        :errors="errors"
+        @update:value="(name, val) => emit('update:value', name, val)"
+      />
+    </div>
+
+    <!-- Split Layout (responsive flex row) -->
+    <div
+      v-else-if="comp.type === 'split'"
+      class="flex flex-col gap-4 md:flex-row [&>*]:flex-1"
+      :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+    >
+      <KinetixFormSchema
+        :schema="comp.schema"
+        :values="values"
+        :errors="errors"
+        @update:value="(name, val) => emit('update:value', name, val)"
+      />
+    </div>
+
+    <!-- Placeholder (read-only display) -->
+    <div
+      v-else-if="comp.type === 'placeholder'"
+      :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+      class="flex flex-col space-y-1.5"
+    >
+      <KinetixLabel v-if="comp.label">{{ comp.label }}</KinetixLabel>
+      <p class="text-sm text-muted-foreground">{{ comp.content }}</p>
     </div>
 
     <!-- Standard Form Fields -->

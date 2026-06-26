@@ -45,6 +45,9 @@ class FormFieldData extends Data
         public ?string $heading = null,
         public ?string $description = null,
         public ?int $columns = null,
+        public ?string $icon = null,
+        // Placeholder content (read-only display component).
+        public ?string $content = null,
         // Repeater specific
         public ?int $minItems = null,
         public ?int $maxItems = null,
