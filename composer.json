@@ -22,10 +22,12 @@
         "larastan/larastan": "^3.0",
         "laravel/cashier": "^15.0|^16.0",
         "laravel/pint": "^1.0",
-        "spatie/laravel-permission": "^6.0"
+        "spatie/laravel-permission": "^6.0",
+        "spatie/laravel-activitylog": "^4.8"
     },
     "suggest": {
-        "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions."
+        "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions.",
+        "spatie/laravel-activitylog": "Preferred driver for the Kinetix activity feature (^4.8). When installed, Kinetix logs through it instead of its native store."
     },
     "autoload": {
         "psr-4": {

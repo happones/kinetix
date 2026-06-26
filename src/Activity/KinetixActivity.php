@@ -24,6 +24,9 @@ class KinetixActivity
     }
 
     /**
+     * Record an entry. Returns the stored model (native or spatie), or null if
+     * spatie logging is globally disabled.
+     *
      * @param array<string, mixed> $properties
      */
     public static function log(
@@ -33,7 +36,7 @@ class KinetixActivity
         ?Model $causer = null,
         ?string $description = null,
         string $logName = 'default',
-    ): Activity {
+    ): ?Model {
         return static::logger()->log($event, $subject, $properties, $causer, $description, $logName);
     }
 

@@ -61,6 +61,9 @@ class ActivityTest extends TestCase
 
         $app['config']->set('cache.default', 'array');
         $app['config']->set('kinetix.activity.enabled', true);
+        // spatie/activitylog is installed (dev dep), which would flip the `auto`
+        // driver to spatie; pin this suite to the native store it asserts against.
+        $app['config']->set('kinetix.activity.driver', 'native');
     }
 
     protected function setUp(): void

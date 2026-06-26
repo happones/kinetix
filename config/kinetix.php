@@ -254,7 +254,12 @@ return [
     |
     */
     'activity' => [
-        'enabled'        => env('KINETIX_ACTIVITY_ENABLED', false),
+        'enabled' => env('KINETIX_ACTIVITY_ENABLED', false),
+
+        // Storage driver: 'auto' uses spatie/laravel-activitylog when installed,
+        // otherwise the native kinetix_activity table. Force with 'spatie' / 'native'.
+        'driver' => env('KINETIX_ACTIVITY_DRIVER', 'auto'),
+
         'teams'          => env('KINETIX_ACTIVITY_TEAMS', false),
         'per_page'       => env('KINETIX_ACTIVITY_PER_PAGE', 15),
         'retention_days' => env('KINETIX_ACTIVITY_RETENTION_DAYS', 365),

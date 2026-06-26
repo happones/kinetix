@@ -23,6 +23,12 @@ class ActivityPruneCommand extends Command
 
         $deleted = $logger->prune($days);
 
+        if ($logger->usesSpatie()) {
+            $this->info("Delegated to spatie's activitylog:clean (entries older than {$days} days).");
+
+            return self::SUCCESS;
+        }
+
         $this->info("Pruned {$deleted} activity entr".($deleted === 1 ? 'y' : 'ies')." older than {$days} days.");
 
         return self::SUCCESS;

@@ -32,11 +32,20 @@ php artisan migrate
 ```php
 'activity' => [
     'enabled'        => env('KINETIX_ACTIVITY_ENABLED', false),
+    // auto = spatie/laravel-activitylog when installed, else native. spatie | native to force.
+    'driver'         => env('KINETIX_ACTIVITY_DRIVER', 'auto'),
     'teams'          => env('KINETIX_ACTIVITY_TEAMS', false),
     'per_page'       => env('KINETIX_ACTIVITY_PER_PAGE', 15),
     'retention_days' => env('KINETIX_ACTIVITY_RETENTION_DAYS', 365),
 ],
 ```
+
+**Driver**: Kinetix prefers `spatie/laravel-activitylog` when installed (the
+standard), falling back to the native `kinetix_activity` table. Both normalize to
+the same `ActivityData` DTO, so the UI is identical. With spatie, team-scoping
+lives in `properties.team_id` (no schema change) and `kinetix:activity:prune`
+delegates to `activitylog:clean`. The `LogsKinetixActivity` trait computes the
+`{old, attributes}` diff itself, so the diff is identical across drivers.
 
 ---
 

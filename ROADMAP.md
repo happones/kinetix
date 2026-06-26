@@ -89,7 +89,7 @@ are reused for free. Other modules read their config from here.
   settings endpoint; `useKinetixSettings` composable.
 - **Generator**: `kinetix:make-settings-page`.
 
-## Stage 2 — Activity Log + Event Spine (`v0.6.0`) — ✅ shipped (native)
+## Stage 2 — Activity Log + Event Spine (`v0.6.0`, spatie driver `v0.6.1`) — ✅ shipped
 
 Audit trail with a small shared event spine the later modules reuse.
 

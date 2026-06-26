@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-26
+
+### Added
+
+- **Activity Log now prefers `spatie/laravel-activitylog`** — the de-facto
+  standard — when it's installed, instead of reimplementing audit logging. A new
+  `activity.driver` config (`auto` by default) detects spatie and logs through it;
+  otherwise it falls back to the native `kinetix_activity` table (so the feature
+  still works with zero extra dependencies). Force either with `spatie` / `native`.
+  - Both drivers normalize to the **same `ActivityData` DTO** — `<KinetixActivityLog>`
+    and the endpoint are unchanged.
+  - Team-scoping with the spatie driver is carried in `properties.team_id` (no
+    change to spatie's schema); `kinetix:activity:prune` delegates to spatie's
+    `activitylog:clean`.
+  - `spatie/laravel-activitylog` added to `suggest`.
+
+### Changed
+
+- `ActivityLogger::log()` / `KinetixActivity::log()` now return `?Model` (was the
+  native `Activity`) and `ActivityLogged` carries a base `Model`, so the event
+  spine and facade are storage-agnostic across drivers. Existing native-only
+  setups are unaffected.
+
 ## [0.6.0] - 2026-06-26
 
 ### Added

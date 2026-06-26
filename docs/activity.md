@@ -20,6 +20,9 @@ Enable it in `config/kinetix.php` (opt-in, default off):
 ```php
 'activity' => [
     'enabled'        => env('KINETIX_ACTIVITY_ENABLED', false),
+    // Storage driver: 'auto' uses spatie/laravel-activitylog when installed,
+    // otherwise the native kinetix_activity table. Force with 'spatie' / 'native'.
+    'driver'         => env('KINETIX_ACTIVITY_DRIVER', 'auto'),
     // Scope entries per team (null team = global).
     'teams'          => env('KINETIX_ACTIVITY_TEAMS', false),
     // Page size for the paginated feed.
@@ -131,7 +134,31 @@ returns `{ data, pagination }` (filters: `subject_type`, `subject_id`, `event`,
 |---|---|---|
 | `GET` | `{prefix}/activity` | Paginated feed; filters `subject_type` / `subject_id` / `event` / `page` (gated `activity.view`) |
 
-> **Already using `spatie/laravel-activitylog`?** Kinetix records to its own
-> `kinetix_activity` table for consistent team-scoping and diff format. A read
-> bridge that also surfaces spatie entries in the same feed is a planned,
-> opt-in increment — see [`ROADMAP.md`](https://github.com/happones/kinetix/blob/main/ROADMAP.md).
+---
+
+## 5. Storage driver — spatie/laravel-activitylog
+
+`spatie/laravel-activitylog` is the de-facto standard, so Kinetix **prefers it
+when installed** rather than reimplementing audit logging:
+
+```bash
+composer require spatie/laravel-activitylog
+php artisan vendor:publish --provider="Spatie\Activitylog\ActivitylogServiceProvider" --tag="activitylog-migrations"
+php artisan migrate
+```
+
+With `driver = auto` (the default), Kinetix detects spatie and logs through it;
+otherwise it falls back to the native `kinetix_activity` table (so the feature
+works with zero extra dependencies). Force either with `driver = 'spatie'` /
+`'native'`. **Both drivers normalize to the same `ActivityData` DTO** — the
+`<KinetixActivityLog>` component and the endpoint don't change.
+
+- **Team-scoping** with the spatie driver is carried inside `properties.team_id`,
+  so **no change to spatie's schema** is required; the native driver uses a
+  `team_id` column.
+- **Retention**: with the spatie driver, `kinetix:activity:prune` delegates to
+  spatie's own `activitylog:clean` (one source of truth); the native driver
+  deletes from `kinetix_activity` directly.
+- **The diff format is identical** across drivers because the
+  `LogsKinetixActivity` trait computes `{ old, attributes }` itself before
+  handing off to the driver.
