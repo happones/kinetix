@@ -40,6 +40,8 @@ use Happones\Kinetix\Settings\SettingsController;
 use Happones\Kinetix\Settings\SettingsManager;
 use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
+use Happones\Kinetix\Spotlight\SpotlightController;
+use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -77,6 +79,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The feature-flag manager (pennant bridge / native evaluator).
         $this->app->singleton(FeatureManager::class);
+
+        // The spotlight source registry (command palette).
+        $this->app->singleton(SpotlightRegistry::class);
     }
 
     /**
@@ -193,6 +198,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Feature Flags module (pennant bridge / native)
         $this->registerFeatures();
+
+        // Register the optional Spotlight module (Cmd+K command palette)
+        $this->registerSpotlight();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -473,6 +481,34 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerFeatures(): void
     {
         $this->app['router']->aliasMiddleware('kinetix.feature', EnsureFeature::class);
+    }
+
+    /**
+     * Wire the optional Spotlight module: the search endpoint (team-aware).
+     */
+    protected function registerSpotlight(): void
+    {
+        if (! config('kinetix.spotlight.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/spotlight")
+            ->group(function () {
+                Route::get('/', [SpotlightController::class, 'search'])
+                    ->name('kinetix.spotlight.search');
+            });
     }
 
     /**

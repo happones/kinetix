@@ -170,4 +170,8 @@ return [
     'impersonate'          => 'Suplantar',
     'impersonating'        => 'Estás suplantando a :name',
     'impersonation_leave'  => 'Volver a tu cuenta',
+
+    // Spotlight
+    'spotlight_placeholder' => 'Buscar…',
+    'spotlight_empty'       => 'Sin resultados.',
 ];

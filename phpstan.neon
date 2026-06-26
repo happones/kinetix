@@ -34,6 +34,12 @@ parameters:
             identifier: trait.unused
             path: src/Activity/Concerns/LogsKinetixActivity.php
 
+        # Scout's search() lives on the host model's Searchable trait (a suggested
+        # dep), not on the generic base Model; guarded by usesScout() at runtime.
+        -
+            message: '#Call to an undefined static method Illuminate\\Database\\Eloquent\\Model::search\(\)#'
+            path: src/Spotlight/SpotlightResource.php
+
         # Soft-delete scopes exist on SoftDeletes models, not the base query Builder.
         -
             message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder.*::(withTrashed|onlyTrashed)\(\)#'

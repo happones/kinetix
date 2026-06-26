@@ -97,6 +97,24 @@ export interface KinetixImpersonationState {
   user?: { id: number | string | null; name: string | null };
 }
 
+/** A spotlight result item. */
+export interface KinetixSpotlightItem {
+  type: string;
+  group: string;
+  title: string;
+  subtitle: string | null;
+  url: string | null;
+  event: string | null;
+  icon: string | null;
+  id: number | string | null;
+}
+
+/** A group of spotlight results. */
+export interface KinetixSpotlightGroup {
+  label: string;
+  items: KinetixSpotlightItem[];
+}
+
 /** A single activity entry from the Activity module. */
 export interface KinetixActivityEntry {
   id: number | string | null;

@@ -239,6 +239,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Spotlight Command Palette (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A global Cmd+K search over models, navigation and actions. Register sources
+    | with the KinetixSpotlight facade. Model searches use laravel/scout when the
+    | model is Searchable, otherwise a capped LIKE query. Results are
+    | authorization-aware — sources self-gate and per-record policies are honored.
+    |
+    | - `driver`: 'auto' uses Scout for Searchable models, else 'database' (LIKE).
+    | - `limit`: max results per source.
+    |
+    */
+    'spotlight' => [
+        'enabled' => env('KINETIX_SPOTLIGHT_ENABLED', false),
+        'driver'  => env('KINETIX_SPOTLIGHT_DRIVER', 'auto'),
+        'limit'   => env('KINETIX_SPOTLIGHT_LIMIT', 5),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature Flags (optional)
     |--------------------------------------------------------------------------
     |

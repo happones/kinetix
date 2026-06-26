@@ -170,4 +170,8 @@ return [
     'impersonate'          => 'Impersonate',
     'impersonating'        => 'You are impersonating :name',
     'impersonation_leave'  => 'Return to your account',
+
+    // Spotlight
+    'spotlight_placeholder' => 'Search…',
+    'spotlight_empty'       => 'No results.',
 ];

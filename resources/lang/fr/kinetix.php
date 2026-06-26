@@ -170,4 +170,8 @@ return [
     'impersonate'          => 'Usurper l’identité',
     'impersonating'        => 'Vous usurpez l’identité de :name',
     'impersonation_leave'  => 'Revenir à votre compte',
+
+    // Spotlight
+    'spotlight_placeholder' => 'Rechercher…',
+    'spotlight_empty'       => 'Aucun résultat.',
 ];

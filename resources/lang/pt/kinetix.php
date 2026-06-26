@@ -170,4 +170,8 @@ return [
     'impersonate'          => 'Personificar',
     'impersonating'        => 'Você está personificando :name',
     'impersonation_leave'  => 'Voltar à sua conta',
+
+    // Spotlight
+    'spotlight_placeholder' => 'Buscar…',
+    'spotlight_empty'       => 'Sem resultados.',
 ];

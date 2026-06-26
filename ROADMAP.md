@@ -127,7 +127,7 @@ Gradual rollout and plan-gating — one of the most repetitive SaaS needs.
   frontend `useKinetixFeature('beta-search')` + a `<KinetixFeature flag="…">`
   gate component (mirrors `<KinetixCan>`).
 
-## Stage 5 — Spotlight Command Palette (`v0.9.0`)
+## Stage 5 — Spotlight Command Palette (`v0.9.0`) — ✅ shipped
 
 Global `Cmd+K` search over models, navigation and actions.
 

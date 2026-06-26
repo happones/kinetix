@@ -406,6 +406,20 @@ Gradual rollout + plan-gating. **Off by default** (`kinetix.features.enabled`). 
 
 ---
 
+## 17. Kinetix Spotlight (optional, Cmd+K command palette)
+
+Global search over models, navigation and actions, authorization-aware. **Off by default** (`kinetix.spotlight.enabled`). Roadmap v0.9.0. No migration.
+
+- **Sources** (`SpotlightSource` interface: `authorizedFor(?$user)`, `search($q): SpotlightItemData[]`): `SpotlightResource` (model search — `titleAttribute`/`subtitle`/`searchColumns`/`url`/`query`/`icon`/`group`/`authorize`/`limit`) and `SpotlightLink` (static nav `url` or client `event`, `keywords`, `authorize`). Registered via `KinetixSpotlight::register([...])` into the `SpotlightRegistry` singleton.
+- **Driver**: `SpotlightResource::usesScout()` = `config('kinetix.spotlight.driver')` (`auto`/`database`) + `trait_exists(Laravel\Scout\Searchable)` + `in_array(Searchable, class_uses_recursive($model))`. **Use `trait_exists`, NOT `class_exists`** (Searchable is a trait → class_exists returns false). Scout path: `$model::search($q)->take()->get()` (phpstan ignore for `Model::search()` by path, like cashier). LIKE path: `orWhere(col,'like',"%q%")` over `searchColumns`.
+- **Authorization (two layers, server-side)**: source-level `->authorize($ability)` (Gate::allows) hides the whole source; per-record `Gate::allows('view', $record)` when `Gate::getPolicyFor($model)` exists. Empty query → resources return `[]` (no DB dump); only links show.
+- **Controller/route**: `GET {prefix}/spotlight?q=` (team-aware) → `{groups:[{label, items: SpotlightItemData}]}`. `SpotlightItemData` = `{type, group, title, subtitle, url, event, icon, id}`.
+- **Vue (published)**: `KinetixSpotlight` (owns Cmd/Ctrl+K; Reka `DialogRoot` + `ComboboxRoot`(`:ignore-filter` since server-filtered) + `ComboboxInput`/`Content`/`Group`/`Item`/`Empty`; debounced 200ms with cleanup; select → `router.visit(url)` or `window.dispatchEvent(new CustomEvent(event))`; `VisuallyHidden` DialogTitle for a11y), `useKinetixSpotlight().search(q)`, types `KinetixSpotlightItem`/`KinetixSpotlightGroup`, i18n `spotlight_placeholder`/`spotlight_empty`.
+- `laravel/scout` is a dev dep + `suggest`. Tests: `SpotlightTest` (database driver + per-record policy + source ability + endpoint), `SpotlightScoutTest` (scout `collection` driver).
+- Full guide: `docs/spotlight.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

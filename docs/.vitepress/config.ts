@@ -85,7 +85,6 @@ export default withMermaid(
           { text: "Roles & Permissions", link: "/permissions" },
           { text: "Membership & Provisioning", link: "/membership" },
           { text: "Impersonation", link: "/impersonation" },
-          { text: "Feature Flags", link: "/feature-flags" },
         ],
       },
       {
@@ -99,6 +98,8 @@ export default withMermaid(
         items: [
           { text: "Settings", link: "/settings" },
           { text: "Activity Log", link: "/activity" },
+          { text: "Feature Flags", link: "/feature-flags" },
+          { text: "Spotlight", link: "/spotlight" },
         ],
       },
     ],

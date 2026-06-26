@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-26
+
+### Added
+
+- **Spotlight Command Palette module** (optional — `KINETIX_SPOTLIGHT_ENABLED`,
+  off by default). A global `Cmd/Ctrl+K` search over models, navigation and
+  actions — roadmap stage 5:
+  - Register sources with `KinetixSpotlight::register([...])`:
+    `SpotlightResource` (a searchable model — title/subtitle/url/icon/group, with
+    `searchColumns` for the LIKE fallback and an optional scoping `query()`) and
+    `SpotlightLink` (a nav link `url` or a client `event`, with `keywords`).
+  - **Authorization-aware**: source-level `->authorize($ability)` plus per-record
+    `view` policy filtering — results never leak records a user can't see. Empty
+    queries don't touch the database.
+  - **Driver** `auto` routes a `Searchable` model's search through `laravel/scout`,
+    else a capped `LIKE` query (`database`). `laravel/scout` added to `suggest`.
+  - Endpoint `GET {prefix}/spotlight?q=…` returns grouped results.
+- **(published)** `<KinetixSpotlight>` — the palette, built on Reka UI's `Dialog`
+  + `Combobox` (focus trap, keyboard nav, selection), owning the `Cmd/Ctrl+K`
+  shortcut; selecting navigates or dispatches a client event. Plus the
+  `useKinetixSpotlight` composable, `KinetixSpotlightItem` / `KinetixSpotlightGroup`
+  types and `spotlight_*` translations.
+- `kinetix-spotlight` Boost skill and a section (§17) in the development skill.
+
 ## [0.8.0] - 2026-06-26
 
 ### Added
