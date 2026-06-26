@@ -26,6 +26,19 @@ const i18n = createI18n({
 const Frame = defineComponent({
   name: "GalleryFrame",
   setup() {
+    const mounted = h(specimen.component as any, specimen.props ?? {}, specimen.slots ?? {});
+
+    // Components that aren't already a card render inside one so the screenshot
+    // shows them with realistic in-app chrome.
+    const body =
+      specimen.frame === "card"
+        ? h(
+            "div",
+            { class: "rounded-xl border border-border bg-card p-6 shadow-sm" },
+            [mounted],
+          )
+        : mounted;
+
     return () =>
       h(
         "div",
@@ -34,11 +47,11 @@ const Frame = defineComponent({
           id: "specimen",
           style: {
             width: `${specimen.width ?? 600}px`,
-            padding: "24px",
+            padding: "32px",
             background: "hsl(var(--background))",
           },
         },
-        [h(specimen.component as any, specimen.props ?? {}, specimen.slots ?? {})],
+        [body],
       );
   },
 });
