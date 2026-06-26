@@ -4,6 +4,12 @@ Kinetix Resources provide a powerful, class-based CRUD builder system for Larave
 
 Resources map Eloquent database models to cohesive administration panels by grouping corresponding **Tables**, **Forms**, **Routes**, **Controllers**, and **Vue Views** under unified classes.
 
+A generated resource index page combines a [page header](/actions#6-page-action-bars) (title + actions) with a [table](/tables) (sortable, filterable, with row actions and optional reordering):
+
+<Screenshot name="page-header" alt="Resource page header with actions" />
+
+<Screenshot name="table-reorderable" alt="Resource table with selection, status badges and row actions" />
+
 ---
 
 ## 1. Class-Based Forms & Tables

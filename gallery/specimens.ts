@@ -11,6 +11,8 @@ import KinetixWebhookManager from "@/components/KinetixWebhookManager.vue";
 import KinetixPricingTable from "@/components/KinetixPricingTable.vue";
 import KinetixStatsOverviewWidget from "@/components/KinetixStatsOverviewWidget.vue";
 import KinetixRangeCalendar from "@/components/KinetixRangeCalendar.vue";
+import KinetixDateTimePicker from "@/components/KinetixDateTimePicker.vue";
+import KinetixTimePicker from "@/components/KinetixTimePicker.vue";
 import KinetixFileUpload from "@/components/KinetixFileUpload.vue";
 import KinetixSelect from "@/components/KinetixSelect.vue";
 import KinetixRadioGroup from "@/components/KinetixRadioGroup.vue";
@@ -41,7 +43,33 @@ export interface Specimen {
   width?: number;
   /** Wrap in a card so bare components show realistic in-app chrome. */
   frame?: "card" | "bare";
+  /** Click this selector then capture the full page (for teleported popovers). */
+  openSelector?: string;
 }
+
+// Form layout fixtures (rendered through KinetixFormSchema).
+const ti = (name: string, label: string, columnSpan: number | string) => ({
+  type: "text-input", name, label, columnSpan, inputType: "text", isDisabled: false,
+});
+
+const layouts = {
+  grid: [{ type: "grid", columnSpan: "full", columns: 12, schema: [ti("first", "First name", 4), ti("last", "Last name", 4), ti("mi", "M.I.", 4)] }],
+  fieldset: [{ type: "fieldset", heading: "Address", columnSpan: "full", columns: 12, schema: [ti("city", "City", 8), ti("zip", "ZIP", 4)] }],
+  tabs: [{ type: "tabs", columnSpan: "full", schema: [
+    { type: "tab", heading: "Profile", columns: 12, schema: [ti("name", "Name", 12)] },
+    { type: "tab", heading: "Security", icon: "settings", columns: 12, schema: [ti("password", "Password", 12)] },
+  ] }],
+  split: [{ type: "split", columnSpan: "full", schema: [ti("first", "First", 1), ti("last", "Last", 1)] }],
+  placeholder: [
+    { type: "placeholder", label: "Account ID", content: "usr_1a2b3c", columnSpan: "full" },
+    ti("nickname", "Nickname", 12),
+  ],
+};
+
+const layoutValues = {
+  first: "Ada", last: "Lovelace", mi: "A", city: "London", zip: "EC1",
+  name: "Ada Lovelace", password: "••••••••", nickname: "ada",
+};
 
 const col = (name: string, extra: Record<string, unknown> = {}) => ({
   name,
@@ -237,6 +265,15 @@ export const specimens: Specimen[] = [
   { name: "pricing-table", title: "Pricing table", component: KinetixPricingTable, width: 880, props: { plans, currentPlanSlug: "starter", cycle: "monthly", currencySymbol: "$" } },
   { name: "stats-widget", title: "Stats overview widget", component: KinetixStatsOverviewWidget, width: 980, props: { widget: statsWidget } },
   { name: "range-calendar", title: "Date range calendar", component: KinetixRangeCalendar, frame: "card", width: 560, props: { value: { from: "2026-06-10", to: "2026-06-18" }, numberOfMonths: 1 } },
+  { name: "time-picker", title: "Time picker", component: KinetixTimePicker, frame: "card", width: 320, props: { value: "02:30", minuteStep: 15 } },
+  { name: "datetime-picker", title: "Date-time picker (open)", component: KinetixDateTimePicker, width: 760, openSelector: "#specimen button", props: { value: "2026-06-15T14:30", minuteStep: 30 } },
+
+  // --- Form layouts ----------------------------------------------------------
+  { name: "layout-grid", title: "Grid layout", component: KinetixFormSchema, frame: "card", width: 640, props: { schema: layouts.grid, values: layoutValues, errors: {} } },
+  { name: "layout-fieldset", title: "Fieldset layout", component: KinetixFormSchema, frame: "card", width: 560, props: { schema: layouts.fieldset, values: layoutValues, errors: {} } },
+  { name: "layout-tabs", title: "Tabs layout", component: KinetixFormSchema, frame: "card", width: 560, props: { schema: layouts.tabs, values: layoutValues, errors: {} } },
+  { name: "layout-split", title: "Split layout", component: KinetixFormSchema, frame: "card", width: 560, props: { schema: layouts.split, values: layoutValues, errors: {} } },
+  { name: "layout-placeholder", title: "Placeholder", component: KinetixFormSchema, frame: "card", width: 520, props: { schema: layouts.placeholder, values: layoutValues, errors: {} } },
   { name: "file-upload", title: "File upload", component: KinetixFileUpload, frame: "card", width: 560, props: { uploadToken: "preview-token", isImage: true } },
   { name: "token-manager", title: "API token manager", component: KinetixTokenManager, width: 720 },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },

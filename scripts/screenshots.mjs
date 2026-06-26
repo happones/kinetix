@@ -24,7 +24,14 @@ const themes = ["light", "dark"];
 
 for (const specimen of specimens) {
   for (const theme of themes) {
-    const page = await browser.newPage({ deviceScaleFactor: 2 });
+    const page = await browser.newPage({
+      deviceScaleFactor: 2,
+      // Open-popover specimens capture the viewport (not the #specimen crop),
+      // so give them a snug viewport instead of the default 1280×720.
+      viewport: specimen.openSelector
+        ? { width: (specimen.width ?? 760) + 64, height: 560 }
+        : undefined,
+    });
     page.on("pageerror", (e) => console.error(`  [pageerror ${specimen.name}]`, e.message));
     page.on("console", (m) => {
       if (m.type() === "error") console.error(`  [console ${specimen.name}]`, m.text());
@@ -39,6 +46,18 @@ for (const specimen of specimens) {
 
     const suffix = theme === "dark" ? "-dark" : "";
     const file = `${outDir}/${specimen.name}${suffix}.png`;
+
+    // Specimens with a teleported overlay (popover/menu) open it first and
+    // capture the full page, since the panel renders outside #specimen.
+    if (specimen.openSelector) {
+      await page.click(specimen.openSelector);
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: file });
+      await page.close();
+      console.log(`✓ ${specimen.name}${suffix}.png (opened)`);
+      continue;
+    }
+
     await frame.screenshot({ path: file });
     console.log(`✓ ${specimen.name}${suffix}.png`);
     await page.close();

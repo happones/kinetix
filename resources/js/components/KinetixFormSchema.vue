@@ -14,6 +14,7 @@ import KinetixSelect from "./KinetixSelect.vue";
 import KinetixTagsInput from "./KinetixTagsInput.vue";
 import KinetixDatePicker from "./KinetixDatePicker.vue";
 import KinetixDateTimePicker from "./KinetixDateTimePicker.vue";
+import KinetixTimePicker from "./KinetixTimePicker.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -394,6 +395,31 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :id="comp.name"
           :value="values[comp.name]"
           type="datetime-local"
+          :disabled="comp.isDisabled"
+          :class="inputClass"
+          @input="
+            emit(
+              'update:value',
+              comp.name,
+              ($event.target as HTMLInputElement).value,
+            )
+          "
+        />
+
+        <!-- Time Picker (shadcn columns by default, native when ->native()) -->
+        <KinetixTimePicker
+          v-else-if="comp.type === 'time-picker' && comp.useCalendar"
+          :value="values[comp.name]"
+          :disabled="comp.isDisabled"
+          :minute-step="comp.minuteStep"
+          :hour12="comp.hour12"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+        <input
+          v-else-if="comp.type === 'time-picker'"
+          :id="comp.name"
+          :value="values[comp.name]"
+          type="time"
           :disabled="comp.isDisabled"
           :class="inputClass"
           @input="

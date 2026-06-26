@@ -121,6 +121,8 @@ Layout elements organize fields inside grids and visual groupings. They inherit 
 ### 1. Grid
 The `Grid` component creates a multi-column responsive layout. By default, it operates on a **12-column grid**.
 
+<Screenshot name="layout-grid" alt="Grid layout" />
+
 ```php
 use Happones\Kinetix\Forms\Components\Grid;
 use Happones\Kinetix\Forms\Components\TextInput;
@@ -155,6 +157,8 @@ Section::make('General Profile')
 ### 3. Fieldset
 A lighter labelled grouping than `Section` — a bordered `<fieldset>` with a `<legend>`, no card chrome. Supports `columns()` and nesting.
 
+<Screenshot name="layout-fieldset" alt="Fieldset layout" />
+
 ```php
 use Happones\Kinetix\Forms\Components\Fieldset;
 
@@ -168,6 +172,8 @@ Fieldset::make('Address')
 
 ### 4. Tabs
 A tabbed container (Reka UI). Each `Tab` holds its own schema and may carry an `icon()` (any [Kinetix icon name](/actions#icons)). Fields inside every tab are still validated and saved — switching tabs is purely visual.
+
+<Screenshot name="layout-tabs" alt="Tabs layout" />
 
 ```php
 use Happones\Kinetix\Forms\Components\Tabs;
@@ -186,6 +192,8 @@ Tabs::make()->tabs([
 ### 5. Split
 A responsive flex row: children sit side-by-side from the `md` breakpoint and stack on small screens.
 
+<Screenshot name="layout-split" alt="Split layout" />
+
 ```php
 use Happones\Kinetix\Forms\Components\Split;
 
@@ -197,6 +205,8 @@ Split::make([
 
 ### 6. Placeholder
 A read-only display block (label + content). It holds no field state and is never validated or saved — handy for showing computed/derived info inside a form.
+
+<Screenshot name="layout-placeholder" alt="Placeholder (read-only) field" />
 
 ```php
 use Happones\Kinetix\Forms\Components\Placeholder;
@@ -364,10 +374,13 @@ Textarea::make('bio')
 
 ### 6. `DatePicker` & `DateTimePicker`
 
+Both render the **shadcn calendar by default** (Reka UI popover) — `DatePicker` a single-date calendar, `DateTimePicker` a calendar plus scrollable hour/minute button columns. Call `->native()` to fall back to a plain native `<input type="date">` / `datetime-local`.
+
 <Screenshot name="calendar" alt="Date picker calendar" />
 
-<Screenshot name="range-calendar" alt="Date range calendar" />
-Both render the **shadcn calendar by default** (Reka UI popover) — `DatePicker` a single-date calendar, `DateTimePicker` a calendar plus scrollable hour/minute button columns. Call `->native()` to fall back to a plain native `<input type="date">` / `datetime-local`.
+`DateTimePicker` (popover open) — calendar + hour/minute columns:
+
+<Screenshot name="datetime-picker" alt="Date-time picker showing the calendar and time columns" />
 
 ```php
 use Happones\Kinetix\Forms\Components\DatePicker;
@@ -388,6 +401,22 @@ DateTimePicker::make('scheduled_at')
 | `->locale(string)` | both | BCP-47 calendar locale (`'es'`, `'fr'`, `'en-US'`) |
 | `->minuteStep(int)` | DateTimePicker | Minute granularity for the time column (default 5) |
 | `->twelveHour()` | DateTimePicker | 12-hour clock with an AM/PM column |
+
+---
+
+### `TimePicker`
+A **time-only** field (no date). Renders the shadcn scrollable hour/minute (+ AM/PM) columns by default, storing an `H:i` string (e.g. `"14:30"`). Call `->native()` for a plain `<input type="time">`.
+
+<Screenshot name="time-picker" alt="Time picker — hour/minute columns" />
+
+```php
+use Happones\Kinetix\Forms\Components\TimePicker;
+
+TimePicker::make('opens_at');                       // shadcn columns (24h)
+TimePicker::make('opens_at')->minuteStep(15);       // 15-minute increments
+TimePicker::make('opens_at')->twelveHour();         // 12h clock + AM/PM column
+TimePicker::make('opens_at')->native();             // native <input type="time">
+```
 
 ---
 

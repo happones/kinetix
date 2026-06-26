@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-06-26
+
+### Added
+
+- **`TimePicker` form field** (time-only). Renders the shadcn scrollable
+  hour/minute (+ AM/PM in `->twelveHour()`) columns by default and stores an
+  `H:i` string; `->native()` falls back to `<input type="time">`, `->minuteStep()`
+  sets granularity. New `KinetixTimePicker` component (**published**).
+
+### Docs
+
+- Embedded the missing component screenshots into the feature docs: all form
+  **layouts** (Grid, Fieldset, Tabs, Split, Placeholder), the new **TimePicker**,
+  and a proper **DateTimePicker** capture (popover opened, showing the calendar +
+  time columns — previously only a blank time area was visible). Added resource
+  page captures (page header + table). The screenshot tool can now open a
+  teleported popover before capturing (`openSelector`).
+
 ## [0.20.1] - 2026-06-26
 
 ### Added
