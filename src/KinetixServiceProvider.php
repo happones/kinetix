@@ -27,6 +27,7 @@ use Happones\Kinetix\Commands\WebhooksPruneCommand;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
+use Happones\Kinetix\Forms\SearchController;
 use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
@@ -844,6 +845,14 @@ class KinetixServiceProvider extends ServiceProvider
 
                 Route::post('delete', [UploadController::class, 'delete'])
                     ->name('kinetix.uploads.delete');
+            });
+
+        // Remote options for searchable Select fields (token-guarded).
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/forms")
+            ->group(function () {
+                Route::post('search', SearchController::class)
+                    ->name('kinetix.forms.search');
             });
     }
 

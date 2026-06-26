@@ -3,6 +3,7 @@ import { Plus, Trash2, ChevronUp, ChevronDown } from "@lucide/vue";
 import { SwitchRoot, SwitchThumb } from "reka-ui";
 import { useI18n } from "vue-i18n";
 import KinetixCheckbox from "./KinetixCheckbox.vue";
+import KinetixCombobox from "./KinetixCombobox.vue";
 import KinetixFileUpload from "./KinetixFileUpload.vue";
 import KinetixKeyValue from "./KinetixKeyValue.vue";
 import KinetixLabel from "./KinetixLabel.vue";
@@ -203,6 +204,18 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
               ($event.target as HTMLInputElement).value,
             )
           "
+        />
+
+        <!-- Searchable Select → Combobox (Reka UI), local or remote -->
+        <KinetixCombobox
+          v-else-if="comp.type === 'select' && comp.isSearchable"
+          :id="comp.name"
+          :value="values[comp.name]"
+          :options="comp.options"
+          :placeholder="comp.placeholder"
+          :disabled="comp.isDisabled"
+          :search-token="comp.searchToken"
+          @update:value="(v) => emit('update:value', comp.name, v)"
         />
 
         <!-- Select (Reka UI) -->

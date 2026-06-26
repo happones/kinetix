@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-26
+
+### Added
+
+- **Searchable `Select` (combobox).** `Select::make(...)->searchable()` renders the
+  field as a Reka UI **Combobox with a search box** (the new published
+  `KinetixCombobox`) instead of a plain dropdown:
+  - **Local**: with `options()`, the search filters them client-side.
+  - **Remote**: `->searchUsing($model, $labelColumn, $searchColumns, $valueColumn)`
+    queries the server as you type — **debounced (250ms) and lazy** (fetched only
+    when opened) — so large datasets aren't shipped to the client. The model +
+    columns are encrypted into a signed token (the query can't name an arbitrary
+    table/column — same guard as inline table edits), hitting the new
+    `POST {prefix}/forms/search` endpoint; the selected option's label is resolved
+    server-side so it shows immediately.
+- **(published)** `KinetixCombobox` component; `FormFieldData` gains
+  `isSearchable` + `searchToken`; `KinetixFormSchema` renders the combobox for
+  searchable selects (plain `<KinetixSelect>` otherwise — no change for existing
+  selects).
+
 ## [0.10.1] - 2026-06-26
 
 ### Added

@@ -217,6 +217,36 @@ Select::make('role')
       ->options(fn (?User $record) => User::where('id', '!=', $record?->id)->pluck('name', 'id')->toArray());
   ```
 
+#### Searchable (combobox)
+
+Call `->searchable()` to render the field as a **combobox with a search box**
+(Reka UI Combobox) instead of a plain dropdown. With only `options()`, the search
+filters them **client-side**:
+
+```php
+Select::make('country')->searchable()->options($countries);
+```
+
+For large datasets, search a model **remotely** with `->searchUsing()` — the
+client queries the server as you type (**debounced + lazy**, fetched only when the
+field is opened), so you never ship thousands of options:
+
+```php
+Select::make('author_id')
+    ->searchable()
+    ->searchUsing(
+        model: \App\Models\Author::class,
+        labelColumn: 'name',
+        searchColumns: ['name', 'email'],   // columns the server LIKE-matches
+        valueColumn: 'id',
+    );
+```
+
+The model + columns are encrypted into a signed token (the query string can never
+name an arbitrary table/column — same guard as inline table edits), and the
+currently-selected option's label is resolved server-side so it shows immediately.
+Remote search hits `POST {prefix}/forms/search`.
+
 ---
 
 ### 3. `Checkbox`

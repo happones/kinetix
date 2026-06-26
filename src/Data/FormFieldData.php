@@ -33,6 +33,10 @@ class FormFieldData extends Data
         public ?string $inputType = null,
         public bool $isInline = false,
         public ?array $options = null,
+        // Select searchable (combobox). `searchToken` (when set) points the
+        // search box at a remote, server-filtered source.
+        public bool $isSearchable = false,
+        public ?string $searchToken = null,
         public ?array $extraAttributes = null,
         public ?array $extraInputAttributes = null,
         public ?array $extraFieldWrapperAttributes = null,
