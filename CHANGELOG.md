@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-26
+
+### Added
+
+- **Webhooks module** (optional — `KINETIX_WEBHOOKS_ENABLED`, off by default).
+  Let customers hook platform events into their own services — roadmap stage 6:
+  - Declare subscribable events with `KinetixWebhooks::events([...])` and fire them
+    with `KinetixWebhooks::fire($event, $payload)`; each fire queues a **signed**
+    (`X-Kinetix-Signature` = HMAC-SHA256), **retried** and **logged** delivery to
+    every active, subscribed endpoint in the team scope.
+  - **SSRF protection** (`WebhookUrlGuard`): customer URLs are validated at save
+    time and before each delivery — non-HTTP(S) and private/loopback/link-local/
+    reserved IPs (incl. cloud metadata) are rejected unless `allow_private` is on.
+  - Customer dashboard endpoints (gated `webhooks.manage`): CRUD, rotate secret
+    (shown once), send test, delivery logs, redeliver. Plus the
+    `kinetix:webhooks:prune` retention command and the `kinetix-webhooks-migrations`
+    publish tag.
+- **(published)** `<KinetixWebhookManager>` (register/edit endpoints with event
+  checkboxes, rotate, test, inspect logs), the `useKinetixWebhooks` composable,
+  `KinetixWebhookEndpoint` / `KinetixWebhookLog` types and `webhook_*` translations.
+- `kinetix-webhooks` Boost skill and a section (§18) in the development skill.
+- Docs: a "Testing your webhooks" tip pointing at webhookcatcher.com.
+
 ## [0.9.0] - 2026-06-26
 
 ### Added

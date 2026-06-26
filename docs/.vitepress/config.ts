@@ -100,6 +100,7 @@ export default withMermaid(
           { text: "Activity Log", link: "/activity" },
           { text: "Feature Flags", link: "/feature-flags" },
           { text: "Spotlight", link: "/spotlight" },
+          { text: "Webhooks", link: "/webhooks" },
         ],
       },
     ],

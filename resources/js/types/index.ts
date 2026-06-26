@@ -97,6 +97,26 @@ export interface KinetixImpersonationState {
   user?: { id: number | string | null; name: string | null };
 }
 
+/** A customer webhook endpoint (the secret is never included). */
+export interface KinetixWebhookEndpoint {
+  id: number | string | null;
+  name: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  createdAt: string | null;
+}
+
+/** A webhook delivery attempt. */
+export interface KinetixWebhookLog {
+  id: number | string | null;
+  event: string;
+  statusCode: number | null;
+  success: boolean;
+  attempt: number;
+  createdAt: string | null;
+}
+
 /** A spotlight result item. */
 export interface KinetixSpotlightItem {
   type: string;

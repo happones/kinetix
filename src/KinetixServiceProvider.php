@@ -23,6 +23,7 @@ use Happones\Kinetix\Commands\MakeSettingsPageCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
+use Happones\Kinetix\Commands\WebhooksPruneCommand;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
@@ -42,6 +43,9 @@ use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Webhooks\WebhookController;
+use Happones\Kinetix\Webhooks\WebhookDispatcher;
+use Happones\Kinetix\Webhooks\WebhookEventRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -82,6 +86,10 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The spotlight source registry (command palette).
         $this->app->singleton(SpotlightRegistry::class);
+
+        // The webhook event registry + dispatcher.
+        $this->app->singleton(WebhookEventRegistry::class);
+        $this->app->singleton(WebhookDispatcher::class);
     }
 
     /**
@@ -109,6 +117,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeBillingCommand::class,
                 MakeSettingsPageCommand::class,
                 ActivityPruneCommand::class,
+                WebhooksPruneCommand::class,
                 PermissionsSyncCommand::class,
                 InstallCommand::class,
             ]);
@@ -157,6 +166,12 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000003_create_kinetix_activity_table.php' => database_path('migrations/2026_01_01_000003_create_kinetix_activity_table.php'),
             ], 'kinetix-activity-migrations');
 
+            // Publish the optional Webhooks module's migrations.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php' => database_path('migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'      => database_path('migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'),
+            ], 'kinetix-webhooks-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -201,6 +216,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Spotlight module (Cmd+K command palette)
         $this->registerSpotlight();
+
+        // Register the optional Webhooks module (outbound event delivery)
+        $this->registerWebhooks();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -508,6 +526,45 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [SpotlightController::class, 'search'])
                     ->name('kinetix.spotlight.search');
+            });
+    }
+
+    /**
+     * Wire the optional Webhooks module: the `webhooks.manage` ability and the
+     * customer-facing management endpoints (team-aware).
+     */
+    protected function registerWebhooks(): void
+    {
+        if (! config('kinetix.webhooks.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('webhooks')
+            ->label('Webhooks')
+            ->ability('manage', 'Manage webhooks');
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/webhooks")
+            ->group(function () {
+                Route::get('/', [WebhookController::class, 'index'])->name('kinetix.webhooks.index');
+                Route::post('/', [WebhookController::class, 'store'])->name('kinetix.webhooks.store');
+                Route::put('{endpoint}', [WebhookController::class, 'update'])->name('kinetix.webhooks.update');
+                Route::delete('{endpoint}', [WebhookController::class, 'destroy'])->name('kinetix.webhooks.destroy');
+                Route::post('{endpoint}/rotate', [WebhookController::class, 'rotate'])->name('kinetix.webhooks.rotate');
+                Route::post('{endpoint}/test', [WebhookController::class, 'test'])->name('kinetix.webhooks.test');
+                Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
+                Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->name('kinetix.webhooks.redeliver');
             });
     }
 

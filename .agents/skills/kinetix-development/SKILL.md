@@ -420,6 +420,20 @@ Global search over models, navigation and actions, authorization-aware. **Off by
 
 ---
 
+## 18. Kinetix Webhooks (optional, outbound event delivery)
+
+Customers subscribe endpoints to platform events; signed/queued/retried/logged delivery with SSRF protection. **Off by default** (`kinetix.webhooks.enabled`). Roadmap v0.10.0. Two migrations (`kinetix-webhooks-migrations`): `kinetix_webhook_endpoints` (team_id, name, url, secret, events json, active) + `kinetix_webhook_logs` (endpoint_id, event, payload, status_code, success, attempt, response).
+
+- **Events**: `WebhookEventRegistry` (singleton) — `KinetixWebhooks::events(['order.created'=>'…'])` declares the subscribable catalog; **only registered events fire**. `WebhookDispatcher::fire($event, $payload)` (facade `KinetixWebhooks::fire`) fans out to active endpoints (team-scoped) subscribed to the event, queueing one `DispatchWebhookJob` each. This is the explicit fire API (host calls it from domain code) — the event spine companion.
+- **Delivery** (`DispatchWebhookJob`, ShouldQueue): re-checks SSRF, signs body `hash_hmac('sha256', $body, secret)` → `X-Kinetix-Signature` (+ `X-Kinetix-Event`), POSTs via `Http::timeout()`, logs the attempt; non-2xx/transport error throws → queue retries (`tries`/`backoff`). Body = `{event, data}`.
+- **SSRF guard** (`WebhookUrlGuard::isAllowed`): scheme http(s) only; resolves host (IP literal or `gethostbynamel`) and rejects any private/reserved IP via `filter_var(FILTER_FLAG_NO_PRIV_RANGE|NO_RES_RANGE)`. `allow_private` config bypasses (dev only). **Validate at save AND before each delivery.**
+- **Controller** (`webhooks.manage`, team-scoped): index (endpoints + event catalog), store (returns secret ONCE — `whsec_`+random; never serialized by `WebhookEndpointData`), update, destroy, rotate, test (queues `webhook.test`), logs (paginated), redeliver. URL validated via `WebhookUrlGuard` in `validatePayload`; events validated against the registry.
+- **Vue (published)**: `KinetixWebhookManager` (CRUD + events via `KinetixCheckbox`, inputs via `inputClass`, rotate/test/logs, secret via toast once), `useKinetixWebhooks`, types `KinetixWebhookEndpoint`/`KinetixWebhookLog`, DTOs `WebhookEndpointData`/`WebhookLogData`, i18n `webhook_*`. Command `kinetix:webhooks:prune`.
+- **Scope note**: native delivery is the default (powers the dashboard logs). A `spatie/laravel-webhook-server` bridge is a documented opt-in increment — don't ship it untested.
+- Full guide: `docs/webhooks.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

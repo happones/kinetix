@@ -239,6 +239,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Webhooks (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Let customers subscribe their own endpoints to platform events. Declare the
+    | subscribable events with KinetixWebhooks::events(); fire them with
+    | KinetixWebhooks::fire(). Deliveries are signed (HMAC), queued, retried and
+    | logged, and customer URLs are validated against SSRF.
+    |
+    | - `allow_private`: permit private/loopback URLs (dev/testing only — leave
+    |   false in production). Needed to point at a local catcher.
+    |
+    */
+    'webhooks' => [
+        'enabled'        => env('KINETIX_WEBHOOKS_ENABLED', false),
+        'teams'          => env('KINETIX_WEBHOOKS_TEAMS', false),
+        'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
+        'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
+        'tries'          => env('KINETIX_WEBHOOKS_TRIES', 3),
+        'retention_days' => env('KINETIX_WEBHOOKS_RETENTION_DAYS', 30),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Spotlight Command Palette (optional)
     |--------------------------------------------------------------------------
     |

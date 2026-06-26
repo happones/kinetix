@@ -174,4 +174,19 @@ return [
     // Spotlight
     'spotlight_placeholder' => 'Buscar…',
     'spotlight_empty'       => 'Sem resultados.',
+
+    // Webhooks
+    'webhooks_title'       => 'Webhooks',
+    'webhook_add'          => 'Adicionar endpoint',
+    'webhook_name'         => 'Nome',
+    'webhook_url'          => 'URL de destino',
+    'webhook_events'       => 'Eventos',
+    'webhook_active'       => 'Ativo',
+    'webhook_inactive'     => 'Inativo',
+    'webhook_test'         => 'Testar',
+    'webhook_rotate'       => 'Girar segredo',
+    'webhook_logs'         => 'Registros',
+    'no_webhooks'          => 'Ainda não há endpoints.',
+    'webhook_test_queued'  => 'Evento de teste enfileirado.',
+    'webhook_secret_shown' => 'Segredo de assinatura (exibido uma vez): :secret',
 ];

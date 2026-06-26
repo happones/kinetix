@@ -174,4 +174,19 @@ return [
     // Spotlight
     'spotlight_placeholder' => 'Search…',
     'spotlight_empty'       => 'No results.',
+
+    // Webhooks
+    'webhooks_title'       => 'Webhooks',
+    'webhook_add'          => 'Add endpoint',
+    'webhook_name'         => 'Name',
+    'webhook_url'          => 'Payload URL',
+    'webhook_events'       => 'Events',
+    'webhook_active'       => 'Active',
+    'webhook_inactive'     => 'Inactive',
+    'webhook_test'         => 'Test',
+    'webhook_rotate'       => 'Rotate secret',
+    'webhook_logs'         => 'Logs',
+    'no_webhooks'          => 'No endpoints yet.',
+    'webhook_test_queued'  => 'Test event queued.',
+    'webhook_secret_shown' => 'Signing secret (shown once): :secret',
 ];
