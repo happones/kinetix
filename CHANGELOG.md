@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-26
+
+### Added
+
+- **(published)** Application settings can now be dropped into the host's **own
+  settings layout as a tab** — the same way the starter kit hosts Roles &
+  Permissions. `<KinetixSettingsForm page-key="general">` self-loads its page DTO
+  (no host controller needed), mirroring `<KinetixRoleManager>`; the settings
+  `index`/`show` endpoints now content-negotiate JSON, and `useKinetixSettings`
+  gains `load()` + a `loading` flag (with a pulsing skeleton while it fetches).
+- **Documentation**: a "Account settings vs. application settings" section
+  clarifying the scope (admin app-config vs the starter kit's per-user account
+  settings) and a copy-paste recipe for adding it as a settings tab.
+
 ## [0.5.0] - 2026-06-26
 
 ### Added

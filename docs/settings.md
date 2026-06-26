@@ -160,4 +160,60 @@ defineProps<{
 ```
 
 Need a custom flow? Use the `useKinetixSettings()` composable directly —
-`save(pageKey, values)` plus a reactive `saving` flag.
+`load(pageKey)`, `save(pageKey, values)`, plus reactive `loading` / `saving` flags.
+
+---
+
+## 7. Account settings vs. application settings
+
+This module manages **application settings** — admin-owned configuration that
+changes how the app behaves (site name, maintenance mode, API keys), stored
+globally or per team and gated by `settings.manage`.
+
+That's a different concern from the starter kit's **account settings** section
+(Profile, Security, Teams, Appearance), which is each user managing *their own*
+account. The two are complementary, not overlapping — and the starter kit already
+hosts a Kinetix module inside that section: **Roles & Permissions** is just a tab
+rendering `<KinetixRoleManager>`.
+
+### Adding application settings as a settings tab
+
+Drop it in exactly like Roles & Permissions — a self-loading component, no host
+controller. Because `<KinetixSettingsForm page-key="…">` fetches its own DTO from
+the (already-registered) settings endpoint, the host only adds a page and a nav
+entry:
+
+```php
+// routes/settings.php — a plain Inertia tab page
+Route::inertia('settings/application', 'settings/ApplicationSettings')
+    ->name('settings.application');
+```
+
+```vue
+<!-- resources/js/pages/settings/ApplicationSettings.vue -->
+<script setup lang="ts">
+import KinetixCan from '@/components/kinetix/KinetixCan.vue'
+import KinetixSettingsForm from '@/components/kinetix/KinetixSettingsForm.vue'
+</script>
+
+<template>
+  <KinetixCan permission="settings.manage">
+    <KinetixSettingsForm page-key="general" />
+    <template #denied>…</template>
+  </KinetixCan>
+</template>
+```
+
+Then add a nav item to the settings layout, shown only to admins (mirroring how
+the Roles tab is gated by `can('roles.manage')`):
+
+```ts
+...(can('settings.manage')
+  ? [{ title: 'Application', href: '/settings/application' }]
+  : []),
+```
+
+> Prefer a standalone, Kinetix-owned settings section instead? Skip the host page
+> and point users at `GET {prefix}/settings` — the bundled controller renders the
+> `settings.view` page with the full page list. Both paths use the same JSON
+> `update` endpoint.

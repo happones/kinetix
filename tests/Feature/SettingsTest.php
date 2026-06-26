@@ -182,6 +182,17 @@ class SettingsTest extends TestCase
         $this->assertTrue(KinetixSettings::get('general.maintenance_mode'));
     }
 
+    public function test_show_returns_the_page_dto_as_json(): void
+    {
+        KinetixSettings::set('general.site_name', 'Acme');
+
+        $this->actingAs($this->manager())
+            ->getJson('/_kinetix/settings/general')
+            ->assertOk()
+            ->assertJsonFragment(['key' => 'general', 'title' => 'General'])
+            ->assertJsonPath('form.data.site_name', 'Acme');
+    }
+
     public function test_unknown_page_returns_404(): void
     {
         $this->actingAs($this->manager())

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { useKinetixSettings } from "@/composables/useKinetixSettings";
@@ -8,20 +9,36 @@ import KinetixForm from "./KinetixForm.vue";
 
 /**
  * Renders a single Kinetix settings page: its schema-driven form (reusing
- * <KinetixForm>) wired to the settings endpoint. Pass the `page` prop the
- * SettingsController provides (`{ key, title, icon, form }`). Gate the screen
- * behind the `settings.manage` ability where you mount it.
+ * <KinetixForm>) wired to the settings endpoint. Drop it into the host's own
+ * settings layout as a tab.
+ *
+ * Either pass the page DTO from a controller (`:page`), or just a `page-key` and
+ * the component self-loads it (like <KinetixRoleManager>) — no host controller
+ * needed. Gate the screen behind the `settings.manage` ability where you mount it.
  */
 const props = defineProps<{
-  page: KinetixSettingsPageData;
+  page?: KinetixSettingsPageData;
+  pageKey?: string;
 }>();
 
 const { t } = useI18n();
-const { saving, save } = useKinetixSettings();
+const { loading, saving, load, save } = useKinetixSettings();
+
+const current = ref<KinetixSettingsPageData | null>(props.page ?? null);
+
+onMounted(async () => {
+  if (!current.value && props.pageKey) {
+    current.value = await load(props.pageKey);
+  }
+});
 
 async function onSubmit(values: Record<string, unknown>): Promise<void> {
+  if (!current.value) {
+    return;
+  }
+
   try {
-    await save(props.page.key, values);
+    await save(current.value.key, values);
     toast.success(t("kinetix.settings_saved"));
   } catch (error) {
     toast.error(
@@ -33,14 +50,23 @@ async function onSubmit(values: Record<string, unknown>): Promise<void> {
 
 <template>
   <div class="space-y-4">
-    <h2 class="text-lg font-semibold text-foreground">{{ page.title }}</h2>
+    <!-- Loading skeleton while the page DTO is fetched -->
+    <div v-if="loading && !current" class="space-y-4">
+      <div class="h-5 w-40 animate-pulse rounded-md bg-muted" />
+      <div class="h-9 w-full animate-pulse rounded-md bg-muted" />
+      <div class="h-9 w-full animate-pulse rounded-md bg-muted" />
+    </div>
 
-    <KinetixForm :form="page.form" @submit="onSubmit">
-      <template #default>
-        <button type="submit" :disabled="saving" :class="buttonVariants()">
-          {{ t("kinetix.save") }}
-        </button>
-      </template>
-    </KinetixForm>
+    <template v-else-if="current">
+      <h2 class="text-lg font-semibold text-foreground">{{ current.title }}</h2>
+
+      <KinetixForm :form="current.form" @submit="onSubmit">
+        <template #default>
+          <button type="submit" :disabled="saving" :class="buttonVariants()">
+            {{ t("kinetix.save") }}
+          </button>
+        </template>
+      </KinetixForm>
+    </template>
   </div>
 </template>

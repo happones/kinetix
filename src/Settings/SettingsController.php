@@ -17,7 +17,7 @@ use Inertia\Response as InertiaResponse;
  */
 class SettingsController
 {
-    public function index(Request $request): InertiaResponse
+    public function index(Request $request): InertiaResponse|JsonResponse
     {
         Gate::authorize('settings.manage');
 
@@ -25,14 +25,30 @@ class SettingsController
 
         abort_if($pages === [], 404, 'No settings pages registered.');
 
+        // JSON (the SPA / an embedded tab) gets the page list + the first page.
+        if ($request->wantsJson()) {
+            return response()->json([
+                'pages'  => $this->pageList(),
+                'active' => $pages[0]->toArray(),
+            ]);
+        }
+
         return $this->render($pages[0]);
     }
 
-    public function show(Request $request): InertiaResponse
+    public function show(Request $request): InertiaResponse|JsonResponse
     {
         Gate::authorize('settings.manage');
 
-        return $this->render($this->resolve($request));
+        $page = $this->resolve($request);
+
+        // Lets <KinetixSettingsForm page-key="…"> self-load when embedded in the
+        // host's own settings layout (no host controller needed).
+        if ($request->wantsJson()) {
+            return response()->json($page->toArray());
+        }
+
+        return $this->render($page);
     }
 
     public function update(Request $request): JsonResponse
@@ -69,16 +85,26 @@ class SettingsController
         return Inertia::render(
             (string) config('kinetix.settings.view', 'Kinetix/Settings'),
             [
-                'pages' => array_map(
-                    static fn (SettingsPage $page): array => [
-                        'key'   => $page->key(),
-                        'title' => $page->title(),
-                        'icon'  => $page->navigationIcon(),
-                    ],
-                    $this->pages(),
-                ),
+                'pages'  => $this->pageList(),
                 'active' => $active->toArray(),
             ],
+        );
+    }
+
+    /**
+     * Lightweight metadata for every registered page (for tab/nav rendering).
+     *
+     * @return array<int, array{key: string, title: string, icon: string}>
+     */
+    protected function pageList(): array
+    {
+        return array_map(
+            static fn (SettingsPage $page): array => [
+                'key'   => $page->key(),
+                'title' => $page->title(),
+                'icon'  => $page->navigationIcon(),
+            ],
+            $this->pages(),
         );
     }
 }
