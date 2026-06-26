@@ -23,11 +23,13 @@
         "laravel/cashier": "^15.0|^16.0",
         "laravel/pint": "^1.0",
         "spatie/laravel-permission": "^6.0",
-        "spatie/laravel-activitylog": "^4.8"
+        "spatie/laravel-activitylog": "^4.8",
+        "laravel/pennant": "^1.0"
     },
     "suggest": {
         "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions.",
-        "spatie/laravel-activitylog": "Preferred driver for the Kinetix activity feature (^4.8). When installed, Kinetix logs through it instead of its native store."
+        "spatie/laravel-activitylog": "Preferred driver for the Kinetix activity feature (^4.8). When installed, Kinetix logs through it instead of its native store.",
+        "laravel/pennant": "Preferred driver for the Kinetix feature-flags feature (^1.0). When installed, Kinetix resolves flags through Pennant; otherwise a native evaluator is used."
     },
     "autoload": {
         "psr-4": {

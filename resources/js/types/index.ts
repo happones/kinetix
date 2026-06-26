@@ -59,6 +59,8 @@ export interface KinetixSharedProps {
   kinetix_notifications?: KinetixNotification[];
   kinetix_permissions?: KinetixPermissionState;
   kinetix_impersonation?: KinetixImpersonationState;
+  /** Resolved feature flags for the current scope (name → on/off). */
+  kinetix_features?: Record<string, boolean>;
   auth?: { user?: { id: number | string } | null };
   [key: string]: unknown;
 }

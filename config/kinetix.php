@@ -239,6 +239,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Feature Flags (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Gradual rollout and plan-gating. Define flags with the KinetixFeatures
+    | facade; resolve them through laravel/pennant when installed, otherwise a
+    | native closure evaluator. Flags compose with Billing — a resolver can defer
+    | to `$user->canUseFeature(...)`.
+    |
+    | - `driver`: 'auto' uses pennant when installed, else native. 'pennant' /
+    |   'native' force it.
+    | - `teams`: resolve flags for the active team instead of the user.
+    |
+    */
+    'features' => [
+        'enabled' => env('KINETIX_FEATURES_ENABLED', false),
+        'driver'  => env('KINETIX_FEATURES_DRIVER', 'auto'),
+        'teams'   => env('KINETIX_FEATURES_TEAMS', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Impersonation (optional)
     |--------------------------------------------------------------------------
     |

@@ -116,7 +116,7 @@ Admin "log in as user", **audited** via the Stage 2 spine.
 - Every start/stop emits an audited event.
 - **UI**: `<KinetixImpersonationBanner>` with a "Return to your account" button.
 
-## Stage 4 — Feature Flags (`v0.8.0`)
+## Stage 4 — Feature Flags (`v0.8.0`) — ✅ shipped
 
 Gradual rollout and plan-gating — one of the most repetitive SaaS needs.
 

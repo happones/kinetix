@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-26
+
+### Added
+
+- **Feature Flags module** (optional — `KINETIX_FEATURES_ENABLED`, off by
+  default). Gradual rollout and plan-gating — roadmap stage 4:
+  - `KinetixFeatures` facade — `define($name, Closure|bool)`, `active()`,
+    `inactive()`, `all()`. A flag's resolver receives the scope (user, or team
+    when `features.teams` is on) and can defer to anything, including Billing's
+    `$user->canUseFeature(...)` for plan-gating.
+  - **Driver** `auto` (default) resolves through `laravel/pennant` when installed
+    (persistence, lottery, scopes), otherwise a native closure evaluator — force
+    with `pennant` / `native`. `laravel/pennant` added to `suggest`.
+  - `kinetix.feature:<flag>` route middleware (404s when inactive).
+- **(published)** `<KinetixFeature flag="…">` gate component (with a `#denied`
+  slot, mirroring `<KinetixCan>`), the `useKinetixFeature` composable, and the
+  `kinetix_features` shared prop (resolved flag map). No new translations.
+- `kinetix-feature-flags` Boost skill and a section (§16) in the development skill.
+
 ## [0.7.0] - 2026-06-26
 
 ### Added

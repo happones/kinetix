@@ -85,6 +85,7 @@ export default withMermaid(
           { text: "Roles & Permissions", link: "/permissions" },
           { text: "Membership & Provisioning", link: "/membership" },
           { text: "Impersonation", link: "/impersonation" },
+          { text: "Feature Flags", link: "/feature-flags" },
         ],
       },
       {

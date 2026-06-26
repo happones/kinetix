@@ -24,6 +24,8 @@ use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Exports\ExportController;
+use Happones\Kinetix\Features\FeatureManager;
+use Happones\Kinetix\Features\Middleware\EnsureFeature;
 use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
@@ -72,6 +74,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The impersonation manager (log in as user).
         $this->app->singleton(ImpersonationManager::class);
+
+        // The feature-flag manager (pennant bridge / native evaluator).
+        $this->app->singleton(FeatureManager::class);
     }
 
     /**
@@ -185,6 +190,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Impersonation module (log in as user)
         $this->registerImpersonation();
+
+        // Register the optional Feature Flags module (pennant bridge / native)
+        $this->registerFeatures();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -459,6 +467,15 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Feature Flags module: the `kinetix.feature` middleware
+     * (always aliased) and, when enabled, the shared flag map for the frontend.
+     */
+    protected function registerFeatures(): void
+    {
+        $this->app['router']->aliasMiddleware('kinetix.feature', EnsureFeature::class);
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -544,6 +561,15 @@ class KinetixServiceProvider extends ServiceProvider
                     'name' => $user instanceof Model ? $user->getAttribute('name') : null,
                 ],
             ];
+        });
+
+        // Resolved feature flags for the current scope, for useKinetixFeature / <KinetixFeature>.
+        Inertia::share('kinetix_features', function () {
+            if (! config('kinetix.features.enabled', false)) {
+                return [];
+            }
+
+            return app(FeatureManager::class)->all();
         });
     }
 

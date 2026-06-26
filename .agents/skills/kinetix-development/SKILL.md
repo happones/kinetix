@@ -392,6 +392,20 @@ Admin impersonation, audited via the Activity spine. **Off by default** (`kineti
 
 ---
 
+## 16. Kinetix Feature Flags (optional, pennant bridge / native)
+
+Gradual rollout + plan-gating. **Off by default** (`kinetix.features.enabled`). Roadmap v0.8.0. No Kinetix migration.
+
+- **Manager** (`FeatureManager`, singleton; facade `KinetixFeatures`): `define($name, Closure|bool)`, `active($name, $scope=null)`, `inactive()`, `all($scope=null): array<string,bool>`. `usesPennant()`: `config('kinetix.features.driver')` — `auto` (default) = `class_exists(Laravel\Pennant\Feature)`, else native; `pennant`/`native` force it. Pennant path forwards to `Feature::define` / `Feature::for($scope)->active()/all()`; native evaluates the stored closures/bools each request. `defaultScope()` = the team (when `features.teams`) else the auth user. `all()` casts pennant's (possibly rich) values to bool.
+- **Definitions are code, not config** — host calls `KinetixFeatures::define()` in a provider's boot. A resolver is `fn ($scope) => bool` and can defer to anything, incl. Billing `$user->canUseFeature(...)` (plan-gating is just a flag whose resolver asks Billing — no separate mechanism).
+- **Middleware** `EnsureFeature` aliased `kinetix.feature` (always aliased): `kinetix.feature:flag` **404s** when inactive (route "doesn't exist" for users without it).
+- **Inertia prop** `kinetix_features` (resolved `name=>bool` map) shared when enabled.
+- **Vue (published)**: `useKinetixFeature` (`active`/`inactive`/`flags`, reactive), `KinetixFeature` gate component (`flag` prop + `#denied` slot, mirrors `<KinetixCan>`). No new i18n. `kinetix_features?: Record<string,boolean>` on `KinetixSharedProps`.
+- `laravel/pennant` is a dev dep + `suggest`. Tests pin the driver (`FeatureFlagsTest` → native, `FeatureFlagsPennantTest` → pennant with `pennant.default=array`, no migration).
+- Full guide: `docs/feature-flags.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
