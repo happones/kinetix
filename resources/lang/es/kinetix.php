@@ -110,6 +110,10 @@ return [
 
     // Selectores de fecha y vista previa
     'pick_date'            => 'Elegir fecha',
+    'pick_month'           => 'Elegir mes',
+    'pick_year'            => 'Elegir año',
+    'pick_week'            => 'Elegir semana',
+    'week_of'              => 'Semana :week, :year',
     'datetime_placeholder' => 'DD/MM/AAAA hh:mm',
     'preview_unavailable'  => 'Vista previa no disponible para este tipo de archivo.',
 

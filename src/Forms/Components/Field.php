@@ -30,6 +30,10 @@ abstract class Field extends Component
 
     protected bool $isSaved = true;
 
+    protected ?string $minValue = null;
+
+    protected ?string $maxValue = null;
+
     /**
      * @var array<int, mixed>
      */
@@ -275,6 +279,26 @@ abstract class Field extends Component
         return $resolvedRules;
     }
 
+    /**
+     * Earliest selectable value (native `min`), e.g. 'Y-m-d' / 'Y-m' / 'Y'.
+     */
+    public function minValue(string $value): static
+    {
+        $this->minValue = $value;
+
+        return $this;
+    }
+
+    /**
+     * Latest selectable value (native `max`).
+     */
+    public function maxValue(string $value): static
+    {
+        $this->maxValue = $value;
+
+        return $this;
+    }
+
     public function getDefaultValue(?Model $record = null): mixed
     {
         if ($this->defaultValue instanceof Closure) {
@@ -321,6 +345,8 @@ abstract class Field extends Component
             minuteStep: $this->dateConfig()['minuteStep'],
             hour12: $this->dateConfig()['hour12'],
             isRequired: in_array('required', $this->getRules($record), true),
+            minValue: $this->minValue,
+            maxValue: $this->maxValue,
         );
     }
 

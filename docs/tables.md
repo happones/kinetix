@@ -262,6 +262,23 @@ DateTimeFilter::make('ends_at')->operator('<=')->twelveHour();
 DateTimeFilter::make('ends_at')->native();
 ```
 
+### `MonthFilter`, `YearFilter` & `WeekFilter`
+Filter a date column by month, year, or ISO week. Each renders the matching
+shadcn picker by default (`->native()` for the browser-native input) and accepts
+`->attribute()`, `->minValue()`, `->maxValue()` (and `->locale()` for month/week).
+
+```php
+use Happones\Kinetix\Tables\Filters\{MonthFilter, YearFilter, WeekFilter};
+
+MonthFilter::make('created_at');                       // value "2026-06"
+YearFilter::make('created_at')->minValue('2020');      // value "2026"
+WeekFilter::make('created_at')->native();              // value "2026-W25"
+```
+
+- `MonthFilter` → `whereYear` + `whereMonth`.
+- `YearFilter` → `whereYear`.
+- `WeekFilter` → matches rows whose date falls in that ISO week (Mon–Sun).
+
 ### 9. `TrashedFilter`
 Soft-delete scope filter for `SoftDeletes` models. Blank = active records only (default), *With deleted* = `withTrashed()`, *Only deleted* = `onlyTrashed()`.
 

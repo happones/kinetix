@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-06-26
+
+### Added
+
+- **Month / Year / Week pickers** — as both **form fields** and **table filters**:
+  - Fields `MonthPicker` (`Y-m`), `YearPicker` (`Y`), `WeekPicker` (`o-\WW`).
+    Shadcn popover by default (month grid + year nav / paginated year grid /
+    calendar that picks the clicked day's ISO week), or the browser-native input
+    via `->native()` (`<input type="month|number|week">`). New `KinetixMonthPicker`,
+    `KinetixYearPicker`, `KinetixWeekPicker` components (**published**).
+  - Filters `MonthFilter` (whereYear+whereMonth), `YearFilter` (whereYear),
+    `WeekFilter` (ISO-week date range), rendered with the same pickers.
+  - **Native bounds**: generic `->minValue()` / `->maxValue()` on the `Field`
+    base (mapped to native `min`/`max`) — also now available on `DatePicker` /
+    `DateTimePicker`. i18n `pick_month` / `pick_year` / `pick_week` / `week_of`.
+
+### Fixed
+
+- Time pickers (`TimePicker` / `DateTimePicker`) scroll the selected hour/minute
+  into view on open instead of starting at the top.
+
 ## [0.21.0] - 2026-06-26
 
 ### Added

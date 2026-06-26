@@ -110,6 +110,10 @@ return [
 
     // Pickers & file preview
     'pick_date'            => 'Pick a date',
+    'pick_month'           => 'Pick a month',
+    'pick_year'            => 'Pick a year',
+    'pick_week'            => 'Pick a week',
+    'week_of'              => 'Week :week, :year',
     'datetime_placeholder' => 'MM/DD/YYYY hh:mm',
     'preview_unavailable'  => 'Preview not available for this file type.',
 

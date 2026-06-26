@@ -420,6 +420,36 @@ TimePicker::make('opens_at')->native();             // native <input type="time"
 
 ---
 
+### `MonthPicker`, `YearPicker` & `WeekPicker`
+Coarser date pickers. Each renders a **shadcn popover** by default and accepts
+`->native()` for the browser-native input, plus `->minValue()` / `->maxValue()`
+bounds (mapped to the native `min`/`max`).
+
+| Field | Stores | Shadcn UI | Native input |
+|---|---|---|---|
+| `MonthPicker` | `Y-m` (`"2026-06"`) | month grid + year nav | `<input type="month">` |
+| `YearPicker` | `Y` (`"2026"`) | paginated year grid | `<input type="number">` |
+| `WeekPicker` | `o-\WW` (`"2026-W25"`) | calendar (picks the day's ISO week) | `<input type="week">` |
+
+<Screenshot name="month-picker" alt="Month picker" />
+
+<Screenshot name="year-picker" alt="Year picker" />
+
+<Screenshot name="week-picker" alt="Week picker" />
+
+```php
+use Happones\Kinetix\Forms\Components\{MonthPicker, YearPicker, WeekPicker};
+
+MonthPicker::make('billed_month')->minValue('2026-01')->maxValue('2026-12');
+YearPicker::make('fiscal_year')->minValue('2020')->maxValue('2030');
+WeekPicker::make('sprint')->native();   // native <input type="week">
+```
+
+> The same three are available as **table filters** — see
+> [Tables → Filters](/tables#filters) (`MonthFilter`, `YearFilter`, `WeekFilter`).
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 

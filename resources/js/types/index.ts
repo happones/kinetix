@@ -293,7 +293,10 @@ export interface KinetixTableFilter {
     | "date"
     | "datetime"
     | "date-range"
-    | "number-range";
+    | "number-range"
+    | "month"
+    | "year"
+    | "week";
   options?: Record<string, string>;
   useCalendar?: boolean;
   numberOfMonths?: number;

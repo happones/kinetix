@@ -29,7 +29,7 @@ for (const specimen of specimens) {
       // Open-popover specimens capture the viewport (not the #specimen crop),
       // so give them a snug viewport instead of the default 1280×720.
       viewport: specimen.openSelector
-        ? { width: (specimen.width ?? 760) + 64, height: 560 }
+        ? { width: (specimen.width ?? 760) + 64, height: 460 }
         : undefined,
     });
     page.on("pageerror", (e) => console.error(`  [pageerror ${specimen.name}]`, e.message));

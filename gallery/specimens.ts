@@ -13,6 +13,9 @@ import KinetixStatsOverviewWidget from "@/components/KinetixStatsOverviewWidget.
 import KinetixRangeCalendar from "@/components/KinetixRangeCalendar.vue";
 import KinetixDateTimePicker from "@/components/KinetixDateTimePicker.vue";
 import KinetixTimePicker from "@/components/KinetixTimePicker.vue";
+import KinetixMonthPicker from "@/components/KinetixMonthPicker.vue";
+import KinetixYearPicker from "@/components/KinetixYearPicker.vue";
+import KinetixWeekPicker from "@/components/KinetixWeekPicker.vue";
 import KinetixFileUpload from "@/components/KinetixFileUpload.vue";
 import KinetixSelect from "@/components/KinetixSelect.vue";
 import KinetixRadioGroup from "@/components/KinetixRadioGroup.vue";
@@ -267,6 +270,9 @@ export const specimens: Specimen[] = [
   { name: "range-calendar", title: "Date range calendar", component: KinetixRangeCalendar, frame: "card", width: 560, props: { value: { from: "2026-06-10", to: "2026-06-18" }, numberOfMonths: 1 } },
   { name: "time-picker", title: "Time picker", component: KinetixTimePicker, frame: "card", width: 320, props: { value: "14:30", minuteStep: 15 } },
   { name: "datetime-picker", title: "Date-time picker (open)", component: KinetixDateTimePicker, width: 760, openSelector: "#specimen button", props: { value: "2026-06-15T14:30", minuteStep: 30 } },
+  { name: "month-picker", title: "Month picker (open)", component: KinetixMonthPicker, width: 340, openSelector: "#specimen button", props: { value: "2026-06" } },
+  { name: "year-picker", title: "Year picker (open)", component: KinetixYearPicker, width: 340, openSelector: "#specimen button", props: { value: "2026" } },
+  { name: "week-picker", title: "Week picker (open)", component: KinetixWeekPicker, width: 420, openSelector: "#specimen button", props: { value: "2026-W25" } },
 
   // --- Form layouts ----------------------------------------------------------
   { name: "layout-grid", title: "Grid layout", component: KinetixFormSchema, frame: "card", width: 640, props: { schema: layouts.grid, values: layoutValues, errors: {} } },

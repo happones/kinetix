@@ -15,6 +15,9 @@ import KinetixTagsInput from "./KinetixTagsInput.vue";
 import KinetixDatePicker from "./KinetixDatePicker.vue";
 import KinetixDateTimePicker from "./KinetixDateTimePicker.vue";
 import KinetixTimePicker from "./KinetixTimePicker.vue";
+import KinetixMonthPicker from "./KinetixMonthPicker.vue";
+import KinetixYearPicker from "./KinetixYearPicker.vue";
+import KinetixWeekPicker from "./KinetixWeekPicker.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -429,6 +432,40 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
               ($event.target as HTMLInputElement).value,
             )
           "
+        />
+
+        <!-- Month / Year / Week pickers (shadcn or native via ->native()) -->
+        <KinetixMonthPicker
+          v-else-if="comp.type === 'month-picker'"
+          :value="values[comp.name]"
+          :native="!comp.useCalendar"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          :locale="comp.dateLocale"
+          :min-value="comp.minValue"
+          :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+        <KinetixYearPicker
+          v-else-if="comp.type === 'year-picker'"
+          :value="values[comp.name]"
+          :native="!comp.useCalendar"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          :min-value="comp.minValue"
+          :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+        <KinetixWeekPicker
+          v-else-if="comp.type === 'week-picker'"
+          :value="values[comp.name]"
+          :native="!comp.useCalendar"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          :locale="comp.dateLocale"
+          :min-value="comp.minValue"
+          :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
         />
 
         <!-- Radio Group (Reka UI) -->

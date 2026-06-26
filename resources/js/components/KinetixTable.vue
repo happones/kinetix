@@ -31,6 +31,9 @@ import KinetixConfirmModal from "./KinetixConfirmModal.vue";
 import KinetixRangeCalendar from "./KinetixRangeCalendar.vue";
 import KinetixDatePicker from "./KinetixDatePicker.vue";
 import KinetixDateTimePicker from "./KinetixDateTimePicker.vue";
+import KinetixMonthPicker from "./KinetixMonthPicker.vue";
+import KinetixYearPicker from "./KinetixYearPicker.vue";
+import KinetixWeekPicker from "./KinetixWeekPicker.vue";
 import KinetixSelect from "./KinetixSelect.vue";
 import KinetixTableCell from "./Table/KinetixTableCell.vue";
 import KinetixTableHead from "./Table/KinetixTableHead.vue";
@@ -641,6 +644,34 @@ const onDrop = async () => {
                           ($event.target as HTMLInputElement).value,
                         )
                       "
+                    />
+
+                    <!-- Month / Year / Week filters (shadcn or native) -->
+                    <KinetixMonthPicker
+                      v-if="filter.type === 'month'"
+                      :value="activeFilters[filter.name] || null"
+                      :native="!filter.useCalendar"
+                      :locale="filter.locale"
+                      :min-value="filter.minValue"
+                      :max-value="filter.maxValue"
+                      @update:value="setFilter(filter.name, $event)"
+                    />
+                    <KinetixYearPicker
+                      v-if="filter.type === 'year'"
+                      :value="activeFilters[filter.name] || null"
+                      :native="!filter.useCalendar"
+                      :min-value="filter.minValue"
+                      :max-value="filter.maxValue"
+                      @update:value="setFilter(filter.name, $event)"
+                    />
+                    <KinetixWeekPicker
+                      v-if="filter.type === 'week'"
+                      :value="activeFilters[filter.name] || null"
+                      :native="!filter.useCalendar"
+                      :locale="filter.locale"
+                      :min-value="filter.minValue"
+                      :max-value="filter.maxValue"
+                      @update:value="setFilter(filter.name, $event)"
                     />
 
                     <!-- Date range — native inputs -->

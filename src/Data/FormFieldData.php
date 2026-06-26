@@ -68,5 +68,8 @@ class FormFieldData extends Data
         public ?string $dateLocale = null,
         public int $minuteStep = 5,
         public bool $hour12 = false,
+        // Native-style range bounds (date/month/week/year pickers).
+        public ?string $minValue = null,
+        public ?string $maxValue = null,
     ) {}
 }
