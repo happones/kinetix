@@ -35,6 +35,8 @@ graph LR
 
 ## 2. Building an Infolist
 
+<Screenshot name="infolist" alt="Infolist — read-only record display" />
+
 ```php
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Infolists\Components\Section;

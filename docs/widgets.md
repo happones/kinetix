@@ -27,6 +27,14 @@ graph TD
 
 ## 2. Quick Start Example
 
+<Screenshot name="stats-widget" alt="Stats overview widget" />
+
+<Screenshot name="chart-widget" alt="Chart widget (Unovis)" />
+
+<Screenshot name="table-widget" alt="Table widget" />
+
+<Screenshot name="custom-widget" alt="Custom slot widget" />
+
 ### 1. Backend Controller Blueprint
 Define your grid columns, stats overview trend lines, and charts, then pass the payload to Inertia:
 

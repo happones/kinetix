@@ -58,6 +58,8 @@ import KinetixImpersonationBanner from '@/components/kinetix/KinetixImpersonatio
 It renders nothing unless a session is active; otherwise it shows
 *"You are impersonating …"* with a **Return to your account** button.
 
+<Screenshot name="impersonation-banner" alt="Impersonation banner" />
+
 Programmatically:
 
 ```php

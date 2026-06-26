@@ -295,6 +295,8 @@ built-in `roles.manage` ability:
 </KinetixCan>
 ```
 
+<Screenshot name="role-manager" alt="Role manager" />
+
 It talks to the built-in endpoints registered under your Kinetix route prefix
 (team-aware), all gated by `roles.manage` (super-admin bypasses):
 
@@ -308,6 +310,8 @@ It talks to the built-in endpoints registered under your Kinetix route prefix
 
 Need a custom flow? Compose `KinetixPermissionMatrix` (the feature-grouped grid,
 `v-model` of permission keys) with `useKinetixRoles` (the CRUD composable).
+
+<Screenshot name="permission-matrix" alt="Permission matrix" />
 
 ### Seeding starter roles
 

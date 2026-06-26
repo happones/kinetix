@@ -226,6 +226,8 @@ const { can } = useKinetixCan();
 </template>
 ```
 
+<Screenshot name="member-list" alt="Member list with provisioning form" />
+
 Need a custom layout? Compose the presentational
 `<KinetixMemberProvisioner :assignable-roles="..." @submit="...">` form with the
 `useKinetixMembers()` composable (`load`, `provision`, `resend`, `updateRole`,
@@ -248,6 +250,8 @@ defineProps<{ email: string; action: string }>();
   <KinetixMemberActivation :email="email" :action="action" />
 </template>
 ```
+
+<Screenshot name="member-activation" alt="Member activation — set password" />
 
 Email is fixed (it came from the provision); the member only sets a name and
 password, and the form posts back to the signed `action` URL.

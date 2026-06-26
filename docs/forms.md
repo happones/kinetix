@@ -49,6 +49,8 @@ class ProfileForm extends Form
 ```
 
 ### One-Call Rendering
+
+<Screenshot name="form-schema" alt="A schema-driven form: section, grid, inputs, select, toggle" />
 `Form::render(?Model $record = null)` is a static helper that instantiates the form, fills it (from the passed model, or the given fill data), and returns the serialized array in one call:
 
 ```php
@@ -260,6 +262,8 @@ TextInput::make('user_email')
 ---
 
 ### 2. `Select`
+
+<Screenshot name="select" alt="Select field" />
 Renders an HTML dropdown `<select>`. Supports static arrays, closures, and direct PHP Enum reflections.
 
 ```php
@@ -359,6 +363,10 @@ Textarea::make('bio')
 ---
 
 ### 6. `DatePicker` & `DateTimePicker`
+
+<Screenshot name="calendar" alt="Date picker calendar" />
+
+<Screenshot name="range-calendar" alt="Date range calendar" />
 Both render the **shadcn calendar by default** (Reka UI popover) — `DatePicker` a single-date calendar, `DateTimePicker` a calendar plus scrollable hour/minute button columns. Call `->native()` to fall back to a plain native `<input type="date">` / `datetime-local`.
 
 ```php
@@ -394,6 +402,8 @@ Hidden::make('referrer_id')
 ```
 
 ### 8. `Radio`
+
+<Screenshot name="radio-group" alt="Radio group" />
 A single-choice radio group. Extends `Select`, so it shares the same `options()` API — including automatic PHP Enum reflection.
 
 ```php
@@ -444,6 +454,8 @@ ColorPicker::make('brand_color')
 ```
 
 ### 11. `TagsInput`
+
+<Screenshot name="tags-input" alt="Tags input" />
 A free-text tag editor. The stored value is an **array of strings**. Type and press <kbd>Enter</kbd> or `,` to add a tag; <kbd>Backspace</kbd> on an empty input removes the last tag. Pair it with an `array` cast.
 
 ```php
@@ -456,6 +468,8 @@ TagsInput::make('skills')
 Local typing state is encapsulated in the dedicated `KinetixTagsInput.vue` component, so the buffer never leaks across fields.
 
 ### 12. `KeyValue`
+
+<Screenshot name="key-value" alt="Key-value field" />
 An editable map of key/value string pairs. The stored value is an **associative array** (object). Pair it with an `array` cast.
 
 ```php
@@ -495,6 +509,8 @@ Repeater::make('line_items')
 **Architecture note:** `KinetixFormSchema` renders each item by recursing into itself with the item object as its scoped `values`, so any field type — including nested `Grid`/`Section` — works inside a repeater. New blank items are seeded from each sub-field's `defaultValue`. Validation treats the repeater as a single array-valued field (per-item rules are not auto-expanded in this version).
 
 ### 14. `FileUpload`
+
+<Screenshot name="file-upload" alt="File upload dropzone" />
 Uploads files to a storage disk and stores the resulting **path** (a string, or an array of strings when `multiple()`). Uploads happen immediately via a dedicated endpoint; the field value is the stored path(s).
 
 ```php

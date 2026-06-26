@@ -88,6 +88,8 @@ import KinetixTokenManager from "@/components/KinetixTokenManager.vue";
 </template>
 ```
 
+<Screenshot name="token-manager" alt="API token manager" />
+
 It lists the user's tokens (name, scopes, last-used), provides a create form with
 a scope picker, **reveals the plaintext token once** in a copy-able banner, and
 revokes tokens. All strings are localized (`token_*` keys, en/es/fr/pt).

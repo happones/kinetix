@@ -182,6 +182,12 @@ All components are token-only (shadcn semantic tokens) and take labels via props
 | `KinetixSubscriptionStatus` | Status badge + cancel/resume |
 | `KinetixInvoicesTable` | Invoice list with per-row download |
 
+<Screenshot name="pricing-table" alt="Pricing table — plan cards" />
+
+<Screenshot name="subscription-status" alt="Subscription status" />
+
+<Screenshot name="invoices-table" alt="Invoices table" />
+
 The `useKinetixBilling(endpoints)` composable centralises the Inertia visits (`subscribe`/`cancel`/`resume`/`addPaymentMethod`/`removePaymentMethod`) and exposes a shared `processing` flag. The scaffolded `Billing/Index.vue` wires it all together — start there.
 
 ### Stripe Elements theming (dark/light)

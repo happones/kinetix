@@ -99,6 +99,8 @@ defineProps<{ product: { id: number } }>()
 <KinetixActivityLog />
 ```
 
+<Screenshot name="activity-log" alt="Activity log feed" />
+
 Entries render a localized line — **`Created by Jane`**, **`Updated by Mo`** — and
 updates list the changed fields. Descriptions are composed from i18n keys
 (`activity_event_*`, `activity_by`, `activity_system`), so they translate across

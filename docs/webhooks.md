@@ -75,6 +75,8 @@ import KinetixWebhookManager from '@/components/kinetix/KinetixWebhookManager.vu
 </template>
 ```
 
+<Screenshot name="webhook-manager" alt="Webhook management dashboard" />
+
 The **signing secret is shown exactly once** (on create and rotate) and never
 returned again.
 

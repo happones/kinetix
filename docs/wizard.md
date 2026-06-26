@@ -91,9 +91,9 @@ function onFinish() {
 `vertical` (left rail), `panels` (filled pills), and `gradient` (an eye-catching
 gradient-filled indicator).
 
-![Wizard — gradient variant](/screenshots/wizard-gradient.png)
+<Screenshot name="wizard-gradient" alt="Wizard — gradient variant" />
 
-![Wizard — panels variant](/screenshots/wizard-panels.png)
+<Screenshot name="wizard-panels" alt="Wizard — panels variant" />
 
 ---
 

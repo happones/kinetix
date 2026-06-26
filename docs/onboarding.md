@@ -72,6 +72,8 @@ import KinetixOnboardingChecklist from "@/components/KinetixOnboardingChecklist.
 </template>
 ```
 
+<Screenshot name="onboarding-checklist" alt="Onboarding checklist" />
+
 It renders a progress bar, each step with its icon/description/CTA, a "Mark as
 done" button for manual steps, and a **Dismiss** control. It hides itself once
 dismissed and (by default) once every step is complete — pass
@@ -95,6 +97,8 @@ Drop `KinetixEmptyState` wherever a list or section has no data yet:
   <button :class="buttonVariants({ size: 'sm' })">Invite</button>
 </KinetixEmptyState>
 ```
+
+<Screenshot name="empty-state" alt="Empty state" />
 
 The default slot holds the call-to-action(s). `icon` is any
 [Kinetix icon name](/actions#icons).

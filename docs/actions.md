@@ -198,6 +198,12 @@ The modal is rendered through `<Teleport to="body">`, closes on overlay click or
 
 `KinetixPageHeader.vue` renders a page-level header with a title, optional description, and a right-aligned row of actions — the standard place for "Create", "Edit", "Delete", or custom page actions. It reuses the same action execution and confirmation flow as tables.
 
+<Screenshot name="page-header" alt="Page header with actions" />
+
+Grouped actions render as a dropdown menu (`KinetixActionDropdown`):
+
+<Screenshot name="action-dropdown" alt="Action dropdown menu" />
+
 ### Backend
 
 Build the actions in PHP and pass them as an array:

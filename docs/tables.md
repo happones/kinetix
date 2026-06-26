@@ -345,7 +345,7 @@ Render a summary row in the table footer with the results of calculations
 (sum, average, count, range) over the **full filtered dataset**. Add one or more
 **summarizers** to a column with `summarize()`:
 
-![Table with a summary footer](/screenshots/table-summaries.png)
+<Screenshot name="table-summaries" alt="Table with a summary footer" />
 
 ```php
 use Happones\Kinetix\Tables\Columns\TextColumn;

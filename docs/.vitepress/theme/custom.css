@@ -33,3 +33,22 @@
 .VPHero .image-bg {
   opacity: 0.65;
 }
+
+/* ---- Component screenshots (light/dark aware) ---- */
+.kx-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 16px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+.kx-shot-dark {
+  display: none;
+}
+html.dark .kx-shot-light {
+  display: none;
+}
+html.dark .kx-shot-dark {
+  display: block;
+}

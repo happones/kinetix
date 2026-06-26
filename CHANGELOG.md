@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs
+
+- Component screenshots are now **embedded in each feature's documentation**
+  (forms, tables, billing, widgets, permissions, membership, etc.) instead of a
+  single previews page (removed). A new light/dark-aware `<Screenshot>` doc
+  component swaps to the dark capture when the docs site is in dark mode.
+
 ## [0.19.1] - 2026-06-26
 
 ### Fixed

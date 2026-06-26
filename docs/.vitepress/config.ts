@@ -49,7 +49,6 @@ export default withMermaid(
         items: [
           { text: "What is Kinetix?", link: "/" },
           { text: "Getting Started", link: "/installation" },
-          { text: "Component previews", link: "/component-previews" },
         ],
       },
       {

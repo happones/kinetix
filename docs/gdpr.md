@@ -91,6 +91,8 @@ import KinetixGdprPanel from "@/components/KinetixGdprPanel.vue";
 </template>
 ```
 
+<Screenshot name="gdpr-panel" alt="GDPR self-service panel" />
+
 It renders the "Download your data" action and a destructive "Delete account"
 action behind a confirmation dialog (with a password field when
 `require_password` is on). On deletion it logs the user out and navigates to the
