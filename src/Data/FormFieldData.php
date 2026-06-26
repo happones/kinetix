@@ -71,5 +71,9 @@ class FormFieldData extends Data
         // Native-style range bounds (date/month/week/year pickers).
         public ?string $minValue = null,
         public ?string $maxValue = null,
+        // Range-calendar specific (DateRangePicker).
+        public int $numberOfMonths = 1,
+        public ?string $weekdayFormat = null,
+        public bool $fixedWeeks = false,
     ) {}
 }

@@ -16,6 +16,7 @@ import KinetixTimePicker from "@/components/KinetixTimePicker.vue";
 import KinetixMonthPicker from "@/components/KinetixMonthPicker.vue";
 import KinetixYearPicker from "@/components/KinetixYearPicker.vue";
 import KinetixWeekPicker from "@/components/KinetixWeekPicker.vue";
+import KinetixDateRangePicker from "@/components/KinetixDateRangePicker.vue";
 import KinetixFileUpload from "@/components/KinetixFileUpload.vue";
 import KinetixSelect from "@/components/KinetixSelect.vue";
 import KinetixRadioGroup from "@/components/KinetixRadioGroup.vue";
@@ -273,6 +274,7 @@ export const specimens: Specimen[] = [
   { name: "month-picker", title: "Month picker (open)", component: KinetixMonthPicker, width: 340, openSelector: "#specimen button", props: { value: "2026-06" } },
   { name: "year-picker", title: "Year picker (open)", component: KinetixYearPicker, width: 340, openSelector: "#specimen button", props: { value: "2026" } },
   { name: "week-picker", title: "Week picker (open)", component: KinetixWeekPicker, width: 420, openSelector: "#specimen button", props: { value: "2026-W25" } },
+  { name: "date-range-picker", title: "Date range picker (open)", component: KinetixDateRangePicker, width: 460, openSelector: "#specimen button", props: { value: { from: "2026-06-10", to: "2026-06-18" } } },
 
   // --- Form layouts ----------------------------------------------------------
   { name: "layout-grid", title: "Grid layout", component: KinetixFormSchema, frame: "card", width: 640, props: { schema: layouts.grid, values: layoutValues, errors: {} } },

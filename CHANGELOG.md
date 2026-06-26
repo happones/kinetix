@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-06-26
+
+### Added
+
+- **`DateRangePicker` form field** (start + end date, stores `{from,to}`).
+  Renders the shadcn range calendar in a popover by default, or two native date
+  inputs via `->native()`; supports `->numberOfMonths()`, `->weekdayFormat()`,
+  `->fixedWeeks()`, `->locale()`, `->minValue()/->maxValue()`. New
+  `KinetixDateRangePicker` component (**published**). Completes the range pair
+  with the existing `DateRangeFilter` table filter. Adds `numberOfMonths` /
+  `weekdayFormat` / `fixedWeeks` to `FormFieldData` (via `Field::rangeConfig()`).
+  i18n `pick_date_range` (en/es/fr/pt).
+
 ## [0.22.0] - 2026-06-26
 
 ### Added

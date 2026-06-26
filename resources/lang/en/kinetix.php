@@ -113,6 +113,7 @@ return [
     'pick_month'           => 'Pick a month',
     'pick_year'            => 'Pick a year',
     'pick_week'            => 'Pick a week',
+    'pick_date_range'      => 'Pick a date range',
     'week_of'              => 'Week :week, :year',
     'datetime_placeholder' => 'MM/DD/YYYY hh:mm',
     'preview_unavailable'  => 'Preview not available for this file type.',

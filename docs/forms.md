@@ -450,6 +450,28 @@ WeekPicker::make('sprint')->native();   // native <input type="week">
 
 ---
 
+### `DateRangePicker`
+Pick a start + end date. Stores `{ from, to }` (each an ISO `Y-m-d` string). Renders
+the shadcn **range calendar** in a popover by default, or **two native date
+inputs** via `->native()`. Supports `->numberOfMonths()`, `->weekdayFormat()`,
+`->fixedWeeks()`, `->locale()`, and `->minValue()` / `->maxValue()` bounds.
+
+<Screenshot name="date-range-picker" alt="Date range picker" />
+
+```php
+use Happones\Kinetix\Forms\Components\DateRangePicker;
+
+DateRangePicker::make('period')->numberOfMonths(2);
+DateRangePicker::make('period')->minValue('2026-01-01')->maxValue('2026-12-31');
+DateRangePicker::make('period')->native();   // two native <input type="date">
+```
+
+Persist `{from,to}` to a JSON-cast column, or split it in a `dehydrateStateUsing()`
+callback. As a **table filter**, use `DateRangeFilter` (see
+[Tables → Filters](/tables#filters)).
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 

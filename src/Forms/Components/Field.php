@@ -347,6 +347,9 @@ abstract class Field extends Component
             isRequired: in_array('required', $this->getRules($record), true),
             minValue: $this->minValue,
             maxValue: $this->maxValue,
+            numberOfMonths: $this->rangeConfig()['numberOfMonths'],
+            weekdayFormat: $this->rangeConfig()['weekdayFormat'],
+            fixedWeeks: $this->rangeConfig()['fixedWeeks'],
         );
     }
 
@@ -358,6 +361,16 @@ abstract class Field extends Component
     protected function dateConfig(): array
     {
         return ['useCalendar' => false, 'locale' => null, 'minuteStep' => 5, 'hour12' => false];
+    }
+
+    /**
+     * Range-calendar configuration. Overridden by DateRangePicker.
+     *
+     * @return array{numberOfMonths: int, weekdayFormat: ?string, fixedWeeks: bool}
+     */
+    protected function rangeConfig(): array
+    {
+        return ['numberOfMonths' => 1, 'weekdayFormat' => null, 'fixedWeeks' => false];
     }
 
     /**

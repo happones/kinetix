@@ -18,6 +18,7 @@ import KinetixTimePicker from "./KinetixTimePicker.vue";
 import KinetixMonthPicker from "./KinetixMonthPicker.vue";
 import KinetixYearPicker from "./KinetixYearPicker.vue";
 import KinetixWeekPicker from "./KinetixWeekPicker.vue";
+import KinetixDateRangePicker from "./KinetixDateRangePicker.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -463,6 +464,22 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :disabled="comp.isDisabled"
           :placeholder="comp.placeholder"
           :locale="comp.dateLocale"
+          :min-value="comp.minValue"
+          :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Date range (shadcn range calendar or two native inputs) -->
+        <KinetixDateRangePicker
+          v-else-if="comp.type === 'date-range-picker'"
+          :value="values[comp.name]"
+          :native="!comp.useCalendar"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          :locale="comp.dateLocale"
+          :weekday-format="comp.weekdayFormat"
+          :number-of-months="comp.numberOfMonths"
+          :fixed-weeks="comp.fixedWeeks"
           :min-value="comp.minValue"
           :max-value="comp.maxValue"
           @update:value="(v) => emit('update:value', comp.name, v)"
