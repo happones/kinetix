@@ -13,12 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-06-26
+
+### Added
+
+- **Reorderable tables**: `Table::reorderable('sort_order')` adds drag-and-drop
+  row reordering with a grip-handle column. The new order is persisted to the
+  given integer column via a signed, token-guarded `tables/reorder` endpoint
+  (the reorder column is baked into the same encrypted model token as inline
+  cell edits, so it can't be forged); rows default to that order.
+
+### Changed
+
+- **Table polling now works**: `Table::poll('10s')` was serialized but never
+  wired on the frontend. `KinetixTable` now drives it through Inertia's
+  **`usePoll`** (partial reload, preserves scroll + table state). Inertia
+  `usePoll` is the standard polling approach for the package (notifications
+  remain real-time via Echo).
+- **Tables aligned to the shadcn data-table look**: rows carry
+  `data-state="selected"` styling, and the markup/density matches shadcn's
+  table (header, hover, selection, grip handle, status badges).
+
+### Fixed
+
+- Screenshot light/dark toggle: the generic image rule outranked the dark-hide
+  toggle, so the dark capture leaked into light mode (both showing).
+
 ### Docs
 
 - Component screenshots are now **embedded in each feature's documentation**
   (forms, tables, billing, widgets, permissions, membership, etc.) instead of a
   single previews page (removed). A new light/dark-aware `<Screenshot>` doc
-  component swaps to the dark capture when the docs site is in dark mode.
+  component swaps to the dark capture when the docs site is in dark mode. The
+  gallery now covers **34** components (incl. the reorderable table).
 
 ## [0.19.1] - 2026-06-26
 

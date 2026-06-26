@@ -42,6 +42,10 @@ export const Link = defineComponent({
   },
 });
 
+export function usePoll() {
+  return { start() {}, stop() {} };
+}
+
 export function useForm(data: Record<string, unknown> = {}) {
   return { ...data, processing: false, errors: {}, post() {}, put() {}, get() {}, delete() {} };
 }

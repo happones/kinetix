@@ -17,6 +17,7 @@ const props = defineProps<{
   hasRecordActions: boolean;
   allOnPageSelected: boolean;
   stickyActions?: boolean;
+  reorderable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +37,9 @@ const getSortIcon = (name: string) => {
 <template>
   <thead class="bg-muted/40">
     <tr>
+      <th v-if="reorderable" scope="col" class="w-8 px-2 py-3">
+        <span class="sr-only">Reorder</span>
+      </th>
       <th v-if="hasBulkActions" scope="col" class="w-10 px-4 py-3">
         <KinetixCheckbox
           :checked="allOnPageSelected"

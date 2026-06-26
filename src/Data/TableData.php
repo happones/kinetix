@@ -42,5 +42,6 @@ class TableData extends Data
         public array $footerActions = [],
         public array $summaries = [],
         public bool $hasSummaries = false,
+        public bool $reorderable = false,
     ) {}
 }

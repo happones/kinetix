@@ -417,6 +417,7 @@ export interface KinetixTableData {
   stickyActions?: boolean;
   summaries?: Record<string, KinetixSummary[]>;
   hasSummaries?: boolean;
+  reorderable?: boolean;
 }
 
 /** A computed column summary (sum/average/count/range/custom). */

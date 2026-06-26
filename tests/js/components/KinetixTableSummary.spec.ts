@@ -5,6 +5,7 @@ import { createI18n } from "vue-i18n";
 vi.mock("@inertiajs/vue3", () => ({
   usePage: () => ({ props: { kinetix_config: { route_prefix: "_kinetix" } } }),
   router: { get: vi.fn(), visit: vi.fn(), reload: vi.fn() },
+  usePoll: () => ({ start: vi.fn(), stop: vi.fn() }),
 }));
 
 import KinetixTable from "@/components/KinetixTable.vue";
@@ -90,5 +91,49 @@ describe("KinetixTable summary footer", () => {
     });
 
     expect(wrapper.find("tfoot").exists()).toBe(false);
+  });
+
+  it("renders drag handles and draggable rows when reorderable", () => {
+    const wrapper = mountTable({
+      ...table,
+      reorderable: true,
+      records: [
+        {
+          id: 1,
+          values: { name: "A", price: "$1" },
+          icons: {},
+          iconColors: {},
+          badgeColors: {},
+          descriptions: {},
+          recordUrl: null,
+          actions: [],
+        },
+      ],
+    });
+
+    // A draggable row with a leading grip-handle cell is present.
+    const row = wrapper.find('tbody tr[draggable="true"]');
+    expect(row.exists()).toBe(true);
+    expect(row.find(".cursor-grab").exists()).toBe(true);
+  });
+
+  it("rows are not draggable when not reorderable", () => {
+    const wrapper = mountTable({
+      ...table,
+      records: [
+        {
+          id: 1,
+          values: { name: "A", price: "$1" },
+          icons: {},
+          iconColors: {},
+          badgeColors: {},
+          descriptions: {},
+          recordUrl: null,
+          actions: [],
+        },
+      ],
+    });
+
+    expect(wrapper.find('tbody tr[draggable="true"]').exists()).toBe(false);
   });
 });

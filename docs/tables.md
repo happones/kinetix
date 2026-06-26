@@ -416,7 +416,8 @@ suppress it.
 
 Table-level methods control refresh, pagination, and row behavior:
 
-- `poll(string $interval)`: Refreshes the table on an interval (e.g. `->poll('10s')`), reloading records via a background request.
+- `poll(string $interval)`: Refreshes the table on an interval (e.g. `->poll('10s')`). Backed by Inertia's **`usePoll`** — a partial reload that preserves scroll and table state (search/filters/sort/page). Accepts `'10s'`, `'5000ms'`, etc.
+- `reorderable(string $column = 'sort_order')`: Enables drag-and-drop row reordering (a grip-handle column appears). The new order is persisted to the given integer column via a signed, token-guarded `tables/reorder` endpoint, and rows default to that order. See [Reordering rows](#reordering-rows).
 - `paginated(bool|array $options)`: Toggles pagination or sets the page-size options. Pass `false` to disable pagination (the full result set is rendered), or an array of integers to override the selectable per-page options (default `[5, 10, 25, 50]`).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
@@ -431,6 +432,26 @@ Table::make(Post::query())
 // Disable pagination entirely
 Table::make(Post::query())->paginated(false);
 ```
+
+---
+
+## Reordering rows
+
+Call `reorderable()` to let users drag rows into a new order. A grip handle is
+added to each row; on drop, Kinetix persists the new order to an integer column
+(`sort_order` by default) and the table defaults to ordering by it.
+
+```php
+Table::make(Section::query())->reorderable(); // persists to `sort_order`
+Table::make(Section::query())->reorderable('position'); // custom column
+```
+
+<Screenshot name="table-reorderable" alt="Reorderable table with drag handles, selection and status badges" />
+
+Persistence goes through a signed `tables/reorder` endpoint: the reorder column
+is baked into the same encrypted token as the table's model, so a request can
+only reorder a table that explicitly opted in via `reorderable()` — the column
+can't be forged from the client (the same guard as inline cell edits).
 
 ---
 

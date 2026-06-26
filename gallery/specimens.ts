@@ -267,6 +267,30 @@ export const specimens: Specimen[] = [
   { name: "table-widget", title: "Table widget", component: KinetixTableWidget, width: 560, props: { widget: tableWidget } },
   { name: "custom-widget", title: "Custom widget", component: KinetixCustomWidget, width: 520, props: { widget: customWidget }, slots: { default: () => h("p", { class: "text-sm text-muted-foreground" }, "Anything can go inside a custom widget.") } },
   {
+    name: "table-reorderable", title: "Table — reorderable + selectable", component: KinetixTable, width: 760,
+    props: {
+      table: {
+        heading: "Sections", description: null, poll: null, isStriped: false, model: "token",
+        columns: [col("header", { label: "Header" }), col("type", { label: "Section type" }), col("status", { label: "Status", isBadge: true })],
+        filters: [], recordActions: [],
+        toolbarActions: [], bulkActions: [{ label: "Delete", icon: "trash", color: "danger", type: "button", openUrlInNewTab: false }],
+        footerActions: [],
+        records: [
+          { header: "Technical approach", type: "Narrative", status: "Done", _c: "success" },
+          { header: "Table of contents", type: "Table of contents", status: "Done", _c: "success" },
+          { header: "Design", type: "Narrative", status: "In Process", _c: "warning" },
+        ].map((r, i) => ({
+          id: i + 1,
+          values: { header: r.header, type: r.type, status: r.status },
+          icons: {}, iconColors: {}, badgeColors: { status: r._c }, descriptions: {}, recordUrl: null, actions: [],
+        })),
+        isPaginated: false, paginationPageOptions: [10], pagination: null,
+        state: { search: "", sort: "", direction: "asc", filters: {}, perPage: 10 },
+        queryPrefix: "", summaries: {}, hasSummaries: false, reorderable: true,
+      },
+    },
+  },
+  {
     name: "table-summaries", title: "Table with summaries", component: KinetixTable, width: 720,
     props: {
       table: {

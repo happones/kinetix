@@ -81,6 +81,12 @@ class Table implements Arrayable, JsonSerializable
     protected bool $stickyActions = false;
 
     /**
+     * When set, rows can be drag-reordered and the new order is persisted to
+     * this integer column. Null = not reorderable.
+     */
+    protected ?string $reorderColumn = null;
+
+    /**
      * Optional prefix for this table's query-string params, so multiple tables
      * (e.g. relation managers) on one page don't clash. Empty = unprefixed.
      */
@@ -306,6 +312,17 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Enable drag-and-drop row reordering, persisting the new order to the
+     * given integer column. Rows are ordered by it by default.
+     */
+    public function reorderable(string $column = 'sort_order'): static
+    {
+        $this->reorderColumn = $column;
+
+        return $this;
+    }
+
+    /**
      * Namespace this table's query-string params (e.g. 'posts_' → posts_search, posts_page).
      */
     public function queryPrefix(string $prefix): static
@@ -368,6 +385,9 @@ class Table implements Arrayable, JsonSerializable
             if (! str_contains($sort, '.')) {
                 $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
             }
+        } elseif ($this->reorderColumn !== null) {
+            // Reorderable tables default to the persisted manual order.
+            $query->orderBy($this->reorderColumn);
         }
 
         // Apply active filters
@@ -458,6 +478,7 @@ class Table implements Arrayable, JsonSerializable
             model: Crypt::encrypt([
                 'model'   => $this->getModelClass(),
                 'columns' => $editableColumns,
+                'reorder' => $this->reorderColumn,
             ]),
             columns: $columnsData,
             filters: $filtersData,
@@ -473,6 +494,7 @@ class Table implements Arrayable, JsonSerializable
             queryPrefix: $this->queryPrefix,
             summaries: $summaries,
             hasSummaries: $hasSummaries,
+            reorderable: $this->reorderColumn !== null,
         );
     }
 

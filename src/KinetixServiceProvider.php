@@ -972,6 +972,36 @@ class KinetixServiceProvider extends ServiceProvider
 
                     return response()->json(['status' => 'success']);
                 })->name('kinetix.tables.cell-update');
+
+                Route::post('reorder', function () {
+                    try {
+                        $payload = Crypt::decrypt((string) request('model'));
+                    } catch (\Exception $e) {
+                        return response()->json(['status' => 'error', 'message' => 'Invalid model signature.'], 400);
+                    }
+
+                    $modelClass    = is_array($payload) ? ($payload['model'] ?? null) : null;
+                    $reorderColumn = is_array($payload) ? ($payload['reorder'] ?? null) : null;
+
+                    if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
+                        return response()->json(['status' => 'error', 'message' => 'Invalid model class.'], 400);
+                    }
+
+                    // The reorder column is baked into the signed token only when
+                    // the table opted in via reorderable(); otherwise reject.
+                    if (! is_string($reorderColumn) || $reorderColumn === '') {
+                        return response()->json(['status' => 'error', 'message' => 'Table is not reorderable.'], 403);
+                    }
+
+                    /** @var array<int, mixed> $ids */
+                    $ids = (array) request('ids', []);
+
+                    foreach (array_values($ids) as $position => $id) {
+                        $modelClass::query()->whereKey($id)->update([$reorderColumn => $position + 1]);
+                    }
+
+                    return response()->json(['status' => 'success']);
+                })->name('kinetix.tables.reorder');
             });
     }
 

@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { router, usePage } from "@inertiajs/vue3";
-import { Search, Filter as FilterIcon, SlidersHorizontal } from "@lucide/vue";
+import { router, usePage, usePoll } from "@inertiajs/vue3";
+import {
+  Search,
+  Filter as FilterIcon,
+  SlidersHorizontal,
+  GripVertical,
+} from "@lucide/vue";
 import {
   PopoverContent,
   PopoverPortal,
   PopoverRoot,
   PopoverTrigger,
 } from "reka-ui";
-import { ref, computed, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   executeAction,
@@ -361,6 +366,76 @@ const updateCell = async (
     }
   } catch (e) {
     console.error("Cell update failed:", e);
+  }
+};
+
+// --- Polling (Inertia usePoll) ----------------------------------------------
+// `Table::poll('10s')` → a partial reload on an interval (preserves scroll/state).
+const parsePollInterval = (poll: string | null | undefined): number => {
+  if (!poll) {
+    return 0;
+  }
+  const match = /^(\d+)\s*(ms|s)?$/.exec(poll.trim());
+  if (!match) {
+    return 0;
+  }
+  const value = Number(match[1]);
+  return match[2] === "ms" ? value : value * 1000;
+};
+
+const pollInterval = parsePollInterval(props.table.poll);
+// reload() preserves scroll + state by default, so no extra options needed.
+const poll = usePoll(pollInterval || 60000, {}, { autoStart: false });
+onMounted(() => {
+  if (pollInterval > 0) {
+    poll.start();
+  }
+});
+
+// --- Row reordering ----------------------------------------------------------
+const localRecords = ref<KinetixTableRecord[]>([...props.table.records]);
+watch(
+  () => props.table.records,
+  (next) => {
+    localRecords.value = [...next];
+  },
+);
+
+// Rows iterate the local copy while reordering so drag previews are instant.
+const rows = computed<KinetixTableRecord[]>(() =>
+  props.table.reorderable ? localRecords.value : props.table.records,
+);
+
+let dragIndex: number | null = null;
+
+const onDragStart = (index: number) => {
+  dragIndex = index;
+};
+
+const onDragOver = (index: number, event: DragEvent) => {
+  event.preventDefault();
+  if (dragIndex === null || dragIndex === index) {
+    return;
+  }
+  const next = [...localRecords.value];
+  const [moved] = next.splice(dragIndex, 1);
+  next.splice(index, 0, moved);
+  localRecords.value = next;
+  dragIndex = index;
+};
+
+const onDrop = async () => {
+  dragIndex = null;
+  try {
+    await kinetixFetch(`/${routePrefix.value}/tables/reorder`, {
+      method: "POST",
+      body: {
+        model: props.table.model,
+        ids: localRecords.value.map((r) => r.id),
+      },
+    });
+  } catch (e) {
+    console.error("Reorder failed:", e);
   }
 };
 </script>
@@ -745,6 +820,7 @@ const updateCell = async (
           :has-record-actions="table.recordActions.length > 0"
           :all-on-page-selected="allOnPageSelected"
           :sticky-actions="table.stickyActions"
+          :reorderable="table.reorderable"
           @toggle-all-on-page="toggleAllOnPage"
           @toggle-sort="toggleSort"
         />
@@ -753,18 +829,31 @@ const updateCell = async (
           :class="{ 'divide-none': table.isStriped }"
         >
           <tr
-            v-for="(record, rowIndex) in table.records"
+            v-for="(record, rowIndex) in rows"
             :key="record.id"
             class="transition-colors group"
+            :data-state="isRowSelected(record.id) ? 'selected' : undefined"
+            :draggable="table.reorderable || undefined"
             :class="[
               record.recordUrl ? 'cursor-pointer' : '',
               table.isStriped && rowIndex % 2 === 1
                 ? 'bg-muted/30'
                 : 'bg-transparent',
               record.recordUrl ? 'hover:bg-muted/40' : 'hover:bg-muted/30',
+              'data-[state=selected]:bg-muted',
             ]"
             @click="handleRowClick(record, $event)"
+            @dragstart="table.reorderable && onDragStart(rowIndex)"
+            @dragover="table.reorderable && onDragOver(rowIndex, $event)"
+            @drop="table.reorderable && onDrop()"
           >
+            <td
+              v-if="table.reorderable"
+              class="w-8 px-2 py-4 text-muted-foreground"
+              @click.stop
+            >
+              <GripVertical class="size-4 cursor-grab active:cursor-grabbing" />
+            </td>
             <td
               v-if="table.bulkActions.length > 0"
               class="w-10 px-4 py-4"
@@ -827,12 +916,13 @@ const updateCell = async (
           </tr>
 
           <!-- Empty State -->
-          <tr v-if="table.records.length === 0">
+          <tr v-if="rows.length === 0">
             <td
               :colspan="
                 columnsToRender.length +
                 (table.recordActions.length > 0 ? 1 : 0) +
-                (table.bulkActions.length > 0 ? 1 : 0)
+                (table.bulkActions.length > 0 ? 1 : 0) +
+                (table.reorderable ? 1 : 0)
               "
               class="px-6 py-12 text-center text-sm text-muted-foreground"
             >
@@ -847,6 +937,7 @@ const updateCell = async (
           class="border-t-2 border-border bg-muted/40 font-semibold"
         >
           <tr>
+            <td v-if="table.reorderable" class="w-8 px-2 py-3" />
             <td v-if="table.bulkActions.length > 0" class="w-10 px-4 py-3" />
             <td
               v-for="(col, ci) in columnsToRender"
