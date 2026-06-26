@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
 use Happones\Kinetix\Data\ColumnData;
+use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class Column
@@ -25,6 +26,11 @@ abstract class Column
     protected bool $isToggledHiddenByDefault = false;
 
     protected ?Closure $formatStateUsing = null;
+
+    /**
+     * @var array<int, Summarizer>
+     */
+    protected array $summarizers = [];
 
     public function __construct(string $name)
     {
@@ -97,9 +103,34 @@ abstract class Column
     }
 
     /**
-     * Resolve the cell state (value) from the Eloquent model.
+     * Add one or more summarizers (Sum, Average, Count, Range, …) rendered in
+     * the table footer and, for exports, the totals row.
      *
-     * Supports dot-notation for relationship fields.
+     * @param Summarizer|array<int, Summarizer> $summarizers
+     */
+    public function summarize(mixed $summarizers): static
+    {
+        $this->summarizers = is_array($summarizers) ? array_values($summarizers) : [$summarizers];
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, Summarizer>
+     */
+    public function getSummarizers(): array
+    {
+        return $this->summarizers;
+    }
+
+    public function hasSummarizers(): bool
+    {
+        return $this->summarizers !== [];
+    }
+
+    /**
+     * Resolve the cell state (value) from the Eloquent model. Supports
+     * dot-notation for relationship fields.
      */
     public function getState(Model $record): mixed
     {
@@ -137,6 +168,7 @@ abstract class Column
             descriptionPosition: $extra['descriptionPosition'] ?? null,
             inputType: $extra['inputType']                     ?? null,
             placeholder: $extra['placeholder']                 ?? null,
+            hasSummary: $this->hasSummarizers(),
         );
     }
 

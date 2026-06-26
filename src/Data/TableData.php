@@ -11,14 +11,15 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 class TableData extends Data
 {
     /**
-     * @param array<int, ColumnData>   $columns
-     * @param array<int, FilterData>   $filters
-     * @param array<int, ActionData>   $recordActions
-     * @param array<int, ActionData>   $toolbarActions
-     * @param array<int, ActionData>   $bulkActions
-     * @param array<int, ActionData>   $footerActions
-     * @param array<int, TableRowData> $records
-     * @param array<int, int>          $paginationPageOptions
+     * @param array<int, ColumnData>                 $columns
+     * @param array<int, FilterData>                 $filters
+     * @param array<int, ActionData>                 $recordActions
+     * @param array<int, ActionData>                 $toolbarActions
+     * @param array<int, ActionData>                 $bulkActions
+     * @param array<int, ActionData>                 $footerActions
+     * @param array<int, TableRowData>               $records
+     * @param array<int, int>                        $paginationPageOptions
+     * @param array<string, array<int, SummaryData>> $summaries
      */
     public function __construct(
         public ?string $heading,
@@ -39,5 +40,7 @@ class TableData extends Data
         public string $queryPrefix = '',
         public bool $stickyActions = false,
         public array $footerActions = [],
+        public array $summaries = [],
+        public bool $hasSummaries = false,
     ) {}
 }

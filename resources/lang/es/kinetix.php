@@ -221,6 +221,9 @@ return [
     'tour_skip' => 'Omitir',
     'tour_done' => 'Listo',
 
+    // Resúmenes de tabla
+    'summary_total' => 'Total',
+
     // Asistente (wizard)
     'wizard_next'    => 'Siguiente',
     'wizard_back'    => 'Atrás',

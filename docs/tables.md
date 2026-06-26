@@ -339,6 +339,77 @@ Destructive bulk actions support `requiresConfirmation()` (a confirmation modal 
 
 ---
 
+## Summaries
+
+Render a summary row in the table footer with the results of calculations
+(sum, average, count, range) over the **full filtered dataset**. Add one or more
+**summarizers** to a column with `summarize()`:
+
+```php
+use Happones\Kinetix\Tables\Columns\TextColumn;
+use Happones\Kinetix\Tables\Columns\Summarizers\Average;
+use Happones\Kinetix\Tables\Columns\Summarizers\Range;
+use Happones\Kinetix\Tables\Columns\Summarizers\Sum;
+
+TextColumn::make('price')->summarize(Sum::make()->money('EUR'));
+
+TextColumn::make('rating')->numeric()->summarize([
+    Average::make()->label('Avg')->numeric(decimalPlaces: 1),
+    Range::make(),
+]);
+```
+
+### Available summarizers
+
+| Summarizer  | Result |
+| ----------- | ------ |
+| `Sum`       | Total of all values |
+| `Average`   | Mean of all values |
+| `Count`     | Number of rows (scope with `->query()`) |
+| `Range`     | `min – max` (`->minimalTextualDifference()`, `->minimalDateTimeDifference()`, `->excludeNull(false)`, `->limit(n)`) |
+| `Summarizer`| Custom — `Summarizer::make()->using(fn (Builder $q) => $q->min('last_name'))` |
+
+### Shared methods
+
+`label()`, `query(fn ($q) => …)` (scope the dataset), `prefix()` / `suffix()`,
+`numeric(decimalPlaces, locale)`, `money(currency, divideBy, locale)`, and
+`hidden()` / `visible()` (each receives the query builder). Set a global number
+locale with `config('kinetix.tables.number_locale')`.
+
+```php
+// Count only published rows:
+IconColumn::make('is_published')
+    ->summarize(Count::make()->query(fn ($q) => $q->where('is_published', true)));
+
+// Prices stored in cents:
+TextColumn::make('price')->summarize(Sum::make()->money('USD', divideBy: 100));
+```
+
+### Including summaries in exports
+
+`ExportColumn` has the same `summarize()` method. When any export column declares
+a summarizer, Kinetix appends a **totals row** to the CSV/XLSX after the data:
+
+```php
+class OrdersExporter extends Exporter
+{
+    public static function getColumns(): array
+    {
+        return [
+            ExportColumn::make('reference'),
+            ExportColumn::make('total')->summarize(Sum::make()->label('Total')),
+        ];
+    }
+}
+```
+
+The summary is computed over the exported query (so a bulk export of selected
+rows totals exactly those rows). `Exporter::hasSummary()` reports whether a row
+will be written; set `protected bool $withSummary = false;` on the exporter to
+suppress it.
+
+---
+
 ## Table Configuration
 
 Table-level methods control refresh, pagination, and row behavior:

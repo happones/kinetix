@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Exports;
 use BackedEnum;
 use Closure;
 use Happones\Kinetix\Support\Contracts\HasLabel;
+use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
@@ -17,6 +18,11 @@ class ExportColumn
     protected mixed $label;
 
     protected ?Closure $formatStateUsing = null;
+
+    /**
+     * @var array<int, Summarizer>
+     */
+    protected array $summarizers = [];
 
     public function __construct(string $name)
     {
@@ -44,6 +50,31 @@ class ExportColumn
         $this->formatStateUsing = $callback;
 
         return $this;
+    }
+
+    /**
+     * Add summarizer(s) whose value(s) appear in the export's totals row.
+     *
+     * @param Summarizer|array<int, Summarizer> $summarizers
+     */
+    public function summarize(mixed $summarizers): static
+    {
+        $this->summarizers = is_array($summarizers) ? array_values($summarizers) : [$summarizers];
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, Summarizer>
+     */
+    public function getSummarizers(): array
+    {
+        return $this->summarizers;
+    }
+
+    public function hasSummarizers(): bool
+    {
+        return $this->summarizers !== [];
     }
 
     public function getName(): string

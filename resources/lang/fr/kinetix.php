@@ -221,6 +221,9 @@ return [
     'tour_skip' => 'Passer',
     'tour_done' => 'Terminé',
 
+    // Résumés de tableau
+    'summary_total' => 'Total',
+
     // Assistant (wizard)
     'wizard_next'    => 'Suivant',
     'wizard_back'    => 'Précédent',

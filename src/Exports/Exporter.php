@@ -133,6 +133,74 @@ abstract class Exporter
     }
 
     /**
+     * Whether to append a totals/summary row to the export. Set to false to
+     * suppress it even when columns declare summarizers.
+     */
+    protected bool $withSummary = true;
+
+    /**
+     * Whether this export will append a summary row (any column has summarizers
+     * and {@see $withSummary} is on). Exposed so callers can branch on it.
+     */
+    public function hasSummary(): bool
+    {
+        if (! $this->withSummary) {
+            return false;
+        }
+
+        foreach (static::getColumns() as $column) {
+            if ($column->hasSummarizers()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Build the summary row appended after the data, aligned to the columns.
+     * Cells with multiple summarizers are joined; the first summary-less cell
+     * carries a "Total" label. Returns null when no summary should be written.
+     *
+     * @return array<int, string>|null
+     */
+    public function summaryRow(Builder $query): ?array
+    {
+        if (! $this->hasSummary()) {
+            return null;
+        }
+
+        $row         = [];
+        $labelPlaced = false;
+
+        foreach (static::getColumns() as $index => $column) {
+            if ($column->hasSummarizers()) {
+                $values = [];
+                foreach ($column->getSummarizers() as $summarizer) {
+                    $result = $summarizer->summarize(clone $query, $column->getName());
+                    if ($result !== null) {
+                        $values[] = ($result->label !== null ? $result->label.': ' : '').$result->value;
+                    }
+                }
+                $row[] = implode(' / ', $values);
+
+                continue;
+            }
+
+            if (! $labelPlaced && $index === 0) {
+                $row[]       = (string) trans('kinetix.summary_total');
+                $labelPlaced = true;
+
+                continue;
+            }
+
+            $row[] = '';
+        }
+
+        return $row;
+    }
+
+    /**
      * Runtime parameters passed to the queued export (e.g. selected `ids`,
      * filters). Read them in {@see query()} via {@see parameter()}.
      *

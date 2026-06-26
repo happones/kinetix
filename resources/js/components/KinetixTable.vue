@@ -840,6 +840,37 @@ const updateCell = async (
             </td>
           </tr>
         </tbody>
+
+        <!-- Summary footer -->
+        <tfoot
+          v-if="table.hasSummaries"
+          class="border-t-2 border-border bg-muted/40 font-semibold"
+        >
+          <tr>
+            <td v-if="table.bulkActions.length > 0" class="w-10 px-4 py-3" />
+            <td
+              v-for="(col, ci) in columnsToRender"
+              :key="col.name"
+              class="px-6 py-3 text-sm whitespace-nowrap"
+              :class="[
+                col.alignment === 'center' ? 'text-center' : '',
+                col.alignment === 'right' ? 'text-right' : 'text-left',
+              ]"
+            >
+              <template v-if="table.summaries?.[col.name]">
+                <div v-for="(s, si) in table.summaries?.[col.name]" :key="si">
+                  <span v-if="s.label" class="text-muted-foreground"
+                    >{{ s.label }}: </span
+                  >{{ s.value }}
+                </div>
+              </template>
+              <span v-else-if="ci === 0" class="text-muted-foreground">
+                {{ t("kinetix.summary_total") }}
+              </span>
+            </td>
+            <td v-if="table.recordActions.length > 0" class="px-6 py-3" />
+          </tr>
+        </tfoot>
       </table>
     </div>
 

@@ -277,6 +277,7 @@ export interface KinetixTableColumn {
   isToggledHiddenByDefault: boolean;
   type: string;
   isBadge?: boolean;
+  hasSummary?: boolean;
 }
 
 export interface KinetixTableFilter {
@@ -414,6 +415,14 @@ export interface KinetixTableData {
   };
   queryPrefix: string;
   stickyActions?: boolean;
+  summaries?: Record<string, KinetixSummary[]>;
+  hasSummaries?: boolean;
+}
+
+/** A computed column summary (sum/average/count/range/custom). */
+export interface KinetixSummary {
+  label: string | null;
+  value: string;
 }
 
 export interface KinetixRelationManagerData {

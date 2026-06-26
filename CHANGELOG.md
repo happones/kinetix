@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-06-26
+
+### Added
+
+- **Table summaries** — render aggregate footer rows and include them in exports.
+  - `Column::summarize(Summarizer|Summarizer[])` adds summarizers rendered in a
+    `<tfoot>` over the **full filtered dataset**. Ships `Sum`, `Average`,
+    `Count` (row count, scope with `->query()`), and `Range` (`min – max`, with
+    `minimalTextualDifference()`/`minimalDateTimeDifference()`/`excludeNull()`/
+    `limit()`), plus `Summarizer::make()->using(fn ($q) => …)` for custom values.
+  - Shared formatting: `label()`, `query()` (scoped dataset), `prefix()/suffix()`,
+    `numeric(decimalPlaces, locale)`, `money(currency, divideBy, locale)`,
+    `hidden()/visible()`. Global locale via `config('kinetix.tables.number_locale')`.
+  - Serialized as `TableData.summaries` / `hasSummaries` and `ColumnData.hasSummary`
+    (**published** — `KinetixTable` footer). i18n `summary_total` (en/es/fr/pt).
+  - **Export parity**: `ExportColumn::summarize(...)` appends a totals row to the
+    CSV/XLSX (computed over the exported query, so bulk-selected exports total
+    exactly those rows). `Exporter::hasSummary()`; suppress with
+    `protected bool $withSummary = false`.
+
 ## [0.17.0] - 2026-06-26
 
 ### Added

@@ -36,5 +36,7 @@ class ColumnData extends Data
         // TextInputColumn specific
         public ?string $inputType = null,
         public ?string $placeholder = null,
+        // Whether this column renders a summary in the footer.
+        public bool $hasSummary = false,
     ) {}
 }

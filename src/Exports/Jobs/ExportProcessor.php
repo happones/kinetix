@@ -64,6 +64,12 @@ class ExportProcessor implements ShouldQueue
             }
         });
 
+        // Append the totals/summary row when any column declares summarizers.
+        $summaryRow = $exporter->summaryRow($exporter->resolveExportQuery());
+        if ($summaryRow !== null) {
+            $writer->writeRow($summaryRow);
+        }
+
         $writer->close();
 
         Storage::disk($disk)->putFileAs($this->directory, new File($tempPath), $storedName);

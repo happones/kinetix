@@ -188,6 +188,10 @@ shipped last, on top of the event spine.
   standalone `<KinetixWizard>` usable in any page (account setup, gated flows),
   with five shadcn variants and a completion-gating middleware
   (`kinetix.wizard:slug`) backed by Kinetix-persisted per-user/team state.
+- **Table summaries (`v0.18.0`) — ✅ shipped.** Footer summarizers (`Sum`,
+  `Average`, `Count`, `Range`, custom) via `Column::summarize()`, computed over
+  the full filtered dataset, with number/money formatting — and `ExportColumn::summarize()`
+  to append a totals row to CSV/XLSX exports.
 - **GDPR self-service** — "export my data" (reuses Export) + account deletion.
 
 ---

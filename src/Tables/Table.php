@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables;
 
 use Closure;
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Data\SummaryData;
 use Happones\Kinetix\Data\TableData;
 use Happones\Kinetix\Data\TablePaginationData;
 use Happones\Kinetix\Data\TableRowData;
@@ -392,6 +393,10 @@ class Table implements Arrayable, JsonSerializable
     {
         $query = $this->getResolvedQuery();
 
+        // Compute column summaries over the full filtered dataset, before
+        // pagination narrows the query.
+        [$summaries, $hasSummaries] = $this->computeSummaries($query);
+
         // Paginate if enabled
         $records    = [];
         $pagination = null;
@@ -466,7 +471,40 @@ class Table implements Arrayable, JsonSerializable
             pagination: $pagination,
             state: $state,
             queryPrefix: $this->queryPrefix,
+            summaries: $summaries,
+            hasSummaries: $hasSummaries,
         );
+    }
+
+    /**
+     * Compute each column's summarizers over the (filtered, unpaginated)
+     * dataset. Returns [summaries keyed by column name, whether any exist].
+     *
+     * @return array{0: array<string, array<int, SummaryData>>, 1: bool}
+     */
+    protected function computeSummaries(Builder $baseQuery): array
+    {
+        $summaries = [];
+
+        foreach ($this->columns as $column) {
+            if (! $column->hasSummarizers()) {
+                continue;
+            }
+
+            $columnSummaries = [];
+            foreach ($column->getSummarizers() as $summarizer) {
+                $result = $summarizer->summarize(clone $baseQuery, $column->getName());
+                if ($result !== null) {
+                    $columnSummaries[] = $result;
+                }
+            }
+
+            if ($columnSummaries !== []) {
+                $summaries[$column->getName()] = $columnSummaries;
+            }
+        }
+
+        return [$summaries, $summaries !== []];
     }
 
     /**

@@ -221,6 +221,9 @@ return [
     'tour_skip' => 'Skip',
     'tour_done' => 'Done',
 
+    // Table summaries
+    'summary_total' => 'Total',
+
     // Wizard
     'wizard_next'    => 'Next',
     'wizard_back'    => 'Back',

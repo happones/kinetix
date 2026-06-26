@@ -14,6 +14,7 @@ Activate this skill when:
 - Designing database list grids for model directories.
 - Registering column types (`TextColumn`, `IconColumn`, `ImageColumn`, `ColorColumn`) to format model values.
 - Creating inline cell editors (`SelectColumn`, `ToggleColumn`, `TextInputColumn`, `CheckboxColumn`).
+- Adding footer **summaries** with `Column::summarize(Sum/Average/Count/Range/custom)` (also `ExportColumn::summarize()` to append a totals row to exports).
 - Appending query filters: `Filter` (checkbox), `SelectFilter`, `MultiSelectFilter` (whereIn), `TernaryFilter` (boolean tri-state), `DateFilter`, `DateTimeFilter`, `DateRangeFilter` (with optional `->calendar()` shadcn/Reka range calendar), `NumberRangeFilter`.
 - Attaching row-level record actions or header toolbar buttons.
 - Styling table rows with custom CSS background status classes.
@@ -88,6 +89,21 @@ defineProps<{
 ```
 
 ---
+
+## Summaries
+
+```php
+use Happones\Kinetix\Tables\Columns\Summarizers\{Sum, Average, Count, Range};
+
+TextColumn::make('price')->summarize(Sum::make()->money('EUR'));
+TextColumn::make('rating')->summarize([Average::make()->numeric(1), Range::make()]);
+IconColumn::make('is_published')
+    ->summarize(Count::make()->query(fn ($q) => $q->where('is_published', true)));
+```
+
+- Summarizers (`Tables\Columns\Summarizers`): `Sum`, `Average`, `Count`, `Range`, and `Summarizer::make()->using(fn ($q) => …)` for custom. Shared: `label()`, `query()` (scope), `prefix()/suffix()`, `numeric()/money()`, `hidden()/visible()`.
+- Computed over the **full filtered dataset** and rendered in a `<tfoot>` row (`TableData.summaries` / `hasSummaries`; `ColumnData.hasSummary`).
+- **Exports**: `ExportColumn::summarize(...)` appends a totals row to CSV/XLSX (over the exported query, so bulk-selected exports total exactly those rows). `Exporter::hasSummary()`; disable with `protected bool $withSummary = false`.
 
 ## Best Practices
 
