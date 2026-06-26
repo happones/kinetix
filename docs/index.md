@@ -25,6 +25,10 @@ features:
     title: Infolists & Actions
     details: Read-only record views and authorizable, confirmable actions (buttons, links, bulk, header/footer, groups).
     link: /infolists
+  - icon: 🔑
+    title: Roles, Permissions & Membership
+    details: Feature-scoped RBAC synced to database, blade/vue directive gating, and admin-provisioned user directory onboarding.
+    link: /permissions
   - icon: 🔁
     title: Import & Export
     details: Queued CSV/XLSX import with header mapping and export to any filesystem disk — bulk exports scope to the selected rows.

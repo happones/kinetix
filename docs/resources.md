@@ -103,6 +103,10 @@ use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Infolists\Components\TextEntry;
+use App\Kinetix\RelationManagers\CommentsRelationManager;
+use Happones\Kinetix\Permissions\PermissionRegistry;
 
 class PostResource extends Resource
 {
@@ -130,6 +134,33 @@ class PostResource extends Resource
             ->schema([
                 TextInput::make('title')->required(),
             ]);
+    }
+
+    // 5. Register Infolist Schema (Optional)
+    // Used for read-only detailed views of a record.
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                TextEntry::make('title'),
+                TextEntry::make('content'),
+            ]);
+    }
+
+    // 6. Register Relation Managers (Optional)
+    // Renders related tables/forms on the edit/show page.
+    public static function relationManagers(): array
+    {
+        return [
+            CommentsRelationManager::class,
+        ];
+    }
+
+    // 7. Register Permissions (Optional)
+    // Returns permission feature name to register CRUD permissions.
+    public static function permissionFeature(): ?string
+    {
+        return 'posts';
     }
 }
 ```
@@ -351,4 +382,144 @@ defineProps<{
     <KinetixTable :table="table" />
   </div>
 </template>
+```
+
+### 4. The Scaffolded Creation page (`resources/js/pages/Kinetix/Articles/Create.vue`)
+```vue
+<script setup lang="ts">
+import { router } from '@inertiajs/vue3';
+import KinetixForm from '@/components/kinetix/KinetixForm.vue';
+
+defineProps<{
+  form: any;
+}>();
+
+const handleSubmit = (values: Record<string, any>) => {
+  router.post('/articles', values, {
+    preserveScroll: true,
+  });
+};
+</script>
+
+<template>
+  <div class="p-8 max-w-3xl mx-auto space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Create Article</h1>
+      <p class="text-sm text-neutral-500">Add a new record to the database.</p>
+    </div>
+
+    <div class="bg-white dark:bg-neutral-950 border dark:border-neutral-800 rounded-xl shadow-sm p-6">
+      <KinetixForm :form="form" @submit="handleSubmit">
+        <template #default>
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              type="button"
+              @click="router.get('/articles')"
+              class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            >
+              Cancel
+            </button>
+            
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            >
+              Create Record
+            </button>
+          </div>
+        </template>
+      </KinetixForm>
+    </div>
+  </div>
+</template>
+```
+
+### 5. The Scaffolded Edit page (`resources/js/pages/Kinetix/Articles/Edit.vue`)
+```vue
+<script setup lang="ts">
+import { router } from '@inertiajs/vue3';
+import KinetixForm from '@/components/kinetix/KinetixForm.vue';
+
+const props = defineProps<{
+  form: any;
+  recordId: number;
+}>();
+
+const handleSubmit = (values: Record<string, any>) => {
+  router.put(`/articles/${props.recordId}`, values, {
+    preserveScroll: true,
+  });
+};
+</script>
+
+<template>
+  <div class="p-8 max-w-3xl mx-auto space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Edit Article</h1>
+      <p class="text-sm text-neutral-500">Modify the active record details.</p>
+    </div>
+
+    <div class="bg-white dark:bg-neutral-950 border dark:border-neutral-800 rounded-xl shadow-sm p-6">
+      <KinetixForm :form="form" @submit="handleSubmit">
+        <template #default>
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              type="button"
+              @click="router.get('/articles')"
+              class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            >
+              Cancel
+            </button>
+            
+            <button
+              type="submit"
+              class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+            >
+              Save Changes
+            </button>
+          </div>
+        </template>
+      </KinetixForm>
+    </div>
+  </div>
+</template>
+```
+
+---
+
+## 6. Route Registration (`routes/web.php`)
+
+To hook up your generated resource controller to the application, register its routes in your `routes/web.php` file.
+
+### 1. Standard Resource Routing
+For a typical multi-page or simple resource, map the routes using `Route::resource()`:
+
+```php
+use App\Http\Controllers\Kinetix\ArticleController;
+
+Route::resource('articles', ArticleController::class);
+```
+
+#### Soft Deletes Routing
+If your resource supports soft deletes, register the `restore` and `force-delete` helper endpoints manually:
+
+```php
+Route::resource('articles', ArticleController::class);
+Route::post('articles/{id}/restore', [ArticleController::class, 'restore'])->name('articles.restore');
+Route::delete('articles/{id}/force-delete', [ArticleController::class, 'forceDelete'])->name('articles.force-delete');
+```
+
+### 2. Team-Scoped Resource Routing
+If you used the `--team` option to create a team-scoped resource, nest the routes inside a `{current_team}` prefix/middleware block so that team segmentation functions correctly:
+
+```php
+use App\Http\Controllers\Kinetix\ArticleController;
+
+Route::prefix('{current_team}')->group(function () {
+    Route::resource('articles', ArticleController::class);
+    
+    // Soft Deletes (if enabled)
+    Route::post('articles/{id}/restore', [ArticleController::class, 'restore'])->name('articles.restore');
+    Route::delete('articles/{id}/force-delete', [ArticleController::class, 'forceDelete'])->name('articles.force-delete');
+});
 ```

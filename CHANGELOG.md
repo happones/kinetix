@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-06-26
+
+### Changed
+
+- **Documentation**: Completed the Kinetix Resources documentation by detailing route registration (including soft deletes and team prefix), the hook methods on the Resource class (infolist, relationManagers, and permissionFeature), and the Create/Edit Vue views.
+- **Documentation**: Added the Roles, Permissions & Membership card to the Vitepress home page features section in the index page.
+
 ## [0.4.4] - 2026-06-24
 
 ### Added
