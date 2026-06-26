@@ -221,6 +221,12 @@ return [
     'tour_skip' => 'Pular',
     'tour_done' => 'Concluir',
 
+    // Assistente (wizard)
+    'wizard_next'    => 'Próximo',
+    'wizard_back'    => 'Voltar',
+    'wizard_finish'  => 'Concluir',
+    'wizard_step_of' => 'Etapa :current de :total',
+
     // Atalhos de teclado
     'shortcuts_title' => 'Atalhos de teclado',
 ];

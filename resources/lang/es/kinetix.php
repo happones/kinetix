@@ -221,6 +221,12 @@ return [
     'tour_skip' => 'Omitir',
     'tour_done' => 'Listo',
 
+    // Asistente (wizard)
+    'wizard_next'    => 'Siguiente',
+    'wizard_back'    => 'Atrás',
+    'wizard_finish'  => 'Finalizar',
+    'wizard_step_of' => 'Paso :current de :total',
+
     // Atajos de teclado
     'shortcuts_title' => 'Atajos de teclado',
 ];

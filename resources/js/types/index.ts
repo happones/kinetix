@@ -118,6 +118,22 @@ export interface KinetixWebhookLog {
   createdAt: string | null;
 }
 
+/** A step shown in the <KinetixWizard> indicator. */
+export interface KinetixWizardStep {
+  key?: string;
+  label: string;
+  description?: string | null;
+  icon?: string | null;
+}
+
+/** Visual style of the wizard step indicator. */
+export type KinetixWizardVariant =
+  | "default"
+  | "simple"
+  | "vertical"
+  | "panels"
+  | "gradient";
+
 /** A single first-run onboarding checklist step. */
 export interface KinetixOnboardingStep {
   key: string;

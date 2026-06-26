@@ -320,6 +320,7 @@ abstract class Field extends Component
             dateLocale: $this->dateConfig()['locale'],
             minuteStep: $this->dateConfig()['minuteStep'],
             hour12: $this->dateConfig()['hour12'],
+            isRequired: in_array('required', $this->getRules($record), true),
         );
     }
 

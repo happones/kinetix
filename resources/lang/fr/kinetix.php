@@ -221,6 +221,12 @@ return [
     'tour_skip' => 'Passer',
     'tour_done' => 'Terminé',
 
+    // Assistant (wizard)
+    'wizard_next'    => 'Suivant',
+    'wizard_back'    => 'Précédent',
+    'wizard_finish'  => 'Terminer',
+    'wizard_step_of' => 'Étape :current sur :total',
+
     // Raccourcis clavier
     'shortcuts_title' => 'Raccourcis clavier',
 ];

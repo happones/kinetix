@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-06-26
+
+### Added
+
+- **Wizard** — multi-step flows in two surfaces sharing one Vue core:
+  - **Form layout**: `Wizard::make()->variant(...)->steps([Step::make(...)])`.
+    Advancing is gated on the current step's **required** fields (server
+    validation still runs on submit). Adds `Wizard`/`Step` components and
+    `variant`/`slug`/`isRequired` to `FormFieldData`.
+  - **Standalone `<KinetixWizard>`** (**published**): drop into any page; step
+    content via slots, `beforeNext` guard for per-step validation, events
+    `update:step`/`step-change`/`finish`, and five shadcn indicator variants
+    (`default`, `simple`, `vertical`, `panels`, `gradient`). `useKinetixWizard`
+    composable; new `KinetixFormTabs`-style wrapper `KinetixFormWizard`.
+  - **Route gating**: `kinetix.wizard:<slug>` middleware redirects to the
+    configured route until the user completes the wizard; completion is
+    persisted per user (or per team) in a new `kinetix_wizard_completions`
+    table. Config `wizards` (`enabled`/`teams`/`gates`); publish
+    `--tag=kinetix-wizards-migrations`. Endpoints `GET/POST {prefix}/wizards/{slug}[/complete]`.
+    i18n `wizard_*` (en/es/fr/pt).
+
 ## [0.16.0] - 2026-06-26
 
 ### Added

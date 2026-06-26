@@ -19,7 +19,7 @@ hero:
 features:
   - icon: 🧱
     title: Resources, Tables & Forms
-    details: Declarative CRUD with fluent builders — sortable/searchable/filterable tables, inline editing, and schema-driven forms including searchable comboboxes (local & remote).
+    details: Declarative CRUD with fluent builders — sortable/searchable/filterable tables, inline editing, schema-driven forms (grid/section/fieldset/tabs/split + multi-step wizards) including searchable comboboxes (local & remote).
     link: /resources
   - icon: 📄
     title: Infolists & Actions

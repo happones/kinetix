@@ -205,7 +205,20 @@ Placeholder::make('Account ID')
 
 All layout components share the base `columnSpan()`, `visible()/hidden()` and `visibleOn()/hiddenOn()` methods, and nest arbitrarily.
 
-> The **Wizard** layout (multi-step forms) and the standalone `<KinetixWizard>` page component ship in a later release — see the [Onboarding](/onboarding) and roadmap entries.
+### 7. Wizard
+Break a form into validated steps with `Wizard::make()->steps([Step::make(...)])`. Advancing is gated on the current step's required fields. Also available as a standalone page component with gating middleware — see the dedicated [Wizard](/wizard) guide.
+
+```php
+use Happones\Kinetix\Forms\Components\Wizard;
+use Happones\Kinetix\Forms\Components\Step;
+
+Wizard::make()
+    ->variant('gradient')
+    ->steps([
+        Step::make('Account')->schema([TextInput::make('email')->required()]),
+        Step::make('Profile')->icon('user')->schema([TextInput::make('name')]),
+    ])
+```
 
 ---
 

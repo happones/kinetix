@@ -221,6 +221,12 @@ return [
     'tour_skip' => 'Skip',
     'tour_done' => 'Done',
 
+    // Wizard
+    'wizard_next'    => 'Next',
+    'wizard_back'    => 'Back',
+    'wizard_finish'  => 'Finish',
+    'wizard_step_of' => 'Step :current of :total',
+
     // Keyboard shortcuts
     'shortcuts_title' => 'Keyboard shortcuts',
 ];

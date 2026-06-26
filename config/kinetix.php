@@ -325,6 +325,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Wizards (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Multi-step flows. The standalone <KinetixWizard> can gate access to parts
+    | of your app: map a wizard slug to the route a user is redirected to until
+    | they complete it, then apply the `kinetix.wizard:<slug>` middleware to the
+    | routes you want gated. Completion is persisted per user (or per team).
+    |
+    */
+    'wizards' => [
+        'enabled' => env('KINETIX_WIZARDS_ENABLED', false),
+
+        // Track completion per team instead of per user.
+        'teams' => env('KINETIX_WIZARDS_TEAMS', false),
+
+        // @var array<string, string> wizard slug => route name to redirect to
+        'gates' => [
+            // 'account-setup' => 'account.setup',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature Flags (optional)
     |--------------------------------------------------------------------------
     |

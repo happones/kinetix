@@ -6,6 +6,7 @@ import KinetixCheckbox from "./KinetixCheckbox.vue";
 import KinetixCombobox from "./KinetixCombobox.vue";
 import KinetixFileUpload from "./KinetixFileUpload.vue";
 import KinetixFormTabs from "./KinetixFormTabs.vue";
+import KinetixFormWizard from "./KinetixFormWizard.vue";
 import KinetixKeyValue from "./KinetixKeyValue.vue";
 import KinetixLabel from "./KinetixLabel.vue";
 import KinetixRadioGroup from "./KinetixRadioGroup.vue";
@@ -207,6 +208,19 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
     >
       <KinetixFormTabs
         :tabs="comp.schema"
+        :values="values"
+        :errors="errors"
+        @update:value="(name, val) => emit('update:value', name, val)"
+      />
+    </div>
+
+    <!-- Wizard Layout (multi-step) -->
+    <div
+      v-else-if="comp.type === 'wizard'"
+      :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+    >
+      <KinetixFormWizard
+        :comp="comp"
         :values="values"
         :errors="errors"
         @update:value="(name, val) => emit('update:value', name, val)"

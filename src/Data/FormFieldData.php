@@ -26,6 +26,7 @@ class FormFieldData extends Data
         public ?string $placeholder = null,
         public mixed $defaultValue = null,
         public bool $isDisabled = false,
+        public bool $isRequired = false,
         public bool $isLive = false,
         public ?int $debounce = null,
         public ?string $prefix = null,
@@ -48,6 +49,9 @@ class FormFieldData extends Data
         public ?string $icon = null,
         // Placeholder content (read-only display component).
         public ?string $content = null,
+        // Wizard layout: indicator variant + optional gating slug.
+        public ?string $variant = null,
+        public ?string $slug = null,
         // Repeater specific
         public ?int $minItems = null,
         public ?int $maxItems = null,

@@ -1,0 +1,106 @@
+import { mount } from "@vue/test-utils";
+import { describe, expect, it, vi } from "vitest";
+import { createI18n } from "vue-i18n";
+import { h } from "vue";
+
+const completeMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@inertiajs/vue3", () => ({ usePage: () => ({ props: {} }) }));
+vi.mock("@/composables/useKinetixWizard", () => ({
+  useKinetixWizard: () => ({ complete: completeMock, status: vi.fn() }),
+}));
+
+import KinetixWizard from "@/components/KinetixWizard.vue";
+
+const i18n = createI18n({
+  legacy: false,
+  locale: "en",
+  messages: {
+    en: {
+      kinetix: {
+        wizard_next: "Next",
+        wizard_back: "Back",
+        wizard_finish: "Finish",
+        wizard_step_of: "Step {current} of {total}",
+      },
+    },
+  },
+});
+
+const steps = [
+  { key: "a", label: "Account" },
+  { key: "b", label: "Profile" },
+];
+
+const mountWizard = (props: Record<string, any> = {}) =>
+  mount(KinetixWizard, {
+    props: { steps, ...props },
+    slots: {
+      a: () => h("div", { id: "panel-a" }, "A content"),
+      b: () => h("div", { id: "panel-b" }, "B content"),
+    },
+    global: { plugins: [i18n] },
+  });
+
+const nextButton = (w: any) =>
+  w.findAll("button").find((b: any) => b.text() === "Next");
+const backButton = (w: any) =>
+  w.findAll("button").find((b: any) => b.text() === "Back");
+
+describe("KinetixWizard", () => {
+  it("shows the first step's slot content and advances on Next", async () => {
+    const wrapper = mountWizard();
+
+    expect(wrapper.find("#panel-a").exists()).toBe(true);
+    expect(wrapper.find("#panel-b").exists()).toBe(false);
+
+    await nextButton(wrapper)!.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.find("#panel-b").exists()).toBe(true);
+    expect(wrapper.emitted("step-change")?.[0]).toEqual([1]);
+  });
+
+  it("blocks advancing when beforeNext returns false", async () => {
+    const wrapper = mountWizard({ beforeNext: () => false });
+
+    await nextButton(wrapper)!.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    // Still on the first step.
+    expect(wrapper.find("#panel-a").exists()).toBe(true);
+    expect(wrapper.emitted("step-change")).toBeUndefined();
+  });
+
+  it("emits finish and marks completion via slug on the last step", async () => {
+    const wrapper = mountWizard({ slug: "account-setup", step: 1 });
+
+    // On the last step the primary button reads Finish.
+    const finish = wrapper.findAll("button").find((b) => b.text() === "Finish");
+    expect(finish).toBeTruthy();
+
+    await finish!.trigger("click");
+    await wrapper.vm.$nextTick();
+
+    expect(completeMock).toHaveBeenCalledWith("account-setup");
+    expect(wrapper.emitted("finish")).toBeTruthy();
+  });
+
+  it("Back is disabled on the first step", () => {
+    const wrapper = mountWizard();
+    expect(backButton(wrapper)!.attributes("disabled")).toBeDefined();
+  });
+
+  it("renders the simple variant with a step counter", () => {
+    const wrapper = mountWizard({ variant: "simple" });
+    expect(wrapper.text()).toContain("Step 1 of 2");
+  });
+
+  it("renders a button per step for the panels variant", () => {
+    const wrapper = mountWizard({ variant: "panels" });
+    // Two step pills + Back + Next.
+    const labels = wrapper.findAll("button").map((b) => b.text());
+    expect(labels.some((t) => t.includes("Account"))).toBe(true);
+    expect(labels.some((t) => t.includes("Profile"))).toBe(true);
+  });
+});

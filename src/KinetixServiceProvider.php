@@ -53,6 +53,9 @@ use Happones\Kinetix\Webhooks\LogSpatieWebhookCall;
 use Happones\Kinetix\Webhooks\WebhookController;
 use Happones\Kinetix\Webhooks\WebhookDispatcher;
 use Happones\Kinetix\Webhooks\WebhookEventRegistry;
+use Happones\Kinetix\Wizards\Middleware\EnsureWizardCompleted;
+use Happones\Kinetix\Wizards\WizardController;
+use Happones\Kinetix\Wizards\WizardManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -111,6 +114,9 @@ class KinetixServiceProvider extends ServiceProvider
         // The onboarding step registry + checklist manager.
         $this->app->singleton(OnboardingStepRegistry::class);
         $this->app->singleton(OnboardingManager::class);
+
+        // The wizard completion manager (backs the gating middleware).
+        $this->app->singleton(WizardManager::class);
     }
 
     /**
@@ -198,6 +204,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000006_create_kinetix_onboarding_table.php' => database_path('migrations/2026_01_01_000006_create_kinetix_onboarding_table.php'),
             ], 'kinetix-onboarding-migrations');
 
+            // Publish the optional Wizards module's completion migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000007_create_kinetix_wizard_completions_table.php' => database_path('migrations/2026_01_01_000007_create_kinetix_wizard_completions_table.php'),
+            ], 'kinetix-wizards-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -250,6 +261,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Onboarding module (first-run checklist)
         $this->registerOnboarding();
+
+        // Register the optional Wizards module (gating middleware + completion)
+        $this->registerWizards();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -666,6 +680,40 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('/', [OnboardingController::class, 'index'])->name('kinetix.onboarding.index');
                 Route::post('complete', [OnboardingController::class, 'complete'])->name('kinetix.onboarding.complete');
                 Route::post('dismiss', [OnboardingController::class, 'dismiss'])->name('kinetix.onboarding.dismiss');
+            });
+    }
+
+    /**
+     * Wire the optional Wizards module: the `kinetix.wizard:<slug>` gating
+     * middleware alias (always registered so it can be used on app routes) and,
+     * when enabled, the self-service completion endpoints.
+     */
+    protected function registerWizards(): void
+    {
+        /** @var Router $router */
+        $router = $this->app['router'];
+        $router->aliasMiddleware('kinetix.wizard', EnsureWizardCompleted::class);
+
+        if (! config('kinetix.wizards.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/wizards")
+            ->group(function () {
+                Route::get('{slug}', [WizardController::class, 'status'])->name('kinetix.wizards.status');
+                Route::post('{slug}/complete', [WizardController::class, 'complete'])->name('kinetix.wizards.complete');
             });
     }
 
