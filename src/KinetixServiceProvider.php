@@ -44,6 +44,8 @@ use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Tokens\TokenController;
+use Happones\Kinetix\Tokens\TokenScopeRegistry;
 use Happones\Kinetix\Webhooks\LogSpatieWebhookCall;
 use Happones\Kinetix\Webhooks\WebhookController;
 use Happones\Kinetix\Webhooks\WebhookDispatcher;
@@ -94,6 +96,14 @@ class KinetixServiceProvider extends ServiceProvider
         // The webhook event registry + dispatcher.
         $this->app->singleton(WebhookEventRegistry::class);
         $this->app->singleton(WebhookDispatcher::class);
+
+        // The developer-token scope registry, seeded from config.
+        $this->app->singleton(TokenScopeRegistry::class, function (): TokenScopeRegistry {
+            $registry = new TokenScopeRegistry;
+            $registry->register((array) config('kinetix.tokens.scopes', []));
+
+            return $registry;
+        });
     }
 
     /**
@@ -223,6 +233,8 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Webhooks module (outbound event delivery)
         $this->registerWebhooks();
+
+        $this->registerTokens();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -578,6 +590,37 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('{endpoint}/test', [WebhookController::class, 'test'])->name('kinetix.webhooks.test');
                 Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
                 Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->name('kinetix.webhooks.redeliver');
+            });
+    }
+
+    /**
+     * Wire the optional Developer Tokens module: self-service personal access
+     * token endpoints (each user manages only their own tokens). Requires the
+     * User model to use Laravel\Sanctum\HasApiTokens.
+     */
+    protected function registerTokens(): void
+    {
+        if (! config('kinetix.tokens.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/tokens")
+            ->group(function () {
+                Route::get('/', [TokenController::class, 'index'])->name('kinetix.tokens.index');
+                Route::post('/', [TokenController::class, 'store'])->name('kinetix.tokens.store');
+                Route::delete('{token}', [TokenController::class, 'destroy'])->name('kinetix.tokens.destroy');
             });
     }
 

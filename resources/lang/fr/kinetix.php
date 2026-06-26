@@ -190,6 +190,24 @@ return [
     'webhook_test_queued'  => 'Événement de test mis en file.',
     'webhook_secret_shown' => 'Secret de signature (affiché une fois) : :secret',
 
+    // Jetons développeur
+    'tokens_title'           => 'Jetons d\'API',
+    'token_add'              => 'Créer un jeton',
+    'token_name'             => 'Nom du jeton',
+    'token_name_placeholder' => 'p. ex. Déploiement CI',
+    'token_scopes'           => 'Portées',
+    'token_full_access'      => 'Ce jeton aura un accès complet.',
+    'token_create'           => 'Créer',
+    'no_tokens'              => 'Aucun jeton pour l\'instant.',
+    'token_revoke'           => 'Révoquer',
+    'token_revoked'          => 'Jeton révoqué.',
+    'token_copy'             => 'Copier',
+    'token_copied'           => 'Jeton copié dans le presse-papiers.',
+    'token_dismiss'          => 'Terminé',
+    'token_reveal_notice'    => 'Copiez votre nouveau jeton maintenant. Vous ne pourrez plus le voir.',
+    'token_last_used'        => 'Dernière utilisation',
+    'token_never'            => 'Jamais',
+
     // Raccourcis clavier
     'shortcuts_title' => 'Raccourcis clavier',
 ];

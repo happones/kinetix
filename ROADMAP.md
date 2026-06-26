@@ -173,8 +173,10 @@ shipped last, on top of the event spine.
     the keyboard.
   - Native matcher (no hard dep); `@vueuse/core` (`useMagicKeys`) is a documented
     drop-in alternative if a project already uses it.
-- **Developer Tokens (Sanctum)** — personal access tokens with a declared scope
-  registry and a one-time plaintext reveal. API-first products only.
+- **Developer Tokens (Sanctum) (`v0.14.0`) — ✅ shipped.** Self-service personal
+  access tokens with a declared scope registry (`KinetixTokens::scopes`), a
+  `<KinetixTokenManager>` dashboard, and a one-time plaintext reveal. Requires
+  `laravel/sanctum`; enforce abilities on your API with standard Sanctum.
 - **Onboarding** — first-run checklist, empty states, product tour. Cheap, high
   impact for MVPs.
 - **GDPR self-service** — "export my data" (reuses Export) + account deletion.

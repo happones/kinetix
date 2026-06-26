@@ -290,6 +290,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Developer Tokens (optional — requires laravel/sanctum)
+    |--------------------------------------------------------------------------
+    |
+    | Self-service personal access tokens. The User model must use
+    | Laravel\Sanctum\HasApiTokens. Declare the abilities (scopes) a token may be
+    | granted here, or via KinetixTokens::scopes([...]). Empty = full-access ('*').
+    |
+    */
+    'tokens' => [
+        'enabled' => env('KINETIX_TOKENS_ENABLED', false),
+
+        // @var array<string, string> ability key => human label
+        'scopes' => [],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature Flags (optional)
     |--------------------------------------------------------------------------
     |

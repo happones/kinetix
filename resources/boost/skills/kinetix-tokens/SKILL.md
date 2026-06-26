@@ -1,0 +1,76 @@
+---
+name: kinetix-tokens
+description: "Self-service developer tokens: users mint/scope/revoke Sanctum personal access tokens from a drop-in dashboard; you declare the grantable scopes. Activates when declaring token scopes, mounting the token manager, or enforcing abilities on an API."
+license: MIT
+metadata:
+  author: happones
+---
+
+# Kinetix Developer Tokens Development
+
+## When to Apply
+
+Activate this skill when:
+- Declaring grantable scopes (`KinetixTokens::scopes`) or configuring `kinetix.tokens`.
+- Mounting `<KinetixTokenManager>` / using `useKinetixTokens`.
+- Enforcing token abilities on API routes (`auth:sanctum`, `ability:`).
+
+## Documentation
+
+For full details, reference `docs/tokens.md` (published at https://happones.github.io/kinetix/tokens).
+
+## Requirement
+
+Requires `laravel/sanctum`, and the authenticatable model must use
+`Laravel\Sanctum\HasApiTokens`. Without it, the endpoints abort 500.
+
+```bash
+composer require laravel/sanctum
+php artisan vendor:publish --provider="Laravel\Sanctum\SanctumServiceProvider"
+php artisan migrate
+```
+
+## Configuration
+
+```php
+'tokens' => [
+    'enabled' => env('KINETIX_TOKENS_ENABLED', false),
+    // key => label; empty = full-access ('*') tokens, no scope picker.
+    'scopes'  => ['posts.read' => 'Read posts', 'posts.write' => 'Write posts'],
+],
+```
+
+---
+
+## Backend Usage
+
+```php
+use Happones\Kinetix\Tokens\KinetixTokens;
+
+KinetixTokens::scopes(['posts.read' => 'Read posts']); // provider boot (merges with config)
+```
+
+- Scopes are Sanctum **token abilities**. When a catalog is declared, `store`
+  requires ≥1 declared scope and rejects abilities outside it (422). Empty
+  catalog → tokens default to `['*']`.
+- **Self-service**: each user manages only their own tokens (no admin ability).
+  `index`/`store`/`destroy` operate on `$request->user()->tokens()`.
+- **Reveal once**: `store` returns `plainTextToken` exactly once; it is never
+  persisted readable. `index` never includes it.
+- Endpoints (team-aware prefix): `GET/POST {prefix}/tokens`,
+  `DELETE {prefix}/tokens/{token}`.
+- Enforce on your API with standard Sanctum:
+  `Route::middleware(['auth:sanctum', 'ability:posts.write'])` or
+  `$request->user()->tokenCan('posts.write')`.
+
+---
+
+## Frontend Usage
+
+```vue
+<KinetixTokenManager />
+```
+
+Lists tokens (name, scopes, last-used), create form with a `KinetixCheckbox`
+scope picker, copy-able reveal-once banner, revoke. `useKinetixTokens()` for a
+custom UI. All strings localized (`token_*`, en/es/fr/pt).

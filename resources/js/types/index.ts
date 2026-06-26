@@ -118,6 +118,15 @@ export interface KinetixWebhookLog {
   createdAt: string | null;
 }
 
+/** A personal access token (the plaintext value is never included). */
+export interface KinetixToken {
+  id: number | string | null;
+  name: string;
+  abilities: string[];
+  lastUsedAt: string | null;
+  createdAt: string | null;
+}
+
 /** A spotlight result item. */
 export interface KinetixSpotlightItem {
   type: string;

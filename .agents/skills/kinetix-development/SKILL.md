@@ -450,6 +450,21 @@ App-wide hotkeys. **Frontend-only** — no backend, no config, no migration. Roa
 
 ---
 
+## 20. Kinetix Developer Tokens (optional, requires laravel/sanctum)
+
+Self-service personal access tokens. Roadmap v0.14.0. **Requires `laravel/sanctum`** + the authenticatable model uses `Laravel\Sanctum\HasApiTokens` (else endpoints abort 500). Config block `tokens` (`enabled`, `scopes` = key→label).
+
+- **Scope registry** (`TokenScopeRegistry`, singleton seeded from `config('kinetix.tokens.scopes')`; facade `KinetixTokens::scopes([...])` merges more at boot): the catalog of grantable Sanctum **abilities**. `register()` accepts key→label or a plain key list; `all()`/`keys()`.
+- **Self-service** (`TokenController`, **no admin ability** — tokens are personal): `index` (caller's tokens + scope catalog, never plaintext), `store` (creates via `$user->createToken($name, $abilities)`, returns `plainTextToken` **once**), `destroy` (revokes one of the caller's own tokens). `tokenableUser()` aborts 401 if unauthenticated, 500 if the model lacks `HasApiTokens`. When the catalog is non-empty, `store` requires ≥1 declared scope and `Rule::in` rejects others (422); empty catalog → defaults to `['*']`.
+- **Routes** (team-aware prefix, `web`+`auth`): `GET/POST {prefix}/tokens`, `DELETE {prefix}/tokens/{token}`. Registered in `registerTokens()` (only when `tokens.enabled`). No migration (uses Sanctum's `personal_access_tokens`). No permission feature.
+- **DTO**: `TokenData` (`fromModel(Model)` — typed loosely so the package never hard-depends on sanctum; plaintext never serialized): id, name, abilities, lastUsedAt, createdAt.
+- **Vue (published)**: `KinetixTokenManager` (list + create form with `KinetixCheckbox` scope picker via `inputClass`/`buttonVariants`/`KinetixLabel`; reveal-once copy banner; revoke), `useKinetixTokens`, type `KinetixToken`, i18n `token_*`/`tokens_title`.
+- **Enforcement is standard Sanctum** (Kinetix only issues tokens): `auth:sanctum` + `ability:posts.write` middleware, or `$user->tokenCan(...)`.
+- laravel/sanctum is a dev dep + `suggest`. Tests: `TokensTest` (creates `users` + `personal_access_tokens` tables, `TokenUser` with `HasApiTokens`), `useKinetixTokens.spec.ts`.
+- Full guide: `docs/tokens.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

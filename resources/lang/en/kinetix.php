@@ -190,6 +190,24 @@ return [
     'webhook_test_queued'  => 'Test event queued.',
     'webhook_secret_shown' => 'Signing secret (shown once): :secret',
 
+    // Developer tokens
+    'tokens_title'           => 'API tokens',
+    'token_add'              => 'Create token',
+    'token_name'             => 'Token name',
+    'token_name_placeholder' => 'e.g. CI deploy',
+    'token_scopes'           => 'Scopes',
+    'token_full_access'      => 'This token will have full access.',
+    'token_create'           => 'Create',
+    'no_tokens'              => 'No tokens yet.',
+    'token_revoke'           => 'Revoke',
+    'token_revoked'          => 'Token revoked.',
+    'token_copy'             => 'Copy',
+    'token_copied'           => 'Token copied to clipboard.',
+    'token_dismiss'          => 'Done',
+    'token_reveal_notice'    => 'Copy your new token now. You won\'t be able to see it again.',
+    'token_last_used'        => 'Last used',
+    'token_never'            => 'Never',
+
     // Keyboard shortcuts
     'shortcuts_title' => 'Keyboard shortcuts',
 ];

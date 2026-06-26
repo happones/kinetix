@@ -190,6 +190,24 @@ return [
     'webhook_test_queued'  => 'Evento de teste enfileirado.',
     'webhook_secret_shown' => 'Segredo de assinatura (exibido uma vez): :secret',
 
+    // Tokens de desenvolvedor
+    'tokens_title'           => 'Tokens de API',
+    'token_add'              => 'Criar token',
+    'token_name'             => 'Nome do token',
+    'token_name_placeholder' => 'ex.: Deploy CI',
+    'token_scopes'           => 'Escopos',
+    'token_full_access'      => 'Este token terá acesso total.',
+    'token_create'           => 'Criar',
+    'no_tokens'              => 'Ainda não há tokens.',
+    'token_revoke'           => 'Revogar',
+    'token_revoked'          => 'Token revogado.',
+    'token_copy'             => 'Copiar',
+    'token_copied'           => 'Token copiado para a área de transferência.',
+    'token_dismiss'          => 'Concluído',
+    'token_reveal_notice'    => 'Copie seu novo token agora. Você não poderá vê-lo novamente.',
+    'token_last_used'        => 'Último uso',
+    'token_never'            => 'Nunca',
+
     // Atalhos de teclado
     'shortcuts_title' => 'Atalhos de teclado',
 ];

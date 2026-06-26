@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-06-26
+
+### Added
+
+- **Developer Tokens** (optional, requires `laravel/sanctum`): a self-service
+  dashboard for users to mint, scope and revoke personal access tokens.
+  - `KinetixTokens::scopes(['posts.read' => 'Read posts', ...])` declares the
+    grantable Sanctum abilities (also configurable via `kinetix.tokens.scopes`).
+    When a catalog is declared, tokens must be granted ≥1 declared scope;
+    otherwise tokens default to full access (`*`).
+  - `<KinetixTokenManager />` (**published**) lists tokens, creates them with a
+    scope picker, reveals the plaintext token **once**, and revokes. Composable
+    `useKinetixTokens`, type `KinetixToken`, i18n `token_*` (en/es/fr/pt).
+  - Self-service routes (no admin ability): `GET/POST {prefix}/tokens`,
+    `DELETE {prefix}/tokens/{token}`. Enabled via `KINETIX_TOKENS_ENABLED`. The
+    User model must use `Laravel\Sanctum\HasApiTokens`. Enforce abilities on your
+    API with standard Sanctum (`auth:sanctum` + `ability:`).
+
 ## [0.13.0] - 2026-06-26
 
 ### Added

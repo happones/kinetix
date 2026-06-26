@@ -102,6 +102,7 @@ export default withMermaid(
           { text: "Spotlight", link: "/spotlight" },
           { text: "Keyboard Shortcuts", link: "/keyboard-shortcuts" },
           { text: "Webhooks", link: "/webhooks" },
+          { text: "Developer Tokens", link: "/tokens" },
         ],
       },
     ],

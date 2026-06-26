@@ -35,7 +35,7 @@ features:
     link: /permissions
   - icon: 🚀
     title: SaaS Platform
-    details: Database-backed settings, an activity-log audit trail + event spine, feature flags (Pennant), webhooks, and Stripe billing.
+    details: Database-backed settings, an activity-log audit trail + event spine, feature flags (Pennant), webhooks, self-service API tokens (Sanctum), and Stripe billing.
     link: /settings
   - icon: ⌨️
     title: Search & Experience
