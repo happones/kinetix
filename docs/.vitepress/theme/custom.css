@@ -34,14 +34,20 @@
   opacity: 0.65;
 }
 
-/* ---- Component screenshots (light/dark aware) ---- */
+/* ---- Component screenshots (light/dark aware) ----
+   Note: keep `display` OFF the generic `.kx-shot img` rule — a `.kx-shot img`
+   selector (specificity 0,1,1) would outrank the `.kx-shot-dark` toggle
+   (0,1,0) and leak the dark image into light mode. Style only non-display
+   props here; let the per-variant classes own `display`. */
 .kx-shot img {
-  display: block;
   width: 100%;
   height: auto;
   margin: 16px 0;
   border: 1px solid var(--vp-c-divider);
   border-radius: 12px;
+}
+.kx-shot-light {
+  display: block;
 }
 .kx-shot-dark {
   display: none;
