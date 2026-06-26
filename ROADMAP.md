@@ -158,6 +158,21 @@ shipped last, on top of the event spine.
 
 ## Add-ons (post-v0.10, as demand dictates)
 
+- **Keyboard Shortcuts (`v0.12.0`) — ✅ shipped.** App-wide hotkeys that compose
+  with Actions, Spotlight and Settings:
+  - **Conflict-safe scheme** — single keys (`c` create, `e` edit, `d` delete, `/`
+    search) and Gmail-style sequences (`g` then `i`), plus `mod+k` (palette) and
+    `?` (help). Avoids browser/OS-reserved `Ctrl+`-combos and ignores keystrokes
+    while typing in inputs.
+  - **Reusable** — `useKinetixHotkeys()` composable + a `v-kinetix-hotkey`
+    directive that triggers an element / emits an event, usable in any component
+    (Kinetix or not).
+  - **Customizable** — per-user binding overrides persisted via the Settings
+    module, with a `?` help overlay listing the active shortcuts.
+  - **Actions** — optional `Action::shortcut('e')` so a row/page action runs from
+    the keyboard.
+  - Native matcher (no hard dep); `@vueuse/core` (`useMagicKeys`) is a documented
+    drop-in alternative if a project already uses it.
 - **Developer Tokens (Sanctum)** — personal access tokens with a declared scope
   registry and a one-time plaintext reveal. API-first products only.
 - **Onboarding** — first-run checklist, empty states, product tour. Cheap, high

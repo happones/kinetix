@@ -435,6 +435,20 @@ Customers subscribe endpoints to platform events; signed/queued/retried/logged d
 
 ---
 
+## 19. Kinetix Keyboard Shortcuts (optional, frontend-only)
+
+App-wide hotkeys. **Frontend-only** — no backend, no config, no migration. Roadmap v0.12.0.
+
+- **Conflict-safe scheme (REQUIRED)**: single keys (`c`/`e`/`d`/`/`) + Gmail-style sequences (`g i`) fire only when NOT typing (input/textarea/select/contenteditable); `mod+…` combos (⌘ on mac, Ctrl else) still fire while typing; `?` opens help. **Never** map browser/OS-reserved `Ctrl+`-combos (copy/new/save/print). `preventDefault` only on a match.
+- **Core** (`useKinetixHotkeys.ts`, module-level singleton + ONE global `keydown` listener via `ensureHotkeysListening`): pure, exported, unit-tested helpers `eventMatchesStep` (modifiers: `mod`=meta||ctrl, `alt`; `shift` required only when declared, not forbidden — for symbol keys like `?`), `sequenceMatches` (tail of a time-windowed plain-key buffer, 1s), `normalizeKey`, `isTypingTarget`, `isMac`. Grammar: space-separated steps = sequence; `+`-join modifiers+key within a step; sequences are plain keys only. `addHotkey`/`removeHotkey`/`setHotkeyOverrides`/`listHotkeys` are module fns; `useKinetixHotkeys().register()` wraps `addHotkey` + `onScopeDispose`.
+- **Directive** (`plugins/kinetixHotkeys.ts`, `app.use(KinetixHotkeys)` → `v-kinetix-hotkey`): string value → `el.click()` on match; object `{keys,handler}` → handler; `:arg` = help label. Manages add/remove in mounted/unmounted (not the composable's scope-dispose). This is the "bind a key, fire an event in any component" surface — bind an Action by putting it on the action button.
+- **Help overlay** (`KinetixShortcuts.vue`, Reka `Dialog`): registers `?`, lists labelled shortcuts as `<kbd>` chips. Mount once.
+- **Customization**: `setHotkeyOverrides({id: keys})` (effective keys = override ?? default), persisted via the Settings module (`shortcuts.bindings`).
+- **Native matcher, no hard dep** (mirrors Spotlight's Cmd+K); `@vueuse/core` `useMagicKeys` documented as a drop-in alternative. i18n `shortcuts_title`. Tested in `tests/js/composables/useKinetixHotkeys.spec.ts`.
+- Full guide: `docs/keyboard-shortcuts.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

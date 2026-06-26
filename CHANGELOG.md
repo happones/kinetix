@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-26
+
+### Added
+
+- **Keyboard Shortcuts module** (frontend-only). App-wide hotkeys, conflict-safe
+  by design:
+  - Single keys (`c`/`e`/`d`/`/`) and Gmail-style sequences (`g i`) fire only when
+    not typing; `mod+…` combos (⌘/Ctrl) still fire while typing; `?` opens help.
+    Browser/OS-reserved `Ctrl+`-combos are deliberately avoided, and
+    `preventDefault` only runs on a match.
+  - **(published)** `v-kinetix-hotkey` directive (`@/plugins/kinetixHotkeys`) —
+    bind a key to any element (clicks it or runs a handler), so any component
+    (Kinetix or not) can react; the `useKinetixHotkeys` composable; a
+    `<KinetixShortcuts>` `?` cheat-sheet overlay; and per-user binding overrides
+    (`setHotkeyOverrides`) persistable via the Settings module.
+  - Native matcher (no extra dependency); `@vueuse/core` documented as a drop-in
+    alternative.
+- `kinetix-keyboard-shortcuts` Boost skill and a section (§19) in the development
+  skill.
+
 ## [0.11.0] - 2026-06-26
 
 ### Added

@@ -189,4 +189,7 @@ return [
     'no_webhooks'          => 'No endpoints yet.',
     'webhook_test_queued'  => 'Test event queued.',
     'webhook_secret_shown' => 'Signing secret (shown once): :secret',
+
+    // Keyboard shortcuts
+    'shortcuts_title' => 'Keyboard shortcuts',
 ];

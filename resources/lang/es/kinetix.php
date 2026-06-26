@@ -189,4 +189,7 @@ return [
     'no_webhooks'          => 'Aún no hay endpoints.',
     'webhook_test_queued'  => 'Evento de prueba en cola.',
     'webhook_secret_shown' => 'Secreto de firma (se muestra una vez): :secret',
+
+    // Atajos de teclado
+    'shortcuts_title' => 'Atajos de teclado',
 ];

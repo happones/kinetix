@@ -189,4 +189,7 @@ return [
     'no_webhooks'          => 'Aucun endpoint pour le moment.',
     'webhook_test_queued'  => 'Événement de test mis en file.',
     'webhook_secret_shown' => 'Secret de signature (affiché une fois) : :secret',
+
+    // Raccourcis clavier
+    'shortcuts_title' => 'Raccourcis clavier',
 ];
