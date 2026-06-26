@@ -63,9 +63,12 @@ php artisan vendor:publish --tag=kinetix-components
 php artisan vendor:publish --tag=kinetix-translations
 ```
 
-Compile translations for Vue and build:
+Compile translations for Vue and build (`vue-i18n:generate` comes from the
+optional [`happones/laravel-vue-i18n-generator`](https://github.com/happones/laravel-vue-i18n-generator)
+package — install it first, or use your own vue-i18n toolchain):
 
 ```bash
+composer require happones/laravel-vue-i18n-generator
 php artisan vue-i18n:generate
 npm run build
 ```

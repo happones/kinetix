@@ -13,6 +13,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-06-26
+
+### Fixed
+
+- **Documentation**: Removed a fabricated `formatStateUsing()` form-field method
+  from the Forms guide (it only exists on table columns / infolist entries).
+  Documented the real reactive hooks instead — `afterStateUpdated()` + `live()`.
+- **Documentation**: Corrected the teams env var in the installation guide —
+  `KINETIX_TEAMS` → `KINETIX_TEAMS_ENABLED` (the variable the config actually reads).
+- **Documentation**: `vue-i18n:generate` comes from the optional
+  `happones/laravel-vue-i18n-generator` package; the installation and home pages
+  now tell you to install it (or use your own vue-i18n toolchain) instead of
+  presenting it as a built-in Kinetix command.
+- **Documentation**: The Membership state diagram no longer shows `Expired` as a
+  stored status — it's derived from `expires_at` via `isExpired()` (status stays
+  `pending` / `active` / `revoked`).
+- **Documentation**: The Widgets sparkline example referenced a non-existent
+  `stat.id`; it now uses the `v-for` index for the gradient id.
+- **Documentation**: The Infolists guide no longer claims infolists have "no
+  inline actions" — a `Section` can carry header actions via `Section::actions()`.
+
+### Added
+
+- **Documentation**: The Resources guide now documents how to build a read-only
+  **View / Show page** (the `infolist()` hook + a `show()` controller method +
+  `ViewAction` + relation managers scoped to the `view` page), cross-linked to the
+  Infolists "Show page" recipe — previously the capability shipped but wasn't
+  documented end-to-end.
+
 ## [0.4.5] - 2026-06-26
 
 ### Changed

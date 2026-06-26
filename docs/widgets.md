@@ -184,10 +184,10 @@ The `StatsOverviewWidget` renders miniature trend sparkline graphics without the
 Frontend components project numeric charts into a single `<svg>` element containing a mapped polyline path:
 
 ```vue
-<!-- Simplified Sparkline Structure -->
+<!-- Simplified Sparkline Structure (index = the v-for index of the stat) -->
 <svg class="h-10 w-full overflow-visible">
     <defs>
-        <linearGradient :id="`gradient-${stat.id}`" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient :id="`gradient-${index}`" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" :stop-color="trendColor" stop-opacity="0.2" />
             <stop offset="100%" :stop-color="trendColor" stop-opacity="0.0" />
         </linearGradient>
@@ -204,7 +204,7 @@ Frontend components project numeric charts into a single `<svg>` element contain
     <!-- Gradient area fill -->
     <path 
         :d="svgFillPoints" 
-        :fill="`url(#gradient-${stat.id})`" 
+        :fill="`url(#gradient-${index})`" 
     />
 </svg>
 ```

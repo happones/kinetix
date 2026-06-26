@@ -111,11 +111,15 @@ State of a single provision:
 stateDiagram-v2
     [*] --> Pending: admin provisions
     Pending --> Active: member sets password
-    Pending --> Expired: activation_expiry elapses
     Pending --> Revoked: admin revokes
-    Expired --> Pending: admin resends
     Active --> Revoked: admin revokes
     Active --> [*]
+    note right of Pending
+        status is only pending / active / revoked.
+        "Expired" is NOT a stored status — it's derived
+        from expires_at via isExpired(); a resend just
+        refreshes expires_at (status stays pending).
+    end note
 ```
 
 ---

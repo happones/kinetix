@@ -58,11 +58,17 @@ marked **(published)**.
 
 Kinetix ships its UI strings as PHP translation files and compiles them to
 TypeScript for the Vue components via
-[`happones/laravel-vue-i18n-generator`](https://github.com/happones/laravel-vue-i18n-generator):
+[`happones/laravel-vue-i18n-generator`](https://github.com/happones/laravel-vue-i18n-generator).
+This is a **separate, optional package** — Kinetix does not depend on it, so
+install it first to get the `vue-i18n:generate` command:
 
 ```bash
+composer require happones/laravel-vue-i18n-generator
 php artisan vue-i18n:generate
 ```
+
+> Already using another vue-i18n toolchain? Skip this — just make sure the
+> `kinetix` namespace strings end up where your Vue i18n setup loads them.
 
 Run this again whenever you publish translations or add a locale.
 
@@ -256,7 +262,7 @@ return [
     'filesystem' => ['disk' => env('KINETIX_FILESYSTEM_DISK', 'public')],
 
     // Scope internal routes/queries to the current team (e.g. {team}/_kinetix).
-    'teams' => env('KINETIX_TEAMS', false),
+    'teams' => env('KINETIX_TEAMS_ENABLED', false),
 
     'route_prefix' => env('KINETIX_ROUTE_PREFIX', '_kinetix'),
     'middleware'   => ['web', 'auth'],
@@ -268,7 +274,7 @@ return [
 | `KINETIX_DATABASE_NOTIFICATIONS` | `false` | Persist notifications to the database |
 | `KINETIX_NOTIFICATIONS_BROADCAST` | `false` | Broadcast notifications in real time |
 | `KINETIX_FILESYSTEM_DISK` | `public` | Disk for uploads / exports / imports / images |
-| `KINETIX_TEAMS` | `false` | Scope routes/queries to the current team |
+| `KINETIX_TEAMS_ENABLED` | `false` | Scope routes/queries to the current team |
 | `KINETIX_ROUTE_PREFIX` | `_kinetix` | Prefix for internal API routes |
 
 ## Next steps

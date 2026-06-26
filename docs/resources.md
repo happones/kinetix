@@ -523,3 +523,52 @@ Route::prefix('{current_team}')->group(function () {
     Route::delete('articles/{id}/force-delete', [ArticleController::class, 'forceDelete'])->name('articles.force-delete');
 });
 ```
+
+---
+
+## 7. View / Show page (read-only detail)
+
+The generator scaffolds **index / create / edit** controller methods and pages —
+it does **not** scaffold a `show` page, because not every resource needs one. The
+building blocks ship with Kinetix; wire them up when you want a read-only detail
+view:
+
+1. **Define the schema** on the resource via the `infolist()` hook (see §2) — the
+   read-only twin of `form()`.
+2. **Add a `show()` controller method** that renders the infolist (plus any
+   relation managers scoped to the `view` page) to an Inertia page:
+
+   ```php
+   use App\Kinetix\Resources\ArticleResource;
+   use Happones\Kinetix\Infolists\Infolist;
+   use Happones\Kinetix\Actions\{EditAction, DeleteAction, Action};
+
+   public function show(Article $article)
+   {
+       return inertia('Kinetix/Articles/Show', [
+           'infolist' => ArticleResource::infolist(Infolist::make($article))->toArray(),
+           'relations' => collect(ArticleResource::relationManagersFor('view'))
+               ->map(fn ($rm) => $rm::make($article)->toArray()),
+           'actions' => Action::toArrayMany([
+               EditAction::make()->url(fn () => route('articles.edit', $article)),
+               DeleteAction::make()->inertiaVisit(route('articles.destroy', $article), ['method' => 'delete']),
+           ], $article),
+       ]);
+   }
+   ```
+
+3. **Register the route** — `Route::resource(...)` already maps `show`, so no extra
+   route is needed once the controller method exists (or add
+   `Route::get('articles/{article}', [ArticleController::class, 'show'])->name('articles.show')`).
+4. **Link to it from the table** with a `ViewAction` (default ability `view`, eye
+   icon):
+
+   ```php
+   ViewAction::make()->url(fn ($record) => route('articles.show', $record)),
+   ```
+
+5. **Build the Vue page** pairing `KinetixPageHeader` (the `actions`) with
+   `KinetixInfolist` (and `KinetixRelationManager` per relation).
+
+For the full page recipe — tabs, sections, and the Vue component — see the
+[Infolists "Show page" recipe](/infolists#8b-recipe-a-record-show-page-with-tabs-actions).

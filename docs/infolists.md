@@ -395,7 +395,7 @@ return inertia('Users/Show', ['infolist' => $infolist->toArray()]);
 
 ## 8b. Recipe: a record "Show" page with tabs + actions
 
-A polished detail page: the record's data organized in **tabs**, plus **Edit / Delete actions** in a page header. Infolists are read-only and have no inline actions, so the actions live in a **`KinetixPageHeader`** (or `Action::toArrayMany()`) next to the infolist — wire them to your routes.
+A polished detail page: the record's data organized in **tabs**, plus **Edit / Delete actions** in a page header. Entries themselves are read-only (no per-row actions), so page-level actions live in a **`KinetixPageHeader`** (or `Action::toArrayMany()`) next to the infolist — wire them to your routes. A **`Section`** can also carry its own header actions via **`Section::make(...)->actions([...])`**.
 
 **1. The infolist with tabs:**
 

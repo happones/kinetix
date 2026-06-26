@@ -36,8 +36,8 @@ Form fields follow a strict lifecycle of data transformation during hydration (f
 ```mermaid
 graph TD
     A[Eloquent Model / State Array] -->|1. Form::fill| B(afterStateHydrated Hooks)
-    B -->|2. formatStateUsing| C[Active Form State]
-    C -->|3. Client-Side Input| D[Active Request Payload]
+    B -->|2. bind| C[Active Form State]
+    C -->|3. Client-Side Input + afterStateUpdated| D[Active Request Payload]
     D -->|4. Form::validate| E[Laravel Validator Rules]
     E -->|Success| F(dehydrateStateUsing Hooks)
     F -->|5. Form::getState| G[Clean Dehydrated Array]
@@ -55,10 +55,13 @@ Hydration extracts properties from a model or an array and binds them to the cor
           $component->default(strtolower((string) $state));
       });
   ```
-- **`formatStateUsing(Closure $callback)`**: A simplified wrapper to transform the value for rendering in the field interface:
+- **`afterStateUpdated(Closure $callback)`**: Executed when the field's value changes on the client. Combine with **`live(bool $onBlur = false, ?int $debounce = null)`** to make the field reactive (push updates on change / blur / debounced):
   ```php
   TextInput::make('first_name')
-      ->formatStateUsing(fn (?string $state): string => ucwords($state ?? ''));
+      ->live(debounce: 500)
+      ->afterStateUpdated(function (mixed $state, Field $component) {
+          // react to the new value
+      });
   ```
 
 ### 2. Dehydration
