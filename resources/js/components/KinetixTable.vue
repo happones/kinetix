@@ -51,10 +51,14 @@ const { t } = useI18n();
 // a light `ghost` so rows stay clean; toolbar/bulk actions default to the solid
 // primary button. An explicit action color is always respected (danger →
 // destructive, etc.).
-const recordActionClass = (action: { color?: string | null }) =>
+const recordActionClass = (action: {
+  color?: string | null;
+  isIconButton?: boolean;
+}) =>
   buttonVariants({
     variant: action.color ? actionButtonVariant(action.color) : "ghost",
-    size: "sm",
+    // Icon-only actions render as a compact square (shadcn row-action style).
+    size: action.isIconButton ? "icon-sm" : "sm",
   });
 
 const primaryActionClass = (action: { color?: string | null }) =>
@@ -902,13 +906,15 @@ const onDrop = async () => {
                   <button
                     v-else
                     :class="recordActionClass(action)"
+                    :title="action.isIconButton ? action.label : undefined"
+                    :aria-label="action.isIconButton ? action.label : undefined"
                     @click.stop="handleActionClick(action)"
                   >
                     <component
                       :is="resolveIcon(action.icon)"
                       v-if="action.icon"
                     />
-                    <span>{{ action.label }}</span>
+                    <span v-if="!action.isIconButton">{{ action.label }}</span>
                   </button>
                 </template>
               </div>

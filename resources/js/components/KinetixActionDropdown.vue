@@ -10,6 +10,7 @@ import {
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useActionConfirmation } from "@/composables/useKinetixActions";
+import { buttonVariants } from "@/composables/useShadcnVariants";
 import { resolveIcon as resolveKinetixIcon } from "@/composables/useKinetixIcons";
 import { statusInteractiveTextClass } from "@/composables/useStatusColor";
 import type { KinetixAction } from "@/types";
@@ -42,7 +43,11 @@ const onItemClick = (action: KinetixAction) => {
     <DropdownMenuRoot v-model:open="isOpen">
       <DropdownMenuTrigger
         type="button"
-        class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 h-9 px-3 has-[>svg]:px-2.5"
+        :class="
+          group.label
+            ? buttonVariants({ variant: 'outline', size: 'sm' })
+            : buttonVariants({ variant: 'ghost', size: 'icon-sm' })
+        "
         :aria-label="group.label || t('kinetix.more_actions')"
       >
         <component :is="resolveIcon(group.icon)" class="h-4 w-4" />

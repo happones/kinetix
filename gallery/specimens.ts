@@ -189,7 +189,8 @@ const pageActions = [
 ];
 
 const actionGroup = {
-  type: "group", label: "Actions", icon: "ellipsis-vertical", color: null,
+  // No label → renders as the shadcn ghost "⋮" icon trigger.
+  type: "group", icon: "ellipsis-vertical", color: null,
   actions: [
     { label: "Edit", icon: "edit", color: null, type: "button", openUrlInNewTab: false },
     { label: "Delete", icon: "trash", color: "danger", type: "button", openUrlInNewTab: false },
@@ -272,7 +273,7 @@ export const specimens: Specimen[] = [
       table: {
         heading: "Sections", description: null, poll: null, isStriped: false, model: "token",
         columns: [col("header", { label: "Header" }), col("type", { label: "Section type" }), col("status", { label: "Status", isBadge: true })],
-        filters: [], recordActions: [],
+        filters: [], recordActions: [actionGroup],
         toolbarActions: [], bulkActions: [{ label: "Delete", icon: "trash", color: "danger", type: "button", openUrlInNewTab: false }],
         footerActions: [],
         records: [
@@ -282,7 +283,8 @@ export const specimens: Specimen[] = [
         ].map((r, i) => ({
           id: i + 1,
           values: { header: r.header, type: r.type, status: r.status },
-          icons: {}, iconColors: {}, badgeColors: { status: r._c }, descriptions: {}, recordUrl: null, actions: [],
+          icons: {}, iconColors: {}, badgeColors: { status: r._c }, descriptions: {}, recordUrl: null,
+          actions: [actionGroup],
         })),
         isPaginated: false, paginationPageOptions: [10], pagination: null,
         state: { search: "", sort: "", direction: "asc", filters: {}, perPage: 10 },

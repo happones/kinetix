@@ -22,4 +22,10 @@ class ActionShortcutTest extends TestCase
 
         $this->assertNull($data->shortcut);
     }
+
+    public function test_icon_button_is_serialized_and_defaults_off(): void
+    {
+        $this->assertTrue(Action::make('edit')->icon('edit')->iconButton()->toData()->isIconButton);
+        $this->assertFalse(Action::make('edit')->toData()->isIconButton);
+    }
 }

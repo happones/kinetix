@@ -47,5 +47,7 @@ class ActionData extends Data
         public ?string $previewType = null,
         // Keyboard shortcut (e.g. 'c', 'mod+e') for page/header actions.
         public ?string $shortcut = null,
+        // Compact icon-only button (no visible label / outline).
+        public bool $isIconButton = false,
     ) {}
 }

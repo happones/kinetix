@@ -29,6 +29,7 @@ Action::make('edit')
 | `->inertiaVisit(string $url, array $options = [])` | SPA visit via `router.visit()` (supports `method`) |
 | `->dispatch(string $event, array $data = [])` | Fire a `kinetix:{event}` browser event |
 | `->button()` / `->link()` | Render style |
+| `->iconButton(bool = true)` | Compact **icon-only** button — no visible label, no outline (the shadcn row-action style). The label is kept for `aria-label`/tooltip, so always set `->icon()` too. |
 | `->color(string)` | `primary` · `secondary` · `success` · `warning` · `info` · `danger` · `gray` |
 | `->icon(?string, $position = 'before')` | Lucide icon name; pass `null` to remove it |
 | `->size(string)` | `xs` · `sm` · `md` · `lg` |
@@ -200,9 +201,11 @@ The modal is rendered through `<Teleport to="body">`, closes on overlay click or
 
 <Screenshot name="page-header" alt="Page header with actions" />
 
-Grouped actions render as a dropdown menu (`KinetixActionDropdown`):
+Grouped actions render as a dropdown menu (`KinetixActionDropdown`). Its trigger
+follows shadcn: with **no group label** it's a borderless ghost **⋮** icon button
+(the row-action style); set a label to get an outlined, labelled trigger instead.
 
-<Screenshot name="action-dropdown" alt="Action dropdown menu" />
+<Screenshot name="action-dropdown" alt="Action dropdown — ghost ellipsis trigger" />
 
 ### Backend
 

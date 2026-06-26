@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-06-26
+
+### Added
+
+- **`Action::iconButton()`** — render an action as a compact icon-only button
+  (no visible label, no outline; the shadcn row-action style). The label is kept
+  for `aria-label`/tooltip. Serialized as `ActionData.isIconButton`.
+
+### Changed
+
+- **`KinetixActionDropdown` trigger** now matches shadcn: with no group label it
+  renders a borderless ghost **⋮** icon button (the row-action look); a labelled
+  group still gets an outlined, labelled trigger. The outline + label are now
+  opt-in rather than always-on.
+
 ## [0.20.0] - 2026-06-26
 
 ### Added

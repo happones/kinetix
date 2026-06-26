@@ -33,6 +33,8 @@ class Action
 
     protected string $viewType = 'button'; // button, link
 
+    protected bool $isIconButton = false;
+
     protected bool $shouldClose = false;
 
     protected bool $shouldMarkAsRead = false;
@@ -205,6 +207,17 @@ class Action
     public function button(): static
     {
         $this->viewType = 'button';
+
+        return $this;
+    }
+
+    /**
+     * Render the action as a compact icon-only button (no label, no outline) —
+     * the shadcn row-action style. The label is kept for accessibility/tooltip.
+     */
+    public function iconButton(bool $condition = true): static
+    {
+        $this->isIconButton = $condition;
 
         return $this;
     }
@@ -448,6 +461,7 @@ class Action
             isPreview: $this->isPreview,
             previewType: $this->previewType,
             shortcut: $this->shortcut,
+            isIconButton: $this->isIconButton,
         );
     }
 
