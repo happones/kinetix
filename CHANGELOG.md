@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Tooling / Docs
+
+- **Automated component screenshots.** A Vite gallery (`gallery/`) renders each
+  component with mock props + real translations + shadcn tokens, and a Playwright
+  script (`scripts/screenshots.mjs`, `npm run screenshots`) captures light/dark
+  2× PNGs into `docs/public/screenshots/` for embedding in the docs. New
+  [Component previews](docs/component-previews.md) page. Dev-only — nothing
+  ships to consumers.
+
 ## [0.19.0] - 2026-06-26
 
 ### Added

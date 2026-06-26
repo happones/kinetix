@@ -509,6 +509,10 @@ Roadmap v0.19.0. Config block `gdpr` (`enabled`, `deletion` = anonymize|delete, 
 
 ---
 
+## Component screenshots (docs)
+
+Doc screenshots are generated, not hand-captured. `gallery/` is a standalone Vite app (`vite.gallery.config.ts`, `npm run gallery:dev`) that renders ONE component per request (`?s=<name>&theme=light|dark`) from `gallery/specimens.ts` (`{name,title,component,props,slots?,width?}`); `@inertiajs/vue3` + `@/composables/useKinetixHttp` are aliased to stubs in `gallery/stubs/` (so self-fetching components get fixtures), real `en` messages come from `scripts/gen-gallery-messages.php` (Laravel `:x`→vue-i18n `{x}`), and shadcn tokens load via `gallery/app.css` (`@import tailwindcss` + `@source "../resources/js"` + `kinetix.css`). `scripts/screenshots.mjs` (`npm run screenshots`) boots the gallery via Vite SSR, Playwright-captures each specimen in light+dark at 2× into `docs/public/screenshots/<name>[-dark].png`, embedded in docs as `![](/screenshots/<name>.png)`. To add a preview: append a specimen + rerun. Dev-only (devDeps `playwright`/`tailwindcss`/`@tailwindcss/vite`); never published. Browsers: `npx playwright install chromium`.
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

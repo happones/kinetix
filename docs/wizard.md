@@ -91,6 +91,10 @@ function onFinish() {
 `vertical` (left rail), `panels` (filled pills), and `gradient` (an eye-catching
 gradient-filled indicator).
 
+![Wizard — gradient variant](/screenshots/wizard-gradient.png)
+
+![Wizard — panels variant](/screenshots/wizard-panels.png)
+
 ---
 
 ## 3. Gating routes until a wizard is completed
