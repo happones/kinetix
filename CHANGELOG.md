@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-06-26
+
+### Added
+
+- **Documentation**: Completed the doc-vs-code audit by documenting every
+  remaining real-but-undocumented capability (each verified against source):
+  - **Tables**: `poll()`, `paginated()` / `defaultPaginationPageOption()`,
+    `recordUrl()`, `Filter::label()`, the Table-as-a-class subclass pattern
+    (`buildColumns()`/… + `render()`), and the known search/sort dot-notation
+    limitations (single-level `whereHas`; dotted sorts skipped).
+  - **Forms**: `extraAttributes()` / `extraFieldWrapperAttributes()`, conditional
+    `required(Closure)`, `Form::operation()` / `model()`, `Form::render()`, and the
+    `buildSchema()` subclass pattern.
+  - **Actions**: corrected the default-color guidance (View/Edit = `gray`,
+    Create = `primary`, Delete/ForceDelete = `danger`), `markAsUnread()`,
+    `ExportAction`/`ImportAction` in the prebuilt reference, and the team-aware URL
+    resolution in `Action::toData()`.
+  - **Notifications**: builder helpers `body()` / `status()` / `seconds()` /
+    `persistent()` / `icon()` / `iconColor()`, and the `kinetix.notifications.broadcast`
+    config key.
+  - **Infolists**: `Infolist::record()` / `columns()` / `operation()`,
+    `ImageEntry::disk()` + path-to-URL resolution, and `Section::actions()`.
+  - **Resources**: the `registerPermissions()` override, the
+    `kinetix:make-relation-manager` generator, and the navigation metadata getters
+    / auto-derived label.
+  - **Widgets**: the shared `Widget` base API (`id`/`title`/`description`/`columnSpan`/`sort`)
+    and the `Stat::descriptionColor()` default (`gray`).
+  - **Billing**: the remaining `BillingManager` methods (`billable()`,
+    `ensureStripeCustomer()`, `setupIntent()`, `defaultPaymentMethodId()`,
+    `addPaymentMethod()`, `removePaymentMethod()`, `downloadInvoice()`).
+
 ## [0.4.6] - 2026-06-26
 
 ### Fixed

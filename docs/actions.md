@@ -2,7 +2,7 @@
 
 Kinetix Actions are a fluent PHP builder for interactive buttons and links. The same `Action` class powers notification buttons, **table record actions**, and **table toolbar actions**. This guide focuses on building actions and gating destructive ones behind a **confirmation modal**.
 
-> For notification-specific action behaviour (`markAsRead()`, `close()`), see the [main README](https://github.com/happones/kinetix#actions).
+> For notification-specific action behaviour (`markAsRead()`, `markAsUnread()`, `close()`), see the [main README](https://github.com/happones/kinetix#actions).
 
 ---
 
@@ -33,21 +33,21 @@ Action::make('edit')
 | `->icon(?string, $position = 'before')` | Lucide icon name; pass `null` to remove it |
 | `->size(string)` | `xs` · `sm` · `md` · `lg` |
 
-Colors map to shadcn tokens (themeable, dark-mode aware), so you can reproduce the "classic" admin palette per action when you want it:
+Colors map to shadcn tokens (themeable, dark-mode aware), so you can reproduce the "classic" admin palette per action when you want it. These are the colors you can **opt into** with `->color()` — they are not the prebuilt defaults (`ViewAction`/`EditAction` are neutral `gray` unless you pass `->color()`; see §8):
 
-| Color | Token | Looks like |
-|---|---|---|
-| `primary` | `primary` | brand/solid |
-| `info` | `info` | **blue** (e.g. View/Show) |
-| `warning` | `warning` | **amber/yellow** (e.g. Edit) |
-| `success` | `success` | **green** (e.g. Create) |
-| `danger` | `destructive` | **red** (e.g. Delete) |
-| `gray` / `secondary` | `outline` / `secondary` | neutral |
+| Color | Token | Looks like | Classic use |
+|---|---|---|---|
+| `primary` | `primary` | brand/solid | Create (the prebuilt default) |
+| `info` | `info` | **blue** | View/Show |
+| `warning` | `warning` | **amber/yellow** | Edit |
+| `success` | `success` | **green** | Create |
+| `danger` | `destructive` | **red** | Delete (the prebuilt default) |
+| `gray` / `secondary` | `outline` / `secondary` | neutral | View/Edit (the prebuilt default) |
 
 ```php
-ViewAction::make()->color('info'),      // blue
-EditAction::make()->color('warning'),   // amber
-CreateAction::make()->color('success'), // green
+ViewAction::make()->color('info'),      // opt-in blue (gray by default)
+EditAction::make()->color('warning'),   // opt-in amber (gray by default)
+CreateAction::make()->color('success'), // opt-in green (primary by default)
 // DeleteAction is danger (red) by default
 ```
 
@@ -330,16 +330,37 @@ Table::make(Post::query())
 
 | Action | Defaults | Default policy ability |
 |---|---|---|
-| `ViewAction` | label `View`, icon `eye` | `view` (per record) |
-| `EditAction` | label `Edit`, icon `edit` | `update` (per record) |
+| `ViewAction` | label `View`, icon `eye`, color `gray` | `view` (per record) |
+| `EditAction` | label `Edit`, icon `edit`, color `gray` | `update` (per record) |
 | `DeleteAction` | label `Delete`, icon `trash`, color `danger`, `requiresConfirmation()` | `delete` (per record) |
 | `CreateAction` | label `Create`, icon `plus`, color `primary` | none — pass `->authorize('create', Model::class)` |
-| `RestoreAction` | label `Restore`, icon `rotate-ccw`; only visible on trashed rows | `restore` (per record) |
-| `ForceDeleteAction` | label `Delete permanently`, icon `trash-2`, danger, `requiresConfirmation()`; only on trashed rows | `forceDelete` (per record) |
+| `RestoreAction` | label `Restore`, icon `rotate-ccw`, color `gray`; only visible on trashed rows | `restore` (per record) |
+| `ForceDeleteAction` | label `Delete permanently`, icon `trash-2`, color `danger`, `requiresConfirmation()`; only on trashed rows | `forceDelete` (per record) |
+| `ExportAction` | label `Export`, icon `download`, color `gray` | none — wire with `->exporter(MyExporter::class)` |
+| `ImportAction` | label `Import`, icon `upload`, color `gray` | none — wire with `->importer(MyImporter::class)` |
+
+Only `CreateAction` (`primary`), `DeleteAction` and `ForceDeleteAction` (`danger`) ship colored by default — every other prebuilt action is neutral `gray`, distinguished by its icon. Add `->color(...)` to opt into the classic colored palette (see §1).
 
 `RestoreAction` / `ForceDeleteAction` are for `SoftDeletes` models and auto-hide on non-trashed records (via a `visible()` check on `$record->trashed()`). Pair them with a `TrashedFilter` ([Tables → Filters](tables.md)).
 
 Labels come from the `kinetix` i18n namespace and respect the active locale.
+
+### Data actions: `ExportAction` & `ImportAction`
+
+```php
+use Happones\Kinetix\Actions\ExportAction;
+use Happones\Kinetix\Actions\ImportAction;
+
+$table->toolbarActions([
+    ExportAction::make()->exporter(UsersExporter::class),
+    ImportAction::make()->importer(UsersImporter::class),
+]);
+```
+
+| Action | Defaults | Behaviour |
+|---|---|---|
+| `ExportAction` | label `Export`, icon `download`, color `gray` | `->exporter(MyExporter::class)` wires a background `->request()` POST to `route('kinetix.exports.start')` (the exporter travels as a signed token). The JSON response shows the `kinetix.export_started` toast — no Inertia visit — and the user gets a download notification when the queued job finishes. In `toolbarActions`/`headerActions` it exports the exporter's query; in `bulkActions` it exports only the selected rows. |
+| `ImportAction` | label `Import`, icon `upload`, color `gray` | `->importer(MyImporter::class)` dispatches the `kinetix:open-importer` browser event (carrying the importer's signed token), opening the import preview modal. Mount `<KinetixImportModal>` once in your layout for it to render. |
 
 ### File actions: `DownloadAction` & `PreviewAction`
 
@@ -401,6 +422,8 @@ return inertia('Posts/Edit', [
     ], $post),
 ]);
 ```
+
+> **Team-aware URL resolution.** When `Action::toData()` resolves a closure URL, it first detects the current team — from the `current_team`/`team` route parameter, or (when `kinetix.teams` is enabled) the authenticated user's `currentTeam` — and populates `URL::defaults()` with `current_team`/`team` params (plus `:slug` and `:id` variants) before invoking the closure. So `fn ($record) => route('team.posts.edit', $record)` resolves with the active team's parameters filled in automatically, without threading the team through every closure.
 
 ---
 

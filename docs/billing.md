@@ -154,6 +154,20 @@ $manager->subscriptionData();
 
 `subscribe()` is smart: a **free** plan cancels the current subscription (downgrade); a paid plan **swaps** an existing subscription (resuming first if on a grace period) or **creates** a new one (requires a payment method).
 
+### Full method reference
+
+In addition to the methods above, `BillingManager` exposes:
+
+| Method | Returns | Purpose |
+|---|---|---|
+| `billable()` | `Model` | The resolved billable model instance. |
+| `ensureStripeCustomer()` | `void` | Create the billable as a Stripe customer if it isn't one yet (called automatically before issuing intents/adding cards). |
+| `setupIntent()` | `mixed` | Create a Stripe SetupIntent for collecting a card (ensures the customer first). |
+| `defaultPaymentMethodId()` | `?string` | Id of the billable's default payment method, or `null`. |
+| `addPaymentMethod(string $paymentMethod)` | `void` | Attach a payment method; sets it as default if none exists yet. |
+| `removePaymentMethod(string $id)` | `void` | Detach the payment method with the given id. |
+| `downloadInvoice(string $invoiceId)` | `mixed` | Streamed PDF download response for the invoice (vendor/product set from config). |
+
 ---
 
 ## 7. Vue components

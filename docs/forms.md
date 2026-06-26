@@ -29,6 +29,36 @@ graph LR
 
 ---
 
+### Defining a Form as a Class
+As an alternative to the inline `->schema([...])` builder, subclass `Form` and override the `buildSchema()` hook. The hook runs in the constructor, so the schema is ready as soon as the form is instantiated.
+
+```php
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Forms\Components\TextInput;
+
+class ProfileForm extends Form
+{
+    protected function buildSchema(): array
+    {
+        return [
+            TextInput::make('name')->required()->maxLength(100),
+            TextInput::make('email')->email()->required(),
+        ];
+    }
+}
+```
+
+### One-Call Rendering
+`Form::render(?Model $record = null)` is a static helper that instantiates the form, fills it (from the passed model, or the given fill data), and returns the serialized array in one call:
+
+```php
+return inertia('Settings/Profile', [
+    'profileForm' => ProfileForm::render($user),
+]);
+```
+
+---
+
 ## 2. Forms Lifecycle & State Management
 
 Form fields follow a strict lifecycle of data transformation during hydration (filling the form) and dehydration (extracting submitted state).
@@ -134,6 +164,8 @@ Fields reside in the `Happones\Kinetix\Forms\Components` namespace. They all inh
 - `prefix(string|Closure $prefix)`: Prepends a label prefix.
 - `suffix(string|Closure $suffix)`: Appends a label suffix.
 - `extraInputAttributes(array $attributes)`: Custom HTML attributes merged onto the input element.
+- `extraAttributes(array $attributes)`: Custom HTML attributes merged onto the field's outer container.
+- `extraFieldWrapperAttributes(array $attributes)`: Custom HTML attributes merged onto the field wrapper (label + control group).
 
 ---
 
@@ -399,6 +431,19 @@ FileUpload::make('attachments')
 
 You can restrict field rendering based on the type of operation (e.g. `'create'` or `'edit'`) or active database record properties.
 
+### Setting the Operation & Model
+The operation is inferred automatically when you pass a model (`'edit'` if the record `exists`, otherwise `'create'`). You can set both explicitly on the `Form`, which is what `visibleOn` / `hiddenOn` evaluate against:
+
+- **`Form::operation(string $operation)`**: Force the active operation (e.g. `->operation('edit')`).
+- **`Form::model(string $model)`**: Set the target model class (FQCN) when no model instance is passed.
+
+```php
+Form::make()
+    ->model(User::class)
+    ->operation('create')
+    ->schema([ /* ... */ ]);
+```
+
 ### Operation Restrictions
 - **`hiddenOn(string|array $operations)`**: Hides the field on specified operations:
   ```php
@@ -439,7 +484,15 @@ Chaining these methods on fields automatically populates the validation rules ar
 | `maxLength(int $length)` | `max:{$length}` |
 | `minLength(int $length)` | `min:{$length}` |
 
-### 2. Appending Custom Validation Rules
+### 2. Conditional `required`
+`required()` also accepts a closure, evaluated on the server against the current record. The field is only required when the closure returns truthy:
+
+```php
+TextInput::make('vat_id')
+    ->required(fn (?Order $record) => $record && $record->requires_vat);
+```
+
+### 3. Appending Custom Validation Rules
 For advanced validation scenarios (such as conditional checking, database uniqueness, or custom rule objects), append them using `rules()`:
 
 ```php
@@ -453,7 +506,7 @@ TextInput::make('password')
     ]);
 ```
 
-### 3. Controller Execution
+### 4. Controller Execution
 Run the validation directly using the `$form->validate($request->all())` helper:
 
 ```php

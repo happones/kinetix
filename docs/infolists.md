@@ -65,6 +65,16 @@ return inertia('Users/Show', [
 ]);
 ```
 
+### Builder methods
+
+The `Infolist` instance exposes a small set of chainable setters:
+
+| Method | Description |
+|---|---|
+| `->record(?Model)` | Bind the model whose state the entries resolve against |
+| `->columns(int)` | Number of top-level grid columns (default `1`) |
+| `->operation(string)` | The operation context (default `'view'`), matched by entry `->visibleOn()` / `->hiddenOn()` |
+
 ### One-line rendering
 
 ```php
@@ -212,6 +222,13 @@ ImageEntry::make('avatar')
 | `->circular()` / `->square()` | Image shape |
 | `->size(int\|string)` | Width/height in pixels (default `96`) |
 | `->defaultImageUrl(string\|Closure)` | Fallback when the attribute is empty |
+| `->disk(string)` | Storage disk used to resolve stored paths to URLs |
+
+Stored paths are resolved to public URLs automatically via `Storage::disk()->url()`. The disk defaults to the global `kinetix.filesystem.disk` config (falling back to `public`); `->disk('s3')` overrides it per entry. Absolute values — `http(s)://`, protocol-relative `//`, root-relative `/…`, and `data:` URIs — pass through untouched.
+
+```php
+ImageEntry::make('avatar')->disk('s3')->circular();
+```
 
 ### ColorEntry
 
@@ -252,6 +269,24 @@ Section::make('Billing')
 | `->icon(string\|Closure)` | Heading icon |
 | `->columns(int)` | Inner grid columns (default `12`) |
 | `->schema(array)` | Child components |
+| `->actions(array)` | Header actions rendered in the section's top-right corner |
+
+#### Section header actions
+
+A section can carry its own `Action`s next to its heading. Each action is resolved against the record and auth-filtered (unauthorized actions are dropped), exactly like table actions:
+
+```php
+use Happones\Kinetix\Actions\EditAction;
+
+Section::make('Account')
+    ->actions([
+        EditAction::make()->url(fn ($record) => route('users.edit', $record)),
+    ])
+    ->schema([
+        TextEntry::make('name'),
+        TextEntry::make('email')->copyable(),
+    ]);
+```
 
 ### Grid
 

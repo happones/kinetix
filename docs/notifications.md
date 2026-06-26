@@ -61,8 +61,9 @@ return [
     ],
 
     'notifications' => [
-        'database' => env('KINETIX_DATABASE_NOTIFICATIONS', false),
-        'limit'    => env('KINETIX_NOTIFICATIONS_LIMIT', 15),
+        'database'  => env('KINETIX_DATABASE_NOTIFICATIONS', false),
+        'broadcast' => env('KINETIX_NOTIFICATIONS_BROADCAST', false),
+        'limit'     => env('KINETIX_NOTIFICATIONS_LIMIT', 15),
         'sound'    => [
             'enabled' => env('KINETIX_NOTIFICATIONS_SOUND', true),
             'path'    => env('KINETIX_NOTIFICATIONS_SOUND_PATH', '/vendor/kinetix/notification.wav'),
@@ -94,6 +95,7 @@ return [
 | Key | Default | Description |
 |-----|---------|-------------|
 | `notifications.database` | `false` | Persist notifications to the database via Laravel's `database` channel |
+| `notifications.broadcast` | `false` | Broadcast system notifications (export/import done, etc.) in real time. Drives `Notification::shouldBroadcast()`; enable it (env `KINETIX_NOTIFICATIONS_BROADCAST`) when you wired up Echo/Reverb yourself instead of filling the `broadcasting.echo` block |
 | `notifications.limit` | `15` | Max unread notifications loaded per page request |
 | `notifications.sound.enabled` | `true` | Play audio alert for incoming real-time notifications |
 | `notifications.sound.path` | `/vendor/kinetix/notification.wav` | Path to the audio file |
@@ -126,6 +128,36 @@ Notification::make()
 | `->warning()` | Amber |
 | `->danger()` | Red |
 | `->info()` | Blue (default) |
+
+Each is a shortcut for `->status('success'|'warning'|'danger'|'info')`, so you can also set the level dynamically with `->status($level)`.
+
+### Builder API
+
+| Method | Description | Default |
+|--------|-------------|---------|
+| `->title(string)` | Notification heading | `''` |
+| `->body(?string)` | Body text (`->description()` is an alias for this) | `null` |
+| `->status(string)` | Status level — `info` · `success` · `warning` · `danger` (underlies the shortcut methods above) | `info` |
+| `->duration(?int $ms)` | Auto-close delay in **milliseconds** | `6000` |
+| `->seconds(int)` | Auto-close delay in **seconds** (shortcut for `->duration($seconds * 1000)`) | — |
+| `->persistent()` | Never auto-close (shortcut for `->duration(null)`) | — |
+| `->icon(?string)` | Icon name from `@lucide/vue` | `null` |
+| `->iconColor(?string)` | Color of the notification icon | `null` |
+| `->actions(array)` | Attach `Action` buttons/links (see [Actions](#actions)) | `[]` |
+
+```php
+Notification::make()
+    ->title('Backup complete')
+    ->body('Last night\'s snapshot finished.')
+    ->success()
+    ->icon('database')
+    ->iconColor('success')
+    ->seconds(8)
+    ->send();
+
+// Keep an important alert on screen until dismissed:
+Notification::make()->title('Action required')->danger()->persistent()->send();
+```
 
 ### Persist to Database
 

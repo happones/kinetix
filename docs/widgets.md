@@ -264,6 +264,20 @@ This layout system ensures that cards adapt smoothly to any resolution.
 
 ## 6. Widget Types Reference
 
+### Shared Widget API
+
+Every widget extends the abstract `Widget` base class and inherits the following fluent methods (each returns `static` for chaining):
+
+| Method | Signature | Purpose |
+|---|---|---|
+| `id` | `id(string $id)` | Override the auto-generated widget id (matches the Vue slot name for custom widgets). |
+| `title` | `title(string $title)` | Display title. |
+| `description` | `description(string $description)` | Supporting description text. |
+| `columnSpan` | `columnSpan(int\|string\|array $columnSpan)` | Grid span — an integer, a string (e.g. `'full'`), or a responsive breakpoint map. Defaults to `12`. |
+| `sort` | `sort(int $sort)` | Order within the grid. Defaults to `0`. |
+
+All widgets are created via `Widget::make()` and serialize to a `{ id, type, title, description, columnSpan, sort, data }` payload.
+
 ### 1. `StatsOverviewWidget`
 Groups multiple statistical KPI cards.
 - **Methods**:
@@ -272,7 +286,7 @@ Groups multiple statistical KPI cards.
   - `Stat::make(string $label, mixed $value)`: Create a stat metric.
   - `description(string $desc)`: Supporting details text.
   - `descriptionIcon(string $icon)`: Lucide icon name.
-  - `descriptionColor(string $color)`: `success` (green), `danger` (red), `warning` (amber), `info` (blue).
+  - `descriptionColor(string $color)`: `success` (green), `danger` (red), `warning` (amber), `info` (blue), `gray` (neutral). Defaults to `gray`.
   - `chart(array $trendPoints)`: Floating numeric array to draw an SVG sparkline.
 
 ### 2. `ChartWidget`

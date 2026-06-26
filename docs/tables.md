@@ -163,6 +163,7 @@ All filters reside in the `Happones\Kinetix\Tables\Filters` namespace.
 
 ### 1. `Filter`
 Renders as a checkbox.
+- `label(string $label)`: Custom display label (defaults to the TitleCase headline of the filter name). Available on all filters.
 - `query(Closure $callback)`: Closure modifying the query builder: `fn (Builder $query, $value) => $query->where(...)`.
 - `default(mixed $value)`: Default active state.
 
@@ -335,6 +336,87 @@ The selected record ids are sent automatically:
 Destructive bulk actions support `requiresConfirmation()` (a confirmation modal gates them), and they respect `authorize()` / `visible()` like any action — e.g. `->authorize('deleteAny', Post::class)`.
 
 **Exporting selected rows:** see the full recipe — one Export action shared between the toolbar (export all) and bulk (export selected `ids`) — in [Import / Export → Recipe: export from a table](import-export.md#recipe-export-from-a-table--toolbar-all--bulk-selected).
+
+---
+
+## Table Configuration
+
+Table-level methods control refresh, pagination, and row behavior:
+
+- `poll(string $interval)`: Refreshes the table on an interval (e.g. `->poll('10s')`), reloading records via a background request.
+- `paginated(bool|array $options)`: Toggles pagination or sets the page-size options. Pass `false` to disable pagination (the full result set is rendered), or an array of integers to override the selectable per-page options (default `[5, 10, 25, 50]`).
+- `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
+- `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
+
+```php
+Table::make(Post::query())
+    ->poll('10s')
+    ->paginated([10, 25, 100])
+    ->defaultPaginationPageOption(25)
+    ->recordUrl(fn ($record) => route('posts.edit', $record));
+
+// Disable pagination entirely
+Table::make(Post::query())->paginated(false);
+```
+
+---
+
+## Defining a Table as a Class
+
+As an alternative to the inline fluent builder, you can subclass `Table` and override the `build*()` hooks. This keeps controllers thin and makes table definitions reusable.
+
+```php
+use Happones\Kinetix\Tables\Table;
+use Happones\Kinetix\Tables\Columns\TextColumn;
+use Happones\Kinetix\Tables\Filters\SelectFilter;
+use Happones\Kinetix\Actions\Action;
+
+class PostsTable extends Table
+{
+    protected function buildColumns(): array
+    {
+        return [
+            TextColumn::make('title')->searchable()->sortable(),
+            TextColumn::make('author.name')->label('Author'),
+        ];
+    }
+
+    protected function buildFilters(): array
+    {
+        return [
+            SelectFilter::make('status')->options(['draft' => 'Draft', 'published' => 'Published']),
+        ];
+    }
+
+    protected function buildRecordActions(): array
+    {
+        return [
+            Action::make('edit')->icon('edit')->url(fn ($record) => route('posts.edit', $record)),
+        ];
+    }
+}
+```
+
+Available hooks: `buildColumns()`, `buildFilters()`, `buildRecordActions()`, `buildToolbarActions()`, `buildBulkActions()`, and `buildFooterActions()`. They are invoked in the constructor, so instantiate the class with the query as usual.
+
+Render it in one call with the static `render()` helper, which instantiates the table and returns the serialized array:
+
+```php
+return inertia('Posts/Index', [
+    'postsTable' => PostsTable::render(Post::with('author')),
+]);
+```
+
+Fluent configuration still applies on top of the hooks (e.g. `PostsTable::make($query)->poll('10s')->toArray()`).
+
+---
+
+## Known Limitations
+
+Confirmed in the current `Table` query resolver:
+
+- **Searchable dot-notation is single-level.** A searchable column like `author.name` is split on the first `.` only and resolved with a single `whereHas('author', fn ($q) => $q->where('name', 'like', ...))`. Deeper paths (e.g. `author.team.name`) are not expanded into nested `whereHas` calls.
+- **Sorting on relationship/dotted columns is skipped.** Sort requests whose column name contains a `.` are ignored (no `orderBy` is applied) to avoid join validation errors. Only direct columns can be sorted.
 
 ---
 

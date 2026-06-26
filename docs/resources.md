@@ -165,6 +165,32 @@ class PostResource extends Resource
 }
 ```
 
+### Navigation metadata
+
+Three static properties drive the sidebar entry, each exposed through a getter:
+
+| Property | Getter | Default |
+|---|---|---|
+| `$navigationIcon` | `getNavigationIcon(): ?string` | `'cube'` |
+| `$navigationLabel` | `getNavigationLabel(): string` | auto-derived (see below) |
+| `$navigationSort` | `getNavigationSort(): int` | `0` |
+
+When `$navigationLabel` is left `null`, `getNavigationLabel()` derives the label from the model's class basename, pluralized and humanized (e.g. `BlogPost::class` → `Blog Posts`). Set `$navigationLabel` to override it.
+
+### Custom permissions (`registerPermissions()`)
+
+`permissionFeature()` is the simple path: returning a feature name registers a standard CRUD ability set. For abilities beyond CRUD, override `registerPermissions(PermissionRegistry $registry)` directly. The default implementation registers a CRUD feature when `permissionFeature()` is set and does nothing otherwise:
+
+```php
+use Happones\Kinetix\Permissions\PermissionRegistry;
+
+public static function registerPermissions(PermissionRegistry $registry): void
+{
+    $registry->feature('posts')->crud();
+    // ...plus any custom abilities your resource needs.
+}
+```
+
 ---
 
 ## 3. The Resource Command (`kinetix:make-resource`)
@@ -196,6 +222,26 @@ php artisan kinetix:make-resource Client --simple --soft-deletes --generate
 
 # Team-aware resource (scopes queries + routes to the current team)
 php artisan kinetix:make-resource Project --team --generate
+```
+
+### Generating a Relation Manager (`kinetix:make-relation-manager`)
+
+Relation managers (registered via `relationManagers()`, see §2) have their own generator:
+
+```bash
+php artisan kinetix:make-relation-manager {name} [options]
+```
+
+| Argument / Option | Description |
+|---|---|
+| `name` | The relation manager class name (e.g. `PostsRelationManager`) |
+| `--relationship=` | The parent relationship method name (defaults to `items`) |
+| `--force` | Overwrite the class if it already exists |
+
+The generated class extends `RelationManager`, sets `$relationship` and `$visibleOn` (`['edit', 'view']`), and stubs a `table()` method:
+
+```bash
+php artisan kinetix:make-relation-manager CommentsRelationManager --relationship=comments
 ```
 
 ---
