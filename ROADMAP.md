@@ -177,8 +177,9 @@ shipped last, on top of the event spine.
   access tokens with a declared scope registry (`KinetixTokens::scopes`), a
   `<KinetixTokenManager>` dashboard, and a one-time plaintext reveal. Requires
   `laravel/sanctum`; enforce abilities on your API with standard Sanctum.
-- **Onboarding** — first-run checklist, empty states, product tour. Cheap, high
-  impact for MVPs.
+- **Onboarding (`v0.15.0`) — ✅ shipped.** First-run checklist (backend-driven,
+  auto/manual steps, per-user/team progress), reusable `<KinetixEmptyState>`, and
+  a dependency-free `<KinetixTour>` product tour.
 - **GDPR self-service** — "export my data" (reuses Export) + account deletion.
 
 ---

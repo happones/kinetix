@@ -307,6 +307,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Onboarding (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A first-run setup checklist. Declare steps with KinetixOnboarding::step(...)
+    | in a service provider; per-user (or per-team) completion is persisted. Each
+    | step can auto-complete via a `completedUsing` callback, or be marked done
+    | manually from the checklist UI.
+    |
+    */
+    'onboarding' => [
+        'enabled' => env('KINETIX_ONBOARDING_ENABLED', false),
+
+        // Track progress per team instead of per user.
+        'teams' => env('KINETIX_ONBOARDING_TEAMS', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature Flags (optional)
     |--------------------------------------------------------------------------
     |

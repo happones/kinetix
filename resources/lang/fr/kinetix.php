@@ -208,6 +208,19 @@ return [
     'token_last_used'        => 'Dernière utilisation',
     'token_never'            => 'Jamais',
 
+    // Intégration
+    'onboarding_title'     => 'Pour commencer',
+    'onboarding_progress'  => ':completed sur :total terminés',
+    'onboarding_dismiss'   => 'Ignorer',
+    'onboarding_mark_done' => 'Marquer comme fait',
+    'onboarding_go'        => 'Aller',
+
+    // Visite guidée
+    'tour_next' => 'Suivant',
+    'tour_back' => 'Précédent',
+    'tour_skip' => 'Passer',
+    'tour_done' => 'Terminé',
+
     // Raccourcis clavier
     'shortcuts_title' => 'Raccourcis clavier',
 ];

@@ -39,7 +39,7 @@ features:
     link: /settings
   - icon: ⌨️
     title: Search & Experience
-    details: Cmd+K spotlight, conflict-safe keyboard shortcuts, real-time notifications, and dashboard stat/chart widgets.
+    details: Cmd+K spotlight, conflict-safe keyboard shortcuts, first-run onboarding (checklist, empty states, product tour), real-time notifications, and dashboard stat/chart widgets.
     link: /spotlight
 ---
 

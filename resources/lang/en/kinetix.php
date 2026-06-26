@@ -208,6 +208,19 @@ return [
     'token_last_used'        => 'Last used',
     'token_never'            => 'Never',
 
+    // Onboarding
+    'onboarding_title'     => 'Getting started',
+    'onboarding_progress'  => ':completed of :total complete',
+    'onboarding_dismiss'   => 'Dismiss',
+    'onboarding_mark_done' => 'Mark as done',
+    'onboarding_go'        => 'Go',
+
+    // Product tour
+    'tour_next' => 'Next',
+    'tour_back' => 'Back',
+    'tour_skip' => 'Skip',
+    'tour_done' => 'Done',
+
     // Keyboard shortcuts
     'shortcuts_title' => 'Keyboard shortcuts',
 ];

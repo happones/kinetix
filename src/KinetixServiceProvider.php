@@ -34,6 +34,9 @@ use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
 use Happones\Kinetix\Imports\ImportController;
 use Happones\Kinetix\Membership\MembershipController;
+use Happones\Kinetix\Onboarding\OnboardingController;
+use Happones\Kinetix\Onboarding\OnboardingManager;
+use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
@@ -104,6 +107,10 @@ class KinetixServiceProvider extends ServiceProvider
 
             return $registry;
         });
+
+        // The onboarding step registry + checklist manager.
+        $this->app->singleton(OnboardingStepRegistry::class);
+        $this->app->singleton(OnboardingManager::class);
     }
 
     /**
@@ -186,6 +193,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'      => database_path('migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'),
             ], 'kinetix-webhooks-migrations');
 
+            // Publish the optional Onboarding module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000006_create_kinetix_onboarding_table.php' => database_path('migrations/2026_01_01_000006_create_kinetix_onboarding_table.php'),
+            ], 'kinetix-onboarding-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -235,6 +247,9 @@ class KinetixServiceProvider extends ServiceProvider
         $this->registerWebhooks();
 
         $this->registerTokens();
+
+        // Register the optional Onboarding module (first-run checklist)
+        $this->registerOnboarding();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -621,6 +636,36 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('/', [TokenController::class, 'index'])->name('kinetix.tokens.index');
                 Route::post('/', [TokenController::class, 'store'])->name('kinetix.tokens.store');
                 Route::delete('{token}', [TokenController::class, 'destroy'])->name('kinetix.tokens.destroy');
+            });
+    }
+
+    /**
+     * Wire the optional Onboarding module: self-service first-run checklist
+     * endpoints (each user reads/updates only their own progress, team-aware).
+     */
+    protected function registerOnboarding(): void
+    {
+        if (! config('kinetix.onboarding.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/onboarding")
+            ->group(function () {
+                Route::get('/', [OnboardingController::class, 'index'])->name('kinetix.onboarding.index');
+                Route::post('complete', [OnboardingController::class, 'complete'])->name('kinetix.onboarding.complete');
+                Route::post('dismiss', [OnboardingController::class, 'dismiss'])->name('kinetix.onboarding.dismiss');
             });
     }
 

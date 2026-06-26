@@ -465,6 +465,19 @@ Self-service personal access tokens. Roadmap v0.14.0. **Requires `laravel/sanctu
 
 ---
 
+## 21. Kinetix Onboarding (optional, first-run UX)
+
+First-run experience. Roadmap v0.15.0. Three pieces: a backend-driven **checklist**, a frontend-only **empty state**, and a frontend-only **product tour**. Config block `onboarding` (`enabled`, `teams`). Migration `kinetix_onboarding` (tag `kinetix-onboarding-migrations`).
+
+- **Checklist steps** (`OnboardingStep` fluent VO; registry `OnboardingStepRegistry` singleton; facade `KinetixOnboarding::step($key,$title)->description()->cta($label,$href)->icon()->completedUsing(fn($user)=>bool)`): a step with `completedUsing` is **auto** (completion computed live, never persisted); without it it's **manual** (persisted when ticked). Re-registering a key replaces it.
+- **Manager** (`OnboardingManager`, singleton): `for($user)` → `OnboardingData` (steps as `OnboardingStepData{key,title,description,ctaLabel,ctaHref,icon,completed,manual}`, completedCount, total, complete, dismissed) by merging persisted manual completions (`OnboardingProgress` model, one `kinetix_onboarding` row per user; `team_id` when `onboarding.teams`) with live `isAutoCompleted($user)`. `complete($user,$key)` (no-op if key unknown), `uncomplete`, `dismiss`.
+- **Self-service** (`OnboardingController`, **no admin ability**): `GET {prefix}/onboarding`, `POST .../complete` (`{step}`), `POST .../dismiss`. Team-aware prefix. `registerOnboarding()` only when `onboarding.enabled`. Aborts 401 unauthenticated.
+- **Vue (published)**: `KinetixOnboardingChecklist` (progress bar, per-step icon/CTA/mark-done, dismiss; hides when dismissed and — default `hideWhenComplete` — when complete), `useKinetixOnboarding` (`state/load/complete/dismiss`). `KinetixEmptyState` (pure: `icon`/`title`/`description` + default slot for CTAs). `KinetixTour` + `useKinetixTour(id,steps)` (dependency-free; spotlights `target` selectors via `getBoundingClientRect`, Teleport overlay, next/back/skip; **auto-starts once per id** via localStorage `kinetix.tour.<id>`; `:auto=false` + exposed `start()`/`reset()`). i18n `onboarding_*`/`tour_*`.
+- Tests: `OnboardingTest` (auto vs manual completion, persistence, per-user isolation, dismiss, 401), `useKinetixOnboarding.spec.ts`, `useKinetixTour.spec.ts`.
+- Full guide: `docs/onboarding.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

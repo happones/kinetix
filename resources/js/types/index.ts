@@ -118,6 +118,27 @@ export interface KinetixWebhookLog {
   createdAt: string | null;
 }
 
+/** A single first-run onboarding checklist step. */
+export interface KinetixOnboardingStep {
+  key: string;
+  title: string;
+  description: string | null;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+  icon: string | null;
+  completed: boolean;
+  manual: boolean;
+}
+
+/** The onboarding checklist state for the current user. */
+export interface KinetixOnboarding {
+  steps: KinetixOnboardingStep[];
+  completedCount: number;
+  total: number;
+  complete: boolean;
+  dismissed: boolean;
+}
+
 /** A personal access token (the plaintext value is never included). */
 export interface KinetixToken {
   id: number | string | null;

@@ -208,6 +208,19 @@ return [
     'token_last_used'        => 'Último uso',
     'token_never'            => 'Nunca',
 
+    // Integração
+    'onboarding_title'     => 'Primeiros passos',
+    'onboarding_progress'  => ':completed de :total concluídos',
+    'onboarding_dismiss'   => 'Dispensar',
+    'onboarding_mark_done' => 'Marcar como concluído',
+    'onboarding_go'        => 'Ir',
+
+    // Tour do produto
+    'tour_next' => 'Próximo',
+    'tour_back' => 'Voltar',
+    'tour_skip' => 'Pular',
+    'tour_done' => 'Concluir',
+
     // Atalhos de teclado
     'shortcuts_title' => 'Atalhos de teclado',
 ];

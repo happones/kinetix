@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-06-26
+
+### Added
+
+- **Onboarding** (optional): a first-run experience with three composable pieces.
+  - **Checklist** (backend-driven): declare steps with
+    `KinetixOnboarding::step('key', 'Title')->cta(...)->completedUsing(...)`. Steps
+    with a `completedUsing` callback auto-complete from app state; the rest are
+    manual ("Mark as done") and persist per user (or per team) in a new
+    `kinetix_onboarding` table. `<KinetixOnboardingChecklist />` (**published**)
+    renders progress + CTAs + dismiss; `useKinetixOnboarding` for a custom UI.
+    Self-service routes: `GET/POST {prefix}/onboarding[/complete|/dismiss]`.
+    Enabled via `KINETIX_ONBOARDING_ENABLED`; publish
+    `--tag=kinetix-onboarding-migrations`.
+  - **`<KinetixEmptyState />`** (**published**): reusable "no data yet" block
+    (icon + title + description + CTA slot).
+  - **`<KinetixTour />`** + `useKinetixTour` (**published**): dependency-free
+    product tour that spotlights elements by CSS selector and auto-starts once
+    per id (localStorage). i18n `onboarding_*` / `tour_*` (en/es/fr/pt).
+
 ## [0.14.0] - 2026-06-26
 
 ### Added
