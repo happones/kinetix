@@ -48,10 +48,20 @@ handler.
 
 ### Binding a Kinetix Action to a key
 
-Actions are just buttons — put the directive on the action's element:
+Declare the shortcut on the PHP action — when it's rendered in a
+`KinetixPageHeader`, Kinetix registers the hotkey for you (it runs the action,
+including its confirmation modal):
+
+```php
+use Happones\Kinetix\Actions\CreateAction;
+
+CreateAction::make()->shortcut('c')->url(fn () => route('posts.create'));
+```
+
+For an arbitrary element, use the directive instead:
 
 ```vue
-<button v-kinetix-hotkey="'e'" @click="executeAction(editAction)">Edit</button>
+<button v-kinetix-hotkey="'e'" @click="edit">Edit</button>
 ```
 
 ---

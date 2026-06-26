@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Circle } from "@lucide/vue";
 import { useActionConfirmation } from "@/composables/useKinetixActions";
+import { useKinetixHotkeys } from "@/composables/useKinetixHotkeys";
 import { resolveIcon as resolveKinetixIcon } from "@/composables/useKinetixIcons";
 import {
   actionButtonSize,
@@ -12,7 +13,7 @@ import type { KinetixAction } from "@/types";
 import KinetixActionDropdown from "./KinetixActionDropdown.vue";
 import KinetixConfirmModal from "./KinetixConfirmModal.vue";
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     heading?: string | null;
     description?: string | null;
@@ -27,6 +28,18 @@ withDefaults(
 
 const { pendingAction, isConfirmOpen, requestAction, confirm, cancel } =
   useActionConfirmation();
+
+// Register keyboard shortcuts declared on header actions (auto-cleaned on unmount).
+const { register } = useKinetixHotkeys();
+for (const action of props.actions) {
+  if (action.shortcut && action.type !== "group") {
+    register({
+      keys: action.shortcut,
+      label: action.label,
+      handler: () => requestAction(action),
+    });
+  }
+}
 
 // Unknown (but non-empty) names fall back to a neutral circle.
 const resolveIcon = (name?: string | null) =>

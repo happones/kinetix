@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-06-26
+
+### Added
+
+- **`Action::shortcut('c')`** binds a keyboard shortcut to an action; when the
+  action is rendered in a `KinetixPageHeader`, Kinetix registers the hotkey
+  automatically (running the action, confirmation modal included). Serialized as
+  `ActionData.shortcut`.
+
+### Fixed
+
+- **Code style**: re-aligned the `=>` operator in the translation files
+  (`resources/lang/*/kinetix.php`) that drifted as keys were added, so
+  `pint --test` is green again.
+
+### Changed
+
+- **Documentation**: the home page feature cards are regrouped into six major
+  areas (Resources/Tables/Forms · Infolists & Actions · Import-Export & Relations
+  · Authorization & Identity · SaaS Platform · Search & Experience) so the grid
+  stays readable as modules grow.
+- `kinetix-development` skill: Pint must be run over the **whole repo**
+  (`vendor/bin/pint`), not just `--dirty` — `--dirty` misses files (e.g. lang `=>`
+  alignment) made non-compliant by earlier commits, which then fail CI's
+  `pint --test`.
+
 ## [0.12.0] - 2026-06-26
 
 ### Added

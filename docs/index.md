@@ -19,32 +19,28 @@ hero:
 features:
   - icon: 🧱
     title: Resources, Tables & Forms
-    details: Declarative CRUD with fluent builders — sortable/searchable/filterable tables, inline editing, schema-driven forms.
+    details: Declarative CRUD with fluent builders — sortable/searchable/filterable tables, inline editing, and schema-driven forms including searchable comboboxes (local & remote).
     link: /resources
   - icon: 📄
     title: Infolists & Actions
-    details: Read-only record views and authorizable, confirmable actions (buttons, links, bulk, header/footer, groups).
+    details: Read-only record views and authorizable, confirmable actions (buttons, bulk, groups) — with optional keyboard shortcuts.
     link: /infolists
-  - icon: 🔑
-    title: Roles, Permissions & Membership
-    details: Feature-scoped RBAC synced to database, blade/vue directive gating, and admin-provisioned user directory onboarding.
-    link: /permissions
   - icon: 🔁
-    title: Import & Export
-    details: Queued CSV/XLSX import with header mapping and export to any filesystem disk — bulk exports scope to the selected rows.
+    title: Import/Export & Relations
+    details: Queued CSV/XLSX import & export to any disk (bulk scopes to selected rows), plus inline relation managers.
     link: /import-export
-  - icon: 🔗
-    title: Relation Managers
-    details: Manage a parent's related records inline, with per-page (edit/view) visibility control.
-    link: /relation-managers
-  - icon: 🔔
-    title: Real-time Notifications
-    details: Database + broadcast notifications over Laravel Echo, with token-themed toasts that respect dark mode.
-    link: /notifications
-  - icon: 💳
-    title: Billing & Widgets
-    details: Stripe-powered plans, pricing tables and subscription state, plus dashboard stat/chart widgets.
-    link: /billing
+  - icon: 🔑
+    title: Authorization & Identity
+    details: Feature-scoped RBAC (spatie), admin-provisioned membership onboarding, and audited "log in as user" impersonation.
+    link: /permissions
+  - icon: 🚀
+    title: SaaS Platform
+    details: Database-backed settings, an activity-log audit trail + event spine, feature flags (Pennant), webhooks, and Stripe billing.
+    link: /settings
+  - icon: ⌨️
+    title: Search & Experience
+    details: Cmd+K spotlight, conflict-safe keyboard shortcuts, real-time notifications, and dashboard stat/chart widgets.
+    link: /spotlight
 ---
 
 ## Quick Start

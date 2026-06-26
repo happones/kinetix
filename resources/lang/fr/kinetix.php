@@ -167,9 +167,9 @@ return [
     'activity_load_more'     => 'Charger plus',
 
     // Usurpation d’identité
-    'impersonate'          => 'Usurper l’identité',
-    'impersonating'        => 'Vous usurpez l’identité de :name',
-    'impersonation_leave'  => 'Revenir à votre compte',
+    'impersonate'         => 'Usurper l’identité',
+    'impersonating'       => 'Vous usurpez l’identité de :name',
+    'impersonation_leave' => 'Revenir à votre compte',
 
     // Spotlight
     'spotlight_placeholder' => 'Rechercher…',

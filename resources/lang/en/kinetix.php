@@ -167,9 +167,9 @@ return [
     'activity_load_more'     => 'Load more',
 
     // Impersonation
-    'impersonate'          => 'Impersonate',
-    'impersonating'        => 'You are impersonating :name',
-    'impersonation_leave'  => 'Return to your account',
+    'impersonate'         => 'Impersonate',
+    'impersonating'       => 'You are impersonating :name',
+    'impersonation_leave' => 'Return to your account',
 
     // Spotlight
     'spotlight_placeholder' => 'Search…',

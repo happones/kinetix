@@ -167,9 +167,9 @@ return [
     'activity_load_more'     => 'Cargar más',
 
     // Suplantación
-    'impersonate'          => 'Suplantar',
-    'impersonating'        => 'Estás suplantando a :name',
-    'impersonation_leave'  => 'Volver a tu cuenta',
+    'impersonate'         => 'Suplantar',
+    'impersonating'       => 'Estás suplantando a :name',
+    'impersonation_leave' => 'Volver a tu cuenta',
 
     // Spotlight
     'spotlight_placeholder' => 'Buscar…',

@@ -26,6 +26,7 @@ export interface KinetixAction {
   isDownload?: boolean;
   isPreview?: boolean;
   previewType?: string | null;
+  shortcut?: string | null;
 }
 
 export interface KinetixNotification {

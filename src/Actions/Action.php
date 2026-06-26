@@ -27,6 +27,8 @@ class Action
 
     protected string $color = 'primary'; // primary, danger, warning, success, gray
 
+    protected ?string $shortcut = null; // keyboard shortcut, e.g. 'c', 'mod+e'
+
     protected string $size = 'sm'; // xs, sm, md, lg
 
     protected string $viewType = 'button'; // button, link
@@ -171,6 +173,17 @@ class Action
     public function color(string $color): static
     {
         $this->color = $color;
+
+        return $this;
+    }
+
+    /**
+     * Bind a keyboard shortcut (e.g. 'c', 'mod+e', 'g i') to this action. Honored
+     * when the action is rendered in a `KinetixPageHeader`.
+     */
+    public function shortcut(?string $keys): static
+    {
+        $this->shortcut = $keys;
 
         return $this;
     }
@@ -434,6 +447,7 @@ class Action
             isDownload: $this->isDownload,
             isPreview: $this->isPreview,
             previewType: $this->previewType,
+            shortcut: $this->shortcut,
         );
     }
 

@@ -45,5 +45,7 @@ class ActionData extends Data
         // Open `url` in the file-preview modal (image/pdf) instead of navigating.
         public bool $isPreview = false,
         public ?string $previewType = null,
+        // Keyboard shortcut (e.g. 'c', 'mod+e') for page/header actions.
+        public ?string $shortcut = null,
     ) {}
 }

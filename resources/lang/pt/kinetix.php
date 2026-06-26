@@ -167,9 +167,9 @@ return [
     'activity_load_more'     => 'Carregar mais',
 
     // Personificação
-    'impersonate'          => 'Personificar',
-    'impersonating'        => 'Você está personificando :name',
-    'impersonation_leave'  => 'Voltar à sua conta',
+    'impersonate'         => 'Personificar',
+    'impersonating'       => 'Você está personificando :name',
+    'impersonation_leave' => 'Voltar à sua conta',
 
     // Spotlight
     'spotlight_placeholder' => 'Buscar…',
