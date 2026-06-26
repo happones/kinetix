@@ -103,7 +103,7 @@ Audit trail with a small shared event spine the later modules reuse.
   activity tab on a Resource's View/Show page.
 - **Retention**: a pruning command + retention config (logs grow unbounded).
 
-## Stage 3 — Impersonation (`v0.7.0`)
+## Stage 3 — Impersonation (`v0.7.0`) — ✅ shipped
 
 Admin "log in as user", **audited** via the Stage 2 spine.
 

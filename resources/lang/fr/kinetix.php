@@ -165,4 +165,9 @@ return [
     'activity_system'        => 'Système',
     'activity_empty'         => 'Aucune activité pour le moment.',
     'activity_load_more'     => 'Charger plus',
+
+    // Usurpation d’identité
+    'impersonate'          => 'Usurper l’identité',
+    'impersonating'        => 'Vous usurpez l’identité de :name',
+    'impersonation_leave'  => 'Revenir à votre compte',
 ];

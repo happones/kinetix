@@ -239,6 +239,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Impersonation (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Lets an admin "log in as" another user. The `users.impersonate` ability
+    | controls who may impersonate; the built-in escalation guard blocks
+    | impersonating a super-admin (unless you are one). Apply the
+    | `kinetix.impersonation.protect` middleware to sensitive routes to block
+    | them while impersonating.
+    |
+    */
+    'impersonation' => [
+        'enabled'       => env('KINETIX_IMPERSONATION_ENABLED', false),
+        'redirect_to'   => env('KINETIX_IMPERSONATION_REDIRECT', '/'),
+        'redirect_back' => env('KINETIX_IMPERSONATION_REDIRECT_BACK', '/'),
+
+        // Optional override: fn (Authenticatable $impersonator, Authenticatable $target): bool
+        'can_impersonate' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Activity Log (optional)
     |--------------------------------------------------------------------------
     |

@@ -377,6 +377,21 @@ Native, team-scoped audit log and the event spine later modules consume. **Off b
 
 ---
 
+## 15. Kinetix Impersonation (optional, "log in as user")
+
+Admin impersonation, audited via the Activity spine. **Off by default** (`kinetix.impersonation.enabled`). Roadmap v0.7.0. No migration — state lives in the session.
+
+- **Manager** (`ImpersonationManager`, singleton; facade `KinetixImpersonation`): `start($target)` stores `auth()->id()` in `session('kinetix_impersonator_id')` then `auth()->login($target)`; `stop()` retrieves the original via `auth()->getProvider()->retrieveById()` and logs back in; `isImpersonating()`/`impersonatorId()`. Target resolved by id through the auth provider → no User model reference.
+- **Escalation guard** `canImpersonate($impersonator, $target)`: false for self; honors a `can_impersonate` closure; otherwise the built-in rule blocks impersonating a `super_admin_role` holder unless the impersonator is one too. The `users.impersonate` ability (auto-registered when enabled) governs WHO may impersonate — the controller authorizes it; the guard only prevents the catastrophic case. Document that finer rules go in the closure.
+- **Controller/routes**: `POST {prefix}/impersonate/{user}` (start, gated `users.impersonate`), `DELETE {prefix}/impersonate` (leave — open, the impersonated user must be able to exit; `leave` route registered BEFORE `{user}` so it isn't captured). Team-aware prefix.
+- **Sensitive-route protection**: `DenyWhileImpersonating` middleware, aliased `kinetix.impersonation.protect` (aliased always, even when the feature is off). 403s while impersonating — host applies it to password/email/2FA/billing/account-deletion routes.
+- **Audit**: `start`/`stop` call `KinetixActivity::log('impersonate.start|stop', ...)` (causer = the admin), guarded by `config('kinetix.activity.enabled')` so it's safe when Activity is off.
+- **Inertia prop** `kinetix_impersonation` (`{active, user:{id,name}}`) shared in `shareInertiaData()` only when enabled + impersonating.
+- **Vue (published)**: `KinetixImpersonationBanner` (renders only when active; "Return to your account" → `router.delete` the leave route), `useKinetixImpersonation` (`active`/`impersonatedName`/`leave`), type `KinetixImpersonationState`, i18n `impersonate`/`impersonating`/`impersonation_leave`. `ImpersonateAction` (prebuilt Action, icon `user`, `authorize('users.impersonate')`, `inertiaVisit(post)`).
+- Full guide: `docs/impersonation.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

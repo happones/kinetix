@@ -165,4 +165,9 @@ return [
     'activity_system'        => 'Sistema',
     'activity_empty'         => 'Aún no hay actividad.',
     'activity_load_more'     => 'Cargar más',
+
+    // Suplantación
+    'impersonate'          => 'Suplantar',
+    'impersonating'        => 'Estás suplantando a :name',
+    'impersonation_leave'  => 'Volver a tu cuenta',
 ];

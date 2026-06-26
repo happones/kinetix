@@ -165,4 +165,9 @@ return [
     'activity_system'        => 'System',
     'activity_empty'         => 'No activity yet.',
     'activity_load_more'     => 'Load more',
+
+    // Impersonation
+    'impersonate'          => 'Impersonate',
+    'impersonating'        => 'You are impersonating :name',
+    'impersonation_leave'  => 'Return to your account',
 ];

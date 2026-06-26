@@ -165,4 +165,9 @@ return [
     'activity_system'        => 'Sistema',
     'activity_empty'         => 'Ainda não há atividade.',
     'activity_load_more'     => 'Carregar mais',
+
+    // Personificação
+    'impersonate'          => 'Personificar',
+    'impersonating'        => 'Você está personificando :name',
+    'impersonation_leave'  => 'Voltar à sua conta',
 ];

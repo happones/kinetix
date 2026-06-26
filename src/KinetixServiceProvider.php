@@ -25,6 +25,9 @@ use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Forms\UploadController;
+use Happones\Kinetix\Impersonation\ImpersonationController;
+use Happones\Kinetix\Impersonation\ImpersonationManager;
+use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
 use Happones\Kinetix\Imports\ImportController;
 use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
@@ -66,6 +69,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The activity logger (audit trail + event spine).
         $this->app->singleton(ActivityLogger::class);
+
+        // The impersonation manager (log in as user).
+        $this->app->singleton(ImpersonationManager::class);
     }
 
     /**
@@ -176,6 +182,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Activity module (audit trail + event spine)
         $this->registerActivity();
+
+        // Register the optional Impersonation module (log in as user)
+        $this->registerImpersonation();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -411,6 +420,45 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Impersonation module: the `users.impersonate` ability,
+     * the `kinetix.impersonation.protect` middleware (deny sensitive routes while
+     * impersonating), and the start/leave endpoints.
+     */
+    protected function registerImpersonation(): void
+    {
+        $this->app['router']->aliasMiddleware('kinetix.impersonation.protect', DenyWhileImpersonating::class);
+
+        if (! config('kinetix.impersonation.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('users')
+            ->label('Users')
+            ->ability('impersonate', 'Impersonate users');
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/impersonate")
+            ->group(function () {
+                // `leave` first so it isn't captured by the `{user}` parameter.
+                Route::delete('/', [ImpersonationController::class, 'leave'])
+                    ->name('kinetix.impersonation.leave');
+                Route::post('{user}', [ImpersonationController::class, 'start'])
+                    ->name('kinetix.impersonation.start');
+            });
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -476,6 +524,25 @@ class KinetixServiceProvider extends ServiceProvider
                 'roles' => method_exists($user, 'getRoleNames')
                     ? $user->getRoleNames()->values()->all()
                     : [],
+            ];
+        });
+
+        // Whether the current session is an impersonation, for <KinetixImpersonationBanner>.
+        Inertia::share('kinetix_impersonation', function () {
+            $manager = app(ImpersonationManager::class);
+
+            if (! config('kinetix.impersonation.enabled', false) || ! $manager->isImpersonating()) {
+                return ['active' => false];
+            }
+
+            $user = auth()->user();
+
+            return [
+                'active' => true,
+                'user'   => [
+                    'id'   => $user?->getAuthIdentifier(),
+                    'name' => $user instanceof Model ? $user->getAttribute('name') : null,
+                ],
             ];
         });
     }

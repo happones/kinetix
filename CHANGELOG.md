@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-26
+
+### Added
+
+- **Impersonation module** (optional — `KINETIX_IMPERSONATION_ENABLED`, off by
+  default). Admin "log in as user", done safely — roadmap stage 3:
+  - `ImpersonationManager` / `KinetixImpersonation` facade (`start` / `stop` /
+    `isImpersonating`), with the original user kept in the session and the target
+    resolved through the auth provider (no User model reference).
+  - **Safety**: the `users.impersonate` ability governs who may impersonate
+    (auto-registers with the permission matrix); a built-in escalation guard
+    blocks impersonating a super-admin unless you are one (override via the
+    `can_impersonate` closure); the `kinetix.impersonation.protect` middleware
+    403s sensitive routes (password/email/2FA/billing/deletion) while
+    impersonating; and start/stop are **audited** through the Activity event spine.
+  - Endpoints `POST {prefix}/impersonate/{user}` and `DELETE {prefix}/impersonate`.
+- **(published)** `<KinetixImpersonationBanner>` (a "you are impersonating … —
+  return to your account" bar, shown only when active), the
+  `useKinetixImpersonation` composable, `ImpersonateAction` (a prebuilt user-row
+  action), the `KinetixImpersonationState` type and `impersonate*` translations.
+- `kinetix-impersonation` Boost skill and a section (§15) in the development skill.
+
 ## [0.6.1] - 2026-06-26
 
 ### Added

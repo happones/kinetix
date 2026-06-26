@@ -58,6 +58,7 @@ export interface KinetixSharedProps {
   kinetix_config?: KinetixConfig;
   kinetix_notifications?: KinetixNotification[];
   kinetix_permissions?: KinetixPermissionState;
+  kinetix_impersonation?: KinetixImpersonationState;
   auth?: { user?: { id: number | string } | null };
   [key: string]: unknown;
 }
@@ -86,6 +87,12 @@ export interface KinetixRole {
   id: number | string | null;
   name: string;
   permissions: string[];
+}
+
+/** Impersonation state shared from the server (for the banner). */
+export interface KinetixImpersonationState {
+  active: boolean;
+  user?: { id: number | string | null; name: string | null };
 }
 
 /** A single activity entry from the Activity module. */
