@@ -265,7 +265,7 @@ export const specimens: Specimen[] = [
   { name: "pricing-table", title: "Pricing table", component: KinetixPricingTable, width: 880, props: { plans, currentPlanSlug: "starter", cycle: "monthly", currencySymbol: "$" } },
   { name: "stats-widget", title: "Stats overview widget", component: KinetixStatsOverviewWidget, width: 980, props: { widget: statsWidget } },
   { name: "range-calendar", title: "Date range calendar", component: KinetixRangeCalendar, frame: "card", width: 560, props: { value: { from: "2026-06-10", to: "2026-06-18" }, numberOfMonths: 1 } },
-  { name: "time-picker", title: "Time picker", component: KinetixTimePicker, frame: "card", width: 320, props: { value: "02:30", minuteStep: 15 } },
+  { name: "time-picker", title: "Time picker", component: KinetixTimePicker, frame: "card", width: 320, props: { value: "14:30", minuteStep: 15 } },
   { name: "datetime-picker", title: "Date-time picker (open)", component: KinetixDateTimePicker, width: 760, openSelector: "#specimen button", props: { value: "2026-06-15T14:30", minuteStep: 30 } },
 
   // --- Form layouts ----------------------------------------------------------

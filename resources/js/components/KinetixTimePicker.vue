@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import ScrollArea from "./primitives/ScrollArea.vue";
 import { cn } from "./primitives/cn";
 import { buttonVariants } from "@/composables/useShadcnVariants";
@@ -65,6 +65,51 @@ const timeBtn = (active: boolean) =>
     buttonVariants({ variant: active ? "default" : "ghost", size: "icon-sm" }),
     "aspect-square shrink-0 sm:w-full",
   );
+
+// Track the selected hour/minute buttons so we can reveal them on open.
+const hourEl = ref<HTMLElement | null>(null);
+const minuteEl = ref<HTMLElement | null>(null);
+
+const hourRef = (el: unknown, h: number) => {
+  const active = props.hour12 ? displayHour.value === h : hour24.value === h;
+  if (active && el) {
+    hourEl.value = el as HTMLElement;
+  }
+};
+const minuteRef = (el: unknown, m: number) => {
+  if (minute.value === m && el) {
+    minuteEl.value = el as HTMLElement;
+  }
+};
+
+/** Scroll only the nearest scrollable ancestor (not the page) to center `el`. */
+const centerInScrollParent = (el: HTMLElement | null) => {
+  if (!el) {
+    return;
+  }
+  let parent = el.parentElement;
+  while (parent && parent.scrollHeight <= parent.clientHeight) {
+    parent = parent.parentElement;
+  }
+  if (!parent) {
+    return;
+  }
+  const elRect = el.getBoundingClientRect();
+  const pRect = parent.getBoundingClientRect();
+  parent.scrollTop += elRect.top - pRect.top - pRect.height / 2 + elRect.height / 2;
+};
+
+const revealSelected = () => {
+  centerInScrollParent(hourEl.value);
+  centerInScrollParent(minuteEl.value);
+};
+
+onMounted(() => {
+  if (hasValue.value) {
+    nextTick(revealSelected);
+  }
+});
+watch(() => props.value, () => nextTick(revealSelected));
 </script>
 
 <template>
@@ -86,6 +131,7 @@ const timeBtn = (active: boolean) =>
         <button
           v-for="h in hours"
           :key="`h-${h}`"
+          :ref="(el) => hourRef(el, h)"
           type="button"
           :disabled="disabled"
           :class="timeBtn(hasValue && (hour12 ? displayHour === h : hour24 === h))"
@@ -101,6 +147,7 @@ const timeBtn = (active: boolean) =>
         <button
           v-for="m in minutes"
           :key="`m-${m}`"
+          :ref="(el) => minuteRef(el, m)"
           type="button"
           :disabled="disabled"
           :class="timeBtn(hasValue && minute === m)"

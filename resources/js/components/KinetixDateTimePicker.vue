@@ -6,7 +6,7 @@ import {
   PopoverRoot,
   PopoverTrigger,
 } from "reka-ui";
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import KinetixCalendar from "./KinetixCalendar.vue";
 import ScrollArea from "./primitives/ScrollArea.vue";
@@ -133,6 +133,48 @@ const timeBtn = (active: boolean) =>
     buttonVariants({ variant: active ? "default" : "ghost", size: "icon-sm" }),
     "aspect-square shrink-0 sm:w-full",
   );
+
+// Reveal the selected hour/minute in their scroll columns when the popover opens.
+const hourEl = ref<HTMLElement | null>(null);
+const minuteEl = ref<HTMLElement | null>(null);
+
+const hourRef = (el: unknown, h: number) => {
+  const active = props.hour12 ? displayHour.value === h : hour24.value === h;
+  if (active && el) {
+    hourEl.value = el as HTMLElement;
+  }
+};
+const minuteRef = (el: unknown, m: number) => {
+  if (minute.value === m && el) {
+    minuteEl.value = el as HTMLElement;
+  }
+};
+
+/** Scroll only the nearest scrollable ancestor (not the page) to center `el`. */
+const centerInScrollParent = (el: HTMLElement | null) => {
+  if (!el) {
+    return;
+  }
+  let parent = el.parentElement;
+  while (parent && parent.scrollHeight <= parent.clientHeight) {
+    parent = parent.parentElement;
+  }
+  if (!parent) {
+    return;
+  }
+  const elRect = el.getBoundingClientRect();
+  const pRect = parent.getBoundingClientRect();
+  parent.scrollTop += elRect.top - pRect.top - pRect.height / 2 + elRect.height / 2;
+};
+
+watch(open, (isOpen) => {
+  if (isOpen && datePart.value != null) {
+    nextTick(() => {
+      centerInScrollParent(hourEl.value);
+      centerInScrollParent(minuteEl.value);
+    });
+  }
+});
 </script>
 
 <template>
@@ -182,6 +224,7 @@ const timeBtn = (active: boolean) =>
                 <button
                   v-for="h in hours"
                   :key="`h-${h}`"
+                  :ref="(el) => hourRef(el, h)"
                   type="button"
                   :class="
                     timeBtn(
@@ -201,6 +244,7 @@ const timeBtn = (active: boolean) =>
                 <button
                   v-for="m in minutes"
                   :key="`m-${m}`"
+                  :ref="(el) => minuteRef(el, m)"
                   type="button"
                   :class="timeBtn(datePart != null && minute === m)"
                   @click="setMinute(m)"
