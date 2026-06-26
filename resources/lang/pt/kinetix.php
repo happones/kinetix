@@ -156,4 +156,13 @@ return [
 
     // Configurações
     'settings_saved' => 'Configurações salvas.',
+
+    // Registro de atividade
+    'activity_event_created' => 'Criado',
+    'activity_event_updated' => 'Atualizado',
+    'activity_event_deleted' => 'Excluído',
+    'activity_by'            => 'por :name',
+    'activity_system'        => 'Sistema',
+    'activity_empty'         => 'Ainda não há atividade.',
+    'activity_load_more'     => 'Carregar mais',
 ];

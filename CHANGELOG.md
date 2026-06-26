@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-26
+
+### Added
+
+- **Activity Log module** (optional — `KINETIX_ACTIVITY_ENABLED`, off by default).
+  A native, team-scoped audit trail and the event spine later modules consume —
+  roadmap stage 2:
+  - `LogsKinetixActivity` model trait auto-records `created` / `updated` /
+    `deleted` (causer = `auth()->user()`, updates capture an old→new diff); the
+    `KinetixActivity` facade logs anything; every entry dispatches the
+    `ActivityLogged` event.
+  - Team-scoped store (`kinetix_activity`), gated by the `activity.view` ability
+    (auto-registers with the permission matrix); a paginated `GET {prefix}/activity`
+    feed (filter by `subject_type` / `subject_id` / `event`); the
+    `kinetix:activity:prune` retention command; and the `kinetix-activity-migrations`
+    publish tag.
+- **(published)** `<KinetixActivityLog>` — a self-loading, paginated ("load more")
+  timeline that works **globally or scoped to one record** (per feature, e.g. a
+  product's change history on its show page). Descriptions are composed from i18n
+  (`activity_event_*`, `activity_by`, `activity_system`) so "Created by …" /
+  "Actualizado por …" translate (en/es/fr/pt). Plus the `useKinetixActivity`
+  composable and `KinetixActivityEntry` / `KinetixActivityResponse` types.
+- `kinetix-activity` Boost skill and a section (§14) in the development skill.
+
 ## [0.5.1] - 2026-06-26
 
 ### Added

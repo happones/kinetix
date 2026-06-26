@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix;
 
+use Happones\Kinetix\Activity\ActivityController;
+use Happones\Kinetix\Activity\ActivityLogger;
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
+use Happones\Kinetix\Commands\ActivityPruneCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
 use Happones\Kinetix\Commands\MakeBillingCommand;
@@ -60,6 +63,9 @@ class KinetixServiceProvider extends ServiceProvider
         // The settings store + page registry are app-wide singletons.
         $this->app->singleton(SettingsManager::class);
         $this->app->singleton(SettingsRegistry::class);
+
+        // The activity logger (audit trail + event spine).
+        $this->app->singleton(ActivityLogger::class);
     }
 
     /**
@@ -86,6 +92,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeRelationManagerCommand::class,
                 MakeBillingCommand::class,
                 MakeSettingsPageCommand::class,
+                ActivityPruneCommand::class,
                 PermissionsSyncCommand::class,
                 InstallCommand::class,
             ]);
@@ -129,6 +136,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000002_create_kinetix_settings_table.php' => database_path('migrations/2026_01_01_000002_create_kinetix_settings_table.php'),
             ], 'kinetix-settings-migrations');
 
+            // Publish the optional Activity module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000003_create_kinetix_activity_table.php' => database_path('migrations/2026_01_01_000003_create_kinetix_activity_table.php'),
+            ], 'kinetix-activity-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -161,6 +173,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Settings module (database-backed settings pages)
         $this->registerSettings();
+
+        // Register the optional Activity module (audit trail + event spine)
+        $this->registerActivity();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -359,6 +374,39 @@ class KinetixServiceProvider extends ServiceProvider
                     ->name('kinetix.settings.show');
                 Route::put('{page}', [SettingsController::class, 'update'])
                     ->name('kinetix.settings.update');
+            });
+    }
+
+    /**
+     * Wire the optional Activity module: a team-scoped audit trail and event
+     * spine. Registers the `activity.view` ability and the read endpoint.
+     */
+    protected function registerActivity(): void
+    {
+        if (! config('kinetix.activity.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('activity')
+            ->label('Activity Log')
+            ->ability('view', 'View activity log');
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/activity")
+            ->group(function () {
+                Route::get('/', [ActivityController::class, 'index'])
+                    ->name('kinetix.activity.index');
             });
     }
 

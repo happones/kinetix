@@ -69,7 +69,7 @@ gantt
 
 ---
 
-## Stage 1 — Settings Page Builder (`v0.5.0`) — *in progress*
+## Stage 1 — Settings Page Builder (`v0.5.0`) — ✅ shipped
 
 Foundational, zero-dependency, and the cleanest fit: a `SettingsPage` defines a
 schema with the existing **Forms** engine, so validation/defaults/serialization
@@ -89,7 +89,7 @@ are reused for free. Other modules read their config from here.
   settings endpoint; `useKinetixSettings` composable.
 - **Generator**: `kinetix:make-settings-page`.
 
-## Stage 2 — Activity Log + Event Spine (`v0.6.0`)
+## Stage 2 — Activity Log + Event Spine (`v0.6.0`) — ✅ shipped (native)
 
 Audit trail with a small shared event spine the later modules reuse.
 

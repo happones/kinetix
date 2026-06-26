@@ -156,4 +156,13 @@ return [
 
     // Settings
     'settings_saved' => 'Settings saved.',
+
+    // Activity log
+    'activity_event_created' => 'Created',
+    'activity_event_updated' => 'Updated',
+    'activity_event_deleted' => 'Deleted',
+    'activity_by'            => 'by :name',
+    'activity_system'        => 'System',
+    'activity_empty'         => 'No activity yet.',
+    'activity_load_more'     => 'Load more',
 ];

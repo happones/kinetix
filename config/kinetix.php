@@ -239,6 +239,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Activity Log (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A native, team-scoped audit trail + event spine. Add the
+    | `LogsKinetixActivity` trait to a model to auto-record create/update/delete
+    | (with an old→new diff), or log anything via the KinetixActivity facade.
+    | Read it back with the <KinetixActivityLog> component — globally or scoped
+    | to one record (per feature).
+    |
+    | - `teams`: scope entries per team (null team = global).
+    | - `per_page`: page size for the paginated feed.
+    | - `retention_days`: window kept by `kinetix:activity:prune`.
+    |
+    */
+    'activity' => [
+        'enabled'        => env('KINETIX_ACTIVITY_ENABLED', false),
+        'teams'          => env('KINETIX_ACTIVITY_TEAMS', false),
+        'per_page'       => env('KINETIX_ACTIVITY_PER_PAGE', 15),
+        'retention_days' => env('KINETIX_ACTIVITY_RETENTION_DAYS', 365),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Billing (optional — requires laravel/cashier + @stripe/stripe-js)
     |--------------------------------------------------------------------------
     |

@@ -156,4 +156,13 @@ return [
 
     // Paramètres
     'settings_saved' => 'Paramètres enregistrés.',
+
+    // Journal d’activité
+    'activity_event_created' => 'Créé',
+    'activity_event_updated' => 'Modifié',
+    'activity_event_deleted' => 'Supprimé',
+    'activity_by'            => 'par :name',
+    'activity_system'        => 'Système',
+    'activity_empty'         => 'Aucune activité pour le moment.',
+    'activity_load_more'     => 'Charger plus',
 ];

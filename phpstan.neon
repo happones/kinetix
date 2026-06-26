@@ -29,6 +29,11 @@ parameters:
             identifier: trait.unused
             path: src/Billing/Concerns/HasPlan.php
 
+        # Activity trait added to the host app's Eloquent models, not used in-package.
+        -
+            identifier: trait.unused
+            path: src/Activity/Concerns/LogsKinetixActivity.php
+
         # Soft-delete scopes exist on SoftDeletes models, not the base query Builder.
         -
             message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder.*::(withTrashed|onlyTrashed)\(\)#'

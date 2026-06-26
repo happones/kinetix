@@ -88,6 +88,33 @@ export interface KinetixRole {
   permissions: string[];
 }
 
+/** A single activity entry from the Activity module. */
+export interface KinetixActivityEntry {
+  id: number | string | null;
+  event: string;
+  description: string | null;
+  causerName: string | null;
+  causerId: number | string | null;
+  subjectType: string | null;
+  subjectId: number | string | null;
+  changes: {
+    old: Record<string, unknown>;
+    attributes: Record<string, unknown>;
+  };
+  createdAt: string | null;
+}
+
+/** The paginated activity feed response. */
+export interface KinetixActivityResponse {
+  data: KinetixActivityEntry[];
+  pagination: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+  };
+}
+
 /** A settings page (metadata + its filled form) from the Settings module. */
 export interface KinetixSettingsPageData {
   key: string;

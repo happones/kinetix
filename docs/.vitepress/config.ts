@@ -94,7 +94,10 @@ export default withMermaid(
       {
         text: "System",
         collapsed: false,
-        items: [{ text: "Settings", link: "/settings" }],
+        items: [
+          { text: "Settings", link: "/settings" },
+          { text: "Activity Log", link: "/activity" },
+        ],
       },
     ],
     socialLinks: [

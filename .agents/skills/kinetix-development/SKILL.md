@@ -362,6 +362,20 @@ A class-based settings panel built on the Forms engine. **Off by default** (`kin
 
 ---
 
+## 14. Kinetix Activity (optional, audit trail + event spine)
+
+Native, team-scoped audit log and the event spine later modules consume. **Off by default** (`kinetix.activity.enabled`). Roadmap v0.6.0.
+
+- **Store**: `kinetix_activity` table (`team_id` nullable = global, `log_name`, `event`, `description`, polymorphic `subject_*` + `causer_*`, `properties` JSON `{old, attributes}` diff). Indexed on `(subject_type, subject_id)`, `(causer_type, causer_id)`, `team_id`, `created_at`. Migration tag `--tag=kinetix-activity-migrations`.
+- **Recorder** (`ActivityLogger`, singleton; facade `KinetixActivity`): `log($event, ?$subject, $properties, ?$causer, ?$description, $logName)` (causer defaults to `auth()->user()`), `query($filters)` (paginated, team-scoped, eager-loads `causer` → no N+1), `prune($days)`. `KinetixActivity::for($subject)` = paginated entries for one record. Every `log()` dispatches **`ActivityLogged`** (the spine — Impersonation/Webhooks hook here).
+- **Model trait** `LogsKinetixActivity`: boots created/updated/deleted observers; updates capture `getChanges()` (new) vs `getOriginal()` (old) minus `kinetixActivityIgnored()` (defaults: timestamps/password/remember_token). No-ops when disabled. (It's a host-applied trait → `trait.unused` is ignored in `phpstan.neon`, like `HasPlan`.)
+- **Controller/route**: `GET {prefix}/activity` (team-aware, gated `activity.view`, auto-registers the `activity` permission feature). Returns `{data: ActivityData[], pagination}`. Command `kinetix:activity:prune {--days=}` (schedule it; retention via `kinetix.activity.retention_days`).
+- **Vue (published)**: `KinetixActivityLog` (self-loading timeline; props `subject-type`/`subject-id`/`event`; "load more" pagination; **localized descriptions** composed from i18n `activity_event_*` + `activity_by`/`activity_system` so "Created by X" / "Actualizado por X" translate; skeleton on first load), `useKinetixActivity` (`load(params)`), types `KinetixActivityEntry` / `KinetixActivityResponse`. Per-feature use = drop it on a Resource's View/Show page scoped to the record; global use = no subject.
+- **Causer name**: resolved in `ActivityData::fromModel` via `causer?->getAttribute('name')` (morphTo; tolerates a model with no `name` and deleted causers).
+- Full guide: `docs/activity.md`. The spatie/activitylog **read-bridge** is a documented future increment (native is the canonical writer for consistent team-scoping/diff).
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
