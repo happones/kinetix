@@ -219,7 +219,7 @@ const resolveIcon = (name?: string) => {
       :type="col.inputType || 'text'"
       :value="record.values[col.name]"
       :placeholder="col.placeholder ?? ''"
-      class="text-xs rounded border border-border bg-background px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring w-32 text-foreground"
+      class="text-xs rounded border border-border bg-background px-2.5 py-1.5 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] w-32 text-foreground"
       @change="
         emit(
           'update-cell',

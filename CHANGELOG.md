@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-06-26
+
+### Fixed
+
+- **(published)** Aligned the last hand-rolled controls to shadcn-vue
+  **new-york-v4**: the table search box, the filter-panel inputs (number/date
+  range) and the inline-edit cell input dropped the v3 focus ring
+  (`focus:outline-none focus:ring-1 focus:ring-ring`) for the v4 set
+  (`outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]`);
+  `KinetixTagsInput`'s wrapper moved from `shadow-sm focus-within:ring-1` to
+  `shadow-xs` + the v4 `focus-within:*` ring. The Reka primitives (Select,
+  Checkbox, Switch, Toaster/Sonner, Label) and the variant helpers were already
+  on v4 — this clears the remaining drift.
+
 ## [0.4.7] - 2026-06-26
 
 ### Added

@@ -406,7 +406,7 @@ const updateCell = async (
             v-model="searchQuery"
             type="text"
             :placeholder="t('kinetix.search_records')"
-            class="pl-9 pr-4 py-2 text-sm w-full rounded-lg border border-border bg-muted/40 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            class="pl-9 pr-4 py-2 text-sm w-full rounded-lg border border-border bg-muted/40 text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             @input="onSearchInput"
           />
         </div>
@@ -533,7 +533,7 @@ const updateCell = async (
                       v-else-if="filter.type === 'date'"
                       type="date"
                       :value="activeFilters[filter.name] || ''"
-                      class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                      class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                       @change="
                         setFilter(
                           filter.name,
@@ -555,7 +555,7 @@ const updateCell = async (
                       v-else-if="filter.type === 'datetime'"
                       type="datetime-local"
                       :value="activeFilters[filter.name] || ''"
-                      class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                      class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                       @change="
                         setFilter(
                           filter.name,
@@ -572,7 +572,7 @@ const updateCell = async (
                       <input
                         type="date"
                         :value="(activeFilters[filter.name] || {}).from || ''"
-                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                         @change="
                           setRangePart(
                             filter.name,
@@ -585,7 +585,7 @@ const updateCell = async (
                       <input
                         type="date"
                         :value="(activeFilters[filter.name] || {}).to || ''"
-                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                         @change="
                           setRangePart(
                             filter.name,
@@ -605,7 +605,7 @@ const updateCell = async (
                         type="number"
                         :placeholder="t('kinetix.min')"
                         :value="(activeFilters[filter.name] || {}).min ?? ''"
-                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                         @input="
                           setRangePart(
                             filter.name,
@@ -619,7 +619,7 @@ const updateCell = async (
                         type="number"
                         :placeholder="t('kinetix.max')"
                         :value="(activeFilters[filter.name] || {}).max ?? ''"
-                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                        class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                         @input="
                           setRangePart(
                             filter.name,
