@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { buttonVariants } from "@/composables/useShadcnVariants";
 import KinetixFormSchema from "./KinetixFormSchema.vue";
 
 const props = defineProps<{
@@ -48,12 +49,7 @@ const onSubmit = (e: Event) => {
     <!-- Actions Slot -->
     <div class="flex justify-end gap-3 mt-4">
       <slot :values="formValues">
-        <button
-          type="submit"
-          class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
-        >
-          Submit
-        </button>
+        <button type="submit" :class="buttonVariants()">Submit</button>
       </slot>
     </div>
   </form>

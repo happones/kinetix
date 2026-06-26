@@ -16,6 +16,7 @@ use Happones\Kinetix\Commands\MakeInfolistCommand;
 use Happones\Kinetix\Commands\MakeNotificationCommand;
 use Happones\Kinetix\Commands\MakeRelationManagerCommand;
 use Happones\Kinetix\Commands\MakeResourceCommand;
+use Happones\Kinetix\Commands\MakeSettingsPageCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
@@ -26,6 +27,11 @@ use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
+use Happones\Kinetix\Settings\KinetixSettings;
+use Happones\Kinetix\Settings\SettingsController;
+use Happones\Kinetix\Settings\SettingsManager;
+use Happones\Kinetix\Settings\SettingsPage;
+use Happones\Kinetix\Settings\SettingsRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -50,6 +56,10 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The permission registry accumulates feature definitions app-wide.
         $this->app->singleton(PermissionRegistry::class);
+
+        // The settings store + page registry are app-wide singletons.
+        $this->app->singleton(SettingsManager::class);
+        $this->app->singleton(SettingsRegistry::class);
     }
 
     /**
@@ -75,6 +85,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeExporterCommand::class,
                 MakeRelationManagerCommand::class,
                 MakeBillingCommand::class,
+                MakeSettingsPageCommand::class,
                 PermissionsSyncCommand::class,
                 InstallCommand::class,
             ]);
@@ -113,6 +124,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000001_create_kinetix_member_provisions_table.php' => database_path('migrations/2026_01_01_000001_create_kinetix_member_provisions_table.php'),
             ], 'kinetix-membership-migrations');
 
+            // Publish the optional Settings module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000002_create_kinetix_settings_table.php' => database_path('migrations/2026_01_01_000002_create_kinetix_settings_table.php'),
+            ], 'kinetix-settings-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -142,6 +158,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Membership module (admin provisioning + activation)
         $this->registerMembership();
+
+        // Register the optional Settings module (database-backed settings pages)
+        $this->registerSettings();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -286,6 +305,61 @@ class KinetixServiceProvider extends ServiceProvider
             Route::post('members/activate/{provision}', [MembershipController::class, 'activate'])
                 ->name('kinetix.membership.activate');
         });
+    }
+
+    /**
+     * Wire the optional Settings module: a database-backed, class-based settings
+     * panel built on the Forms engine. Registers the `settings.manage` ability,
+     * the host-declared pages, and the management routes.
+     */
+    protected function registerSettings(): void
+    {
+        if (! config('kinetix.settings.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('settings')
+            ->label('Settings')
+            ->ability('manage', 'Manage settings');
+
+        /** @var array<int, class-string<SettingsPage>> $pages */
+        $pages = (array) config('kinetix.settings.pages', []);
+
+        if ($pages !== []) {
+            KinetixSettings::pages($pages);
+        }
+
+        $this->registerSettingsRoutes();
+    }
+
+    /**
+     * Register the settings endpoints (teams-aware prefix, gated by
+     * `settings.manage`). `index`/`show` render the configured Inertia view;
+     * `update` persists a page's form and returns JSON.
+     */
+    protected function registerSettingsRoutes(): void
+    {
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/settings")
+            ->group(function () {
+                Route::get('/', [SettingsController::class, 'index'])
+                    ->name('kinetix.settings.index');
+                Route::get('{page}', [SettingsController::class, 'show'])
+                    ->name('kinetix.settings.show');
+                Route::put('{page}', [SettingsController::class, 'update'])
+                    ->name('kinetix.settings.update');
+            });
     }
 
     /**

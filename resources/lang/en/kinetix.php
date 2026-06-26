@@ -153,4 +153,7 @@ return [
     'member_activation_intro'   => 'You have been added to :app. Set a password to activate your account.',
     'member_activation_button'  => 'Activate account',
     'member_activation_expiry'  => 'This link will expire soon. If it has expired, ask an administrator to resend it.',
+
+    // Settings
+    'settings_saved' => 'Settings saved.',
 ];

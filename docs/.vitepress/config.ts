@@ -91,6 +91,11 @@ export default withMermaid(
         collapsed: false,
         items: [{ text: "Billing", link: "/billing" }],
       },
+      {
+        text: "System",
+        collapsed: false,
+        items: [{ text: "Settings", link: "/settings" }],
+      },
     ],
     socialLinks: [
       { icon: "github", link: "https://github.com/happones/kinetix" },

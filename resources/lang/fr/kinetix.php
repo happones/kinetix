@@ -153,4 +153,7 @@ return [
     'member_activation_intro'   => 'Vous avez été ajouté à :app. Définissez un mot de passe pour activer votre compte.',
     'member_activation_button'  => 'Activer le compte',
     'member_activation_expiry'  => 'Ce lien expirera bientôt. S’il a expiré, demandez à un administrateur de le renvoyer.',
+
+    // Paramètres
+    'settings_saved' => 'Paramètres enregistrés.',
 ];

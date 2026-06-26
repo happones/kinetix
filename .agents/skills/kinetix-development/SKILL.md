@@ -349,6 +349,19 @@ Admin-provisioned membership — an **alternative** to the starter-kit's self-se
 
 ---
 
+## 13. Kinetix Settings (optional, database-backed config)
+
+A class-based settings panel built on the Forms engine. **Off by default** (`kinetix.settings.enabled`). The first roadmap module (v0.5.0) — foundational and zero-dependency.
+
+- **Store**: `kinetix_settings` table (`team_id` nullable = global, `key`, `value` TEXT JSON, `encrypted` bool, `unique(team_id, key)`). Migration publishes under `--tag=kinetix-settings-migrations`. Read/write only through `SettingsManager` / the `KinetixSettings` facade — not the `Setting` model directly.
+- **Manager** (`SettingsManager`, singleton): `get/set/forget/all`, scoped by `currentTeam` when `settings.teams` on (null = global), values JSON-encoded (type preserved), `encrypted: true` → `Crypt::encryptString`. A whole scope is loaded once and cached (`Cache::rememberForever`, key `kinetix.settings:{scope}`) + an in-request memo; **cache + memo are flushed on every write** — keep that invariant.
+- **`SettingsPage`** (abstract): subclass + `schema()` returns Form components; each field persists under `{group}.{field}` (group = kebab class basename minus `SettingsPage`). `save($input)` runs the field set through the **Form** (`validate()` then `getState()`) and persists; `encrypted()` lists field names to encrypt. `toArray()` = `{key,title,icon,form}` (form filled with current values). Pages registered via `KinetixSettings::pages([...])` or `config('kinetix.settings.pages')`, resolved by `SettingsRegistry::find(key)`.
+- **Controller/routes** (`SettingsController`, gated `settings.manage`): `index`/`show` render `config('kinetix.settings.view')` (default `Kinetix/Settings`); `update` validates+saves and returns JSON. Team-aware prefix; ids resolved by route-param NAME. The `settings` permission feature auto-registers when the module is enabled.
+- **Vue (published)**: `KinetixSettingsForm` (reuses `<KinetixForm>` + own v4 submit button, posts via the composable), `useKinetixSettings` (`save(pageKey, values)` + `saving`), type `KinetixSettingsPageData`, i18n `settings_saved`. Generator: `kinetix:make-settings-page`.
+- Full guide: `docs/settings.md`. Strategy/sequence for the SaaS modules: `ROADMAP.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

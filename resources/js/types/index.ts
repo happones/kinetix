@@ -88,6 +88,19 @@ export interface KinetixRole {
   permissions: string[];
 }
 
+/** A settings page (metadata + its filled form) from the Settings module. */
+export interface KinetixSettingsPageData {
+  key: string;
+  title: string;
+  icon: string;
+  form: {
+    schema: unknown[];
+    data: Record<string, unknown>;
+    rules: Record<string, unknown>;
+    operation: string;
+  };
+}
+
 /** A provisioned member (pending/active/revoked) from the Membership module. */
 export interface KinetixMemberProvision {
   id: number | string | null;

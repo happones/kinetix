@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-26
+
+### Added
+
+- **Settings module** (optional — `KINETIX_SETTINGS_ENABLED`, off by default). A
+  database-backed, class-based settings panel built on the Forms engine — the
+  first SaaS roadmap module:
+  - `SettingsPage::schema()` defines fields with Kinetix Form components; each is
+    persisted under `{group}.{field}`.
+  - `KinetixSettings` facade — `get()` / `set()` / `forget()` / `all()` /
+    `pages()`. Team-scoped (null team = global), cached with write-invalidation,
+    type-preserving (JSON), with an `encrypted` option for secrets.
+  - Gated by the `settings.manage` ability (auto-registers with the permission
+    matrix when Permissions is enabled); team-aware endpoints; the
+    `kinetix-settings-migrations` publish tag; and a `kinetix:make-settings-page`
+    generator.
+- **(published)** `KinetixSettingsForm` component (reuses `<KinetixForm>`),
+  `useKinetixSettings` composable, the `KinetixSettingsPageData` type and a
+  `settings_saved` translation (en/es/fr/pt).
+- `ROADMAP.md` — the versioned SaaS-features roadmap (Settings → Audit + event
+  spine → Impersonation → Feature Flags → Spotlight → Webhooks, plus add-ons).
+- `kinetix-settings` Boost skill and a Settings section (§13) in the development
+  skill.
+
+### Fixed
+
+- **(published)** Cleared the last shadcn-vue **v3** focus rings: the
+  `<KinetixForm>` default submit button now uses `buttonVariants()` (it was a
+  hand-rolled class with `focus-visible:ring-1`), and the table sort-header button
+  uses the v4 `focus-visible:ring-[3px]` ring.
+
 ## [0.4.8] - 2026-06-26
 
 ### Fixed

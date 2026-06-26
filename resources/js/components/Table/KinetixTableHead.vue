@@ -55,7 +55,7 @@ const getSortIcon = (name: string) => {
         <button
           v-if="col.isSortable"
           type="button"
-          class="inline-flex items-center gap-1 hover:text-foreground transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-md"
+          class="inline-flex items-center gap-1 hover:text-foreground transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md"
           @click="emit('toggle-sort', col.name)"
         >
           {{ col.label }}

@@ -153,4 +153,7 @@ return [
     'member_activation_intro'   => 'Você foi adicionado ao :app. Defina uma senha para ativar sua conta.',
     'member_activation_button'  => 'Ativar conta',
     'member_activation_expiry'  => 'Este link expirará em breve. Se já expirou, peça a um administrador para reenviá-lo.',
+
+    // Configurações
+    'settings_saved' => 'Configurações salvas.',
 ];

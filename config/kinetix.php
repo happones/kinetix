@@ -213,6 +213,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Settings (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A database-backed, class-based settings panel. A SettingsPage defines its
+    | fields with the Kinetix Forms engine; values are persisted in the
+    | `kinetix_settings` table and read via the KinetixSettings facade.
+    |
+    | - `teams`: scope settings per team (null team = global).
+    | - `cache`: cache each scope's values (invalidated on write).
+    | - `pages`: registered SettingsPage classes (or call KinetixSettings::pages()).
+    | - `view`: the Inertia page the bundled controller renders.
+    |
+    */
+    'settings' => [
+        'enabled'   => env('KINETIX_SETTINGS_ENABLED', false),
+        'teams'     => env('KINETIX_SETTINGS_TEAMS', false),
+        'cache'     => env('KINETIX_SETTINGS_CACHE', true),
+        'cache_key' => 'kinetix.settings',
+        'view'      => env('KINETIX_SETTINGS_VIEW', 'Kinetix/Settings'),
+
+        // @var array<int, class-string<\Happones\Kinetix\Settings\SettingsPage>>
+        'pages' => [],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Billing (optional — requires laravel/cashier + @stripe/stripe-js)
     |--------------------------------------------------------------------------
     |
