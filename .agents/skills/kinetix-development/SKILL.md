@@ -593,6 +593,17 @@ Roadmap v0.41.0. Config block `notification_preferences` (`enabled`, `channels` 
 
 ---
 
+## 30. Kinetix Saved Views (optional, per-user table presets)
+
+Roadmap v0.42.0. Config block `saved_views` (`enabled`). Migration `kinetix_saved_views` (`user_id`, `team_id` nullable, `view_key`, `name`, JSON `state`, `is_default`; tag `kinetix-saved-views-migrations`). **Self-service** — each user manages only their own. Team-scoped automatically when `kinetix.teams`.
+
+- **Table integration**: `Table::saveViews(?string $key = null)` (key defaults to model class) → `$savedViewsKey` → `TableData.savedViewsKey`. When set, `KinetixTable` renders `<KinetixSavedViews>` in the toolbar. The state captured/restored = `{search, sort, direction, perPage, filters, columns:[visible names]}` (`currentViewState` computed; `applyView()` sets `searchQuery`/`activeFilters`/`visibleColumnNames` then `triggerReload`). Column visibility is client-only; the rest round-trips via the query string.
+- **`SavedViewManager`**: `for($user,$key,$teamId)` (default first), `create`/`update`/`delete`, `makeDefault` (clears others), `ownedBy`. `SavedView` model (JSON `state`, bool `is_default`), `SavedViewData` DTO.
+- **`SavedViewController`** (team-aware `{prefix}/saved-views`): `GET ?key=` index, `POST` store, `PUT/DELETE {view}`, `POST {view}/default`. Each route 404s views not owned by the user; mutations return the refreshed list.
+- **Vue (published)**: `KinetixSavedViews` (reka DropdownMenu: apply on click, star=default, trash=delete, "Save current view" prompts a name + captures the parent's `currentState`; emits `apply(state)`; applies the default on mount). `useKinetixSavedViews(viewKey)` → `{views, loading, load, create, update, remove, setDefault}`. i18n `saved_view*`. Tests: `SavedViewsTest` (store+list, key/user scoping, set-default clears others, foreign-user 404, delete), `KinetixSavedViews.spec.ts` (default-apply on mount + composable create — dropdown content is teleported, assert trigger only). Full guide: `docs/saved-views.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

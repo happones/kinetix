@@ -451,6 +451,19 @@ return [
     | inside a Notification's via(). Defaults to enabled; only opt-outs are stored.
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Saved Views (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Per-user table presets (search + filters + sort + visible columns). Enable
+    | it here, then call ->saveViews() on a Table to surface the views dropdown.
+    |
+    */
+    'saved_views' => [
+        'enabled' => env('KINETIX_SAVED_VIEWS_ENABLED', false),
+    ],
+
     'notification_preferences' => [
         'enabled' => env('KINETIX_NOTIFICATION_PREFERENCES_ENABLED', false),
 

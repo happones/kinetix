@@ -1191,6 +1191,7 @@ export const specimens: Specimen[] = [
                 summaries: {},
                 hasSummaries: false,
                 reorderable: true,
+                savedViewsKey: 'App\\Models\\Product',
             },
         },
     },

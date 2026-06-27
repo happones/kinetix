@@ -157,6 +157,16 @@ return [
     'notification_prefs_type'        => 'Notificación',
     'notification_prefs_empty'       => 'No hay tipos de notificación configurados.',
 
+    // Saved views
+    'saved_views_label'       => 'Vistas',
+    'saved_view_save_current' => 'Guardar vista actual',
+    'saved_view_name'         => 'Nombra esta vista',
+    'saved_view_saved'        => 'Vista guardada.',
+    'saved_view_deleted'      => 'Vista eliminada.',
+    'saved_view_empty'        => 'Aún no hay vistas guardadas.',
+    'saved_view_default'      => 'Marcar como predeterminada',
+    'saved_view_delete'       => 'Eliminar vista',
+
     // Roles y permisos
     'save'               => 'Guardar',
     'select_all'         => 'Seleccionar todo',

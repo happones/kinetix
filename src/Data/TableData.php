@@ -43,5 +43,6 @@ class TableData extends Data
         public array $summaries = [],
         public bool $hasSummaries = false,
         public bool $reorderable = false,
+        public ?string $savedViewsKey = null,
     ) {}
 }

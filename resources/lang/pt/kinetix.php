@@ -157,6 +157,16 @@ return [
     'notification_prefs_type'        => 'Notificação',
     'notification_prefs_empty'       => 'Nenhum tipo de notificação configurado.',
 
+    // Saved views
+    'saved_views_label'       => 'Visualizações',
+    'saved_view_save_current' => 'Salvar visualização atual',
+    'saved_view_name'         => 'Nomeie esta visualização',
+    'saved_view_saved'        => 'Visualização salva.',
+    'saved_view_deleted'      => 'Visualização excluída.',
+    'saved_view_empty'        => 'Ainda não há visualizações salvas.',
+    'saved_view_default'      => 'Definir como padrão',
+    'saved_view_delete'       => 'Excluir visualização',
+
     // Papéis e permissões
     'save'               => 'Salvar',
     'select_all'         => 'Selecionar tudo',

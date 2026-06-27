@@ -157,6 +157,16 @@ return [
     'notification_prefs_type'        => 'Notification',
     'notification_prefs_empty'       => 'Aucun type de notification configuré.',
 
+    // Saved views
+    'saved_views_label'       => 'Vues',
+    'saved_view_save_current' => 'Enregistrer la vue actuelle',
+    'saved_view_name'         => 'Nommez cette vue',
+    'saved_view_saved'        => 'Vue enregistrée.',
+    'saved_view_deleted'      => 'Vue supprimée.',
+    'saved_view_empty'        => 'Aucune vue enregistrée.',
+    'saved_view_default'      => 'Définir par défaut',
+    'saved_view_delete'       => 'Supprimer la vue',
+
     // Rôles et permissions
     'save'               => 'Enregistrer',
     'select_all'         => 'Tout sélectionner',

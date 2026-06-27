@@ -58,6 +58,7 @@ export default withMermaid(
         items: [
           { text: "Resources", link: "/resources" },
           { text: "Tables", link: "/tables" },
+          { text: "Saved Views", link: "/saved-views" },
           { text: "Forms", link: "/forms" },
           { text: "Wizard", link: "/wizard" },
           { text: "Infolists", link: "/infolists" },

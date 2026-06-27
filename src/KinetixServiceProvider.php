@@ -55,6 +55,8 @@ use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
+use Happones\Kinetix\SavedViews\SavedViewController;
+use Happones\Kinetix\SavedViews\SavedViewManager;
 use Happones\Kinetix\Sessions\BrowserSessionManager;
 use Happones\Kinetix\Sessions\SessionController;
 use Happones\Kinetix\Settings\KinetixSettings;
@@ -173,6 +175,9 @@ class KinetixServiceProvider extends ServiceProvider
             return $registry;
         });
         $this->app->singleton(NotificationPreferenceManager::class);
+
+        // The saved-views manager (per-user table presets).
+        $this->app->singleton(SavedViewManager::class);
     }
 
     /**
@@ -290,6 +295,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php' => database_path('migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php'),
             ], 'kinetix-notification-preferences-migrations');
 
+            // Publish the optional Saved Views module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000013_create_kinetix_saved_views_table.php' => database_path('migrations/2026_01_01_000013_create_kinetix_saved_views_table.php'),
+            ], 'kinetix-saved-views-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -366,6 +376,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Notification Preferences module (opt-in matrix)
         $this->registerNotificationPreferences();
+
+        // Register the optional Saved Views module (per-user table presets)
+        $this->registerSavedViews();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1040,6 +1053,38 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [NotificationPreferenceController::class, 'index'])->name('kinetix.notification-preferences.index');
                 Route::post('/', [NotificationPreferenceController::class, 'update'])->name('kinetix.notification-preferences.update');
+            });
+    }
+
+    /**
+     * Wire the optional Saved Views module: self-service per-user table presets
+     * (search/filters/sort/columns) scoped to a view key.
+     */
+    protected function registerSavedViews(): void
+    {
+        if (! config('kinetix.saved_views.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/saved-views")
+            ->group(function () {
+                Route::get('/', [SavedViewController::class, 'index'])->name('kinetix.saved-views.index');
+                Route::post('/', [SavedViewController::class, 'store'])->name('kinetix.saved-views.store');
+                Route::put('{view}', [SavedViewController::class, 'update'])->name('kinetix.saved-views.update');
+                Route::delete('{view}', [SavedViewController::class, 'destroy'])->name('kinetix.saved-views.destroy');
+                Route::post('{view}/default', [SavedViewController::class, 'makeDefault'])->name('kinetix.saved-views.default');
             });
     }
 

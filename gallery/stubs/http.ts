@@ -195,6 +195,16 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        match: /\/saved-views(\?|$)/,
+        data: {
+            views: [
+                { id: 1, name: 'All products', state: {}, isDefault: false },
+                { id: 2, name: 'Active', state: {}, isDefault: true },
+                { id: 3, name: 'Low stock', state: {}, isDefault: false },
+            ],
+        },
+    },
+    {
         match: /\/tags(\?|$)/,
         data: { tags: ['laravel', 'vue', 'inertia', 'shadcn'] },
     },

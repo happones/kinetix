@@ -157,6 +157,16 @@ return [
     'notification_prefs_type'        => 'Notification',
     'notification_prefs_empty'       => 'No notification types are configured.',
 
+    // Saved views
+    'saved_views_label'       => 'Views',
+    'saved_view_save_current' => 'Save current view',
+    'saved_view_name'         => 'Name this view',
+    'saved_view_saved'        => 'View saved.',
+    'saved_view_deleted'      => 'View deleted.',
+    'saved_view_empty'        => 'No saved views yet.',
+    'saved_view_default'      => 'Set as default',
+    'saved_view_delete'       => 'Delete view',
+
     // Roles & permissions
     'save'               => 'Save',
     'select_all'         => 'Select all',

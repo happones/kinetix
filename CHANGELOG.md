@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-06-27
+
+### Added
+
+- **Saved Views module** (`saved_views`, optional, **published**) — per-user
+  table presets. Call `->saveViews()` on a `Table` to add a **Views** dropdown to
+  its toolbar; users save the current search + filters + sort + page size +
+  visible columns under a name, switch between presets, and star a default that
+  loads automatically.
+  - Views are per-user and team-scoped automatically when `kinetix.teams` is on.
+  - Backed by the `kinetix_saved_views` table, `SavedView`, `SavedViewData`,
+    `SavedViewManager`, `SavedViewController`, the `KinetixSavedViews` Vue control
+    (wired into `KinetixTable`) and the `useKinetixSavedViews` composable.
+  - `TableData` gains `savedViewsKey`.
+- New i18n keys (en/es/fr/pt): `saved_view*`.
+
 ## [0.41.0] - 2026-06-26
 
 ### Added

@@ -36,6 +36,7 @@ import KinetixDatePicker from './KinetixDatePicker.vue';
 import KinetixDateTimePicker from './KinetixDateTimePicker.vue';
 import KinetixMonthPicker from './KinetixMonthPicker.vue';
 import KinetixRangeCalendar from './KinetixRangeCalendar.vue';
+import KinetixSavedViews from './KinetixSavedViews.vue';
 import KinetixSelect from './KinetixSelect.vue';
 import KinetixWeekPicker from './KinetixWeekPicker.vue';
 import KinetixYearPicker from './KinetixYearPicker.vue';
@@ -106,6 +107,35 @@ const toggleColumn = (name: string) => {
 const columnsToRender = computed(() => {
     return props.table.columns.filter((c) => isColumnVisible(c.name));
 });
+
+// --- Saved views -----------------------------------------------------------
+// The snapshot a saved view captures, and how one is restored.
+const currentViewState = computed(() => ({
+    search: searchQuery.value,
+    sort: props.table.state.sort,
+    direction: props.table.state.direction,
+    perPage: props.table.state.perPage,
+    filters: { ...activeFilters.value },
+    columns: [...visibleColumnNames.value],
+}));
+
+const applyView = (state: Record<string, any>) => {
+    if (Array.isArray(state.columns)) {
+        visibleColumnNames.value = new Set(state.columns as string[]);
+    }
+
+    searchQuery.value = (state.search as string) ?? '';
+    activeFilters.value = { ...((state.filters as object) ?? {}) };
+
+    triggerReload({
+        search: searchQuery.value,
+        sort: state.sort ?? props.table.state.sort,
+        direction: state.direction ?? props.table.state.direction,
+        perPage: state.perPage ?? props.table.state.perPage,
+        filters: activeFilters.value,
+        page: 1,
+    });
+};
 
 // Standard icon mappings
 
@@ -500,6 +530,14 @@ const onDrop = async () => {
                         @input="onSearchInput"
                     />
                 </div>
+
+                <!-- Saved views (presets of search/filters/sort/columns) -->
+                <KinetixSavedViews
+                    v-if="table.savedViewsKey"
+                    :view-key="table.savedViewsKey"
+                    :current-state="currentViewState"
+                    @apply="applyView"
+                />
 
                 <!-- Custom Header Toolbar Actions -->
                 <template v-for="(action, i) in table.toolbarActions" :key="i">

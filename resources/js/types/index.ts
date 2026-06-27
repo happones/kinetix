@@ -166,6 +166,14 @@ export interface KinetixOnboarding {
     dismissed: boolean;
 }
 
+/** A saved table view — a named snapshot of the table's state. */
+export interface KinetixSavedView {
+    id: number | string | null;
+    name: string;
+    state: Record<string, unknown>;
+    isDefault: boolean;
+}
+
 /** The per-user notification preference matrix (types × channels). */
 export interface KinetixNotificationPreferences {
     channels: { key: string; label: string }[];
@@ -489,6 +497,7 @@ export interface KinetixTableData {
     summaries?: Record<string, KinetixSummary[]>;
     hasSummaries?: boolean;
     reorderable?: boolean;
+    savedViewsKey?: string | null;
 }
 
 /** A computed column summary (sum/average/count/range/custom). */

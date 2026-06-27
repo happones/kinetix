@@ -92,6 +92,8 @@ class Table implements Arrayable, JsonSerializable
      */
     protected string $queryPrefix = '';
 
+    protected ?string $savedViewsKey = null;
+
     /**
      * Create a new table builder instance.
      *
@@ -333,6 +335,17 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Enable per-user saved views (presets of search/filters/sort/columns) for
+     * this table. The key namespaces the views; defaults to the model class.
+     */
+    public function saveViews(?string $key = null): static
+    {
+        $this->savedViewsKey = $key ?? $this->getModelClass();
+
+        return $this;
+    }
+
+    /**
      * Read a request param using this table's prefix.
      */
     protected function param(string $key, mixed $default = null): mixed
@@ -495,6 +508,7 @@ class Table implements Arrayable, JsonSerializable
             summaries: $summaries,
             hasSummaries: $hasSummaries,
             reorderable: $this->reorderColumn !== null,
+            savedViewsKey: $this->savedViewsKey,
         );
     }
 
