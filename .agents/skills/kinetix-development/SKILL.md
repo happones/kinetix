@@ -529,6 +529,18 @@ Roadmap v0.24.0. Config block `accessibility` (`enabled`, `defaults`). Migration
 
 ---
 
+## 25. Kinetix Connected Accounts (optional, requires laravel/socialite)
+
+Roadmap v0.27.0. Complete **social-auth** feature (the Vue starter kit ships NO OAuth → this is a full feature, not a complement). Config block `connected_accounts` (`enabled`, `login_enabled`, `prevent_lockout`, `redirect`/`login_redirect`/`login_failure_redirect`, `providers`). Migration `kinetix_connected_accounts` (one row per user+provider; unique `[provider,provider_id]` + `[user_id,provider]`; `token`/`refresh_token` **encrypted** casts; tag `kinetix-connected-accounts-migrations`). **Self-service, no admin ability.** The User model needs **no trait** (queried by `user_id`).
+
+- **Providers**: `ConnectedAccountProviderRegistry` (seeded from config; `KinetixConnectedAccounts::providers([key => ['label','icon','color']])`; string value = label, icon defaults to key). `KinetixConnectedAccounts::providers/resolveUserUsing/createUserUsing/flush`.
+- **`ConnectedAccountManager`**: `for($user)` (DTO list), `link($user,$provider,$socialUser)` (upsert; throws `AccountAlreadyLinkedException` if the identity belongs to another user), `unlink($user,$id)` (aborts 422 via `wouldLockOut` — no password + last account), `hasPassword($user)` (`getAuthPassword()`), `setPassword`, `resolveLoginUser`/`createLoginUser` (login flow; default creator makes a **passwordless** user → requires nullable `password` column).
+- **`ConnectedAccountController`** routes (team-aware for the authed group; login group is `web`-only, no team prefix, only when `login_enabled`): `GET /connected-accounts` index (accounts + providers[{key,label,icon,color,linked}] + `hasPassword`), `GET redirect/{provider}` + `GET callback/{provider}` (link to current user; uses `->redirectUrl()` override, team-aware callback URL), `POST password` (set/change — `current_password` required only when `hasPassword`), `DELETE {account}`, plus `GET login/redirect|callback/{provider}` (guest find-or-create + `Auth::login(remember:true)` + link). `redirectUrl()` isn't on the Socialite `Provider` contract → `@phpstan-ignore method.notFound`.
+- **Vue (published)**: `KinetixConnectedAccounts` (provider rows with built-in `github`/`google` brand SVGs, fallback = initial; Connect = `<a :href>` full-page OAuth, Disconnect = inline confirm; set/change-password form for social-only users), `useKinetixConnectedAccounts` (`{accounts, providers, hasPassword, loading, load, connectUrl, disconnect, setPassword}`). DTO `ConnectedAccountData` (never serializes tokens). Types `KinetixConnectedAccount`/`KinetixConnectedProvider`.
+- i18n `connected_account_*` + `password_*` (en/es/fr/pt). Tests: `ConnectedAccountsTest` (link, reject foreign identity, index, unlink, lockout-guard, set-password, unknown provider 404, guest login find-or-create+passwordless — registers `SocialiteServiceProvider` + mocks `Socialite::driver`), `ConnectedAccountProviderRegistryTest`, `KinetixConnectedAccounts.spec.ts`. Full guide: `docs/connected-accounts.md`. Pairs with `docs/starter-kit.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

@@ -165,6 +165,26 @@ export interface KinetixOnboarding {
   dismissed: boolean;
 }
 
+/** A user's linked OAuth identity (tokens are never included). */
+export interface KinetixConnectedAccount {
+  id: number | string | null;
+  provider: string;
+  name: string | null;
+  nickname: string | null;
+  email: string | null;
+  avatar: string | null;
+  createdAt: string | null;
+}
+
+/** An OAuth provider offered for linking / login, with its linked state. */
+export interface KinetixConnectedProvider {
+  key: string;
+  label: string;
+  icon: string | null;
+  color: string | null;
+  linked: boolean;
+}
+
 /** A personal access token (the plaintext value is never included). */
 export interface KinetixToken {
   id: number | string | null;

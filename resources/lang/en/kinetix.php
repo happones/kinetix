@@ -223,6 +223,28 @@ return [
     'token_last_used'        => 'Last used',
     'token_never'            => 'Never',
 
+    // Connected accounts / social auth
+    'connected_accounts_title'         => 'Connected accounts',
+    'connected_accounts_description'   => 'Link a provider to sign in faster.',
+    'connected_account_connect'        => 'Connect',
+    'connected_account_disconnect'     => 'Disconnect',
+    'connected_account_connected'      => 'Connected',
+    'connected_account_not_connected'  => 'Not connected',
+    'connected_account_none_available' => 'No providers are available.',
+    'connected_account_linked'         => 'Account linked.',
+    'connected_account_unlinked'       => 'Account disconnected.',
+    'connected_account_taken'          => 'That account is already linked to another user.',
+    'connected_account_failed'         => 'Could not connect that account. Please try again.',
+    'connected_account_last_method'    => 'You cannot disconnect your only sign-in method. Set a password first.',
+    'password_set_title'               => 'Set a password',
+    'password_set_description'         => 'You sign in with a connected account. Set a password to also use email and password.',
+    'password_change_title'            => 'Change password',
+    'password_change_description'      => 'Update the password you use to sign in.',
+    'password_current'                 => 'Current password',
+    'password_new'                     => 'New password',
+    'password_confirm'                 => 'Confirm password',
+    'password_updated'                 => 'Password updated.',
+
     // Onboarding
     'onboarding_title'     => 'Getting started',
     'onboarding_progress'  => ':completed of :total complete',

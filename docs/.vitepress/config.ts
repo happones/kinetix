@@ -105,6 +105,7 @@ export default withMermaid(
           { text: "Keyboard Shortcuts", link: "/keyboard-shortcuts" },
           { text: "Webhooks", link: "/webhooks" },
           { text: "Developer Tokens", link: "/tokens" },
+          { text: "Connected Accounts", link: "/connected-accounts" },
           { text: "Onboarding", link: "/onboarding" },
           { text: "GDPR self-service", link: "/gdpr" },
           { text: "Accessibility", link: "/accessibility" },

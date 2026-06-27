@@ -223,6 +223,28 @@ return [
     'token_last_used'        => 'Dernière utilisation',
     'token_never'            => 'Jamais',
 
+    // Connected accounts / social auth
+    'connected_accounts_title'         => 'Comptes connectés',
+    'connected_accounts_description'   => 'Liez un fournisseur pour vous connecter plus vite.',
+    'connected_account_connect'        => 'Connecter',
+    'connected_account_disconnect'     => 'Déconnecter',
+    'connected_account_connected'      => 'Connecté',
+    'connected_account_not_connected'  => 'Non connecté',
+    'connected_account_none_available' => 'Aucun fournisseur disponible.',
+    'connected_account_linked'         => 'Compte lié.',
+    'connected_account_unlinked'       => 'Compte déconnecté.',
+    'connected_account_taken'          => 'Ce compte est déjà lié à un autre utilisateur.',
+    'connected_account_failed'         => 'Impossible de connecter ce compte. Veuillez réessayer.',
+    'connected_account_last_method'    => 'Vous ne pouvez pas déconnecter votre seule méthode de connexion. Définissez d’abord un mot de passe.',
+    'password_set_title'               => 'Définir un mot de passe',
+    'password_set_description'         => 'Vous vous connectez via un compte lié. Définissez un mot de passe pour utiliser aussi l’e-mail et le mot de passe.',
+    'password_change_title'            => 'Changer le mot de passe',
+    'password_change_description'      => 'Mettez à jour le mot de passe utilisé pour vous connecter.',
+    'password_current'                 => 'Mot de passe actuel',
+    'password_new'                     => 'Nouveau mot de passe',
+    'password_confirm'                 => 'Confirmer le mot de passe',
+    'password_updated'                 => 'Mot de passe mis à jour.',
+
     // Intégration
     'onboarding_title'     => 'Pour commencer',
     'onboarding_progress'  => ':completed sur :total terminés',

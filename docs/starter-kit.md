@@ -24,7 +24,9 @@ reach for a Kinetix module where the starter kit leaves a gap.
 | Appearance (light/dark/system) | ✅ | — | **Starter kit.** Kinetix components honor the `html.dark` class it sets. |
 | Delete account | ✅ (basic) | ✅ (GDPR: + export, anonymize, queue, audit) | **Either** — see [GDPR overlap](#gdpr-account-deletion-overlap). |
 | Data export ("download my data") | — | ✅ (GDPR) | **Kinetix.** This is the gap the starter kit leaves. |
-| Connected accounts (Socialite OAuth) | — | 🛣️ roadmap | **Kinetix** (planned). |
+| Social login / OAuth (sign in with provider) | — | ✅ ([Connected Accounts](/connected-accounts)) | **Kinetix.** The starter kit ships no OAuth at all — this is a complete feature, not a complement. |
+| Link / unlink connected accounts | — | ✅ ([Connected Accounts](/connected-accounts)) | **Kinetix.** |
+| Set password for social-only users | — | ✅ ([Connected Accounts](/connected-accounts)) | **Kinetix.** |
 | Active sessions / device management | — | 🛣️ roadmap | **Kinetix** (planned). |
 | Resources, Tables, Forms, Infolists | — | ✅ | **Kinetix.** The core toolkit. |
 | Notifications, Widgets, Spotlight, Activity | — | ✅ | **Kinetix.** |

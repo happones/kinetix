@@ -223,6 +223,28 @@ return [
     'token_last_used'        => 'Último uso',
     'token_never'            => 'Nunca',
 
+    // Connected accounts / social auth
+    'connected_accounts_title'         => 'Contas conectadas',
+    'connected_accounts_description'   => 'Vincule um provedor para entrar mais rápido.',
+    'connected_account_connect'        => 'Conectar',
+    'connected_account_disconnect'     => 'Desconectar',
+    'connected_account_connected'      => 'Conectada',
+    'connected_account_not_connected'  => 'Não conectada',
+    'connected_account_none_available' => 'Nenhum provedor disponível.',
+    'connected_account_linked'         => 'Conta vinculada.',
+    'connected_account_unlinked'       => 'Conta desconectada.',
+    'connected_account_taken'          => 'Essa conta já está vinculada a outro usuário.',
+    'connected_account_failed'         => 'Não foi possível conectar essa conta. Tente novamente.',
+    'connected_account_last_method'    => 'Você não pode desconectar seu único método de login. Defina uma senha primeiro.',
+    'password_set_title'               => 'Definir uma senha',
+    'password_set_description'         => 'Você entra com uma conta conectada. Defina uma senha para usar também e-mail e senha.',
+    'password_change_title'            => 'Alterar senha',
+    'password_change_description'      => 'Atualize a senha que você usa para entrar.',
+    'password_current'                 => 'Senha atual',
+    'password_new'                     => 'Nova senha',
+    'password_confirm'                 => 'Confirmar senha',
+    'password_updated'                 => 'Senha atualizada.',
+
     // Integração
     'onboarding_title'     => 'Primeiros passos',
     'onboarding_progress'  => ':completed de :total concluídos',

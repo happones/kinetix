@@ -379,6 +379,41 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Connected Accounts / Social auth (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Link OAuth providers to a user (settings management) and, optionally,
+    | sign in / register with a provider. Requires laravel/socialite and the
+    | provider credentials in config/services.php. Declare providers below or
+    | via KinetixConnectedAccounts::providers([...]).
+    |
+    */
+    'connected_accounts' => [
+        'enabled' => env('KINETIX_CONNECTED_ACCOUNTS_ENABLED', false),
+
+        // Opt-in guest login/registration via a provider (find-or-create + login).
+        'login_enabled' => env('KINETIX_CONNECTED_ACCOUNTS_LOGIN', false),
+
+        // Block unlinking the last provider when the user has no password set
+        // (prevents account lockout).
+        'prevent_lockout' => true,
+
+        // Where to return after linking, and after a successful / failed login.
+        'redirect'               => env('KINETIX_CONNECTED_ACCOUNTS_REDIRECT', '/'),
+        'login_redirect'         => env('KINETIX_CONNECTED_ACCOUNTS_LOGIN_REDIRECT', '/'),
+        'login_failure_redirect' => env('KINETIX_CONNECTED_ACCOUNTS_LOGIN_FAILURE', '/login'),
+
+        // Providers offered for linking / login. key => [label, icon, color].
+        // 'icon' maps to a built-in brand glyph (github|google) the Vue
+        // component knows, or any name you handle yourself.
+        'providers' => [
+            // 'github' => ['label' => 'GitHub', 'icon' => 'github', 'color' => '#181717'],
+            // 'google' => ['label' => 'Google', 'icon' => 'google', 'color' => '#4285F4'],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Wizards (optional)
     |--------------------------------------------------------------------------
     |

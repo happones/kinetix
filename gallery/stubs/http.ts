@@ -114,6 +114,27 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
     },
   },
   {
+    match: /\/connected-accounts$/,
+    data: {
+      accounts: [
+        {
+          id: 1,
+          provider: "github",
+          name: "Ada Lovelace",
+          nickname: "ada",
+          email: "ada@example.com",
+          avatar: null,
+          createdAt: "2026-06-01T09:00:00Z",
+        },
+      ],
+      providers: [
+        { key: "github", label: "GitHub", icon: "github", color: "#181717", linked: true },
+        { key: "google", label: "Google", icon: "google", color: "#4285F4", linked: false },
+      ],
+      hasPassword: false,
+    },
+  },
+  {
     match: /\/onboarding$/,
     data: {
       steps: [

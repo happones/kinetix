@@ -26,6 +26,9 @@ use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\WebhooksPruneCommand;
+use Happones\Kinetix\ConnectedAccounts\ConnectedAccountController;
+use Happones\Kinetix\ConnectedAccounts\ConnectedAccountManager;
+use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
 use Happones\Kinetix\Data\AccessibilityData;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Features\FeatureManager;
@@ -130,6 +133,15 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The accessibility preferences manager.
         $this->app->singleton(AccessibilityManager::class);
+
+        // The connected-accounts provider registry (seeded from config) + manager.
+        $this->app->singleton(ConnectedAccountProviderRegistry::class, function (): ConnectedAccountProviderRegistry {
+            $registry = new ConnectedAccountProviderRegistry;
+            $registry->register((array) config('kinetix.connected_accounts.providers', []));
+
+            return $registry;
+        });
+        $this->app->singleton(ConnectedAccountManager::class);
     }
 
     /**
@@ -227,6 +239,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000008_create_kinetix_accessibility_table.php' => database_path('migrations/2026_01_01_000008_create_kinetix_accessibility_table.php'),
             ], 'kinetix-accessibility-migrations');
 
+            // Publish the optional Connected Accounts module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000009_create_kinetix_connected_accounts_table.php' => database_path('migrations/2026_01_01_000009_create_kinetix_connected_accounts_table.php'),
+            ], 'kinetix-connected-accounts-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -288,6 +305,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Accessibility module (per-user a11y preferences)
         $this->registerAccessibility();
+
+        // Register the optional Connected Accounts module (social auth + linking)
+        $this->registerConnectedAccounts();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -797,6 +817,52 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [AccessibilityController::class, 'index'])->name('kinetix.accessibility.index');
                 Route::post('/', [AccessibilityController::class, 'update'])->name('kinetix.accessibility.update');
+            });
+    }
+
+    /**
+     * Wire the optional Connected Accounts module: authenticated link/unlink +
+     * set-password management, plus an opt-in guest social-login flow. Requires
+     * laravel/socialite in the host app.
+     */
+    protected function registerConnectedAccounts(): void
+    {
+        if (! config('kinetix.connected_accounts.enabled', false)) {
+            return;
+        }
+
+        $base       = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $prefix     = $base;
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$base;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        // Guest login/registration via a provider (opt-in, no team prefix —
+        // there is no team context before authentication).
+        if (config('kinetix.connected_accounts.login_enabled', false)) {
+            Route::middleware(['web'])
+                ->prefix("{$base}/connected-accounts/login")
+                ->group(function () {
+                    Route::get('redirect/{provider}', [ConnectedAccountController::class, 'loginRedirect'])->name('kinetix.connected-accounts.login.redirect');
+                    Route::get('callback/{provider}', [ConnectedAccountController::class, 'loginCallback'])->name('kinetix.connected-accounts.login.callback');
+                });
+        }
+
+        // Authenticated link/unlink + set-password management.
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/connected-accounts")
+            ->group(function () {
+                Route::get('/', [ConnectedAccountController::class, 'index'])->name('kinetix.connected-accounts.index');
+                Route::get('redirect/{provider}', [ConnectedAccountController::class, 'redirect'])->name('kinetix.connected-accounts.redirect');
+                Route::get('callback/{provider}', [ConnectedAccountController::class, 'callback'])->name('kinetix.connected-accounts.callback');
+                Route::post('password', [ConnectedAccountController::class, 'password'])->name('kinetix.connected-accounts.password');
+                Route::delete('{account}', [ConnectedAccountController::class, 'destroy'])->name('kinetix.connected-accounts.destroy');
             });
     }
 

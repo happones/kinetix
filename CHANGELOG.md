@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-06-26
+
+### Added
+
+- **Connected Accounts / social auth** (`connected_accounts`, optional, requires
+  `laravel/socialite`, **published**) — a complete social-auth feature (the
+  official Laravel Vue starter kit ships **no** OAuth, so this is a full feature,
+  not a complement):
+  - **Sign in / register with a provider** (opt-in guest flow): find-or-create
+    the user, link the identity, and log in. Customize resolution/creation with
+    `KinetixConnectedAccounts::resolveUserUsing()` / `createUserUsing()`.
+  - **Link / unlink providers** for an authenticated user via the drop-in
+    `KinetixConnectedAccounts` Vue manager (built-in GitHub/Google brand glyphs).
+  - **Set a password** for social-only users (no current password required) so
+    email + password login also works; existing-password users get a change form.
+  - **Lockout protection**: blocks unlinking the last sign-in method when the
+    user has no password (`prevent_lockout`).
+  - Backed by the `kinetix_connected_accounts` table (tokens **encrypted** at
+    rest, never serialized), `ConnectedAccount` model, `ConnectedAccountData`,
+    `ConnectedAccountManager`, `ConnectedAccountProviderRegistry`, and the
+    `useKinetixConnectedAccounts` composable. The User model needs no trait.
+- New docs: **"Connected Accounts"** guide and **"Kinetix & the Laravel starter
+  kit"** ownership matrix (updated to mark social auth as Kinetix-owned).
+- New i18n keys (en/es/fr/pt): `connected_account_*` and `password_*`.
+
+### Dependencies
+
+- Adds `laravel/socialite` (^5.0) as a **suggested** dependency — required only
+  when you enable Connected Accounts.
+
 ## [0.26.0] - 2026-06-26
 
 ### Added

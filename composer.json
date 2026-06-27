@@ -27,7 +27,8 @@
         "laravel/pennant": "^1.0",
         "laravel/scout": "^10.0",
         "spatie/laravel-webhook-server": "^3.0",
-        "laravel/sanctum": "^4.0"
+        "laravel/sanctum": "^4.0",
+        "laravel/socialite": "^5.0"
     },
     "suggest": {
         "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions.",
@@ -35,7 +36,8 @@
         "laravel/pennant": "Preferred driver for the Kinetix feature-flags feature (^1.0). When installed, Kinetix resolves flags through Pennant; otherwise a native evaluator is used.",
         "laravel/scout": "Search driver for the Kinetix spotlight command palette (^10.0). When a searched model is Searchable, spotlight routes through Scout; otherwise it uses a LIKE query.",
         "spatie/laravel-webhook-server": "Preferred delivery driver for the Kinetix webhooks feature (^3.0). When installed, deliveries route through its tuned retries/backoff; otherwise Kinetix's native queued job is used.",
-        "laravel/sanctum": "Required for the Kinetix developer-tokens feature (^4.0). The User model must use Laravel\\Sanctum\\HasApiTokens."
+        "laravel/sanctum": "Required for the Kinetix developer-tokens feature (^4.0). The User model must use Laravel\\Sanctum\\HasApiTokens.",
+        "laravel/socialite": "Required for the Kinetix connected-accounts / social-auth feature (^5.0). Configure providers in config/services.php and kinetix.connected_accounts.providers."
     },
     "autoload": {
         "psr-4": {
