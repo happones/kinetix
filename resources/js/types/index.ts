@@ -71,8 +71,26 @@ export interface KinetixSharedProps {
     kinetix_presence?: KinetixPresenceState;
     /** Queue widget config (enabled + poll interval). */
     kinetix_queue?: KinetixQueueConfig;
+    /** Health widget config (enabled + poll interval). */
+    kinetix_health?: KinetixQueueConfig;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
+}
+
+/** A single application-health check result. */
+export interface KinetixHealthCheck {
+    name: string;
+    label: string;
+    status: string;
+    message: string | null;
+}
+
+/** A live application-health snapshot from the metrics endpoint. */
+export interface KinetixHealthSnapshot {
+    available: boolean;
+    status: 'ok' | 'warning' | 'failed' | null;
+    checkedAt: string | null;
+    checks: KinetixHealthCheck[];
 }
 
 /** Queue widget config shared via Inertia. */

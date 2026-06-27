@@ -777,4 +777,23 @@ return [
         'poll' => env('KINETIX_QUEUE_POLL', 5000),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Health / Status widget (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A lightweight, embeddable application-health widget powered by
+    | spatie/laravel-health. It surfaces the latest stored check results (status
+    | per check + an overall badge) inside your own Kinetix dashboard. Requires
+    | spatie/laravel-health installed and its checks scheduled. Access is gated by
+    | the `viewKinetixHealth` ability (defaults to allow in `local` only).
+    |
+    */
+    'health' => [
+        'enabled' => env('KINETIX_HEALTH_ENABLED', false),
+
+        // Frontend poll interval in milliseconds.
+        'poll' => env('KINETIX_HEALTH_POLL', 30000),
+    ],
+
 ];

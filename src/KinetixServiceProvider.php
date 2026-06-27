@@ -43,6 +43,8 @@ use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Gdpr\GdprController;
 use Happones\Kinetix\Gdpr\GdprManager;
 use Happones\Kinetix\Gdpr\GdprRegistry;
+use Happones\Kinetix\Health\HealthController;
+use Happones\Kinetix\Health\HealthMetrics;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
@@ -203,6 +205,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The queue-metrics reader (Horizon-aware, with a driver fallback).
         $this->app->singleton(QueueMetrics::class);
+
+        // The health-metrics reader (spatie/laravel-health, guarded).
+        $this->app->singleton(HealthMetrics::class);
     }
 
     /**
@@ -426,6 +431,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Queue metrics module (Horizon widget)
         $this->registerQueue();
+
+        // Register the optional Health metrics module (status widget)
+        $this->registerHealth();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1249,6 +1257,39 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Health module: a read-only snapshot endpoint for the
+     * <KinetixHealthStatus> widget (spatie/laravel-health). Gated by the
+     * `viewKinetixHealth` ability (defaults to allow only in `local`).
+     */
+    protected function registerHealth(): void
+    {
+        if (! config('kinetix.health.enabled', false)) {
+            return;
+        }
+
+        if (! Gate::has('viewKinetixHealth')) {
+            Gate::define('viewKinetixHealth', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/health")
+            ->group(function () {
+                Route::get('/', [HealthController::class, 'index'])->name('kinetix.health.index');
+            });
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -1384,6 +1425,12 @@ class KinetixServiceProvider extends ServiceProvider
         Inertia::share('kinetix_queue', fn () => [
             'enabled' => (bool) config('kinetix.queue.enabled', false),
             'poll'    => (int) config('kinetix.queue.poll', 5000),
+        ]);
+
+        // Health widget config (enabled + poll interval), for <KinetixHealthStatus>.
+        Inertia::share('kinetix_health', fn () => [
+            'enabled' => (bool) config('kinetix.health.enabled', false),
+            'poll'    => (int) config('kinetix.health.poll', 30000),
         ]);
     }
 

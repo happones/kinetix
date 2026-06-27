@@ -5,6 +5,41 @@
  */
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
     {
+        match: /\/health$/,
+        data: {
+            available: true,
+            status: 'warning',
+            checkedAt: '2026-06-27T10:00:00Z',
+            checks: [
+                {
+                    name: 'database',
+                    label: 'Database',
+                    status: 'ok',
+                    message: 'Reachable',
+                },
+                {
+                    name: 'cache',
+                    label: 'Cache',
+                    status: 'ok',
+                    message: 'Working',
+                },
+                { name: 'redis', label: 'Redis', status: 'ok', message: null },
+                {
+                    name: 'disk',
+                    label: 'Used Disk Space',
+                    status: 'warning',
+                    message: 'Disk usage at 85%',
+                },
+                {
+                    name: 'queue',
+                    label: 'Queue',
+                    status: 'ok',
+                    message: 'Default queue healthy',
+                },
+            ],
+        },
+    },
+    {
         match: /\/queue$/,
         data: {
             horizon: true,

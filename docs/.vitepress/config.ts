@@ -128,6 +128,7 @@ export default withMermaid(
           { text: "Feature Flags", link: "/feature-flags" },
           { text: "Webhooks", link: "/webhooks" },
           { text: "Queue Health", link: "/queue" },
+          { text: "System Health", link: "/health" },
         ],
       },
     ],

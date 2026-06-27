@@ -374,6 +374,13 @@ return [
     'queue_status_paused'   => 'Paused',
     'queue_status_inactive' => 'Inactive',
 
+    // Health / status widget
+    'health_title'          => 'System health',
+    'health_unavailable'    => 'Health checks are unavailable.',
+    'health_status_ok'      => 'Healthy',
+    'health_status_warning' => 'Warning',
+    'health_status_failed'  => 'Failing',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

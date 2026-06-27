@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-06-27
+
+### Added
+
+- **System health widget** (`health`, optional, **published**) — a lightweight,
+  embeddable application-health widget powered by spatie/laravel-health, in the
+  same vein as the Queue widget. `HealthMetrics` reads the latest stored check
+  results (guarded string-class resolution, so it works without the package
+  installed) and derives a worst-of overall status. The gated
+  `GET {prefix}/health` endpoint (ability `viewKinetixHealth`, default
+  allow-in-`local`) returns a snapshot; `<KinetixHealthStatus />` renders an
+  overall status badge + a per-check list (status icon + summary), polling on the
+  configured interval. `useKinetixHealth()` composable; `kinetix_health` Inertia
+  share. i18n `health_*` (en/es/fr/pt). New `KinetixHealthSnapshot`/
+  `KinetixHealthCheck` TS types.
+
 ## [0.52.0] - 2026-06-27
 
 ### Added

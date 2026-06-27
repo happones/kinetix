@@ -688,6 +688,17 @@ Roadmap v0.52.0. Config block `queue` (`enabled`, `queues`=[{connection,queue}] 
 
 ---
 
+## 39. Kinetix System Health widget (optional, spatie/laravel-health)
+
+Roadmap v0.53.0. Config block `health` (`enabled`, `poll` ms, default 30000). Same shape as the Queue widget; **complements, not replaces** a health page. spatie/laravel-health is an optional dep (guarded by string-class resolution).
+
+- **`HealthMetrics`** (singleton): `snapshot()` → `{available, status, checkedAt, checks:[{name,label,status,message}]}`. `available()` = `class_exists('Spatie\Health\Health')` + bound `ResultStore`. Reads `app('Spatie\Health\ResultStores\ResultStore')->latestResults()` (try/catch → unavailable); maps `storedCheckResults` (`->name/->label/->status/->shortSummary|->notificationMessage`), `checkedAt` from `->finishedAt->toIso8601String()`. `overallStatus()` worst-of: failed/crashed → 'failed', warning → 'warning', else 'ok'. Status strings from spatie: ok|warning|failed|crashed|skipped.
+- **`HealthController@index`** `GET {prefix}/health` (team-aware), gated `Gate::authorize('viewKinetixHealth')`. Provider `registerHealth()` defines default gate `fn => environment('local')` if not already defined. Shares `kinetix_health` = `{enabled, poll}` (reuses TS `KinetixQueueConfig` shape).
+- **Vue (published)**: `KinetixHealthStatus` (overall badge ok|warning|failed via `health_status_*`; per-check rows with status icon `CheckCircle2`/`CircleAlert`/`CircleX` + tone + summary; unavailable message when `available===false` && no checks; polls via composable, stops on unmount). `useKinetixHealth` → `{snapshot, loading, failed, load, start, stop}` (interval from `kinetix_health.poll`; poll=0 → one load). TS types `KinetixHealthSnapshot/Check`. i18n `health_*`.
+- **Gallery**: `/health` fixture in `http.ts` + `kinetix_health` (poll 0) in inertia stub. Tests: `HealthMetricsTest` (unavailable snapshot without spatie, endpoint 200 available:false authorized + 403 unauthorized via `actingAs`), `KinetixHealthStatus.spec.ts` (composable load + component badge/rows/unavailable). Full guide: `docs/health.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
