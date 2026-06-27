@@ -13,6 +13,7 @@ import KinetixSessions from '@/components/KinetixSessions.vue';
 import KinetixSocialButton from '@/components/KinetixSocialButton.vue';
 import KinetixRichEditor from '@/components/KinetixRichEditor.vue';
 import KinetixNumberField from '@/components/KinetixNumberField.vue';
+import KinetixCopyableInput from '@/components/KinetixCopyableInput.vue';
 import KinetixSlider from '@/components/KinetixSlider.vue';
 import KinetixRating from '@/components/KinetixRating.vue';
 import KinetixPinInput from '@/components/KinetixPinInput.vue';
@@ -84,6 +85,23 @@ const NumberFieldShowcase: Component = {
             h(KinetixNumberField, {
                 value: 1499.99,
                 config: { format: 'currency', currency: 'USD', step: 1 },
+            }),
+        ]);
+    },
+};
+
+// Copyable / revealable text inputs for the gallery.
+const CopyableInputShowcase: Component = {
+    render() {
+        return h('div', { class: 'flex flex-col gap-3' }, [
+            h(KinetixCopyableInput, {
+                value: 'https://app.example.com/invite/7Hk9',
+                copyable: true,
+            }),
+            h(KinetixCopyableInput, {
+                value: 'sk_live_8f2c4a1e9b',
+                copyable: true,
+                revealable: true,
             }),
         ]);
     },
@@ -952,6 +970,13 @@ export const specimens: Specimen[] = [
         title: 'System health (spatie/laravel-health)',
         component: KinetixHealthStatus,
         width: 420,
+    },
+    {
+        name: 'copyable-input',
+        title: 'Copyable / revealable inputs',
+        component: CopyableInputShowcase,
+        frame: 'card',
+        width: 380,
     },
     {
         name: 'table-repeater',

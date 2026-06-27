@@ -96,6 +96,15 @@ Hydration extracts properties from a model or an array and binds them to the cor
       });
   ```
 
+#### Copyable & revealable inputs
+- **`copyable(bool $condition = true)`**: adds a click-to-copy button that copies the field's value to the clipboard.
+- **`revealable(bool $condition = true)`**: masks the value (password-style) with a toggle to reveal it — ideal for API keys, tokens and secrets. Combine the two for a copyable secret field:
+  ```php
+  TextInput::make('api_key')
+      ->revealable()
+      ->copyable();
+  ```
+
 ### 2. Dehydration
 Dehydration processes user inputs, validates them, and transforms the states into database-compatible formats when you call `$form->getState($requestData)`.
 

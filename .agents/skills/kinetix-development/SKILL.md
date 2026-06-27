@@ -710,6 +710,14 @@ Roadmap v0.54.0. `TableRepeater extends Repeater` (`src/Forms/Components/TableRe
 
 ---
 
+## 41. Copyable / Revealable inputs + copyable table columns (v0.55.0)
+
+- **TextInput**: `->copyable()` (click-to-copy button) and `->revealable()` (masked/password-style with a reveal toggle — for API keys/secrets); combine for a copyable secret. `FormFieldData.isCopyable`/`isRevealable`. Rendered by **`KinetixCopyableInput.vue`** (relative wrapper: input + `Eye`/`EyeOff` reveal toggle flipping `type` text/password + `Copy`/`Check` button using `navigator.clipboard`, 1.5s copied state). Wired in `KinetixFormSchema` as a more-specific branch **before** the plain text-input (`comp.type==='text-input' && (isCopyable||isRevealable)`).
+- **Table columns**: `copyable()` is now on the **base `Column`** (`$isCopyable` + method; `toData` falls back to `$this->isCopyable`), so any column (incl. `TextColumn`) supports it — not just `ColorColumn`. `KinetixTableCell` text-normal cell shows a hover `Copy` button emitting the existing `copy-to-clipboard` (handled by `KinetixTable.copyToClipboard`). Cell gained `useI18n` for `t('kinetix.copy')`.
+- i18n: reuse `copy`; new `reveal`/`hide`. Tests: `CopyableTest` (TextInput + TextColumn serialization), `KinetixCopyableInput.spec.ts` (copy via clipboard mock with `Object.defineProperty(navigator,'clipboard',…)`, mask→reveal type flip, update:value, no buttons when neither). Docs: `docs/forms.md` + `docs/tables.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

@@ -26,6 +26,8 @@ return [
     'page_of'                   => 'Página :current de :total',
     'no_records_found'          => 'No se encontraron registros.',
     'copy'                      => 'Copiar',
+    'reveal'                    => 'Mostrar',
+    'hide'                      => 'Ocultar',
     'confirm'                   => 'Confirmar',
     'cancel'                    => 'Cancelar',
     'confirm_heading'           => '¿Estás seguro?',

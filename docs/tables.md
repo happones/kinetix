@@ -109,6 +109,7 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
 - `sortable(bool $condition = true)`: Enables active header sorting.
 - `alignment(string $alignment)`: Sets horizontal alignment (`left`, `center`, `right`).
 - `toggleable(bool $isToggleable = true, bool $isToggledHiddenByDefault = false)`: Allows users to hide/show the column.
+- `copyable(bool $condition = true)`: Shows a click-to-copy button on the cell (on hover) that copies its value to the clipboard. Works on any column type.
 - `formatStateUsing(Closure $callback)`: Formats the value dynamically on the backend before serialization.
 
 ### 1. `TextColumn`

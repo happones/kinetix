@@ -23,6 +23,8 @@
         "page_of": "Page {current} of {total}",
         "no_records_found": "No records found.",
         "copy": "Copy",
+        "reveal": "Reveal",
+        "hide": "Hide",
         "confirm": "Confirm",
         "cancel": "Cancel",
         "confirm_heading": "Are you sure?",

@@ -25,6 +25,8 @@ abstract class Column
 
     protected bool $isToggledHiddenByDefault = false;
 
+    protected bool $isCopyable = false;
+
     protected ?Closure $formatStateUsing = null;
 
     /**
@@ -42,6 +44,17 @@ abstract class Column
     public static function make(string $name): static
     {
         return new static($name);
+    }
+
+    /**
+     * Show a click-to-copy affordance on the cell that copies its value to the
+     * clipboard. Works on any column type.
+     */
+    public function copyable(bool $condition = true): static
+    {
+        $this->isCopyable = $condition;
+
+        return $this;
     }
 
     public function label(string $label): static
@@ -159,7 +172,7 @@ abstract class Column
             isToggleable: $this->isToggleable,
             isToggledHiddenByDefault: $this->isToggledHiddenByDefault,
             type: $this->getType(),
-            isCopyable: $extra['isCopyable']                   ?? null,
+            isCopyable: $extra['isCopyable']                   ?? ($this->isCopyable ?: null),
             isCircular: $extra['isCircular']                   ?? null,
             size: $extra['size']                               ?? null,
             isPreviewable: $extra['isPreviewable']             ?? null,

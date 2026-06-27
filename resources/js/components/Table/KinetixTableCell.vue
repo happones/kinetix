@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { CheckCircle2, XCircle, Edit3, Trash2, Eye, Plus } from '@lucide/vue';
+import {
+    CheckCircle2,
+    Copy,
+    Edit3,
+    Eye,
+    Plus,
+    Trash2,
+    XCircle,
+} from '@lucide/vue';
+import { useI18n } from 'vue-i18n';
 import {
     statusBadgeClass as getBadgeColorClass,
     statusTextClass,
@@ -7,6 +16,8 @@ import {
 import KinetixCheckbox from '../KinetixCheckbox.vue';
 import KinetixNumberField from '../KinetixNumberField.vue';
 import KinetixSelect from '../KinetixSelect.vue';
+
+const { t } = useI18n();
 
 const getIconColorClass = (color?: string | null) =>
     statusTextClass(color, 'text-muted-foreground');
@@ -116,7 +127,20 @@ const resolveIcon = (name?: string) => {
         >
             {{ record.descriptions[col.name]?.text }}
         </span>
-        <span>{{ record.values[col.name] }}</span>
+        <span class="group/copy gap-1.5 inline-flex items-center">
+            {{ record.values[col.name] }}
+            <button
+                v-if="col.isCopyable && record.values[col.name] != null"
+                type="button"
+                class="text-muted-foreground opacity-0 transition-opacity group-hover/copy:opacity-100 hover:text-foreground"
+                :title="t('kinetix.copy')"
+                @click.stop="
+                    emit('copy-to-clipboard', String(record.values[col.name]))
+                "
+            >
+                <Copy class="size-3.5" />
+            </button>
+        </span>
         <span
             v-if="
                 record.descriptions[col.name] &&

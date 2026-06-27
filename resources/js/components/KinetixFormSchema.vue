@@ -6,13 +6,13 @@ import { inputClass, textareaClass } from '@/composables/useShadcnVariants';
 import KinetixAddressPicker from './KinetixAddressPicker.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixCombobox from './KinetixCombobox.vue';
+import KinetixCopyableInput from './KinetixCopyableInput.vue';
 import KinetixDatePicker from './KinetixDatePicker.vue';
 import KinetixDateRangePicker from './KinetixDateRangePicker.vue';
 import KinetixDateTimePicker from './KinetixDateTimePicker.vue';
 import KinetixFileUpload from './KinetixFileUpload.vue';
 import KinetixFormTabs from './KinetixFormTabs.vue';
 import KinetixFormWizard from './KinetixFormWizard.vue';
-import KinetixTableRepeater from './KinetixTableRepeater.vue';
 import KinetixKeyValue from './KinetixKeyValue.vue';
 import KinetixLabel from './KinetixLabel.vue';
 import KinetixMonthPicker from './KinetixMonthPicker.vue';
@@ -26,6 +26,7 @@ import KinetixSelect from './KinetixSelect.vue';
 import KinetixSignaturePad from './KinetixSignaturePad.vue';
 import KinetixSlider from './KinetixSlider.vue';
 import KinetixSlugInput from './KinetixSlugInput.vue';
+import KinetixTableRepeater from './KinetixTableRepeater.vue';
 import KinetixTagsInput from './KinetixTagsInput.vue';
 import KinetixTimePicker from './KinetixTimePicker.vue';
 import KinetixWeekPicker from './KinetixWeekPicker.vue';
@@ -295,8 +296,23 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
             <!-- Field Container -->
             <div class="relative w-full">
                 <!-- TextInput -->
+                <KinetixCopyableInput
+                    v-if="
+                        comp.type === 'text-input' &&
+                        (comp.isCopyable || comp.isRevealable)
+                    "
+                    :id="comp.name"
+                    :value="values[comp.name]"
+                    :input-type="comp.inputType || 'text'"
+                    :placeholder="comp.placeholder"
+                    :disabled="comp.isDisabled"
+                    :copyable="comp.isCopyable"
+                    :revealable="comp.isRevealable"
+                    @update:value="(v) => emit('update:value', comp.name, v)"
+                />
+
                 <input
-                    v-if="comp.type === 'text-input'"
+                    v-else-if="comp.type === 'text-input'"
                     :id="comp.name"
                     :value="values[comp.name]"
                     :type="comp.inputType || 'text'"

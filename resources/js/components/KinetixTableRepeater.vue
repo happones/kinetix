@@ -68,6 +68,7 @@ function queueUpdate(id: number | string, field: string, value: unknown): void {
     pending.set(id, { ...(pending.get(id) ?? {}), [field]: value });
 
     const existing = timers.get(id);
+
     if (existing) {
         clearTimeout(existing);
     }
@@ -80,6 +81,7 @@ function queueUpdate(id: number | string, field: string, value: unknown): void {
 
 function buildBlankRow(): Record<string, any> {
     const row: Record<string, any> = {};
+
     for (const col of columns.value) {
         if (col.name) {
             row[col.name] = col.defaultValue ?? null;
@@ -104,6 +106,7 @@ async function addRow(): Promise<void> {
 
     if (isAutosave.value && token.value) {
         const id = await autosaveApi.create(token.value, row);
+
         if (id != null) {
             row.id = id;
         }
@@ -131,6 +134,7 @@ const hasSummary = computed(() => Object.keys(summarize.value).length > 0);
 
 function summaryFor(field: string): string {
     const agg = summarize.value[field];
+
     if (!agg) {
         return '';
     }
@@ -142,6 +146,7 @@ function summaryFor(field: string): string {
     if (agg === 'count') {
         return String(rows.value.length);
     }
+
     if (nums.length === 0) {
         return '—';
     }
@@ -167,6 +172,7 @@ function exportCsv(): void {
     const names = columns.value.map((c) => c.name);
     const escape = (v: unknown): string => {
         const s = v == null ? '' : String(v);
+
         return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
@@ -209,7 +215,7 @@ function exportCsv(): void {
                         class="border-b border-input last:border-0"
                     >
                         <td
-                            v-for="(col, ci) in cellColumns"
+                            v-for="col in cellColumns"
                             :key="col.name"
                             class="px-2 py-1.5 align-top"
                         >

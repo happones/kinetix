@@ -32,6 +32,8 @@ class FormFieldData extends Data
         public ?string $prefix = null,
         public ?string $suffix = null,
         public ?string $inputType = null,
+        public bool $isCopyable = false,
+        public bool $isRevealable = false,
         public bool $isInline = false,
         public ?array $options = null,
         // Select searchable (combobox). `searchToken` (when set) points the

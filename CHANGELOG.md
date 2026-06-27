@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.55.0] - 2026-06-27
+
+### Added
+
+- **Copyable & revealable inputs** (**published**) — `TextInput::make()->copyable()`
+  adds a click-to-copy button; `->revealable()` masks the value (password-style)
+  with a reveal toggle, ideal for API keys/tokens/secrets (combine both for a
+  copyable secret field). Rendered by the new `KinetixCopyableInput.vue`.
+- **Copyable table columns** (**published**) — `Column::copyable()` (on the base
+  column, so any column type incl. `TextColumn`) shows a hover click-to-copy
+  button on the cell that copies its value via the existing table clipboard
+  handler.
+- i18n `reveal`/`hide` (en/es/fr/pt; `copy` already existed). New `FormFieldData`
+  `isCopyable`/`isRevealable`.
+
 ## [0.54.0] - 2026-06-27
 
 ### Added
