@@ -12,7 +12,7 @@ metadata:
 
 Activate this skill when:
 - Building input forms for resource pages or action modals.
-- Adding fields like `TextInput`, `Select`, `Checkbox`, `Toggle`, `DateTimePicker`, `Textarea`, `Hidden`, `Radio`, `CheckboxList`, `ColorPicker`, `TagsInput`, `KeyValue`, `Repeater`, or `FileUpload`.
+- Adding fields like `TextInput`, `Select`, `Checkbox`, `Toggle`, `DateTimePicker`, `DateRangePicker`, `AddressPicker`, `Textarea`, `Hidden`, `Radio`, `CheckboxList`, `ColorPicker`, `TagsInput`, `KeyValue`, `Repeater`, or `FileUpload`.
 - Structuring layouts: `Grid::make(n)`, `Section::make()` (card), `Fieldset::make()` (bordered legend), `Tabs::make()->tabs([Tab::make()->icon()->schema()])`, `Split::make([...])` (responsive flex row), `Placeholder::make()->content()` (read-only, not a field), `Wizard::make()->steps([Step::make()])` (multi-step — see the `kinetix-wizard` skill). All nest and share `columnSpan()`/`visible()`/`hidden()`.
 - Adding Laravel validation rules dynamically to inputs (`required()`, `maxLength()`, `rules()`).
 - Using lifecycle hooks (`afterStateHydrated()`, `dehydrateStateUsing()`).

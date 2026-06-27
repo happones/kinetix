@@ -675,6 +675,21 @@ const onDrop = async () => {
                       @update:value="setFilter(filter.name, $event)"
                     />
 
+                    <!-- Address — free-text search across address columns -->
+                    <input
+                      v-if="filter.type === 'address'"
+                      type="text"
+                      :value="activeFilters[filter.name] || ''"
+                      :placeholder="t('kinetix.address_search')"
+                      class="w-full text-xs rounded-md border border-border bg-background text-foreground p-2 outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                      @input="
+                        setFilter(
+                          filter.name,
+                          ($event.target as HTMLInputElement).value,
+                        )
+                      "
+                    />
+
                     <!-- Date range — native inputs -->
                     <div
                       v-if="filter.type === 'date-range' && !filter.useCalendar"

@@ -77,5 +77,7 @@ class FormFieldData extends Data
         public bool $fixedWeeks = false,
         // First day of week for the WeekPicker (0=Sun … 6=Sat).
         public ?int $weekStartsOn = null,
+        // AddressPicker — which sub-fields to show, in order.
+        public ?array $addressFields = null,
     ) {}
 }

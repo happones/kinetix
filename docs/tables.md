@@ -279,6 +279,17 @@ WeekFilter::make('created_at')->native();              // value "2026-W25"
 - `YearFilter` → `whereYear`.
 - `WeekFilter` → matches rows whose date falls in that ISO week (Mon–Sun).
 
+### `AddressFilter`
+Free-text address search. Renders a single text input and matches the term with
+**OR `LIKE`** across the columns you pass to `->columns()` (defaults to the filter
+name). Pair it with the [`AddressPicker`](/forms#addresspicker) form field.
+
+```php
+use Happones\Kinetix\Tables\Filters\AddressFilter;
+
+AddressFilter::make('address')->columns(['city', 'state', 'postal_code', 'country']);
+```
+
 ### 9. `TrashedFilter`
 Soft-delete scope filter for `SoftDeletes` models. Blank = active records only (default), *With deleted* = `withTrashed()`, *Only deleted* = `onlyTrashed()`.
 

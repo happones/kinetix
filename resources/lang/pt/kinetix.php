@@ -119,6 +119,15 @@ return [
     'datetime_placeholder' => 'DD/MM/AAAA hh:mm',
     'preview_unavailable'  => 'Pré-visualização indisponível para este tipo de arquivo.',
 
+    // Address picker & filter
+    'address_line1'   => 'Endereço linha 1',
+    'address_line2'   => 'Endereço linha 2',
+    'address_city'    => 'Cidade',
+    'address_state'   => 'Estado / Província',
+    'address_postal'  => 'Código postal',
+    'address_country' => 'País',
+    'address_search'  => 'Buscar endereço…',
+
     // Papéis e permissões
     'save'               => 'Salvar',
     'select_all'         => 'Selecionar tudo',

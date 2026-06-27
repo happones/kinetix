@@ -479,6 +479,28 @@ callback. As a **table filter**, use `DateRangeFilter` (see
 
 ---
 
+### `AddressPicker`
+A structured address field. Stores `{ line1, line2, city, state, postalCode,
+country }` and renders a text input per part plus a **searchable country select**
+sourced from a built-in ISO 3166-1 list. Limit/reorder the sub-fields with
+`->fields()`, or replace the country options with `->countries()`.
+
+<Screenshot name="address-picker" alt="Address picker" />
+
+```php
+use Happones\Kinetix\Forms\Components\AddressPicker;
+
+AddressPicker::make('address');                              // all six sub-fields
+AddressPicker::make('address')->fields(['line1', 'city', 'country']);
+AddressPicker::make('address')->countries(['US' => 'United States', 'MX' => 'Mexico']);
+```
+
+Persist the value to a JSON-cast column, or split it into separate columns in a
+`dehydrateStateUsing()` callback. As a **table filter**, use `AddressFilter` (see
+[Tables → Filters](/tables#filters)).
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 

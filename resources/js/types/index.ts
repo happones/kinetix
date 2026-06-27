@@ -305,7 +305,8 @@ export interface KinetixTableFilter {
     | "number-range"
     | "month"
     | "year"
-    | "week";
+    | "week"
+    | "address";
   options?: Record<string, string>;
   useCalendar?: boolean;
   numberOfMonths?: number;

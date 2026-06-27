@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-06-26
+
+### Added
+
+- **`AddressPicker` form field** (`address-picker`, **published**) — a structured
+  address field storing `{ line1, line2, city, state, postalCode, country }`.
+  Renders a text input per part plus a **searchable country select** sourced from
+  a built-in ISO 3166-1 alpha-2 list (`Support\Countries`). Limit/reorder the
+  sub-fields with `->fields([...])`; replace the country options with
+  `->countries([...])`. Backed by `AddressData` and a new
+  `FormFieldData.addressFields` payload; Vue `KinetixAddressPicker`.
+- **`AddressFilter` table filter** (type `address`) — a single text input that
+  matches the term with **OR `LIKE`** across the columns passed to
+  `->columns([...])` (defaults to the filter name). Pairs with `AddressPicker`.
+- New i18n keys (en/es/fr/pt): `address_line1`, `address_line2`, `address_city`,
+  `address_state`, `address_postal`, `address_country`, `address_search`.
+
 ## [0.25.0] - 2026-06-26
 
 ### Added

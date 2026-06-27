@@ -119,6 +119,15 @@ return [
     'datetime_placeholder' => 'JJ/MM/AAAA hh:mm',
     'preview_unavailable'  => 'Aperçu non disponible pour ce type de fichier.',
 
+    // Address picker & filter
+    'address_line1'   => 'Adresse ligne 1',
+    'address_line2'   => 'Adresse ligne 2',
+    'address_city'    => 'Ville',
+    'address_state'   => 'État / Province',
+    'address_postal'  => 'Code postal',
+    'address_country' => 'Pays',
+    'address_search'  => 'Rechercher une adresse…',
+
     // Rôles et permissions
     'save'               => 'Enregistrer',
     'select_all'         => 'Tout sélectionner',

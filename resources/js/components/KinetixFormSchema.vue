@@ -19,6 +19,7 @@ import KinetixMonthPicker from "./KinetixMonthPicker.vue";
 import KinetixYearPicker from "./KinetixYearPicker.vue";
 import KinetixWeekPicker from "./KinetixWeekPicker.vue";
 import KinetixDateRangePicker from "./KinetixDateRangePicker.vue";
+import KinetixAddressPicker from "./KinetixAddressPicker.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -467,6 +468,16 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :week-starts-on="comp.weekStartsOn ?? 1"
           :min-value="comp.minValue"
           :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Address (structured: lines, city, state, postal, country) -->
+        <KinetixAddressPicker
+          v-else-if="comp.type === 'address-picker'"
+          :value="values[comp.name]"
+          :fields="comp.addressFields"
+          :countries="comp.options"
+          :disabled="comp.isDisabled"
           @update:value="(v) => emit('update:value', comp.name, v)"
         />
 
