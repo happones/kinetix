@@ -414,6 +414,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Forms
+    |--------------------------------------------------------------------------
+    |
+    | Defaults for form fields. `rich_editor` picks the default driver for the
+    | RichEditor field (override per field with ->editor()):
+    |   - 'basic'    : zero-dependency contenteditable + toolbar (HTML output)
+    |   - 'tiptap'   : richer WYSIWYG — requires @tiptap/core + @tiptap/starter-kit
+    |   - 'markdown' : zero-dependency textarea + live preview (Markdown output)
+    |
+    */
+    'forms' => [
+        'rich_editor' => env('KINETIX_RICH_EDITOR', 'basic'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Browser Sessions / Device management (optional)
     |--------------------------------------------------------------------------
     |

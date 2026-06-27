@@ -501,6 +501,49 @@ Persist the value to a JSON-cast column, or split it into separate columns in a
 
 ---
 
+### `RichEditor`
+A rich text / WYSIWYG field with **three swappable editor drivers**. The default
+driver comes from `config('kinetix.forms.rich_editor')`; override per field with
+`->editor()` or the `->basic()` / `->tiptap()` / `->markdown()` shortcuts.
+
+| Driver | Dependency | Stores | Notes |
+| ------ | ---------- | ------ | ----- |
+| `basic` *(default)* | **none** | HTML | contenteditable + toolbar; works out of the box |
+| `tiptap` | `@tiptap/core` + `@tiptap/starter-kit` (MIT) | HTML | the headless WYSIWYG standard, styled with your shadcn tokens; loaded lazily |
+| `markdown` | **none** | Markdown | textarea + live preview |
+
+<Screenshot name="rich-editor-basic" alt="Rich editor — basic driver" />
+
+```php
+use Happones\Kinetix\Forms\Components\RichEditor;
+
+RichEditor::make('body');               // config default (basic)
+RichEditor::make('body')->tiptap();     // rich WYSIWYG (opt-in dependency)
+RichEditor::make('notes')->markdown();  // Markdown source + preview
+```
+
+To use the Tiptap driver, install its packages in your app:
+
+```bash
+npm install @tiptap/core @tiptap/starter-kit
+```
+
+Tiptap is imported lazily, so it stays an **optional** dependency — if it isn't
+installed (and you don't select it) your build is unaffected; selecting it
+without installing shows an inline install notice.
+
+<Screenshot name="rich-editor-tiptap" alt="Rich editor — Tiptap driver" />
+
+::: warning HTML is not sanitized server-side
+The `basic` / `tiptap` drivers store raw HTML. Kinetix does **not** sanitize it —
+escape or sanitize on output (Blade escapes by default; only `v-html` / `{!! !!}`
+render it raw). Run user HTML through a sanitizer (e.g. HTMLPurifier) if untrusted.
+:::
+
+<Screenshot name="rich-editor-markdown" alt="Rich editor — Markdown driver" />
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 

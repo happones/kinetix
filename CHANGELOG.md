@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-06-26
+
+### Added
+
+- **`RichEditor` form field** (`rich-editor`, **published**) — a rich text /
+  WYSIWYG field with **three swappable editor drivers**, chosen globally via
+  `config('kinetix.forms.rich_editor')` or per field with `->editor()` /
+  `->basic()` / `->tiptap()` / `->markdown()`:
+  - **`basic`** *(default)* — zero-dependency contenteditable + toolbar (HTML).
+  - **`tiptap`** — the headless WYSIWYG standard (`@tiptap/core` +
+    `@tiptap/starter-kit`, MIT), styled with your shadcn tokens. Loaded **lazily**
+    so it stays an optional dependency; selecting it without installing shows an
+    inline install notice.
+  - **`markdown`** — zero-dependency textarea + live preview (Markdown), with a
+    tiny HTML-escaping preview renderer.
+  - Vue `KinetixRichEditor` (+ `Basic` / `Markdown` / `Tiptap` sub-components),
+    new `forms.rich_editor` config block, and `FormFieldData.editor`.
+  - HTML is **not** sanitized server-side — escape/sanitize on output (documented).
+- New i18n keys (en/es/fr/pt): `editor_write`, `editor_preview`,
+  `editor_tiptap_missing`.
+
 ## [0.29.0] - 2026-06-26
 
 ### Added

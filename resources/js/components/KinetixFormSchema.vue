@@ -20,6 +20,7 @@ import KinetixYearPicker from "./KinetixYearPicker.vue";
 import KinetixWeekPicker from "./KinetixWeekPicker.vue";
 import KinetixDateRangePicker from "./KinetixDateRangePicker.vue";
 import KinetixAddressPicker from "./KinetixAddressPicker.vue";
+import KinetixRichEditor from "./KinetixRichEditor.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -468,6 +469,16 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :week-starts-on="comp.weekStartsOn ?? 1"
           :min-value="comp.minValue"
           :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Rich text / WYSIWYG (basic | tiptap | markdown) -->
+        <KinetixRichEditor
+          v-else-if="comp.type === 'rich-editor'"
+          :value="values[comp.name]"
+          :editor="comp.editor"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
           @update:value="(v) => emit('update:value', comp.name, v)"
         />
 

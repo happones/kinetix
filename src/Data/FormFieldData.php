@@ -79,5 +79,7 @@ class FormFieldData extends Data
         public ?int $weekStartsOn = null,
         // AddressPicker — which sub-fields to show, in order.
         public ?array $addressFields = null,
+        // RichEditor — which editor driver to render (basic|tiptap|markdown).
+        public ?string $editor = null,
     ) {}
 }

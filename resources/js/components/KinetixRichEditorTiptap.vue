@@ -1,0 +1,139 @@
+<script setup lang="ts">
+import {
+  Bold,
+  Heading1,
+  Heading2,
+  Italic,
+  List,
+  ListOrdered,
+  Quote,
+  Strikethrough,
+} from "@lucide/vue";
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
+import { useI18n } from "vue-i18n";
+
+/**
+ * Tiptap-backed WYSIWYG. Tiptap is loaded lazily at runtime (dynamic import with
+ * @vite-ignore) so it stays an OPTIONAL dependency: if @tiptap/core +
+ * @tiptap/starter-kit aren't installed, the field shows an install notice and the
+ * rest of the app builds and runs fine.
+ */
+const props = withDefaults(
+  defineProps<{
+    value?: string | null;
+    disabled?: boolean;
+    placeholder?: string | null;
+  }>(),
+  { value: "", disabled: false, placeholder: null },
+);
+
+const emit = defineEmits<{ (e: "update:value", value: string): void }>();
+
+const { t } = useI18n();
+const element = ref<HTMLElement | null>(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const editor = shallowRef<any>(null);
+const failed = ref(false);
+const active = ref<Record<string, boolean>>({});
+
+function refreshActive(): void {
+  const e = editor.value;
+  if (!e) {
+    return;
+  }
+  active.value = {
+    bold: e.isActive("bold"),
+    italic: e.isActive("italic"),
+    strike: e.isActive("strike"),
+    h1: e.isActive("heading", { level: 1 }),
+    h2: e.isActive("heading", { level: 2 }),
+    bulletList: e.isActive("bulletList"),
+    orderedList: e.isActive("orderedList"),
+    blockquote: e.isActive("blockquote"),
+  };
+}
+
+onMounted(async () => {
+  try {
+    const core = await import(/* @vite-ignore */ "@tiptap/core");
+    const starter = await import(/* @vite-ignore */ "@tiptap/starter-kit");
+    const StarterKit = starter.default ?? starter.StarterKit;
+
+    editor.value = new core.Editor({
+      element: element.value as HTMLElement,
+      extensions: [StarterKit],
+      content: props.value ?? "",
+      editable: !props.disabled,
+      onUpdate: ({ editor: e }: { editor: { getHTML: () => string } }) => {
+        emit("update:value", e.getHTML());
+      },
+      onSelectionUpdate: refreshActive,
+      onTransaction: refreshActive,
+    });
+    refreshActive();
+  } catch {
+    failed.value = true;
+  }
+});
+
+watch(
+  () => props.value,
+  (next) => {
+    const e = editor.value;
+    if (e && (next ?? "") !== e.getHTML()) {
+      e.commands.setContent(next ?? "", false);
+    }
+  },
+);
+
+onBeforeUnmount(() => editor.value?.destroy());
+
+const run = (fn: (chain: any) => any) => {
+  const e = editor.value;
+  if (e) {
+    fn(e.chain().focus()).run();
+  }
+};
+
+const tools = [
+  { key: "bold", icon: Bold, run: () => run((c) => c.toggleBold()) },
+  { key: "italic", icon: Italic, run: () => run((c) => c.toggleItalic()) },
+  { key: "strike", icon: Strikethrough, run: () => run((c) => c.toggleStrike()) },
+  { key: "h1", icon: Heading1, run: () => run((c) => c.toggleHeading({ level: 1 })) },
+  { key: "h2", icon: Heading2, run: () => run((c) => c.toggleHeading({ level: 2 })) },
+  { key: "bulletList", icon: List, run: () => run((c) => c.toggleBulletList()) },
+  { key: "orderedList", icon: ListOrdered, run: () => run((c) => c.toggleOrderedList()) },
+  { key: "blockquote", icon: Quote, run: () => run((c) => c.toggleBlockquote()) },
+];
+</script>
+
+<template>
+  <div
+    v-if="failed"
+    class="rounded-md border border-border bg-muted/40 p-4 text-sm text-muted-foreground"
+  >
+    {{ t("kinetix.editor_tiptap_missing") }}
+  </div>
+  <div
+    v-else
+    class="overflow-hidden rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] dark:bg-input/30"
+  >
+    <div class="flex flex-wrap items-center gap-0.5 border-b border-border bg-muted/40 p-1">
+      <button
+        v-for="tool in tools"
+        :key="tool.key"
+        type="button"
+        :disabled="disabled"
+        class="inline-flex size-7 items-center justify-center rounded transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none"
+        :class="active[tool.key] ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'"
+        @click="tool.run()"
+      >
+        <component :is="tool.icon" class="size-4" />
+      </button>
+    </div>
+    <div
+      ref="element"
+      class="kx-tiptap min-h-32 px-3 py-2 text-sm text-foreground [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-28 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground"
+    />
+  </div>
+</template>

@@ -128,6 +128,11 @@ return [
     'address_country' => 'País',
     'address_search'  => 'Buscar endereço…',
 
+    // Rich text editor
+    'editor_write'          => 'Escrever',
+    'editor_preview'        => 'Pré-visualização',
+    'editor_tiptap_missing' => 'O editor Tiptap precisa de @tiptap/core e @tiptap/starter-kit. Instale-os ou troque este campo para o editor básico ou markdown.',
+
     // Papéis e permissões
     'save'               => 'Salvar',
     'select_all'         => 'Selecionar tudo',
