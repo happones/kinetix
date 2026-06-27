@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-06-26
+
+### Added
+
+- **`KinetixModeToggle`** — a drop-in dark-mode header button (Sun/Moon icon)
+  with a Light / Dark / System dropdown, backed by the new `useKinetixAppearance`
+  composable. It mirrors the official Laravel Vue starter kit's Appearance
+  contract (same `appearance` localStorage key + cookie, toggles `html.dark`,
+  `system` via `prefers-color-scheme`), so it stays in sync with no extra wiring.
+- **`KinetixAccessibilityMenu`** — a compact accessibility quick-menu (icon
+  button → popover with the same controls as `KinetixAccessibilityPanel`), for
+  use outside settings: the header, the login page, the account-setup wizard.
+
+### Changed
+
+- `useKinetixAccessibility().set()` now persists to the server **best-effort**
+  (wrapped in try/catch), so the accessibility menu works for **guests** — the
+  preference still applies and is mirrored to `localStorage`.
+
 ## [0.36.0] - 2026-06-26
 
 ### Added

@@ -70,10 +70,17 @@ export function useKinetixAccessibility() {
   ): Promise<void> {
     prefs[key] = value;
     persist();
-    await kinetixFetch(`/${kinetixRoutePrefix(page)}/accessibility`, {
-      method: "POST",
-      body: { [key]: value },
-    });
+    // Server persistence is best-effort: on guest pages (login, account-setup
+    // wizard) there is no authenticated user, so the endpoint 401s — the
+    // localStorage mirror + applied classes still take effect.
+    try {
+      await kinetixFetch(`/${kinetixRoutePrefix(page)}/accessibility`, {
+        method: "POST",
+        body: { [key]: value },
+      });
+    } catch {
+      // ignore — preference is kept client-side
+    }
   }
 
   return { prefs, set };

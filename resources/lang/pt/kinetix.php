@@ -294,6 +294,10 @@ return [
     'gdpr_delete_failed'          => 'Não foi possível excluir sua conta. Tente novamente.',
 
     // Acessibilidade
+    'toggle_theme'              => 'Alternar tema',
+    'appearance_light'          => 'Claro',
+    'appearance_dark'           => 'Escuro',
+    'appearance_system'         => 'Sistema',
     'a11y_title'                => 'Acessibilidade',
     'a11y_description'          => 'Ajuste a interface às suas necessidades. As alterações são salvas na sua conta.',
     'a11y_text_size'            => 'Tamanho do texto',

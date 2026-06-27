@@ -76,6 +76,52 @@ reactive `prefs` and `set(key, value)` for a custom UI. All strings are localize
 
 <Screenshot name="accessibility-panel" alt="Accessibility preferences panel" />
 
+### Quick-menu (anywhere, even for guests)
+
+For places without a full settings page — the header, the **login** page, the
+**account-setup wizard** — use `KinetixAccessibilityMenu`: an icon button that
+opens a popover with the same controls.
+
+```vue
+<script setup lang="ts">
+import KinetixAccessibilityMenu from "@/components/KinetixAccessibilityMenu.vue";
+</script>
+
+<template>
+  <KinetixAccessibilityMenu />
+</template>
+```
+
+<Screenshot name="accessibility-menu" alt="Accessibility quick-menu popover" />
+
+Server persistence is **best-effort**: on guest pages the save call is skipped
+gracefully, and the preference still applies and is mirrored to `localStorage`.
+
+---
+
+## Dark-mode toggle
+
+`KinetixModeToggle` is a drop-in header button (Sun/Moon icon) with a
+**Light / Dark / System** dropdown. It's kept in sync with the official Laravel
+Vue starter kit's **Appearance** settings — it reads and writes the same
+`appearance` localStorage key + cookie and toggles `html.dark`, so no extra
+wiring is needed.
+
+```vue
+<script setup lang="ts">
+import KinetixModeToggle from "@/components/KinetixModeToggle.vue";
+</script>
+
+<template>
+  <KinetixModeToggle />
+</template>
+```
+
+<Screenshot name="mode-toggle" alt="Dark-mode toggle dropdown" />
+
+`useKinetixAppearance()` exposes `appearance`, `resolved` and
+`setAppearance(value)` if you want to build your own control.
+
 ---
 
 ## Screen-reader primitives

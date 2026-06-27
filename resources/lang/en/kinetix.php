@@ -293,6 +293,12 @@ return [
     'gdpr_password_incorrect'     => 'The password is incorrect.',
     'gdpr_delete_failed'          => 'Could not delete your account. Please try again.',
 
+    // Appearance / theme toggle
+    'toggle_theme'      => 'Toggle theme',
+    'appearance_light'  => 'Light',
+    'appearance_dark'   => 'Dark',
+    'appearance_system' => 'System',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

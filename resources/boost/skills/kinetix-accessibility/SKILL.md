@@ -12,6 +12,10 @@ metadata:
 
 Activate this skill when:
 - Mounting `<KinetixAccessibilityPanel>` or wiring per-user a11y preferences.
+- Adding the compact `<KinetixAccessibilityMenu>` (popover) to the header, login
+  page or setup wizard (guest-safe — server persist is best-effort).
+- Adding the `<KinetixModeToggle>` dark-mode button (Light/Dark/System), backed by
+  `useKinetixAppearance` which shares the starter kit's `appearance` storage.
 - Installing the `KinetixAccessibility` Vue plugin.
 - Adding a `<KinetixSkipLink>` or announcing async updates to screen readers.
 

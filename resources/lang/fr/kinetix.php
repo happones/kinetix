@@ -294,6 +294,10 @@ return [
     'gdpr_delete_failed'          => 'Impossible de supprimer votre compte. Veuillez réessayer.',
 
     // Accessibilité
+    'toggle_theme'              => 'Changer de thème',
+    'appearance_light'          => 'Clair',
+    'appearance_dark'           => 'Sombre',
+    'appearance_system'         => 'Système',
     'a11y_title'                => 'Accessibilité',
     'a11y_description'          => 'Adaptez l’interface à vos besoins. Les modifications sont enregistrées sur votre compte.',
     'a11y_text_size'            => 'Taille du texte',

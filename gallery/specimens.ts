@@ -19,6 +19,8 @@ import KinetixPinInput from "@/components/KinetixPinInput.vue";
 import KinetixSlugInput from "@/components/KinetixSlugInput.vue";
 import KinetixSignaturePad from "@/components/KinetixSignaturePad.vue";
 import KinetixPhoneInput from "@/components/KinetixPhoneInput.vue";
+import KinetixModeToggle from "@/components/KinetixModeToggle.vue";
+import KinetixAccessibilityMenu from "@/components/KinetixAccessibilityMenu.vue";
 
 // Slug + signature showcase for the gallery.
 const SlugSignatureShowcase: Component = {
@@ -365,6 +367,8 @@ export const specimens: Specimen[] = [
   { name: "input-fields", title: "Slider · Rating · PIN", component: InputFieldsShowcase, frame: "card", width: 420 },
   { name: "slug-signature", title: "Slug input · Signature pad", component: SlugSignatureShowcase, frame: "card", width: 420 },
   { name: "phone-input", title: "Phone input (international)", component: KinetixPhoneInput, frame: "card", width: 480, props: { value: "+5215512345678", config: { defaultCountry: "MX", countries: [{ code: "US", name: "United States", dial: "1" }, { code: "MX", name: "Mexico", dial: "52" }, { code: "GB", name: "United Kingdom", dial: "44" }, { code: "ES", name: "Spain", dial: "34" }] } } },
+  { name: "mode-toggle", title: "Dark-mode toggle (open)", component: KinetixModeToggle, width: 220, openSelector: "#specimen button" },
+  { name: "accessibility-menu", title: "Accessibility quick-menu (open)", component: KinetixAccessibilityMenu, width: 340, openSelector: "#specimen button" },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },
   { name: "gdpr-panel", title: "GDPR self-service panel", component: KinetixGdprPanel, width: 640, props: { requirePassword: true } },
   { name: "accessibility-panel", title: "Accessibility panel", component: KinetixAccessibilityPanel, frame: "card", width: 560 },
