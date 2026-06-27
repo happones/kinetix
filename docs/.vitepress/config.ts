@@ -49,6 +49,7 @@ export default withMermaid(
         items: [
           { text: "What is Kinetix?", link: "/" },
           { text: "Getting Started", link: "/installation" },
+          { text: "With the Laravel starter kit", link: "/starter-kit" },
         ],
       },
       {

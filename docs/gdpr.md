@@ -9,6 +9,21 @@ Kinetix GDPR gives users two self-service privacy actions:
 
 Each user acts only on their own account — there is no admin ability.
 
+::: warning Overlaps with the Laravel starter kit
+The official starter kit already ships a basic **Delete account** action. Kinetix
+GDPR is a **superset** of it (it adds data **export**, anonymization, queuing and
+an audit trail). To avoid rendering **two** "Delete account" buttons, pick one
+approach:
+
+- **Option A (recommended)** — keep the starter kit's delete action and mount
+  only Kinetix's **export** (the part the starter kit lacks).
+- **Option B** — remove the starter kit's delete block and mount the full
+  `KinetixGdprPanel`.
+
+See [Kinetix & the Laravel starter kit → GDPR overlap](/starter-kit#gdpr-account-deletion-overlap)
+for the exact snippets.
+:::
+
 ---
 
 ## Installation
