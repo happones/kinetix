@@ -625,6 +625,16 @@ Roadmap v0.44.0. Server-driven builder like Kanban — no migration, no routes, 
 
 ---
 
+## 33. Kinetix Announcements (optional, "what's new" feed)
+
+Roadmap v0.46.0. Config block `announcements` (`enabled`). Migration: `kinetix_announcements` (title, body, level info|feature|fix, nullable `published_at`) + `kinetix_announcement_views` (one row/user, `seen_at`); tag `kinetix-announcements-migrations`. **Per-user unread via a single last-seen timestamp** (an entry is new when `published_at > seen_at`; all new until first open). **Self-service** read; publishing is app-side.
+
+- **`AnnouncementManager`**: `feed($user,$limit=20)` (published-only, newest first, `isNew` flag), `unreadCount($user)`, `markSeen($user)` (updateOrCreate view), `create(title,body,level,publishedAt?)` (defaults `published_at`=now). **`KinetixAnnouncements::publish(...)`** static for seeders/deploys. `Announcement` (casts `published_at`) + `AnnouncementView` models, `AnnouncementData` DTO.
+- **`AnnouncementController`** (team-aware `{prefix}/announcements`): `GET /` index (`announcements`+`unread`), `POST seen`.
+- **Vue (published)**: `KinetixAnnouncements` (reka Popover, Megaphone trigger + unread badge; opening marks seen → badge clears; items show a "new" dot + level chip + body `whitespace-pre-line` + date). `useKinetixAnnouncements` → `{announcements, unread, loading, load, markSeen}`. i18n `announcements_title/empty/new`. Tests: `AnnouncementsTest` (published-only feed + all-new for fresh user, markSeen clears, re-new after later publish via `$this->travel()`), `KinetixAnnouncements.spec.ts` (badge + mark-seen on open). Full guide: `docs/announcements.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

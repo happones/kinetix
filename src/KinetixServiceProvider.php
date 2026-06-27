@@ -8,6 +8,8 @@ use Happones\Kinetix\Accessibility\AccessibilityController;
 use Happones\Kinetix\Accessibility\AccessibilityManager;
 use Happones\Kinetix\Activity\ActivityController;
 use Happones\Kinetix\Activity\ActivityLogger;
+use Happones\Kinetix\Announcements\AnnouncementController;
+use Happones\Kinetix\Announcements\AnnouncementManager;
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
@@ -178,6 +180,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The saved-views manager (per-user table presets).
         $this->app->singleton(SavedViewManager::class);
+
+        // The announcements manager (feed + per-user unread tracking).
+        $this->app->singleton(AnnouncementManager::class);
     }
 
     /**
@@ -300,6 +305,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000013_create_kinetix_saved_views_table.php' => database_path('migrations/2026_01_01_000013_create_kinetix_saved_views_table.php'),
             ], 'kinetix-saved-views-migrations');
 
+            // Publish the optional Announcements module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php' => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
+            ], 'kinetix-announcements-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -379,6 +389,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Saved Views module (per-user table presets)
         $this->registerSavedViews();
+
+        // Register the optional Announcements module ("what's new" feed)
+        $this->registerAnnouncements();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1085,6 +1098,35 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::put('{view}', [SavedViewController::class, 'update'])->name('kinetix.saved-views.update');
                 Route::delete('{view}', [SavedViewController::class, 'destroy'])->name('kinetix.saved-views.destroy');
                 Route::post('{view}/default', [SavedViewController::class, 'makeDefault'])->name('kinetix.saved-views.default');
+            });
+    }
+
+    /**
+     * Wire the optional Announcements module: a self-service "what's new" feed
+     * with a per-user unread badge.
+     */
+    protected function registerAnnouncements(): void
+    {
+        if (! config('kinetix.announcements.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/announcements")
+            ->group(function () {
+                Route::get('/', [AnnouncementController::class, 'index'])->name('kinetix.announcements.index');
+                Route::post('seen', [AnnouncementController::class, 'seen'])->name('kinetix.announcements.seen');
             });
     }
 

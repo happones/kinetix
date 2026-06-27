@@ -177,6 +177,11 @@ return [
     'calendar_next'  => 'Mois suivant',
     'calendar_more'  => '+:count de plus',
 
+    // Announcements
+    'announcements_title' => 'Nouveautés',
+    'announcements_empty' => 'Aucune annonce pour le moment.',
+    'announcements_new'   => 'Nouveau',
+
     // Rôles et permissions
     'save'               => 'Enregistrer',
     'select_all'         => 'Tout sélectionner',

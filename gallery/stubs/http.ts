@@ -195,6 +195,38 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        match: /\/announcements$/,
+        data: {
+            unread: 2,
+            announcements: [
+                {
+                    id: 1,
+                    title: 'Dark mode is here 🌙',
+                    body: 'Toggle it from the header — your choice is remembered across devices.',
+                    level: 'feature',
+                    publishedAt: '2026-06-26T10:00:00Z',
+                    isNew: true,
+                },
+                {
+                    id: 2,
+                    title: 'Faster global search',
+                    body: 'Spotlight now returns results roughly 3× quicker.',
+                    level: 'feature',
+                    publishedAt: '2026-06-22T10:00:00Z',
+                    isNew: true,
+                },
+                {
+                    id: 3,
+                    title: 'Fixed CSV export edge case',
+                    body: 'Quoted fields with embedded newlines now round-trip correctly.',
+                    level: 'fix',
+                    publishedAt: '2026-06-18T10:00:00Z',
+                    isNew: false,
+                },
+            ],
+        },
+    },
+    {
         match: /\/saved-views(\?|$)/,
         data: {
             views: [

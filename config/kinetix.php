@@ -442,6 +442,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Announcements / "What's new" (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A product announcements feed with a per-user unread badge. Publish entries
+    | with KinetixAnnouncements::publish(...) (seeder, deploy step, anywhere) and
+    | mount the <KinetixAnnouncements> trigger in your header.
+    |
+    */
+    'announcements' => [
+        'enabled' => env('KINETIX_ANNOUNCEMENTS_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Notification Preferences (optional)
     |--------------------------------------------------------------------------
     |

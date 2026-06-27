@@ -21,6 +21,7 @@ import KinetixSignaturePad from '@/components/KinetixSignaturePad.vue';
 import KinetixPhoneInput from '@/components/KinetixPhoneInput.vue';
 import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
+import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
@@ -890,6 +891,13 @@ export const specimens: Specimen[] = [
         title: 'Accessibility quick-menu (open)',
         component: KinetixAccessibilityMenu,
         width: 340,
+        openSelector: '#specimen button',
+    },
+    {
+        name: 'announcements',
+        title: 'Announcements (open)',
+        component: KinetixAnnouncements,
+        width: 420,
         openSelector: '#specimen button',
     },
     {

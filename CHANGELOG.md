@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-06-27
+
+### Added
+
+- **Announcements module** (`announcements`, optional, **published**) — a
+  "what's new" feed with a per-user unread badge:
+  - Publish entries with `KinetixAnnouncements::publish($title, $body, $level)`
+    (`info` / `feature` / `fix`; optional scheduled `published_at`).
+  - The `KinetixAnnouncements` header trigger shows an unread count (entries
+    published since the user last opened the feed) and a popover listing them;
+    opening it marks the feed seen. Backed by the `kinetix_announcements` /
+    `kinetix_announcement_views` tables, `AnnouncementManager`, `AnnouncementData`
+    and the `useKinetixAnnouncements` composable.
+- New i18n keys (en/es/fr/pt): `announcements_title`, `announcements_empty`,
+  `announcements_new`.
+
 ## [0.45.0] - 2026-06-27
 
 ### Added

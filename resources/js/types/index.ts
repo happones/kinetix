@@ -166,6 +166,16 @@ export interface KinetixOnboarding {
     dismissed: boolean;
 }
 
+/** A product announcement ("what's new" entry). */
+export interface KinetixAnnouncement {
+    id: number | string | null;
+    title: string;
+    body: string;
+    level: string;
+    publishedAt: string | null;
+    isNew: boolean;
+}
+
 /** A calendar event. */
 export interface KinetixCalendarEvent {
     id: number | string;
