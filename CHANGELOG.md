@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-06-27
+
+### Added
+
+- **Team Switcher module** (`team_switcher`, optional, **published**) — a header
+  dropdown to switch the active team. The official starter kit has no teams, so
+  this is a complete feature, but Kinetix does **not** own your `Team` model: it
+  resolves the user's teams *by convention* (`teams_relation`/`current_relation`/
+  `name_attribute`) and shares them — each with a ready-made switch URL built from
+  your `switch_route` — via the `kinetix_teams` Inertia prop. The component just
+  visits that URL, so it works with whatever switch route your app already has
+  (e.g. a controller calling `$user->switchTeam()`). Optional `create_route`
+  surfaces a "New team" entry. `<KinetixTeamSwitcher />` + `useKinetixTeams()`
+  (`{ teams, current, createUrl, switchTeam }`); i18n `teams_switch/select/new`
+  (en/es/fr/pt). Degrades gracefully (`url: null`) when the route is missing.
+
 ## [0.48.0] - 2026-06-27
 
 ### Added

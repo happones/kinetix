@@ -23,6 +23,7 @@ import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
 import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
 import KinetixLanguageSwitcher from '@/components/KinetixLanguageSwitcher.vue';
+import KinetixTeamSwitcher from '@/components/KinetixTeamSwitcher.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
@@ -920,6 +921,13 @@ export const specimens: Specimen[] = [
         title: 'Language switcher (open)',
         component: KinetixLanguageSwitcher,
         width: 240,
+        openSelector: '#specimen button',
+    },
+    {
+        name: 'team-switcher',
+        title: 'Team switcher (open)',
+        component: KinetixTeamSwitcher,
+        width: 280,
         openSelector: '#specimen button',
     },
     {

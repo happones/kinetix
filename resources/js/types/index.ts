@@ -65,8 +65,26 @@ export interface KinetixSharedProps {
     kinetix_features?: Record<string, boolean>;
     /** Supported locales + the active one, for the language switcher. */
     kinetix_locale?: KinetixLocaleState;
+    /** The user's teams + switch URLs, for the team switcher. */
+    kinetix_teams?: KinetixTeamsState;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
+}
+
+/** A team the user can switch to, with a ready-made switch URL. */
+export interface KinetixTeamOption {
+    id: number | string;
+    name: string;
+    url: string | null;
+    current: boolean;
+}
+
+/** Team-switcher state shared via Inertia for <KinetixTeamSwitcher>. */
+export interface KinetixTeamsState {
+    enabled: boolean;
+    teams: KinetixTeamOption[];
+    current: { id: number | string; name: string } | null;
+    createUrl: string | null;
 }
 
 /** A selectable locale: its code and native label. */

@@ -138,6 +138,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Team Switcher (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A header dropdown to switch the active team. Kinetix does NOT own your
+    | Team model — it resolves the user's teams by convention and shares them
+    | (with a ready-made switch URL each) via the `kinetix_teams` Inertia prop.
+    | The component just visits that URL, so it works with whatever switch route
+    | your app already has (e.g. the starter kit's `teams.switch`). Provide the
+    | relation/attribute names and route names that match your app.
+    |
+    */
+    'team_switcher' => [
+        'enabled' => env('KINETIX_TEAM_SWITCHER_ENABLED', false),
+
+        // Relation on the user model returning their teams, and the one (or
+        // attribute) returning the active team.
+        'teams_relation'   => 'teams',
+        'current_relation' => 'currentTeam',
+
+        // Attribute used as the team's display label.
+        'name_attribute' => 'name',
+
+        // Route name to switch teams (receives the team's route key). The team's
+        // route key is `getRouteKey()` (slug when the model defines one).
+        'switch_route' => env('KINETIX_TEAM_SWITCH_ROUTE', 'teams.switch'),
+
+        // Optional route name to create a team — shown as "New team" when set.
+        'create_route' => env('KINETIX_TEAM_CREATE_ROUTE'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Route Configuration
     |--------------------------------------------------------------------------
     |

@@ -32,6 +32,17 @@ const page = {
                 { code: 'pt', label: 'Português' },
             ],
         },
+        // Surfaced for the team switcher specimen.
+        kinetix_teams: {
+            enabled: true,
+            current: { id: 1, name: 'Acme Inc.' },
+            createUrl: '/teams/create',
+            teams: [
+                { id: 1, name: 'Acme Inc.', url: '#', current: true },
+                { id: 2, name: 'Globex', url: '#', current: false },
+                { id: 3, name: 'Initech', url: '#', current: false },
+            ],
+        },
     },
     url: '/',
     component: 'Gallery',

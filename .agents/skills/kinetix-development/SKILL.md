@@ -646,6 +646,16 @@ Roadmap v0.48.0. Config block `locale` (`enabled`, `locales` = `code=>native lab
 
 ---
 
+## 35. Kinetix Team Switcher (optional, multi-team dropdown)
+
+Roadmap v0.49.0. Config block `team_switcher` (`enabled`, `teams_relation`='teams', `current_relation`='currentTeam', `name_attribute`='name', `switch_route`='teams.switch', `create_route`=null). **Kinetix does NOT own the Team model** — the official starter kit has no teams; this is convention-based and host-agnostic.
+
+- **`TeamSwitcherManager`** (singleton): `payload()` reads `auth()->user()->{teams_relation}` + `{current_relation}` (via `getAttribute`, so test with `setRelation`), maps each team to `{id, name, url, current}` where `url = route(switch_route, $team->getRouteKey())` guarded by `Route::has` (→ `null` if missing), plus `current` `{id,name}` and `createUrl`. Empty `{enabled:false,…}` for guests / when off. **No backend switch route** — Kinetix delegates to the host's `switch_route`; switching is the host's job (`$user->switchTeam()`).
+- **Inertia share `kinetix_teams`** (always shared; payload gated internally). Optional `create_route` → "New team" entry.
+- **Vue (published)**: `KinetixTeamSwitcher` (reka DropdownMenu, `Users`+name+`ChevronsUpDown` trigger; items with `Check` on current; `Plus` "New team" when `createUrl`). `useKinetixTeams` → `{teams, current, createUrl, switchTeam}` — `switchTeam` `router.visit(team.url)`, no-ops the current team / null url. i18n `teams_switch/select/new`. Tests: `TeamSwitcherTest` (payload+switch urls+current flag via `setRelation`, disabled/guest empty, null url when route missing), `KinetixTeamSwitcher.spec.ts` (trigger shows current + composable visit/no-op). Full guide: `docs/team-switcher.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

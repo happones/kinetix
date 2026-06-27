@@ -74,6 +74,7 @@ use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Tags\TagController;
 use Happones\Kinetix\Tags\TagManager;
 use Happones\Kinetix\Tags\TagRegistry;
+use Happones\Kinetix\Teams\TeamSwitcherManager;
 use Happones\Kinetix\Tokens\TokenController;
 use Happones\Kinetix\Tokens\TokenScopeRegistry;
 use Happones\Kinetix\Webhooks\LogSpatieWebhookCall;
@@ -189,6 +190,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The locale manager (language switcher: resolve/apply/persist).
         $this->app->singleton(LocaleManager::class);
+
+        // The team-switcher manager (resolves teams + switch URLs by convention).
+        $this->app->singleton(TeamSwitcherManager::class);
     }
 
     /**
@@ -1301,6 +1305,9 @@ class KinetixServiceProvider extends ServiceProvider
                 'locales' => $manager->options(),
             ];
         });
+
+        // The user's teams + switch URLs, for <KinetixTeamSwitcher>.
+        Inertia::share('kinetix_teams', fn () => app(TeamSwitcherManager::class)->payload());
     }
 
     /**

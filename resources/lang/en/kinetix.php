@@ -350,6 +350,11 @@ return [
     // Language switcher
     'language' => 'Language',
 
+    // Team switcher
+    'teams_switch' => 'Switch team',
+    'teams_select' => 'Select a team',
+    'teams_new'    => 'New team',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',
