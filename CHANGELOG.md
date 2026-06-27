@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-06-26
+
+### Added
+
+- **`PhoneInput` form field** (`phone-input`, **published**) — an international
+  phone field with a searchable country selector (flag + dial code) and a
+  national-number input, storing the full E.164-style string (e.g.
+  `+5215512345678`). `->defaultCountry('MX')` and `->countries([...])` to
+  restrict the list.
+- **`Support\DialCodes`** — an ISO 3166-1 → ITU-T E.164 calling-code map
+  (`DialCodes::all()` / `DialCodes::for($code)`), paired with `Support\Countries`.
+- Backed by `FormFieldData.phoneConfig` and the `KinetixPhoneInput` component
+  (flag emoji rendered from regional-indicator code points).
+
 ## [0.35.0] - 2026-06-26
 
 ### Added

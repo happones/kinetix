@@ -91,5 +91,7 @@ class FormFieldData extends Data
         public ?array $slugConfig = null,
         // SignaturePad — {penColor,backgroundColor,height}.
         public ?array $signatureConfig = null,
+        // PhoneInput — {defaultCountry, countries:[{code,name,dial}]}.
+        public ?array $phoneConfig = null,
     ) {}
 }

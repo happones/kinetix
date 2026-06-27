@@ -27,6 +27,7 @@ import KinetixRating from "./KinetixRating.vue";
 import KinetixPinInput from "./KinetixPinInput.vue";
 import KinetixSlugInput from "./KinetixSlugInput.vue";
 import KinetixSignaturePad from "./KinetixSignaturePad.vue";
+import KinetixPhoneInput from "./KinetixPhoneInput.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -475,6 +476,16 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :week-starts-on="comp.weekStartsOn ?? 1"
           :min-value="comp.minValue"
           :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Phone (country selector + national number → E.164 string) -->
+        <KinetixPhoneInput
+          v-else-if="comp.type === 'phone-input'"
+          :value="values[comp.name]"
+          :config="comp.phoneConfig"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
           @update:value="(v) => emit('update:value', comp.name, v)"
         />
 

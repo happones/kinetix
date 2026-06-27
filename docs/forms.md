@@ -625,6 +625,25 @@ SignaturePad::make('signature')->penColor('#1d4ed8')->height(180);
 
 ---
 
+### `PhoneInput`
+An international phone field: a **searchable country selector** (flag + dial
+code, from a built-in list of all calling codes) plus a national-number input.
+Stores the full E.164-style string, e.g. `+5215512345678`.
+
+<Screenshot name="phone-input" alt="International phone input" />
+
+```php
+use Happones\Kinetix\Forms\Components\PhoneInput;
+
+PhoneInput::make('phone')->defaultCountry('MX');
+PhoneInput::make('phone')->countries(['US', 'MX', 'CA']);   // restrict the list
+```
+
+The country list comes from `Support\Countries` + `Support\DialCodes`; the
+selected country's dial code is prefixed to the number on save.
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 
