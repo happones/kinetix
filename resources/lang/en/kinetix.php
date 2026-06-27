@@ -171,6 +171,12 @@ return [
     'kanban_empty'       => 'Drop cards here',
     'kanban_move_failed' => 'Could not move the card. Please try again.',
 
+    // Event calendar
+    'calendar_today' => 'Today',
+    'calendar_prev'  => 'Previous month',
+    'calendar_next'  => 'Next month',
+    'calendar_more'  => '+:count more',
+
     // Roles & permissions
     'save'               => 'Save',
     'select_all'         => 'Select all',

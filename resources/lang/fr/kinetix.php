@@ -171,6 +171,12 @@ return [
     'kanban_empty'       => 'Déposez des cartes ici',
     'kanban_move_failed' => 'Impossible de déplacer la carte. Veuillez réessayer.',
 
+    // Event calendar
+    'calendar_today' => 'Aujourd’hui',
+    'calendar_prev'  => 'Mois précédent',
+    'calendar_next'  => 'Mois suivant',
+    'calendar_more'  => '+:count de plus',
+
     // Rôles et permissions
     'save'               => 'Enregistrer',
     'select_all'         => 'Tout sélectionner',

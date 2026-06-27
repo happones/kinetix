@@ -166,6 +166,22 @@ export interface KinetixOnboarding {
     dismissed: boolean;
 }
 
+/** A calendar event. */
+export interface KinetixCalendarEvent {
+    id: number | string;
+    title: string;
+    start: string;
+    end: string | null;
+    color: string | null;
+    url: string | null;
+}
+
+/** A calendar: a list of events the component lays out by month. */
+export interface KinetixCalendarData {
+    heading: string | null;
+    events: KinetixCalendarEvent[];
+}
+
 /** A Kanban card. */
 export interface KinetixKanbanCard {
     id: number | string;

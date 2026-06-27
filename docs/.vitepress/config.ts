@@ -60,6 +60,7 @@ export default withMermaid(
           { text: "Tables", link: "/tables" },
           { text: "Saved Views", link: "/saved-views" },
           { text: "Kanban", link: "/kanban" },
+          { text: "Calendar", link: "/calendar" },
           { text: "Forms", link: "/forms" },
           { text: "Wizard", link: "/wizard" },
           { text: "Infolists", link: "/infolists" },

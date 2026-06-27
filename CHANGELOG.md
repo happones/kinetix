@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-06-27
+
+### Added
+
+- **Calendar module** — a month-view event scheduler over any Eloquent model.
+  Define it with the server-driven `Calendar` builder (`->dateColumn()`,
+  `->endColumn()` for multi-day spans, `->title()`, `->color()`, `->url()`,
+  `->query()`, `->heading()`) and render
+  `<KinetixEventCalendar :calendar="calendar.toData()" />`.
+  - Events lay out on a 6-week month grid (colored chips, links when a `url` is
+    set, "+N more" beyond three per day); months navigate client-side. Emits
+    `event-click` / `day-click`. `week-starts-on` + `locale` props. No calendar
+    dependency — built on plain `Date` + `Intl.DateTimeFormat`.
+  - Backed by `CalendarData` / `CalendarEventData`. No migration, route or config.
+  - The Vue component is `KinetixEventCalendar` (distinct from the date-picker's
+    `KinetixCalendar`).
+- New i18n keys (en/es/fr/pt): `calendar_today`, `calendar_prev`,
+  `calendar_next`, `calendar_more`.
+
 ## [0.43.0] - 2026-06-27
 
 ### Added

@@ -126,6 +126,7 @@ import KinetixChartWidget from '@/components/KinetixChartWidget.vue';
 import KinetixCustomWidget from '@/components/KinetixCustomWidget.vue';
 import KinetixTableWidget from '@/components/KinetixTableWidget.vue';
 import KinetixKanban from '@/components/KinetixKanban.vue';
+import KinetixEventCalendar from '@/components/KinetixEventCalendar.vue';
 
 export interface Specimen {
     name: string;
@@ -1193,6 +1194,61 @@ export const specimens: Specimen[] = [
                 hasSummaries: false,
                 reorderable: true,
                 savedViewsKey: 'App\\Models\\Product',
+            },
+        },
+    },
+    {
+        name: 'event-calendar',
+        title: 'Event calendar',
+        component: KinetixEventCalendar,
+        frame: 'card',
+        width: 860,
+        props: {
+            locale: 'en-US',
+            calendar: {
+                heading: null,
+                events: [
+                    {
+                        id: 1,
+                        title: 'Product launch',
+                        start: '2026-06-04',
+                        end: null,
+                        color: '#22c55e',
+                        url: null,
+                    },
+                    {
+                        id: 2,
+                        title: 'Design sprint',
+                        start: '2026-06-10',
+                        end: '2026-06-13',
+                        color: '#3b82f6',
+                        url: null,
+                    },
+                    {
+                        id: 3,
+                        title: '1:1 with Ada',
+                        start: '2026-06-18',
+                        end: null,
+                        color: '#a855f7',
+                        url: null,
+                    },
+                    {
+                        id: 4,
+                        title: 'Release v2',
+                        start: '2026-06-18',
+                        end: null,
+                        color: '#f59e0b',
+                        url: null,
+                    },
+                    {
+                        id: 5,
+                        title: 'Retro',
+                        start: '2026-06-26',
+                        end: null,
+                        color: null,
+                        url: null,
+                    },
+                ],
             },
         },
     },

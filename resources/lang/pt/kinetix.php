@@ -171,6 +171,12 @@ return [
     'kanban_empty'       => 'Solte cartões aqui',
     'kanban_move_failed' => 'Não foi possível mover o cartão. Tente novamente.',
 
+    // Event calendar
+    'calendar_today' => 'Hoje',
+    'calendar_prev'  => 'Mês anterior',
+    'calendar_next'  => 'Próximo mês',
+    'calendar_more'  => '+:count mais',
+
     // Papéis e permissões
     'save'               => 'Salvar',
     'select_all'         => 'Selecionar tudo',

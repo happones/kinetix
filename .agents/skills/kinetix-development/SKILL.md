@@ -614,6 +614,16 @@ Roadmap v0.43.0. Server-driven board over an Eloquent query, like Tables — no 
 
 ---
 
+## 32. Kinetix Calendar (optional, month-view event scheduler)
+
+Roadmap v0.44.0. Server-driven builder like Kanban — no migration, no routes, no config (read-only display; month navigation is client-side). **NOTE: the Vue component is `KinetixEventCalendar`** — `KinetixCalendar` already exists (the date-picker's single-date selector built on reka `CalendarRoot`); do not confuse/overwrite them.
+
+- **`Calendar` builder** (`Calendar::make($queryOrModel)`): `->dateColumn('starts_at')` (default `date`), `->endColumn('ends_at')` (optional, inclusive multi-day), `->title(attr|Closure)`, `->color(attr|Closure|null)`, `->url(Closure)`, `->query(Closure)`, `->heading()`. `toData()` → `CalendarData{heading, events:[CalendarEventData{id,title,start:Y-m-d,end?,color?,url?}]}` (dates via `Carbon::parse(...)->toDateString()`).
+- **Vue `KinetixEventCalendar`** (props `calendar`, `weekStartsOn` 0–6 default 1, `locale`): builds a 42-cell (6-week) grid with plain `Date`; month/weekday labels via `Intl.DateTimeFormat(locale)`; an event shows on a day when `start === date` or (with end) `start <= date <= end`. Colored chips (default `#3b82f6`), `url` events render as `<a>`, `+N more` beyond 3/day, today highlighted, out-of-month dimmed. Emits `event-click(event)` / `day-click(isoDate)`; month nav (`Today`/prev/next) client-side. i18n `calendar_today/prev/next/more`.
+- Tests: `CalendarTest` (maps events→ISO + title/color/url, multi-day end, `query` scope), `KinetixEventCalendar.spec.ts` (42 cells + weekday headers, event placement + url anchor, prev/next nav — select nav buttons by `aria-label`, which under the test i18n `missing` handler is the full key `kinetix.calendar_next`). Full guide: `docs/calendar.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
