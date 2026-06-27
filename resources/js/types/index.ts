@@ -470,7 +470,22 @@ export interface KinetixStat {
     description?: string;
     descriptionIcon?: string;
     descriptionColor?: 'success' | 'danger' | 'warning' | 'info' | 'gray';
+    icon?: string | null;
+    iconColor?: string | null;
     chart?: number[];
+}
+
+/** A row in a KinetixListWidget. */
+export interface KinetixListItem {
+    title: string;
+    subtitle?: string | null;
+    icon?: string | null;
+    iconColor?: string | null;
+    value?: string | null;
+    badge?: string | null;
+    badgeColor?: string | null;
+    progress?: number | null;
+    url?: string | null;
 }
 
 export interface KinetixChartDataset {
@@ -484,7 +499,7 @@ export interface KinetixChartDataset {
 
 export interface KinetixWidget {
     id: string;
-    type: 'stats' | 'chart' | 'table' | 'custom';
+    type: 'stats' | 'chart' | 'table' | 'custom' | 'list';
     title?: string;
     description?: string;
     columnSpan: number | string | Record<string, number | string>;

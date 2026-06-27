@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.59.0] - 2026-06-27
+
+### Added
+
+- **Richer dashboard widgets** (**published**):
+  - **Stat cards** gain `Stat::make()->icon('dollar-sign')->iconColor('info')` —
+    a leading icon in a colored badge (shown in place of the sparkline), matching
+    the common KPI-card style. Pairs with the existing trend
+    `description`/`descriptionIcon`/`descriptionColor`.
+  - **New `ListWidget`** (`type: list`) — a list/feed panel for recent activity,
+    stock alerts, latest orders, etc. `ListWidget::make()->items([...])->icon()
+    ->action($label, $url)->emptyState()`; each `ListItem::make($title)
+    ->subtitle()->icon($name, $color)->value()->badge($text, $color)
+    ->progress(0–100)->url()` renders a leading icon badge, title + subtitle, a
+    trailing value/badge and an optional progress bar; an optional footer link.
+  - **Chart `area` type** — `chartType('area')` renders a filled line.
+  - `resolveIcon()` gained common dashboard icons (dollar-sign, shopping-cart,
+    shopping-bag, users, package, clock, activity, alert-triangle, wallet, …).
+- New `KinetixListItem` TS type; `KinetixStat` gains `icon`/`iconColor`;
+  `KinetixWidget.type` includes `list`.
+
 ## [0.58.0] - 2026-06-27
 
 ### Added

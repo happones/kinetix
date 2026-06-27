@@ -124,6 +124,7 @@ import KinetixSpotlightTrigger from '@/components/KinetixSpotlightTrigger.vue';
 import KinetixAccessibilityPanel from '@/components/KinetixAccessibilityPanel.vue';
 import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
+import KinetixListWidget from '@/components/KinetixListWidget.vue';
 import KinetixRangeCalendar from '@/components/KinetixRangeCalendar.vue';
 import KinetixDateTimePicker from '@/components/KinetixDateTimePicker.vue';
 import KinetixTimePicker from '@/components/KinetixTimePicker.vue';
@@ -434,16 +435,84 @@ const statsWidget = {
     data: {
         stats: [
             {
-                label: 'Revenue',
-                value: '$24,580',
-                chart: [10, 14, 12, 18, 22, 20, 26],
+                label: 'Sales today',
+                value: '$502.30',
+                icon: 'dollar-sign',
+                iconColor: 'info',
+                description: '+12.5% vs yesterday',
+                descriptionIcon: 'arrow-up',
+                descriptionColor: 'success',
             },
             {
-                label: 'New users',
-                value: '1,204',
-                chart: [5, 6, 8, 7, 10, 12, 14],
+                label: 'Transactions',
+                value: '3',
+                icon: 'shopping-cart',
+                iconColor: 'warning',
+                description: '+8.3% vs yesterday',
+                descriptionIcon: 'arrow-up',
+                descriptionColor: 'success',
             },
-            { label: 'Churn', value: '1.8%', chart: [4, 3, 3, 2, 2, 2, 1] },
+            {
+                label: 'Customers',
+                value: '3',
+                icon: 'users',
+                iconColor: 'success',
+                description: '+3.1% vs yesterday',
+                descriptionIcon: 'arrow-up',
+                descriptionColor: 'success',
+            },
+            {
+                label: 'Products',
+                value: '8',
+                icon: 'package',
+                iconColor: 'info',
+                description: '-1.2% vs yesterday',
+                descriptionIcon: 'arrow-down',
+                descriptionColor: 'danger',
+            },
+        ],
+    },
+};
+
+const listWidget = {
+    id: 'recent',
+    type: 'list',
+    columnSpan: 4,
+    sort: 0,
+    title: 'Recent sales',
+    description: null,
+    data: {
+        icon: 'clock',
+        actionLabel: 'View all sales',
+        actionUrl: '#',
+        emptyState: 'No sales yet',
+        items: [
+            {
+                title: 'V001',
+                subtitle: '2 products',
+                icon: 'shopping-cart',
+                iconColor: 'gray',
+                value: '$97.44',
+                badge: 'Cash',
+                badgeColor: 'success',
+            },
+            {
+                title: 'V002',
+                subtitle: '2 products · María',
+                icon: 'shopping-cart',
+                iconColor: 'gray',
+                value: '$270.30',
+                badge: 'Card',
+                badgeColor: 'info',
+            },
+            {
+                title: 'Sabritas 45g',
+                subtitle: 'Low stock',
+                icon: 'alert-triangle',
+                iconColor: 'warning',
+                progress: 20,
+                value: '3',
+            },
         ],
     },
 };
@@ -682,6 +751,13 @@ export const specimens: Specimen[] = [
         component: KinetixStatsOverviewWidget,
         width: 980,
         props: { widget: statsWidget },
+    },
+    {
+        name: 'list-widget',
+        title: 'List widget (feed / alerts)',
+        component: KinetixListWidget,
+        width: 380,
+        props: { widget: listWidget },
     },
     {
         name: 'range-calendar',

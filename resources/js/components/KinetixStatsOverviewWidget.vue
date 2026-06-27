@@ -16,6 +16,7 @@ import {
     CheckCircle,
 } from '@lucide/vue';
 import { computed } from 'vue';
+import { resolveIcon } from '@/composables/useKinetixIcons';
 import { statusSoftClass } from '@/composables/useStatusColor';
 import type { KinetixWidget, KinetixStat } from '@/types';
 import Card from './primitives/Card.vue';
@@ -281,9 +282,25 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
                             </span>
                         </div>
 
+                        <!-- Leading icon badge -->
+                        <div
+                            v-if="stat.icon && resolveIcon(stat.icon)"
+                            class="size-11 rounded-xl flex shrink-0 items-center justify-center"
+                            :class="
+                                getDescriptionColorClass(
+                                    stat.iconColor ?? undefined,
+                                )
+                            "
+                        >
+                            <component
+                                :is="resolveIcon(stat.icon)"
+                                class="size-5"
+                            />
+                        </div>
+
                         <!-- Sparkline Chart -->
                         <div
-                            v-if="stat.chart && stat.chart.length >= 2"
+                            v-else-if="stat.chart && stat.chart.length >= 2"
                             class="mt-1 h-[40px] w-[120px] shrink-0"
                         >
                             <svg

@@ -2,6 +2,7 @@
 import {
     VisXYContainer,
     VisSingleContainer,
+    VisArea,
     VisLine,
     VisGroupedBar,
     VisDonut,
@@ -192,14 +193,21 @@ const pieTooltipTemplate = (d: any) => {
 
             <!-- XY Charts (Line/Bar) -->
             <VisXYContainer v-else :data="chartData" height="300">
-                <template v-if="chartType === 'line'">
-                    <VisLine
-                        v-for="(_, index) in datasets"
-                        :key="index"
-                        :x="xAccessor"
-                        :y="yAccessors[index]"
-                        :color="colorAccessor(null, index)"
-                    />
+                <template v-if="chartType === 'line' || chartType === 'area'">
+                    <template v-for="(_, index) in datasets" :key="index">
+                        <VisArea
+                            v-if="chartType === 'area'"
+                            :x="xAccessor"
+                            :y="yAccessors[index]"
+                            :color="colorAccessor(null, index)"
+                            :opacity="0.15"
+                        />
+                        <VisLine
+                            :x="xAccessor"
+                            :y="yAccessors[index]"
+                            :color="colorAccessor(null, index)"
+                        />
+                    </template>
                 </template>
                 <VisGroupedBar
                     v-if="chartType === 'bar'"

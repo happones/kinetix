@@ -134,6 +134,13 @@ $grid = WidgetsGrid::make()
 ### Charting System (Unovis)
 - All charts are rendered using **`@unovis/vue`** and **`@unovis/ts`** (the framework behind Shadcn Vue charts).
 - **CRITICAL**: For line and bar XY charts, always map string labels to numeric indices in the data coordinates (`0, 1, 2, ...`). Use the `:tickValues` array to force ticks onto index coordinates and format them back to strings using `:tickFormat`. This prevents continuous scale `NaN` rendering exceptions in Unovis.
+- Chart types: `line` | `area` (filled line via `VisArea opacity 0.15` + `VisLine`) | `bar` (`VisGroupedBar`) | `pie`/`doughnut` (`VisDonut`).
+
+### Widget variants (v0.59.0)
+- **Stat icons**: `Stat::make()->icon('dollar-sign')->iconColor('info'|'success'|'warning'|'danger'|'gray')` → serialized `icon`/`iconColor`. `KinetixStatsOverviewWidget` renders a soft-colored icon badge (size-11 rounded-xl, `statusSoftClass`, `resolveIcon`) **in place of** the sparkline when an icon is set. `KinetixStat` TS gains `icon`/`iconColor`.
+- **`ListWidget`** (`src/Widgets/ListWidget.php`, type `list`) + **`ListItem`** (`src/Widgets/Lists/ListItem.php`): `ListWidget::make()->items([ListItem::make($title)->subtitle()->icon($name,$color)->value()->badge($text,$color)->progress(0-100 clamped)->url()])->icon()->action($label,$url)->emptyState()`. `KinetixListWidget.vue` (Card; rows = icon badge + title/subtitle + trailing value/badge + progress bar; row is `<a>` when `url`; footer link button). Registered in `KinetixWidgetsGrid` as `type === 'list'`; `KinetixWidget.type` includes `list`; TS `KinetixListItem`.
+- **`resolveIcon` (`useKinetixIcons`)** extended with dashboard icons: dollar-sign, wallet, shopping-cart/bag, package/cube/box, users, clock, activity, alert-circle/triangle, trending-up. Used by both the stat badge and list widget.
+- Tests: `WidgetVariantsTest` (Stat icon, StatsOverview carries icon, ListItem all fields + progress clamp, ListWidget items+action), `KinetixListWidget.spec.ts` (title/items/action, progress width + url link, empty state). Gallery: `statsWidget` shows POS-style icon cards, `listWidget` specimen.
 
 ---
 

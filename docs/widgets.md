@@ -292,15 +292,23 @@ Groups multiple statistical KPI cards.
   - `stats(array $stats)`: Mapped array of `Stat` builders.
 - **`Stat` Properties**:
   - `Stat::make(string $label, mixed $value)`: Create a stat metric.
-  - `description(string $desc)`: Supporting details text.
-  - `descriptionIcon(string $icon)`: Lucide icon name.
-  - `descriptionColor(string $color)`: `success` (green), `danger` (red), `warning` (amber), `info` (blue), `gray` (neutral). Defaults to `gray`.
-  - `chart(array $trendPoints)`: Floating numeric array to draw an SVG sparkline.
+  - `icon(string $icon)`: a leading Lucide icon shown in a colored badge on the card (e.g. `dollar-sign`, `shopping-cart`, `users`, `package`).
+  - `iconColor(string $color)`: the icon badge color — `success` / `danger` / `warning` / `info` / `gray`. Defaults to `info`.
+  - `description(string $desc)`: supporting/trend text (e.g. `+12.5% vs yesterday`).
+  - `descriptionIcon(string $icon)`: trend icon, e.g. `arrow-up` / `arrow-down`.
+  - `descriptionColor(string $color)`: trend color (`success` / `danger` / `warning` / `info` / `gray`). Defaults to `gray`.
+  - `chart(array $trendPoints)`: numeric array to draw an SVG sparkline (shown when no `icon` is set).
+
+```php
+Stat::make('Sales today', '$502.30')
+    ->icon('dollar-sign')->iconColor('info')
+    ->description('+12.5% vs yesterday')->descriptionIcon('arrow-up')->descriptionColor('success');
+```
 
 ### 2. `ChartWidget`
 Interactive metrics charting backed by Unovis.
 - **Methods**:
-  - `chartType(string $type)`: line, bar, pie, doughnut.
+  - `chartType(string $type)`: `line`, `area`, `bar`, `pie`, `doughnut`. `area` is a filled line.
   - `labels(array $labels)`: Category names list.
   - `datasets(array $datasets)`: Dataset configuration arrays.
   - `options(array $options)`: Custom chart properties payload.
@@ -311,7 +319,29 @@ Renders quick-reference summary tables.
   - `headers(array $headers)`: Header titles.
   - `rows(array $rows)`: List of table rows (supports flat arrays or key-value arrays).
 
-### 4. `CustomWidget`
+### 4. `ListWidget`
+A list/feed panel — recent activity, stock alerts, latest orders, etc. Each row
+has a leading icon badge, a title + subtitle, an optional trailing value/badge,
+and an optional progress bar; an optional footer renders a link button.
+- **Methods**:
+  - `items(array $items)`: array of `ListItem` builders.
+  - `icon(string $icon)`: header icon next to the title.
+  - `action(string $label, string $url)`: footer link button.
+  - `emptyState(string $text)`: message shown when there are no items.
+- **`ListItem` Properties**: `ListItem::make($title)->subtitle()->icon($name, $color)->value($text)->badge($text, $color)->progress(int 0–100)->url($href)`.
+
+```php
+ListWidget::make()
+    ->title('Stock alerts')->icon('alert-triangle')
+    ->items([
+        ListItem::make('Jugo Del Valle 1L')->subtitle('Out of stock')
+            ->icon('alert-triangle', 'danger')->badge('0', 'danger'),
+        ListItem::make('Sabritas 45g')->progress(20)->value('3'),
+    ])
+    ->action('View inventory', '/inventory');
+```
+
+### 5. `CustomWidget`
 A wrapper widget designed to expose custom slots.
 - **Methods**:
   - `properties(array $payload)`: Custom settings and variables payload serialized to the Vue template.
