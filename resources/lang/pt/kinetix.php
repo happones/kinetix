@@ -245,6 +245,17 @@ return [
     'password_confirm'                 => 'Confirmar senha',
     'password_updated'                 => 'Senha atualizada.',
 
+    // Browser sessions / device management
+    'sessions_title'                 => 'Sessões do navegador',
+    'sessions_description'           => 'Gerencie e encerre suas sessões ativas em outros dispositivos.',
+    'sessions_unavailable'           => 'Os detalhes da sessão exigem o driver de sessão de banco de dados.',
+    'sessions_empty'                 => 'Nenhuma sessão ativa.',
+    'session_this_device'            => 'Este dispositivo',
+    'session_active_now'             => 'Ativa agora',
+    'sessions_logout_others'         => 'Encerrar outras sessões',
+    'sessions_logout_others_confirm' => 'Digite sua senha para confirmar o encerramento das suas outras sessões em todos os seus dispositivos.',
+    'sessions_logged_out_others'     => 'Suas outras sessões foram encerradas.',
+
     // Integração
     'onboarding_title'     => 'Primeiros passos',
     'onboarding_progress'  => ':completed de :total concluídos',

@@ -135,6 +135,18 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
     },
   },
   {
+    match: /\/sessions$/,
+    data: {
+      sessions: [
+        { id: "a1", ipAddress: "203.0.113.10", browser: "Chrome", platform: "macOS", device: "desktop", isCurrentDevice: true, lastActive: "2026-06-26T10:00:00Z" },
+        { id: "b2", ipAddress: "198.51.100.4", browser: "Safari", platform: "iOS", device: "mobile", isCurrentDevice: false, lastActive: "2026-06-25T18:30:00Z" },
+        { id: "c3", ipAddress: "192.0.2.7", browser: "Firefox", platform: "Windows", device: "desktop", isCurrentDevice: false, lastActive: "2026-06-20T09:15:00Z" },
+      ],
+      databaseDriver: true,
+      requiresPassword: true,
+    },
+  },
+  {
     match: /\/onboarding$/,
     data: {
       steps: [

@@ -245,6 +245,17 @@ return [
     'password_confirm'                 => 'Confirmer le mot de passe',
     'password_updated'                 => 'Mot de passe mis à jour.',
 
+    // Browser sessions / device management
+    'sessions_title'                 => 'Sessions du navigateur',
+    'sessions_description'           => 'Gérez et déconnectez vos sessions actives sur d’autres appareils.',
+    'sessions_unavailable'           => 'Les détails de session nécessitent le driver de session en base de données.',
+    'sessions_empty'                 => 'Aucune session active.',
+    'session_this_device'            => 'Cet appareil',
+    'session_active_now'             => 'Active maintenant',
+    'sessions_logout_others'         => 'Déconnecter les autres sessions',
+    'sessions_logout_others_confirm' => 'Saisissez votre mot de passe pour confirmer la déconnexion de vos autres sessions sur tous vos appareils.',
+    'sessions_logged_out_others'     => 'Vos autres sessions ont été déconnectées.',
+
     // Intégration
     'onboarding_title'     => 'Pour commencer',
     'onboarding_progress'  => ':completed sur :total terminés',

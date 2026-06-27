@@ -27,7 +27,7 @@ reach for a Kinetix module where the starter kit leaves a gap.
 | Social login / OAuth (sign in with provider) | — | ✅ ([Connected Accounts](/connected-accounts)) | **Kinetix.** The starter kit ships no OAuth at all — this is a complete feature, not a complement. |
 | Link / unlink connected accounts | — | ✅ ([Connected Accounts](/connected-accounts)) | **Kinetix.** |
 | Set password for social-only users | — | ✅ ([Connected Accounts](/connected-accounts)) | **Kinetix.** |
-| Active sessions / device management | — | 🛣️ roadmap | **Kinetix** (planned). |
+| Active sessions / device management | — | ✅ ([Browser Sessions](/sessions)) | **Kinetix.** |
 | Resources, Tables, Forms, Infolists | — | ✅ | **Kinetix.** The core toolkit. |
 | Notifications, Widgets, Spotlight, Activity | — | ✅ | **Kinetix.** |
 | Roles & permissions, Membership, Impersonation | — | ✅ | **Kinetix.** |

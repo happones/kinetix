@@ -245,6 +245,17 @@ return [
     'password_confirm'                 => 'Confirm password',
     'password_updated'                 => 'Password updated.',
 
+    // Browser sessions / device management
+    'sessions_title'                 => 'Browser sessions',
+    'sessions_description'           => 'Manage and log out your active sessions on other devices.',
+    'sessions_unavailable'           => 'Session details require the database session driver.',
+    'sessions_empty'                 => 'No active sessions.',
+    'session_this_device'            => 'This device',
+    'session_active_now'             => 'Active now',
+    'sessions_logout_others'         => 'Log out other sessions',
+    'sessions_logout_others_confirm' => 'Enter your password to confirm logging out of your other browser sessions across all of your devices.',
+    'sessions_logged_out_others'     => 'Logged out of your other sessions.',
+
     // Onboarding
     'onboarding_title'     => 'Getting started',
     'onboarding_progress'  => ':completed of :total complete',

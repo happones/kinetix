@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-06-26
+
+### Added
+
+- **Browser Sessions / device management** (`sessions`, optional) — a modern,
+  shadcn-styled take on Jetstream's browser-sessions panel:
+  - Lists the user's active sessions (device type, browser, platform, IP,
+    relative last-active) with a **"this device"** badge, reading Laravel's
+    `sessions` table (requires `SESSION_DRIVER=database`).
+  - **Log out other sessions** — password-gated (skipped for passwordless
+    users); deletes every other session row, keeping the current one.
+  - Ships a tiny built-in `UserAgentParser` (no `jenssegers/agent` dependency).
+  - Backed by `BrowserSessionManager`, `BrowserSessionData`, `SessionController`
+    and the `useKinetixSessions` composable + `KinetixSessions` Vue component.
+    No migration is published (reads the existing `sessions` table).
+- New i18n keys (en/es/fr/pt): `session*`.
+
 ## [0.27.0] - 2026-06-26
 
 ### Added

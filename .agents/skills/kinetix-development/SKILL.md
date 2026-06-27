@@ -541,6 +541,17 @@ Roadmap v0.27.0. Complete **social-auth** feature (the Vue starter kit ships NO 
 
 ---
 
+## 26. Kinetix Browser Sessions (optional, device management)
+
+Roadmap v0.28.0. Modern shadcn take on Jetstream's browser-sessions (no `jenssegers/agent` dep — ships a tiny `Sessions\UserAgentParser`). Config block `sessions` (`enabled`, `require_password`). **No migration** — reads Laravel's `sessions` table → requires `SESSION_DRIVER=database`. **Self-service, no admin ability.**
+
+- **`BrowserSessionManager`**: `usesDatabaseDriver()`, `for($user,$request)` (queries `session.table`/`session.connection` via `DB::connection`, parses UA, current device first; uses `$request->hasSession() ? ->getId() : null` so it's safe in stateless contexts), `logoutOthers($user,$request)` (deletes user's rows where `id != currentId`, keeps current). `BrowserSessionData` DTO (`id,ipAddress,browser,platform,device,isCurrentDevice,lastActive` ISO).
+- **`SessionController`**: `GET {prefix}/sessions` index (sessions + `databaseDriver` + `requiresPassword`), `DELETE {prefix}/sessions/others` (validates `current_password` only when `require_password` && user `hasPassword`). Team-aware prefix.
+- **Vue (published)**: `KinetixSessions` (device icons Monitor/Smartphone/Tablet + ShieldCheck "this device" badge from `@lucide/vue`; relative last-active; "Log out other sessions" with inline password prompt; non-database-driver notice), `useKinetixSessions` (`{sessions, databaseDriver, requiresPassword, loading, load, logoutOthers}`).
+- i18n `session*` keys (en/es/fr/pt). Tests: `BrowserSessionsTest` (manager direct for current-device detection — builds a `Request` with `setLaravelSession` + a valid 40-char id; logout-others keeps current; HTTP password-gate 422/200; non-db driver), `UserAgentParserTest`, `KinetixSessions.spec.ts`. Full guide: `docs/sessions.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

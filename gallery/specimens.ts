@@ -9,6 +9,7 @@ import KinetixGdprPanel from "@/components/KinetixGdprPanel.vue";
 import KinetixTokenManager from "@/components/KinetixTokenManager.vue";
 import KinetixWebhookManager from "@/components/KinetixWebhookManager.vue";
 import KinetixConnectedAccounts from "@/components/KinetixConnectedAccounts.vue";
+import KinetixSessions from "@/components/KinetixSessions.vue";
 import KinetixSpotlightTrigger from "@/components/KinetixSpotlightTrigger.vue";
 import KinetixAccessibilityPanel from "@/components/KinetixAccessibilityPanel.vue";
 import KinetixPricingTable from "@/components/KinetixPricingTable.vue";
@@ -290,6 +291,7 @@ export const specimens: Specimen[] = [
   { name: "file-upload", title: "File upload", component: KinetixFileUpload, frame: "card", width: 560, props: { uploadToken: "preview-token", isImage: true } },
   { name: "token-manager", title: "API token manager", component: KinetixTokenManager, width: 720 },
   { name: "connected-accounts", title: "Connected accounts", component: KinetixConnectedAccounts, frame: "card", width: 620 },
+  { name: "sessions", title: "Browser sessions", component: KinetixSessions, frame: "card", width: 620 },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },
   { name: "gdpr-panel", title: "GDPR self-service panel", component: KinetixGdprPanel, width: 640, props: { requirePassword: true } },
   { name: "accessibility-panel", title: "Accessibility panel", component: KinetixAccessibilityPanel, frame: "card", width: 560 },

@@ -414,6 +414,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Browser Sessions / Device management (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Let users see their active browser sessions (device, browser, IP, last
+    | active) and log out every other device. The session list requires
+    | SESSION_DRIVER=database (and the `sessions` table). No migration is
+    | published — it reads Laravel's own sessions table.
+    |
+    */
+    'sessions' => [
+        'enabled' => env('KINETIX_SESSIONS_ENABLED', false),
+
+        // Require the current password to confirm logging out other devices
+        // (skipped automatically for users who have no password set).
+        'require_password' => env('KINETIX_SESSIONS_REQUIRE_PASSWORD', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Wizards (optional)
     |--------------------------------------------------------------------------
     |

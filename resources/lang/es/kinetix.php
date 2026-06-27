@@ -245,6 +245,17 @@ return [
     'password_confirm'                 => 'Confirmar contraseña',
     'password_updated'                 => 'Contraseña actualizada.',
 
+    // Browser sessions / device management
+    'sessions_title'                 => 'Sesiones del navegador',
+    'sessions_description'           => 'Administra y cierra tus sesiones activas en otros dispositivos.',
+    'sessions_unavailable'           => 'Los detalles de sesión requieren el driver de sesión de base de datos.',
+    'sessions_empty'                 => 'No hay sesiones activas.',
+    'session_this_device'            => 'Este dispositivo',
+    'session_active_now'             => 'Activa ahora',
+    'sessions_logout_others'         => 'Cerrar otras sesiones',
+    'sessions_logout_others_confirm' => 'Introduce tu contraseña para confirmar el cierre de tus otras sesiones en todos tus dispositivos.',
+    'sessions_logged_out_others'     => 'Se cerraron tus otras sesiones.',
+
     // Onboarding
     'onboarding_title'     => 'Primeros pasos',
     'onboarding_progress'  => ':completed de :total completados',

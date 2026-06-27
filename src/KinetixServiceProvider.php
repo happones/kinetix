@@ -49,6 +49,8 @@ use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
+use Happones\Kinetix\Sessions\BrowserSessionManager;
+use Happones\Kinetix\Sessions\SessionController;
 use Happones\Kinetix\Settings\KinetixSettings;
 use Happones\Kinetix\Settings\SettingsController;
 use Happones\Kinetix\Settings\SettingsManager;
@@ -142,6 +144,9 @@ class KinetixServiceProvider extends ServiceProvider
             return $registry;
         });
         $this->app->singleton(ConnectedAccountManager::class);
+
+        // The browser-sessions manager (reads Laravel's sessions table).
+        $this->app->singleton(BrowserSessionManager::class);
     }
 
     /**
@@ -308,6 +313,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Connected Accounts module (social auth + linking)
         $this->registerConnectedAccounts();
+
+        // Register the optional Browser Sessions module (device management)
+        $this->registerSessions();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -863,6 +871,35 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('callback/{provider}', [ConnectedAccountController::class, 'callback'])->name('kinetix.connected-accounts.callback');
                 Route::post('password', [ConnectedAccountController::class, 'password'])->name('kinetix.connected-accounts.password');
                 Route::delete('{account}', [ConnectedAccountController::class, 'destroy'])->name('kinetix.connected-accounts.destroy');
+            });
+    }
+
+    /**
+     * Wire the optional Browser Sessions module: list the user's active sessions
+     * and log out other devices (self-service, reads Laravel's sessions table).
+     */
+    protected function registerSessions(): void
+    {
+        if (! config('kinetix.sessions.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/sessions")
+            ->group(function () {
+                Route::get('/', [SessionController::class, 'index'])->name('kinetix.sessions.index');
+                Route::delete('others', [SessionController::class, 'destroyOthers'])->name('kinetix.sessions.destroy-others');
             });
     }
 

@@ -165,6 +165,17 @@ export interface KinetixOnboarding {
   dismissed: boolean;
 }
 
+/** An active browser session (from Laravel's sessions table). */
+export interface KinetixBrowserSession {
+  id: string;
+  ipAddress: string | null;
+  browser: string;
+  platform: string;
+  device: "desktop" | "mobile" | "tablet";
+  isCurrentDevice: boolean;
+  lastActive: string | null;
+}
+
 /** A user's linked OAuth identity (tokens are never included). */
 export interface KinetixConnectedAccount {
   id: number | string | null;
