@@ -147,6 +147,10 @@ return [
     'comment_unknown_author'    => 'Quelqu’un',
     'comment_invalid_parent'    => 'Vous ne pouvez répondre qu’à un commentaire de premier niveau.',
 
+    // Tags
+    'tag_placeholder' => 'Ajouter une étiquette…',
+    'tag_remove'      => 'Retirer l’étiquette',
+
     // Rôles et permissions
     'save'               => 'Enregistrer',
     'select_all'         => 'Tout sélectionner',

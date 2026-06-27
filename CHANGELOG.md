@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-06-26
+
+### Added
+
+- **Tags module** (`tags`, optional, **published**) — polymorphic, reusable tags
+  on any model (real tags stored in their own table, vs the form `TagsInput`
+  which only stores a string array on the record):
+  - Add the `HasKinetixTags` trait to taggable models and allowlist them with
+    `KinetixTags::for([Post::class, ...])`.
+  - Tags autocomplete from the existing set, are deduped by slug, and are
+    **team-scoped automatically** when `kinetix.teams` is on; a host
+    `view`/`update` policy on the model is honored.
+  - `TagFilter` filters a table by tag (`whereHas`); the `KinetixTags` Vue
+    component (chips + autocomplete + create-on-Enter) + `useKinetixTags`
+    composable; backed by `Tag`, `TagManager`, `TagRegistry` and the
+    `kinetix_tags` / `kinetix_taggables` tables.
+- New i18n keys (en/es/fr/pt): `tag_placeholder`, `tag_remove`.
+
 ## [0.39.0] - 2026-06-26
 
 ### Changed

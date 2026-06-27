@@ -147,6 +147,10 @@ return [
     'comment_unknown_author'    => 'Someone',
     'comment_invalid_parent'    => 'You can only reply to a top-level comment.',
 
+    // Tags
+    'tag_placeholder' => 'Add a tag…',
+    'tag_remove'      => 'Remove tag',
+
     // Roles & permissions
     'save'               => 'Save',
     'select_all'         => 'Select all',

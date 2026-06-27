@@ -34,6 +34,17 @@ parameters:
             identifier: trait.unused
             path: src/Activity/Concerns/LogsKinetixActivity.php
 
+        # Taggable trait added to the host app's Eloquent models, not used in-package.
+        -
+            identifier: trait.unused
+            path: src/Tags/HasKinetixTags.php
+
+        # tags() lives on the host model's HasKinetixTags trait, not the base Model;
+        # the taggable is resolved + allowlisted at runtime by the TagRegistry.
+        -
+            message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::tags\(\)#'
+            path: src/Tags/TagManager.php
+
         # Scout's search() lives on the host model's Searchable trait (a suggested
         # dep), not on the generic base Model; guarded by usesScout() at runtime.
         -

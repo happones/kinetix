@@ -570,6 +570,18 @@ Roadmap v0.38.0. Config block `comments` (`enabled`). Migration `kinetix_comment
 
 ---
 
+## 28. Kinetix Tags (optional, polymorphic tagging)
+
+Roadmap v0.40.0. Config block `tags` (`enabled`). Migration: `kinetix_tags` (`team_id` nullable, `name`, `slug`, unique `[team_id, slug]`) + `kinetix_taggables` morph pivot (unique `[tag_id, taggable_type, taggable_id]`); tag `kinetix-tags-migrations`. Real tags (vs the `TagsInput` field which is just a string array on the record). Team-scoped automatically by `team_id` when `kinetix.teams`.
+
+- **Trait** `HasKinetixTags` (public API): `tags()` = `morphToMany(Tag, 'taggable', 'kinetix_taggables', 'taggable_id', 'tag_id')`. Add to taggable models. (Excluded from phpstan `trait.unused` in `phpstan.neon`, like the other host-consumed traits; `$taggable->tags()` calls in `TagManager` are covered by a `Model::tags()` `ignoreErrors` path entry — follow that convention, NOT inline ignores.)
+- **`TagManager`**: `for($taggable)` (names), `suggest($q,$teamId,$limit)` (autocomplete), `sync($taggable,$names,$teamId)` (find-or-create by `Str::slug`, dedup, pivot sync), `findOrCreate`, `all($teamId)`. **`TagRegistry`** allowlist (`resolve($type)` also requires the model `class_uses_recursive` includes `HasKinetixTags`). `KinetixTags::for([...])`.
+- **`TagController`** (team-aware `{prefix}/tags`): `GET /` index (a taggable's tags), `GET suggest?q=`, `POST sync`. Resolves taggable via registry; honors host `view` (read) / `update` (write) policy via `Gate::getPolicyFor`. `teamId()` from `request()->route('current_team')` when teams on.
+- **`TagFilter`** (table, extends `MultiSelectFilter`): `getOptions()` = all tag names; `apply()` → `whereHas('tags', whereIn slug)` (table model needs the trait).
+- **Vue (published)**: `KinetixTags` (props `taggableType`,`taggableId`): chips + autocomplete dropdown (debounced `suggest`) + create-on-Enter + backspace-removes-last; syncs every change. `useKinetixTags(type,id)` → `{tags, loading, load, suggest, sync}`. i18n `tag_placeholder`/`tag_remove`. Tests: `TagsTest` (sync find-or-create + dedup, slug reuse, suggest, index, unregistered 404, TagFilter whereHas), `KinetixTags.spec.ts`. Full guide: `docs/tags.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

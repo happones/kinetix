@@ -428,6 +428,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tags (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Polymorphic tags on any model. Add the HasKinetixTags trait to taggable
+    | models and allowlist them with KinetixTags::for([Post::class, ...]).
+    | Tags are team-scoped automatically when kinetix.teams is on.
+    |
+    */
+    'tags' => [
+        'enabled' => env('KINETIX_TAGS_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Forms
     |--------------------------------------------------------------------------
     |

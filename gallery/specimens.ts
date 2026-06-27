@@ -22,6 +22,7 @@ import KinetixPhoneInput from '@/components/KinetixPhoneInput.vue';
 import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
+import KinetixTags from '@/components/KinetixTags.vue';
 
 // Slug + signature showcase for the gallery.
 const SlugSignatureShowcase: Component = {
@@ -895,6 +896,14 @@ export const specimens: Specimen[] = [
         frame: 'card',
         width: 600,
         props: { commentableType: 'App\\Models\\Post', commentableId: 1 },
+    },
+    {
+        name: 'tags',
+        title: 'Tags (polymorphic)',
+        component: KinetixTags,
+        frame: 'card',
+        width: 480,
+        props: { taggableType: 'App\\Models\\Post', taggableId: 1 },
     },
     {
         name: 'webhook-manager',

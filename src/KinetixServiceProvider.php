@@ -61,6 +61,9 @@ use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Tags\TagController;
+use Happones\Kinetix\Tags\TagManager;
+use Happones\Kinetix\Tags\TagRegistry;
 use Happones\Kinetix\Tokens\TokenController;
 use Happones\Kinetix\Tokens\TokenScopeRegistry;
 use Happones\Kinetix\Webhooks\LogSpatieWebhookCall;
@@ -154,6 +157,10 @@ class KinetixServiceProvider extends ServiceProvider
         // The comments allowlist registry + manager.
         $this->app->singleton(CommentRegistry::class);
         $this->app->singleton(CommentManager::class);
+
+        // The tags allowlist registry + manager.
+        $this->app->singleton(TagRegistry::class);
+        $this->app->singleton(TagManager::class);
     }
 
     /**
@@ -261,6 +268,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000010_create_kinetix_comments_table.php' => database_path('migrations/2026_01_01_000010_create_kinetix_comments_table.php'),
             ], 'kinetix-comments-migrations');
 
+            // Publish the optional Tags module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000011_create_kinetix_tags_table.php' => database_path('migrations/2026_01_01_000011_create_kinetix_tags_table.php'),
+            ], 'kinetix-tags-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -331,6 +343,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Comments module (polymorphic threaded comments)
         $this->registerComments();
+
+        // Register the optional Tags module (polymorphic tagging)
+        $this->registerTags();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -946,6 +961,36 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('/', [CommentController::class, 'store'])->name('kinetix.comments.store');
                 Route::put('{comment}', [CommentController::class, 'update'])->name('kinetix.comments.update');
                 Route::delete('{comment}', [CommentController::class, 'destroy'])->name('kinetix.comments.destroy');
+            });
+    }
+
+    /**
+     * Wire the optional Tags module: polymorphic tagging endpoints (list, suggest,
+     * sync) for allowlisted HasKinetixTags models.
+     */
+    protected function registerTags(): void
+    {
+        if (! config('kinetix.tags.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/tags")
+            ->group(function () {
+                Route::get('/', [TagController::class, 'index'])->name('kinetix.tags.index');
+                Route::get('suggest', [TagController::class, 'suggest'])->name('kinetix.tags.suggest');
+                Route::post('sync', [TagController::class, 'sync'])->name('kinetix.tags.sync');
             });
     }
 

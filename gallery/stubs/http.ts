@@ -195,6 +195,10 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        match: /\/tags(\?|$)/,
+        data: { tags: ['laravel', 'vue', 'inertia', 'shadcn'] },
+    },
+    {
         match: /\/comments(\?|$)/,
         data: {
             comments: [
