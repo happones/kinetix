@@ -134,6 +134,19 @@ return [
     'editor_tiptap_missing' => 'El editor Tiptap necesita @tiptap/core y @tiptap/starter-kit. Instálalos o cambia este campo al editor básico o markdown.',
     'signature_clear'       => 'Limpiar',
 
+    // Comments
+    'comments_title'            => 'Comentarios',
+    'comment_placeholder'       => 'Escribe un comentario…',
+    'comment_reply_placeholder' => 'Escribe una respuesta…',
+    'comment_post'              => 'Publicar',
+    'comment_reply'             => 'Responder',
+    'comment_empty'             => 'Aún no hay comentarios. Sé el primero en comentar.',
+    'comment_deleted'           => 'Comentario eliminado.',
+    'comment_edited'            => 'editado',
+    'comment_just_now'          => 'ahora mismo',
+    'comment_unknown_author'    => 'Alguien',
+    'comment_invalid_parent'    => 'Solo puedes responder a un comentario de primer nivel.',
+
     // Roles y permisos
     'save'               => 'Guardar',
     'select_all'         => 'Seleccionar todo',

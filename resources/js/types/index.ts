@@ -166,6 +166,20 @@ export interface KinetixOnboarding {
   dismissed: boolean;
 }
 
+/** A comment (with its threaded replies) on a commentable model. */
+export interface KinetixComment {
+  id: number | string | null;
+  body: string;
+  authorId: number | string | null;
+  authorName: string | null;
+  authorAvatar: string | null;
+  parentId: number | string | null;
+  createdAt: string | null;
+  edited: boolean;
+  editable: boolean;
+  replies: KinetixComment[];
+}
+
 /** An active browser session (from Laravel's sessions table). */
 export interface KinetixBrowserSession {
   id: string;

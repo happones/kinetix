@@ -414,6 +414,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Comments (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Polymorphic, threaded comments on any model. Declare which models accept
+    | comments with KinetixComments::for([Post::class, Task::class]). Each user
+    | edits/deletes only their own; a host "view" policy on the model is honored.
+    |
+    */
+    'comments' => [
+        'enabled' => env('KINETIX_COMMENTS_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Forms
     |--------------------------------------------------------------------------
     |

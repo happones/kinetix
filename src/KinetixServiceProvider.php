@@ -26,6 +26,9 @@ use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\WebhooksPruneCommand;
+use Happones\Kinetix\Comments\CommentController;
+use Happones\Kinetix\Comments\CommentManager;
+use Happones\Kinetix\Comments\CommentRegistry;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountController;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
@@ -147,6 +150,10 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The browser-sessions manager (reads Laravel's sessions table).
         $this->app->singleton(BrowserSessionManager::class);
+
+        // The comments allowlist registry + manager.
+        $this->app->singleton(CommentRegistry::class);
+        $this->app->singleton(CommentManager::class);
     }
 
     /**
@@ -249,6 +256,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000009_create_kinetix_connected_accounts_table.php' => database_path('migrations/2026_01_01_000009_create_kinetix_connected_accounts_table.php'),
             ], 'kinetix-connected-accounts-migrations');
 
+            // Publish the optional Comments module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000010_create_kinetix_comments_table.php' => database_path('migrations/2026_01_01_000010_create_kinetix_comments_table.php'),
+            ], 'kinetix-comments-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -316,6 +328,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Browser Sessions module (device management)
         $this->registerSessions();
+
+        // Register the optional Comments module (polymorphic threaded comments)
+        $this->registerComments();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -900,6 +915,37 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::get('/', [SessionController::class, 'index'])->name('kinetix.sessions.index');
                 Route::delete('others', [SessionController::class, 'destroyOthers'])->name('kinetix.sessions.destroy-others');
+            });
+    }
+
+    /**
+     * Wire the optional Comments module: polymorphic, threaded comments on any
+     * allowlisted model (self-service — each user edits/deletes only their own).
+     */
+    protected function registerComments(): void
+    {
+        if (! config('kinetix.comments.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/comments")
+            ->group(function () {
+                Route::get('/', [CommentController::class, 'index'])->name('kinetix.comments.index');
+                Route::post('/', [CommentController::class, 'store'])->name('kinetix.comments.store');
+                Route::put('{comment}', [CommentController::class, 'update'])->name('kinetix.comments.update');
+                Route::delete('{comment}', [CommentController::class, 'destroy'])->name('kinetix.comments.destroy');
             });
     }
 

@@ -135,6 +135,30 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
     },
   },
   {
+    match: /\/comments(\?|$)/,
+    data: {
+      comments: [
+        {
+          id: 1, body: "This looks great — ship it! 🚀", authorId: 1,
+          authorName: "Ada Lovelace", authorAvatar: null, parentId: null,
+          createdAt: "2026-06-26T10:00:00Z", edited: false, editable: true,
+          replies: [
+            {
+              id: 2, body: "Agreed. I'll review the tests this afternoon.", authorId: 2,
+              authorName: "Grace Hopper", authorAvatar: null, parentId: 1,
+              createdAt: "2026-06-26T10:30:00Z", edited: false, editable: false, replies: [],
+            },
+          ],
+        },
+        {
+          id: 3, body: "One nit: can we rename this field?", authorId: 2,
+          authorName: "Grace Hopper", authorAvatar: null, parentId: null,
+          createdAt: "2026-06-26T11:15:00Z", edited: true, editable: false, replies: [],
+        },
+      ],
+    },
+  },
+  {
     match: /\/sessions$/,
     data: {
       sessions: [

@@ -134,6 +134,19 @@ return [
     'editor_tiptap_missing' => 'The Tiptap editor needs @tiptap/core and @tiptap/starter-kit. Install them, or switch this field to the basic or markdown editor.',
     'signature_clear'       => 'Clear',
 
+    // Comments
+    'comments_title'            => 'Comments',
+    'comment_placeholder'       => 'Write a comment…',
+    'comment_reply_placeholder' => 'Write a reply…',
+    'comment_post'              => 'Post',
+    'comment_reply'             => 'Reply',
+    'comment_empty'             => 'No comments yet. Be the first to comment.',
+    'comment_deleted'           => 'Comment deleted.',
+    'comment_edited'            => 'edited',
+    'comment_just_now'          => 'just now',
+    'comment_unknown_author'    => 'Someone',
+    'comment_invalid_parent'    => 'You can only reply to a top-level comment.',
+
     // Roles & permissions
     'save'               => 'Save',
     'select_all'         => 'Select all',

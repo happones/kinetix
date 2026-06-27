@@ -559,6 +559,17 @@ Roadmap v0.28.0. Modern shadcn take on Jetstream's browser-sessions (no `jensseg
 
 ---
 
+## 27. Kinetix Comments (optional, polymorphic threaded comments)
+
+Roadmap v0.38.0. Config block `comments` (`enabled`). Migration `kinetix_comments` (`user_id`, `commentable_type/id` morphs, nullable `parent_id` for replies, `body`; tag `kinetix-comments-migrations`). **Self-service**: anyone who may view a commentable can read/post; each user edits/deletes only their own.
+
+- **Allowlist**: `KinetixComments::for([Post::class, ...])` → `CommentRegistry` (singleton; `resolve($type)` maps a client morph type/alias → registered class via `Relation::getMorphedModel`, else null). The controller 404s unregistered types — keeps endpoints off arbitrary records.
+- **`Comment` model**: `morphTo commentable`, `hasMany replies` (self `parent_id`), `belongsTo author` (resolves the configured `auth.providers.*.model`). `CommentManager`: `for($commentable,$user)` (groups by stringified `parent_id`, builds a 1-level tree of `CommentData`), `create/update/delete` (delete also removes replies). `CommentData` (`#[TypeScript]`): id, body, author{Id,Name,Avatar}, parentId, createdAt, `edited` (updated≠created), `editable` (author === current user), `replies[]`.
+- **`CommentController`** (team-aware `{prefix}/comments`): `index`/`store` take `commentable_type`+`commentable_id` (resolved+authorized via registry + optional `Gate::denies('view')` when a policy exists); `store` validates body (max 5000) + parent must be a top-level comment of the same commentable; returns the refreshed tree. `update`/`destroy {comment}` gated to the author (403 otherwise). NOTE: a private test helper must not be named `post()` (collides with Testbench) — use `makePost()`.
+- **Vue (published)**: `KinetixComments` (props `commentableType`,`commentableId`): composer + threaded list (avatar img or initials, relative time, `edited` badge), inline reply/edit/delete on own. `useKinetixComments(type,id)` → `{comments, loading, load, post, edit, remove}` (server returns the full tree after mutations). i18n `comment_*`. Tests: `CommentsTest` (post+list, threaded reply, author-only edit/delete 403, delete cascades replies, unregistered type 404), `KinetixComments.spec.ts`. Full guide: `docs/comments.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

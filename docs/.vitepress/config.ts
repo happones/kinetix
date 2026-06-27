@@ -70,6 +70,7 @@ export default withMermaid(
         items: [
           { text: "Import & Export", link: "/import-export" },
           { text: "Relation Managers", link: "/relation-managers" },
+          { text: "Comments", link: "/comments" },
         ],
       },
       {

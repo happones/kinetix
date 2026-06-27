@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-06-26
+
+### Added
+
+- **Comments module** (`comments`, optional, **published**) — polymorphic,
+  threaded comments on any model:
+  - Declare commentable models with `KinetixComments::for([Post::class, ...])`
+    (allowlisted — unregistered types are rejected).
+  - Anyone who may **view** a record can read and post; replies thread one level
+    deep; each user **edits/deletes only their own** (a host `view` policy is
+    honored). Deleting a top-level comment removes its replies.
+  - Backed by the `kinetix_comments` table, `Comment` model, `CommentData`,
+    `CommentManager`, `CommentRegistry`, the `useKinetixComments` composable and
+    the `KinetixComments` Vue component (composer + threaded list with avatars,
+    relative times, inline reply/edit/delete).
+- New i18n keys (en/es/fr/pt): `comment_*`.
+
 ## [0.37.0] - 2026-06-26
 
 ### Added
