@@ -95,7 +95,7 @@ abstract class Exporter
     }
 
     /**
-     * Output format: 'csv' or 'xlsx'.
+     * Output format: 'csv', 'xlsx', or 'pdf' (PDF requires dompdf/dompdf).
      */
     public function format(): string
     {

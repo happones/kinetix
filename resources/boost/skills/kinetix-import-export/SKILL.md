@@ -69,7 +69,7 @@ class ContactExporter extends Exporter
 {
     protected static ?string $model = \App\Models\Contact::class;
 
-    public function format(): string { return 'xlsx'; } // or 'csv'
+    public function format(): string { return 'xlsx'; } // 'csv' | 'xlsx' | 'pdf'
 
     public static function getColumns(): array
     {
@@ -91,6 +91,6 @@ class ContactExporter extends Exporter
 - **Smart mapping is server-driven**: `Importer::guessMapping($headers)` matches headers against each column's name/label/`guess()` aliases (normalized: case/spacing/punctuation insensitive) and is **collision-free** — one source header maps to at most one target. The Vue layer only disables already-claimed options; never re-implement matching client-side.
 - **Security**: the importer/exporter class travels as an encrypted `token()`; stored files are referenced by encrypted tokens constrained to `kinetix-imports` / `kinetix-exports` (traversal-guarded). Keep that pattern for any new endpoint.
 - **Always queue heavy work**: both `ImportProcessor` and `ExportProcessor` are `ShouldQueue`. Process in chunked DB transactions (`chunkSize()`), then notify via the Kinetix `Notification` (`broadcast()` when Echo is configured, else `sendToDatabase()`).
-- **Excel vs CSV**: CSV is parsed/written natively (RFC-4180, empty escape); `.xls`/`.xlsx` go through `phpoffice/phpspreadsheet` in `FileReader`/`FileWriter`. Add new formats there, not in the jobs.
+- **Excel vs CSV vs PDF**: CSV is parsed/written natively (RFC-4180, empty escape); `.xls`/`.xlsx` go through `phpoffice/phpspreadsheet`; `pdf` renders a landscape-A4 HTML table via the **optional** `dompdf/dompdf` (install `composer require dompdf/dompdf`; throws a clear error if missing). All in `FileWriter` — add new formats there, not in the jobs.
 - **Customizing**: override `importRow()`/`resolveRecord()` for upsert logic, `query()` to scope an export, and `queue()`/`chunkSize()` for throughput — do not bypass the job.
 - **i18n & docs**: any new option/label must be added to `resources/lang/{en,es,fr,pt}/kinetix.php` and `docs/import-export.md`.

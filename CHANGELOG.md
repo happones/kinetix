@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-06-27
+
+### Added
+
+- **PDF exports** — an `Exporter` can now return `'pdf'` from `format()` to
+  produce a printable PDF (a landscape-A4 table of the exported rows, the first
+  row as the header) instead of CSV/XLSX. PDF rendering uses the **optional**
+  `dompdf/dompdf` package (install only if you export to PDF); CSV/XLSX still
+  need nothing extra. Missing dompdf fails fast with an install hint.
+
+### Dependencies
+
+- Adds `dompdf/dompdf` (^3.0) as a **suggested** dependency — required only for
+  PDF exports.
+
 ## [0.44.0] - 2026-06-27
 
 ### Added

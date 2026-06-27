@@ -265,7 +265,7 @@ class ContactExporter extends Exporter
 
     public function format(): string
     {
-        return 'xlsx'; // or 'csv' (default)
+        return 'xlsx'; // 'csv' (default), 'xlsx', or 'pdf'
     }
 
     public static function getColumns(): array
@@ -295,6 +295,26 @@ class ContactExporter extends Exporter
 ```
 
 The export runs on the queue. When finished, the recipient gets a Kinetix notification (**Export ready**) with a **Download** action button. The link opens in a new tab and streams the file as an attachment.
+
+### PDF exports
+
+Return `'pdf'` from `format()` to produce a printable PDF (a landscape A4 table
+of the exported rows, the first row as the header). PDF rendering uses the
+optional **`dompdf/dompdf`** package — install it once:
+
+```bash
+composer require dompdf/dompdf
+```
+
+```php
+public function format(): string
+{
+    return 'pdf';
+}
+```
+
+If dompdf isn't installed, a PDF export fails fast with an install hint. `csv`
+and `xlsx` need nothing extra.
 
 ### Quickest: the prebuilt `ExportAction`
 
