@@ -16,6 +16,21 @@ import KinetixNumberField from "@/components/KinetixNumberField.vue";
 import KinetixSlider from "@/components/KinetixSlider.vue";
 import KinetixRating from "@/components/KinetixRating.vue";
 import KinetixPinInput from "@/components/KinetixPinInput.vue";
+import KinetixSlugInput from "@/components/KinetixSlugInput.vue";
+import KinetixSignaturePad from "@/components/KinetixSignaturePad.vue";
+
+// Slug + signature showcase for the gallery.
+const SlugSignatureShowcase: Component = {
+  render() {
+    return h("div", { class: "flex flex-col gap-4" }, [
+      h(KinetixSlugInput, {
+        value: "my-first-post",
+        config: { from: "title", separator: "-" },
+      }),
+      h(KinetixSignaturePad, { config: { height: 140 } }),
+    ]);
+  },
+};
 
 // A showcase of the new interactive input fields for the gallery.
 const InputFieldsShowcase: Component = {
@@ -347,6 +362,7 @@ export const specimens: Specimen[] = [
   { name: "rich-editor-markdown", title: "Rich editor (Markdown)", component: KinetixRichEditor, frame: "card", width: 560, props: { editor: "markdown", value: "# Markdown\n\nWrite in **Markdown** with a live *preview*.\n\n- Zero dependencies\n- Stores the raw source" } },
   { name: "number-field", title: "Number field (decimal · percent · currency)", component: NumberFieldShowcase, frame: "card", width: 320 },
   { name: "input-fields", title: "Slider · Rating · PIN", component: InputFieldsShowcase, frame: "card", width: 420 },
+  { name: "slug-signature", title: "Slug input · Signature pad", component: SlugSignatureShowcase, frame: "card", width: 420 },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },
   { name: "gdpr-panel", title: "GDPR self-service panel", component: KinetixGdprPanel, width: 640, props: { requirePassword: true } },
   { name: "accessibility-panel", title: "Accessibility panel", component: KinetixAccessibilityPanel, frame: "card", width: 560 },

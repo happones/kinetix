@@ -132,6 +132,7 @@ return [
     'editor_write'          => 'Escribir',
     'editor_preview'        => 'Vista previa',
     'editor_tiptap_missing' => 'El editor Tiptap necesita @tiptap/core y @tiptap/starter-kit. Instálalos o cambia este campo al editor básico o markdown.',
+    'signature_clear'       => 'Limpiar',
 
     // Roles y permisos
     'save'               => 'Guardar',

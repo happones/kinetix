@@ -598,6 +598,33 @@ PinInput::make('pin')->length(4)->numeric()->mask();
 
 ---
 
+### `SlugInput` & `SignaturePad`
+
+<Screenshot name="slug-signature" alt="Slug input and signature pad" />
+
+**`SlugInput`** — a URL-slug text input. Point `from()` at a sibling field and
+the slug is generated live from it **until the user edits the slug manually**:
+
+```php
+use Happones\Kinetix\Forms\Components\SlugInput;
+
+SlugInput::make('slug')->from('title');
+SlugInput::make('slug')->from('name')->separator('_');
+```
+
+**`SignaturePad`** — a canvas the user signs on (mouse, touch or pen). Stores a
+**PNG data URL**; a Clear button resets it. Persist it to a `TEXT` column, or
+decode + store it as a file in `dehydrateStateUsing()`.
+
+```php
+use Happones\Kinetix\Forms\Components\SignaturePad;
+
+SignaturePad::make('signature');
+SignaturePad::make('signature')->penColor('#1d4ed8')->height(180);
+```
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 

@@ -87,5 +87,9 @@ class FormFieldData extends Data
         public ?array $ratingConfig = null,
         // PinInput — {length,mask,otp,type}.
         public ?array $pinConfig = null,
+        // SlugInput — {from,separator}.
+        public ?array $slugConfig = null,
+        // SignaturePad — {penColor,backgroundColor,height}.
+        public ?array $signatureConfig = null,
     ) {}
 }

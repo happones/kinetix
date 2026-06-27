@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-06-26
+
+### Added
+
+- **Two more form fields** (**published**):
+  - **`SlugInput`** (`slug-input`) — a URL-slug text input that generates the
+    slug live from a sibling field via `->from('title')` (with `->separator()`),
+    until the user edits it manually.
+  - **`SignaturePad`** (`signature-pad`) — a canvas signature field (mouse /
+    touch / pen) storing a PNG data URL, with `->penColor()`,
+    `->backgroundColor()`, `->height()` and a Clear button.
+- Backed by `FormFieldData.slugConfig` / `signatureConfig`, the
+  `KinetixSlugInput` / `KinetixSignaturePad` components, and a new
+  `signature_clear` i18n key (en/es/fr/pt).
+
 ## [0.34.0] - 2026-06-26
 
 ### Added

@@ -25,6 +25,8 @@ import KinetixNumberField from "./KinetixNumberField.vue";
 import KinetixSlider from "./KinetixSlider.vue";
 import KinetixRating from "./KinetixRating.vue";
 import KinetixPinInput from "./KinetixPinInput.vue";
+import KinetixSlugInput from "./KinetixSlugInput.vue";
+import KinetixSignaturePad from "./KinetixSignaturePad.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -473,6 +475,26 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :week-starts-on="comp.weekStartsOn ?? 1"
           :min-value="comp.minValue"
           :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Slug input (auto-generated from a source field) -->
+        <KinetixSlugInput
+          v-else-if="comp.type === 'slug-input'"
+          :value="values[comp.name]"
+          :source="comp.slugConfig?.from ? values[comp.slugConfig.from] : null"
+          :config="comp.slugConfig"
+          :disabled="comp.isDisabled"
+          :placeholder="comp.placeholder"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Signature pad (canvas → PNG data URL) -->
+        <KinetixSignaturePad
+          v-else-if="comp.type === 'signature-pad'"
+          :value="values[comp.name]"
+          :config="comp.signatureConfig"
+          :disabled="comp.isDisabled"
           @update:value="(v) => emit('update:value', comp.name, v)"
         />
 
