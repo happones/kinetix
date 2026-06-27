@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-06-26
+
+### Added
+
+- **`KinetixSocialButton` + bundled brand icons** (extends Connected Accounts) —
+  a reusable single-provider social-auth button: pass `provider` and it renders
+  the brand icon + label and links to the right OAuth route (`mode="login"` for
+  guest sign-in, `mode="link"` to attach to the current user). Props:
+  `provider`, `mode`, `label`, `branded`, `block`, `variant`, `href`.
+  - New **local brand icon components** under `resources/js/icons/brands/`
+    (no runtime icon dependency), resolved via `@/icons/brands` (`brandFor()`):
+    **github, google, microsoft, gitlab, bitbucket, facebook, x (twitter),
+    apple, discord, twitch** + a generic fallback for any other provider.
+  - `KinetixConnectedAccounts` now renders provider icons from this shared
+    registry.
+- New i18n key (en/es/fr/pt): `continue_with`.
+
 ## [0.28.0] - 2026-06-26
 
 ### Added

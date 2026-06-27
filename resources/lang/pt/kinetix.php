@@ -226,6 +226,7 @@ return [
     // Connected accounts / social auth
     'connected_accounts_title'         => 'Contas conectadas',
     'connected_accounts_description'   => 'Vincule um provedor para entrar mais rápido.',
+    'continue_with'                    => 'Continuar com :provider',
     'connected_account_connect'        => 'Conectar',
     'connected_account_disconnect'     => 'Desconectar',
     'connected_account_connected'      => 'Conectada',

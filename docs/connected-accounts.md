@@ -111,13 +111,40 @@ localized (`connected_account_*` / `password_*` keys, en/es/fr/pt).
 
 ## 2. Login / registration buttons (opt-in)
 
-Set `login_enabled` to `true` and point provider buttons at the login routes on
-your login / register pages:
+Set `login_enabled` to `true` and drop a `KinetixSocialButton` on your login /
+register pages. Pass the provider as a prop — it renders the brand icon + label
+and links to the right OAuth route:
 
 ```vue
-<a :href="`/_kinetix/connected-accounts/login/redirect/github`">
-  Continue with GitHub
-</a>
+<script setup lang="ts">
+import KinetixSocialButton from "@/components/KinetixSocialButton.vue";
+</script>
+
+<template>
+  <KinetixSocialButton provider="github" mode="login" />
+  <KinetixSocialButton provider="google" mode="login" />
+  <KinetixSocialButton provider="microsoft" mode="login" />
+</template>
+```
+
+<Screenshot name="social-buttons" alt="Social auth login buttons" />
+
+`mode="login"` targets the guest sign-in route; the default `mode="link"`
+attaches the provider to the **current** user (used inside the manager).
+Props: `provider`, `mode`, `label`, `branded` (tint the icon with the brand
+color, default on), `block`, `variant`, and `href` (override the destination).
+
+### Bundled brand icons
+
+Brand glyphs are local SVG components under `resources/js/icons/brands/` (no
+runtime icon dependency) and resolved through `@/icons/brands`. Bundled:
+**github, google, microsoft, gitlab, bitbucket, facebook, x (twitter), apple,
+discord, twitch**. Unknown providers fall back to a generic link glyph and a
+title-cased label, so any Socialite driver still works.
+
+```vue
+<!-- The full-page link Kinetix generates, if you prefer raw markup: -->
+<a href="/_kinetix/connected-accounts/login/redirect/github">Continue with GitHub</a>
 ```
 
 On callback Kinetix finds the user by email (or creates a passwordless one),

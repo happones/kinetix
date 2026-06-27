@@ -226,6 +226,7 @@ return [
     // Connected accounts / social auth
     'connected_accounts_title'         => 'Connected accounts',
     'connected_accounts_description'   => 'Link a provider to sign in faster.',
+    'continue_with'                    => 'Continue with :provider',
     'connected_account_connect'        => 'Connect',
     'connected_account_disconnect'     => 'Disconnect',
     'connected_account_connected'      => 'Connected',

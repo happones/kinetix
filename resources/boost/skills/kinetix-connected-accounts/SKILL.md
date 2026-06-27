@@ -98,4 +98,16 @@ with Connect (`<a :href>` full-page OAuth) / Disconnect (inline confirm), plus a
 load, connectUrl, disconnect, setPassword }`. DTO never serializes tokens. i18n
 `connected_account_*` + `password_*` (en/es/fr/pt).
 
-For login buttons, point at `/{prefix}/connected-accounts/login/redirect/{provider}`.
+For login buttons, use `KinetixSocialButton`:
+
+```vue
+<KinetixSocialButton provider="github" mode="login" />
+<KinetixSocialButton provider="google" mode="link" />  <!-- attach to current user -->
+```
+
+Props: `provider`, `mode` (`login` | `link`), `label`, `branded`, `block`,
+`variant`, `href`. Brand icons are local SVG components in
+`resources/js/icons/brands/` (bundled: github, google, microsoft, gitlab,
+bitbucket, facebook, x, apple, discord, twitch) resolved via `@/icons/brands`
+(`brandFor(key)`); unknown providers fall back to a generic glyph. Or link
+manually to `/{prefix}/connected-accounts/login/redirect/{provider}`.
