@@ -61,3 +61,9 @@ parameters:
         -
             message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::(newSubscription|addPaymentMethod|hasDefaultPaymentMethod|updateDefaultPaymentMethod|findPaymentMethod|downloadInvoice)\(\)#'
             path: src/Billing/BillingManager.php
+
+        # spatie/laravel-medialibrary methods exist on the host's HasMedia model
+        # (optional dependency), not on the generic base Model the package types.
+        -
+            message: '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::(getMedia|addMediaFromDisk|media)\(\)#'
+            path: src/Media/MediaManager.php

@@ -14,6 +14,7 @@ import KinetixSocialButton from '@/components/KinetixSocialButton.vue';
 import KinetixRichEditor from '@/components/KinetixRichEditor.vue';
 import KinetixNumberField from '@/components/KinetixNumberField.vue';
 import KinetixCopyableInput from '@/components/KinetixCopyableInput.vue';
+import KinetixMediaLibrary from '@/components/KinetixMediaLibrary.vue';
 import KinetixSlider from '@/components/KinetixSlider.vue';
 import KinetixRating from '@/components/KinetixRating.vue';
 import KinetixPinInput from '@/components/KinetixPinInput.vue';
@@ -977,6 +978,39 @@ export const specimens: Specimen[] = [
         component: CopyableInputShowcase,
         frame: 'card',
         width: 380,
+    },
+    {
+        name: 'media-library',
+        title: 'Media library (grid, reorder, upload)',
+        component: KinetixMediaLibrary,
+        frame: 'card',
+        width: 560,
+        props: {
+            uploadToken: 'demo',
+            value: [
+                {
+                    id: 1,
+                    name: 'hero.jpg',
+                    size: 248000,
+                    mime: 'image/svg+xml',
+                    url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='160' height='160' fill='%232bb89a'/%3E%3C/svg%3E",
+                },
+                {
+                    id: 2,
+                    name: 'banner.png',
+                    size: 512000,
+                    mime: 'image/svg+xml',
+                    url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='160' height='160' fill='%236366f1'/%3E%3C/svg%3E",
+                },
+                {
+                    id: 3,
+                    name: 'specs.pdf',
+                    size: 96000,
+                    mime: 'application/pdf',
+                    url: '#',
+                },
+            ],
+        },
     },
     {
         name: 'table-repeater',

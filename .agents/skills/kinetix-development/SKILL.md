@@ -718,6 +718,17 @@ Roadmap v0.54.0. `TableRepeater extends Repeater` (`src/Forms/Components/TableRe
 
 ---
 
+## 42. Kinetix Media Library (form field — multi-file manager, optional spatie)
+
+Roadmap v0.56.0. `MediaLibrary extends FileUpload` (`src/Forms/Components/`), type `media-library`. Multi-file grid: drag-drop/click upload (reuses the existing `{prefix}/uploads/store` UploadController + signed uploadToken), thumbnail grid, **drag-reorder** (native HTML5 DnD), delete, preview. Multiple + reorderable by default.
+
+- **PHP API**: `collection(name)`, `conversions([...])`, `reorderable(bool)`, inherits disk/directory/image/maxSize/maxFiles/acceptedFileTypes + uploadToken. `toData` adds `mediaCollection`/`mediaConversions`/`isReorderable` to `FormFieldData`. Value = ordered array of `{id?, path?, url, name, size?, mime?, thumb?}` (new uploads carry `path`, existing spatie media carry `id`).
+- **Optional spatie/laravel-medialibrary** (`MediaManager`, singleton, guarded by `interface_exists('Spatie\MediaLibrary\HasMedia')` + `is_a`): `usesSpatie($record)`, `items($record, $collection, $conversion?)` (maps `$record->getMedia()` → item array; `[]` without spatie), `sync($record, $collection, $items, $disk?)` (builds ordered id list: keep items with `id`, `addMediaFromDisk($path,$disk)->toMediaCollection()` for new, delete media not in list, `$mediaClass::setNewOrder($ids)`; **no-op without spatie**). `KinetixMedia::items()/sync()` static facade. Host wires hydrate (`fill(['gallery'=>KinetixMedia::items(...)])`) + persist (`KinetixMedia::sync(...)` in update). phpstan.neon ignores `Model::(getMedia|addMediaFromDisk|media)` for `src/Media/MediaManager.php`.
+- **Vue (published)**: `KinetixMediaLibrary` (props value/uploadToken/acceptedFileTypes/isImage/maxFiles/reorderable/disabled, emits update:value). Grid: image thumb (`thumb||url`) or `FileText` icon; upload zone (Loader2 while uploading); reorder via dragstart/dragover/drop (guards file-drop vs reorder via `dragIndex`); remove X; preview via `kinetix:preview` CustomEvent (image) or `window.open` (file). Wired in `KinetixFormSchema` as `comp.type === 'media-library'`. i18n `media_add`/`media_uploading`/`media_upload_failed`; reuse `remove`.
+- Tests: `MediaLibraryTest` (serialize incl. inherited token, reorderable toggle, manager no-op + facade without spatie), `KinetixMediaLibrary.spec.ts` (grid img/icon, upload appends via fetch mock + `Object.defineProperty(input,'files')`, remove, DnD reorder). Gallery specimen uses data-URI SVG thumbs (offline). **Deferred**: folders, native (non-spatie) variants. Full guide: `docs/media-library.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

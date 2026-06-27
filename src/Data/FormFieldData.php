@@ -72,6 +72,10 @@ class FormFieldData extends Data
         public bool $isImage = false,
         public ?int $maxFiles = null,
         public ?string $uploadToken = null,
+        // Media library specific
+        public ?string $mediaCollection = null,
+        public ?array $mediaConversions = null,
+        public bool $isReorderable = false,
         // Date / DateTime picker specific — shadcn calendar by default.
         public bool $useCalendar = false,
         public ?string $dateLocale = null,

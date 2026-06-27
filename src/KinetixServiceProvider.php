@@ -53,6 +53,7 @@ use Happones\Kinetix\Imports\ImportController;
 use Happones\Kinetix\Locale\LocaleController;
 use Happones\Kinetix\Locale\LocaleManager;
 use Happones\Kinetix\Locale\Middleware\SetKinetixLocale;
+use Happones\Kinetix\Media\MediaManager;
 use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
@@ -209,6 +210,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The health-metrics reader (spatie/laravel-health, guarded).
         $this->app->singleton(HealthMetrics::class);
+
+        // The media manager (spatie/laravel-medialibrary bridge, guarded).
+        $this->app->singleton(MediaManager::class);
     }
 
     /**

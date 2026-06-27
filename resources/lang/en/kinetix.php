@@ -386,6 +386,11 @@ return [
     // Table repeater
     'table_repeater_empty' => 'No rows yet.',
 
+    // Media library
+    'media_add'           => 'Add files',
+    'media_uploading'     => 'Uploading…',
+    'media_upload_failed' => 'Some files could not be uploaded.',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

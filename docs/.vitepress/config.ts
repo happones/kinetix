@@ -62,6 +62,7 @@ export default withMermaid(
           { text: "Kanban", link: "/kanban" },
           { text: "Calendar", link: "/calendar" },
           { text: "Forms", link: "/forms" },
+          { text: "Media Library", link: "/media-library" },
           { text: "Table Repeater", link: "/table-repeater" },
           { text: "Wizard", link: "/wizard" },
           { text: "Infolists", link: "/infolists" },

@@ -15,6 +15,7 @@ import KinetixFormTabs from './KinetixFormTabs.vue';
 import KinetixFormWizard from './KinetixFormWizard.vue';
 import KinetixKeyValue from './KinetixKeyValue.vue';
 import KinetixLabel from './KinetixLabel.vue';
+import KinetixMediaLibrary from './KinetixMediaLibrary.vue';
 import KinetixMonthPicker from './KinetixMonthPicker.vue';
 import KinetixNumberField from './KinetixNumberField.vue';
 import KinetixPhoneInput from './KinetixPhoneInput.vue';
@@ -825,6 +826,18 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                     :max-size="comp.maxSize"
                     :is-image="comp.isImage"
                     :max-files="comp.maxFiles"
+                    :disabled="comp.isDisabled"
+                    @update:value="(v) => emit('update:value', comp.name, v)"
+                />
+
+                <KinetixMediaLibrary
+                    v-else-if="comp.type === 'media-library'"
+                    :value="values[comp.name]"
+                    :upload-token="comp.uploadToken"
+                    :accepted-file-types="comp.acceptedFileTypes"
+                    :is-image="comp.isImage"
+                    :max-files="comp.maxFiles"
+                    :reorderable="comp.isReorderable"
                     :disabled="comp.isDisabled"
                     @update:value="(v) => emit('update:value', comp.name, v)"
                 />

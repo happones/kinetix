@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.56.0] - 2026-06-27
+
+### Added
+
+- **Media Library field** (**published**) — a multi-file media manager:
+  drag-drop / click to upload, a thumbnail grid, **drag-to-reorder**, delete and
+  preview. `MediaLibrary::make()->collection()->conversions()->image()` builds on
+  `FileUpload` (same signed upload token / disk / constraints; multiple +
+  reorderable by default). The value is an ordered array of media items
+  (`{ id?, path?, url, name, size?, mime?, thumb? }`). **Optional
+  spatie/laravel-medialibrary support**: when installed and the record is
+  `HasMedia`, `KinetixMedia::items($record, $collection, $conversion?)` hydrates
+  the field and `KinetixMedia::sync($record, $collection, $state, $disk?)`
+  reconciles the collection on save (adds new uploads, removes deleted, persists
+  order) — a no-op without spatie, so the same form code works either way.
+  `KinetixMediaLibrary.vue` component; `MediaManager` (guarded, string-class
+  spatie detection); new `FormFieldData` `mediaCollection`/`mediaConversions`/
+  `isReorderable`. i18n `media_add`/`media_uploading`/`media_upload_failed`
+  (en/es/fr/pt). Reuses the existing `{prefix}/uploads/store` endpoint.
+
 ## [0.55.0] - 2026-06-27
 
 ### Added
