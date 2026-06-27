@@ -48,6 +48,15 @@ public function boot(): void
 > Plan-gating is just a flag whose resolver asks Billing — no separate
 > mechanism. See [Billing](/billing) for `canUseFeature()`.
 
+::: tip Guests (null scope)
+For a **guest** (not authenticated) the scope is `null`. Kinetix resolves flags
+on every Inertia response, so a user-scoped resolver is evaluated for guests too.
+You can write `fn ($user) => $user?->is_staff` to be explicit, but Kinetix is
+also defensive: if a resolver throws for a `null` scope, that flag simply
+resolves **inactive** instead of erroring the page. (Errors for authenticated
+scopes still surface — they're real bugs.)
+:::
+
 ---
 
 ## 2. Gating the backend

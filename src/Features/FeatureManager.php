@@ -36,6 +36,23 @@ class FeatureManager
     {
         $scope ??= $this->defaultScope();
 
+        // Guests resolve to a null scope. A user/team-scoped resolver (e.g.
+        // `fn ($user) => $user->isBetaTester()`) can't run for a guest, so treat
+        // it as inactive instead of letting an NPE 500 the page (this resolves on
+        // every Inertia response). Authenticated scopes still surface real errors.
+        if ($scope === null) {
+            try {
+                return $this->resolve($name, null);
+            } catch (\Throwable) {
+                return false;
+            }
+        }
+
+        return $this->resolve($name, $scope);
+    }
+
+    protected function resolve(string $name, mixed $scope): bool
+    {
         if ($this->usesPennant()) {
             return $scope !== null
                 ? (bool) Feature::for($scope)->active($name)
@@ -59,16 +76,18 @@ class FeatureManager
     {
         $scope ??= $this->defaultScope();
 
-        if ($this->usesPennant()) {
-            $resolved = $scope !== null ? Feature::for($scope)->all() : Feature::all();
-
-            return array_map(static fn ($value): bool => (bool) $value, $resolved);
+        // Authenticated Pennant: resolve in bulk (efficient, unchanged).
+        if ($this->usesPennant() && $scope !== null) {
+            return array_map(static fn ($value): bool => (bool) $value, Feature::for($scope)->all());
         }
 
+        // Native, or any guest (null scope): resolve per-flag through active(),
+        // so one throwing resolver can't break the whole set and guests get
+        // `false` rather than a 500. Names come from define() (always recorded).
         $result = [];
 
         foreach (array_keys($this->definitions) as $name) {
-            $result[$name] = $this->resolveNative($name, $scope);
+            $result[$name] = $this->active($name, $scope);
         }
 
         return $result;

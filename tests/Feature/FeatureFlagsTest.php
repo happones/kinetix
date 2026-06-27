@@ -48,6 +48,27 @@ class FeatureFlagsTest extends TestCase
         $this->assertSame(['a' => true, 'b' => false], KinetixFeatures::all());
     }
 
+    public function test_user_scoped_flags_resolve_inactive_for_guests_without_erroring(): void
+    {
+        $manager = app(FeatureManager::class);
+
+        // A real-world resolver that assumes a logged-in user. No user is
+        // authenticated (guest), so the scope is null.
+        $manager->define('beta-tester', fn ($user) => $user->isBetaTester());
+        $manager->define('global-on', fn () => true);
+
+        // active() must not throw for a guest — the user-scoped flag is inactive.
+        $this->assertFalse($manager->active('beta-tester'));
+        // A scope-agnostic flag still resolves normally for guests.
+        $this->assertTrue($manager->active('global-on'));
+
+        // all() (used by the Inertia share on every response) must not 500.
+        $this->assertSame(
+            ['beta-tester' => false, 'global-on' => true],
+            $manager->all(),
+        );
+    }
+
     public function test_middleware_404s_when_the_flag_is_inactive(): void
     {
         app(FeatureManager::class)->define('on', true);

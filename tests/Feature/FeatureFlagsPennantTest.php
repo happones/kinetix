@@ -48,4 +48,15 @@ class FeatureFlagsPennantTest extends TestCase
         $this->assertTrue($all['p-on']);
         $this->assertFalse($all['p-off']);
     }
+
+    public function test_user_scoped_flags_resolve_inactive_for_guests_without_erroring(): void
+    {
+        $manager = app(FeatureManager::class);
+
+        $manager->define('beta-tester', fn ($user) => $user->isBetaTester());
+
+        // Guest (null scope) through Pennant must not 500 — inactive instead.
+        $this->assertFalse($manager->active('beta-tester'));
+        $this->assertSame(['beta-tester' => false], $manager->all());
+    }
 }

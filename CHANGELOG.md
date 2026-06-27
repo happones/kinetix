@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-06-26
+
+### Fixed
+
+- **Feature flags / guests**: feature resolvers run on every Inertia response,
+  including for unauthenticated users (the scope is `null`). A user-scoped
+  resolver like `fn ($user) => $user->isBetaTester()` would dereference `null`
+  and 500 the page for guests. `FeatureManager` now resolves a throwing
+  resolver as **inactive** when the scope is `null` (guest), and `all()` resolves
+  per-flag so one bad resolver can't break the whole set. Errors for
+  authenticated scopes still surface.
+
 ## [0.24.0] - 2026-06-26
 
 ### Added
