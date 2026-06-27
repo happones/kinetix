@@ -22,6 +22,9 @@ import KinetixDateRangePicker from "./KinetixDateRangePicker.vue";
 import KinetixAddressPicker from "./KinetixAddressPicker.vue";
 import KinetixRichEditor from "./KinetixRichEditor.vue";
 import KinetixNumberField from "./KinetixNumberField.vue";
+import KinetixSlider from "./KinetixSlider.vue";
+import KinetixRating from "./KinetixRating.vue";
+import KinetixPinInput from "./KinetixPinInput.vue";
 import { cn } from "./primitives/cn";
 import { inputClass, textareaClass } from "@/composables/useShadcnVariants";
 
@@ -470,6 +473,33 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :week-starts-on="comp.weekStartsOn ?? 1"
           :min-value="comp.minValue"
           :max-value="comp.maxValue"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Slider (Reka Slider, single value) -->
+        <KinetixSlider
+          v-else-if="comp.type === 'slider'"
+          :value="values[comp.name]"
+          :config="comp.numberConfig"
+          :disabled="comp.isDisabled"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- Rating (star rating, optional halves) -->
+        <KinetixRating
+          v-else-if="comp.type === 'rating'"
+          :value="values[comp.name]"
+          :config="comp.ratingConfig"
+          :disabled="comp.isDisabled"
+          @update:value="(v) => emit('update:value', comp.name, v)"
+        />
+
+        <!-- PIN / OTP input (Reka PinInput) -->
+        <KinetixPinInput
+          v-else-if="comp.type === 'pin-input'"
+          :value="values[comp.name]"
+          :config="comp.pinConfig"
+          :disabled="comp.isDisabled"
           @update:value="(v) => emit('update:value', comp.name, v)"
         />
 

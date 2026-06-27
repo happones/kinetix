@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-06-26
+
+### Added
+
+- **Three new form fields** (all **published**):
+  - **`Slider`** (`slider`) — a single-value range slider (Reka UI) with
+    `->min()` / `->max()` / `->step()`; shows the current value beside the track.
+  - **`Rating`** (`rating`) — a star rating storing `0..max` with `->max()` and
+    `->allowHalf()` (click the current value again to clear).
+  - **`PinInput`** (`pin-input`) — a segmented PIN / OTP input (Reka UI) with
+    `->length()`, `->mask()`, `->otp()` (one-time-code autofill) and
+    `->numeric()`; stores the joined string.
+- Backed by `FormFieldData.ratingConfig` / `pinConfig` (Slider reuses
+  `numberConfig`) and the `KinetixSlider` / `KinetixRating` / `KinetixPinInput`
+  Vue components.
+
 ## [0.33.0] - 2026-06-26
 
 ### Added

@@ -565,6 +565,39 @@ column**, use `NumberInputColumn` (see [Tables → Editable columns](/tables)).
 
 ---
 
+### `Slider`, `Rating` & `PinInput`
+Three focused value inputs.
+
+<Screenshot name="input-fields" alt="Slider, Rating and PIN input" />
+
+**`Slider`** — a single-value range slider (Reka UI), storing a number:
+
+```php
+use Happones\Kinetix\Forms\Components\Slider;
+
+Slider::make('volume')->min(0)->max(100)->step(5);
+```
+
+**`Rating`** — a star rating storing `0..max` (click the current value to clear):
+
+```php
+use Happones\Kinetix\Forms\Components\Rating;
+
+Rating::make('score')->max(5);
+Rating::make('score')->max(10)->allowHalf();   // half-stars
+```
+
+**`PinInput`** — a segmented PIN / OTP input (Reka UI), storing the joined string:
+
+```php
+use Happones\Kinetix\Forms\Components\PinInput;
+
+PinInput::make('code')->length(6)->otp();          // one-time-code autofill
+PinInput::make('pin')->length(4)->numeric()->mask();
+```
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 

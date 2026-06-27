@@ -13,6 +13,20 @@ import KinetixSessions from "@/components/KinetixSessions.vue";
 import KinetixSocialButton from "@/components/KinetixSocialButton.vue";
 import KinetixRichEditor from "@/components/KinetixRichEditor.vue";
 import KinetixNumberField from "@/components/KinetixNumberField.vue";
+import KinetixSlider from "@/components/KinetixSlider.vue";
+import KinetixRating from "@/components/KinetixRating.vue";
+import KinetixPinInput from "@/components/KinetixPinInput.vue";
+
+// A showcase of the new interactive input fields for the gallery.
+const InputFieldsShowcase: Component = {
+  render() {
+    return h("div", { class: "flex flex-col gap-5" }, [
+      h(KinetixSlider, { value: 60, config: { min: 0, max: 100, step: 5 } }),
+      h(KinetixRating, { value: 3.5, config: { max: 5, allowHalf: true } }),
+      h(KinetixPinInput, { value: "1234", config: { length: 6, otp: true } }),
+    ]);
+  },
+};
 
 // A showcase of NumberField formats for the gallery.
 const NumberFieldShowcase: Component = {
@@ -332,6 +346,7 @@ export const specimens: Specimen[] = [
   { name: "rich-editor-tiptap", title: "Rich editor (Tiptap)", component: KinetixRichEditor, frame: "card", width: 560, props: { editor: "tiptap", value: "<h2>Tiptap</h2><p>The headless WYSIWYG, styled with your shadcn tokens.</p><blockquote>Loaded lazily — an optional dependency.</blockquote>" } },
   { name: "rich-editor-markdown", title: "Rich editor (Markdown)", component: KinetixRichEditor, frame: "card", width: 560, props: { editor: "markdown", value: "# Markdown\n\nWrite in **Markdown** with a live *preview*.\n\n- Zero dependencies\n- Stores the raw source" } },
   { name: "number-field", title: "Number field (decimal · percent · currency)", component: NumberFieldShowcase, frame: "card", width: 320 },
+  { name: "input-fields", title: "Slider · Rating · PIN", component: InputFieldsShowcase, frame: "card", width: 420 },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },
   { name: "gdpr-panel", title: "GDPR self-service panel", component: KinetixGdprPanel, width: 640, props: { requirePassword: true } },
   { name: "accessibility-panel", title: "Accessibility panel", component: KinetixAccessibilityPanel, frame: "card", width: 560 },
