@@ -699,6 +699,17 @@ Roadmap v0.53.0. Config block `health` (`enabled`, `poll` ms, default 30000). Sa
 
 ---
 
+## 40. Kinetix Table Repeater (form field — editable table of rows)
+
+Roadmap v0.54.0. `TableRepeater extends Repeater` (`src/Forms/Components/TableRepeater.php`), type `table-repeater`. A repeater rendered as a spreadsheet table (row per item, column per sub-field) with footer summaries + CSV export. **Deferred by default** (rows in form state, saved with the form); **autosave opt-in** via `->relationship()->autosave()`.
+
+- **PHP API**: `columns([...])` (alias of `schema()`), `summarize(['col'=>'sum'|'avg'|'count'|'min'|'max'])`, `exportable()`, `relationship('items')`, `autosave()`, inherits `minItems/maxItems/addActionLabel`. `toData()` adds `summarize`/`exportable`/`autosave` to `FormFieldData`, and when **autosave + relationship + record exists** mints `autosaveToken = Crypt::encrypt(['parent'=>record::class,'key'=>,'relation'=>,'columns'=>allowlist])` (allowlist = schema field names). New `FormFieldData` fields: `autosave`/`autosaveToken`/`summarize`/`exportable`.
+- **`TableRepeaterController`** (`src/Forms/`): `store`/`update`/`destroy` decode the token via `resolve()` (validates parent Model + `HasOneOrMany` relation), operate on `$parent->{relation}()`, and `values()` filters payload to the column allowlist (`array_intersect_key`). Routes in `registerTableRoutes()` under `{prefix}/tables/table-repeater` (POST/PUT/DELETE), `kinetix.table-repeater.*`.
+- **Vue (published)**: `KinetixTableRepeater` (props `comp`/`modelValue`/`errors`, emits `update:modelValue`). Renders each cell via nested `<KinetixFormSchema>` with **label/description stripped** (`cellColumns`) — reuses all field types; header from `comp.schema[].label`; footer summaries computed client-side; CSV export client-side; add/remove rows. **Autosave**: when `comp.autosave` + `comp.autosaveToken`, add→`create` (sets returned id on row), cell edit→debounced (500ms) `update` per row id, remove→`remove`. `useKinetixTableRepeater` → `{create, update, remove}` (POST/PUT/DELETE to `/tables/table-repeater`). Wired in `KinetixFormSchema` as `comp.type === 'table-repeater'` (circular import OK — same as Wizard). Reuses i18n `add_item`/`remove`/`export`; new `table_repeater_empty`.
+- Tests: `TableRepeaterTest` (serialize+summaries, token payload/allowlist, no token without record, autosave create writes only allowlisted cols, update+delete, tampered-token 400 — needs `actingAs`), `KinetixTableRepeater.spec.ts` (headers/rows/empty/add/remove/summary + autosave create; stubs `KinetixFormSchema` + mocks the composable). Full guide: `docs/table-repeater.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

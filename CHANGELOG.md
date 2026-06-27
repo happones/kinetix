@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.54.0] - 2026-06-27
+
+### Added
+
+- **Table Repeater form field** (**published**) — a `Repeater` rendered as an
+  editable, spreadsheet-style table (one row per item, one column per sub-field),
+  with footer **summaries** (`sum`/`avg`/`count`/`min`/`max`), **CSV export**,
+  and live add/edit/delete of rows. Reuses `KinetixFormSchema` (label-stripped)
+  per cell, so every field type works as a column. Two save modes: **deferred**
+  (default — rows in form state, saved with the parent form) and **autosave**
+  (`->relationship('items')->autosave()` persists each change immediately via a
+  signed-descriptor endpoint that only writes the declared columns on the bound
+  relation). `TableRepeater::make()->columns()->summarize()->exportable()`;
+  `useKinetixTableRepeater()` composable; `KinetixTableRepeater.vue`; new
+  `kinetix.table-repeater.*` routes. i18n `table_repeater_empty` (en/es/fr/pt).
+
 ## [0.53.0] - 2026-06-27
 
 ### Added

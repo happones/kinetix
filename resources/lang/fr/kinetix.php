@@ -368,6 +368,7 @@ return [
     'health_status_ok'          => 'Sain',
     'health_status_warning'     => 'Avertissement',
     'health_status_failed'      => 'En échec',
+    'table_repeater_empty'      => 'Aucune ligne pour l’instant.',
     'a11y_title'                => 'Accessibilité',
     'a11y_description'          => 'Adaptez l’interface à vos besoins. Les modifications sont enregistrées sur votre compte.',
     'a11y_text_size'            => 'Taille du texte',

@@ -27,6 +27,7 @@ import KinetixTeamSwitcher from '@/components/KinetixTeamSwitcher.vue';
 import KinetixOnlineUsers from '@/components/KinetixOnlineUsers.vue';
 import KinetixQueueStats from '@/components/KinetixQueueStats.vue';
 import KinetixHealthStatus from '@/components/KinetixHealthStatus.vue';
+import KinetixTableRepeater from '@/components/KinetixTableRepeater.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
@@ -951,6 +952,32 @@ export const specimens: Specimen[] = [
         title: 'System health (spatie/laravel-health)',
         component: KinetixHealthStatus,
         width: 420,
+    },
+    {
+        name: 'table-repeater',
+        title: 'Table repeater (editable rows)',
+        component: KinetixTableRepeater,
+        frame: 'card',
+        width: 840,
+        props: {
+            errors: {},
+            comp: {
+                name: 'items',
+                addActionLabel: 'Add product',
+                exportable: true,
+                summarize: { qty: 'sum', price: 'sum' },
+                schema: [
+                    { name: 'name', label: 'Product', type: 'text-input' },
+                    { name: 'qty', label: 'Qty', type: 'number-field' },
+                    { name: 'price', label: 'Price', type: 'number-field' },
+                ],
+            },
+            modelValue: [
+                { id: 1, name: 'Keyboard', qty: 2, price: 49 },
+                { id: 2, name: 'Mouse', qty: 5, price: 25 },
+                { id: 3, name: 'Monitor', qty: 1, price: 320 },
+            ],
+        },
     },
     {
         name: 'comments',

@@ -12,6 +12,7 @@ import KinetixDateTimePicker from './KinetixDateTimePicker.vue';
 import KinetixFileUpload from './KinetixFileUpload.vue';
 import KinetixFormTabs from './KinetixFormTabs.vue';
 import KinetixFormWizard from './KinetixFormWizard.vue';
+import KinetixTableRepeater from './KinetixTableRepeater.vue';
 import KinetixKeyValue from './KinetixKeyValue.vue';
 import KinetixLabel from './KinetixLabel.vue';
 import KinetixMonthPicker from './KinetixMonthPicker.vue';
@@ -690,6 +691,16 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                 </div>
 
                 <!-- Repeater -->
+                <KinetixTableRepeater
+                    v-else-if="comp.type === 'table-repeater'"
+                    :comp="comp"
+                    :model-value="values[comp.name] || []"
+                    :errors="errors"
+                    @update:model-value="
+                        (val) => emit('update:value', comp.name, val)
+                    "
+                />
+
                 <div v-else-if="comp.type === 'repeater'" class="space-y-3">
                     <div
                         v-for="(item, idx) in values[comp.name] || []"

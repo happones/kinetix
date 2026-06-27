@@ -368,6 +368,7 @@ return [
     'health_status_ok'          => 'Saludable',
     'health_status_warning'     => 'Advertencia',
     'health_status_failed'      => 'Con fallos',
+    'table_repeater_empty'      => 'Aún no hay filas.',
     'a11y_title'                => 'Accesibilidad',
     'a11y_description'          => 'Ajusta la interfaz a tus necesidades. Los cambios se guardan en tu cuenta.',
     'a11y_text_size'            => 'Tamaño del texto',

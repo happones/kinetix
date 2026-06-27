@@ -58,6 +58,11 @@ class FormFieldData extends Data
         public ?int $minItems = null,
         public ?int $maxItems = null,
         public ?string $addActionLabel = null,
+        // Table repeater specific
+        public bool $autosave = false,
+        public ?string $autosaveToken = null,
+        public ?array $summarize = null,
+        public bool $exportable = false,
         // File upload specific
         public bool $isMultiple = false,
         public ?array $acceptedFileTypes = null,

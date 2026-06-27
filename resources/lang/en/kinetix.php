@@ -381,6 +381,9 @@ return [
     'health_status_warning' => 'Warning',
     'health_status_failed'  => 'Failing',
 
+    // Table repeater
+    'table_repeater_empty' => 'No rows yet.',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

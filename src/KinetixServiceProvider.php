@@ -39,6 +39,7 @@ use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
 use Happones\Kinetix\Forms\SearchController;
+use Happones\Kinetix\Forms\TableRepeaterController;
 use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Gdpr\GdprController;
 use Happones\Kinetix\Gdpr\GdprManager;
@@ -1615,6 +1616,12 @@ class KinetixServiceProvider extends ServiceProvider
 
                     return response()->json(['status' => 'success']);
                 })->name('kinetix.tables.kanban-move');
+
+                // TableRepeater autosave: create/update/delete a single row on the
+                // bound relation, guarded by the field's signed descriptor.
+                Route::post('table-repeater', [TableRepeaterController::class, 'store'])->name('kinetix.table-repeater.store');
+                Route::put('table-repeater', [TableRepeaterController::class, 'update'])->name('kinetix.table-repeater.update');
+                Route::delete('table-repeater', [TableRepeaterController::class, 'destroy'])->name('kinetix.table-repeater.destroy');
             });
     }
 
