@@ -21,6 +21,7 @@ use Happones\Kinetix\Forms\Components\TextInput;
 
 Wizard::make()
     ->variant('stepper') // stepper (default) | default | simple | vertical | panels | gradient
+    ->fullWidth() // ->fullWidth(false) for a compact, centered indicator
     ->steps([
         Step::make('Account')->schema([
             TextInput::make('email')->required(),
@@ -74,6 +75,7 @@ function onFinish() {
 | `steps`      | `KinetixWizardStep[]`                                         | —           | `{ key?, label, description?, icon? }` |
 | `variant`    | `stepper \| default \| simple \| vertical \| panels \| gradient` | `stepper`   | Step-indicator style |
 | `orientation`| `horizontal \| vertical`                                      | `horizontal`| Stepper orientation (the `stepper` variant) |
+| `fullWidth`  | `boolean`                                                     | `true`      | Stretch the horizontal indicator to fill the container and distribute steps evenly. `false` = compact, centered, content-sized |
 | `slug`       | `string \| null`                                              | `null`      | When set, finishing marks completion server-side (gate) |
 | `step`       | `number`                                                      | `0`         | Controlled current step (`v-model:step`) |
 | `linear`     | `boolean`                                                     | `true`      | Restrict indicator jumps to reached steps |
@@ -103,7 +105,13 @@ layout. The other designs: `default` (numbered circles + connectors), `simple`
 <KinetixWizard :steps="steps" />                              <!-- stepper (default) -->
 <KinetixWizard :steps="steps" orientation="vertical" />       <!-- vertical stepper -->
 <KinetixWizard :steps="steps" variant="gradient" />           <!-- other designs -->
+<KinetixWizard :steps="steps" :full-width="false" />          <!-- compact, centered -->
 ```
+
+By default the horizontal indicator stretches to fill its container, spreading
+the steps evenly. Pass `:full-width="false"` (or `->fullWidth(false)` on the PHP
+`Wizard`) for a compact indicator that sizes to its content and centers itself —
+handy when the form is narrower than the page.
 
 <Screenshot name="wizard-gradient" alt="Wizard — gradient variant" />
 

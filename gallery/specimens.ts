@@ -594,6 +594,20 @@ export const specimens: Specimen[] = [
         slots: wizardSlots,
     },
     {
+        name: 'wizard-compact',
+        title: 'Wizard — compact (full-width off)',
+        component: KinetixWizard,
+        frame: 'card',
+        width: 640,
+        props: {
+            steps: wizardSteps,
+            variant: 'stepper',
+            fullWidth: false,
+            step: 1,
+        },
+        slots: wizardSlots,
+    },
+    {
         name: 'empty-state',
         title: 'Empty state',
         component: KinetixEmptyState,

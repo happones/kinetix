@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-06-27
+
+### Added
+
+- **Wizard `fullWidth` option** (**published**) — the horizontal step indicator
+  now exposes a `fullWidth` toggle (default `true`). When `true` it stretches to
+  fill the container and distributes steps evenly (existing behaviour); set it to
+  `false` for a compact, content-sized indicator that centers itself. Available
+  on the standalone `<KinetixWizard :full-width="false">`, on the form layout via
+  `Wizard::make()->fullWidth(false)`, and applied to the `stepper`, `default`,
+  `gradient` and `panels` indicators. Vertical layouts are unaffected.
+
 ## [0.46.0] - 2026-06-27
 
 ### Added

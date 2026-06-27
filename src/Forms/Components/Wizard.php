@@ -27,6 +27,10 @@ class Wizard extends Component
 
     protected string $variant = 'stepper';
 
+    protected string $orientation = 'horizontal';
+
+    protected bool $fullWidth = true;
+
     protected ?string $slug = null;
 
     public static function make(): static
@@ -50,6 +54,29 @@ class Wizard extends Component
     public function variant(string $variant): static
     {
         $this->variant = $variant;
+
+        return $this;
+    }
+
+    /**
+     * Indicator orientation for the `stepper` / `vertical` variants:
+     * horizontal | vertical.
+     */
+    public function orientation(string $orientation): static
+    {
+        $this->orientation = $orientation;
+
+        return $this;
+    }
+
+    /**
+     * Whether the (horizontal) indicator stretches to fill the container,
+     * distributing steps evenly. Pass `false` for a compact, centered
+     * indicator sized to its content.
+     */
+    public function fullWidth(bool $fullWidth = true): static
+    {
+        $this->fullWidth = $fullWidth;
 
         return $this;
     }
@@ -93,6 +120,8 @@ class Wizard extends Component
             columnSpan: $this->columnSpan,
             schema: $stepData,
             variant: $this->variant,
+            orientation: $this->orientation,
+            fullWidth: $this->fullWidth,
             slug: $this->slug,
         );
     }

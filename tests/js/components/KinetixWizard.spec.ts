@@ -122,4 +122,18 @@ describe('KinetixWizard', () => {
             true,
         );
     });
+
+    it('stretches the horizontal stepper full-width by default', () => {
+        const wrapper = mountWizard();
+        const root = wrapper.find('[data-orientation="horizontal"]');
+        expect(root.classes()).toContain('w-full');
+    });
+
+    it('renders a compact, centered stepper when fullWidth is false', () => {
+        const wrapper = mountWizard({ fullWidth: false });
+        const root = wrapper.find('[data-orientation="horizontal"]');
+        expect(root.classes()).not.toContain('w-full');
+        expect(root.classes()).toContain('w-fit');
+        expect(root.classes()).toContain('mx-auto');
+    });
 });

@@ -38,6 +38,12 @@ const props = withDefaults(
         step?: number;
         /** Only allow forward navigation through completed steps. */
         linear?: boolean;
+        /**
+         * Stretch the (horizontal) indicator to fill the container width,
+         * distributing steps evenly. Set `false` for a compact, centered
+         * indicator sized to its content. No effect on vertical layouts.
+         */
+        fullWidth?: boolean;
         /** Guard run before advancing/finishing a step. */
         beforeNext?: (fromIndex: number) => boolean | Promise<boolean>;
     }>(),
@@ -47,6 +53,7 @@ const props = withDefaults(
         slug: null,
         step: undefined,
         linear: true,
+        fullWidth: true,
     },
 );
 
@@ -188,7 +195,9 @@ function goTo(index: number): void {
             :class="
                 orientation === 'vertical'
                     ? 'gap-0 md:w-64 shrink-0 flex-col'
-                    : 'mb-6 gap-2 w-full items-center'
+                    : fullWidth
+                      ? 'mb-6 gap-2 w-full items-center'
+                      : 'mb-6 gap-2 mx-auto w-fit items-center'
             "
         >
             <StepperItem
@@ -200,7 +209,9 @@ function goTo(index: number): void {
                 :class="
                     orientation === 'vertical'
                         ? 'gap-3'
-                        : 'gap-2 flex-1 items-center last:flex-none'
+                        : fullWidth
+                          ? 'gap-2 flex-1 items-center last:flex-none'
+                          : 'gap-2 items-center'
                 "
             >
                 <!-- indicator column (with the connector below it when vertical) -->
@@ -288,7 +299,8 @@ function goTo(index: number): void {
                     </StepperTrigger>
                     <StepperSeparator
                         v-if="i < steps.length - 1"
-                        class="h-0.5 flex-1 rounded-full bg-border group-data-[state=completed]:bg-primary"
+                        class="h-0.5 rounded-full bg-border group-data-[state=completed]:bg-primary"
+                        :class="fullWidth ? 'flex-1' : 'w-10'"
                     />
                 </template>
             </StepperItem>
@@ -318,20 +330,25 @@ function goTo(index: number): void {
         </div>
 
         <!-- panels: row of filled pills -->
-        <div v-else-if="variant === 'panels'" class="mb-6 gap-2 flex flex-wrap">
+        <div
+            v-else-if="variant === 'panels'"
+            class="mb-6 gap-2 flex flex-wrap"
+            :class="fullWidth ? '' : 'justify-center'"
+        >
             <button
                 v-for="(s, i) in steps"
                 :key="stepKey(s, i)"
                 type="button"
                 :disabled="linear && i > maxReached"
-                class="gap-2 rounded-lg px-3 py-2 text-sm flex flex-1 items-center border text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                :class="
+                class="gap-2 rounded-lg px-3 py-2 text-sm flex items-center border text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                :class="[
+                    fullWidth ? 'flex-1' : '',
                     statusOf(i) === 'active'
                         ? 'shadow-sm border-primary bg-primary text-primary-foreground'
                         : statusOf(i) === 'complete'
                           ? 'border-primary/40 bg-primary/10 text-foreground'
-                          : 'border-border bg-card text-muted-foreground'
-                "
+                          : 'border-border bg-card text-muted-foreground',
+                ]"
                 @click="goTo(i)"
             >
                 <span
@@ -396,7 +413,11 @@ function goTo(index: number): void {
         </ol>
 
         <!-- default / gradient: horizontal circles + connectors -->
-        <div v-else class="mb-6 flex items-center">
+        <div
+            v-else
+            class="mb-6 flex items-center"
+            :class="fullWidth ? '' : 'justify-center'"
+        >
             <template v-for="(s, i) in steps" :key="stepKey(s, i)">
                 <button
                     type="button"
@@ -441,14 +462,15 @@ function goTo(index: number): void {
                 </button>
                 <div
                     v-if="i < steps.length - 1"
-                    class="mx-2 h-0.5 flex-1 rounded-full transition-colors"
-                    :class="
+                    class="mx-2 h-0.5 rounded-full transition-colors"
+                    :class="[
+                        fullWidth ? 'flex-1' : 'w-10',
                         i < current
                             ? variant === 'gradient'
                                 ? 'to-fuchsia-500 bg-gradient-to-r from-primary'
                                 : 'bg-primary'
-                            : 'bg-border'
-                    "
+                            : 'bg-border',
+                    ]"
                 />
             </template>
         </div>

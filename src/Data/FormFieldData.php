@@ -51,6 +51,8 @@ class FormFieldData extends Data
         public ?string $content = null,
         // Wizard layout: indicator variant + optional gating slug.
         public ?string $variant = null,
+        public ?string $orientation = null,
+        public ?bool $fullWidth = null,
         public ?string $slug = null,
         // Repeater specific
         public ?int $minItems = null,

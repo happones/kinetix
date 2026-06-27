@@ -72,6 +72,8 @@ function beforeNext(index: number): boolean {
     <KinetixWizard
         :steps="steps"
         :variant="comp.variant || 'stepper'"
+        :orientation="comp.orientation || 'horizontal'"
+        :full-width="comp.fullWidth ?? true"
         :slug="comp.slug"
         :before-next="beforeNext"
     >
