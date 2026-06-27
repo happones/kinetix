@@ -374,6 +374,8 @@ return [
     'media_add'                 => 'Adicionar arquivos',
     'media_uploading'           => 'Enviando…',
     'media_upload_failed'       => 'Alguns arquivos não puderam ser enviados.',
+    'report_mail_intro'         => 'Seu relatório “:name” está em anexo.',
+    'report_mail_outro'         => 'Enviado automaticamente por :app.',
     'a11y_title'                => 'Acessibilidade',
     'a11y_description'          => 'Ajuste a interface às suas necessidades. As alterações são salvas na sua conta.',
     'a11y_text_size'            => 'Tamanho do texto',

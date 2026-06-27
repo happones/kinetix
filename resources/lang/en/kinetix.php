@@ -391,6 +391,10 @@ return [
     'media_uploading'     => 'Uploading…',
     'media_upload_failed' => 'Some files could not be uploaded.',
 
+    // Scheduled reports
+    'report_mail_intro' => 'Your “:name” report is attached.',
+    'report_mail_outro' => 'Sent automatically by :app.',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

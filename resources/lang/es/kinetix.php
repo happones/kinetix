@@ -374,6 +374,8 @@ return [
     'media_add'                 => 'Agregar archivos',
     'media_uploading'           => 'Subiendo…',
     'media_upload_failed'       => 'Algunos archivos no se pudieron subir.',
+    'report_mail_intro'         => 'Se adjunta tu reporte “:name”.',
+    'report_mail_outro'         => 'Enviado automáticamente por :app.',
     'a11y_title'                => 'Accesibilidad',
     'a11y_description'          => 'Ajusta la interfaz a tus necesidades. Los cambios se guardan en tu cuenta.',
     'a11y_text_size'            => 'Tamaño del texto',

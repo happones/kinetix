@@ -796,4 +796,20 @@ return [
         'poll' => env('KINETIX_HEALTH_POLL', 30000),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Scheduled Reports (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Email an Exporter's output on a schedule. Register reports in a service
+    | provider with KinetixReports::register(ScheduledReport::make(...)), then
+    | run `kinetix:reports:send` from your scheduler (filter with
+    | `--frequency=daily|weekly|monthly`). Each due report builds its export file
+    | and mails it to the recipients as an attachment.
+    |
+    */
+    'reports' => [
+        'enabled' => env('KINETIX_REPORTS_ENABLED', false),
+    ],
+
 ];

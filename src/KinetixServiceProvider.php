@@ -27,6 +27,7 @@ use Happones\Kinetix\Commands\MakeSettingsPageCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
+use Happones\Kinetix\Commands\SendReportsCommand;
 use Happones\Kinetix\Commands\WebhooksPruneCommand;
 use Happones\Kinetix\Comments\CommentController;
 use Happones\Kinetix\Comments\CommentManager;
@@ -67,6 +68,7 @@ use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Presence\PresenceManager;
 use Happones\Kinetix\Queue\QueueController;
 use Happones\Kinetix\Queue\QueueMetrics;
+use Happones\Kinetix\Reports\ReportRegistry;
 use Happones\Kinetix\SavedViews\SavedViewController;
 use Happones\Kinetix\SavedViews\SavedViewManager;
 use Happones\Kinetix\Sessions\BrowserSessionManager;
@@ -213,6 +215,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The media manager (spatie/laravel-medialibrary bridge, guarded).
         $this->app->singleton(MediaManager::class);
+
+        // The scheduled-reports registry (definitions registered app-side).
+        $this->app->singleton(ReportRegistry::class);
     }
 
     /**
@@ -241,6 +246,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeSettingsPageCommand::class,
                 ActivityPruneCommand::class,
                 WebhooksPruneCommand::class,
+                SendReportsCommand::class,
                 PermissionsSyncCommand::class,
                 InstallCommand::class,
             ]);

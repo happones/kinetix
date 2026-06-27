@@ -374,6 +374,8 @@ return [
     'media_add'                 => 'Ajouter des fichiers',
     'media_uploading'           => 'Téléversement…',
     'media_upload_failed'       => 'Certains fichiers n’ont pas pu être téléversés.',
+    'report_mail_intro'         => 'Votre rapport « :name » est en pièce jointe.',
+    'report_mail_outro'         => 'Envoyé automatiquement par :app.',
     'a11y_title'                => 'Accessibilité',
     'a11y_description'          => 'Adaptez l’interface à vos besoins. Les modifications sont enregistrées sur votre compte.',
     'a11y_text_size'            => 'Taille du texte',

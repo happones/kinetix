@@ -729,6 +729,18 @@ Roadmap v0.56.0. `MediaLibrary extends FileUpload` (`src/Forms/Components/`), ty
 
 ---
 
+## 43. Kinetix Scheduled Reports (backend — email an Exporter on a schedule)
+
+Roadmap v0.57.0. Config `reports` (`enabled`). **Backend-only** (no Vue). Reuses the Export system.
+
+- **`ScheduledReport`** value object (`src/Reports/`): `make($key)->exporter(class)->frequency('daily'|'weekly'|'monthly'|…)->to(array|string)->subject()->parameters([])->enabled(bool)`. Getters; `getSubject()` defaults to `str($key)->headline()` (Title Case).
+- **`ReportRegistry`** (singleton): `register/get/all/due($frequency?)` (due = enabled + frequency match). **`KinetixReports::register()/all()`** facade — register in a provider boot().
+- **`ReportRunner`**: `run($report)` → false if no recipients; else instantiate exporter with params, `generate()` writes temp file via `FileWriter` (headings + `resolveExportQuery()->chunk(mapRecord)` + `summaryRow`), `Mail::to(recipients)->send(ScheduledReportMail)`, unlink in finally. **`ScheduledReportMail`** (Queueable Mailable): Envelope subject + htmlString body (i18n `report_mail_intro`/`report_mail_outro`) + `Attachment::fromPath`.
+- **`SendReportsCommand`** `kinetix:reports:send {report?} {--frequency=}`: single report by key (FAILURE if unknown) or `registry->due($frequency)`. Registered in `commands()`. Host schedules per cadence (`Schedule::command('kinetix:reports:send --frequency=daily')->dailyAt(...)`).
+- Tests: `ScheduledReportTest` (registry frequency/enabled filter, definition defaults, runner emails with attachment via `Mail::fake`, skip no-recipients, command sends due + fails unknown). Full guide: `docs/reports.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

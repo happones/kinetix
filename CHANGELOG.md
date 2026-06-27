@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.57.0] - 2026-06-27
+
+### Added
+
+- **Scheduled Reports module** (`reports`, optional) — email an Exporter's output
+  on a schedule. Register reports with `KinetixReports::register(ScheduledReport
+  ::make('daily-orders')->exporter(OrdersExporter::class)->frequency('daily')
+  ->to([...])->subject()->parameters([...]))`, then run `kinetix:reports:send`
+  from the scheduler (filter with `--frequency=daily|weekly|monthly`, or run one
+  by key). `ReportRunner` builds the export file via the shared `FileWriter`
+  pipeline (CSV/XLSX/PDF) and mails it as an attachment (`ScheduledReportMail`,
+  queueable). `ReportRegistry` (singleton) + `KinetixReports` facade; reports with
+  no recipients are skipped. i18n `report_mail_intro`/`report_mail_outro`
+  (en/es/fr/pt). Backend-only (no published Vue).
+
 ## [0.56.0] - 2026-06-27
 
 ### Added
