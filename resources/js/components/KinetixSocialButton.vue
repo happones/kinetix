@@ -22,8 +22,12 @@ const props = withDefaults(
     /** "login" → guest sign in/register · "link" → attach to current user. */
     mode?: "login" | "link";
     label?: string;
-    /** Tint the icon with the brand color instead of currentColor. */
-    branded?: boolean;
+    /**
+     * Tint the icon with the provider's true brand color. Off by default — the
+     * icon inherits the button's text color so it contrasts with the light/dark
+     * theme.
+     */
+    colorized?: boolean;
     /** Full-width button. */
     block?: boolean;
     variant?: "outline" | "default" | "secondary" | "ghost";
@@ -32,7 +36,7 @@ const props = withDefaults(
   {
     mode: "login",
     label: undefined,
-    branded: true,
+    colorized: false,
     block: true,
     variant: "outline",
     href: undefined,
@@ -58,9 +62,10 @@ const href = computed(() => {
     : `${base}/redirect/${props.provider}`;
 });
 
-// Multicolor marks (e.g. Microsoft) ignore tinting.
+// Opt-in true brand color; otherwise inherit currentColor (theme contrast).
+// Multicolor marks (e.g. Microsoft) carry their own fills and ignore this.
 const iconColor = computed(() =>
-  props.branded && brand.value.color ? { color: brand.value.color } : undefined,
+  props.colorized && brand.value.color ? { color: brand.value.color } : undefined,
 );
 </script>
 

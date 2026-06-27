@@ -16,6 +16,14 @@ import KinetixLabel from "./KinetixLabel.vue";
  * social-only user without a password, set one so email + password login also
  * works. Mount on a security/account settings page.
  */
+withDefaults(
+  defineProps<{
+    /** Tint provider icons with their true brand color (default: theme contrast). */
+    colorized?: boolean;
+  }>(),
+  { colorized: false },
+);
+
 const { t } = useI18n();
 const {
   accounts,
@@ -106,7 +114,7 @@ async function onSetPassword(): Promise<void> {
       >
         <span
           class="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 text-foreground"
-          :style="provider.color ? { color: provider.color } : undefined"
+          :style="colorized && provider.color ? { color: provider.color } : undefined"
         >
           <component
             :is="brandFor(provider.icon ?? provider.key).icon"

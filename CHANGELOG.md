@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-06-26
+
+### Changed
+
+- **Social auth icons are now monochrome by default** — `KinetixSocialButton`
+  and `KinetixConnectedAccounts` render brand glyphs in `currentColor` so they
+  contrast with the light/dark theme. Pass **`colorized`** to use each
+  provider's true brand color. (The multicolor Microsoft mark always keeps its
+  colors.) Replaces the previous `branded` prop (which defaulted to on).
+
 ## [0.30.0] - 2026-06-26
 
 ### Added

@@ -131,8 +131,11 @@ import KinetixSocialButton from "@/components/KinetixSocialButton.vue";
 
 `mode="login"` targets the guest sign-in route; the default `mode="link"`
 attaches the provider to the **current** user (used inside the manager).
-Props: `provider`, `mode`, `label`, `branded` (tint the icon with the brand
-color, default on), `block`, `variant`, and `href` (override the destination).
+Props: `provider`, `mode`, `label`, `colorized` (use the provider's **true brand
+color** — off by default, so the icon inherits the button text color and
+contrasts with the light/dark theme), `block`, `variant`, and `href` (override
+the destination). The `KinetixConnectedAccounts` manager takes the same
+`colorized` prop.
 
 ### Bundled brand icons
 

@@ -47,4 +47,15 @@ describe("KinetixSocialButton", () => {
     expect(w.get("a").attributes("href")).toBe("/custom");
     expect(w.text()).toBe("Sign in");
   });
+
+  it("is monochrome by default and brand-colored only when colorized", () => {
+    const plain = mountIt({ provider: "github" });
+    // No inline color → inherits currentColor (theme contrast).
+    expect(plain.find("span[style]").exists()).toBe(false);
+
+    const colored = mountIt({ provider: "github", colorized: true });
+    expect(colored.find("span").attributes("style")).toContain(
+      "color: #181717",
+    );
+  });
 });
