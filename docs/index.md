@@ -30,12 +30,16 @@ features:
     details: Queued CSV/XLSX import & export to any disk (bulk scopes to selected rows), plus inline relation managers.
     link: /import-export
   - icon: 🔑
-    title: Authorization & Identity
+    title: Authorization & Teams
     details: Feature-scoped RBAC (spatie), admin-provisioned membership onboarding, and audited "log in as user" impersonation.
     link: /permissions
+  - icon: 🔐
+    title: Account & Security
+    details: Social login & connected accounts (GitHub, Google, Microsoft & more) with set-password for social-only users, browser-session/device management, self-service API tokens (Sanctum), and GDPR data export & account deletion.
+    link: /connected-accounts
   - icon: 🚀
     title: SaaS Platform
-    details: Database-backed settings, an activity-log audit trail + event spine, feature flags (Pennant), webhooks, self-service API tokens (Sanctum), GDPR data export & account deletion, and Stripe billing.
+    details: Database-backed settings, an activity-log audit trail + event spine, feature flags (Pennant), webhooks, and Stripe billing.
     link: /settings
   - icon: ⌨️
     title: Search & Experience
