@@ -273,6 +273,8 @@ const customWidget = {
 };
 
 export const specimens: Specimen[] = [
+  { name: "wizard-stepper", title: "Wizard — stepper", component: KinetixWizard, frame: "card", width: 640, props: { steps: wizardSteps, variant: "stepper", step: 1 }, slots: wizardSlots },
+  { name: "wizard-stepper-vertical", title: "Wizard — stepper (vertical)", component: KinetixWizard, frame: "card", width: 640, props: { steps: wizardSteps, variant: "stepper", orientation: "vertical", step: 1 }, slots: wizardSlots },
   { name: "wizard-default", title: "Wizard — default", component: KinetixWizard, frame: "card", width: 640, props: { steps: wizardSteps, variant: "default", step: 1 }, slots: wizardSlots },
   { name: "wizard-gradient", title: "Wizard — gradient", component: KinetixWizard, frame: "card", width: 640, props: { steps: wizardSteps, variant: "gradient", step: 1 }, slots: wizardSlots },
   { name: "wizard-panels", title: "Wizard — panels", component: KinetixWizard, frame: "card", width: 640, props: { steps: wizardSteps, variant: "panels", step: 0 }, slots: wizardSlots },

@@ -2,6 +2,15 @@
 import { computed, ref, useSlots, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Check } from "@lucide/vue";
+import {
+  StepperDescription,
+  StepperIndicator,
+  StepperItem,
+  StepperRoot,
+  StepperSeparator,
+  StepperTitle,
+  StepperTrigger,
+} from "reka-ui";
 import { resolveIcon } from "@/composables/useKinetixIcons";
 import { useKinetixWizard } from "@/composables/useKinetixWizard";
 import { buttonVariants } from "@/composables/useShadcnVariants";
@@ -21,6 +30,8 @@ const props = withDefaults(
   defineProps<{
     steps: KinetixWizardStep[];
     variant?: KinetixWizardVariant;
+    /** Indicator orientation for the `stepper` / `vertical` variants. */
+    orientation?: "horizontal" | "vertical";
     /** Gating slug — completion is persisted on finish. */
     slug?: string | null;
     /** Controlled current step index (v-model:step). */
@@ -30,7 +41,13 @@ const props = withDefaults(
     /** Guard run before advancing/finishing a step. */
     beforeNext?: (fromIndex: number) => boolean | Promise<boolean>;
   }>(),
-  { variant: "default", slug: null, step: undefined, linear: true },
+  {
+    variant: "stepper",
+    orientation: "horizontal",
+    slug: null,
+    step: undefined,
+    linear: true,
+  },
 );
 
 const emit = defineEmits<{
@@ -142,10 +159,126 @@ function goTo(index: number): void {
 </script>
 
 <template>
-  <div :class="variant === 'vertical' ? 'flex flex-col gap-6 md:flex-row' : ''">
+  <div
+    :class="
+      variant === 'vertical' ||
+      (variant === 'stepper' && orientation === 'vertical')
+        ? 'flex flex-col gap-6 md:flex-row'
+        : ''
+    "
+  >
     <!-- ===== Indicator ===== -->
+    <!-- stepper: the official reka/shadcn stepper (horizontal or vertical) -->
+    <StepperRoot
+      v-if="variant === 'stepper'"
+      :model-value="current + 1"
+      :orientation="orientation"
+      class="flex"
+      :class="
+        orientation === 'vertical'
+          ? 'shrink-0 flex-col gap-0 md:w-64'
+          : 'mb-6 w-full items-center gap-2'
+      "
+    >
+      <StepperItem
+        v-for="(s, i) in steps"
+        :key="stepKey(s, i)"
+        :step="i + 1"
+        :disabled="linear && i > maxReached"
+        class="group flex disabled:pointer-events-none disabled:opacity-50"
+        :class="
+          orientation === 'vertical'
+            ? 'gap-3'
+            : 'flex-1 items-center gap-2 last:flex-none'
+        "
+      >
+        <!-- indicator column (with the connector below it when vertical) -->
+        <div
+          v-if="orientation === 'vertical'"
+          class="flex flex-col items-center self-stretch"
+        >
+          <StepperTrigger as-child @click="goTo(i)">
+            <button type="button">
+              <StepperIndicator
+                class="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-sm font-semibold text-muted-foreground transition-colors group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground group-data-[state=completed]:border-primary group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground"
+              >
+                <Check v-if="statusOf(i) === 'complete'" class="size-4" />
+                <component
+                  :is="resolveIcon(s.icon)"
+                  v-else-if="resolveIcon(s.icon)"
+                  class="size-4"
+                />
+                <template v-else>{{ i + 1 }}</template>
+              </StepperIndicator>
+            </button>
+          </StepperTrigger>
+          <StepperSeparator
+            v-if="i < steps.length - 1"
+            class="my-1 w-0.5 grow rounded-full bg-border group-data-[state=completed]:bg-primary"
+          />
+        </div>
+
+        <!-- text -->
+        <StepperTrigger
+          v-if="orientation === 'vertical'"
+          as-child
+          @click="goTo(i)"
+        >
+          <button type="button" class="pb-6 text-left">
+            <StepperTitle
+              class="block text-sm font-medium text-foreground"
+              >{{ s.label }}</StepperTitle
+            >
+            <StepperDescription
+              v-if="s.description"
+              class="block text-xs text-muted-foreground"
+              >{{ s.description }}</StepperDescription
+            >
+          </button>
+        </StepperTrigger>
+
+        <!-- horizontal: trigger (indicator + title) then separator -->
+        <template v-else>
+          <StepperTrigger
+            as-child
+            class="flex items-center gap-3"
+            @click="goTo(i)"
+          >
+            <button type="button" class="flex items-center gap-3">
+              <StepperIndicator
+                class="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-sm font-semibold text-muted-foreground transition-colors group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground group-data-[state=completed]:border-primary group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground"
+              >
+                <Check v-if="statusOf(i) === 'complete'" class="size-4" />
+                <component
+                  :is="resolveIcon(s.icon)"
+                  v-else-if="resolveIcon(s.icon)"
+                  class="size-4"
+                />
+                <template v-else>{{ i + 1 }}</template>
+              </StepperIndicator>
+              <span class="hidden text-left sm:block">
+                <StepperTitle
+                  class="block text-sm font-medium text-foreground"
+                  >{{ s.label }}</StepperTitle
+                >
+                <StepperDescription
+                  v-if="s.description"
+                  class="block text-xs text-muted-foreground"
+                  >{{ s.description }}</StepperDescription
+                >
+              </span>
+            </button>
+          </StepperTrigger>
+          <StepperSeparator
+            v-if="i < steps.length - 1"
+            class="h-0.5 flex-1 rounded-full bg-border group-data-[state=completed]:bg-primary"
+          />
+        </template>
+      </StepperItem>
+    </StepperRoot>
+
     <!-- simple: progress bar + counter -->
-    <div v-if="variant === 'simple'" class="mb-6 space-y-2">
+    <div v-else-if="variant === 'simple'" class="mb-6 space-y-2">
       <div class="flex items-center justify-between text-sm">
         <span class="font-medium text-foreground">{{ currentStep.label }}</span>
         <span class="text-muted-foreground">

@@ -62,7 +62,7 @@ function beforeNext(index: number): boolean {
 <template>
   <KinetixWizard
     :steps="steps"
-    :variant="comp.variant || 'default'"
+    :variant="comp.variant || 'stepper'"
     :slug="comp.slug"
     :before-next="beforeNext"
   >

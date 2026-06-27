@@ -129,6 +129,7 @@ export interface KinetixWizardStep {
 
 /** Visual style of the wizard step indicator. */
 export type KinetixWizardVariant =
+  | "stepper"
   | "default"
   | "simple"
   | "vertical"

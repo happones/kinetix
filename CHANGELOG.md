@@ -13,7 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.31.0] - 2026-06-26
+## [0.32.0] - 2026-06-26
+
+### Added
+
+- **Wizard `stepper` variant — the official shadcn/Reka Stepper** — built on
+  `reka-ui`'s Stepper primitives (numbered indicators with titles, descriptions
+  and connecting separators), with a new **`orientation`** prop
+  (`horizontal` | `vertical`). It is now the **default** wizard variant for both
+  the standalone `<KinetixWizard>` and the `Wizard` form layout. The previous
+  designs (`default`, `simple`, `vertical`, `panels`, `gradient`) remain
+  available.
+
+### Changed
+
+- The default wizard variant is now `stepper` (was `default`).
 
 ### Changed
 

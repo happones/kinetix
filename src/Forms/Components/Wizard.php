@@ -25,7 +25,7 @@ class Wizard extends Component
      */
     protected array $schema = [];
 
-    protected string $variant = 'default';
+    protected string $variant = 'stepper';
 
     protected ?string $slug = null;
 

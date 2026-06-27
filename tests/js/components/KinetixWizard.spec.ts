@@ -103,4 +103,17 @@ describe("KinetixWizard", () => {
     expect(labels.some((t) => t.includes("Account"))).toBe(true);
     expect(labels.some((t) => t.includes("Profile"))).toBe(true);
   });
+
+  it("renders the official reka stepper by default", () => {
+    const wrapper = mountWizard();
+    // Reka StepperRoot defaults to a horizontal orientation.
+    expect(wrapper.find('[data-orientation="horizontal"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("Account");
+    expect(wrapper.text()).toContain("Profile");
+  });
+
+  it("supports a vertical stepper orientation", () => {
+    const wrapper = mountWizard({ orientation: "vertical" });
+    expect(wrapper.find('[data-orientation="vertical"]').exists()).toBe(true);
+  });
 });

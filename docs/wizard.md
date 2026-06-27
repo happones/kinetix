@@ -20,7 +20,7 @@ use Happones\Kinetix\Forms\Components\Step;
 use Happones\Kinetix\Forms\Components\TextInput;
 
 Wizard::make()
-    ->variant('panels') // default | simple | vertical | panels | gradient
+    ->variant('stepper') // stepper (default) | default | simple | vertical | panels | gradient
     ->steps([
         Step::make('Account')->schema([
             TextInput::make('email')->required(),
@@ -72,7 +72,8 @@ function onFinish() {
 | Prop         | Type                                                          | Default     | Notes |
 | ------------ | ------------------------------------------------------------- | ----------- | ----- |
 | `steps`      | `KinetixWizardStep[]`                                         | —           | `{ key?, label, description?, icon? }` |
-| `variant`    | `default \| simple \| vertical \| panels \| gradient`         | `default`   | Step-indicator style |
+| `variant`    | `stepper \| default \| simple \| vertical \| panels \| gradient` | `stepper`   | Step-indicator style |
+| `orientation`| `horizontal \| vertical`                                      | `horizontal`| Stepper orientation (the `stepper` variant) |
 | `slug`       | `string \| null`                                              | `null`      | When set, finishing marks completion server-side (gate) |
 | `step`       | `number`                                                      | `0`         | Controlled current step (`v-model:step`) |
 | `linear`     | `boolean`                                                     | `true`      | Restrict indicator jumps to reached steps |
@@ -87,9 +88,22 @@ function onFinish() {
 
 ### Variants
 
-`default` (numbered circles + connectors), `simple` (progress bar + counter),
-`vertical` (left rail), `panels` (filled pills), and `gradient` (an eye-catching
-gradient-filled indicator).
+`stepper` *(default)* is the official shadcn/Reka **Stepper** — numbered
+indicators with titles, descriptions and connecting separators, built on
+`reka-ui`'s Stepper primitives. Set `orientation="vertical"` for a left-rail
+layout. The other designs: `default` (numbered circles + connectors), `simple`
+(progress bar + counter), `vertical` (left rail), `panels` (filled pills), and
+`gradient` (an eye-catching gradient-filled indicator).
+
+<Screenshot name="wizard-stepper" alt="Wizard — stepper variant (default)" />
+
+<Screenshot name="wizard-stepper-vertical" alt="Wizard — vertical stepper" />
+
+```vue
+<KinetixWizard :steps="steps" />                              <!-- stepper (default) -->
+<KinetixWizard :steps="steps" orientation="vertical" />       <!-- vertical stepper -->
+<KinetixWizard :steps="steps" variant="gradient" />           <!-- other designs -->
+```
 
 <Screenshot name="wizard-gradient" alt="Wizard — gradient variant" />
 
