@@ -307,6 +307,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Accessibility (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Per-user accessibility preferences (reduced motion, high contrast, text
+    | size, underlined links, enhanced focus). Persisted server-side and applied
+    | to the document root. Pair with <KinetixAccessibilityPanel> + the
+    | KinetixAccessibility Vue plugin.
+    |
+    */
+    'accessibility' => [
+        'enabled' => env('KINETIX_ACCESSIBILITY_ENABLED', false),
+
+        // Defaults applied when a user has not customized a preference.
+        'defaults' => [
+            'reducedMotion'  => false,
+            'highContrast'   => false,
+            'textSize'       => 'normal', // normal | large | x-large
+            'underlineLinks' => false,
+            'enhancedFocus'  => false,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | GDPR self-service (optional)
     |--------------------------------------------------------------------------
     |

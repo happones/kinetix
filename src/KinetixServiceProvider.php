@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix;
 
+use Happones\Kinetix\Accessibility\AccessibilityController;
+use Happones\Kinetix\Accessibility\AccessibilityManager;
 use Happones\Kinetix\Activity\ActivityController;
 use Happones\Kinetix\Activity\ActivityLogger;
 use Happones\Kinetix\Billing\BillingRoutes;
@@ -24,6 +26,7 @@ use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\WebhooksPruneCommand;
+use Happones\Kinetix\Data\AccessibilityData;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
@@ -124,6 +127,9 @@ class KinetixServiceProvider extends ServiceProvider
         // The GDPR data-section registry + manager.
         $this->app->singleton(GdprRegistry::class);
         $this->app->singleton(GdprManager::class);
+
+        // The accessibility preferences manager.
+        $this->app->singleton(AccessibilityManager::class);
     }
 
     /**
@@ -216,6 +222,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000007_create_kinetix_wizard_completions_table.php' => database_path('migrations/2026_01_01_000007_create_kinetix_wizard_completions_table.php'),
             ], 'kinetix-wizards-migrations');
 
+            // Publish the optional Accessibility module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000008_create_kinetix_accessibility_table.php' => database_path('migrations/2026_01_01_000008_create_kinetix_accessibility_table.php'),
+            ], 'kinetix-accessibility-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -274,6 +285,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional GDPR module (export my data + account deletion)
         $this->registerGdpr();
+
+        // Register the optional Accessibility module (per-user a11y preferences)
+        $this->registerAccessibility();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -758,6 +772,35 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Accessibility module: self-service per-user preference
+     * endpoints (read/update only your own).
+     */
+    protected function registerAccessibility(): void
+    {
+        if (! config('kinetix.accessibility.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/accessibility")
+            ->group(function () {
+                Route::get('/', [AccessibilityController::class, 'index'])->name('kinetix.accessibility.index');
+                Route::post('/', [AccessibilityController::class, 'update'])->name('kinetix.accessibility.update');
+            });
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -852,6 +895,20 @@ class KinetixServiceProvider extends ServiceProvider
             }
 
             return app(FeatureManager::class)->all();
+        });
+
+        // The current user's accessibility preferences (applied by the
+        // KinetixAccessibility Vue plugin), or the configured defaults.
+        Inertia::share('kinetix_accessibility', function () {
+            if (! config('kinetix.accessibility.enabled', false)) {
+                return null;
+            }
+
+            $user = auth()->user();
+
+            return $user instanceof Model
+                ? app(AccessibilityManager::class)->for($user)
+                : AccessibilityData::fromArray((array) config('kinetix.accessibility.defaults', []));
         });
     }
 

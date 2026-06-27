@@ -243,6 +243,23 @@ return [
     'gdpr_password_incorrect'     => 'The password is incorrect.',
     'gdpr_delete_failed'          => 'Could not delete your account. Please try again.',
 
+    // Accessibility
+    'a11y_title'                => 'Accessibility',
+    'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',
+    'a11y_text_size'            => 'Text size',
+    'a11y_text_normal'          => 'Normal',
+    'a11y_text_large'           => 'Large',
+    'a11y_text_x_large'         => 'Extra large',
+    'a11y_reduced_motion'       => 'Reduce motion',
+    'a11y_reduced_motion_help'  => 'Minimize animations and transitions.',
+    'a11y_high_contrast'        => 'Increase contrast',
+    'a11y_high_contrast_help'   => 'Stronger outlines and underlines for readability.',
+    'a11y_underline_links'      => 'Underline links',
+    'a11y_underline_links_help' => 'Always underline links, not just on hover.',
+    'a11y_enhanced_focus'       => 'Enhanced focus',
+    'a11y_enhanced_focus_help'  => 'Show a thicker, always-visible focus outline.',
+    'skip_to_content'           => 'Skip to content',
+
     // Table summaries
     'summary_total' => 'Total',
 

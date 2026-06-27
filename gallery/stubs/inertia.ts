@@ -10,6 +10,14 @@ const page = {
     kinetix_config: { route_prefix: "_kinetix" },
     // Surfaced for the impersonation banner specimen.
     kinetix_impersonation: { active: true, user: { id: 1, name: "Ada Lovelace" } },
+    // Surfaced for the accessibility panel specimen.
+    kinetix_accessibility: {
+      reducedMotion: true,
+      highContrast: false,
+      textSize: "large",
+      underlineLinks: true,
+      enhancedFocus: false,
+    },
   },
   url: "/",
   component: "Gallery",

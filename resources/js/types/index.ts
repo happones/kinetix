@@ -135,6 +135,15 @@ export type KinetixWizardVariant =
   | "panels"
   | "gradient";
 
+/** Per-user accessibility preferences. */
+export interface KinetixAccessibility {
+  reducedMotion: boolean;
+  highContrast: boolean;
+  textSize: "normal" | "large" | "x-large";
+  underlineLinks: boolean;
+  enhancedFocus: boolean;
+}
+
 /** A single first-run onboarding checklist step. */
 export interface KinetixOnboardingStep {
   key: string;

@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-06-26
+
+### Added
+
+- **Accessibility** (optional): per-user accessibility preferences + screen-reader
+  primitives — inclusion as a first-class feature.
+  - Preferences: **reduce motion**, **increase contrast**, **text size**
+    (normal/large/x-large), **underline links**, **enhanced focus**. Persisted
+    per user (`kinetix_accessibility` table), shared on every Inertia response,
+    and applied to `<html>` **before the app mounts** (no flash) by the new
+    `KinetixAccessibility` Vue plugin (`app.use(...)`), with a localStorage mirror.
+  - **`<KinetixAccessibilityPanel />`** (**published**) for an account/settings
+    page; `useKinetixAccessibility` for a custom UI. Self-service endpoints
+    `GET/POST {prefix}/accessibility`.
+  - Screen-reader primitives: **`<KinetixSkipLink />`** (skip-to-content) and
+    **`useKinetixAnnounce()`** (shared ARIA live region for announcing async
+    updates). Enabled via `KINETIX_ACCESSIBILITY_ENABLED`; i18n `a11y_*` /
+    `skip_to_content` (en/es/fr/pt).
+
 ## [0.23.0] - 2026-06-26
 
 ### Added

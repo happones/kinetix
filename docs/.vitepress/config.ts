@@ -106,6 +106,7 @@ export default withMermaid(
           { text: "Developer Tokens", link: "/tokens" },
           { text: "Onboarding", link: "/onboarding" },
           { text: "GDPR self-service", link: "/gdpr" },
+          { text: "Accessibility", link: "/accessibility" },
         ],
       },
     ],

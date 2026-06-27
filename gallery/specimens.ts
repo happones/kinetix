@@ -8,6 +8,7 @@ import KinetixInfolist from "@/components/KinetixInfolist.vue";
 import KinetixGdprPanel from "@/components/KinetixGdprPanel.vue";
 import KinetixTokenManager from "@/components/KinetixTokenManager.vue";
 import KinetixWebhookManager from "@/components/KinetixWebhookManager.vue";
+import KinetixAccessibilityPanel from "@/components/KinetixAccessibilityPanel.vue";
 import KinetixPricingTable from "@/components/KinetixPricingTable.vue";
 import KinetixStatsOverviewWidget from "@/components/KinetixStatsOverviewWidget.vue";
 import KinetixRangeCalendar from "@/components/KinetixRangeCalendar.vue";
@@ -286,6 +287,7 @@ export const specimens: Specimen[] = [
   { name: "token-manager", title: "API token manager", component: KinetixTokenManager, width: 720 },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },
   { name: "gdpr-panel", title: "GDPR self-service panel", component: KinetixGdprPanel, width: 640, props: { requirePassword: true } },
+  { name: "accessibility-panel", title: "Accessibility panel", component: KinetixAccessibilityPanel, frame: "card", width: 560 },
 
   // --- Form controls ---------------------------------------------------------
   { name: "select", title: "Select", component: KinetixSelect, frame: "card", width: 420, props: { value: "editor", options: { admin: "Admin", editor: "Editor", viewer: "Viewer" } } },
