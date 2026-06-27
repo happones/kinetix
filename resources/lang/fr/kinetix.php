@@ -167,6 +167,10 @@ return [
     'saved_view_default'      => 'Définir par défaut',
     'saved_view_delete'       => 'Supprimer la vue',
 
+    // Kanban
+    'kanban_empty'       => 'Déposez des cartes ici',
+    'kanban_move_failed' => 'Impossible de déplacer la carte. Veuillez réessayer.',
+
     // Rôles et permissions
     'save'               => 'Enregistrer',
     'select_all'         => 'Tout sélectionner',

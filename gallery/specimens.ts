@@ -125,6 +125,7 @@ import KinetixInvoicesTable from '@/components/KinetixInvoicesTable.vue';
 import KinetixChartWidget from '@/components/KinetixChartWidget.vue';
 import KinetixCustomWidget from '@/components/KinetixCustomWidget.vue';
 import KinetixTableWidget from '@/components/KinetixTableWidget.vue';
+import KinetixKanban from '@/components/KinetixKanban.vue';
 
 export interface Specimen {
     name: string;
@@ -1192,6 +1193,62 @@ export const specimens: Specimen[] = [
                 hasSummaries: false,
                 reorderable: true,
                 savedViewsKey: 'App\\Models\\Product',
+            },
+        },
+    },
+    {
+        name: 'kanban',
+        title: 'Kanban board',
+        component: KinetixKanban,
+        frame: 'card',
+        width: 920,
+        props: {
+            kanban: {
+                heading: null,
+                model: 'demo',
+                columns: [
+                    {
+                        key: 'todo',
+                        label: 'To Do',
+                        color: '#64748b',
+                        cards: [
+                            {
+                                id: 1,
+                                title: 'Draft the proposal',
+                                description: 'Due Friday',
+                            },
+                            {
+                                id: 2,
+                                title: 'Collect requirements',
+                                description: null,
+                            },
+                        ],
+                    },
+                    {
+                        key: 'doing',
+                        label: 'In Progress',
+                        color: '#3b82f6',
+                        cards: [
+                            {
+                                id: 3,
+                                title: 'Design the dashboard',
+                                description: 'Ada',
+                            },
+                        ],
+                    },
+                    {
+                        key: 'done',
+                        label: 'Done',
+                        color: '#22c55e',
+                        cards: [
+                            {
+                                id: 4,
+                                title: 'Kickoff meeting',
+                                description: null,
+                            },
+                        ],
+                    },
+                ],
             },
         },
     },

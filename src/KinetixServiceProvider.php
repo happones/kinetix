@@ -1347,6 +1347,40 @@ class KinetixServiceProvider extends ServiceProvider
 
                     return response()->json(['status' => 'success']);
                 })->name('kinetix.tables.reorder');
+
+                // Kanban card move: set a record's status column to a target
+                // status, guarded by the board's signed descriptor.
+                Route::post('kanban-move', function () {
+                    try {
+                        $payload = Crypt::decrypt((string) request('model'));
+                    } catch (\Exception $e) {
+                        return response()->json(['status' => 'error', 'message' => 'Invalid model signature.'], 400);
+                    }
+
+                    $modelClass   = is_array($payload) ? ($payload['model'] ?? null) : null;
+                    $statusColumn = is_array($payload) ? ($payload['statusColumn'] ?? null) : null;
+                    $statuses     = is_array($payload) ? ($payload['statuses'] ?? []) : [];
+                    $status       = (string) request('status');
+
+                    if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
+                        return response()->json(['status' => 'error', 'message' => 'Invalid model class.'], 400);
+                    }
+
+                    if (! is_string($statusColumn) || ! is_array($statuses) || ! in_array($status, $statuses, true)) {
+                        return response()->json(['status' => 'error', 'message' => 'Invalid status.'], 403);
+                    }
+
+                    $record = $modelClass::find(request('recordId'));
+
+                    if (! $record) {
+                        return response()->json(['status' => 'error', 'message' => 'Record not found.'], 404);
+                    }
+
+                    $record->{$statusColumn} = $status;
+                    $record->save();
+
+                    return response()->json(['status' => 'success']);
+                })->name('kinetix.tables.kanban-move');
             });
     }
 

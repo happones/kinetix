@@ -167,6 +167,10 @@ return [
     'saved_view_default'      => 'Definir como padrão',
     'saved_view_delete'       => 'Excluir visualização',
 
+    // Kanban
+    'kanban_empty'       => 'Solte cartões aqui',
+    'kanban_move_failed' => 'Não foi possível mover o cartão. Tente novamente.',
+
     // Papéis e permissões
     'save'               => 'Salvar',
     'select_all'         => 'Selecionar tudo',

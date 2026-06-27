@@ -167,6 +167,10 @@ return [
     'saved_view_default'      => 'Set as default',
     'saved_view_delete'       => 'Delete view',
 
+    // Kanban
+    'kanban_empty'       => 'Drop cards here',
+    'kanban_move_failed' => 'Could not move the card. Please try again.',
+
     // Roles & permissions
     'save'               => 'Save',
     'select_all'         => 'Select all',

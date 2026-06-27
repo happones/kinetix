@@ -167,6 +167,10 @@ return [
     'saved_view_default'      => 'Marcar como predeterminada',
     'saved_view_delete'       => 'Eliminar vista',
 
+    // Kanban
+    'kanban_empty'       => 'Suelta tarjetas aquí',
+    'kanban_move_failed' => 'No se pudo mover la tarjeta. Inténtalo de nuevo.',
+
     // Roles y permisos
     'save'               => 'Guardar',
     'select_all'         => 'Seleccionar todo',

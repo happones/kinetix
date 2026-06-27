@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-06-27
+
+### Added
+
+- **Kanban module** — a drag-and-drop board over any Eloquent model. Define it
+  with the server-driven `Kanban` builder (`->statusColumn()`, `->statuses()`
+  with labels + colors, `->cardTitle()`, `->cardDescription()`, `->query()`,
+  `->heading()`) and render `<KinetixKanban :kanban="board.toData()" />`.
+  - Cards group into columns by a status attribute; dragging a card to another
+    column persists the new status (optimistic, reverting on error) via native
+    HTML5 drag-and-drop — no extra dependency.
+  - The `POST {prefix}/tables/kanban-move` endpoint is guarded by a signed
+    descriptor (same mechanism as editable table cells): only the declared status
+    column + statuses are writable. No migration or config flag needed.
+  - Backed by `KanbanData` / `KanbanColumnData` / `KanbanCardData`.
+- New i18n keys (en/es/fr/pt): `kanban_empty`, `kanban_move_failed`.
+
 ## [0.42.0] - 2026-06-27
 
 ### Added

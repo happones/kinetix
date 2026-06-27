@@ -604,6 +604,16 @@ Roadmap v0.42.0. Config block `saved_views` (`enabled`). Migration `kinetix_save
 
 ---
 
+## 31. Kinetix Kanban (optional, drag-and-drop board)
+
+Roadmap v0.43.0. Server-driven board over an Eloquent query, like Tables — no migration, no config flag. The move route is **always registered** inside `registerTableRoutes()` (`POST {prefix}/tables/kanban-move`, name `kinetix.tables.kanban-move`), guarded by a signed descriptor.
+
+- **`Kanban` builder** (`Kanban::make($queryOrModel)`): `->statusColumn('status')`, `->statuses(['key' => 'Label' | ['label'=>,'color'=>]])`, `->cardTitle(attr|Closure)`, `->cardDescription(attr|Closure|null)`, `->query(Closure)`, `->heading()`. `toData()` → `KanbanData{heading, columns:[KanbanColumnData{key,label,color,cards:[KanbanCardData{id,title,description}]}], model}` where `model` = `Crypt::encrypt(['model','statusColumn','statuses'=>array_keys])`.
+- **Move endpoint**: decrypts the descriptor, validates `status ∈ statuses` (403 otherwise), 400 on bad signature, 404 missing record, then writes `statusColumn`. Mirrors the cell-update guard — only the baked status column + declared statuses are writable.
+- **Vue (published)**: `KinetixKanban` (props `kanban`): columns + draggable cards via **native HTML5 DnD** (`draggable`, `@dragstart`/`@dragover.prevent`/`@drop`); optimistic move with revert on failure (`kanban_move_failed` toast) + `router.reload()` on success. Keeps a local reactive copy of columns. i18n `kanban_empty`/`kanban_move_failed`. Tests: `KanbanTest` (grouping into columns, move updates status, status-outside-board 403, invalid-signature 400), `KinetixKanban.spec.ts` (renders columns/cards; drag→drop posts the move). Full guide: `docs/kanban.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

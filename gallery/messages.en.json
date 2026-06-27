@@ -145,6 +145,8 @@
         "saved_view_empty": "No saved views yet.",
         "saved_view_default": "Set as default",
         "saved_view_delete": "Delete view",
+        "kanban_empty": "Drop cards here",
+        "kanban_move_failed": "Could not move the card. Please try again.",
         "save": "Save",
         "select_all": "Select all",
         "search_permissions": "Search permissions…",

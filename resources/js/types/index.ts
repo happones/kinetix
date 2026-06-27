@@ -166,6 +166,28 @@ export interface KinetixOnboarding {
     dismissed: boolean;
 }
 
+/** A Kanban card. */
+export interface KinetixKanbanCard {
+    id: number | string;
+    title: string;
+    description: string | null;
+}
+
+/** A Kanban column (a status) with its cards. */
+export interface KinetixKanbanColumn {
+    key: string;
+    label: string;
+    color: string | null;
+    cards: KinetixKanbanCard[];
+}
+
+/** A Kanban board: columns + a signed model descriptor for the move endpoint. */
+export interface KinetixKanbanData {
+    heading: string | null;
+    columns: KinetixKanbanColumn[];
+    model: string;
+}
+
 /** A saved table view — a named snapshot of the table's state. */
 export interface KinetixSavedView {
     id: number | string | null;
