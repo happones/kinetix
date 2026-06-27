@@ -12,6 +12,24 @@ import KinetixConnectedAccounts from "@/components/KinetixConnectedAccounts.vue"
 import KinetixSessions from "@/components/KinetixSessions.vue";
 import KinetixSocialButton from "@/components/KinetixSocialButton.vue";
 import KinetixRichEditor from "@/components/KinetixRichEditor.vue";
+import KinetixNumberField from "@/components/KinetixNumberField.vue";
+
+// A showcase of NumberField formats for the gallery.
+const NumberFieldShowcase: Component = {
+  render() {
+    return h("div", { class: "flex flex-col gap-3" }, [
+      h(KinetixNumberField, { value: 12, config: { min: 0, max: 99, step: 1 } }),
+      h(KinetixNumberField, {
+        value: 0.075,
+        config: { format: "percent", step: 0.005, decimals: { min: 1, max: 2 } },
+      }),
+      h(KinetixNumberField, {
+        value: 1499.99,
+        config: { format: "currency", currency: "USD", step: 1 },
+      }),
+    ]);
+  },
+};
 
 // A small showcase of social-auth login buttons for the gallery.
 const SocialButtonsShowcase: Component = {
@@ -313,6 +331,7 @@ export const specimens: Specimen[] = [
   { name: "rich-editor-basic", title: "Rich editor (basic)", component: KinetixRichEditor, frame: "card", width: 560, props: { editor: "basic", value: "<h2>Release notes</h2><p>A <strong>rich</strong> text field with a <em>zero-dependency</em> toolbar.</p><ul><li>Bold &amp; italic</li><li>Lists &amp; links</li></ul>" } },
   { name: "rich-editor-tiptap", title: "Rich editor (Tiptap)", component: KinetixRichEditor, frame: "card", width: 560, props: { editor: "tiptap", value: "<h2>Tiptap</h2><p>The headless WYSIWYG, styled with your shadcn tokens.</p><blockquote>Loaded lazily — an optional dependency.</blockquote>" } },
   { name: "rich-editor-markdown", title: "Rich editor (Markdown)", component: KinetixRichEditor, frame: "card", width: 560, props: { editor: "markdown", value: "# Markdown\n\nWrite in **Markdown** with a live *preview*.\n\n- Zero dependencies\n- Stores the raw source" } },
+  { name: "number-field", title: "Number field (decimal · percent · currency)", component: NumberFieldShowcase, frame: "card", width: 320 },
   { name: "webhook-manager", title: "Webhook manager", component: KinetixWebhookManager, width: 760 },
   { name: "gdpr-panel", title: "GDPR self-service panel", component: KinetixGdprPanel, width: 640, props: { requirePassword: true } },
   { name: "accessibility-panel", title: "Accessibility panel", component: KinetixAccessibilityPanel, frame: "card", width: 560 },

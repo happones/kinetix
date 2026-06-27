@@ -2,6 +2,7 @@
 import { CheckCircle2, XCircle, Edit3, Trash2, Eye, Plus } from "@lucide/vue";
 import KinetixCheckbox from "../KinetixCheckbox.vue";
 import KinetixSelect from "../KinetixSelect.vue";
+import KinetixNumberField from "../KinetixNumberField.vue";
 import {
   statusBadgeClass as getBadgeColorClass,
   statusTextClass,
@@ -23,6 +24,7 @@ interface Column {
   options?: Record<string, string> | null;
   inputType?: string | null;
   placeholder?: string | null;
+  numberConfig?: Record<string, unknown> | null;
 }
 
 interface RecordDescription {
@@ -228,6 +230,17 @@ const resolveIcon = (name?: string) => {
           ($event.target as HTMLInputElement).value,
         )
       "
+    />
+  </div>
+
+  <!-- Editable: Number input (steppers + Intl formatting) -->
+  <div v-else-if="col.type === 'number-input'" class="inline-flex items-center">
+    <KinetixNumberField
+      compact
+      :value="record.values[col.name]"
+      :config="(col.numberConfig as any) ?? null"
+      :placeholder="col.placeholder ?? ''"
+      @update:value="emit('update-cell', record.id, col.name, $event)"
     />
   </div>
 

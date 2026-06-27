@@ -155,6 +155,19 @@ Renders an inline text box:
 ### 8. `CheckboxColumn` (Editable)
 Renders a standard checkbox toggle inside the cell.
 
+### 9. `NumberInputColumn` (Editable)
+Renders an inline numeric input with increment/decrement steppers (Reka UI
+NumberField). Supports `min()` / `max()` / `step()`, `decimals()`, and the
+`percent()` / `currency()` formats — mirroring the [`NumberField`](/forms#numberfield)
+form field. Edits save through the same cell-update endpoint.
+
+```php
+use Happones\Kinetix\Tables\Columns\NumberInputColumn;
+
+NumberInputColumn::make('stock')->min(0)->step(1);
+NumberInputColumn::make('price')->currency('USD');
+```
+
 ---
 
 ## Table Filters Reference

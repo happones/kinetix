@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-06-26
+
+### Added
+
+- **`NumberField` form field** (`number-field`, **published**) — a numeric input
+  with increment/decrement stepper buttons (Reka UI NumberField), `min` / `max`
+  / `step` bounds and `Intl.NumberFormat` formatting via `->percent()`,
+  `->currency('USD')`, `->decimals(min, max?)` and `->numberLocale()`.
+- **`NumberInputColumn`** (`number-input`) — the inline-editable table twin of
+  `NumberField` (same builder methods); edits save through the cell-update
+  endpoint.
+- Backed by `FormFieldData.numberConfig` / `ColumnData.numberConfig` and the
+  `KinetixNumberField` Vue component (with a `compact` mode for table cells).
+
 ## [0.32.0] - 2026-06-26
 
 ### Added

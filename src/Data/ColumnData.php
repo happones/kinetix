@@ -36,6 +36,8 @@ class ColumnData extends Data
         // TextInputColumn specific
         public ?string $inputType = null,
         public ?string $placeholder = null,
+        // NumberInputColumn specific — {min,max,step,format,currency,decimals,locale}.
+        public ?array $numberConfig = null,
         // Whether this column renders a summary in the footer.
         public bool $hasSummary = false,
     ) {}

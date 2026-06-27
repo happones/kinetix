@@ -168,6 +168,7 @@ abstract class Column
             descriptionPosition: $extra['descriptionPosition'] ?? null,
             inputType: $extra['inputType']                     ?? null,
             placeholder: $extra['placeholder']                 ?? null,
+            numberConfig: $extra['numberConfig']               ?? null,
             hasSummary: $this->hasSummarizers(),
         );
     }

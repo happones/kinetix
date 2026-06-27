@@ -544,6 +544,27 @@ render it raw). Run user HTML through a sanitizer (e.g. HTMLPurifier) if untrust
 
 ---
 
+### `NumberField`
+A numeric input with **increment / decrement stepper buttons**, `min` / `max` /
+`step` bounds and `Intl.NumberFormat` formatting (decimal, percent or currency).
+Built on Reka UI's NumberField.
+
+<Screenshot name="number-field" alt="Number field — decimal, percent, currency" />
+
+```php
+use Happones\Kinetix\Forms\Components\NumberField;
+
+NumberField::make('quantity')->min(0)->max(99)->step(1);
+NumberField::make('rate')->percent()->decimals(0, 2);   // 0–2 fraction digits
+NumberField::make('price')->currency('USD');
+NumberField::make('weight')->step(0.1)->numberLocale('de-DE');
+```
+
+It stores a plain number (or `null` when cleared). As an **inline-editable table
+column**, use `NumberInputColumn` (see [Tables → Editable columns](/tables)).
+
+---
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 

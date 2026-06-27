@@ -81,5 +81,7 @@ class FormFieldData extends Data
         public ?array $addressFields = null,
         // RichEditor — which editor driver to render (basic|tiptap|markdown).
         public ?string $editor = null,
+        // NumberField — {min,max,step,format,currency,decimals,locale}.
+        public ?array $numberConfig = null,
     ) {}
 }
