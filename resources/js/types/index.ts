@@ -63,8 +63,23 @@ export interface KinetixSharedProps {
     kinetix_impersonation?: KinetixImpersonationState;
     /** Resolved feature flags for the current scope (name → on/off). */
     kinetix_features?: Record<string, boolean>;
+    /** Supported locales + the active one, for the language switcher. */
+    kinetix_locale?: KinetixLocaleState;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
+}
+
+/** A selectable locale: its code and native label. */
+export interface KinetixLocaleOption {
+    code: string;
+    label: string;
+}
+
+/** Locale state shared via Inertia for <KinetixLanguageSwitcher>. */
+export interface KinetixLocaleState {
+    enabled: boolean;
+    current: string | null;
+    locales: KinetixLocaleOption[];
 }
 
 /** The authenticated user's resolved permissions, shared via Inertia. */

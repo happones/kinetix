@@ -635,6 +635,17 @@ Roadmap v0.46.0. Config block `announcements` (`enabled`). Migration: `kinetix_a
 
 ---
 
+## 34. Kinetix Locale / Language switcher (optional)
+
+Roadmap v0.48.0. Config block `locale` (`enabled`, `locales` = `code=>native label`, `store_on_user`, `session_key`). The host app owns the vue-i18n instance (`locale: page.props.locale`); this feature only resolves/applies/persists the active locale + provides the switcher UI. **Auth-optional** (works on the login screen).
+
+- **`LocaleManager`** (singleton): `locales()`/`options()` (`[{code,label}]`), `isSupported()`, `current()` (`App::getLocale()`), `resolve($user?)` (user `locale` column → session → null), `apply($user?)` (`App::setLocale`), `set($code,$user?)` (persist session + user column when `Schema::hasColumn` + `store_on_user`, then `App::setLocale`; returns false for unsupported). `KinetixLocale` static facade (`set/current/options`).
+- **`SetKinetixLocale`** middleware (always aliased **`kinetix.locale`**; app adds it to the web group): applies the persisted locale per request; no-ops when disabled / nothing stored. **`LocaleController@update`** `POST {prefix}/locale` (`web` only, no `auth`; team-aware prefix): validates code, `manager->set()`, abort 422 unsupported.
+- **Inertia share `kinetix_locale`**: `{enabled, current, locales:[{code,label}]}`. Optional migration `add_locale_to_users_table` (nullable `locale` after `email`, guarded by `hasColumn`), tag `kinetix-locale-migrations`.
+- **Vue (published)**: `KinetixLanguageSwitcher` (reka DropdownMenu, `Languages` trigger; prop `showLabel` shows the active code e.g. "EN"; items = locales with `Check` on current). `useKinetixLocale` → `{locales, current, saving, setLocale}` — `setLocale` flips vue-i18n `locale` optimistically + POSTs + `router.reload()`, rolling back on failure; no-ops same locale. i18n `language`. Tests: `LocaleTest` (session+user persistence, 422 unsupported, resolve precedence, apply, options), `KinetixLanguageSwitcher.spec.ts` (trigger a11y + showLabel + composable persist/no-op/rollback — dropdown content is teleported so not asserted). Full guide: `docs/locale.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

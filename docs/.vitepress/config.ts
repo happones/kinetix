@@ -89,6 +89,7 @@ export default withMermaid(
           { text: "Keyboard Shortcuts", link: "/keyboard-shortcuts" },
           { text: "Onboarding", link: "/onboarding" },
           { text: "Accessibility", link: "/accessibility" },
+          { text: "Language Switcher", link: "/locale" },
         ],
       },
       {

@@ -21,6 +21,17 @@ const page = {
             underlineLinks: true,
             enhancedFocus: false,
         },
+        // Surfaced for the language switcher specimen.
+        kinetix_locale: {
+            enabled: true,
+            current: 'en',
+            locales: [
+                { code: 'en', label: 'English' },
+                { code: 'es', label: 'Español' },
+                { code: 'fr', label: 'Français' },
+                { code: 'pt', label: 'Português' },
+            ],
+        },
     },
     url: '/',
     component: 'Gallery',

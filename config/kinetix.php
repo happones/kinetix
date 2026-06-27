@@ -513,6 +513,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Locale / Language switcher (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A self-service language switcher. List the locales you support (code =>
+    | native label) and drop <KinetixLanguageSwitcher /> in your header. The
+    | choice is persisted in the session and, when the `kinetix.locale`
+    | middleware is on the web group, applied with App::setLocale() on every
+    | request. Add the published migration to also persist it on the user's
+    | `locale` column (survives across devices/sessions).
+    |
+    */
+    'locale' => [
+        'enabled' => env('KINETIX_LOCALE_ENABLED', false),
+
+        // Supported locales: code => native label (shown in its own language).
+        'locales' => [
+            'en' => 'English',
+            'es' => 'Español',
+            'fr' => 'Français',
+            'pt' => 'Português',
+        ],
+
+        // Persist the choice on the authenticated user's `locale` column when it
+        // exists (publish kinetix-locale-migrations). Falls back to the session.
+        'store_on_user' => env('KINETIX_LOCALE_STORE_ON_USER', true),
+
+        // Session key used to remember the selected locale.
+        'session_key' => 'kinetix.locale',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Browser Sessions / Device management (optional)
     |--------------------------------------------------------------------------
     |

@@ -347,6 +347,9 @@ return [
     'appearance_dark'   => 'Dark',
     'appearance_system' => 'System',
 
+    // Language switcher
+    'language' => 'Language',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

@@ -346,6 +346,7 @@ return [
     'appearance_light'          => 'Claro',
     'appearance_dark'           => 'Escuro',
     'appearance_system'         => 'Sistema',
+    'language'                  => 'Idioma',
     'a11y_title'                => 'Acessibilidade',
     'a11y_description'          => 'Ajuste a interface às suas necessidades. As alterações são salvas na sua conta.',
     'a11y_text_size'            => 'Tamanho do texto',

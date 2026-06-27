@@ -47,6 +47,9 @@ use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
 use Happones\Kinetix\Imports\ImportController;
+use Happones\Kinetix\Locale\LocaleController;
+use Happones\Kinetix\Locale\LocaleManager;
+use Happones\Kinetix\Locale\Middleware\SetKinetixLocale;
 use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
@@ -183,6 +186,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The announcements manager (feed + per-user unread tracking).
         $this->app->singleton(AnnouncementManager::class);
+
+        // The locale manager (language switcher: resolve/apply/persist).
+        $this->app->singleton(LocaleManager::class);
     }
 
     /**
@@ -310,6 +316,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php' => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
             ], 'kinetix-announcements-migrations');
 
+            // Publish the optional locale column migration (language switcher).
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000015_add_locale_to_users_table.php' => database_path('migrations/2026_01_01_000015_add_locale_to_users_table.php'),
+            ], 'kinetix-locale-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -392,6 +403,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Announcements module ("what's new" feed)
         $this->registerAnnouncements();
+
+        // Register the optional Locale module (language switcher)
+        $this->registerLocale();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1131,6 +1145,38 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Locale module: a self-service language switcher. The
+     * `kinetix.locale` middleware (apply persisted locale) is always aliased so
+     * apps can add it to their web group; the switch endpoint is auth-optional
+     * so it works on the login screen too.
+     */
+    protected function registerLocale(): void
+    {
+        $this->app['router']->aliasMiddleware('kinetix.locale', SetKinetixLocale::class);
+
+        if (! config('kinetix.locale.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = ['web'];
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix($prefix)
+            ->group(function () {
+                Route::post('locale', [LocaleController::class, 'update'])->name('kinetix.locale.update');
+            });
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -1239,6 +1285,21 @@ class KinetixServiceProvider extends ServiceProvider
             return $user instanceof Model
                 ? app(AccessibilityManager::class)->for($user)
                 : AccessibilityData::fromArray((array) config('kinetix.accessibility.defaults', []));
+        });
+
+        // Supported locales + the active one, for <KinetixLanguageSwitcher>.
+        Inertia::share('kinetix_locale', function () {
+            if (! config('kinetix.locale.enabled', false)) {
+                return ['enabled' => false, 'current' => null, 'locales' => []];
+            }
+
+            $manager = app(LocaleManager::class);
+
+            return [
+                'enabled' => true,
+                'current' => $manager->current(),
+                'locales' => $manager->options(),
+            ];
         });
     }
 

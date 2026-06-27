@@ -289,6 +289,7 @@
         "appearance_light": "Light",
         "appearance_dark": "Dark",
         "appearance_system": "System",
+        "language": "Language",
         "a11y_title": "Accessibility",
         "a11y_description": "Adjust the interface to suit your needs. Changes are saved to your account.",
         "a11y_text_size": "Text size",

@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-06-27
+
+### Added
+
+- **Language Switcher module** (`locale`, optional, **published**) — a
+  self-service language switcher. List supported locales (`code => native label`)
+  in config and drop `<KinetixLanguageSwitcher />` (icon-only or `show-label`) in
+  your header. Selecting a locale flips the SPA instantly via vue-i18n and
+  persists the choice in the session (and, with the optional
+  `kinetix-locale-migrations` migration, on the user's `locale` column so it
+  follows them across devices). The `kinetix.locale` middleware applies the
+  persisted locale with `App::setLocale()` on every request when added to the web
+  group. The switch endpoint (`POST {prefix}/locale`) is auth-optional, so the
+  switcher works on the login screen too. Locales + the active one are shared via
+  the `kinetix_locale` Inertia prop. `KinetixLocale::set()/current()/options()`
+  static API; `useKinetixLocale()` composable; i18n `language` (en/es/fr/pt).
+
 ## [0.47.0] - 2026-06-27
 
 ### Added
