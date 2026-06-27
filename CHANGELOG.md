@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-06-27
+
+### Added
+
+- **Queue health widget** (`queue`, optional, **published**) — a lightweight,
+  embeddable queue-metrics widget that complements (does not replace) the Horizon
+  dashboard. `QueueMetrics` reads Laravel Horizon's repositories when installed
+  (throughput, recent jobs, per-queue wait, supervisor status) and falls back to
+  queue sizes + the `failed_jobs` table otherwise, so it works on any driver. The
+  gated `GET {prefix}/queue` endpoint (ability `viewKinetixQueue`, default
+  allow-in-`local`) returns a live snapshot; `<KinetixQueueStats />` renders a
+  status badge + throughput/recent/pending/failed tiles + a per-queue list,
+  polling on the configured interval. `useKinetixQueue()` composable;
+  `kinetix_queue` Inertia share (enabled + poll). Config: `queues` (monitored
+  without Horizon), `poll`. i18n `queue_*` (en/es/fr/pt). New
+  `KinetixQueueSnapshot`/`KinetixQueueRow`/`KinetixQueueConfig` TS types.
+
 ## [0.51.0] - 2026-06-27
 
 ### Added

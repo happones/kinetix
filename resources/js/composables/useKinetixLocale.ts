@@ -45,6 +45,7 @@ export function useKinetixLocale() {
             // Roll back the optimistic switch on failure.
             current.value = previous;
             i18nLocale.value = previous;
+
             throw error;
         } finally {
             saving.value = false;

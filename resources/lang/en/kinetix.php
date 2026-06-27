@@ -362,6 +362,18 @@ return [
     // Presence / online indicators
     'presence_online' => '{count} online',
 
+    // Queue metrics / Horizon widget
+    'queue_title'           => 'Queue health',
+    'queue_throughput'      => 'Per minute',
+    'queue_recent'          => 'Recent jobs',
+    'queue_pending'         => 'Pending',
+    'queue_failed'          => 'Failed',
+    'queue_wait'            => '{seconds}s wait',
+    'queue_unavailable'     => 'Queue metrics are unavailable.',
+    'queue_status_running'  => 'Running',
+    'queue_status_paused'   => 'Paused',
+    'queue_status_inactive' => 'Inactive',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

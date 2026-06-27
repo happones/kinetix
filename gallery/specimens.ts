@@ -25,6 +25,7 @@ import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
 import KinetixLanguageSwitcher from '@/components/KinetixLanguageSwitcher.vue';
 import KinetixTeamSwitcher from '@/components/KinetixTeamSwitcher.vue';
 import KinetixOnlineUsers from '@/components/KinetixOnlineUsers.vue';
+import KinetixQueueStats from '@/components/KinetixQueueStats.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
@@ -937,6 +938,12 @@ export const specimens: Specimen[] = [
         component: KinetixOnlineUsers,
         frame: 'card',
         width: 300,
+    },
+    {
+        name: 'queue-stats',
+        title: 'Queue health (Horizon widget)',
+        component: KinetixQueueStats,
+        width: 560,
     },
     {
         name: 'comments',

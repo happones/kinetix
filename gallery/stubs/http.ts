@@ -5,6 +5,21 @@
  */
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
     {
+        match: /\/queue$/,
+        data: {
+            horizon: true,
+            status: 'running',
+            throughput: 128,
+            recentJobs: 4200,
+            failedJobs: 2,
+            queues: [
+                { name: 'default', connection: null, size: 12, wait: 3 },
+                { name: 'emails', connection: null, size: 4, wait: 1 },
+                { name: 'exports', connection: null, size: 0, wait: 0 },
+            ],
+        },
+    },
+    {
         match: /\/tokens$/,
         data: {
             tokens: [

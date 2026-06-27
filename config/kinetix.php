@@ -751,4 +751,30 @@ return [
         'middleware'   => ['web', 'auth'],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Queue metrics / Horizon widget (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A lightweight, embeddable queue-health widget. It does NOT replace the
+    | Horizon dashboard — it surfaces a few live metrics (throughput, recent &
+    | failed jobs, pending per queue) inside your own Kinetix dashboard. When
+    | Laravel Horizon is installed it reads Horizon's metrics; otherwise it falls
+    | back to queue sizes + the failed_jobs table. Access is gated by the
+    | `viewKinetixQueue` ability (defaults to allow in `local` only).
+    |
+    */
+    'queue' => [
+        'enabled' => env('KINETIX_QUEUE_ENABLED', false),
+
+        // Queues to monitor when Horizon isn't installed. `connection: null`
+        // uses the default queue connection.
+        'queues' => [
+            ['connection' => null, 'queue' => 'default'],
+        ],
+
+        // Frontend poll interval in milliseconds.
+        'poll' => env('KINETIX_QUEUE_POLL', 5000),
+    ],
+
 ];

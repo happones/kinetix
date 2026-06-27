@@ -45,6 +45,8 @@ const page = {
         },
         // Surfaced for the presence / online-users specimen.
         kinetix_presence: { enabled: true, channel: 'kinetix-presence' },
+        // Surfaced for the queue-stats specimen (poll 0 → no interval).
+        kinetix_queue: { enabled: true, poll: 0 },
     },
     url: '/',
     component: 'Gallery',

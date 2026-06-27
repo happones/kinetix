@@ -69,8 +69,34 @@ export interface KinetixSharedProps {
     kinetix_teams?: KinetixTeamsState;
     /** The presence channel for online indicators. */
     kinetix_presence?: KinetixPresenceState;
+    /** Queue widget config (enabled + poll interval). */
+    kinetix_queue?: KinetixQueueConfig;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
+}
+
+/** Queue widget config shared via Inertia. */
+export interface KinetixQueueConfig {
+    enabled: boolean;
+    poll: number;
+}
+
+/** A monitored queue and its current depth/wait. */
+export interface KinetixQueueRow {
+    name: string;
+    connection: string | null;
+    size: number;
+    wait: number | null;
+}
+
+/** A live queue-health snapshot from the metrics endpoint. */
+export interface KinetixQueueSnapshot {
+    horizon: boolean;
+    status: 'running' | 'paused' | 'inactive' | null;
+    throughput: number | null;
+    recentJobs: number | null;
+    failedJobs: number;
+    queues: KinetixQueueRow[];
 }
 
 /** A member present on the presence channel. */

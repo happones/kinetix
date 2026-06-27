@@ -61,6 +61,8 @@ use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Presence\PresenceManager;
+use Happones\Kinetix\Queue\QueueController;
+use Happones\Kinetix\Queue\QueueMetrics;
 use Happones\Kinetix\SavedViews\SavedViewController;
 use Happones\Kinetix\SavedViews\SavedViewManager;
 use Happones\Kinetix\Sessions\BrowserSessionManager;
@@ -198,6 +200,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The presence manager (online indicators over a presence channel).
         $this->app->singleton(PresenceManager::class);
+
+        // The queue-metrics reader (Horizon-aware, with a driver fallback).
+        $this->app->singleton(QueueMetrics::class);
     }
 
     /**
@@ -418,6 +423,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Presence module (online indicators)
         $this->registerPresence();
+
+        // Register the optional Queue metrics module (Horizon widget)
+        $this->registerQueue();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1208,6 +1216,39 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Queue-metrics module: a read-only snapshot endpoint for
+     * the <KinetixQueueStats> widget, gated by the `viewKinetixQueue` ability
+     * (defaults to allow only in `local` — override the gate for production).
+     */
+    protected function registerQueue(): void
+    {
+        if (! config('kinetix.queue.enabled', false)) {
+            return;
+        }
+
+        if (! Gate::has('viewKinetixQueue')) {
+            Gate::define('viewKinetixQueue', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/queue")
+            ->group(function () {
+                Route::get('/', [QueueController::class, 'index'])->name('kinetix.queue.index');
+            });
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -1338,6 +1379,12 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The (team-resolved) presence channel, for <KinetixOnlineUsers>.
         Inertia::share('kinetix_presence', fn () => app(PresenceManager::class)->state());
+
+        // Queue widget config (enabled + poll interval), for <KinetixQueueStats>.
+        Inertia::share('kinetix_queue', fn () => [
+            'enabled' => (bool) config('kinetix.queue.enabled', false),
+            'poll'    => (int) config('kinetix.queue.poll', 5000),
+        ]);
     }
 
     /**

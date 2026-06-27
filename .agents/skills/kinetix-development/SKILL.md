@@ -677,6 +677,17 @@ Roadmap v0.51.0. Config block `presence` (`enabled`, `channel`='kinetix-presence
 
 ---
 
+## 38. Kinetix Queue Health widget (optional, Horizon-aware)
+
+Roadmap v0.52.0. Config block `queue` (`enabled`, `queues`=[{connection,queue}] monitored when no Horizon, `poll` ms). **Complements, not replaces, the Horizon dashboard** — a glanceable embeddable widget.
+
+- **`QueueMetrics`** (singleton): `snapshot()` → `{horizon, status, throughput, recentJobs, failedJobs, queues:[{name,connection,size,wait}]}`. `horizonAvailable()` = `class_exists('Laravel\Horizon\Horizon')` + bound MasterSupervisorRepository. Horizon path reads repos **via string class names** (`app('Laravel\Horizon\Contracts\...')`, each wrapped in try/catch → null) so phpstan doesn't need Horizon installed: `MetricsRepository::jobsProcessedPerMinute`, `JobRepository::countRecent/countFailed`, `MasterSupervisorRepository::all` (status running|paused|inactive), `WorkloadRepository::get` (name/length/wait). Fallback: `Queue::connection()->size()` per configured queue + `app('queue.failer')->all()` count. Always returns ints (0 on failure).
+- **`QueueController@index`** `GET {prefix}/queue` (team-aware), gated by **`Gate::authorize('viewKinetixQueue')`**. Provider `registerQueue()` defines a default gate `fn => app()->environment('local')` only `if (! Gate::has(...))` (host overrides for prod). Shares `kinetix_queue` = `{enabled, poll}`.
+- **Vue (published)**: `KinetixQueueStats` (status badge when horizon; tiles throughput/recent/pending(sum sizes)/failed — throughput+recent hidden without horizon; per-queue rows with wait+size; polls via composable, stops on unmount). `useKinetixQueue` → `{snapshot, loading, failed, load, start, stop}` (interval from `kinetix_queue.poll`; poll=0 → one load). TS types `KinetixQueueSnapshot/Row/Config`. i18n `queue_*`.
+- **Gallery**: `/queue` fixture in `http.ts` stub + `kinetix_queue` (poll 0) in inertia stub. Tests: `QueueMetricsTest` (fallback snapshot shape, endpoint 200 authorized + 403 unauthorized — needs `actingAs` since Gate denies guests), `KinetixQueueStats.spec.ts` (composable load/fail + component tiles/status/rows). Full guide: `docs/queue.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
