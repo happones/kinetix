@@ -1,6 +1,6 @@
-import { usePage } from "@inertiajs/vue3";
-import type { App, DirectiveBinding } from "vue";
-import type { KinetixSharedProps } from "@/types";
+import { usePage } from '@inertiajs/vue3';
+import type { App, DirectiveBinding } from 'vue';
+import type { KinetixSharedProps } from '@/types';
 
 /**
  * `v-can` directive: hides an element (display:none) unless the user has the
@@ -13,28 +13,30 @@ import type { KinetixSharedProps } from "@/types";
  * Register once: `app.use(KinetixPermissions)`.
  */
 function currentPermissions(): string[] {
-  // Inertia's usePage() is backed by a module-level reactive store, so it can be
-  // read outside setup (here, inside the directive hooks).
-  const page = usePage<KinetixSharedProps>();
+    // Inertia's usePage() is backed by a module-level reactive store, so it can be
+    // read outside setup (here, inside the directive hooks).
+    const page = usePage<KinetixSharedProps>();
 
-  return page.props.kinetix_permissions?.permissions ?? [];
+    return page.props.kinetix_permissions?.permissions ?? [];
 }
 
 function apply(
-  el: HTMLElement,
-  binding: DirectiveBinding<string | string[]>,
+    el: HTMLElement,
+    binding: DirectiveBinding<string | string[]>,
 ): void {
-  const wanted = Array.isArray(binding.value) ? binding.value : [binding.value];
-  const granted = currentPermissions();
-  const allowed = wanted.some((permission) => granted.includes(permission));
+    const wanted = Array.isArray(binding.value)
+        ? binding.value
+        : [binding.value];
+    const granted = currentPermissions();
+    const allowed = wanted.some((permission) => granted.includes(permission));
 
-  el.style.display = allowed ? "" : "none";
+    el.style.display = allowed ? '' : 'none';
 }
 
 export const KinetixPermissions = {
-  install(app: App): void {
-    app.directive("can", { mounted: apply, updated: apply });
-  },
+    install(app: App): void {
+        app.directive('can', { mounted: apply, updated: apply });
+    },
 };
 
 export default KinetixPermissions;

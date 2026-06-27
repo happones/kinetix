@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { Accessibility } from "@lucide/vue";
+import { Accessibility } from '@lucide/vue';
 import {
-  PopoverContent,
-  PopoverPortal,
-  PopoverRoot,
-  PopoverTrigger,
-} from "reka-ui";
-import { useI18n } from "vue-i18n";
-import { useKinetixAccessibility } from "@/composables/useKinetixAccessibility";
-import { buttonVariants } from "@/composables/useShadcnVariants";
-import { cn } from "./primitives/cn";
-import KinetixCheckbox from "./KinetixCheckbox.vue";
-import KinetixLabel from "./KinetixLabel.vue";
-import type { KinetixAccessibility } from "@/types";
+    PopoverContent,
+    PopoverPortal,
+    PopoverRoot,
+    PopoverTrigger,
+} from 'reka-ui';
+import { useI18n } from 'vue-i18n';
+import { useKinetixAccessibility } from '@/composables/useKinetixAccessibility';
+import { buttonVariants } from '@/composables/useShadcnVariants';
+import type { KinetixAccessibility } from '@/types';
+import KinetixCheckbox from './KinetixCheckbox.vue';
+import KinetixLabel from './KinetixLabel.vue';
+import { cn } from './primitives/cn';
 
 /**
  * Compact accessibility quick-menu: an icon button that opens a popover with the
@@ -24,87 +24,96 @@ const { t } = useI18n();
 const { prefs, set } = useKinetixAccessibility();
 
 const toggles: { key: keyof KinetixAccessibility; label: string }[] = [
-  { key: "reducedMotion", label: "a11y_reduced_motion" },
-  { key: "highContrast", label: "a11y_high_contrast" },
-  { key: "underlineLinks", label: "a11y_underline_links" },
-  { key: "enhancedFocus", label: "a11y_enhanced_focus" },
+    { key: 'reducedMotion', label: 'a11y_reduced_motion' },
+    { key: 'highContrast', label: 'a11y_high_contrast' },
+    { key: 'underlineLinks', label: 'a11y_underline_links' },
+    { key: 'enhancedFocus', label: 'a11y_enhanced_focus' },
 ];
 
-const textSizes: KinetixAccessibility["textSize"][] = ["normal", "large", "x-large"];
+const textSizes: KinetixAccessibility['textSize'][] = [
+    'normal',
+    'large',
+    'x-large',
+];
 const textSizeLabel = {
-  normal: "a11y_text_normal",
-  large: "a11y_text_large",
-  "x-large": "a11y_text_x_large",
+    normal: 'a11y_text_normal',
+    large: 'a11y_text_large',
+    'x-large': 'a11y_text_x_large',
 } as const;
 </script>
 
 <template>
-  <PopoverRoot>
-    <PopoverTrigger
-      :class="buttonVariants({ variant: 'outline', size: 'icon-sm' })"
-      :aria-label="t('kinetix.a11y_title')"
-    >
-      <Accessibility class="size-[1.2rem]" />
-      <span class="sr-only">{{ t("kinetix.a11y_title") }}</span>
-    </PopoverTrigger>
+    <PopoverRoot>
+        <PopoverTrigger
+            :class="buttonVariants({ variant: 'outline', size: 'icon-sm' })"
+            :aria-label="t('kinetix.a11y_title')"
+        >
+            <Accessibility class="size-[1.2rem]" />
+            <span class="sr-only">{{ t('kinetix.a11y_title') }}</span>
+        </PopoverTrigger>
 
-    <PopoverPortal>
-      <PopoverContent
-        align="end"
-        :side-offset="8"
-        class="z-50 w-72 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-      >
-        <div class="space-y-4">
-          <p class="text-sm font-semibold text-foreground">
-            {{ t("kinetix.a11y_title") }}
-          </p>
-
-          <!-- Text size -->
-          <fieldset class="space-y-2">
-            <KinetixLabel>{{ t("kinetix.a11y_text_size") }}</KinetixLabel>
-            <div
-              class="flex gap-2"
-              role="radiogroup"
-              :aria-label="t('kinetix.a11y_text_size')"
+        <PopoverPortal>
+            <PopoverContent
+                align="end"
+                :side-offset="8"
+                class="w-72 rounded-lg p-4 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-50 border border-border bg-popover text-popover-foreground outline-none"
             >
-              <button
-                v-for="size in textSizes"
-                :key="size"
-                type="button"
-                role="radio"
-                :aria-checked="prefs.textSize === size"
-                :class="
-                  cn(
-                    buttonVariants({
-                      variant: prefs.textSize === size ? 'default' : 'outline',
-                      size: 'sm',
-                    }),
-                    'flex-1',
-                  )
-                "
-                @click="set('textSize', size)"
-              >
-                {{ t(`kinetix.${textSizeLabel[size]}`) }}
-              </button>
-            </div>
-          </fieldset>
+                <div class="space-y-4">
+                    <p class="text-sm font-semibold text-foreground">
+                        {{ t('kinetix.a11y_title') }}
+                    </p>
 
-          <!-- Toggles -->
-          <div class="space-y-2.5">
-            <label
-              v-for="item in toggles"
-              :key="item.key"
-              class="flex items-center gap-3 text-sm text-foreground"
-            >
-              <KinetixCheckbox
-                :checked="!!prefs[item.key]"
-                @change="set(item.key, $event as never)"
-              />
-              {{ t(`kinetix.${item.label}`) }}
-            </label>
-          </div>
-        </div>
-      </PopoverContent>
-    </PopoverPortal>
-  </PopoverRoot>
+                    <!-- Text size -->
+                    <fieldset class="space-y-2">
+                        <KinetixLabel>{{
+                            t('kinetix.a11y_text_size')
+                        }}</KinetixLabel>
+                        <div
+                            class="gap-2 flex"
+                            role="radiogroup"
+                            :aria-label="t('kinetix.a11y_text_size')"
+                        >
+                            <button
+                                v-for="size in textSizes"
+                                :key="size"
+                                type="button"
+                                role="radio"
+                                :aria-checked="prefs.textSize === size"
+                                :class="
+                                    cn(
+                                        buttonVariants({
+                                            variant:
+                                                prefs.textSize === size
+                                                    ? 'default'
+                                                    : 'outline',
+                                            size: 'sm',
+                                        }),
+                                        'flex-1',
+                                    )
+                                "
+                                @click="set('textSize', size)"
+                            >
+                                {{ t(`kinetix.${textSizeLabel[size]}`) }}
+                            </button>
+                        </div>
+                    </fieldset>
+
+                    <!-- Toggles -->
+                    <div class="space-y-2.5">
+                        <label
+                            v-for="item in toggles"
+                            :key="item.key"
+                            class="gap-3 text-sm flex items-center text-foreground"
+                        >
+                            <KinetixCheckbox
+                                :checked="!!prefs[item.key]"
+                                @change="set(item.key, $event as never)"
+                            />
+                            {{ t(`kinetix.${item.label}`) }}
+                        </label>
+                    </div>
+                </div>
+            </PopoverContent>
+        </PopoverPortal>
+    </PopoverRoot>
 </template>

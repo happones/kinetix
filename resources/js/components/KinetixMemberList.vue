@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
-import { useI18n } from "vue-i18n";
-import { toast } from "vue-sonner";
-import { useKinetixMembers } from "@/composables/useKinetixMembers";
-import { buttonVariants } from "@/composables/useShadcnVariants";
-import {
-  statusBadgeClass,
-  type KinetixStatusColor,
-} from "@/composables/useStatusColor";
-import type { KinetixMemberProvision } from "@/types";
-import KinetixMemberProvisioner from "./KinetixMemberProvisioner.vue";
-import KinetixSelect from "./KinetixSelect.vue";
+import { computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
+import { useKinetixMembers } from '@/composables/useKinetixMembers';
+import { buttonVariants } from '@/composables/useShadcnVariants';
+import { statusBadgeClass } from '@/composables/useStatusColor';
+import type { KinetixStatusColor } from '@/composables/useStatusColor';
+import type { KinetixMemberProvision } from '@/types';
+import KinetixMemberProvisioner from './KinetixMemberProvisioner.vue';
+import KinetixSelect from './KinetixSelect.vue';
 
 /**
  * Drop-in members directory for the admin-provisioned onboarding model — the
@@ -19,154 +17,163 @@ import KinetixSelect from "./KinetixSelect.vue";
  * embeds the provisioning form. Place behind the `members.provision` ability.
  */
 const {
-  provisions,
-  assignableRoles,
-  loading,
-  load,
-  provision,
-  resend,
-  updateRole,
-  revoke,
+    provisions,
+    assignableRoles,
+    loading,
+    load,
+    provision,
+    resend,
+    updateRole,
+    revoke,
 } = useKinetixMembers();
 const { t } = useI18n();
 
 const rowKey = (member: KinetixMemberProvision): string | number =>
-  member.id ?? member.email;
+    member.id ?? member.email;
 
 /** KinetixSelect expects a `{ value: label }` record. */
 const roleOptions = computed<Record<string, string>>(() =>
-  Object.fromEntries(assignableRoles.value.map((r) => [r, r])),
+    Object.fromEntries(assignableRoles.value.map((r) => [r, r])),
 );
 
 const STATUS_COLOR: Record<
-  KinetixMemberProvision["status"],
-  KinetixStatusColor
+    KinetixMemberProvision['status'],
+    KinetixStatusColor
 > = {
-  pending: "warning",
-  active: "success",
-  revoked: "gray",
+    pending: 'warning',
+    active: 'success',
+    revoked: 'gray',
 };
 
 onMounted(load);
 
 async function onProvision(email: string, role: string): Promise<void> {
-  try {
-    await provision(email, role);
-    await load();
-    toast.success(t("kinetix.member_provisioned"));
-  } catch {
-    toast.error(t("kinetix.member_provision_failed"));
-  }
+    try {
+        await provision(email, role);
+        await load();
+        toast.success(t('kinetix.member_provisioned'));
+    } catch {
+        toast.error(t('kinetix.member_provision_failed'));
+    }
 }
 
 async function onResend(member: KinetixMemberProvision): Promise<void> {
-  try {
-    await resend(member);
-    await load();
-    toast.success(t("kinetix.member_provisioned"));
-  } catch {
-    toast.error(t("kinetix.member_provision_failed"));
-  }
+    try {
+        await resend(member);
+        await load();
+        toast.success(t('kinetix.member_provisioned'));
+    } catch {
+        toast.error(t('kinetix.member_provision_failed'));
+    }
 }
 
 async function onRoleChange(
-  member: KinetixMemberProvision,
-  role: string,
+    member: KinetixMemberProvision,
+    role: string,
 ): Promise<void> {
-  try {
-    await updateRole(member, role);
-    await load();
-    toast.success(t("kinetix.member_role_updated"));
-  } catch {
-    toast.error(t("kinetix.save_failed"));
-  }
+    try {
+        await updateRole(member, role);
+        await load();
+        toast.success(t('kinetix.member_role_updated'));
+    } catch {
+        toast.error(t('kinetix.save_failed'));
+    }
 }
 
 async function onRevoke(member: KinetixMemberProvision): Promise<void> {
-  try {
-    await revoke(member);
-    await load();
-    toast.success(t("kinetix.member_revoked"));
-  } catch {
-    toast.error(t("kinetix.delete_failed"));
-  }
+    try {
+        await revoke(member);
+        await load();
+        toast.success(t('kinetix.member_revoked'));
+    } catch {
+        toast.error(t('kinetix.delete_failed'));
+    }
 }
 
-function statusLabel(status: KinetixMemberProvision["status"]): string {
-  return t(`kinetix.member_status_${status}`);
+function statusLabel(status: KinetixMemberProvision['status']): string {
+    return t(`kinetix.member_status_${status}`);
 }
 </script>
 
 <template>
-  <div class="space-y-4">
-    <h2 class="text-lg font-semibold text-foreground">
-      {{ t("kinetix.members_title") }}
-    </h2>
+    <div class="space-y-4">
+        <h2 class="text-lg font-semibold text-foreground">
+            {{ t('kinetix.members_title') }}
+        </h2>
 
-    <div class="rounded-lg border border-border bg-card p-4">
-      <KinetixMemberProvisioner
-        :assignable-roles="assignableRoles"
-        @submit="onProvision"
-      />
-    </div>
-
-    <div class="divide-y divide-border rounded-lg border border-border bg-card">
-      <p
-        v-if="!loading && provisions.length === 0"
-        class="p-4 text-sm text-muted-foreground"
-      >
-        {{ t("kinetix.no_members") }}
-      </p>
-
-      <div
-        v-for="member in provisions"
-        :key="rowKey(member)"
-        class="flex flex-wrap items-center justify-between gap-2 p-3"
-      >
-        <div class="min-w-0">
-          <span class="text-sm font-medium text-foreground">
-            {{ member.name ?? member.email }}
-          </span>
-          <span v-if="member.name" class="ml-2 text-xs text-muted-foreground">
-            {{ member.email }}
-          </span>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
-            :class="statusBadgeClass(STATUS_COLOR[member.status])"
-          >
-            {{ statusLabel(member.status) }}
-          </span>
-
-          <div class="w-32">
-            <KinetixSelect
-              :value="member.role"
-              :options="roleOptions"
-              @update:value="onRoleChange(member, $event)"
+        <div class="rounded-lg p-4 border border-border bg-card">
+            <KinetixMemberProvisioner
+                :assignable-roles="assignableRoles"
+                @submit="onProvision"
             />
-          </div>
-
-          <button
-            v-if="member.status === 'pending'"
-            type="button"
-            :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-            @click="onResend(member)"
-          >
-            {{ t("kinetix.member_resend") }}
-          </button>
-
-          <button
-            v-if="member.status !== 'revoked'"
-            type="button"
-            :class="buttonVariants({ variant: 'ghost', size: 'sm' })"
-            @click="onRevoke(member)"
-          >
-            {{ t("kinetix.member_revoke") }}
-          </button>
         </div>
-      </div>
+
+        <div
+            class="rounded-lg divide-y divide-border border border-border bg-card"
+        >
+            <p
+                v-if="!loading && provisions.length === 0"
+                class="p-4 text-sm text-muted-foreground"
+            >
+                {{ t('kinetix.no_members') }}
+            </p>
+
+            <div
+                v-for="member in provisions"
+                :key="rowKey(member)"
+                class="gap-2 p-3 flex flex-wrap items-center justify-between"
+            >
+                <div class="min-w-0">
+                    <span class="text-sm font-medium text-foreground">
+                        {{ member.name ?? member.email }}
+                    </span>
+                    <span
+                        v-if="member.name"
+                        class="ml-2 text-xs text-muted-foreground"
+                    >
+                        {{ member.email }}
+                    </span>
+                </div>
+
+                <div class="gap-2 flex items-center">
+                    <span
+                        class="px-2 py-0.5 text-xs font-semibold inline-flex items-center rounded-full"
+                        :class="statusBadgeClass(STATUS_COLOR[member.status])"
+                    >
+                        {{ statusLabel(member.status) }}
+                    </span>
+
+                    <div class="w-32">
+                        <KinetixSelect
+                            :value="member.role"
+                            :options="roleOptions"
+                            @update:value="onRoleChange(member, $event)"
+                        />
+                    </div>
+
+                    <button
+                        v-if="member.status === 'pending'"
+                        type="button"
+                        :class="
+                            buttonVariants({ variant: 'outline', size: 'sm' })
+                        "
+                        @click="onResend(member)"
+                    >
+                        {{ t('kinetix.member_resend') }}
+                    </button>
+
+                    <button
+                        v-if="member.status !== 'revoked'"
+                        type="button"
+                        :class="
+                            buttonVariants({ variant: 'ghost', size: 'sm' })
+                        "
+                        @click="onRevoke(member)"
+                    >
+                        {{ t('kinetix.member_revoke') }}
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
 </template>

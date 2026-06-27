@@ -1,0 +1,6 @@
+vendor
+node_modules
+public
+docs/.vitepress/dist
+docs/.vitepress/cache
+resources/js/types/generated.d.ts

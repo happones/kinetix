@@ -1,8 +1,7 @@
-import type { App } from "vue";
 import {
-  applyKinetixAccessibility,
-  KINETIX_A11Y_STORAGE,
-} from "@/composables/useKinetixAccessibility";
+    applyKinetixAccessibility,
+    KINETIX_A11Y_STORAGE,
+} from '@/composables/useKinetixAccessibility';
 
 /**
  * Injects the accessibility CSS and applies the user's preferences to <html>
@@ -28,46 +27,56 @@ const A11Y_CSS = `
 `;
 
 function injectStyles(): void {
-  if (typeof document === "undefined" || document.getElementById("kinetix-a11y")) {
-    return;
-  }
-  const style = document.createElement("style");
-  style.id = "kinetix-a11y";
-  style.textContent = A11Y_CSS;
-  document.head.appendChild(style);
+    if (
+        typeof document === 'undefined' ||
+        document.getElementById('kinetix-a11y')
+    ) {
+        return;
+    }
+
+    const style = document.createElement('style');
+    style.id = 'kinetix-a11y';
+    style.textContent = A11Y_CSS;
+    document.head.appendChild(style);
 }
 
 function applyFromBoot(): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-  // 1. localStorage (instant, last-known).
-  try {
-    const stored = localStorage.getItem(KINETIX_A11Y_STORAGE);
-    if (stored) {
-      applyKinetixAccessibility(JSON.parse(stored));
+    if (typeof document === 'undefined') {
+        return;
     }
-  } catch {
-    // ignore
-  }
-  // 2. Server-shared prefs from the initial Inertia page (source of truth).
-  try {
-    const root = document.querySelector("[data-page]") as HTMLElement | null;
-    const prefs = root?.dataset.page
-      ? JSON.parse(root.dataset.page)?.props?.kinetix_accessibility
-      : null;
-    if (prefs) {
-      applyKinetixAccessibility(prefs);
-      localStorage.setItem(KINETIX_A11Y_STORAGE, JSON.stringify(prefs));
+
+    // 1. localStorage (instant, last-known).
+    try {
+        const stored = localStorage.getItem(KINETIX_A11Y_STORAGE);
+
+        if (stored) {
+            applyKinetixAccessibility(JSON.parse(stored));
+        }
+    } catch {
+        // ignore
     }
-  } catch {
-    // ignore
-  }
+
+    // 2. Server-shared prefs from the initial Inertia page (source of truth).
+    try {
+        const root = document.querySelector(
+            '[data-page]',
+        ) as HTMLElement | null;
+        const prefs = root?.dataset.page
+            ? JSON.parse(root.dataset.page)?.props?.kinetix_accessibility
+            : null;
+
+        if (prefs) {
+            applyKinetixAccessibility(prefs);
+            localStorage.setItem(KINETIX_A11Y_STORAGE, JSON.stringify(prefs));
+        }
+    } catch {
+        // ignore
+    }
 }
 
 export const KinetixAccessibility = {
-  install(_app: App): void {
-    injectStyles();
-    applyFromBoot();
-  },
+    install(): void {
+        injectStyles();
+        applyFromBoot();
+    },
 };

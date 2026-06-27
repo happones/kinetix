@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useKinetixCan } from "@/composables/useKinetixCan";
+import { computed } from 'vue';
+import { useKinetixCan } from '@/composables/useKinetixCan';
 
 /**
  * Declarative permission/role gate. Renders the default slot only when the check
@@ -12,35 +12,35 @@ import { useKinetixCan } from "@/composables/useKinetixCan";
  *   <KinetixCan role="admin">…</KinetixCan>
  */
 const props = withDefaults(
-  defineProps<{
-    permission?: string | string[];
-    role?: string | string[];
-    requireAll?: boolean;
-  }>(),
-  { permission: undefined, role: undefined, requireAll: false },
+    defineProps<{
+        permission?: string | string[];
+        role?: string | string[];
+        requireAll?: boolean;
+    }>(),
+    { permission: undefined, role: undefined, requireAll: false },
 );
 
 const { canAny, canAll, hasRole } = useKinetixCan();
 
 const allowed = computed(() => {
-  let ok = true;
+    let ok = true;
 
-  if (props.permission !== undefined) {
-    const perms = Array.isArray(props.permission)
-      ? props.permission
-      : [props.permission];
-    ok = ok && (props.requireAll ? canAll(perms) : canAny(perms));
-  }
+    if (props.permission !== undefined) {
+        const perms = Array.isArray(props.permission)
+            ? props.permission
+            : [props.permission];
+        ok = ok && (props.requireAll ? canAll(perms) : canAny(perms));
+    }
 
-  if (props.role !== undefined) {
-    ok = ok && hasRole(props.role);
-  }
+    if (props.role !== undefined) {
+        ok = ok && hasRole(props.role);
+    }
 
-  return ok;
+    return ok;
 });
 </script>
 
 <template>
-  <slot v-if="allowed" />
-  <slot v-else name="denied" />
+    <slot v-if="allowed" />
+    <slot v-else name="denied" />
 </template>

@@ -1,16 +1,16 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Scan the Kinetix component source so their utility classes are generated. */
-@source "../resources/js";
+@source '../resources/js';
 
 /* shadcn/Kinetix design tokens (provides the @theme inline color mapping). */
-@import "../resources/css/kinetix.css";
+@import '../resources/css/kinetix.css';
 
 /* Class-based dark mode (toggled by adding `.dark` on <html>). */
 @custom-variant dark (&:is(.dark *));
 
 html,
 body {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
 }

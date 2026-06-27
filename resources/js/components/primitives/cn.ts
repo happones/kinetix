@@ -6,7 +6,7 @@
  * later utility must win in your CSS source order (Tailwind's normal rule).
  */
 export function cn(
-  ...classes: Array<string | false | null | undefined>
+    ...classes: Array<string | false | null | undefined>
 ): string {
-  return classes.filter(Boolean).join(" ");
+    return classes.filter(Boolean).join(' ');
 }

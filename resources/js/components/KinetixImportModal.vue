@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { X } from "@lucide/vue";
+import { X } from '@lucide/vue';
 import {
-  DialogClose,
-  DialogContent,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-} from "reka-ui";
-import { onBeforeUnmount, onMounted, ref } from "vue";
-import { useI18n } from "vue-i18n";
-import KinetixImporter from "./KinetixImporter.vue";
-import { cn } from "./primitives/cn";
-import { buttonVariants } from "@/composables/useShadcnVariants";
+    DialogClose,
+    DialogContent,
+    DialogOverlay,
+    DialogPortal,
+    DialogRoot,
+    DialogTitle,
+} from 'reka-ui';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { buttonVariants } from '@/composables/useShadcnVariants';
+import KinetixImporter from './KinetixImporter.vue';
+import { cn } from './primitives/cn';
 
 /**
  * Global import dialog. Mount once in your layout:
@@ -28,46 +28,53 @@ const open = ref(false);
 const token = ref<string | null>(null);
 
 function onOpen(event: Event): void {
-  const detail = (event as CustomEvent<{ importer?: string }>).detail;
+    const detail = (event as CustomEvent<{ importer?: string }>).detail;
 
-  if (!detail?.importer) {
-    return;
-  }
+    if (!detail?.importer) {
+        return;
+    }
 
-  token.value = detail.importer;
-  open.value = true;
+    token.value = detail.importer;
+    open.value = true;
 }
 
-onMounted(() => window.addEventListener("kinetix:open-importer", onOpen));
+onMounted(() => window.addEventListener('kinetix:open-importer', onOpen));
 onBeforeUnmount(() =>
-  window.removeEventListener("kinetix:open-importer", onOpen),
+    window.removeEventListener('kinetix:open-importer', onOpen),
 );
 </script>
 
 <template>
-  <DialogRoot v-model:open="open">
-    <DialogPortal>
-      <DialogOverlay
-        class="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-      />
-      <DialogContent
-        class="fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[92vw] max-w-3xl -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-xl border border-border bg-card p-6 text-card-foreground shadow-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
-      >
-        <div class="mb-4 flex items-center justify-between">
-          <DialogTitle
-            class="text-lg font-semibold leading-none tracking-tight"
-          >
-            {{ t("kinetix.import") }}
-          </DialogTitle>
-          <DialogClose
-            :class="cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }))"
-          >
-            <X class="h-4 w-4" />
-          </DialogClose>
-        </div>
+    <DialogRoot v-model:open="open">
+        <DialogPortal>
+            <DialogOverlay
+                class="inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed z-50"
+            />
+            <DialogContent
+                class="max-w-3xl rounded-xl p-6 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-auto border border-border bg-card text-card-foreground outline-none"
+            >
+                <div class="mb-4 flex items-center justify-between">
+                    <DialogTitle
+                        class="text-lg font-semibold tracking-tight leading-none"
+                    >
+                        {{ t('kinetix.import') }}
+                    </DialogTitle>
+                    <DialogClose
+                        :class="
+                            cn(
+                                buttonVariants({
+                                    variant: 'ghost',
+                                    size: 'icon-sm',
+                                }),
+                            )
+                        "
+                    >
+                        <X class="h-4 w-4" />
+                    </DialogClose>
+                </div>
 
-        <KinetixImporter v-if="token" :importer="token" />
-      </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+                <KinetixImporter v-if="token" :importer="token" />
+            </DialogContent>
+        </DialogPortal>
+    </DialogRoot>
 </template>

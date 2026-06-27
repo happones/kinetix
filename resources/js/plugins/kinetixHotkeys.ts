@@ -1,9 +1,9 @@
-import type { App, DirectiveBinding } from "vue";
+import type { App, DirectiveBinding } from 'vue';
 import {
-  addHotkey,
-  ensureHotkeysListening,
-  removeHotkey,
-} from "@/composables/useKinetixHotkeys";
+    addHotkey,
+    ensureHotkeysListening,
+    removeHotkey,
+} from '@/composables/useKinetixHotkeys';
 
 /**
  * `v-kinetix-hotkey` — bind a key/sequence to any element. Register once with
@@ -18,45 +18,48 @@ import {
  */
 type HotkeyValue = string | { keys: string; handler?: () => void };
 
-const ID_KEY = "__kinetixHotkeyId";
+const ID_KEY = '__kinetixHotkeyId';
 
 function resolve(
-  el: HTMLElement,
-  binding: DirectiveBinding<HotkeyValue>,
+    el: HTMLElement,
+    binding: DirectiveBinding<HotkeyValue>,
 ): { keys: string; handler: () => void; label?: string } {
-  const value = binding.value;
-  const label = typeof binding.arg === "string" ? binding.arg : undefined;
+    const value = binding.value;
+    const label = typeof binding.arg === 'string' ? binding.arg : undefined;
 
-  if (typeof value === "string") {
-    return { keys: value, handler: () => el.click(), label };
-  }
+    if (typeof value === 'string') {
+        return { keys: value, handler: () => el.click(), label };
+    }
 
-  return {
-    keys: value.keys,
-    handler: value.handler ?? (() => el.click()),
-    label,
-  };
+    return {
+        keys: value.keys,
+        handler: value.handler ?? (() => el.click()),
+        label,
+    };
 }
 
 export const KinetixHotkeys = {
-  install(app: App): void {
-    ensureHotkeysListening();
+    install(app: App): void {
+        ensureHotkeysListening();
 
-    app.directive<HTMLElement, HotkeyValue>("kinetix-hotkey", {
-      mounted(el, binding) {
-        const { keys, handler, label } = resolve(el, binding);
-        (el as HTMLElement & { [ID_KEY]?: string })[ID_KEY] = addHotkey({
-          keys,
-          handler,
-          label,
+        app.directive<HTMLElement, HotkeyValue>('kinetix-hotkey', {
+            mounted(el, binding) {
+                const { keys, handler, label } = resolve(el, binding);
+                (el as HTMLElement & { [ID_KEY]?: string })[ID_KEY] = addHotkey(
+                    {
+                        keys,
+                        handler,
+                        label,
+                    },
+                );
+            },
+            unmounted(el) {
+                const id = (el as HTMLElement & { [ID_KEY]?: string })[ID_KEY];
+
+                if (id) {
+                    removeHotkey(id);
+                }
+            },
         });
-      },
-      unmounted(el) {
-        const id = (el as HTMLElement & { [ID_KEY]?: string })[ID_KEY];
-        if (id) {
-          removeHotkey(id);
-        }
-      },
-    });
-  },
+    },
 };

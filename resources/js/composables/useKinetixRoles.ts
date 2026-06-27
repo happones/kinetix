@@ -1,51 +1,54 @@
-import { usePage } from "@inertiajs/vue3";
-import { ref } from "vue";
-import { kinetixFetch, kinetixRoutePrefix } from "@/composables/useKinetixHttp";
+import { usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
-  KinetixPermissionFeature,
-  KinetixRole,
-  KinetixSharedProps,
-} from "@/types";
+    KinetixPermissionFeature,
+    KinetixRole,
+    KinetixSharedProps,
+} from '@/types';
 
 /**
  * CRUD for the role-management UI, talking to Kinetix's permission endpoints.
  * The route prefix (incl. any team segment) comes from the shared `kinetix_config`.
  */
 export function useKinetixRoles() {
-  const page = usePage<KinetixSharedProps>();
-  const base = (): string => `/${kinetixRoutePrefix(page)}/permissions`;
+    const page = usePage<KinetixSharedProps>();
+    const base = (): string => `/${kinetixRoutePrefix(page)}/permissions`;
 
-  const features = ref<KinetixPermissionFeature[]>([]);
-  const roles = ref<KinetixRole[]>([]);
-  const loading = ref(false);
+    const features = ref<KinetixPermissionFeature[]>([]);
+    const roles = ref<KinetixRole[]>([]);
+    const loading = ref(false);
 
-  async function load(): Promise<void> {
-    loading.value = true;
+    async function load(): Promise<void> {
+        loading.value = true;
 
-    try {
-      const [loadedFeatures, loadedRoles] = await Promise.all([
-        kinetixFetch<KinetixPermissionFeature[]>(`${base()}/features`),
-        kinetixFetch<KinetixRole[]>(`${base()}/roles`),
-      ]);
+        try {
+            const [loadedFeatures, loadedRoles] = await Promise.all([
+                kinetixFetch<KinetixPermissionFeature[]>(`${base()}/features`),
+                kinetixFetch<KinetixRole[]>(`${base()}/roles`),
+            ]);
 
-      features.value = loadedFeatures ?? [];
-      roles.value = loadedRoles ?? [];
-    } finally {
-      loading.value = false;
+            features.value = loadedFeatures ?? [];
+            roles.value = loadedRoles ?? [];
+        } finally {
+            loading.value = false;
+        }
     }
-  }
 
-  async function save(role: KinetixRole): Promise<unknown> {
-    const body = { name: role.name, permissions: role.permissions };
+    async function save(role: KinetixRole): Promise<unknown> {
+        const body = { name: role.name, permissions: role.permissions };
 
-    return role.id
-      ? kinetixFetch(`${base()}/roles/${role.id}`, { method: "PUT", body })
-      : kinetixFetch(`${base()}/roles`, { method: "POST", body });
-  }
+        return role.id
+            ? kinetixFetch(`${base()}/roles/${role.id}`, {
+                  method: 'PUT',
+                  body,
+              })
+            : kinetixFetch(`${base()}/roles`, { method: 'POST', body });
+    }
 
-  async function remove(role: KinetixRole): Promise<unknown> {
-    return kinetixFetch(`${base()}/roles/${role.id}`, { method: "DELETE" });
-  }
+    async function remove(role: KinetixRole): Promise<unknown> {
+        return kinetixFetch(`${base()}/roles/${role.id}`, { method: 'DELETE' });
+    }
 
-  return { features, roles, loading, load, save, remove };
+    return { features, roles, loading, load, save, remove };
 }

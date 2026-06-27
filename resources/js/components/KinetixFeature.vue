@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useKinetixFeature } from "@/composables/useKinetixFeature";
+import { computed } from 'vue';
+import { useKinetixFeature } from '@/composables/useKinetixFeature';
 
 /**
  * Renders its slot only when a feature flag is active (mirrors <KinetixCan>).
@@ -12,7 +12,7 @@ import { useKinetixFeature } from "@/composables/useKinetixFeature";
  *   </KinetixFeature>
  */
 const props = defineProps<{
-  flag: string;
+    flag: string;
 }>();
 
 const { active } = useKinetixFeature();
@@ -21,6 +21,6 @@ const isActive = computed(() => active(props.flag));
 </script>
 
 <template>
-  <slot v-if="isActive" />
-  <slot v-else name="denied" />
+    <slot v-if="isActive" />
+    <slot v-else name="denied" />
 </template>

@@ -13,7 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.38.0] - 2026-06-26
+## [0.39.0] - 2026-06-26
+
+### Changed
+
+- **Lint & format aligned with the official Laravel Vue starter kit.** Added
+  `.prettierrc` (single quotes, 4-space, printWidth 80, **`prettier-plugin-tailwindcss`**
+  sorting `cn`/`clsx`/`cva`), `.prettierignore` and `.editorconfig`; the whole
+  `resources/js` tree was reformatted to match. The ESLint flat config already
+  matched the starter kit; `lint`/`format` npm scripts are now scoped to the
+  lintable source (`resources/js`, `gallery`, `tests/js`).
+- Cleaned up the lint errors this surfaced (unused imports/vars; a template
+  type-cast union that tripped `vue/no-deprecated-filter`). The full
+  `resources/js` source now passes `eslint` and `prettier --check`.
+
+### Notes
+
+- Consumers on the starter kit can now run their own `npm run format` / `lint`
+  over the published Kinetix components without churn.
 
 ### Added
 

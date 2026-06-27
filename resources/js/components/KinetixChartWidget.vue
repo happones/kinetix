@@ -1,161 +1,161 @@
 <script setup lang="ts">
 import {
-  VisXYContainer,
-  VisSingleContainer,
-  VisLine,
-  VisGroupedBar,
-  VisDonut,
-  VisAxis,
-  VisTooltip,
-  VisCrosshair,
-} from "@unovis/vue";
-import { computed } from "vue";
-import type { KinetixWidget } from "@/types";
-import Card from "./primitives/Card.vue";
-import CardHeader from "./primitives/CardHeader.vue";
-import CardTitle from "./primitives/CardTitle.vue";
-import CardDescription from "./primitives/CardDescription.vue";
-import CardContent from "./primitives/CardContent.vue";
+    VisXYContainer,
+    VisSingleContainer,
+    VisLine,
+    VisGroupedBar,
+    VisDonut,
+    VisAxis,
+    VisTooltip,
+    VisCrosshair,
+} from '@unovis/vue';
+import { computed } from 'vue';
+import type { KinetixWidget } from '@/types';
+import Card from './primitives/Card.vue';
+import CardContent from './primitives/CardContent.vue';
+import CardDescription from './primitives/CardDescription.vue';
+import CardHeader from './primitives/CardHeader.vue';
+import CardTitle from './primitives/CardTitle.vue';
 
 const props = defineProps<{
-  widget: KinetixWidget;
+    widget: KinetixWidget;
 }>();
 
 const labels = computed<string[]>(() => props.widget.data.labels || []);
 const datasets = computed<any[]>(() => props.widget.data.datasets || []);
-const chartType = computed<string>(() => props.widget.data.chartType || "line");
+const chartType = computed<string>(() => props.widget.data.chartType || 'line');
 
 // Transform standard chart dataset structure to Unovis format
 // Map string labels to numeric indices to avoid NaN errors on continuous scale
 const chartData = computed(() => {
-  const lbls = labels.value;
-  const dts = datasets.value;
+    const lbls = labels.value;
+    const dts = datasets.value;
 
-  return lbls.map((label: string, index: number) => {
-    const point: Record<string, any> = {
-      x: index,
-      label: label,
-    };
-    dts.forEach((dataset: any, dIndex: number) => {
-      point[`y_${dIndex}`] = dataset.data[index] ?? 0;
+    return lbls.map((label: string, index: number) => {
+        const point: Record<string, any> = {
+            x: index,
+            label: label,
+        };
+        dts.forEach((dataset: any, dIndex: number) => {
+            point[`y_${dIndex}`] = dataset.data[index] ?? 0;
+        });
+
+        return point;
     });
-
-    return point;
-  });
 });
 
 const xAccessor = (d: any) => d.x;
 
 const yAccessors = computed(() => {
-  return datasets.value.map(
-    (_: any, index: number) => (d: any) => d[`y_${index}`],
-  );
+    return datasets.value.map(
+        (_: any, index: number) => (d: any) => d[`y_${index}`],
+    );
 });
 
 // Vibrant modern colors
 const themeColors = [
-  "#3b82f6", // blue
-  "#10b981", // emerald
-  "#f59e0b", // amber
-  "#8b5cf6", // violet
-  "#ec4899", // pink
-  "#f43f5e", // rose
-  "#0ea5e9", // sky
+    '#3b82f6', // blue
+    '#10b981', // emerald
+    '#f59e0b', // amber
+    '#8b5cf6', // violet
+    '#ec4899', // pink
+    '#f43f5e', // rose
+    '#0ea5e9', // sky
 ];
 
 const colorAccessor = (_: any, index: number) => {
-  const customColor =
-    datasets.value[index]?.borderColor ||
-    datasets.value[index]?.backgroundColor;
+    const customColor =
+        datasets.value[index]?.borderColor ||
+        datasets.value[index]?.backgroundColor;
 
-  if (customColor && typeof customColor === "string") {
-    return customColor;
-  }
+    if (customColor && typeof customColor === 'string') {
+        return customColor;
+    }
 
-  return themeColors[index % themeColors.length];
+    return themeColors[index % themeColors.length];
 };
 
 const groupedBarColors = computed(() => {
-  return datasets.value.map((_, index) => colorAccessor(null, index));
+    return datasets.value.map((_, index) => colorAccessor(null, index));
 });
 
 const isCircular = computed(() => {
-  const type = chartType.value;
+    const type = chartType.value;
 
-  if (type === "pie") {
-    return true;
-  }
+    if (type === 'pie') {
+        return true;
+    }
 
-  if (type === "doughnut") {
-    return true;
-  }
+    if (type === 'doughnut') {
+        return true;
+    }
 
-  return false;
+    return false;
 });
 
 const pieData = computed(() => {
-  if (!isCircular.value) {
-    return [];
-  }
+    if (!isCircular.value) {
+        return [];
+    }
 
-  const lbls = labels.value;
-  const dataset = datasets.value[0];
+    const lbls = labels.value;
+    const dataset = datasets.value[0];
 
-  if (!dataset || !Array.isArray(dataset.data)) {
-    return [];
-  }
+    if (!dataset || !Array.isArray(dataset.data)) {
+        return [];
+    }
 
-  return lbls.map((label: string, index: number) => ({
-    label,
-    value: dataset.data[index] ?? 0,
-  }));
+    return lbls.map((label: string, index: number) => ({
+        label,
+        value: dataset.data[index] ?? 0,
+    }));
 });
 
 const pieValueAccessor = (d: any) => d.value;
 const pieLabelAccessor = (d: any) => d.label;
 const pieColorAccessor = (_: any, index: number) =>
-  themeColors[index % themeColors.length];
+    themeColors[index % themeColors.length];
 
 const arcWidthValue = computed(() => {
-  if (chartType.value === "pie") {
-    return 0; // full pie
-  }
+    if (chartType.value === 'pie') {
+        return 0; // full pie
+    }
 
-  return 40; // donut
+    return 40; // donut
 });
 
 const tooltipTemplate = (d: any) => {
-  if (!d) {
-    return "";
-  }
+    if (!d) {
+        return '';
+    }
 
-  const label = d.label || "";
-  let html = `<div class="p-3 text-xs font-sans bg-popover/95 text-popover-foreground rounded-lg border border-border shadow-md">
+    const label = d.label || '';
+    let html = `<div class="p-3 text-xs font-sans bg-popover/95 text-popover-foreground rounded-lg border border-border shadow-md">
         <div class="font-bold mb-2 border-b border-border pb-1.5">${label}</div>`;
 
-  datasets.value.forEach((dataset: any, index: number) => {
-    const val = d[`y_${index}`];
-    const color = colorAccessor(null, index);
-    html += `<div class="flex items-center gap-4 mt-1.5 min-w-[120px]">
+    datasets.value.forEach((dataset: any, index: number) => {
+        const val = d[`y_${index}`];
+        const color = colorAccessor(null, index);
+        html += `<div class="flex items-center gap-4 mt-1.5 min-w-[120px]">
             <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color}"></span>
-            <span class="text-muted-foreground font-medium">${dataset.label || "Value"}:</span>
+            <span class="text-muted-foreground font-medium">${dataset.label || 'Value'}:</span>
             <span class="text-popover-foreground font-bold ml-auto">${val}</span>
         </div>`;
-  });
+    });
 
-  html += `</div>`;
+    html += `</div>`;
 
-  return html;
+    return html;
 };
 
 const pieTooltipTemplate = (d: any) => {
-  if (!d) {
-    return "";
-  }
+    if (!d) {
+        return '';
+    }
 
-  const color = pieColorAccessor(null, pieData.value.indexOf(d));
+    const color = pieColorAccessor(null, pieData.value.indexOf(d));
 
-  return `<div class="p-3 text-xs font-sans bg-popover/95 text-popover-foreground rounded-lg border border-border shadow-md flex items-center gap-4 min-w-[120px]">
+    return `<div class="p-3 text-xs font-sans bg-popover/95 text-popover-foreground rounded-lg border border-border shadow-md flex items-center gap-4 min-w-[120px]">
         <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color}"></span>
         <span class="text-muted-foreground font-medium">${d.label}:</span>
         <span class="text-popover-foreground font-bold ml-auto">${d.value}</span>
@@ -164,89 +164,91 @@ const pieTooltipTemplate = (d: any) => {
 </script>
 
 <template>
-  <Card class="kinetix-chart-card transition-all duration-300 hover:shadow-md">
-    <CardHeader v-if="widget.title || widget.description">
-      <CardTitle v-if="widget.title" class="text-base">{{
-        widget.title
-      }}</CardTitle>
-      <CardDescription v-if="widget.description" class="text-xs">
-        {{ widget.description }}
-      </CardDescription>
-    </CardHeader>
-
-    <CardContent
-      class="relative w-full h-[320px] text-muted-foreground font-sans"
+    <Card
+        class="kinetix-chart-card hover:shadow-md transition-all duration-300"
     >
-      <!-- Circular Charts (Pie/Donut) -->
-      <VisSingleContainer v-if="isCircular" :data="pieData" height="300">
-        <VisDonut
-          :value="pieValueAccessor"
-          :id="pieLabelAccessor"
-          :arcWidth="arcWidthValue"
-          :color="pieColorAccessor"
-        />
-        <VisTooltip :template="pieTooltipTemplate" />
-      </VisSingleContainer>
+        <CardHeader v-if="widget.title || widget.description">
+            <CardTitle v-if="widget.title" class="text-base">{{
+                widget.title
+            }}</CardTitle>
+            <CardDescription v-if="widget.description" class="text-xs">
+                {{ widget.description }}
+            </CardDescription>
+        </CardHeader>
 
-      <!-- XY Charts (Line/Bar) -->
-      <VisXYContainer v-else :data="chartData" height="300">
-        <template v-if="chartType === 'line'">
-          <VisLine
-            v-for="(_, index) in datasets"
-            :key="index"
-            :x="xAccessor"
-            :y="yAccessors[index]"
-            :color="colorAccessor(null, index)"
-          />
-        </template>
-        <VisGroupedBar
-          v-if="chartType === 'bar'"
-          :x="xAccessor"
-          :y="yAccessors"
-          :color="groupedBarColors"
-        />
-        <VisAxis
-          type="x"
-          :tickValues="chartData.map((d) => d.x)"
-          :tickFormat="(tickVal: number) => labels[tickVal] || ''"
-        />
-        <VisAxis type="y" />
-        <VisCrosshair />
-        <VisTooltip :template="tooltipTemplate" />
-      </VisXYContainer>
-    </CardContent>
-  </Card>
+        <CardContent
+            class="font-sans relative h-[320px] w-full text-muted-foreground"
+        >
+            <!-- Circular Charts (Pie/Donut) -->
+            <VisSingleContainer v-if="isCircular" :data="pieData" height="300">
+                <VisDonut
+                    :value="pieValueAccessor"
+                    :id="pieLabelAccessor"
+                    :arcWidth="arcWidthValue"
+                    :color="pieColorAccessor"
+                />
+                <VisTooltip :template="pieTooltipTemplate" />
+            </VisSingleContainer>
+
+            <!-- XY Charts (Line/Bar) -->
+            <VisXYContainer v-else :data="chartData" height="300">
+                <template v-if="chartType === 'line'">
+                    <VisLine
+                        v-for="(_, index) in datasets"
+                        :key="index"
+                        :x="xAccessor"
+                        :y="yAccessors[index]"
+                        :color="colorAccessor(null, index)"
+                    />
+                </template>
+                <VisGroupedBar
+                    v-if="chartType === 'bar'"
+                    :x="xAccessor"
+                    :y="yAccessors"
+                    :color="groupedBarColors"
+                />
+                <VisAxis
+                    type="x"
+                    :tickValues="chartData.map((d) => d.x)"
+                    :tickFormat="(tickVal: number) => labels[tickVal] || ''"
+                />
+                <VisAxis type="y" />
+                <VisCrosshair />
+                <VisTooltip :template="tooltipTemplate" />
+            </VisXYContainer>
+        </CardContent>
+    </Card>
 </template>
 
 <style scoped>
 .kinetix-chart-card {
-  width: 100%;
+    width: 100%;
 }
 
 :deep(.vis-axis-grid) {
-  stroke: #e2e8f0;
-  stroke-opacity: 0.15;
+    stroke: #e2e8f0;
+    stroke-opacity: 0.15;
 }
 .dark :deep(.vis-axis-grid) {
-  stroke: #1e293b;
-  stroke-opacity: 0.2;
+    stroke: #1e293b;
+    stroke-opacity: 0.2;
 }
 :deep(.vis-axis-tick),
 :deep(.vis-axis-line) {
-  stroke: #cbd5e1;
-  stroke-opacity: 0.3;
+    stroke: #cbd5e1;
+    stroke-opacity: 0.3;
 }
 .dark :deep(.vis-axis-tick),
 .dark :deep(.vis-axis-line) {
-  stroke: #334155;
-  stroke-opacity: 0.4;
+    stroke: #334155;
+    stroke-opacity: 0.4;
 }
 :deep(.vis-axis-tick-label) {
-  fill: #64748b;
-  font-size: 10px;
-  font-family: inherit;
+    fill: #64748b;
+    font-size: 10px;
+    font-family: inherit;
 }
 .dark :deep(.vis-axis-tick-label) {
-  fill: #94a3b8;
+    fill: #94a3b8;
 }
 </style>

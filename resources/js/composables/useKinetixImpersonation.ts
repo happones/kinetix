@@ -1,7 +1,7 @@
-import { router, usePage } from "@inertiajs/vue3";
-import { computed } from "vue";
-import { kinetixRoutePrefix } from "@/composables/useKinetixHttp";
-import type { KinetixSharedProps } from "@/types";
+import { router, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import type { KinetixSharedProps } from '@/types';
 
 /**
  * Reads the `kinetix_impersonation` shared prop and ends an impersonation
@@ -9,18 +9,18 @@ import type { KinetixSharedProps } from "@/types";
  * original admin once the server swaps the user back.
  */
 export function useKinetixImpersonation() {
-  const page = usePage<KinetixSharedProps>();
+    const page = usePage<KinetixSharedProps>();
 
-  const state = computed(
-    () => page.props.kinetix_impersonation ?? { active: false },
-  );
+    const state = computed(
+        () => page.props.kinetix_impersonation ?? { active: false },
+    );
 
-  const active = computed(() => !!state.value.active);
-  const impersonatedName = computed(() => state.value.user?.name ?? null);
+    const active = computed(() => !!state.value.active);
+    const impersonatedName = computed(() => state.value.user?.name ?? null);
 
-  function leave(): void {
-    router.delete(`/${kinetixRoutePrefix(page)}/impersonate`);
-  }
+    function leave(): void {
+        router.delete(`/${kinetixRoutePrefix(page)}/impersonate`);
+    }
 
-  return { active, impersonatedName, leave };
+    return { active, impersonatedName, leave };
 }
