@@ -114,6 +114,7 @@ return [
     'pick_year'            => 'Choisir une année',
     'pick_week'            => 'Choisir une semaine',
     'pick_date_range'      => 'Choisir une plage de dates',
+    'pick_time'            => 'Choisir une heure',
     'week_of'              => 'Semaine :week, :year',
     'datetime_placeholder' => 'JJ/MM/AAAA hh:mm',
     'preview_unavailable'  => 'Aperçu non disponible pour ce type de fichier.',

@@ -84,7 +84,7 @@ class DateRangePicker extends Field
     }
 
     /**
-     * @return array{numberOfMonths: int, weekdayFormat: ?string, fixedWeeks: bool}
+     * @return array{numberOfMonths: int, weekdayFormat: ?string, fixedWeeks: bool, weekStartsOn: ?int}
      */
     protected function rangeConfig(): array
     {
@@ -92,6 +92,7 @@ class DateRangePicker extends Field
             'numberOfMonths' => $this->numberOfMonths,
             'weekdayFormat'  => $this->weekdayFormat,
             'fixedWeeks'     => $this->fixedWeeks,
+            'weekStartsOn'   => null,
         ];
     }
 }

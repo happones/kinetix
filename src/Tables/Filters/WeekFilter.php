@@ -24,9 +24,21 @@ class WeekFilter extends Filter
 
     protected ?string $maxValue = null;
 
+    protected ?int $weekStartsOn = null;
+
     protected function getType(): string
     {
         return 'week';
+    }
+
+    /**
+     * First day of the week in the calendar: 0=Sunday … 6=Saturday.
+     */
+    public function startWeek(int $day): static
+    {
+        $this->weekStartsOn = max(0, min(6, $day));
+
+        return $this;
     }
 
     public function attribute(string $attribute): static
@@ -70,10 +82,11 @@ class WeekFilter extends Filter
     protected function getExtraData(): array
     {
         return [
-            'useCalendar' => $this->useCalendar,
-            'locale'      => $this->locale,
-            'minValue'    => $this->minValue,
-            'maxValue'    => $this->maxValue,
+            'useCalendar'  => $this->useCalendar,
+            'locale'       => $this->locale,
+            'minValue'     => $this->minValue,
+            'maxValue'     => $this->maxValue,
+            'weekStartsOn' => $this->weekStartsOn,
         ];
     }
 

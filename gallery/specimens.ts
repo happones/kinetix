@@ -8,6 +8,7 @@ import KinetixInfolist from "@/components/KinetixInfolist.vue";
 import KinetixGdprPanel from "@/components/KinetixGdprPanel.vue";
 import KinetixTokenManager from "@/components/KinetixTokenManager.vue";
 import KinetixWebhookManager from "@/components/KinetixWebhookManager.vue";
+import KinetixSpotlightTrigger from "@/components/KinetixSpotlightTrigger.vue";
 import KinetixAccessibilityPanel from "@/components/KinetixAccessibilityPanel.vue";
 import KinetixPricingTable from "@/components/KinetixPricingTable.vue";
 import KinetixStatsOverviewWidget from "@/components/KinetixStatsOverviewWidget.vue";
@@ -270,7 +271,7 @@ export const specimens: Specimen[] = [
   { name: "pricing-table", title: "Pricing table", component: KinetixPricingTable, width: 880, props: { plans, currentPlanSlug: "starter", cycle: "monthly", currencySymbol: "$" } },
   { name: "stats-widget", title: "Stats overview widget", component: KinetixStatsOverviewWidget, width: 980, props: { widget: statsWidget } },
   { name: "range-calendar", title: "Date range calendar", component: KinetixRangeCalendar, frame: "card", width: 560, props: { value: { from: "2026-06-10", to: "2026-06-18" }, numberOfMonths: 1 } },
-  { name: "time-picker", title: "Time picker", component: KinetixTimePicker, frame: "card", width: 320, props: { value: "14:30", minuteStep: 15 } },
+  { name: "time-picker", title: "Time picker (open)", component: KinetixTimePicker, width: 360, openSelector: "#specimen button", props: { value: "14:30", minuteStep: 15 } },
   { name: "datetime-picker", title: "Date-time picker (open)", component: KinetixDateTimePicker, width: 760, openSelector: "#specimen button", props: { value: "2026-06-15T14:30", minuteStep: 30 } },
   { name: "month-picker", title: "Month picker (open)", component: KinetixMonthPicker, width: 340, openSelector: "#specimen button", props: { value: "2026-06" } },
   { name: "year-picker", title: "Year picker (open)", component: KinetixYearPicker, width: 340, openSelector: "#specimen button", props: { value: "2026" } },
@@ -298,6 +299,7 @@ export const specimens: Specimen[] = [
 
   // --- Feature UIs -----------------------------------------------------------
   { name: "page-header", title: "Page header", component: KinetixPageHeader, frame: "card", width: 720, props: { heading: "Orders", description: "Manage your store's orders.", actions: pageActions } },
+  { name: "spotlight-trigger", title: "Spotlight trigger", component: KinetixSpotlightTrigger, frame: "card", width: 360 },
   { name: "impersonation-banner", title: "Impersonation banner", component: KinetixImpersonationBanner, width: 720 },
   { name: "action-dropdown", title: "Action dropdown", component: KinetixActionDropdown, frame: "card", width: 360, props: { group: actionGroup } },
   { name: "permission-matrix", title: "Permission matrix", component: KinetixPermissionMatrix, frame: "card", width: 680, props: { features: permissionFeatures, modelValue: ["users.view", "orders.view"] } },

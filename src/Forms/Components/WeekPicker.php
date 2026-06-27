@@ -15,9 +15,35 @@ class WeekPicker extends Field
 
     protected ?string $dateLocale = null;
 
+    protected ?int $weekStartsOn = null;
+
     protected function getType(): string
     {
         return 'week-picker';
+    }
+
+    /**
+     * First day of the week shown in the calendar: 0=Sunday … 6=Saturday
+     * (default is the ISO Monday).
+     */
+    public function startWeek(int $day): static
+    {
+        $this->weekStartsOn = max(0, min(6, $day));
+
+        return $this;
+    }
+
+    /**
+     * @return array{numberOfMonths: int, weekdayFormat: ?string, fixedWeeks: bool, weekStartsOn: ?int}
+     */
+    protected function rangeConfig(): array
+    {
+        return [
+            'numberOfMonths' => 1,
+            'weekdayFormat'  => null,
+            'fixedWeeks'     => false,
+            'weekStartsOn'   => $this->weekStartsOn,
+        ];
     }
 
     /**

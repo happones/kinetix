@@ -464,6 +464,7 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
           :disabled="comp.isDisabled"
           :placeholder="comp.placeholder"
           :locale="comp.dateLocale"
+          :week-starts-on="comp.weekStartsOn ?? 1"
           :min-value="comp.minValue"
           :max-value="comp.maxValue"
           @update:value="(v) => emit('update:value', comp.name, v)"

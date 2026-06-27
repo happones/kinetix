@@ -41,9 +41,19 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-onMounted(() => window.addEventListener("keydown", onKeydown));
+// Allow an external trigger (e.g. <KinetixSpotlightTrigger> in the header) to
+// open the palette without coupling components.
+function onExternalOpen(): void {
+  open.value = true;
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
+  window.addEventListener("kinetix:spotlight", onExternalOpen);
+});
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
+  window.removeEventListener("kinetix:spotlight", onExternalOpen);
   clearTimeout(debounce);
 });
 

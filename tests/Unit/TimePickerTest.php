@@ -15,8 +15,15 @@ class TimePickerTest extends TestCase
 
         $this->assertSame('time-picker', $data->type);
         $this->assertTrue($data->useCalendar);
-        $this->assertFalse($data->hour12);
+        // Defaults to a 12-hour clock with AM/PM.
+        $this->assertTrue($data->hour12);
         $this->assertSame(5, $data->minuteStep);
+    }
+
+    public function test_twenty_four_hour_opts_out_of_am_pm(): void
+    {
+        $this->assertFalse(TimePicker::make('opens_at')->twentyFourHour()->toData('create', null)->hour12);
+        $this->assertFalse(TimePicker::make('opens_at')->twelveHour(false)->toData('create', null)->hour12);
     }
 
     public function test_native_opts_out_of_the_shadcn_ui(): void

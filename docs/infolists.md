@@ -12,12 +12,12 @@ Unlike forms, infolists carry **no client-side state, validation, or hydration l
 
 ```mermaid
 graph LR
-    subgraph Backend (Laravel)
+    subgraph backend ["Backend (Laravel)"]
         A[Eloquent Model] --> B[Infolist Builder Definition]
         B --> C[Entry::getState resolves value]
         C --> D[Spatie InfolistData DTO]
     end
-    subgraph Frontend (Inertia & Vue)
+    subgraph frontend ["Frontend (Inertia + Vue)"]
         D -->|JSON Serialization| E[KinetixInfolist.vue]
         E -->|v-for Schema| F[KinetixInfolistEntries.vue]
         F -->|Static render| G[Read-only Interface]

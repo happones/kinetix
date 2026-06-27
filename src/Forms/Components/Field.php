@@ -350,6 +350,7 @@ abstract class Field extends Component
             numberOfMonths: $this->rangeConfig()['numberOfMonths'],
             weekdayFormat: $this->rangeConfig()['weekdayFormat'],
             fixedWeeks: $this->rangeConfig()['fixedWeeks'],
+            weekStartsOn: $this->rangeConfig()['weekStartsOn'] ?? null,
         );
     }
 
@@ -364,13 +365,13 @@ abstract class Field extends Component
     }
 
     /**
-     * Range-calendar configuration. Overridden by DateRangePicker.
+     * Range-calendar configuration. Overridden by DateRangePicker / WeekPicker.
      *
-     * @return array{numberOfMonths: int, weekdayFormat: ?string, fixedWeeks: bool}
+     * @return array{numberOfMonths: int, weekdayFormat: ?string, fixedWeeks: bool, weekStartsOn: ?int}
      */
     protected function rangeConfig(): array
     {
-        return ['numberOfMonths' => 1, 'weekdayFormat' => null, 'fixedWeeks' => false];
+        return ['numberOfMonths' => 1, 'weekdayFormat' => null, 'fixedWeeks' => false, 'weekStartsOn' => null];
     }
 
     /**

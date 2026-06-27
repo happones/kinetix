@@ -31,5 +31,7 @@ class FilterData extends Data
         // DateTimeFilter specific — minute granularity + 12h clock toggle.
         public int $minuteStep = 5,
         public bool $hour12 = false,
+        // WeekFilter — first day of week (0=Sun … 6=Sat).
+        public ?int $weekStartsOn = null,
     ) {}
 }

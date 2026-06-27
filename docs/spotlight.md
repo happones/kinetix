@@ -100,6 +100,30 @@ action — dispatches a `window` `CustomEvent` named by its `event` (listen for 
 to open a modal, etc.). The search is debounced; use `useKinetixSpotlight()` for
 a custom UI.
 
+### Header trigger
+
+Not everyone knows the shortcut — add a visible launcher in your header (next to
+the notification bell). `<KinetixSpotlightTrigger>` opens the same palette and
+shows the `⌘K` / `Ctrl K` hint (it collapses to an icon button on small screens):
+
+```vue
+<template>
+  <header class="flex items-center gap-2">
+    <KinetixSpotlightTrigger />
+    <KinetixNotificationTrigger />
+  </header>
+
+  <!-- mounted once, anywhere in the layout -->
+  <KinetixSpotlight />
+</template>
+```
+
+<Screenshot name="spotlight-trigger" alt="Spotlight header trigger with ⌘K hint" />
+
+It dispatches a `window` `kinetix:spotlight` event that `<KinetixSpotlight>`
+listens for, so the two stay decoupled (the `Cmd/Ctrl+K` shortcut keeps working
+independently).
+
 ---
 
 ## 4. Driver

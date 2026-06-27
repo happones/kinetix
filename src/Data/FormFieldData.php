@@ -75,5 +75,7 @@ class FormFieldData extends Data
         public int $numberOfMonths = 1,
         public ?string $weekdayFormat = null,
         public bool $fixedWeeks = false,
+        // First day of week for the WeekPicker (0=Sun … 6=Sat).
+        public ?int $weekStartsOn = null,
     ) {}
 }

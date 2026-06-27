@@ -669,6 +669,7 @@ const onDrop = async () => {
                       :value="activeFilters[filter.name] || null"
                       :native="!filter.useCalendar"
                       :locale="filter.locale"
+                      :week-starts-on="filter.weekStartsOn ?? 1"
                       :min-value="filter.minValue"
                       :max-value="filter.maxValue"
                       @update:value="setFilter(filter.name, $event)"

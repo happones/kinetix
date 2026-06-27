@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-06-26
+
+### Added
+
+- **`KinetixSpotlightTrigger`** — a visible header launcher for the Spotlight
+  palette (search-box style with a `⌘K` / `Ctrl K` hint, collapses to an icon
+  button on small screens). Dispatches a `window` `kinetix:spotlight` event that
+  `<KinetixSpotlight>` now listens for, so the two stay decoupled and the
+  keyboard shortcut keeps working independently.
+- **`WeekPicker` / `WeekFilter` `->startWeek(0-6)`** — region-aware first day of
+  the week (default Monday), wired to the calendar's `weekStartsOn`.
+
+### Changed
+
+- **`WeekPicker`** now highlights the **entire selected week** (range-style)
+  instead of only the clicked day.
+- **`TimePicker`** now renders as an **input-style trigger that opens a popover**
+  (matching the date pickers) and **defaults to a 12-hour clock with AM/PM**;
+  call `->twentyFourHour()` for 24-hour.
+
+### Fixed
+
+- **Docs**: two Mermaid diagrams (forms, infolists) used parentheses/`&` in
+  `subgraph` titles, which Mermaid v11 rejects — they rendered a "syntax error"
+  box. Quoted the titles (`subgraph backend ["Backend (Laravel)"]`).
+
 ## [0.24.1] - 2026-06-26
 
 ### Fixed

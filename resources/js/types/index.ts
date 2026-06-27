@@ -316,6 +316,7 @@ export interface KinetixTableFilter {
   maxValue?: string | null;
   minuteStep?: number;
   hour12?: boolean;
+  weekStartsOn?: number | null;
 }
 
 export interface KinetixTableRecord {

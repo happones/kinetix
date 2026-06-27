@@ -10,11 +10,11 @@ Kinetix Forms decouples form configuration from layout rendering. Instead of wri
 
 ```mermaid
 graph LR
-    subgraph Backend (Laravel)
+    subgraph backend ["Backend (Laravel)"]
         A[Eloquent Model / Data Sources] --> B[Form Builder Definition]
         B --> C[Spatie FormData DTO]
     end
-    subgraph Frontend (Inertia & Vue)
+    subgraph frontend ["Frontend (Inertia + Vue)"]
         C -->|JSON Serialization| D[KinetixForm.vue]
         D -->|v-for Schema| E[KinetixFormSchema.vue]
         E -->|Reactive State| F[Interactive User Interface]
@@ -405,16 +405,19 @@ DateTimePicker::make('scheduled_at')
 ---
 
 ### `TimePicker`
-A **time-only** field (no date). Renders the shadcn scrollable hour/minute (+ AM/PM) columns by default, storing an `H:i` string (e.g. `"14:30"`). Call `->native()` for a plain `<input type="time">`.
+A **time-only** field (no date). Renders an input-style trigger that opens a
+popover with scrollable hour/minute (+ AM/PM) columns, storing an `H:i` string
+(e.g. `"14:30"`). **Defaults to a 12-hour clock with AM/PM** — call
+`->twentyFourHour()` for 24-hour. `->native()` renders `<input type="time">`.
 
-<Screenshot name="time-picker" alt="Time picker — hour/minute columns" />
+<Screenshot name="time-picker" alt="Time picker — input trigger + popover columns" />
 
 ```php
 use Happones\Kinetix\Forms\Components\TimePicker;
 
-TimePicker::make('opens_at');                       // shadcn columns (24h)
+TimePicker::make('opens_at');                       // 12h + AM/PM (default)
+TimePicker::make('opens_at')->twentyFourHour();     // 24h clock
 TimePicker::make('opens_at')->minuteStep(15);       // 15-minute increments
-TimePicker::make('opens_at')->twelveHour();         // 12h clock + AM/PM column
 TimePicker::make('opens_at')->native();             // native <input type="time">
 ```
 
@@ -429,7 +432,7 @@ bounds (mapped to the native `min`/`max`).
 |---|---|---|---|
 | `MonthPicker` | `Y-m` (`"2026-06"`) | month grid + year nav | `<input type="month">` |
 | `YearPicker` | `Y` (`"2026"`) | paginated year grid | `<input type="number">` |
-| `WeekPicker` | `o-\WW` (`"2026-W25"`) | calendar (picks the day's ISO week) | `<input type="week">` |
+| `WeekPicker` | `o-\WW` (`"2026-W25"`) | calendar — clicking a day highlights its **whole week** | `<input type="week">` |
 
 <Screenshot name="month-picker" alt="Month picker" />
 
@@ -442,8 +445,12 @@ use Happones\Kinetix\Forms\Components\{MonthPicker, YearPicker, WeekPicker};
 
 MonthPicker::make('billed_month')->minValue('2026-01')->maxValue('2026-12');
 YearPicker::make('fiscal_year')->minValue('2020')->maxValue('2030');
-WeekPicker::make('sprint')->native();   // native <input type="week">
+WeekPicker::make('sprint')->startWeek(0);   // week starts Sunday (0=Sun … 6=Sat)
+WeekPicker::make('sprint')->native();       // native <input type="week">
 ```
+
+> `WeekPicker` / `WeekFilter` take `->startWeek(int)` (0=Sunday … 6=Saturday,
+> default Monday) since the first day of the week is region-dependent.
 
 > The same three are available as **table filters** — see
 > [Tables → Filters](/tables#filters) (`MonthFilter`, `YearFilter`, `WeekFilter`).

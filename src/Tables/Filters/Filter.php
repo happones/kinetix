@@ -89,6 +89,7 @@ class Filter
             maxValue: $extra['maxValue']             ?? null,
             minuteStep: $extra['minuteStep']         ?? 5,
             hour12: $extra['hour12']                 ?? false,
+            weekStartsOn: $extra['weekStartsOn']     ?? null,
         );
     }
 

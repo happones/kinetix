@@ -15,7 +15,8 @@ class TimePicker extends Field
 
     protected int $minuteStep = 5;
 
-    protected bool $hour12 = false;
+    // Defaults to a 12-hour clock with AM/PM; call twentyFourHour() to opt out.
+    protected bool $hour12 = true;
 
     protected function getType(): string
     {
@@ -23,11 +24,21 @@ class TimePicker extends Field
     }
 
     /**
-     * Use a 12-hour clock with an AM/PM column instead of 24-hour.
+     * Use a 12-hour clock with an AM/PM column (the default).
      */
     public function twelveHour(bool $condition = true): static
     {
         $this->hour12 = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Use a 24-hour clock (no AM/PM column).
+     */
+    public function twentyFourHour(bool $condition = true): static
+    {
+        $this->hour12 = ! $condition;
 
         return $this;
     }

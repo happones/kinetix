@@ -1,30 +1,39 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { Clock } from "@lucide/vue";
+import {
+  PopoverContent,
+  PopoverPortal,
+  PopoverRoot,
+  PopoverTrigger,
+} from "reka-ui";
+import { computed, nextTick, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import ScrollArea from "./primitives/ScrollArea.vue";
 import { cn } from "./primitives/cn";
-import { buttonVariants } from "@/composables/useShadcnVariants";
+import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
 
 /**
- * Time-only picker. Renders the shadcn scrollable hour/minute (+ AM/PM) columns
- * by default, or a native <input type="time"> when `native`. Value is a 24-hour
- * 'H:i' string (e.g. "14:30").
+ * Time-only picker. Renders an input-style trigger that opens a popover with
+ * scrollable hour/minute (+ AM/PM) columns, or a native <input type="time">
+ * when `native`. Value is a 24-hour 'H:i' string (e.g. "14:30"). Defaults to a
+ * 12-hour clock with AM/PM — pass `:hour12="false"` for 24-hour.
  */
 const props = withDefaults(
   defineProps<{
-    /** Selected value as an 'H:i' string (24-hour storage). */
     value?: string | null;
     native?: boolean;
     hour12?: boolean;
     disabled?: boolean;
+    placeholder?: string | null;
     minuteStep?: number;
   }>(),
-  { value: null, native: false, hour12: false, disabled: false, minuteStep: 5 },
+  { value: null, native: false, hour12: true, disabled: false, placeholder: null, minuteStep: 5 },
 );
 
-const emit = defineEmits<{
-  (e: "update:value", value: string | null): void;
-}>();
+const emit = defineEmits<{ (e: "update:value", value: string | null): void }>();
 
+const { t } = useI18n();
+const open = ref(false);
 const pad = (n: number) => String(n).padStart(2, "0");
 
 const hasValue = computed(() => props.value != null && props.value !== "");
@@ -42,16 +51,18 @@ const minutes = computed(() =>
   Array.from({ length: Math.ceil(60 / props.minuteStep) }, (_, i) => i * props.minuteStep),
 );
 
-const emitTime = (h: number, m: number) => {
-  emit("update:value", `${pad(h)}:${pad(m)}`);
-};
+const formatted = computed(() => {
+  if (!hasValue.value) {
+    return null;
+  }
+  return props.hour12
+    ? `${pad(displayHour.value)}:${pad(minute.value)} ${isPm.value ? "PM" : "AM"}`
+    : `${pad(hour24.value)}:${pad(minute.value)}`;
+});
 
+const emitTime = (h: number, m: number) => emit("update:value", `${pad(h)}:${pad(m)}`);
 const setHour24 = (h: number) => emitTime(h, minute.value);
-const setHour12 = (h: number) => {
-  // Map a clicked 1-12 hour to 24h, keeping the current AM/PM half.
-  const next = isPm.value ? (h % 12) + 12 : h % 12;
-  emitTime(next, minute.value);
-};
+const setHour12 = (h: number) => emitTime(isPm.value ? (h % 12) + 12 : h % 12, minute.value);
 const setMinute = (m: number) => emitTime(hour24.value, m);
 const setMeridiem = (meridiem: "AM" | "PM") => {
   const h = hour24.value;
@@ -66,13 +77,11 @@ const timeBtn = (active: boolean) =>
     "aspect-square shrink-0 sm:w-full",
   );
 
-// Track the selected hour/minute buttons so we can reveal them on open.
+// Reveal the selected hour/minute when the popover opens.
 const hourEl = ref<HTMLElement | null>(null);
 const minuteEl = ref<HTMLElement | null>(null);
-
 const hourRef = (el: unknown, h: number) => {
-  const active = props.hour12 ? displayHour.value === h : hour24.value === h;
-  if (active && el) {
+  if ((props.hour12 ? displayHour.value === h : hour24.value === h) && el) {
     hourEl.value = el as HTMLElement;
   }
 };
@@ -81,8 +90,6 @@ const minuteRef = (el: unknown, m: number) => {
     minuteEl.value = el as HTMLElement;
   }
 };
-
-/** Scroll only the nearest scrollable ancestor (not the page) to center `el`. */
 const centerInScrollParent = (el: HTMLElement | null) => {
   if (!el) {
     return;
@@ -98,18 +105,14 @@ const centerInScrollParent = (el: HTMLElement | null) => {
   const pRect = parent.getBoundingClientRect();
   parent.scrollTop += elRect.top - pRect.top - pRect.height / 2 + elRect.height / 2;
 };
-
-const revealSelected = () => {
-  centerInScrollParent(hourEl.value);
-  centerInScrollParent(minuteEl.value);
-};
-
-onMounted(() => {
-  if (hasValue.value) {
-    nextTick(revealSelected);
+watch(open, (isOpen) => {
+  if (isOpen && hasValue.value) {
+    nextTick(() => {
+      centerInScrollParent(hourEl.value);
+      centerInScrollParent(minuteEl.value);
+    });
   }
 });
-watch(() => props.value, () => nextTick(revealSelected));
 </script>
 
 <template>
@@ -118,64 +121,82 @@ watch(() => props.value, () => nextTick(revealSelected));
     type="time"
     :value="value"
     :disabled="disabled"
+    :class="inputClass"
     @input="emit('update:value', ($event.target as HTMLInputElement).value || null)"
   />
 
-  <div
-    v-else
-    class="inline-flex h-[180px] w-fit divide-x divide-border rounded-md border border-border"
-  >
-    <!-- Hours -->
-    <ScrollArea class="h-full" type="always">
-      <div class="flex flex-col gap-1 p-2">
-        <button
-          v-for="h in hours"
-          :key="`h-${h}`"
-          :ref="(el) => hourRef(el, h)"
-          type="button"
-          :disabled="disabled"
-          :class="timeBtn(hasValue && (hour12 ? displayHour === h : hour24 === h))"
-          @click="hour12 ? setHour12(h) : setHour24(h)"
-        >
-          {{ pad(h) }}
-        </button>
-      </div>
-    </ScrollArea>
-    <!-- Minutes -->
-    <ScrollArea class="h-full" type="always">
-      <div class="flex flex-col gap-1 p-2">
-        <button
-          v-for="m in minutes"
-          :key="`m-${m}`"
-          :ref="(el) => minuteRef(el, m)"
-          type="button"
-          :disabled="disabled"
-          :class="timeBtn(hasValue && minute === m)"
-          @click="setMinute(m)"
-        >
-          {{ pad(m) }}
-        </button>
-      </div>
-    </ScrollArea>
-    <!-- AM/PM (12h only) -->
-    <ScrollArea v-if="hour12" class="h-full">
-      <div class="flex flex-col gap-1 p-2">
-        <button
-          v-for="meridiem in ['AM', 'PM']"
-          :key="meridiem"
-          type="button"
-          :disabled="disabled"
-          :class="
-            timeBtn(
-              hasValue &&
-                ((meridiem === 'AM' && !isPm) || (meridiem === 'PM' && isPm)),
-            )
-          "
-          @click="setMeridiem(meridiem as 'AM' | 'PM')"
-        >
-          {{ meridiem }}
-        </button>
-      </div>
-    </ScrollArea>
-  </div>
+  <PopoverRoot v-else v-model:open="open">
+    <PopoverTrigger
+      :disabled="disabled"
+      :class="
+        cn(
+          buttonVariants({ variant: 'outline' }),
+          'w-full justify-start text-left font-normal',
+          !hasValue && 'text-muted-foreground',
+        )
+      "
+    >
+      <Clock class="mr-2 h-4 w-4" />
+      {{ formatted ?? placeholder ?? t("kinetix.pick_time") }}
+    </PopoverTrigger>
+    <PopoverPortal>
+      <PopoverContent
+        align="start"
+        :side-offset="4"
+        class="z-50 w-auto rounded-md border border-border bg-popover p-0 shadow-md outline-none"
+      >
+        <div class="flex h-[220px] divide-x divide-border">
+          <!-- Hours -->
+          <ScrollArea class="h-full" type="always">
+            <div class="flex flex-col gap-1 p-2">
+              <button
+                v-for="h in hours"
+                :key="`h-${h}`"
+                :ref="(el) => hourRef(el, h)"
+                type="button"
+                :class="timeBtn(hasValue && (hour12 ? displayHour === h : hour24 === h))"
+                @click="hour12 ? setHour12(h) : setHour24(h)"
+              >
+                {{ pad(h) }}
+              </button>
+            </div>
+          </ScrollArea>
+          <!-- Minutes -->
+          <ScrollArea class="h-full" type="always">
+            <div class="flex flex-col gap-1 p-2">
+              <button
+                v-for="m in minutes"
+                :key="`m-${m}`"
+                :ref="(el) => minuteRef(el, m)"
+                type="button"
+                :class="timeBtn(hasValue && minute === m)"
+                @click="setMinute(m)"
+              >
+                {{ pad(m) }}
+              </button>
+            </div>
+          </ScrollArea>
+          <!-- AM/PM (12h only) -->
+          <ScrollArea v-if="hour12" class="h-full">
+            <div class="flex flex-col gap-1 p-2">
+              <button
+                v-for="meridiem in ['AM', 'PM']"
+                :key="meridiem"
+                type="button"
+                :class="
+                  timeBtn(
+                    hasValue &&
+                      ((meridiem === 'AM' && !isPm) || (meridiem === 'PM' && isPm)),
+                  )
+                "
+                @click="setMeridiem(meridiem as 'AM' | 'PM')"
+              >
+                {{ meridiem }}
+              </button>
+            </div>
+          </ScrollArea>
+        </div>
+      </PopoverContent>
+    </PopoverPortal>
+  </PopoverRoot>
 </template>

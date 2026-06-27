@@ -34,11 +34,12 @@ class MonthYearWeekPickerTest extends TestCase
         $this->assertSame('2030', $data->maxValue);
     }
 
-    public function test_week_picker_type_and_locale(): void
+    public function test_week_picker_type_locale_and_start_week(): void
     {
-        $data = WeekPicker::make('sprint')->locale('es')->toData('create', null);
+        $data = WeekPicker::make('sprint')->locale('es')->startWeek(0)->toData('create', null);
 
         $this->assertSame('week-picker', $data->type);
         $this->assertSame('es', $data->dateLocale);
+        $this->assertSame(0, $data->weekStartsOn);
     }
 }

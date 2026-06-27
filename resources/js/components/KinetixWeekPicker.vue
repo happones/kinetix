@@ -8,7 +8,7 @@ import {
 } from "reka-ui";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import KinetixCalendar from "./KinetixCalendar.vue";
+import KinetixWeekCalendar from "./KinetixWeekCalendar.vue";
 import { cn } from "./primitives/cn";
 import { buttonVariants, inputClass } from "@/composables/useShadcnVariants";
 
@@ -24,11 +24,13 @@ const props = withDefaults(
     disabled?: boolean;
     placeholder?: string | null;
     locale?: string | null;
+    /** First day of the week: 0=Sun … 6=Sat (default 1=Mon). */
+    weekStartsOn?: number;
     /** 'o-\WW' bounds. */
     minValue?: string | null;
     maxValue?: string | null;
   }>(),
-  { value: null, native: false, disabled: false, placeholder: null, locale: null, minValue: null, maxValue: null },
+  { value: null, native: false, disabled: false, placeholder: null, locale: null, weekStartsOn: 1, minValue: null, maxValue: null },
 );
 
 const emit = defineEmits<{ (e: "update:value", value: string | null): void }>();
@@ -116,9 +118,10 @@ const onDaySelect = (day: string | null) => {
         :side-offset="4"
         class="z-50 w-auto p-0 outline-none"
       >
-        <KinetixCalendar
+        <KinetixWeekCalendar
           :value="calendarValue"
           :locale="locale"
+          :week-starts-on="weekStartsOn"
           @update:value="onDaySelect"
         />
       </PopoverContent>
