@@ -199,6 +199,33 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         data: { tags: ['laravel', 'vue', 'inertia', 'shadcn'] },
     },
     {
+        match: /\/notification-preferences$/,
+        data: {
+            channels: [
+                { key: 'mail', label: 'Email' },
+                { key: 'database', label: 'In-app' },
+                { key: 'broadcast', label: 'Push' },
+            ],
+            types: [
+                {
+                    key: 'orders',
+                    label: 'Order updates',
+                    channels: { mail: true, database: true, broadcast: true },
+                },
+                {
+                    key: 'mentions',
+                    label: 'Mentions & replies',
+                    channels: { mail: false, database: true, broadcast: true },
+                },
+                {
+                    key: 'marketing',
+                    label: 'Marketing & tips',
+                    channels: { mail: false, database: true, broadcast: false },
+                },
+            ],
+        },
+    },
+    {
         match: /\/comments(\?|$)/,
         data: {
             comments: [

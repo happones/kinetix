@@ -151,6 +151,12 @@ return [
     'tag_placeholder' => 'Ajouter une étiquette…',
     'tag_remove'      => 'Retirer l’étiquette',
 
+    // Notification preferences
+    'notification_prefs_title'       => 'Préférences de notification',
+    'notification_prefs_description' => 'Choisissez comment vous souhaitez être notifié.',
+    'notification_prefs_type'        => 'Notification',
+    'notification_prefs_empty'       => 'Aucun type de notification configuré.',
+
     // Rôles et permissions
     'save'               => 'Enregistrer',
     'select_all'         => 'Tout sélectionner',

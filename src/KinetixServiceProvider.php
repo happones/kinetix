@@ -46,6 +46,9 @@ use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
 use Happones\Kinetix\Imports\ImportController;
 use Happones\Kinetix\Membership\MembershipController;
+use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
+use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
+use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\Onboarding\OnboardingController;
 use Happones\Kinetix\Onboarding\OnboardingManager;
 use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
@@ -161,6 +164,15 @@ class KinetixServiceProvider extends ServiceProvider
         // The tags allowlist registry + manager.
         $this->app->singleton(TagRegistry::class);
         $this->app->singleton(TagManager::class);
+
+        // The notification-type registry (seeded from config) + preference manager.
+        $this->app->singleton(NotificationTypeRegistry::class, function (): NotificationTypeRegistry {
+            $registry = new NotificationTypeRegistry;
+            $registry->register((array) config('kinetix.notification_preferences.types', []));
+
+            return $registry;
+        });
+        $this->app->singleton(NotificationPreferenceManager::class);
     }
 
     /**
@@ -273,6 +285,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000011_create_kinetix_tags_table.php' => database_path('migrations/2026_01_01_000011_create_kinetix_tags_table.php'),
             ], 'kinetix-tags-migrations');
 
+            // Publish the optional Notification Preferences module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php' => database_path('migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php'),
+            ], 'kinetix-notification-preferences-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -346,6 +363,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Tags module (polymorphic tagging)
         $this->registerTags();
+
+        // Register the optional Notification Preferences module (opt-in matrix)
+        $this->registerNotificationPreferences();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -991,6 +1011,35 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('/', [TagController::class, 'index'])->name('kinetix.tags.index');
                 Route::get('suggest', [TagController::class, 'suggest'])->name('kinetix.tags.suggest');
                 Route::post('sync', [TagController::class, 'sync'])->name('kinetix.tags.sync');
+            });
+    }
+
+    /**
+     * Wire the optional Notification Preferences module: a self-service per-user
+     * opt-in matrix of notification types × delivery channels.
+     */
+    protected function registerNotificationPreferences(): void
+    {
+        if (! config('kinetix.notification_preferences.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/notification-preferences")
+            ->group(function () {
+                Route::get('/', [NotificationPreferenceController::class, 'index'])->name('kinetix.notification-preferences.index');
+                Route::post('/', [NotificationPreferenceController::class, 'update'])->name('kinetix.notification-preferences.update');
             });
     }
 

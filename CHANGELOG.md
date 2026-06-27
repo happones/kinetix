@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-06-26
+
+### Added
+
+- **Notification Preferences module** (`notification_preferences`, optional,
+  **published**) — a per-user opt-in matrix of notification **types × channels**
+  (email / in-app / push):
+  - Declare channels + types in config or with
+    `KinetixNotificationPreferences::types([...])`.
+  - Gate a Laravel notification's `via()` with
+    `KinetixNotificationPreferences::channelsFor($user, $type, $channels)` (or
+    `allows($user, $type, $channel)`). Defaults to enabled; only opt-outs are
+    stored, so new types/channels stay on until turned off.
+  - `KinetixNotificationPreferences` Vue matrix component +
+    `useKinetixNotificationPreferences` composable; backed by the
+    `kinetix_notification_preferences` table, `NotificationPreferenceManager` and
+    `NotificationTypeRegistry`.
+- New i18n keys (en/es/fr/pt): `notification_prefs_*`.
+
 ## [0.40.0] - 2026-06-26
 
 ### Added

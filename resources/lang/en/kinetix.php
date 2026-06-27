@@ -151,6 +151,12 @@ return [
     'tag_placeholder' => 'Add a tag…',
     'tag_remove'      => 'Remove tag',
 
+    // Notification preferences
+    'notification_prefs_title'       => 'Notification preferences',
+    'notification_prefs_description' => 'Choose how you want to be notified.',
+    'notification_prefs_type'        => 'Notification',
+    'notification_prefs_empty'       => 'No notification types are configured.',
+
     // Roles & permissions
     'save'               => 'Save',
     'select_all'         => 'Select all',

@@ -166,6 +166,16 @@ export interface KinetixOnboarding {
     dismissed: boolean;
 }
 
+/** The per-user notification preference matrix (types × channels). */
+export interface KinetixNotificationPreferences {
+    channels: { key: string; label: string }[];
+    types: {
+        key: string;
+        label: string;
+        channels: Record<string, boolean>;
+    }[];
+}
+
 /** A comment (with its threaded replies) on a commentable model. */
 export interface KinetixComment {
     id: number | string | null;

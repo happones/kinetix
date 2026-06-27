@@ -23,6 +23,7 @@ import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
+import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
 
 // Slug + signature showcase for the gallery.
 const SlugSignatureShowcase: Component = {
@@ -904,6 +905,13 @@ export const specimens: Specimen[] = [
         frame: 'card',
         width: 480,
         props: { taggableType: 'App\\Models\\Post', taggableId: 1 },
+    },
+    {
+        name: 'notification-preferences',
+        title: 'Notification preferences',
+        component: KinetixNotificationPreferences,
+        frame: 'card',
+        width: 640,
     },
     {
         name: 'webhook-manager',

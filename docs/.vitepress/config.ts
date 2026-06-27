@@ -80,6 +80,7 @@ export default withMermaid(
         items: [
           { text: "Widgets", link: "/widgets" },
           { text: "Notifications", link: "/notifications" },
+          { text: "Notification Preferences", link: "/notification-preferences" },
           { text: "Spotlight", link: "/spotlight" },
           { text: "Keyboard Shortcuts", link: "/keyboard-shortcuts" },
           { text: "Onboarding", link: "/onboarding" },

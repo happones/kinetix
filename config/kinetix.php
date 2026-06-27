@@ -442,6 +442,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notification Preferences (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A per-user opt-in/out matrix of notification types × channels. Declare the
+    | types with KinetixNotificationPreferences::types([...]) (or below) and gate
+    | sends with KinetixNotificationPreferences::channelsFor($user, $type, $chans)
+    | inside a Notification's via(). Defaults to enabled; only opt-outs are stored.
+    |
+    */
+    'notification_preferences' => [
+        'enabled' => env('KINETIX_NOTIFICATION_PREFERENCES_ENABLED', false),
+
+        // Delivery channels offered in the matrix (key => label).
+        'channels' => [
+            'mail'      => 'Email',
+            'database'  => 'In-app',
+            'broadcast' => 'Push',
+        ],
+
+        // Notification types (key => label). Or register them at runtime.
+        'types' => [
+            // 'orders'    => 'Order updates',
+            // 'marketing' => 'Marketing & tips',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Forms
     |--------------------------------------------------------------------------
     |

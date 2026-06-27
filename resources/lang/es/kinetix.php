@@ -151,6 +151,12 @@ return [
     'tag_placeholder' => 'Añadir una etiqueta…',
     'tag_remove'      => 'Quitar etiqueta',
 
+    // Notification preferences
+    'notification_prefs_title'       => 'Preferencias de notificaciones',
+    'notification_prefs_description' => 'Elige cómo quieres recibir las notificaciones.',
+    'notification_prefs_type'        => 'Notificación',
+    'notification_prefs_empty'       => 'No hay tipos de notificación configurados.',
+
     // Roles y permisos
     'save'               => 'Guardar',
     'select_all'         => 'Seleccionar todo',

@@ -582,6 +582,17 @@ Roadmap v0.40.0. Config block `tags` (`enabled`). Migration: `kinetix_tags` (`te
 
 ---
 
+## 29. Kinetix Notification Preferences (optional, opt-in matrix)
+
+Roadmap v0.41.0. Config block `notification_preferences` (`enabled`, `channels` key=>label default mail/database/broadcast, `types` key=>label). Migration `kinetix_notification_preferences` (one row/user, JSON `preferences` = `{type:{channel:bool}}`, only opt-outs stored; tag `kinetix-notification-preferences-migrations`). **Defaults to enabled** so new types/channels are on until opted out. **Self-service.**
+
+- **`NotificationTypeRegistry`** (singleton, seeded from config + `KinetixNotificationPreferences::types([...])`). **`NotificationPreferenceManager`**: `channels()` (from config), `for($user)` (matrix `{channels:[{key,label}], types:[{key,label,channels:{ch:bool}}]}`), `update($user,$type,$channel,$enabled)` (firstOrNew, merge JSON), `allows($user,$type,$channel)` (default true), `channelsFor($user,$type,$channels)` (filter). NOTE: in `stored()`, `first()` then explicit `if null return []` (larastan flags `?->` as `nullsafe.neverNull`).
+- **`KinetixNotificationPreferences`** static: `types()`, `allows()`, `channelsFor()` — the gating API for a Notification's `via()`: `return KinetixNotificationPreferences::channelsFor($notifiable, 'orders', ['mail','database']);`.
+- **`NotificationPreferenceController`** (team-aware `{prefix}/notification-preferences`): `GET /` index, `POST /` update (validates type ∈ registry, channel ∈ config channels, enabled boolean).
+- **Vue (published)**: `KinetixNotificationPreferences` (table: rows=types, cols=channels, `KinetixCheckbox` cells persisting on change). `useKinetixNotificationPreferences` → `{matrix, loading, load, set}`. i18n `notification_prefs_*`. Tests: `NotificationPreferencesTest` (matrix defaults, opt-out persist, unknown type/channel 422, channelsFor filter), `KinetixNotificationPreferences.spec.ts` (uses `findAllComponents(KinetixCheckbox)` + `$emit('change')` — reka checkbox is a `button[role=checkbox]`, not `<input>`). Full guide: `docs/notification-preferences.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
