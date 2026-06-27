@@ -19,31 +19,31 @@ hero:
 features:
   - icon: 🧱
     title: Resources, Tables & Forms
-    details: Declarative CRUD with fluent builders — sortable/searchable/filterable tables, inline editing, schema-driven forms (grid/section/fieldset/tabs/split + multi-step wizards) including searchable comboboxes (local & remote).
+    details: Declarative CRUD with fluent builders — sortable/searchable/filterable tables with saved views, inline editing, schema-driven forms (grid/section/fieldset/tabs/split + multi-step wizards) with rich fields (combobox, number, slider, rating, signature, phone…), and auto-derived breadcrumbs.
     link: /resources
-  - icon: 📄
-    title: Infolists & Actions
-    details: Read-only record views and authorizable, confirmable actions (buttons, bulk, groups) — with optional keyboard shortcuts.
-    link: /infolists
+  - icon: 🗂️
+    title: Boards, Calendar & Records
+    details: Drag-and-drop Kanban boards, an event calendar, read-only infolists, authorizable/confirmable actions (buttons, bulk, groups), inline relation managers, threaded comments and polymorphic tags.
+    link: /kanban
   - icon: 🔁
-    title: Import/Export & Relations
-    details: Queued CSV/XLSX import & export to any disk (bulk scopes to selected rows), plus inline relation managers.
+    title: Import/Export
+    details: Queued CSV/XLSX/PDF import & export to any disk (bulk scopes to selected rows), with a fluent column/mapping API.
     link: /import-export
   - icon: 🔑
     title: Authorization & Teams
-    details: Feature-scoped RBAC (spatie), admin-provisioned membership onboarding, and audited "log in as user" impersonation.
+    details: Feature-scoped RBAC (spatie), admin-provisioned membership onboarding, audited "log in as user" impersonation, and a convention-based multi-team switcher.
     link: /permissions
   - icon: 🔐
     title: Account & Security
     details: Social login & connected accounts (GitHub, Google, Microsoft & more) with set-password for social-only users, browser-session/device management, self-service API tokens (Sanctum), and GDPR data export & account deletion.
     link: /connected-accounts
   - icon: 🚀
-    title: SaaS Platform
-    details: Database-backed settings, an activity-log audit trail + event spine, feature flags (Pennant), webhooks, and Stripe billing.
+    title: SaaS Platform & Ops
+    details: Database-backed settings, an activity-log audit trail + event spine, feature flags (Pennant), webhooks, Stripe billing, plus embeddable Horizon queue-health and spatie/laravel-health status widgets.
     link: /settings
   - icon: ⌨️
     title: Search & Experience
-    details: Cmd+K spotlight, conflict-safe keyboard shortcuts, per-user accessibility preferences (reduced motion, contrast, text size) + screen-reader primitives, first-run onboarding (checklist, empty states, product tour), real-time notifications, and dashboard stat/chart widgets.
+    details: Cmd+K spotlight, conflict-safe keyboard shortcuts, accessibility preferences + screen-reader primitives, onboarding (checklist, empty states, product tour), real-time notifications & presence/online indicators, a "what's new" feed, dark-mode & language switchers, and dashboard stat/chart widgets.
     link: /spotlight
 ---
 
