@@ -8,6 +8,8 @@ use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Route as RouteFacade;
 
 abstract class Resource
 {
@@ -30,6 +32,18 @@ abstract class Resource
      * The navigation sort placement.
      */
     protected static int $navigationSort = 0;
+
+    /**
+     * The route base name (e.g. `products` → `products.index`). Defaults to the
+     * pluralized, kebab-cased model basename, matching the generated routes.
+     */
+    protected static ?string $routeBaseName = null;
+
+    /**
+     * The record attribute used as a breadcrumb/title label. When null, falls
+     * back to `name`, then `title`, then the model key.
+     */
+    protected static ?string $recordTitleAttribute = null;
 
     /**
      * Get the associated model class name.
@@ -143,5 +157,124 @@ abstract class Resource
     public static function getNavigationSort(): int
     {
         return static::$navigationSort;
+    }
+
+    /**
+     * The route base name used to build breadcrumb links (e.g. `products`).
+     */
+    public static function getRouteBaseName(): string
+    {
+        if (static::$routeBaseName !== null) {
+            return static::$routeBaseName;
+        }
+
+        $modelClass = class_basename(static::getModel());
+
+        return (string) str($modelClass)->plural()->kebab();
+    }
+
+    /**
+     * A human label for a single record (breadcrumbs, page titles).
+     */
+    public static function getRecordTitle(Model $record): string
+    {
+        if (static::$recordTitleAttribute !== null) {
+            return (string) $record->getAttribute(static::$recordTitleAttribute);
+        }
+
+        foreach (['name', 'title', 'label'] as $attribute) {
+            $value = $record->getAttribute($attribute);
+
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return '#'.$record->getKey();
+    }
+
+    /**
+     * Build the breadcrumb trail for a resource page, ready to feed the starter
+     * kit's `<Breadcrumbs>` component (each item is `{ title, href }`). The last
+     * item is the current page; its `href` is the current URL.
+     *
+     * @return array<int, array{title: string, href: string}>
+     */
+    public static function breadcrumbs(string $operation, ?Model $record = null): array
+    {
+        $index = [
+            'title' => static::getNavigationLabel(),
+            'href'  => static::resolveHref('index'),
+        ];
+
+        $here = static::currentUrl();
+
+        return match ($operation) {
+            'create' => [
+                $index,
+                ['title' => (string) __('kinetix.breadcrumb_create'), 'href' => $here],
+            ],
+            'edit' => $record !== null
+                ? [
+                    $index,
+                    ['title' => static::getRecordTitle($record), 'href' => static::resolveHref('show', $record)],
+                    ['title' => (string) __('kinetix.breadcrumb_edit'), 'href' => $here],
+                ]
+                : [
+                    $index,
+                    ['title' => (string) __('kinetix.breadcrumb_edit'), 'href' => $here],
+                ],
+            'show' => $record !== null
+                ? [
+                    $index,
+                    ['title' => static::getRecordTitle($record), 'href' => $here],
+                ]
+                : [$index],
+            default => [$index],
+        };
+    }
+
+    /**
+     * Resolve a route href for an operation, auto-filling required params (the
+     * record + a `current_team` when the route expects one). Falls back to the
+     * current URL when the route can't be built.
+     */
+    protected static function resolveHref(string $operation, ?Model $record = null): string
+    {
+        $name  = static::getRouteBaseName().'.'.$operation;
+        $route = RouteFacade::getRoutes()->getByName($name);
+
+        if ($route === null) {
+            return static::currentUrl();
+        }
+
+        $params = [];
+
+        foreach ($route->parameterNames() as $param) {
+            if ($param === 'current_team') {
+                $team = request()->route('current_team');
+
+                if ($team !== null) {
+                    $params[$param] = $team;
+                }
+
+                continue;
+            }
+
+            if ($record !== null) {
+                $params[$param] = $record->getRouteKey();
+            }
+        }
+
+        try {
+            return route($name, $params);
+        } catch (\Throwable) {
+            return static::currentUrl();
+        }
+    }
+
+    protected static function currentUrl(): string
+    {
+        return request()->fullUrl();
     }
 }

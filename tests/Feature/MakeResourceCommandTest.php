@@ -74,4 +74,19 @@ class MakeResourceCommandTest extends TestCase
         File::deleteDirectory(app_path('Kinetix'));
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
     }
+
+    public function test_generated_controller_passes_resource_breadcrumbs(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
+
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+
+        $this->assertStringContainsString("PostResource::breadcrumbs('index')", $controller);
+        $this->assertStringContainsString("PostResource::breadcrumbs('create')", $controller);
+        $this->assertStringContainsString("PostResource::breadcrumbs('edit', \$record)", $controller);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
 }

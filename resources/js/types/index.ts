@@ -87,6 +87,12 @@ export interface KinetixTeamsState {
     createUrl: string | null;
 }
 
+/** A single breadcrumb item, derived from a Kinetix Resource. */
+export interface KinetixBreadcrumb {
+    title: string;
+    href: string;
+}
+
 /** A selectable locale: its code and native label. */
 export interface KinetixLocaleOption {
     code: string;

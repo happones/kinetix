@@ -656,6 +656,16 @@ Roadmap v0.49.0. Config block `team_switcher` (`enabled`, `teams_relation`='team
 
 ---
 
+## 36. Resource Breadcrumbs (auto-derived; complements the starter kit)
+
+Roadmap v0.50.0. The starter kit owns the `<Breadcrumbs>` component — Kinetix does **not** ship one; it auto-derives the *trail* from a Resource and the generator shares it as a page prop. No config block.
+
+- **`Resource::breadcrumbs($operation, ?Model $record): array<{title,href}>`** (in `src/Resources/Resource.php`) for `index`/`create`/`edit`/`show`. Built from: `getNavigationLabel()` (root, links to `{base}.index`), `getRecordTitle($record)` (defaults `name`→`title`→`label`→`#id`; override `$recordTitleAttribute`), `getRouteBaseName()` (defaults plural-kebab of model basename = generator's route names; override `$routeBaseName`). `resolveHref()` uses `RouteFacade::getRoutes()->getByName()` + `parameterNames()` to fill the record key + `current_team` (from `request()->route('current_team')`); try/catch → falls back to `request()->fullUrl()` so it never throws. Last crumb's href = current URL. Create/Edit labels via `__('kinetix.breadcrumb_create'|'breadcrumb_edit')`.
+- **Generator (`MakeResourceCommand`)**: every `inertia(...)` action now passes `'breadcrumbs' => {Resource}::breadcrumbs('index'|'create'|'edit', $record?)`; generated Vue pages declare `breadcrumbs?: KinetixBreadcrumb[]` (typed, fed to the host layout's `<Breadcrumbs>` — wiring documented, not auto-imposed). TS type `KinetixBreadcrumb {title,href}`.
+- i18n `breadcrumb_create/edit`. Tests: `ResourceBreadcrumbsTest` (route base/label defaults, index/create/edit/show trails, record-title fallback), `MakeResourceCommandTest` (controller emits `breadcrumbs(...)`). Full guide: `docs/breadcrumbs.md`. **No published Vue component** (reuses the starter kit's).
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

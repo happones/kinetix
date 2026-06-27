@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-06-27
+
+### Added
+
+- **Resource breadcrumbs** (**published**) — Kinetix now auto-derives the
+  breadcrumb trail from a Resource instead of you hand-writing it per page (the
+  starter kit's `<Breadcrumbs>` component is reused, not replaced).
+  `Resource::breadcrumbs($operation, $record?)` returns `{ title, href }[]` for
+  `index`/`create`/`edit`/`show`, built from `getNavigationLabel()`,
+  `getRecordTitle()` (defaults to `name`→`title`→`#id`, override via
+  `$recordTitleAttribute`) and `getRouteBaseName()` (defaults to the plural-kebab
+  model name, override via `$routeBaseName`). Links resolve with `route()`,
+  auto-filling the record + a `current_team` param when present, falling back to
+  the current URL so they never throw. The `kinetix:make-resource` generator now
+  emits `'breadcrumbs' => …Resource::breadcrumbs(…)` from each controller action
+  and a typed `breadcrumbs?: KinetixBreadcrumb[]` prop on the generated pages.
+  i18n `breadcrumb_create`/`breadcrumb_edit` (en/es/fr/pt). New `KinetixBreadcrumb`
+  TS type.
+
 ## [0.49.0] - 2026-06-27
 
 ### Added

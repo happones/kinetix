@@ -347,6 +347,7 @@ PHP;
         return inertia('Kinetix/{$pluralName}/Index', [
             'table' => \$table->toArray(),
             'formBlueprint' => \$form->toArray(),
+            'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
 
@@ -410,6 +411,7 @@ PHP;
 
         return inertia('Kinetix/{$pluralName}/Index', [
             'table' => \$table->toArray(),
+            'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
 
@@ -419,6 +421,7 @@ PHP;
 
         return inertia('Kinetix/{$pluralName}/Create', [
             'form' => \$form->toArray(),
+            'breadcrumbs' => {$resourceClass}::breadcrumbs('create'),
         ]);
     }
 
@@ -439,6 +442,7 @@ PHP;
         return inertia('Kinetix/{$pluralName}/Edit', [
             'form' => \$form->toArray(),
             'recordId' => \$record->getKey(),
+            'breadcrumbs' => {$resourceClass}::breadcrumbs('edit', \$record),
         ]);
     }
 
@@ -493,11 +497,12 @@ import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
-import type { KinetixTableData } from '@/types';
+import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
 
 const props = defineProps<{
   table: KinetixTableData;
   formBlueprint: any;
+  breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
 const isModalOpen = ref(false);
@@ -611,10 +616,13 @@ VUE;
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import type { KinetixTableData } from '@/types';
+import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
 
+// `breadcrumbs` is auto-derived from the resource; feed it to your app layout's
+// <Breadcrumbs> (see https://happones.github.io/kinetix/breadcrumbs).
 defineProps<{
   table: KinetixTableData;
+  breadcrumbs?: KinetixBreadcrumb[];
 }>();
 </script>
 
@@ -644,9 +652,11 @@ VUE;
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
+import type { KinetixBreadcrumb } from '@/types';
 
 defineProps<{
   form: any;
+  breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
 const handleSubmit = (values: Record<string, any>) => {
@@ -693,10 +703,12 @@ VUE;
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
+import type { KinetixBreadcrumb } from '@/types';
 
 const props = defineProps<{
   form: any;
   recordId: number;
+  breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
 const handleSubmit = (values: Record<string, any>) => {

@@ -355,6 +355,10 @@ return [
     'teams_select' => 'Select a team',
     'teams_new'    => 'New team',
 
+    // Resource breadcrumbs
+    'breadcrumb_create' => 'Create',
+    'breadcrumb_edit'   => 'Edit',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

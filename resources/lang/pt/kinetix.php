@@ -350,6 +350,8 @@ return [
     'teams_switch'              => 'Trocar de equipe',
     'teams_select'              => 'Selecione uma equipe',
     'teams_new'                 => 'Nova equipe',
+    'breadcrumb_create'         => 'Criar',
+    'breadcrumb_edit'           => 'Editar',
     'a11y_title'                => 'Acessibilidade',
     'a11y_description'          => 'Ajuste a interface às suas necessidades. As alterações são salvas na sua conta.',
     'a11y_text_size'            => 'Tamanho do texto',

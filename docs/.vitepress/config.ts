@@ -65,6 +65,7 @@ export default withMermaid(
           { text: "Wizard", link: "/wizard" },
           { text: "Infolists", link: "/infolists" },
           { text: "Actions", link: "/actions" },
+          { text: "Breadcrumbs", link: "/breadcrumbs" },
         ],
       },
       {
