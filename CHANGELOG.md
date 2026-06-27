@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.58.0] - 2026-06-27
+
+### Added
+
+- **Failed-job retry/delete in the Queue widget** (**published**) — the queue
+  health widget now lists recent failed jobs (name + queue) with **Retry** and
+  **Delete** actions. `QueueMetrics::failed()` reads Laravel's failed-job store
+  (works with or without Horizon, parsing the job's display name from the
+  payload); `retry($id)` re-queues via `queue:retry`, `forget($id)` deletes via
+  the failer. New gated endpoints `POST {prefix}/queue/retry` +
+  `DELETE {prefix}/queue/failed`. `useKinetixQueue()` gains `retry`/`forget`; the
+  snapshot gains a `failed` array. i18n `queue_retry` (en/es/fr/pt). Closes the
+  last roadmap gap (Tier 5).
+
 ## [0.57.0] - 2026-06-27
 
 ### Added

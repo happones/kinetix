@@ -360,6 +360,7 @@ return [
     'queue_recent'              => 'Trabajos recientes',
     'queue_pending'             => 'Pendientes',
     'queue_failed'              => 'Fallidos',
+    'queue_retry'               => 'Reintentar',
     'queue_wait'                => '{seconds}s de espera',
     'queue_unavailable'         => 'Las métricas de colas no están disponibles.',
     'queue_status_running'      => 'Activo',

@@ -370,6 +370,7 @@ return [
     'queue_recent'          => 'Recent jobs',
     'queue_pending'         => 'Pending',
     'queue_failed'          => 'Failed',
+    'queue_retry'           => 'Retry',
     'queue_wait'            => '{seconds}s wait',
     'queue_unavailable'     => 'Queue metrics are unavailable.',
     'queue_status_running'  => 'Running',

@@ -60,11 +60,24 @@ import KinetixQueueStats from '@/components/KinetixQueueStats.vue';
 
 It shows a Horizon **status badge** (running / paused / inactive, when Horizon is
 present), stat tiles for **per-minute throughput**, **recent jobs** (last hour),
-**pending** and **failed**, then a per-queue list with depth and wait time. It
-polls the endpoint on the configured interval and stops on unmount.
+**pending** and **failed**, then a per-queue list with depth and wait time, and a
+**failed-jobs list with retry / delete actions**. It polls the endpoint on the
+configured interval and stops on unmount.
 
-`useKinetixQueue()` exposes `{ snapshot, loading, failed, load, start, stop }`
-for a custom UI. Strings are localized (`queue_*`, en/es/fr/pt).
+`useKinetixQueue()` exposes `{ snapshot, loading, failed, load, start, stop,
+retry, forget }` for a custom UI. Strings are localized (`queue_*`, en/es/fr/pt).
+
+### Retrying & deleting failed jobs
+
+The widget lists the most recent failed jobs (name + queue). **Retry** re-queues
+a job (`php artisan queue:retry` under the hood) and **delete** forgets it — both
+read Laravel's failed-job store, so they work with or without Horizon. The
+actions hit gated endpoints:
+
+| Method   | Route                    | Name                  |
+| -------- | ------------------------ | --------------------- |
+| `POST`   | `{prefix}/queue/retry`   | `kinetix.queue.retry` |
+| `DELETE` | `{prefix}/queue/failed`  | `kinetix.queue.forget`|
 
 ---
 
@@ -79,6 +92,7 @@ for a custom UI. Strings are localized (`queue_*`, en/es/fr/pt).
   throughput: number | null,        // jobs/min (Horizon only)
   recentJobs: number | null,        // last hour (Horizon only)
   failedJobs: number,
+  failed: { id, connection, queue, name, failedAt }[],   // recent failed jobs
   queues: { name, connection, size, wait }[],
 }
 ```

@@ -9,6 +9,7 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 
@@ -36,6 +37,11 @@ class QueueMetricsTest extends TestCase
             ['connection' => null, 'queue' => 'emails'],
         ]);
         $app['config']->set('auth.providers.users.model', QueueUser::class);
+        $app['config']->set('queue.failed', [
+            'driver'   => 'database-uuids',
+            'database' => $app['config']->get('database.default'),
+            'table'    => 'failed_jobs',
+        ]);
     }
 
     protected function setUp(): void
@@ -46,6 +52,27 @@ class QueueMetricsTest extends TestCase
             $table->increments('id');
             $table->string('name')->nullable();
         });
+        Schema::create('failed_jobs', function (Blueprint $table) {
+            $table->id();
+            $table->string('uuid')->unique();
+            $table->text('connection');
+            $table->text('queue');
+            $table->longText('payload');
+            $table->longText('exception');
+            $table->timestamp('failed_at')->useCurrent();
+        });
+    }
+
+    private function insertFailedJob(string $uuid = 'failed-uuid-1'): void
+    {
+        DB::table('failed_jobs')->insert([
+            'uuid'       => $uuid,
+            'connection' => 'database',
+            'queue'      => 'emails',
+            'payload'    => json_encode(['displayName' => 'App\\Jobs\\SendInvoiceEmail']),
+            'exception'  => 'Boom',
+            'failed_at'  => now(),
+        ]);
     }
 
     private function user(): QueueUser
@@ -86,5 +113,41 @@ class QueueMetricsTest extends TestCase
         $this->actingAs($this->user())
             ->getJson('/_kinetix/queue')
             ->assertForbidden();
+    }
+
+    public function test_failed_lists_recent_jobs_with_parsed_names(): void
+    {
+        $this->insertFailedJob();
+
+        $failed = app(QueueMetrics::class)->failed();
+
+        $this->assertCount(1, $failed);
+        $this->assertSame('SendInvoiceEmail', $failed[0]['name']);
+        $this->assertSame('emails', $failed[0]['queue']);
+    }
+
+    public function test_forget_endpoint_deletes_a_failed_job(): void
+    {
+        Gate::define('viewKinetixQueue', fn () => true);
+        $this->insertFailedJob('to-delete');
+
+        $this->actingAs($this->user())
+            ->deleteJson('/_kinetix/queue/failed', ['id' => 'to-delete'])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $this->assertDatabaseMissing('failed_jobs', ['uuid' => 'to-delete']);
+    }
+
+    public function test_retry_endpoint_is_wired_and_gated(): void
+    {
+        Gate::define('viewKinetixQueue', fn () => true);
+
+        // A no-op id keeps the test off the queue connection; the endpoint still
+        // reports success because the failed-job store is available.
+        $this->actingAs($this->user())
+            ->postJson('/_kinetix/queue/retry', ['id' => 'missing'])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
     }
 }

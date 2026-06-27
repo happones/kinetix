@@ -107,6 +107,15 @@ export interface KinetixQueueRow {
     wait: number | null;
 }
 
+/** A failed job, for the retry/delete list. */
+export interface KinetixFailedJob {
+    id: number | string;
+    connection: string | null;
+    queue: string | null;
+    name: string;
+    failedAt: string | null;
+}
+
 /** A live queue-health snapshot from the metrics endpoint. */
 export interface KinetixQueueSnapshot {
     horizon: boolean;
@@ -114,6 +123,7 @@ export interface KinetixQueueSnapshot {
     throughput: number | null;
     recentJobs: number | null;
     failedJobs: number;
+    failed: KinetixFailedJob[];
     queues: KinetixQueueRow[];
 }
 

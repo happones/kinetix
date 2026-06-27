@@ -47,6 +47,22 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
             throughput: 128,
             recentJobs: 4200,
             failedJobs: 2,
+            failed: [
+                {
+                    id: 'a1b2',
+                    connection: 'redis',
+                    queue: 'emails',
+                    name: 'SendInvoiceEmail',
+                    failedAt: '2026-06-27T09:14:00Z',
+                },
+                {
+                    id: 'c3d4',
+                    connection: 'redis',
+                    queue: 'exports',
+                    name: 'GenerateReport',
+                    failedAt: '2026-06-27T08:02:00Z',
+                },
+            ],
             queues: [
                 { name: 'default', connection: null, size: 12, wait: 3 },
                 { name: 'emails', connection: null, size: 4, wait: 1 },

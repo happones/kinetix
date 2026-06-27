@@ -1264,6 +1264,8 @@ class KinetixServiceProvider extends ServiceProvider
             ->prefix("{$prefix}/queue")
             ->group(function () {
                 Route::get('/', [QueueController::class, 'index'])->name('kinetix.queue.index');
+                Route::post('retry', [QueueController::class, 'retry'])->name('kinetix.queue.retry');
+                Route::delete('failed', [QueueController::class, 'forget'])->name('kinetix.queue.forget');
             });
     }
 

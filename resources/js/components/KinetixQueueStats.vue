@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Activity, AlertTriangle, Clock, Layers } from '@lucide/vue';
+import {
+    Activity,
+    AlertTriangle,
+    Clock,
+    Layers,
+    RotateCcw,
+    Trash2,
+} from '@lucide/vue';
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixQueue } from '@/composables/useKinetixQueue';
@@ -11,9 +18,11 @@ import { useKinetixQueue } from '@/composables/useKinetixQueue';
  * Drop it in a Kinetix dashboard; it complements (doesn't replace) Horizon.
  */
 const { t } = useI18n();
-const { snapshot, failed, start } = useKinetixQueue();
+const { snapshot, failed, start, retry, forget } = useKinetixQueue();
 
 onMounted(start);
+
+const failedList = computed(() => snapshot.value?.failed ?? []);
 
 const pending = computed(() =>
     (snapshot.value?.queues ?? []).reduce((sum, q) => sum + q.size, 0),
@@ -140,6 +149,53 @@ const tiles = computed<Tile[]>(() => {
                         </span>
                         <span class="tabular-nums">{{ q.size }}</span>
                     </span>
+                </div>
+            </div>
+
+            <!-- Failed jobs with retry / delete -->
+            <div
+                v-if="failedList.length"
+                class="mt-4 pt-3 border-t border-border"
+            >
+                <p class="mb-2 text-xs font-medium text-muted-foreground">
+                    {{ t('kinetix.queue_failed') }}
+                </p>
+                <div class="space-y-1">
+                    <div
+                        v-for="job in failedList"
+                        :key="job.id"
+                        class="gap-2 px-2 py-1.5 text-sm flex items-center justify-between rounded-md hover:bg-accent/50"
+                    >
+                        <span class="min-w-0">
+                            <span
+                                class="font-medium block truncate text-foreground"
+                                >{{ job.name }}</span
+                            >
+                            <span class="text-xs block text-muted-foreground">{{
+                                job.queue
+                            }}</span>
+                        </span>
+                        <span class="gap-1 flex shrink-0 items-center">
+                            <button
+                                type="button"
+                                class="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                :title="t('kinetix.queue_retry')"
+                                :aria-label="t('kinetix.queue_retry')"
+                                @click="retry(job.id)"
+                            >
+                                <RotateCcw class="size-4" />
+                            </button>
+                            <button
+                                type="button"
+                                class="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                :title="t('kinetix.remove')"
+                                :aria-label="t('kinetix.remove')"
+                                @click="forget(job.id)"
+                            >
+                                <Trash2 class="size-4" />
+                            </button>
+                        </span>
+                    </div>
                 </div>
             </div>
         </template>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Queue;
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Queue;
 use Throwable;
 
@@ -36,8 +37,89 @@ class QueueMetrics
             'throughput' => $horizon ? $this->throughput() : null,
             'recentJobs' => $horizon ? $this->recentJobs() : null,
             'failedJobs' => $this->failedJobs($horizon),
+            'failed'     => $this->failed(),
             'queues'     => $horizon ? $this->horizonQueues() : $this->configuredQueues(),
         ];
+    }
+
+    /**
+     * The most recent failed jobs (newest first), for the retry/delete list.
+     * Reads Laravel's failed-job store, so it works with or without Horizon.
+     *
+     * @return array<int, array{id: int|string, connection: string|null, queue: string|null, name: string, failedAt: string|null}>
+     */
+    public function failed(int $limit = 10): array
+    {
+        try {
+            if (! app()->bound('queue.failer')) {
+                return [];
+            }
+
+            $jobs = collect(app('queue.failer')->all())
+                ->sortByDesc('failed_at')
+                ->take($limit)
+                ->map(fn ($job): array => [
+                    'id'         => $job->id,
+                    'connection' => $job->connection ?? null,
+                    'queue'      => $job->queue      ?? null,
+                    'name'       => $this->jobName($job->payload ?? null),
+                    'failedAt'   => isset($job->failed_at) ? (string) $job->failed_at : null,
+                ])
+                ->values()
+                ->all();
+
+            return $jobs;
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Extract the job's display name from its serialized payload.
+     */
+    protected function jobName(?string $payload): string
+    {
+        if (! is_string($payload)) {
+            return 'Job';
+        }
+
+        $decoded = json_decode($payload, true);
+
+        if (is_array($decoded)) {
+            $name = $decoded['displayName'] ?? ($decoded['data']['commandName'] ?? null);
+
+            if (is_string($name) && $name !== '') {
+                return class_basename($name);
+            }
+        }
+
+        return 'Job';
+    }
+
+    /**
+     * Re-queue a failed job by id. Returns false if there's no failed-job store.
+     */
+    public function retry(string $id): bool
+    {
+        if (! app()->bound('queue.failer')) {
+            return false;
+        }
+
+        Artisan::call('queue:retry', ['id' => [$id]]);
+
+        return true;
+    }
+
+    /**
+     * Permanently delete a failed job by id.
+     */
+    public function forget(string $id): bool
+    {
+        if (! app()->bound('queue.failer')) {
+            return false;
+        }
+
+        return (bool) app('queue.failer')->forget($id);
     }
 
     public function horizonAvailable(): bool

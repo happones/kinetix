@@ -360,6 +360,7 @@ return [
     'queue_recent'              => 'Tâches récentes',
     'queue_pending'             => 'En attente',
     'queue_failed'              => 'Échouées',
+    'queue_retry'               => 'Réessayer',
     'queue_wait'                => '{seconds}s d’attente',
     'queue_unavailable'         => 'Les métriques de files sont indisponibles.',
     'queue_status_running'      => 'Actif',

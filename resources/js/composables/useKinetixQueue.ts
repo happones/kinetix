@@ -47,7 +47,20 @@ export function useKinetixQueue() {
         }
     }
 
+    async function retry(id: number | string): Promise<void> {
+        await kinetixFetch(`${base()}/retry`, { method: 'POST', body: { id } });
+        await load();
+    }
+
+    async function forget(id: number | string): Promise<void> {
+        await kinetixFetch(`${base()}/failed`, {
+            method: 'DELETE',
+            body: { id },
+        });
+        await load();
+    }
+
     onUnmounted(stop);
 
-    return { snapshot, loading, failed, load, start, stop };
+    return { snapshot, loading, failed, load, start, stop, retry, forget };
 }
