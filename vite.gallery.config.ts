@@ -19,6 +19,7 @@ export default defineConfig({
       // More specific aliases first.
       { find: "@/composables/useKinetixHttp", replacement: r("./gallery/stubs/http.ts") },
       { find: "@inertiajs/vue3", replacement: r("./gallery/stubs/inertia.ts") },
+      { find: "@laravel/echo-vue", replacement: r("./gallery/stubs/echo.ts") },
       { find: "@", replacement: r("./resources/js") },
     ],
   },

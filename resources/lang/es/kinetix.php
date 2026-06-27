@@ -352,6 +352,7 @@ return [
     'teams_new'                 => 'Nuevo equipo',
     'breadcrumb_create'         => 'Crear',
     'breadcrumb_edit'           => 'Editar',
+    'presence_online'           => '{count} en línea',
     'a11y_title'                => 'Accesibilidad',
     'a11y_description'          => 'Ajusta la interfaz a tus necesidades. Los cambios se guardan en tu cuenta.',
     'a11y_text_size'            => 'Tamaño del texto',

@@ -60,6 +60,7 @@ use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
+use Happones\Kinetix\Presence\PresenceManager;
 use Happones\Kinetix\SavedViews\SavedViewController;
 use Happones\Kinetix\SavedViews\SavedViewManager;
 use Happones\Kinetix\Sessions\BrowserSessionManager;
@@ -87,6 +88,7 @@ use Happones\Kinetix\Wizards\WizardManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -193,6 +195,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The team-switcher manager (resolves teams + switch URLs by convention).
         $this->app->singleton(TeamSwitcherManager::class);
+
+        // The presence manager (online indicators over a presence channel).
+        $this->app->singleton(PresenceManager::class);
     }
 
     /**
@@ -410,6 +415,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Locale module (language switcher)
         $this->registerLocale();
+
+        // Register the optional Presence module (online indicators)
+        $this->registerPresence();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1181,6 +1189,25 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Presence module: register the presence channel
+     * authorization (team-aware) so the frontend can show who's online. The
+     * channel returns each authenticated member's id/name/avatar.
+     */
+    protected function registerPresence(): void
+    {
+        if (! config('kinetix.presence.enabled', false) || ! class_exists(Broadcast::class)) {
+            return;
+        }
+
+        $manager = app(PresenceManager::class);
+
+        Broadcast::channel(
+            $manager->channelPattern(),
+            fn (Model $user) => $manager->memberData($user),
+        );
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -1308,6 +1335,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The user's teams + switch URLs, for <KinetixTeamSwitcher>.
         Inertia::share('kinetix_teams', fn () => app(TeamSwitcherManager::class)->payload());
+
+        // The (team-resolved) presence channel, for <KinetixOnlineUsers>.
+        Inertia::share('kinetix_presence', fn () => app(PresenceManager::class)->state());
     }
 
     /**

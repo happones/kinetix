@@ -359,6 +359,9 @@ return [
     'breadcrumb_create' => 'Create',
     'breadcrumb_edit'   => 'Edit',
 
+    // Presence / online indicators
+    'presence_online' => '{count} online',
+
     // Accessibility
     'a11y_title'                => 'Accessibility',
     'a11y_description'          => 'Adjust the interface to suit your needs. Changes are saved to your account.',

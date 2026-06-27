@@ -67,8 +67,23 @@ export interface KinetixSharedProps {
     kinetix_locale?: KinetixLocaleState;
     /** The user's teams + switch URLs, for the team switcher. */
     kinetix_teams?: KinetixTeamsState;
+    /** The presence channel for online indicators. */
+    kinetix_presence?: KinetixPresenceState;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
+}
+
+/** A member present on the presence channel. */
+export interface KinetixPresenceUser {
+    id: number | string;
+    name: string;
+    avatar: string | null;
+}
+
+/** Presence state shared via Inertia for <KinetixOnlineUsers>. */
+export interface KinetixPresenceState {
+    enabled: boolean;
+    channel: string | null;
 }
 
 /** A team the user can switch to, with a ready-made switch URL. */

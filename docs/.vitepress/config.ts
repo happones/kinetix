@@ -92,6 +92,7 @@ export default withMermaid(
           { text: "Accessibility", link: "/accessibility" },
           { text: "Language Switcher", link: "/locale" },
           { text: "Team Switcher", link: "/team-switcher" },
+          { text: "Presence / Online", link: "/presence" },
         ],
       },
       {

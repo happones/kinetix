@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-06-27
+
+### Added
+
+- **Presence / Online indicators module** (`presence`, optional, **published**) —
+  show who's online in real time over a Reverb/Pusher presence channel. Kinetix
+  registers the channel authorization (team-aware; returns each member's
+  `id`/`name`/`avatar`) so you add nothing to `routes/channels.php`, and shares
+  the team-resolved channel name via the `kinetix_presence` Inertia prop.
+  `<KinetixOnlineUsers :max="5" />` renders a live avatar facepile (image or
+  initials, "+N" overflow, "{n} online" count); `useKinetixPresence()` exposes
+  `{ users, count, isOnline, channel }` for custom UIs (e.g. a green online dot),
+  tracking Echo's `here`/`joining`/`leaving` and leaving on unmount. Config:
+  `channel`, `name_attribute`, `avatar_attribute`. Requires broadcasting
+  (`kinetix:install --broadcasting`). i18n `presence_online` (en/es/fr/pt). New
+  `KinetixPresenceUser`/`KinetixPresenceState` TS types.
+
 ## [0.50.0] - 2026-06-27
 
 ### Added

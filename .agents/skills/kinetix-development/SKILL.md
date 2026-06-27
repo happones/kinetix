@@ -666,6 +666,17 @@ Roadmap v0.50.0. The starter kit owns the `<Breadcrumbs>` component — Kinetix 
 
 ---
 
+## 37. Kinetix Presence / Online indicators (optional, realtime)
+
+Roadmap v0.51.0. Config block `presence` (`enabled`, `channel`='kinetix-presence', `name_attribute`='name', `avatar_attribute`='avatar_url'). Rides on broadcasting (`@laravel/echo-vue` + `configureEcho`); requires `kinetix:install --broadcasting`.
+
+- **`PresenceManager`** (singleton): `channelName()` (team-suffixed `{channel}.{teamId}` when `kinetix.teams` on, resolved from `request()->route('current_team')` ?? `user->currentTeam->getKey()`), `channelPattern()` (auth pattern with `{team}` placeholder), `memberData($user)` → `{id (getKey), name, avatar}`, `state()` → `{enabled, channel}`.
+- **Provider**: `registerPresence()` in boot registers `Broadcast::channel($manager->channelPattern(), fn (Model $user) => $manager->memberData($user))` when enabled + Broadcast class exists (no `routes/channels.php` edit needed). Shares `kinetix_presence` = `state()`.
+- **Vue (published)**: `KinetixOnlineUsers` (facepile: up to `max`=5 avatars img/initials, `+N` overflow, green dot + `presence_online` count; props `max`/`showCount`/`channel`; renders nothing without a channel). `useKinetixPresence(channel?)` → `{users, count, isOnline, channel}` — joins via `useEchoPresence`, wires `getChannel().here/joining/leaving`, Map keyed by `String(id)`, `leave()` on unmount. TS types `KinetixPresenceUser`/`KinetixPresenceState`. i18n `presence_online {count}`.
+- **Gallery**: needs `@laravel/echo-vue` aliased to `gallery/stubs/echo.ts` (pre-populates `here()`); `kinetix_presence` added to the inertia stub. Tests: `PresenceTest` (channel name ±teams, pattern, memberData ±avatar, state), `KinetixOnlineUsers.spec.ts` (mock echo-vue fake channel → here/joining/leaving membership + facepile overflow/count). Full guide: `docs/presence.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

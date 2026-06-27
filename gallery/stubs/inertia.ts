@@ -43,6 +43,8 @@ const page = {
                 { id: 3, name: 'Initech', url: '#', current: false },
             ],
         },
+        // Surfaced for the presence / online-users specimen.
+        kinetix_presence: { enabled: true, channel: 'kinetix-presence' },
     },
     url: '/',
     component: 'Gallery',

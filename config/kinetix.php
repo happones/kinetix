@@ -577,6 +577,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Presence / Online indicators (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Show who's online in real time over a Reverb/Pusher presence channel.
+    | Kinetix registers the channel authorization and shares the (team-resolved)
+    | channel name; drop <KinetixOnlineUsers /> for a live avatar facepile, or
+    | use useKinetixPresence() for a green online dot anywhere. Requires
+    | broadcasting configured (php artisan kinetix:install --broadcasting).
+    |
+    */
+    'presence' => [
+        'enabled' => env('KINETIX_PRESENCE_ENABLED', false),
+
+        // Presence channel base name. Suffixed with the team id when
+        // `kinetix.teams` is on, so each team gets its own presence room.
+        'channel' => env('KINETIX_PRESENCE_CHANNEL', 'kinetix-presence'),
+
+        // User attributes exposed to other members on the channel.
+        'name_attribute'   => 'name',
+        'avatar_attribute' => 'avatar_url',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Browser Sessions / Device management (optional)
     |--------------------------------------------------------------------------
     |
