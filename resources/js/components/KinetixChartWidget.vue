@@ -5,6 +5,7 @@ import {
     VisArea,
     VisLine,
     VisGroupedBar,
+    VisStackedBar,
     VisDonut,
     VisAxis,
     VisTooltip,
@@ -25,6 +26,15 @@ const props = defineProps<{
 const labels = computed<string[]>(() => props.widget.data.labels || []);
 const datasets = computed<any[]>(() => props.widget.data.datasets || []);
 const chartType = computed<string>(() => props.widget.data.chartType || 'line');
+const stacked = computed<boolean>(() => !!props.widget.data.stacked);
+const showLegend = computed<boolean>(() => !!props.widget.data.legend);
+const centerValue = computed<string | null>(
+    () => props.widget.data.centerValue ?? null,
+);
+const centerCaption = computed<string | null>(
+    () => props.widget.data.centerLabel ?? null,
+);
+const isHorizontalBar = computed(() => chartType.value === 'horizontalBar');
 
 // Transform standard chart dataset structure to Unovis format
 // Map string labels to numeric indices to avoid NaN errors on continuous scale
@@ -78,6 +88,40 @@ const colorAccessor = (_: any, index: number) => {
 
 const groupedBarColors = computed(() => {
     return datasets.value.map((_, index) => colorAccessor(null, index));
+});
+
+// Legend entries — dataset labels for XY charts, category labels for donut/horizontal.
+const legendItems = computed<{ label: string; color: string }[]>(() => {
+    if (isCircular.value || isHorizontalBar.value) {
+        return labels.value.map((label, index) => ({
+            label,
+            color: themeColors[index % themeColors.length],
+        }));
+    }
+
+    return datasets.value.map((dataset, index) => ({
+        label: dataset.label ?? `Series ${index + 1}`,
+        color: colorAccessor(null, index),
+    }));
+});
+
+// Div-based horizontal bars (reliable, crisp) from the first dataset.
+const horizontalBars = computed<
+    { label: string; value: number; pct: number; color: string }[]
+>(() => {
+    const data: number[] = datasets.value[0]?.data ?? [];
+    const max = Math.max(1, ...data.map((v) => Number(v) || 0));
+
+    return labels.value.map((label, index) => {
+        const value = Number(data[index]) || 0;
+
+        return {
+            label,
+            value,
+            pct: Math.round((value / max) * 100),
+            color: themeColors[index % themeColors.length],
+        };
+    });
 });
 
 const isCircular = computed(() => {
@@ -177,40 +221,88 @@ const pieTooltipTemplate = (d: any) => {
             </CardDescription>
         </CardHeader>
 
-        <CardContent
-            class="font-sans relative h-[320px] w-full text-muted-foreground"
-        >
-            <!-- Circular Charts (Pie/Donut) -->
-            <VisSingleContainer v-if="isCircular" :data="pieData" height="300">
-                <VisDonut
-                    :value="pieValueAccessor"
-                    :id="pieLabelAccessor"
-                    :arcWidth="arcWidthValue"
-                    :color="pieColorAccessor"
-                />
-                <VisTooltip :template="pieTooltipTemplate" />
-            </VisSingleContainer>
+        <CardContent class="font-sans w-full text-muted-foreground">
+            <!-- Horizontal bars (div-based, crisp) -->
+            <div v-if="isHorizontalBar" class="space-y-3 py-2">
+                <div
+                    v-for="bar in horizontalBars"
+                    :key="bar.label"
+                    class="gap-3 flex items-center"
+                >
+                    <span
+                        class="text-xs w-24 shrink-0 truncate text-right text-muted-foreground"
+                        >{{ bar.label }}</span
+                    >
+                    <span
+                        class="h-6 flex-1 overflow-hidden rounded-md bg-muted/40"
+                    >
+                        <span
+                            class="block h-full rounded-md transition-all"
+                            :style="{
+                                width: `${bar.pct}%`,
+                                backgroundColor: bar.color,
+                            }"
+                        />
+                    </span>
+                    <span
+                        class="text-xs font-medium w-12 shrink-0 text-foreground tabular-nums"
+                        >{{ bar.value }}</span
+                    >
+                </div>
+            </div>
 
-            <!-- XY Charts (Line/Bar) -->
+            <!-- Circular Charts (Pie/Donut) -->
+            <div v-else-if="isCircular" class="relative h-[300px] w-full">
+                <VisSingleContainer :data="pieData" height="300">
+                    <VisDonut
+                        :value="pieValueAccessor"
+                        :id="pieLabelAccessor"
+                        :arcWidth="arcWidthValue"
+                        :color="pieColorAccessor"
+                    />
+                    <VisTooltip :template="pieTooltipTemplate" />
+                </VisSingleContainer>
+                <div
+                    v-if="centerValue"
+                    class="inset-0 pointer-events-none absolute flex flex-col items-center justify-center"
+                >
+                    <span class="text-2xl font-bold text-foreground">{{
+                        centerValue
+                    }}</span>
+                    <span
+                        v-if="centerCaption"
+                        class="text-xs text-muted-foreground"
+                        >{{ centerCaption }}</span
+                    >
+                </div>
+            </div>
+
+            <!-- XY Charts (Line/Area/Bar) -->
             <VisXYContainer v-else :data="chartData" height="300">
                 <template v-if="chartType === 'line' || chartType === 'area'">
-                    <template v-for="(_, index) in datasets" :key="index">
-                        <VisArea
-                            v-if="chartType === 'area'"
-                            :x="xAccessor"
-                            :y="yAccessors[index]"
-                            :color="colorAccessor(null, index)"
-                            :opacity="0.15"
-                        />
-                        <VisLine
-                            :x="xAccessor"
-                            :y="yAccessors[index]"
-                            :color="colorAccessor(null, index)"
-                        />
-                    </template>
+                    <VisArea
+                        v-if="chartType === 'area'"
+                        :x="xAccessor"
+                        :y="yAccessors"
+                        :color="groupedBarColors"
+                        :opacity="0.2"
+                    />
+                    <VisLine
+                        v-for="(_, index) in datasets"
+                        :key="index"
+                        :x="xAccessor"
+                        :y="yAccessors[index]"
+                        :color="colorAccessor(null, index)"
+                    />
                 </template>
+                <VisStackedBar
+                    v-if="chartType === 'bar' && stacked"
+                    :x="xAccessor"
+                    :y="yAccessors"
+                    :color="groupedBarColors"
+                />
                 <VisGroupedBar
-                    v-if="chartType === 'bar'"
+                    v-else-if="chartType === 'bar'"
                     :x="xAccessor"
                     :y="yAccessors"
                     :color="groupedBarColors"
@@ -224,6 +316,24 @@ const pieTooltipTemplate = (d: any) => {
                 <VisCrosshair />
                 <VisTooltip :template="tooltipTemplate" />
             </VisXYContainer>
+
+            <!-- Legend -->
+            <div
+                v-if="showLegend && legendItems.length"
+                class="mt-4 gap-4 flex flex-wrap items-center justify-center"
+            >
+                <span
+                    v-for="item in legendItems"
+                    :key="item.label"
+                    class="gap-1.5 text-xs flex items-center text-muted-foreground"
+                >
+                    <span
+                        class="size-2.5 rounded-full"
+                        :style="{ backgroundColor: item.color }"
+                    />
+                    {{ item.label }}
+                </span>
+            </div>
         </CardContent>
     </Card>
 </template>

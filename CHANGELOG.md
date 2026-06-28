@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.60.0] - 2026-06-27
+
+### Added
+
+- **More chart variants** (`ChartWidget`, **published**):
+  - **`chartType('horizontalBar')`** — a crisp div-based horizontal bar chart
+    (category label + bar + value), ideal for "by category" / ranking panels.
+  - **Stacked area** — `area` charts now render a stacked `VisArea` (array `y`)
+    with per-series outline lines.
+  - **Stacked bars** — `->stacked()` renders `VisStackedBar` for `bar` charts.
+  - **Legend** — `->legend()` shows a labelled color-swatch legend below the
+    chart (dataset labels for XY, category labels for donut/horizontal).
+  - **Donut center label** — `->centerLabel($value, $caption)` overlays a big
+    value + caption in the middle of a `pie`/`doughnut` (e.g. "10.2K Visitors").
+
+First step of the widget-enrichment series (stat actions, widget header
+actions/slots, period filter, rating widget follow).
+
 ## [0.59.0] - 2026-06-27
 
 ### Added

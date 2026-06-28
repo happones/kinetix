@@ -609,6 +609,55 @@ const chartWidget = {
     },
 };
 
+const areaChartWidget = {
+    id: 'area-chart',
+    type: 'chart',
+    columnSpan: 12,
+    sort: 0,
+    title: 'Total visitors',
+    description: 'Last 6 months',
+    data: {
+        chartType: 'area',
+        legend: true,
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [
+            { label: 'Desktop', data: [12, 19, 15, 22, 28, 26] },
+            { label: 'Mobile', data: [8, 11, 9, 14, 18, 16] },
+        ],
+    },
+};
+
+const hBarChartWidget = {
+    id: 'hbar-chart',
+    type: 'chart',
+    columnSpan: 6,
+    sort: 0,
+    title: 'By category',
+    description: 'Sales by product type',
+    data: {
+        chartType: 'horizontalBar',
+        labels: ['Drinks', 'Food', 'Stationery', 'Cleaning', 'Other'],
+        datasets: [{ label: 'Sales', data: [3200, 2400, 1600, 900, 600] }],
+    },
+};
+
+const donutChartWidget = {
+    id: 'donut-chart',
+    type: 'chart',
+    columnSpan: 6,
+    sort: 0,
+    title: 'Store visits by source',
+    description: null,
+    data: {
+        chartType: 'doughnut',
+        legend: true,
+        centerValue: '10.2K',
+        centerLabel: 'Visitors',
+        labels: ['Direct', 'Social', 'Email', 'Referrals', 'Other'],
+        datasets: [{ label: 'Visits', data: [4200, 2600, 1800, 1000, 600] }],
+    },
+};
+
 const tableWidget = {
     id: 'tw',
     type: 'table',
@@ -1315,6 +1364,27 @@ export const specimens: Specimen[] = [
         component: KinetixChartWidget,
         width: 700,
         props: { widget: chartWidget },
+    },
+    {
+        name: 'chart-area',
+        title: 'Chart — stacked area + legend',
+        component: KinetixChartWidget,
+        width: 700,
+        props: { widget: areaChartWidget },
+    },
+    {
+        name: 'chart-hbar',
+        title: 'Chart — horizontal bars',
+        component: KinetixChartWidget,
+        width: 480,
+        props: { widget: hBarChartWidget },
+    },
+    {
+        name: 'chart-donut',
+        title: 'Chart — donut with center label',
+        component: KinetixChartWidget,
+        width: 480,
+        props: { widget: donutChartWidget },
     },
     {
         name: 'table-widget',

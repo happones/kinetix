@@ -308,10 +308,26 @@ Stat::make('Sales today', '$502.30')
 ### 2. `ChartWidget`
 Interactive metrics charting backed by Unovis.
 - **Methods**:
-  - `chartType(string $type)`: `line`, `area`, `bar`, `pie`, `doughnut`. `area` is a filled line.
+  - `chartType(string $type)`: `line`, `area` (stacked filled), `bar`, `horizontalBar`, `pie`, `doughnut`.
   - `labels(array $labels)`: Category names list.
   - `datasets(array $datasets)`: Dataset configuration arrays.
+  - `stacked(bool $on = true)`: stack multiple series (area is always stacked; `bar` becomes a stacked bar).
+  - `legend(bool $on = true)`: show a labelled color-swatch legend below the chart.
+  - `centerLabel(string $value, ?string $caption = null)`: a big value + caption in the middle of a `pie`/`doughnut` (e.g. `('10.2K', 'Visitors')`).
   - `options(array $options)`: Custom chart properties payload.
+
+```php
+ChartWidget::make()->title('Total visitors')->chartType('area')->legend()
+    ->labels(['Mon', 'Tue', 'Wed'])
+    ->datasets([
+        ['label' => 'Desktop', 'data' => [12, 19, 15]],
+        ['label' => 'Mobile', 'data' => [8, 11, 9]],
+    ]);
+
+ChartWidget::make()->title('Store visits')->chartType('doughnut')
+    ->centerLabel('10.2K', 'Visitors')->legend()
+    ->labels(['Direct', 'Social', 'Email'])->datasets([['data' => [4200, 2600, 1800]]]);
+```
 
 ### 3. `TableWidget`
 Renders quick-reference summary tables.

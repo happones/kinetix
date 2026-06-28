@@ -16,9 +16,51 @@ class ChartWidget extends Widget
 
     protected array $options = [];
 
+    protected bool $stacked = false;
+
+    protected bool $legend = false;
+
+    protected ?string $centerLabel = null;
+
+    protected ?string $centerValue = null;
+
+    /**
+     * line | area | bar | horizontalBar | pie | doughnut.
+     */
     public function chartType(string $chartType): static
     {
         $this->chartType = $chartType;
+
+        return $this;
+    }
+
+    /**
+     * Stack multiple series (area / bar charts).
+     */
+    public function stacked(bool $stacked = true): static
+    {
+        $this->stacked = $stacked;
+
+        return $this;
+    }
+
+    /**
+     * Show a legend of the dataset labels below the chart.
+     */
+    public function legend(bool $legend = true): static
+    {
+        $this->legend = $legend;
+
+        return $this;
+    }
+
+    /**
+     * Center label for donut charts (e.g. a total): a big value + caption.
+     */
+    public function centerLabel(string $value, ?string $caption = null): static
+    {
+        $this->centerValue = $value;
+        $this->centerLabel = $caption;
 
         return $this;
     }
@@ -47,10 +89,14 @@ class ChartWidget extends Widget
     protected function getData(): array
     {
         return [
-            'chartType' => $this->chartType,
-            'labels'    => $this->labels,
-            'datasets'  => $this->datasets,
-            'options'   => $this->options,
+            'chartType'   => $this->chartType,
+            'labels'      => $this->labels,
+            'datasets'    => $this->datasets,
+            'options'     => $this->options,
+            'stacked'     => $this->stacked,
+            'legend'      => $this->legend,
+            'centerValue' => $this->centerValue,
+            'centerLabel' => $this->centerLabel,
         ];
     }
 }

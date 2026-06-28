@@ -134,7 +134,7 @@ $grid = WidgetsGrid::make()
 ### Charting System (Unovis)
 - All charts are rendered using **`@unovis/vue`** and **`@unovis/ts`** (the framework behind Shadcn Vue charts).
 - **CRITICAL**: For line and bar XY charts, always map string labels to numeric indices in the data coordinates (`0, 1, 2, ...`). Use the `:tickValues` array to force ticks onto index coordinates and format them back to strings using `:tickFormat`. This prevents continuous scale `NaN` rendering exceptions in Unovis.
-- Chart types: `line` | `area` (filled line via `VisArea opacity 0.15` + `VisLine`) | `bar` (`VisGroupedBar`) | `pie`/`doughnut` (`VisDonut`).
+- Chart types (v0.60.0): `line` | `area` (stacked `VisArea` array-y + per-series `VisLine`) | `bar` (`VisGroupedBar`, or `VisStackedBar` when `->stacked()`) | `horizontalBar` (**div-based**, not unovis — label + bar width% + value, from dataset[0]) | `pie`/`doughnut` (`VisDonut`). ChartWidget fluent: `->stacked()`, `->legend()` (swatch legend below — dataset labels for XY, category labels for donut/hbar), `->centerLabel($value,$caption)` (donut center overlay). Serialized keys `stacked`/`legend`/`centerValue`/`centerLabel`. Tests: `ChartWidgetVariantsTest`.
 
 ### Widget variants (v0.59.0)
 - **Stat icons**: `Stat::make()->icon('dollar-sign')->iconColor('info'|'success'|'warning'|'danger'|'gray')` → serialized `icon`/`iconColor`. `KinetixStatsOverviewWidget` renders a soft-colored icon badge (size-11 rounded-xl, `statusSoftClass`, `resolveIcon`) **in place of** the sparkline when an icon is set. `KinetixStat` TS gains `icon`/`iconColor`.
