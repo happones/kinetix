@@ -472,7 +472,18 @@ export interface KinetixStat {
     descriptionColor?: 'success' | 'danger' | 'warning' | 'info' | 'gray';
     icon?: string | null;
     iconColor?: string | null;
+    badge?: string | null;
+    badgeColor?: string | null;
+    linkLabel?: string | null;
+    linkUrl?: string | null;
     chart?: number[];
+}
+
+/** A link/button action shown in a widget header. */
+export interface KinetixWidgetAction {
+    label: string;
+    url: string;
+    icon?: string | null;
 }
 
 /** A row in a KinetixListWidget. */
@@ -504,6 +515,7 @@ export interface KinetixWidget {
     description?: string;
     columnSpan: number | string | Record<string, number | string>;
     sort: number;
+    headerActions?: KinetixWidgetAction[];
     data: any;
 }
 

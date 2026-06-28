@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.61.0] - 2026-06-27
+
+### Added
+
+- **Stat card badge + footer link** (**published**): `Stat::make()->badge('+6.1%',
+  'success')` shows a small trend chip in the card header; `->url('View more',
+  '/path')` adds a footer link. (Second step of the widget-enrichment series.)
+- **Widget header actions** (**published**): `Widget::headerAction($label, $url,
+  $icon?)` (chainable) adds link/button actions to a widget header — e.g.
+  "Export", "View all". Rendered by a shared `WidgetHeaderActions` component in
+  the Chart, Table and List widget headers. New `KinetixWidgetAction` TS type;
+  `KinetixWidget` gains `headerActions`; `KinetixStat` gains `badge`/`badgeColor`/
+  `linkLabel`/`linkUrl`.
+
+> Custom slots for arbitrary content (hero/CTA, segmented controls) are already
+> supported via `CustomWidget` + the per-widget named slot in `KinetixWidgetsGrid`.
+
 ## [0.60.0] - 2026-06-27
 
 ### Added

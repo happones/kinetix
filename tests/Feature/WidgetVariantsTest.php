@@ -66,6 +66,34 @@ class WidgetVariantsTest extends TestCase
         $this->assertSame(0, ListItem::make('x')->progress(-5)->toArray()['progress']);
     }
 
+    public function test_stat_serializes_badge_and_footer_link(): void
+    {
+        $stat = Stat::make('Monthly revenue', '$34.1K')
+            ->badge('+6.1%', 'success')
+            ->url('View more', '/revenue')
+            ->toArray();
+
+        $this->assertSame('+6.1%', $stat['badge']);
+        $this->assertSame('success', $stat['badgeColor']);
+        $this->assertSame('View more', $stat['linkLabel']);
+        $this->assertSame('/revenue', $stat['linkUrl']);
+    }
+
+    public function test_widget_header_actions_serialize(): void
+    {
+        $data = ListWidget::make()
+            ->title('Recent orders')
+            ->headerAction('Export', '/export', 'download')
+            ->headerAction('View all', '/orders')
+            ->toArray();
+
+        $this->assertCount(2, $data['headerActions']);
+        $this->assertSame('Export', $data['headerActions'][0]['label']);
+        $this->assertSame('/export', $data['headerActions'][0]['url']);
+        $this->assertSame('download', $data['headerActions'][0]['icon']);
+        $this->assertNull($data['headerActions'][1]['icon']);
+    }
+
     public function test_list_widget_serializes_items_and_action(): void
     {
         $data = ListWidget::make()

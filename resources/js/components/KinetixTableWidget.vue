@@ -6,6 +6,7 @@ import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
+import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
 
 const props = defineProps<{
     widget: KinetixWidget;
@@ -44,13 +45,24 @@ const getRowValues = (row: any) => {
     <Card
         class="kinetix-table-card hover:shadow-md overflow-hidden transition-all duration-300"
     >
-        <CardHeader v-if="widget.title || widget.description">
-            <CardTitle v-if="widget.title" class="text-base">{{
-                widget.title
-            }}</CardTitle>
-            <CardDescription v-if="widget.description" class="text-xs">
-                {{ widget.description }}
-            </CardDescription>
+        <CardHeader
+            v-if="
+                widget.title ||
+                widget.description ||
+                widget.headerActions?.length
+            "
+        >
+            <div class="gap-3 flex items-start justify-between">
+                <div class="min-w-0">
+                    <CardTitle v-if="widget.title" class="text-base">{{
+                        widget.title
+                    }}</CardTitle>
+                    <CardDescription v-if="widget.description" class="text-xs">
+                        {{ widget.description }}
+                    </CardDescription>
+                </div>
+                <WidgetHeaderActions :actions="widget.headerActions" />
+            </div>
         </CardHeader>
 
         <CardContent class="-mx-6 -mb-6 overflow-x-auto">

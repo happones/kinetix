@@ -21,6 +21,13 @@ abstract class Widget implements Arrayable, JsonSerializable
 
     protected ?int $sort = 0;
 
+    /**
+     * Link/button actions shown in the widget header.
+     *
+     * @var array<int, array{label: string, url: string, icon: string|null}>
+     */
+    protected array $headerActions = [];
+
     public function __construct()
     {
         $this->id = uniqid('widget_', true);
@@ -66,6 +73,16 @@ abstract class Widget implements Arrayable, JsonSerializable
         return $this;
     }
 
+    /**
+     * Add a link/button action to the widget header (e.g. "Export", "View all").
+     */
+    public function headerAction(string $label, string $url, ?string $icon = null): static
+    {
+        $this->headerActions[] = ['label' => $label, 'url' => $url, 'icon' => $icon];
+
+        return $this;
+    }
+
     public function getId(): string
     {
         return $this->id;
@@ -81,13 +98,14 @@ abstract class Widget implements Arrayable, JsonSerializable
     public function toArray(): array
     {
         return [
-            'id'          => $this->id,
-            'type'        => $this->type,
-            'title'       => $this->title,
-            'description' => $this->description,
-            'columnSpan'  => $this->columnSpan,
-            'sort'        => $this->sort,
-            'data'        => $this->getData(),
+            'id'            => $this->id,
+            'type'          => $this->type,
+            'title'         => $this->title,
+            'description'   => $this->description,
+            'columnSpan'    => $this->columnSpan,
+            'sort'          => $this->sort,
+            'headerActions' => $this->headerActions,
+            'data'          => $this->getData(),
         ];
     }
 

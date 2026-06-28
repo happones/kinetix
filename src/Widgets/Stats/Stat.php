@@ -23,6 +23,14 @@ class Stat implements Arrayable, JsonSerializable
 
     protected ?string $iconColor = 'info'; // success, danger, warning, info, gray, primary
 
+    protected ?string $badge = null;
+
+    protected ?string $badgeColor = 'gray';
+
+    protected ?string $linkLabel = null;
+
+    protected ?string $linkUrl = null;
+
     protected array $chart = [];
 
     public function __construct(string $label, mixed $value)
@@ -84,6 +92,28 @@ class Stat implements Arrayable, JsonSerializable
         return $this;
     }
 
+    /**
+     * A small trend chip shown in the card header (e.g. "+12.5%").
+     */
+    public function badge(string $badge, string $color = 'gray'): static
+    {
+        $this->badge      = $badge;
+        $this->badgeColor = $color;
+
+        return $this;
+    }
+
+    /**
+     * A footer link (e.g. "View more →").
+     */
+    public function url(string $label, string $url): static
+    {
+        $this->linkLabel = $label;
+        $this->linkUrl   = $url;
+
+        return $this;
+    }
+
     public function toArray(): array
     {
         return [
@@ -94,6 +124,10 @@ class Stat implements Arrayable, JsonSerializable
             'descriptionColor' => $this->descriptionColor,
             'icon'             => $this->icon,
             'iconColor'        => $this->iconColor,
+            'badge'            => $this->badge,
+            'badgeColor'       => $this->badgeColor,
+            'linkLabel'        => $this->linkLabel,
+            'linkUrl'          => $this->linkUrl,
             'chart'            => $this->chart,
         ];
     }

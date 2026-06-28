@@ -8,6 +8,7 @@ import {
 import type { KinetixListItem, KinetixWidget } from '@/types';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
+import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
 
 /**
  * A list/feed widget: rows with a leading icon badge, title + subtitle, an
@@ -29,28 +30,35 @@ const emptyState = computed(() => props.widget.data?.emptyState ?? null);
     <Card class="flex h-full flex-col">
         <CardContent class="gap-4 flex flex-1 flex-col">
             <div
-                v-if="widget.title || widget.description"
-                class="gap-2 flex items-start"
+                v-if="
+                    widget.title ||
+                    widget.description ||
+                    widget.headerActions?.length
+                "
+                class="gap-2 flex items-start justify-between"
             >
-                <component
-                    :is="resolveIcon(headerIcon)"
-                    v-if="headerIcon && resolveIcon(headerIcon)"
-                    class="mt-0.5 size-5 shrink-0 text-muted-foreground"
-                />
-                <div class="min-w-0">
-                    <h3
-                        v-if="widget.title"
-                        class="text-base font-semibold leading-6 text-foreground"
-                    >
-                        {{ widget.title }}
-                    </h3>
-                    <p
-                        v-if="widget.description"
-                        class="mt-1 text-xs text-muted-foreground"
-                    >
-                        {{ widget.description }}
-                    </p>
+                <div class="gap-2 min-w-0 flex items-start">
+                    <component
+                        :is="resolveIcon(headerIcon)"
+                        v-if="headerIcon && resolveIcon(headerIcon)"
+                        class="mt-0.5 size-5 shrink-0 text-muted-foreground"
+                    />
+                    <div class="min-w-0">
+                        <h3
+                            v-if="widget.title"
+                            class="text-base font-semibold leading-6 text-foreground"
+                        >
+                            {{ widget.title }}
+                        </h3>
+                        <p
+                            v-if="widget.description"
+                            class="mt-1 text-xs text-muted-foreground"
+                        >
+                            {{ widget.description }}
+                        </p>
+                    </div>
                 </div>
+                <WidgetHeaderActions :actions="widget.headerActions" />
             </div>
 
             <p

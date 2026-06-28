@@ -17,7 +17,10 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import { resolveIcon } from '@/composables/useKinetixIcons';
-import { statusSoftClass } from '@/composables/useStatusColor';
+import {
+    statusBadgeClass,
+    statusSoftClass,
+} from '@/composables/useStatusColor';
 import type { KinetixWidget, KinetixStat } from '@/types';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
@@ -271,9 +274,30 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
                     <div class="gap-4 flex items-start justify-between">
                         <div class="min-w-0 flex-1">
                             <span
-                                class="text-sm font-medium block truncate text-muted-foreground"
+                                class="gap-2 flex items-center justify-between"
                             >
-                                {{ stat.label }}
+                                <span
+                                    class="text-sm font-medium truncate text-muted-foreground"
+                                >
+                                    {{ stat.label }}
+                                </span>
+                                <span
+                                    v-if="stat.badge"
+                                    class="gap-0.5 px-1.5 py-0.5 text-xs font-medium inline-flex shrink-0 items-center rounded-full"
+                                    :class="
+                                        statusBadgeClass(stat.badgeColor as any)
+                                    "
+                                >
+                                    <component
+                                        :is="getStatIcon(stat.descriptionIcon)"
+                                        v-if="
+                                            stat.descriptionIcon &&
+                                            getStatIcon(stat.descriptionIcon)
+                                        "
+                                        class="size-3"
+                                    />
+                                    {{ stat.badge }}
+                                </span>
                             </span>
                             <span
                                 class="text-3xl font-bold mt-2 tracking-tight block text-foreground"
@@ -358,6 +382,16 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
                             {{ stat.description }}
                         </span>
                     </div>
+
+                    <!-- Footer link -->
+                    <a
+                        v-if="stat.linkUrl && stat.linkLabel"
+                        :href="stat.linkUrl"
+                        class="gap-1 text-sm font-medium inline-flex items-center text-primary transition-opacity hover:opacity-80"
+                    >
+                        {{ stat.linkLabel }}
+                        <ArrowUpRight class="size-3.5" />
+                    </a>
                 </CardContent>
             </Card>
         </div>

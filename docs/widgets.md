@@ -283,8 +283,12 @@ Every widget extends the abstract `Widget` base class and inherits the following
 | `description` | `description(string $description)` | Supporting description text. |
 | `columnSpan` | `columnSpan(int\|string\|array $columnSpan)` | Grid span — an integer, a string (e.g. `'full'`), or a responsive breakpoint map. Defaults to `12`. |
 | `sort` | `sort(int $sort)` | Order within the grid. Defaults to `0`. |
+| `headerAction` | `headerAction(string $label, string $url, ?string $icon = null)` | Add a link/button to the widget header (e.g. "Export", "View all"). Chainable for multiple. Rendered in Chart/Table/List widget headers. |
 
-All widgets are created via `Widget::make()` and serialize to a `{ id, type, title, description, columnSpan, sort, data }` payload.
+All widgets are created via `Widget::make()` and serialize to a `{ id, type, title, description, columnSpan, sort, headerActions, data }` payload.
+
+For arbitrary custom content (a hero/CTA card, a segmented control), use a
+`CustomWidget` and its per-id named slot in `<KinetixWidgetsGrid>`.
 
 ### 1. `StatsOverviewWidget`
 Groups multiple statistical KPI cards.
@@ -297,6 +301,8 @@ Groups multiple statistical KPI cards.
   - `description(string $desc)`: supporting/trend text (e.g. `+12.5% vs yesterday`).
   - `descriptionIcon(string $icon)`: trend icon, e.g. `arrow-up` / `arrow-down`.
   - `descriptionColor(string $color)`: trend color (`success` / `danger` / `warning` / `info` / `gray`). Defaults to `gray`.
+  - `badge(string $text, string $color = 'gray')`: a small trend chip in the card header (e.g. `('+6.1%', 'success')`).
+  - `url(string $label, string $href)`: a footer link (e.g. `('View more', '/revenue')`).
   - `chart(array $trendPoints)`: numeric array to draw an SVG sparkline (shown when no `icon` is set).
 
 ```php

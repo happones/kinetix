@@ -474,6 +474,46 @@ const statsWidget = {
     },
 };
 
+const statsLinkWidget = {
+    id: 'stats-link',
+    type: 'stats',
+    columnSpan: 12,
+    sort: 0,
+    title: null,
+    description: null,
+    data: {
+        stats: [
+            {
+                label: 'Monthly recurring revenue',
+                value: '$34.1K',
+                badge: '+6.1%',
+                badgeColor: 'success',
+                descriptionIcon: 'arrow-up',
+                linkLabel: 'View more',
+                linkUrl: '#',
+            },
+            {
+                label: 'Users',
+                value: '500.1K',
+                badge: '+19.2%',
+                badgeColor: 'success',
+                descriptionIcon: 'arrow-up',
+                linkLabel: 'View more',
+                linkUrl: '#',
+            },
+            {
+                label: 'User growth',
+                value: '11.3%',
+                badge: '-1.2%',
+                badgeColor: 'danger',
+                descriptionIcon: 'arrow-down',
+                linkLabel: 'View more',
+                linkUrl: '#',
+            },
+        ],
+    },
+};
+
 const listWidget = {
     id: 'recent',
     type: 'list',
@@ -481,6 +521,7 @@ const listWidget = {
     sort: 0,
     title: 'Recent sales',
     description: null,
+    headerActions: [{ label: 'Export', url: '#', icon: 'download' }],
     data: {
         icon: 'clock',
         actionLabel: 'View all sales',
@@ -800,6 +841,13 @@ export const specimens: Specimen[] = [
         component: KinetixStatsOverviewWidget,
         width: 980,
         props: { widget: statsWidget },
+    },
+    {
+        name: 'stats-link-widget',
+        title: 'Stat cards — badge + View more link',
+        component: KinetixStatsOverviewWidget,
+        width: 760,
+        props: { widget: statsLinkWidget },
     },
     {
         name: 'list-widget',
