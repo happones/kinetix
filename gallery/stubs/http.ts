@@ -5,6 +5,57 @@
  */
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
     {
+        match: /\/mail-templates\/preview$/,
+        data: {
+            subject: 'Welcome to Acme, Ada!',
+            html: '<h1>Hi Ada 👋</h1><p>Thanks for joining Acme. Your trial ends on <strong>July 15</strong>.</p><p><a href="#">Get started →</a></p>',
+        },
+    },
+    {
+        match: /\/mail-templates$/,
+        data: {
+            templates: [
+                {
+                    id: 1,
+                    key: 'welcome',
+                    name: 'Welcome email',
+                    subject: 'Welcome to Acme, {{ name }}!',
+                    body: '# Hi {{ name }} 👋\n\nThanks for joining Acme. Your trial ends on **{{ trial_ends }}**.\n\n[Get started →](#)',
+                    format: 'markdown',
+                    variables: [
+                        { key: 'name', label: 'Name', sample: 'Ada' },
+                        {
+                            key: 'trial_ends',
+                            label: 'Trial end',
+                            sample: 'July 15',
+                        },
+                    ],
+                    enabled: true,
+                },
+                {
+                    id: 2,
+                    key: 'receipt',
+                    name: 'Order receipt',
+                    subject: 'Your receipt #{{ order }}',
+                    body: 'Thanks for your order **#{{ order }}** — total {{ total }}.',
+                    format: 'markdown',
+                    variables: [],
+                    enabled: true,
+                },
+                {
+                    id: 3,
+                    key: 'password-reset',
+                    name: 'Password reset',
+                    subject: 'Reset your password',
+                    body: '<p>Click to reset.</p>',
+                    format: 'html',
+                    variables: [],
+                    enabled: false,
+                },
+            ],
+        },
+    },
+    {
         match: /\/health$/,
         data: {
             available: true,

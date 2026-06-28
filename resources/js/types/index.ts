@@ -493,6 +493,25 @@ export interface KinetixRatingLevel {
     pct: number;
 }
 
+/** A declared variable on a mail template. */
+export interface KinetixMailVariable {
+    key: string;
+    label?: string | null;
+    sample?: string | null;
+}
+
+/** An editable mail template. */
+export interface KinetixMailTemplate {
+    id?: number | string | null;
+    key: string;
+    name: string;
+    subject: string;
+    body: string;
+    format: 'markdown' | 'html';
+    variables: KinetixMailVariable[];
+    enabled: boolean;
+}
+
 /** A headline metric shown in a chart widget header. */
 export interface KinetixChartMetric {
     label: string;

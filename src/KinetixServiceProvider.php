@@ -54,6 +54,7 @@ use Happones\Kinetix\Imports\ImportController;
 use Happones\Kinetix\Locale\LocaleController;
 use Happones\Kinetix\Locale\LocaleManager;
 use Happones\Kinetix\Locale\Middleware\SetKinetixLocale;
+use Happones\Kinetix\Mail\MailTemplateController;
 use Happones\Kinetix\Media\MediaManager;
 use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
@@ -351,6 +352,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000015_add_locale_to_users_table.php' => database_path('migrations/2026_01_01_000015_add_locale_to_users_table.php'),
             ], 'kinetix-locale-migrations');
 
+            // Publish the optional Mail Templates module's migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php' => database_path('migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php'),
+            ], 'kinetix-mail-templates-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -442,6 +448,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Queue metrics module (Horizon widget)
         $this->registerQueue();
+
+        // Register the optional Mail Templates module (editable email templates)
+        $this->registerMailTemplates();
 
         // Register the optional Health metrics module (status widget)
         $this->registerHealth();
@@ -1266,6 +1275,44 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('/', [QueueController::class, 'index'])->name('kinetix.queue.index');
                 Route::post('retry', [QueueController::class, 'retry'])->name('kinetix.queue.retry');
                 Route::delete('failed', [QueueController::class, 'forget'])->name('kinetix.queue.forget');
+            });
+    }
+
+    /**
+     * Wire the optional Mail Templates module: self-service CRUD + preview/test
+     * for editable email templates, gated by the `viewKinetixMail` ability
+     * (defaults to allow only in `local`).
+     */
+    protected function registerMailTemplates(): void
+    {
+        if (! config('kinetix.mail_templates.enabled', false)) {
+            return;
+        }
+
+        if (! Gate::has('viewKinetixMail')) {
+            Gate::define('viewKinetixMail', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/mail-templates")
+            ->group(function () {
+                Route::get('/', [MailTemplateController::class, 'index'])->name('kinetix.mail-templates.index');
+                Route::post('/', [MailTemplateController::class, 'store'])->name('kinetix.mail-templates.store');
+                Route::post('preview', [MailTemplateController::class, 'preview'])->name('kinetix.mail-templates.preview');
+                Route::put('{template}', [MailTemplateController::class, 'update'])->name('kinetix.mail-templates.update');
+                Route::delete('{template}', [MailTemplateController::class, 'destroy'])->name('kinetix.mail-templates.destroy');
+                Route::post('{template}/test', [MailTemplateController::class, 'test'])->name('kinetix.mail-templates.test');
             });
     }
 

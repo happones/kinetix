@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-06-27
+
+### Added
+
+- **Mail Templates module** (`mail_templates`, optional, **published**) —
+  editable email templates (subject + Markdown/HTML body with `{{ variable }}`
+  placeholders) stored in `kinetix_mail_templates` and managed from the
+  `<KinetixMailTemplates>` UI (list, editor, **live preview**, send-test). Your
+  app supplies the variable data and triggers sends via
+  `KinetixMail::send($to, $key, $data)` (also `render()` and `test()`).
+  `MailTemplate::render()` interpolates variables (HTML-escaped in Markdown
+  bodies) and compiles Markdown; `TemplatedMail` (queueable) delivers it.
+  Self-service CRUD + preview/test endpoints gated by the `viewKinetixMail`
+  ability (default allow-`local`). i18n `mail_*` (en/es/fr/pt); new
+  `KinetixMailTemplate`/`KinetixMailVariable` TS types; migration tag
+  `kinetix-mail-templates-migrations`.
+
+### Fixed
+
+- vue-i18n compilation crashes: removed literal `{{ … }}` and `@` from
+  translation strings (`editor_tiptap_missing`, mail hints/placeholders) — `@`
+  and `{{` are reserved by vue-i18n (linked messages / nested placeholders) and
+  would throw "Invalid linked format" / "Not allowed nest placeholder" when the
+  string was rendered.
+
 ## [0.64.0] - 2026-06-27
 
 ### Added

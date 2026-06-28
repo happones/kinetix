@@ -133,7 +133,7 @@ return [
     // Rich text editor
     'editor_write'          => 'Write',
     'editor_preview'        => 'Preview',
-    'editor_tiptap_missing' => 'The Tiptap editor needs @tiptap/core and @tiptap/starter-kit. Install them, or switch this field to the basic or markdown editor.',
+    'editor_tiptap_missing' => 'The Tiptap editor needs the tiptap/core and tiptap/starter-kit packages. Install them, or switch this field to the basic or markdown editor.',
     'signature_clear'       => 'Clear',
 
     // Comments
@@ -386,6 +386,22 @@ return [
 
     // Table repeater
     'table_repeater_empty' => 'No rows yet.',
+
+    // Mail templates
+    'mail_new'         => 'New template',
+    'mail_disabled'    => 'Off',
+    'mail_name'        => 'Name',
+    'mail_key'         => 'Key',
+    'mail_subject'     => 'Subject',
+    'mail_format'      => 'Format',
+    'mail_body'        => 'Body',
+    'mail_body_hint'   => 'Write Markdown or HTML. Reference variables by key in double braces.',
+    'mail_variables'   => 'Variables',
+    'mail_var_key'     => 'key',
+    'mail_var_sample'  => 'Sample value',
+    'mail_preview'     => 'Preview',
+    'mail_test_email'  => 'Email address',
+    'mail_send_test'   => 'Send test',
 
     // Rating widget
     'rating_out_of'  => 'out of :max',

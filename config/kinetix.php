@@ -812,4 +812,20 @@ return [
         'enabled' => env('KINETIX_REPORTS_ENABLED', false),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Mail Templates (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Editable email templates (subject + Markdown/HTML body with `{{ var }}`
+    | placeholders), managed from the <KinetixMailTemplates> UI and stored in the
+    | kinetix_mail_templates table. Your app supplies the variable data and
+    | triggers sends via KinetixMail::send($to, $key, $data). The manager + test
+    | endpoints are gated by the `viewKinetixMail` ability (default allow-local).
+    |
+    */
+    'mail_templates' => [
+        'enabled' => env('KINETIX_MAIL_TEMPLATES_ENABLED', false),
+    ],
+
 ];

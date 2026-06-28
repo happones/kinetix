@@ -31,6 +31,7 @@ import KinetixQueueStats from '@/components/KinetixQueueStats.vue';
 import KinetixHealthStatus from '@/components/KinetixHealthStatus.vue';
 import KinetixTableRepeater from '@/components/KinetixTableRepeater.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
+import KinetixMailTemplates from '@/components/KinetixMailTemplates.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
 
@@ -1275,6 +1276,12 @@ export const specimens: Specimen[] = [
         frame: 'card',
         width: 600,
         props: { commentableType: 'App\\Models\\Post', commentableId: 1 },
+    },
+    {
+        name: 'mail-templates',
+        title: 'Mail templates manager',
+        component: KinetixMailTemplates,
+        width: 920,
     },
     {
         name: 'tags',

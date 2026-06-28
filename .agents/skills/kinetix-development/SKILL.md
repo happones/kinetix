@@ -754,6 +754,19 @@ Roadmap v0.57.0. Config `reports` (`enabled`). **Backend-only** (no Vue). Reuses
 
 ---
 
+## 44. Kinetix Mail Templates (editable email templates, DB-backed)
+
+Roadmap v0.65.0. Config `mail_templates` (`enabled`). Migration `kinetix_mail_templates` (key unique, name, subject, body, format markdown|html, variables json, enabled), tag `kinetix-mail-templates-migrations`.
+
+- **`MailTemplate`** model (`src/Mail/`): casts variables→array, enabled→bool. `render($data)` → `{subject, html}`: `interpolate()` replaces `{{ key }}` (regex `\{\{\s*([\w.]+)\s*\}\}`), HTML-escapes values **only for markdown** bodies (`e()`), compiles markdown via `Str::markdown()`; subject is `strip_tags`. `sampleData()` from declared variables.
+- **`KinetixMail`** facade: `template($key)` (enabled only), `render($key,$data)`, `send($to, $key, $data)` (Mail::to->send `TemplatedMail`; false if missing/disabled), `test($key,$to,$data)` (sample data + `[TEST]` prefix). **`TemplatedMail`** Queueable Mailable — props `$subjectLine`/`$bodyHtml` (NOT `$html`/`$subject` — those collide with Mailable's native props → phpstan property.extraNativeType).
+- **`MailTemplateController`**: index/store/update/destroy (explicit `findOrFail($id)` — implicit route-model binding doesn't resolve for package routes here, gave empty model), `preview` (renders unsaved {subject,body,format,data}), `test`. Gated `Gate::authorize('viewKinetixMail')`; provider `registerMailTemplates()` defines default gate (allow local) + routes `{prefix}/mail-templates` (preview route before `{template}`).
+- **Vue (published)**: `KinetixMailTemplates` (list + editor: name/key/subject/format toggle/body textarea/variables rows/preview/send-test; debounced preview via endpoint; auto-opens first template on mount). `useKinetixMailTemplates` → `{templates, load, save, remove, preview, sendTest}`. TS `KinetixMailTemplate`/`KinetixMailVariable`. i18n `mail_*`.
+- **vue-i18n GOTCHA (fixed here)**: translation strings must NOT contain literal `{{ }}` (nested-placeholder error) or `@` (linked-message "Invalid linked format") — they crash vue-i18n when the message renders. Reworded `mail_body_hint`, `mail_test_email`, and the pre-existing `editor_tiptap_missing` (had `@tiptap/...`). Gallery surfaced it (compiles messages used by specimens).
+- Gallery: `/mail-templates` + `/mail-templates/preview` fixtures in `http.ts` stub. Tests: `MailTemplateTest` (render/escape/html/send/disabled/preview/test/gate — 8), `KinetixMailTemplates.spec.ts`. Full guide: `docs/mail-templates.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.
