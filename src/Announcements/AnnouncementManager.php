@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Announcements;
 
+use Carbon\CarbonInterface;
 use Happones\Kinetix\Data\AnnouncementData;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 
 /**
  * Lists published announcements and tracks, per user, which are "new" (published
@@ -64,7 +64,7 @@ class AnnouncementManager
     /**
      * Publish an announcement (defaults to publishing immediately).
      */
-    public function create(string $title, string $body, string $level = 'info', ?Carbon $publishedAt = null): Announcement
+    public function create(string $title, string $body, string $level = 'info', ?CarbonInterface $publishedAt = null): Announcement
     {
         return Announcement::query()->create([
             'title'        => $title,
@@ -74,7 +74,7 @@ class AnnouncementManager
         ]);
     }
 
-    protected function seenAt(Model $user): ?Carbon
+    protected function seenAt(Model $user): ?CarbonInterface
     {
         $view = AnnouncementView::query()->where('user_id', $user->getKey())->first();
 

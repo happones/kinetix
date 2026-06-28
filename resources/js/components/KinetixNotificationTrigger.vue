@@ -2,6 +2,7 @@
 import { Bell } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { buttonVariants } from '@/composables/useShadcnVariants';
 import { useNotificationsStore } from '@/stores/notifications';
 
 const store = useNotificationsStore();
@@ -11,11 +12,13 @@ const { t } = useI18n();
 
 <template>
     <button
-        @click="store.toggleDrawer"
-        class="h-9 w-9 relative flex items-center justify-center rounded-full transition-colors hover:bg-accent focus:outline-none"
+        type="button"
+        :class="buttonVariants({ variant: 'ghost', size: 'icon-sm' })"
+        class="relative"
         :aria-label="t('kinetix.notifications')"
+        @click="store.toggleDrawer"
     >
-        <Bell class="h-5 w-5 text-muted-foreground" />
+        <Bell class="size-[1.2rem]" />
         <span
             v-if="unreadCount > 0"
             class="-top-1 -right-1 px-1 font-semibold absolute flex min-w-[18px] items-center justify-center rounded-full bg-primary text-[10px] leading-[18px] text-primary-foreground"

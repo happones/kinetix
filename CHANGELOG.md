@@ -13,7 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.65.0] - 2026-06-27
+## [0.66.0] - 2026-06-27
+
+### Changed
+
+- **Chart area fills now use a gradient** (solid → transparent per series),
+  matching the shadcn-vue chart look (previously a flat translucent fill). Lines
+  stay solid; tooltips unchanged.
+- **`Carbon` typehints widened to `CarbonInterface`** so callers can pass either
+  `Carbon` or `CarbonImmutable`: `KinetixAnnouncements::publish()` /
+  `AnnouncementManager::create()` `$publishedAt`, and `AnnouncementManager::seenAt()`.
+- **Notification bell trigger** now uses the shared `buttonVariants` (ghost
+  icon-sm) with the icon in `currentColor` — consistent with the dark-mode/locale
+  header buttons (was a hand-rolled button with a `muted-foreground` icon).
+
+
 
 ### Added
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Announcements;
 
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 
 /**
  * Static entry point for announcements / "what's new". Publish entries from a
@@ -19,7 +19,7 @@ class KinetixAnnouncements
         return app(AnnouncementManager::class);
     }
 
-    public static function publish(string $title, string $body, string $level = 'info', ?Carbon $publishedAt = null): Announcement
+    public static function publish(string $title, string $body, string $level = 'info', ?CarbonInterface $publishedAt = null): Announcement
     {
         return static::manager()->create($title, $body, $level, $publishedAt);
     }

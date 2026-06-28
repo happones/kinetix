@@ -131,6 +131,11 @@ $grid = WidgetsGrid::make()
 ### Visual Sparklines
 - Stats sparklines are drawn dynamically as **lightweight SVG paths** with gradient fills mapped to the status color (`success` = green, `danger` = red).
 
+### Conventions (v0.66.0 alignment)
+- **Carbon typing**: public method params/returns that accept dates use **`Carbon\CarbonInterface`** (not `Illuminate\Support\Carbon`) so callers can pass `Carbon` or `CarbonImmutable` (e.g. `KinetixAnnouncements::publish`, `AnnouncementManager::create`/`seenAt`). Model `@property` docs stay `Carbon` (the cast result). `Support\Period` returns `CarbonImmutable`.
+- **Header icon buttons**: use `buttonVariants({ variant: 'outline'|'ghost', size: 'icon-sm' })` with the icon at **currentColor** (`size-[1.2rem]`, no `text-muted-foreground`) — matches ModeToggle/LanguageSwitcher/NotificationTrigger. Don't hand-roll icon buttons or hard-code icon colors.
+- **Chart area fills** use per-series SVG **linearGradient** defs (solid 0.4 → transparent), referenced via `fill: url(#kx-area-<widgetId>-<i>)` (sanitized id; same hidden-`<defs>` pattern as the stat sparklines), shadcn-style. Lines stay solid (`colorAccessor`).
+
 ### Charting System (Unovis)
 - All charts are rendered using **`@unovis/vue`** and **`@unovis/ts`** (the framework behind Shadcn Vue charts).
 - **CRITICAL**: For line and bar XY charts, always map string labels to numeric indices in the data coordinates (`0, 1, 2, ...`). Use the `:tickValues` array to force ticks onto index coordinates and format them back to strings using `:tickFormat`. This prevents continuous scale `NaN` rendering exceptions in Unovis.

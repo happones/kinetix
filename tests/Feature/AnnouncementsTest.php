@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Happones\Kinetix\Announcements\Announcement;
 use Happones\Kinetix\Announcements\AnnouncementManager;
 use Happones\Kinetix\Announcements\KinetixAnnouncements;
@@ -91,6 +93,15 @@ class AnnouncementsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('unread', 0)
             ->assertJsonPath('announcements.0.isNew', false);
+    }
+
+    public function test_publish_accepts_both_carbon_and_carbon_immutable(): void
+    {
+        $mutable   = KinetixAnnouncements::publish('A', 'x', 'info', Carbon::parse('2026-06-01'));
+        $immutable = KinetixAnnouncements::publish('B', 'x', 'info', CarbonImmutable::parse('2026-06-02'));
+
+        $this->assertSame('2026-06-01', $mutable->published_at->format('Y-m-d'));
+        $this->assertSame('2026-06-02', $immutable->published_at->format('Y-m-d'));
     }
 
     public function test_announcements_published_after_seen_become_new_again(): void

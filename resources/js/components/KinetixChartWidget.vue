@@ -95,6 +95,17 @@ const groupedBarColors = computed(() => {
     return datasets.value.map((_, index) => colorAccessor(null, index));
 });
 
+// Area fills use a vertical gradient (solid → transparent), shadcn-style. Each
+// series gets a unique gradient def referenced by `fill: url(#id)`.
+const gradientUid = computed(() =>
+    String(props.widget.id ?? 'chart').replace(/[^a-zA-Z0-9_-]/g, ''),
+);
+const areaGradientId = (index: number): string =>
+    `kx-area-${gradientUid.value}-${index}`;
+const areaColors = computed(() =>
+    datasets.value.map((_, index) => `url(#${areaGradientId(index)})`),
+);
+
 // Legend entries — dataset labels for XY charts, category labels for donut/horizontal.
 const legendItems = computed<{ label: string; color: string }[]>(() => {
     if (isCircular.value || isHorizontalBar.value) {
@@ -266,6 +277,36 @@ const pieTooltipTemplate = (d: any) => {
         </CardHeader>
 
         <CardContent class="font-sans w-full text-muted-foreground">
+            <!-- Area gradient defs (referenced by VisArea fill) -->
+            <svg
+                v-if="chartType === 'area'"
+                aria-hidden="true"
+                style="position: absolute; width: 0; height: 0"
+            >
+                <defs>
+                    <linearGradient
+                        v-for="(_, index) in datasets"
+                        :id="areaGradientId(index)"
+                        :key="index"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                    >
+                        <stop
+                            offset="0%"
+                            :stop-color="colorAccessor(null, index)"
+                            stop-opacity="0.4"
+                        />
+                        <stop
+                            offset="100%"
+                            :stop-color="colorAccessor(null, index)"
+                            stop-opacity="0"
+                        />
+                    </linearGradient>
+                </defs>
+            </svg>
+
             <!-- Horizontal bars (div-based, crisp) -->
             <div v-if="isHorizontalBar" class="space-y-3 py-2">
                 <div
@@ -328,8 +369,7 @@ const pieTooltipTemplate = (d: any) => {
                         v-if="chartType === 'area'"
                         :x="xAccessor"
                         :y="yAccessors"
-                        :color="groupedBarColors"
-                        :opacity="0.2"
+                        :color="areaColors"
                     />
                     <VisLine
                         v-for="(_, index) in datasets"
