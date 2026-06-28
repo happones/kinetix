@@ -91,6 +91,24 @@ const NumberFieldShowcase: Component = {
     },
 };
 
+// Period filter — segmented + select variants.
+const PeriodFilterShowcase: Component = {
+    render() {
+        return h('div', { class: 'flex flex-col items-start gap-4' }, [
+            h(KinetixPeriodFilter, {
+                modelValue: '7d',
+                periods: ['90d', '30d', '7d'],
+                variant: 'segmented',
+            }),
+            h(KinetixPeriodFilter, {
+                modelValue: '90d',
+                periods: ['7d', '30d', '90d', 'year'],
+                variant: 'select',
+            }),
+        ]);
+    },
+};
+
 // Copyable / revealable text inputs for the gallery.
 const CopyableInputShowcase: Component = {
     render() {
@@ -125,6 +143,7 @@ import KinetixAccessibilityPanel from '@/components/KinetixAccessibilityPanel.vu
 import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
+import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
 import KinetixRangeCalendar from '@/components/KinetixRangeCalendar.vue';
 import KinetixDateTimePicker from '@/components/KinetixDateTimePicker.vue';
 import KinetixTimePicker from '@/components/KinetixTimePicker.vue';
@@ -1151,6 +1170,13 @@ export const specimens: Specimen[] = [
         component: CopyableInputShowcase,
         frame: 'card',
         width: 380,
+    },
+    {
+        name: 'period-filter',
+        title: 'Period filter (segmented + select)',
+        component: PeriodFilterShowcase,
+        frame: 'card',
+        width: 420,
     },
     {
         name: 'media-library',

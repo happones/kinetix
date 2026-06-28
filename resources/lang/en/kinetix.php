@@ -387,6 +387,16 @@ return [
     // Table repeater
     'table_repeater_empty' => 'No rows yet.',
 
+    // Period filter
+    'period_today'     => 'Today',
+    'period_yesterday' => 'Yesterday',
+    'period_7d'        => 'Last 7 days',
+    'period_30d'       => 'Last 30 days',
+    'period_90d'       => 'Last 3 months',
+    'period_month'     => 'This month',
+    'period_year'      => 'This year',
+    'period_all'       => 'All time',
+
     // Media library
     'media_add'           => 'Add files',
     'media_uploading'     => 'Uploading…',

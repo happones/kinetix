@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.62.0] - 2026-06-27
+
+### Added
+
+- **Period filter** (**published**) — the common dashboard date-range control
+  (Last 7 days / 30 days / 3 months / This month / …), end to end:
+  - **`KinetixPeriodFilter.vue`** — segmented buttons or a select dropdown,
+    `v-model` the period key.
+  - **`useKinetixPeriod(initial?, { navigate, only })`** composable — `period`
+    (seeded from `?period=`), `range` (`{ start, end }` ISO, client-side), and
+    `setPeriod()` which can push `?period=` to the server (Inertia visit).
+  - **`Period` PHP parser** (`Support\Period`) — `range($key)`,
+    `fromRequest($request, $default)`, `scope($query, $column, $key)` apply the
+    matching `[start, end]` (CarbonImmutable) bounds to a query. The same key set
+    (`today`/`yesterday`/`7d`/`30d`/`90d`/`month`/`year`/`all` + `custom`) drives
+    component, composable and parser so it agrees client↔server.
+  - i18n `period_*` (en/es/fr/pt). (Third step of the widget-enrichment series.)
+
 ## [0.61.0] - 2026-06-27
 
 ### Added

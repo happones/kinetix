@@ -86,6 +86,7 @@ export default withMermaid(
         collapsed: false,
         items: [
           { text: "Widgets", link: "/widgets" },
+          { text: "Period Filter", link: "/period-filter" },
           { text: "Notifications", link: "/notifications" },
           { text: "Notification Preferences", link: "/notification-preferences" },
           { text: "Announcements", link: "/announcements" },
