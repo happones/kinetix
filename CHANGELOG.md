@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-06-27
+
+### Added
+
+- **`ProgressWidget`** — a goal/quota panel rendering a value against a target as
+  a horizontal bar (default) or a circular ring with the percentage in the
+  center. Fluent API: `value()`, `target()`, `display()`, `caption()`,
+  `color()`, `ring()`. The percentage is computed from `value/target` and clamped
+  to 0–100 (a zero target yields 0% without dividing). Registered in
+  `KinetixWidgetsGrid` under `type: 'progress'`. **(published)**
+
 ## [0.66.0] - 2026-06-27
 
 ### Changed

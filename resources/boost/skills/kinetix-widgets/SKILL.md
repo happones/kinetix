@@ -15,6 +15,7 @@ Activate this skill when:
 - Defining statistics overview lists using `Happones\Kinetix\Widgets\StatsOverviewWidget`.
 - Instantiating area, bar, pie, doughnut, or line charts via `Happones\Kinetix\Widgets\ChartWidget`.
 - Displaying lightweight summary tables inside widgets grids using `Happones\Kinetix\Widgets\TableWidget`.
+- Showing a goal/quota progress bar or ring via `Happones\Kinetix\Widgets\ProgressWidget` (`->value()->target()->color()->ring()`).
 - Injecting custom Vue components using `Happones\Kinetix\Widgets\CustomWidget` and custom slots.
 
 ## Documentation

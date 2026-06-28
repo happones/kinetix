@@ -542,9 +542,28 @@ export interface KinetixChartDataset {
     [key: string]: any;
 }
 
+/** A goal/quota progress widget payload. */
+export interface KinetixProgressData {
+    value: number;
+    target: number;
+    percent: number;
+    display: string;
+    caption?: string | null;
+    color: string;
+    ring: boolean;
+}
+
 export interface KinetixWidget {
     id: string;
-    type: 'stats' | 'chart' | 'table' | 'custom' | 'list' | 'rating' | 'hero';
+    type:
+        | 'stats'
+        | 'chart'
+        | 'table'
+        | 'custom'
+        | 'list'
+        | 'rating'
+        | 'hero'
+        | 'progress';
     title?: string;
     description?: string;
     columnSpan: number | string | Record<string, number | string>;

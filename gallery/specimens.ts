@@ -146,6 +146,7 @@ import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
 import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
 import KinetixRatingWidget from '@/components/KinetixRatingWidget.vue';
+import KinetixProgressWidget from '@/components/KinetixProgressWidget.vue';
 import KinetixHeroWidget from '@/components/KinetixHeroWidget.vue';
 import KinetixRangeCalendar from '@/components/KinetixRangeCalendar.vue';
 import KinetixDateTimePicker from '@/components/KinetixDateTimePicker.vue';
@@ -1535,6 +1536,55 @@ export const specimens: Specimen[] = [
                     actionLabel: 'View Sales',
                     actionUrl: '#',
                     gradient: true,
+                },
+            },
+        },
+    },
+    {
+        name: 'progress-widget',
+        title: 'Progress widget — goal bar',
+        component: KinetixProgressWidget,
+        width: 360,
+        props: {
+            widget: {
+                id: 'goal',
+                type: 'progress',
+                columnSpan: 4,
+                sort: 0,
+                title: 'Monthly goal',
+                description: 'Revenue toward target',
+                data: {
+                    value: 7200,
+                    target: 10000,
+                    percent: 72,
+                    display: '$7,200',
+                    caption: 'of $10,000',
+                    color: 'success',
+                    ring: false,
+                },
+            },
+        },
+    },
+    {
+        name: 'progress-widget-ring',
+        title: 'Progress widget — goal ring',
+        component: KinetixProgressWidget,
+        width: 280,
+        props: {
+            widget: {
+                id: 'quota',
+                type: 'progress',
+                columnSpan: 3,
+                sort: 0,
+                title: 'Storage used',
+                data: {
+                    value: 64,
+                    target: 100,
+                    percent: 64,
+                    display: '64%',
+                    caption: '64 GB of 100 GB',
+                    color: 'info',
+                    ring: true,
                 },
             },
         },

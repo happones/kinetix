@@ -4,6 +4,7 @@ import KinetixChartWidget from './KinetixChartWidget.vue';
 import KinetixCustomWidget from './KinetixCustomWidget.vue';
 import KinetixHeroWidget from './KinetixHeroWidget.vue';
 import KinetixListWidget from './KinetixListWidget.vue';
+import KinetixProgressWidget from './KinetixProgressWidget.vue';
 import KinetixRatingWidget from './KinetixRatingWidget.vue';
 import KinetixStatsOverviewWidget from './KinetixStatsOverviewWidget.vue';
 import KinetixTableWidget from './KinetixTableWidget.vue';
@@ -139,6 +140,10 @@ const getItemStyle = (widget: KinetixWidget) => {
             />
             <KinetixRatingWidget
                 v-else-if="widget.type === 'rating'"
+                :widget="widget"
+            />
+            <KinetixProgressWidget
+                v-else-if="widget.type === 'progress'"
                 :widget="widget"
             />
             <KinetixHeroWidget

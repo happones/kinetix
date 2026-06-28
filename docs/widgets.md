@@ -409,7 +409,28 @@ HeroWidget::make()->title('Congratulations Toby! 🎉')->subtitle('Best seller o
 
 <Screenshot name="chart-metrics" alt="Chart with header metrics and an export action" />
 
-### 7. `CustomWidget`
+### 7. `ProgressWidget`
+A goal / quota panel — a value against a target, rendered as a horizontal bar
+(default) or a circular ring with the percentage in the center. Useful for
+"Monthly goal", storage quotas, completion rates, etc.
+- **Methods**:
+  - `value(float)` / `target(float)`: the percentage is computed as `value/target` and clamped to 0–100.
+  - `display(string)`: override the big value text (defaults to the computed `"NN%"`).
+  - `caption(string)`: small supporting text (e.g. `of $10,000`).
+  - `color(string = 'primary')`: fill color — `primary` · `success` · `danger` · `warning` · `info` · `gray`.
+  - `ring(bool = true)`: render a circular ring instead of a bar.
+
+```php
+ProgressWidget::make()->title('Monthly goal')
+    ->value(7200)->target(10000)
+    ->display('$7,200')->caption('of $10,000')
+    ->color('success');
+```
+
+<Screenshot name="progress-widget" alt="Progress widget rendered as a goal bar" />
+<Screenshot name="progress-widget-ring" alt="Progress widget rendered as a circular goal ring" />
+
+### 8. `CustomWidget`
 A wrapper widget designed to expose custom slots.
 - **Methods**:
   - `properties(array $payload)`: Custom settings and variables payload serialized to the Vue template.
