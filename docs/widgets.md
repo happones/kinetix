@@ -322,6 +322,7 @@ Interactive metrics charting backed by Unovis.
   - `stacked(bool $on = true)`: stack multiple series (area is always stacked; `bar` becomes a stacked bar).
   - `legend(bool $on = true)`: show a labelled color-swatch legend below the chart.
   - `centerLabel(string $value, ?string $caption = null)`: a big value + caption in the middle of a `pie`/`doughnut` (e.g. `('10.2K', 'Visitors')`).
+  - `metric(string $label, string $value, ?string $badge = null, ?string $badgeColor = 'gray')`: a headline figure in the chart header (chain for several, e.g. DESKTOP / MOBILE totals).
   - `options(array $options)`: Custom chart properties payload.
 
 ```php
@@ -390,7 +391,25 @@ RatingWidget::make()->title('Customer reviews')
 
 <Screenshot name="rating-widget" alt="Rating widget with average, stars and a per-level breakdown" />
 
-### 6. `CustomWidget`
+### 6. `HeroWidget`
+A prominent hero / call-to-action panel — a greeting + headline value with a
+delta and a primary button.
+- **Methods**: `title()`, `subtitle()`, `value()`, `delta(string $text, string $color = 'success')`, `action(string $label, string $url)`, `gradient(bool $on = true)`.
+
+```php
+HeroWidget::make()->title('Congratulations Toby! 🎉')->subtitle('Best seller of the month')
+    ->value('$15,231.89')->delta('+65% from last month', 'success')
+    ->action('View Sales', '/sales')->gradient();
+```
+
+<Screenshot name="hero-widget" alt="Hero / CTA widget" />
+
+`ChartWidget` headers can also surface headline figures with
+`->metric($label, $value, $badge?, $badgeColor?)` (e.g. DESKTOP / MOBILE totals):
+
+<Screenshot name="chart-metrics" alt="Chart with header metrics and an export action" />
+
+### 7. `CustomWidget`
 A wrapper widget designed to expose custom slots.
 - **Methods**:
   - `properties(array $payload)`: Custom settings and variables payload serialized to the Vue template.

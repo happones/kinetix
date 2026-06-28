@@ -25,6 +25,13 @@ class ChartWidget extends Widget
     protected ?string $centerValue = null;
 
     /**
+     * Headline metrics shown in the chart header (e.g. DESKTOP / MOBILE totals).
+     *
+     * @var array<int, array{label: string, value: string, badge: string|null, badgeColor: string|null}>
+     */
+    protected array $metrics = [];
+
+    /**
      * line | area | bar | horizontalBar | pie | doughnut.
      */
     public function chartType(string $chartType): static
@@ -65,6 +72,22 @@ class ChartWidget extends Widget
         return $this;
     }
 
+    /**
+     * Add a headline metric to the chart header (e.g. `metric('Desktop', '24,828')`).
+     * Chain for several; an optional badge shows a trend chip beside the value.
+     */
+    public function metric(string $label, string $value, ?string $badge = null, ?string $badgeColor = 'gray'): static
+    {
+        $this->metrics[] = [
+            'label'      => $label,
+            'value'      => $value,
+            'badge'      => $badge,
+            'badgeColor' => $badge !== null ? $badgeColor : null,
+        ];
+
+        return $this;
+    }
+
     public function labels(array $labels): static
     {
         $this->labels = $labels;
@@ -97,6 +120,7 @@ class ChartWidget extends Widget
             'legend'      => $this->legend,
             'centerValue' => $this->centerValue,
             'centerLabel' => $this->centerLabel,
+            'metrics'     => $this->metrics,
         ];
     }
 }

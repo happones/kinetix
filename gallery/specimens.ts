@@ -145,6 +145,7 @@ import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
 import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
 import KinetixRatingWidget from '@/components/KinetixRatingWidget.vue';
+import KinetixHeroWidget from '@/components/KinetixHeroWidget.vue';
 import KinetixRangeCalendar from '@/components/KinetixRangeCalendar.vue';
 import KinetixDateTimePicker from '@/components/KinetixDateTimePicker.vue';
 import KinetixTimePicker from '@/components/KinetixTimePicker.vue';
@@ -1475,6 +1476,61 @@ export const specimens: Specimen[] = [
         component: KinetixChartWidget,
         width: 700,
         props: { widget: areaChartWidget },
+    },
+    {
+        name: 'chart-metrics',
+        title: 'Chart — header metrics + action',
+        component: KinetixChartWidget,
+        width: 700,
+        props: {
+            widget: {
+                id: 'revenue-metrics',
+                type: 'chart',
+                columnSpan: 12,
+                sort: 0,
+                title: 'Total Revenue',
+                description: 'Income in the last 28 days',
+                headerActions: [
+                    { label: 'Export', url: '#', icon: 'download' },
+                ],
+                data: {
+                    chartType: 'bar',
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [
+                        { label: 'Desktop', data: [42, 58, 51, 38, 33, 60] },
+                        { label: 'Mobile', data: [40, 45, 30, 52, 38, 35] },
+                    ],
+                    metrics: [
+                        { label: 'Desktop', value: '24,828', badge: null },
+                        { label: 'Mobile', value: '25,010', badge: null },
+                    ],
+                },
+            },
+        },
+    },
+    {
+        name: 'hero-widget',
+        title: 'Hero / CTA widget',
+        component: KinetixHeroWidget,
+        width: 520,
+        props: {
+            widget: {
+                id: 'hero',
+                type: 'hero',
+                columnSpan: 4,
+                sort: 0,
+                title: 'Congratulations Toby! 🎉',
+                data: {
+                    subtitle: 'Best seller of the month',
+                    value: '$15,231.89',
+                    delta: '+65% from last month',
+                    deltaColor: 'success',
+                    actionLabel: 'View Sales',
+                    actionUrl: '#',
+                    gradient: true,
+                },
+            },
+        },
     },
     {
         name: 'chart-hbar',

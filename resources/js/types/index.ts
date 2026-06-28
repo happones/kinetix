@@ -493,6 +493,14 @@ export interface KinetixRatingLevel {
     pct: number;
 }
 
+/** A headline metric shown in a chart widget header. */
+export interface KinetixChartMetric {
+    label: string;
+    value: string;
+    badge?: string | null;
+    badgeColor?: string | null;
+}
+
 /** A row in a KinetixListWidget. */
 export interface KinetixListItem {
     title: string;
@@ -517,7 +525,7 @@ export interface KinetixChartDataset {
 
 export interface KinetixWidget {
     id: string;
-    type: 'stats' | 'chart' | 'table' | 'custom' | 'list' | 'rating';
+    type: 'stats' | 'chart' | 'table' | 'custom' | 'list' | 'rating' | 'hero';
     title?: string;
     description?: string;
     columnSpan: number | string | Record<string, number | string>;

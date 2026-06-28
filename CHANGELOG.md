@@ -13,7 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.63.0] - 2026-06-27
+## [0.64.0] - 2026-06-27
+
+### Added
+
+- **Hero / CTA widget** (`HeroWidget`, **published**) — a prominent panel with a
+  greeting + headline value, a delta line and a primary button (e.g.
+  "Congratulations Toby! · $15,231.89 · +65% from last month · View Sales").
+  `HeroWidget::make()->title()->subtitle()->value()->delta($text, $color)
+  ->action($label, $url)->gradient()`. Registered as `type: hero`.
+- **Chart header metrics** (**published**) — `ChartWidget::metric($label, $value,
+  $badge?, $badgeColor?)` (chainable) shows headline figures in the chart header
+  (e.g. DESKTOP 24,828 / MOBILE 25,010, or a value + trend chip). New
+  `KinetixChartMetric` TS type; `KinetixWidget.type` includes `hero`.
+
+
 
 ### Added
 

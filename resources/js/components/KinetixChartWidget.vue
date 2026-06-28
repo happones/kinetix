@@ -12,7 +12,8 @@ import {
     VisCrosshair,
 } from '@unovis/vue';
 import { computed } from 'vue';
-import type { KinetixWidget } from '@/types';
+import { statusBadgeClass } from '@/composables/useStatusColor';
+import type { KinetixChartMetric, KinetixWidget } from '@/types';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';
@@ -36,6 +37,9 @@ const centerCaption = computed<string | null>(
     () => props.widget.data.centerLabel ?? null,
 );
 const isHorizontalBar = computed(() => chartType.value === 'horizontalBar');
+const metrics = computed<KinetixChartMetric[]>(
+    () => props.widget.data.metrics ?? [],
+);
 
 // Transform standard chart dataset structure to Unovis format
 // Map string labels to numeric indices to avoid NaN errors on continuous scale
@@ -217,7 +221,8 @@ const pieTooltipTemplate = (d: any) => {
             v-if="
                 widget.title ||
                 widget.description ||
-                widget.headerActions?.length
+                widget.headerActions?.length ||
+                metrics.length
             "
         >
             <div class="gap-3 flex items-start justify-between">
@@ -229,7 +234,34 @@ const pieTooltipTemplate = (d: any) => {
                         {{ widget.description }}
                     </CardDescription>
                 </div>
-                <WidgetHeaderActions :actions="widget.headerActions" />
+                <div class="gap-4 flex shrink-0 items-center">
+                    <!-- Header metrics (e.g. DESKTOP / MOBILE totals) -->
+                    <div
+                        v-for="(metric, i) in metrics"
+                        :key="i"
+                        class="text-right"
+                    >
+                        <div
+                            class="font-medium tracking-wide text-[10px] text-muted-foreground uppercase"
+                        >
+                            {{ metric.label }}
+                        </div>
+                        <div
+                            class="gap-1.5 text-lg font-bold flex items-center justify-end text-foreground"
+                        >
+                            {{ metric.value }}
+                            <span
+                                v-if="metric.badge"
+                                class="px-1.5 py-0.5 text-xs font-medium rounded-full"
+                                :class="
+                                    statusBadgeClass(metric.badgeColor as any)
+                                "
+                                >{{ metric.badge }}</span
+                            >
+                        </div>
+                    </div>
+                    <WidgetHeaderActions :actions="widget.headerActions" />
+                </div>
             </div>
         </CardHeader>
 
