@@ -311,6 +311,8 @@ Stat::make('Sales today', '$502.30')
     ->description('+12.5% vs yesterday')->descriptionIcon('arrow-up')->descriptionColor('success');
 ```
 
+<Screenshot name="stats-link-widget" alt="Stat cards with a header trend badge and a 'View more' footer link" />
+
 ### 2. `ChartWidget`
 Interactive metrics charting backed by Unovis.
 - **Methods**:
@@ -334,6 +336,12 @@ ChartWidget::make()->title('Store visits')->chartType('doughnut')
     ->centerLabel('10.2K', 'Visitors')->legend()
     ->labels(['Direct', 'Social', 'Email'])->datasets([['data' => [4200, 2600, 1800]]]);
 ```
+
+<Screenshot name="chart-area" alt="Stacked area chart with a legend" />
+
+<Screenshot name="chart-hbar" alt="Horizontal bar chart" />
+
+<Screenshot name="chart-donut" alt="Donut chart with a center label" />
 
 ### 3. `TableWidget`
 Renders quick-reference summary tables.
@@ -363,6 +371,8 @@ ListWidget::make()
     ->action('View inventory', '/inventory');
 ```
 
+<Screenshot name="list-widget" alt="List widget with an Export header action and a footer link" />
+
 ### 5. `RatingWidget`
 A ratings summary — an average score + stars and a per-level breakdown (like a
 "Customer Reviews" panel).
@@ -377,6 +387,8 @@ RatingWidget::make()->title('Customer reviews')
     ->average(4.5)->total(5500)
     ->breakdown([5 => 4000, 4 => 2100, 3 => 800, 2 => 631, 1 => 344]);
 ```
+
+<Screenshot name="rating-widget" alt="Rating widget with average, stars and a per-level breakdown" />
 
 ### 6. `CustomWidget`
 A wrapper widget designed to expose custom slots.
