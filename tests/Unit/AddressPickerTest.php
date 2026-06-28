@@ -29,6 +29,26 @@ class AddressPickerTest extends TestCase
         $this->assertSame(['country', 'city', 'line1'], $data->addressFields);
     }
 
+    public function test_except_hides_a_single_sub_field(): void
+    {
+        $data = AddressPicker::make('address')
+            ->except('country')
+            ->toData('create', null);
+
+        $this->assertSame(['line1', 'line2', 'city', 'state', 'postalCode'], $data->addressFields);
+        $this->assertNotContains('country', $data->addressFields);
+    }
+
+    public function test_except_hides_multiple_sub_fields_and_composes_with_fields(): void
+    {
+        $data = AddressPicker::make('address')
+            ->fields(['line1', 'line2', 'city', 'country'])
+            ->except(['line2', 'country'])
+            ->toData('create', null);
+
+        $this->assertSame(['line1', 'city'], $data->addressFields);
+    }
+
     public function test_countries_overrides_the_option_set(): void
     {
         $data = AddressPicker::make('address')

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  *
  *     AddressPicker::make('address');
  *     AddressPicker::make('address')->fields(['line1', 'city', 'country']);
+ *     AddressPicker::make('address')->except('country'); // hide one or more parts
  *     AddressPicker::make('address')->countries(['US' => 'United States', 'MX' => 'Mexico']);
  */
 class AddressPicker extends Field
@@ -44,6 +45,21 @@ class AddressPicker extends Field
     public function fields(array $fields): static
     {
         $this->fields = array_values(array_intersect($fields, self::FIELDS));
+
+        return $this;
+    }
+
+    /**
+     * Hide one or more sub-fields, keeping the rest (and their order). The
+     * ergonomic inverse of {@see fields()} — e.g. `->except('country')` or
+     * `->except(['line2', 'country'])`.
+     *
+     * @param array<int, string>|string $fields
+     */
+    public function except(array|string $fields): static
+    {
+        $exclude      = is_array($fields) ? $fields : [$fields];
+        $this->fields = array_values(array_diff($this->fields, $exclude));
 
         return $this;
     }

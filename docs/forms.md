@@ -492,7 +492,8 @@ callback. As a **table filter**, use `DateRangeFilter` (see
 A structured address field. Stores `{ line1, line2, city, state, postalCode,
 country }` and renders a text input per part plus a **searchable country select**
 sourced from a built-in ISO 3166-1 list. Limit/reorder the sub-fields with
-`->fields()`, or replace the country options with `->countries()`.
+`->fields()`, hide one or more with `->except()`, or replace the country options
+with `->countries()`.
 
 <Screenshot name="address-picker" alt="Address picker" />
 
@@ -501,6 +502,8 @@ use Happones\Kinetix\Forms\Components\AddressPicker;
 
 AddressPicker::make('address');                              // all six sub-fields
 AddressPicker::make('address')->fields(['line1', 'city', 'country']);
+AddressPicker::make('address')->except('country');           // hide the country select
+AddressPicker::make('address')->except(['line2', 'country']);
 AddressPicker::make('address')->countries(['US' => 'United States', 'MX' => 'Mexico']);
 ```
 

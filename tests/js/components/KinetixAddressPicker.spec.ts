@@ -51,6 +51,16 @@ describe('KinetixAddressPicker', () => {
         expect(w.find('#kx-addr-line1').exists()).toBe(false);
     });
 
+    it('omits the country select when country is not in fields', () => {
+        const w = mountWith({
+            fields: ['line1', 'line2', 'city', 'state', 'postalCode'],
+            countries: { US: 'United States' },
+        });
+
+        expect(w.find('#kx-addr-country').exists()).toBe(false);
+        expect(w.findAll('input[type="text"]')).toHaveLength(5);
+    });
+
     it('emits the merged address object on input', async () => {
         const w = mountWith({ value: { city: 'Austin' } });
         const postal = w.find('#kx-addr-postalCode');

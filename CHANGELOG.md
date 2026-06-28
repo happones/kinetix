@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.0] - 2026-06-27
+
+### Added
+
+- **`AddressPicker::except()`** — hide one or more address sub-fields without
+  spelling out the full allowlist, e.g. `->except('country')` or
+  `->except(['line2', 'country'])`. The ergonomic inverse of `->fields()`;
+  composes after it and preserves the remaining order. **(published)**
+
 ## [0.67.0] - 2026-06-27
 
 ### Added
