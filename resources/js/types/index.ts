@@ -486,6 +486,13 @@ export interface KinetixWidgetAction {
     icon?: string | null;
 }
 
+/** A star-level row in a KinetixRatingWidget breakdown. */
+export interface KinetixRatingLevel {
+    level: number;
+    count: number;
+    pct: number;
+}
+
 /** A row in a KinetixListWidget. */
 export interface KinetixListItem {
     title: string;
@@ -510,7 +517,7 @@ export interface KinetixChartDataset {
 
 export interface KinetixWidget {
     id: string;
-    type: 'stats' | 'chart' | 'table' | 'custom' | 'list';
+    type: 'stats' | 'chart' | 'table' | 'custom' | 'list' | 'rating';
     title?: string;
     description?: string;
     columnSpan: number | string | Record<string, number | string>;

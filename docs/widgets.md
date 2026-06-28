@@ -363,7 +363,22 @@ ListWidget::make()
     ->action('View inventory', '/inventory');
 ```
 
-### 5. `CustomWidget`
+### 5. `RatingWidget`
+A ratings summary — an average score + stars and a per-level breakdown (like a
+"Customer Reviews" panel).
+- **Methods**:
+  - `average(float)`: the average score (drives the stars, supports half-stars).
+  - `total(int)`: total number of reviews (shown as "Based on N reviews").
+  - `max(int = 5)`: the star scale.
+  - `breakdown(array $levelToCount)`: `[5 => 4000, 4 => 2100, …]` — emitted high→low with computed bar percentages.
+
+```php
+RatingWidget::make()->title('Customer reviews')
+    ->average(4.5)->total(5500)
+    ->breakdown([5 => 4000, 4 => 2100, 3 => 800, 2 => 631, 1 => 344]);
+```
+
+### 6. `CustomWidget`
 A wrapper widget designed to expose custom slots.
 - **Methods**:
   - `properties(array $payload)`: Custom settings and variables payload serialized to the Vue template.

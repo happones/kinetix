@@ -372,6 +372,8 @@ return [
     'health_status_warning'     => 'Avertissement',
     'health_status_failed'      => 'En échec',
     'table_repeater_empty'      => 'Aucune ligne pour l’instant.',
+    'rating_out_of'             => 'sur :max',
+    'rating_reviews'            => 'Basé sur :total avis',
     'period_today'              => 'Aujourd’hui',
     'period_yesterday'          => 'Hier',
     'period_7d'                 => '7 derniers jours',

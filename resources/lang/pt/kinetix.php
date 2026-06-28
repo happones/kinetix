@@ -372,6 +372,8 @@ return [
     'health_status_warning'     => 'Aviso',
     'health_status_failed'      => 'Com falhas',
     'table_repeater_empty'      => 'Ainda não há linhas.',
+    'rating_out_of'             => 'de :max',
+    'rating_reviews'            => 'Com base em :total avaliações',
     'period_today'              => 'Hoje',
     'period_yesterday'          => 'Ontem',
     'period_7d'                 => 'Últimos 7 dias',

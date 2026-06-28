@@ -387,6 +387,10 @@ return [
     // Table repeater
     'table_repeater_empty' => 'No rows yet.',
 
+    // Rating widget
+    'rating_out_of'  => 'out of :max',
+    'rating_reviews' => 'Based on :total reviews',
+
     // Period filter
     'period_today'     => 'Today',
     'period_yesterday' => 'Yesterday',

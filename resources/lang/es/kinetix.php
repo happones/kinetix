@@ -372,6 +372,8 @@ return [
     'health_status_warning'     => 'Advertencia',
     'health_status_failed'      => 'Con fallos',
     'table_repeater_empty'      => 'Aún no hay filas.',
+    'rating_out_of'             => 'de :max',
+    'rating_reviews'            => 'Basado en :total reseñas',
     'period_today'              => 'Hoy',
     'period_yesterday'          => 'Ayer',
     'period_7d'                 => 'Últimos 7 días',

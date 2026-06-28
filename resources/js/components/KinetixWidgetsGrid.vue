@@ -3,6 +3,7 @@ import type { KinetixWidget, KinetixWidgetsGridData } from '@/types';
 import KinetixChartWidget from './KinetixChartWidget.vue';
 import KinetixCustomWidget from './KinetixCustomWidget.vue';
 import KinetixListWidget from './KinetixListWidget.vue';
+import KinetixRatingWidget from './KinetixRatingWidget.vue';
 import KinetixStatsOverviewWidget from './KinetixStatsOverviewWidget.vue';
 import KinetixTableWidget from './KinetixTableWidget.vue';
 
@@ -133,6 +134,10 @@ const getItemStyle = (widget: KinetixWidget) => {
             />
             <KinetixListWidget
                 v-else-if="widget.type === 'list'"
+                :widget="widget"
+            />
+            <KinetixRatingWidget
+                v-else-if="widget.type === 'rating'"
                 :widget="widget"
             />
             <KinetixCustomWidget

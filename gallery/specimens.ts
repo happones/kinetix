@@ -144,6 +144,7 @@ import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
 import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
+import KinetixRatingWidget from '@/components/KinetixRatingWidget.vue';
 import KinetixRangeCalendar from '@/components/KinetixRangeCalendar.vue';
 import KinetixDateTimePicker from '@/components/KinetixDateTimePicker.vue';
 import KinetixTimePicker from '@/components/KinetixTimePicker.vue';
@@ -874,6 +875,35 @@ export const specimens: Specimen[] = [
         component: KinetixListWidget,
         width: 380,
         props: { widget: listWidget },
+    },
+    {
+        name: 'rating-widget',
+        title: 'Rating widget (reviews breakdown)',
+        component: KinetixRatingWidget,
+        frame: 'card',
+        width: 460,
+        props: {
+            widget: {
+                id: 'reviews',
+                type: 'rating',
+                columnSpan: 6,
+                sort: 0,
+                title: 'Customer reviews',
+                description: 'Based on 5,500 verified purchases',
+                data: {
+                    average: 4.5,
+                    total: 5500,
+                    max: 5,
+                    breakdown: [
+                        { level: 5, count: 4000, pct: 100 },
+                        { level: 4, count: 2100, pct: 53 },
+                        { level: 3, count: 800, pct: 20 },
+                        { level: 2, count: 631, pct: 16 },
+                        { level: 1, count: 344, pct: 9 },
+                    ],
+                },
+            },
+        },
     },
     {
         name: 'range-calendar',

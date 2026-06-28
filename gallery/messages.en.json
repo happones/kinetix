@@ -315,6 +315,8 @@
         "health_status_warning": "Warning",
         "health_status_failed": "Failing",
         "table_repeater_empty": "No rows yet.",
+        "rating_out_of": "out of {max}",
+        "rating_reviews": "Based on {total} reviews",
         "period_today": "Today",
         "period_yesterday": "Yesterday",
         "period_7d": "Last 7 days",

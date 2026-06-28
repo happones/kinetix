@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.63.0] - 2026-06-27
+
+### Added
+
+- **Rating widget** (`RatingWidget`, **published**) — a ratings summary panel:
+  an average score with proportional stars (half-stars via a clipped overlay) and
+  a per-level breakdown of review counts as colored bars (green→red), like a
+  product "Customer Reviews" card. `RatingWidget::make()->average(4.5)
+  ->total(5500)->breakdown([5 => 4000, 4 => 2100, …])`; the breakdown is emitted
+  high→low with computed percentages. Registered as `type: rating` in
+  `KinetixWidgetsGrid`; supports header actions. i18n `rating_out_of`/
+  `rating_reviews` (en/es/fr/pt); new `KinetixRatingLevel` TS type. Final step of
+  the widget-enrichment series.
+
 ## [0.62.0] - 2026-06-27
 
 ### Added
