@@ -172,7 +172,7 @@ class BillingManager
     }
 
     /**
-     * @return array{active: bool, onGracePeriod: bool, status: ?string, endsAt: ?string, stripePrice: ?string, onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool}
+     * @return array{active: bool, onGracePeriod: bool, status: ?string, endsAt: ?string, stripePrice: ?string, onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool, trialPlan: ?string}
      */
     public function subscriptionData(): array
     {
@@ -202,6 +202,7 @@ class BillingManager
             'onTrial'        => $onTrial || $onGenericTrial,
             'trialEndsAt'    => $trialEndsAt ?? $genericTrialEndsAt,
             'onGenericTrial' => $onGenericTrial,
+            'trialPlan'      => $onGenericTrial ? ($this->billable->trial_plan ?? null) : null,
         ];
     }
 
@@ -223,6 +224,9 @@ class BillingManager
     /**
      * Subscribe to, swap to, or downgrade from a plan. Free plans cancel the
      * current paid subscription (downgrade); paid plans create or swap.
+     * When trial_generic is active and the plan has trial_days, a generic
+     * trial is set on the billable model instead of creating a Stripe
+     * subscription — no payment method is required.
      */
     public function subscribe(string $planSlug, ?string $paymentMethod = null, string $cycle = 'monthly'): void
     {
@@ -232,11 +236,30 @@ class BillingManager
         /** @var Plan $plan */
         $plan = $model::query()->where('slug', $planSlug)->firstOrFail();
 
+        $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
+        $planHasTrial = $plan->trial_days !== null && $plan->trial_days > 0;
+
         // Downgrade: a free plan means cancel any active paid subscription.
         if ($plan->isFree()) {
             if ($this->subscribed()) {
                 $this->subscription()->cancel();
             }
+
+            return;
+        }
+
+        // When trial_generic is active and the plan has trial days, set up a
+        // generic trial on the billable instead of creating a Stripe
+        // subscription. This allows subscribing without a payment method.
+        if ($trialGeneric && $planHasTrial) {
+            if ($this->subscribed()) {
+                $this->subscription()->cancel();
+            }
+
+            $this->billable->forceFill([
+                'trial_ends_at' => now()->addDays($plan->trial_days),
+                'trial_plan'    => $planSlug,
+            ])->save();
 
             return;
         }
@@ -259,8 +282,15 @@ class BillingManager
             return;
         }
 
-        $trialGeneric            = (bool) config('kinetix.billing.trial_generic', false);
-        $hasTrial                = ! $trialGeneric && $plan->trial_days !== null && $plan->trial_days > 0;
+        // Clear any active generic trial when creating a real Stripe subscription.
+        if ($trialGeneric && method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial()) {
+            $this->billable->forceFill([
+                'trial_ends_at' => null,
+                'trial_plan'    => null,
+            ])->save();
+        }
+
+        $hasTrial                = ! $trialGeneric && $planHasTrial;
         $hasDefaultPaymentMethod = method_exists($this->billable, 'hasDefaultPaymentMethod')
             && $this->billable->hasDefaultPaymentMethod();
 

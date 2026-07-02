@@ -187,6 +187,7 @@ class PlanSeeder extends Seeder
             'name'          => 'Free',
             'description'   => 'Get started at no cost.',
             'monthly_price' => 0,
+            'is_free'       => true,
             'features'      => [
                 'usage'        => ['projects' => 1],
                 'capabilities' => ['api' => false, 'priority_support' => false],
@@ -200,6 +201,7 @@ class PlanSeeder extends Seeder
             'description'             => 'For growing teams.',
             'monthly_price'           => 29,
             'yearly_price'            => 290,
+            'is_free'                 => false,
             'stripe_monthly_price_id' => env('STRIPE_PRICE_PRO_MONTHLY'),
             'stripe_yearly_price_id'  => env('STRIPE_PRICE_PRO_YEARLY'),
             'features'                => [

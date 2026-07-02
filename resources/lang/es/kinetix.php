@@ -102,6 +102,7 @@ return [
     'billing_trial'                => 'Prueba',
     'billing_trial_ends_on'        => 'La prueba termina el',
     'billing_trial_active'         => 'Estás en una prueba gratuita hasta el :date.',
+    'billing_trial_active_plan'    => 'Estás probando el plan :plan hasta el :date.',
     'billing_trial_badge'          => 'Prueba de :days días',
     'billing_invoices'             => 'Facturas',
     'billing_date'                 => 'Fecha',

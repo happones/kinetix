@@ -760,6 +760,7 @@ export interface KinetixPlanData {
     isFeatured: boolean;
     isFree: boolean;
     sortOrder: number;
+    trialDays: number | null;
 }
 
 export interface KinetixPaymentMethod {
@@ -787,4 +788,5 @@ export interface KinetixSubscriptionData {
     onTrial: boolean;
     trialEndsAt: string | null;
     onGenericTrial: boolean;
+    trialPlan: string | null;
 }

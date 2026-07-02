@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`is_free` column on plans** — Added `is_free` boolean column to the plans migration, model, and seeder template. `Plan::isFree()` now checks the column first, then falls back to `monthly_price <= 0`. **(published)**
+- **Generic trial `trial_plan` support** — When `trial_generic` is enabled, subscribing to a plan with `trial_days` sets `trial_ends_at` and `trial_plan` on the billable model without creating a Stripe subscription (no payment method required). Consumers must add a `trial_plan` (nullable string) column to their billable model's table. `HasPlan::currentPlan()` returns the trial plan while the trial is active, then falls back to Stripe. `BillingManager::subscriptionData()` now includes `trialPlan`. **(published)**
+- **`trialPlan` in `KinetixSubscriptionData`** — TypeScript interface updated with `trialPlan: string | null`. **(published)**
+- **`trialDays` in `KinetixPlanData`** — TypeScript interface updated with `trialDays: number | null`. **(published)**
+- **`billing_trial_active_plan` i18n key** — New translation key in all four languages for showing the active trial plan name in the subscriptions status component. **(published)**
+- **`KinetixSubscriptionStatus` trial plan display** — The subscription status component now shows which plan is being trialed during a generic trial. **(published)**
+
+### Changed
+
+- **Generic trial `subscribe()` flow** — When `trial_generic` is enabled and the plan has `trial_days`, `BillingManager::subscribe()` now sets up a generic trial on the billable instead of creating a Stripe subscription. Previously it created a Stripe subscription without passing trial days. **(published)**
+
 ## [0.69.3] - 2026-07-02
 
 ### Fixed

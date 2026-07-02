@@ -98,22 +98,33 @@ The user enters their credit card to start a subscription, but is not charged un
 
 #### B. Generic Trials (No Card Upfront)
 Users get trial access immediately upon registration without providing their payment details. Once the trial expires, they are prompted to subscribe with a card.
-1. **Configure Kinetix Billing**: In your `.env` file, enable generic trials:
+1. **Add the `trial_plan` column**: Add a `trial_plan` (nullable string) column to your billable model's table (e.g. `users`, `teams`):
+   ```php
+   Schema::table('users', function (Blueprint $table) {
+       $table->string('trial_plan')->nullable();
+   });
+   ```
+   This column stores which plan the user is currently trialing during the generic trial period.
+2. **Configure Kinetix Billing**: In your `.env` file, enable generic trials:
    ```env
    KINETIX_BILLING_TRIAL_GENERIC=true
    ```
-2. **Assign Trial on Registration**: In your registration controller, set the `trial_ends_at` column on the user (or team) model:
+3. **Set `trial_days` on your plans**: In your `plans` table or seeder, add `trial_days` to the plans users can trial (e.g. `14` or `30`).
+4. **Assign Trial on Registration**: In your registration controller, set the `trial_ends_at` and `trial_plan` columns on the user (or team) model:
    ```php
    $user = User::create([
        'name' => $data['name'],
        'email' => $data['email'],
        'password' => Hash::make($data['password']),
        'trial_ends_at' => now()->addDays(14),
+       'trial_plan' => 'pro',
    ]);
    ```
-3. When `KINETIX_BILLING_TRIAL_GENERIC` is `true`:
-   * Kinetix reports the generic trial status (`trial_ends_at`) to the UI.
-   * Subscription creations ignore the plan's `trial_days` column to prevent users from getting a second trial in Stripe after their generic trial ends.
+5. When `KINETIX_BILLING_TRIAL_GENERIC` is `true`:
+   * Subscribing to a plan that has `trial_days` sets up a generic trial on the billable model (`trial_ends_at` + `trial_plan`) **without** creating a Stripe subscription — no payment method is required.
+   * While the generic trial is active, `HasPlan::currentPlan()` returns the trial plan; once expired, it falls back to the Stripe subscription.
+   * `BillingManager::subscriptionData()` includes the `trialPlan` key with the current trial plan slug (or `null`).
+   * Plans without `trial_days` create normal Stripe subscriptions as usual (payment method required).
 
 ---
 
@@ -152,6 +163,8 @@ Plan::create([
     'yearly_price'            => 290,
     'stripe_monthly_price_id' => 'price_...',
     'stripe_yearly_price_id'  => 'price_...',
+    'is_free'                 => false,
+    'trial_days'              => 14,
     'features' => [
         'usage'        => ['projects' => null], // null = unlimited
         'capabilities' => ['api' => true, 'sso' => false],
@@ -170,7 +183,7 @@ The slug is generated from the name automatically. Feature-gating helpers:
 | `hasReachedLimit('usage.projects', $count)` | `null` limit = unlimited |
 | `priceFor('monthly'\|'yearly')` | Float price for the cycle |
 | `stripePriceId('monthly'\|'yearly')` | Stripe price id for the cycle |
-| `isFree()` | `monthly_price <= 0` |
+| `isFree()` | `true` when `is_free` column is `true` or `monthly_price <= 0` |
 
 ### Feature gating from the billable
 
@@ -219,7 +232,7 @@ $manager->invoices();
 $manager->subscriptionData();
 ```
 
-`subscribe()` is smart: a **free** plan cancels the current subscription (downgrade); a paid plan **swaps** an existing subscription (resuming first if on a grace period) or **creates** a new one (requires a payment method).
+`subscribe()` is smart: a **free** plan cancels the current subscription (downgrade); when `trial_generic` is enabled and the plan has `trial_days`, it sets a generic trial on the billable without creating a Stripe subscription; otherwise a paid plan **swaps** an existing subscription (resuming first if on a grace period) or **creates** a new one (requires a payment method).
 
 ### Full method reference
 

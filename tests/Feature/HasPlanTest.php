@@ -31,9 +31,16 @@ class BillableUser extends Authenticatable
 
     public ?FakeSubscription $fakeSubscription = null;
 
+    public ?string $trial_plan = null;
+
     public function subscription(string $type = 'default'): ?FakeSubscription
     {
         return $this->fakeSubscription;
+    }
+
+    public function onGenericTrial(): bool
+    {
+        return false;
     }
 }
 
@@ -59,6 +66,8 @@ class HasPlanTest extends TestCase
             $table->string('stripe_yearly_price_id')->nullable();
             $table->json('features')->nullable();
             $table->json('highlighted_features')->nullable();
+            $table->unsignedInteger('trial_days')->nullable();
+            $table->boolean('is_free')->default(false);
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0);
@@ -126,6 +135,28 @@ class HasPlanTest extends TestCase
 
         $user                   = BillableUser::create(['name' => 'Jane']);
         $user->fakeSubscription = new FakeSubscription('price_pro_y');
+
+        $this->assertTrue($user->currentPlan()->is($plan));
+    }
+
+    public function test_current_plan_resolves_from_trial_plan_when_on_generic_trial(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $plan = Plan::create([
+            'name'          => 'Pro',
+            'monthly_price' => 29,
+        ]);
+
+        $user = new class extends BillableUser
+        {
+            public function onGenericTrial(): bool
+            {
+                return true;
+            }
+        };
+        $user->trial_plan       = 'pro';
+        $user->fakeSubscription = new FakeSubscription('price_pro_m');
 
         $this->assertTrue($user->currentPlan()->is($plan));
     }

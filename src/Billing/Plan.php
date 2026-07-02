@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
  * @property string|null               $stripe_yearly_price_id
  * @property array<string, mixed>|null $features
  * @property array<int, string>|null   $highlighted_features
+ * @property bool                      $is_free
  * @property bool                      $is_featured
  * @property bool                      $is_active
  * @property int                       $sort_order
@@ -43,6 +44,7 @@ class Plan extends Model
         'stripe_yearly_price_id',
         'features',
         'highlighted_features',
+        'is_free',
         'is_featured',
         'is_active',
         'sort_order',
@@ -55,6 +57,7 @@ class Plan extends Model
     protected $casts = [
         'features'             => 'array',
         'highlighted_features' => 'array',
+        'is_free'              => 'boolean',
         'is_featured'          => 'boolean',
         'is_active'            => 'boolean',
         'monthly_price'        => 'decimal:2',
@@ -143,6 +146,10 @@ class Plan extends Model
 
     public function isFree(): bool
     {
+        if ((bool) $this->is_free) {
+            return true;
+        }
+
         return (float) $this->monthly_price <= 0.0;
     }
 }

@@ -105,12 +105,16 @@ class FakeBillable extends Model
 
     public function onGenericTrial(): bool
     {
-        return $this->isGenericTrial;
+        if ($this->isGenericTrial) {
+            return true;
+        }
+
+        return $this->trial_ends_at instanceof Carbon && $this->trial_ends_at->isFuture();
     }
 
     public function trialEndsAt(string $type = 'default'): ?Carbon
     {
-        return $this->trial_ends_at;
+        return $this->trial_ends_at ?? $this->getAttribute('trial_ends_at');
     }
 
     public function subscribed(string $type = 'default'): bool
@@ -157,6 +161,8 @@ class BillingManagerTest extends TestCase
 
         Schema::create('fake_billables', function (Blueprint $table) {
             $table->increments('id');
+            $table->timestamp('trial_ends_at')->nullable();
+            $table->string('trial_plan')->nullable();
         });
 
         Schema::create('plans', function (Blueprint $table) {
@@ -171,6 +177,7 @@ class BillingManagerTest extends TestCase
             $table->json('features')->nullable();
             $table->json('highlighted_features')->nullable();
             $table->unsignedInteger('trial_days')->nullable();
+            $table->boolean('is_free')->default(false);
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0);
@@ -403,11 +410,11 @@ class BillingManagerTest extends TestCase
         $this->assertContains('create:price_trial_m:pm_card:trial-14', $billable->calls);
     }
 
-    public function test_subscribe_does_not_pass_trial_days_from_plan_if_trial_generic_is_true(): void
+    public function test_subscribe_with_generic_trial_sets_trial_plan_on_billable(): void
     {
         config(['kinetix.billing.trial_generic' => true]);
 
-        $billable = new FakeBillable;
+        $billable = FakeBillable::create();
         $plan     = Plan::create([
             'name'                    => 'Trial Plan 2',
             'slug'                    => 'trial-plan-2',
@@ -416,10 +423,21 @@ class BillingManagerTest extends TestCase
             'trial_days'              => 14,
         ]);
 
-        BillingManager::for($billable)->subscribe('trial-plan-2', 'pm_card');
+        $this->assertFalse($plan->isFree(), 'Plan should not be free');
+        $this->assertSame(14, $plan->trial_days, 'Plan should have trial days');
+        $this->assertTrue(config('kinetix.billing.trial_generic'), 'Trial generic should be enabled');
 
-        $this->assertContains('create:price_trial_m2:pm_card', $billable->calls);
-        $this->assertNotContains('create:price_trial_m2:pm_card:trial-14', $billable->calls);
+        BillingManager::for($billable)->subscribe('trial-plan-2');
+
+        $this->assertSame('trial-plan-2', $billable->getAttribute('trial_plan'));
+        $this->assertNotNull($billable->getAttribute('trial_ends_at'));
+        $this->assertTrue($billable->getAttribute('trial_ends_at')->isFuture());
+        $this->assertEmpty($billable->calls);
+
+        $billable->refresh();
+
+        $this->assertSame('trial-plan-2', $billable->getAttribute('trial_plan'));
+        $this->assertNotNull($billable->getAttribute('trial_ends_at'));
     }
 
     public function test_subscribe_to_free_plan_without_payment_method_does_not_throw(): void
@@ -502,5 +520,73 @@ class BillingManagerTest extends TestCase
         $this->expectExceptionMessage('A payment method is required to start a new subscription.');
 
         BillingManager::for($billable)->subscribe('paid-plan-2', null);
+    }
+
+    public function test_generic_trial_subscribe_cancels_existing_stripe_subscription(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable               = FakeBillable::create();
+        $billable->isSubscribed = true;
+        $billable->sub          = new FakeStripeSubscription;
+
+        $plan = Plan::create([
+            'name'                    => 'Pro Trial',
+            'slug'                    => 'pro-trial',
+            'monthly_price'           => 29,
+            'stripe_monthly_price_id' => 'price_pro_trial',
+            'trial_days'              => 14,
+        ]);
+
+        BillingManager::for($billable)->subscribe('pro-trial');
+
+        $this->assertContains('cancel', $billable->sub->calls);
+        $this->assertSame('pro-trial', $billable->getAttribute('trial_plan'));
+        $this->assertTrue($billable->getAttribute('trial_ends_at')->isFuture());
+    }
+
+    public function test_subscription_data_includes_trial_plan(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable                 = new FakeBillable;
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+        $billable->forceFill(['trial_plan' => 'pro']);
+
+        $data = BillingManager::for($billable)->subscriptionData();
+        $this->assertTrue($data['onTrial']);
+        $this->assertTrue($data['onGenericTrial']);
+        $this->assertSame('pro', $data['trialPlan']);
+    }
+
+    public function test_subscription_data_trial_plan_is_null_when_not_on_generic_trial(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable = new FakeBillable;
+
+        $data = BillingManager::for($billable)->subscriptionData();
+        $this->assertNull($data['trialPlan']);
+    }
+
+    public function test_is_free_column_on_plan(): void
+    {
+        $freePlan = Plan::create([
+            'name'          => 'Free Plan',
+            'slug'          => 'free-plan-explicit',
+            'monthly_price' => 0,
+            'is_free'       => true,
+        ]);
+
+        $paidPlan = Plan::create([
+            'name'          => 'Paid Plan',
+            'slug'          => 'paid-plan-explicit',
+            'monthly_price' => 29,
+            'is_free'       => false,
+        ]);
+
+        $this->assertTrue($freePlan->fresh()->isFree());
+        $this->assertFalse($paidPlan->fresh()->isFree());
     }
 }

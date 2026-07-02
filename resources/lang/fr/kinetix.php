@@ -102,6 +102,7 @@ return [
     'billing_trial'                => 'Essai',
     'billing_trial_ends_on'        => "L'essai se termine le",
     'billing_trial_active'         => "Vous êtes en période d'essai gratuit jusqu'au :date.",
+    'billing_trial_active_plan'    => "Vous testez le plan :plan jusqu'au :date.",
     'billing_trial_badge'          => 'Essai de :days jours',
     'billing_invoices'             => 'Factures',
     'billing_date'                 => 'Date',

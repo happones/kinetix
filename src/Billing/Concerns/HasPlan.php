@@ -21,6 +21,19 @@ trait HasPlan
     {
         $type = (string) config('kinetix.billing.subscription', 'default');
 
+        $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
+
+        if ($trialGeneric && method_exists($this, 'onGenericTrial') && $this->onGenericTrial()) {
+            $trialPlanSlug = $this->trial_plan ?? null;
+
+            if ($trialPlanSlug !== null) {
+                /** @var class-string<Plan> $model */
+                $model = config('kinetix.billing.plan_model', Plan::class);
+
+                return $model::query()->where('slug', $trialPlanSlug)->first();
+            }
+        }
+
         if (! method_exists($this, 'subscription')) {
             return null;
         }
