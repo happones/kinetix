@@ -223,6 +223,7 @@ class BillingManager
 
         if ($plan->isFree()) {
             $this->cancelActiveSubscription();
+            $this->clearGenericTrialIfActive();
 
             return;
         }
@@ -265,11 +266,11 @@ class BillingManager
 
     public function cancel(): void
     {
-        if (! $this->subscribed()) {
-            return;
+        if ($this->subscribed()) {
+            $this->subscription()->cancel();
         }
 
-        $this->subscription()->cancel();
+        $this->clearGenericTrialIfActive();
     }
 
     public function resume(): void

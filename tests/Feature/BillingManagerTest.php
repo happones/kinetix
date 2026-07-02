@@ -316,6 +316,40 @@ class BillingManagerTest extends TestCase
         $this->assertContains('resume', $billable->sub->calls);
     }
 
+    public function test_cancel_clears_generic_trial(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable                 = FakeBillable::create();
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+        $billable->forceFill(['trial_plan' => 'pro']);
+
+        BillingManager::for($billable)->cancel();
+
+        $billable->refresh();
+
+        $this->assertNull($billable->getAttribute('trial_plan'));
+        $this->assertNull($billable->getAttribute('trial_ends_at'));
+    }
+
+    public function test_subscribe_to_free_plan_clears_generic_trial(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable                 = FakeBillable::create();
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+        $billable->forceFill(['trial_plan' => 'pro']);
+
+        BillingManager::for($billable)->subscribe('free');
+
+        $billable->refresh();
+
+        $this->assertNull($billable->getAttribute('trial_plan'));
+        $this->assertNull($billable->getAttribute('trial_ends_at'));
+    }
+
     public function test_resolve_supports_team_billing_option(): void
     {
         $team = new FakeBillable;
