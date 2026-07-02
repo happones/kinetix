@@ -82,9 +82,9 @@ If you want to bill **Teams** (or any model other than the default `User`), foll
    ```
 
    When `KINETIX_BILLING_TEAMS` (or `kinetix.billing.teams` config key) is `true`:
-   * Billing routes are automatically prefixed with `teams/{team}/billing` instead of `billing`.
+   * Billing routes are automatically prefixed with `{team}/billing` instead of `billing`.
    * `BillingManager::resolve()` will automatically extract the current team from the `{team}` route parameter (or fall back to the user's `currentTeam` relation).
-   * Make sure to update the URLs in your client-side page (`Billing/Index.vue`) to prepend `/teams/${currentTeam.id}` (or similar) to match these routes.
+   * Make sure to update the URLs in your client-side page (`Billing/Index.vue`) to prepend `/${currentTeam.id}` (or similar) to match these routes.
 
 ---
 

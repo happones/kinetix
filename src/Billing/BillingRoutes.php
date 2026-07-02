@@ -20,7 +20,7 @@ class BillingRoutes
     {
         $prefix = (string) config('kinetix.billing.route_prefix', 'billing');
         if (config('kinetix.billing.teams', false)) {
-            $prefix = 'teams/{team}/'.$prefix;
+            $prefix = '{team}/'.$prefix;
         }
         $name       = (string) config('kinetix.billing.route_name', 'billing.');
         $middleware = config('kinetix.billing.middleware', ['web', 'auth']);

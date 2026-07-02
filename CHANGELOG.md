@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.7] - 2026-07-02
+
+### Changed
+
+- **Team Billing routes prefix** — Corrected the route prefix generated when `billing.teams` is active to `{team}/billing` (excluding the `/teams` segment) to match the cleaner URL patterns (`/{team}/billing/subscribe` etc.) preferred by users. **(published)**
+
 ## [0.68.6] - 2026-07-02
 
 ### Added
