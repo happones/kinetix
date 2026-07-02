@@ -142,6 +142,11 @@ class FakeBillable extends Model
     {
         return (object) ['id' => 'pm_1'];
     }
+
+    public function hasDefaultPaymentMethod(): bool
+    {
+        return $this->defaultPaymentMethod() !== null;
+    }
 }
 
 class BillingManagerTest extends TestCase
@@ -246,7 +251,18 @@ class BillingManagerTest extends TestCase
 
     public function test_new_paid_subscription_requires_payment_method(): void
     {
-        $billable = new FakeBillable;
+        $billable = new class extends FakeBillable
+        {
+            public function defaultPaymentMethod(): ?object
+            {
+                return null;
+            }
+
+            public function hasDefaultPaymentMethod(): bool
+            {
+                return false;
+            }
+        };
 
         $this->expectException(RuntimeException::class);
 
@@ -404,5 +420,87 @@ class BillingManagerTest extends TestCase
 
         $this->assertContains('create:price_trial_m2:pm_card', $billable->calls);
         $this->assertNotContains('create:price_trial_m2:pm_card:trial-14', $billable->calls);
+    }
+
+    public function test_subscribe_to_free_plan_without_payment_method_does_not_throw(): void
+    {
+        $billable = new FakeBillable;
+        $plan     = Plan::create([
+            'name'                    => 'Free Plan',
+            'slug'                    => 'free-plan',
+            'monthly_price'           => 0,
+            'stripe_monthly_price_id' => 'price_free_m',
+        ]);
+
+        // Should not throw even with null payment method
+        BillingManager::for($billable)->subscribe('free-plan', null);
+        $this->assertEmpty($billable->calls);
+    }
+
+    public function test_subscribe_to_paid_plan_with_stripe_trial_without_payment_method_does_not_throw(): void
+    {
+        config(['kinetix.billing.trial_generic' => false]);
+
+        $billable = new FakeBillable;
+        $plan     = Plan::create([
+            'name'                    => 'Trial Plan 3',
+            'slug'                    => 'trial-plan-3',
+            'monthly_price'           => 19,
+            'stripe_monthly_price_id' => 'price_trial_m3',
+            'trial_days'              => 14,
+        ]);
+
+        // Should not throw because has Stripe trial
+        BillingManager::for($billable)->subscribe('trial-plan-3', null);
+        $this->assertContains('create:price_trial_m3::trial-14', $billable->calls);
+    }
+
+    public function test_subscribe_to_paid_plan_with_default_payment_method_on_file_without_payment_method_does_not_throw(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable = new class extends FakeBillable
+        {
+            public function hasDefaultPaymentMethod(): bool
+            {
+                return true;
+            }
+        };
+
+        $plan = Plan::create([
+            'name'                    => 'Paid Plan',
+            'slug'                    => 'paid-plan',
+            'monthly_price'           => 29,
+            'stripe_monthly_price_id' => 'price_paid_m',
+        ]);
+
+        // Should not throw because default payment method exists on file
+        BillingManager::for($billable)->subscribe('paid-plan', null);
+        $this->assertContains('create:price_paid_m:', $billable->calls);
+    }
+
+    public function test_subscribe_throws_if_paid_plan_and_no_trial_and_no_payment_method_on_file_or_passed(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable = new class extends FakeBillable
+        {
+            public function hasDefaultPaymentMethod(): bool
+            {
+                return false;
+            }
+        };
+
+        $plan = Plan::create([
+            'name'                    => 'Paid Plan 2',
+            'slug'                    => 'paid-plan-2',
+            'monthly_price'           => 29,
+            'stripe_monthly_price_id' => 'price_paid_m2',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('A payment method is required to start a new subscription.');
+
+        BillingManager::for($billable)->subscribe('paid-plan-2', null);
     }
 }

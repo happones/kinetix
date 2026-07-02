@@ -259,14 +259,18 @@ class BillingManager
             return;
         }
 
-        if ($paymentMethod === null) {
+        $trialGeneric            = (bool) config('kinetix.billing.trial_generic', false);
+        $hasTrial                = ! $trialGeneric && $plan->trial_days !== null && $plan->trial_days > 0;
+        $hasDefaultPaymentMethod = method_exists($this->billable, 'hasDefaultPaymentMethod')
+            && $this->billable->hasDefaultPaymentMethod();
+
+        if ($paymentMethod === null && ! $hasTrial && ! $hasDefaultPaymentMethod) {
             throw new RuntimeException('A payment method is required to start a new subscription.');
         }
 
         $builder = $this->billable->newSubscription($this->subscriptionType(), $priceId);
 
-        $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
-        if (! $trialGeneric && $plan->trial_days !== null && $plan->trial_days > 0) {
+        if ($hasTrial) {
             $builder->trialDays($plan->trial_days);
         }
 

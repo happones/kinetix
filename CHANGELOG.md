@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.3] - 2026-07-02
+
+### Fixed
+
+- **Subscription payment method validation bug** — Corrected `BillingManager::subscribe()` to allow starting a subscription without passing an upfront payment method if the plan is free, if starting a Stripe trial (which can be configured to not require a card upfront), or if the user already has a default payment method on file. **(published)**
+
 ## [0.69.2] - 2026-07-02
 
 ### Added
