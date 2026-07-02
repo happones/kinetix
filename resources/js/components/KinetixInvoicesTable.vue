@@ -9,15 +9,18 @@ import CardTitle from './primitives/CardTitle.vue';
 
 const { t } = useI18n();
 
-withDefaults(
+const props = withDefaults(
     defineProps<{
         invoices?: KinetixInvoice[];
         /** Build a download href per invoice; when omitted a `download` event fires. */
         downloadUrl?: (invoice: KinetixInvoice) => string;
+        /** When true, uses the Stripe-hosted invoice PDF URL directly. */
+        useStripeUrl?: boolean;
     }>(),
     {
         invoices: () => [],
         downloadUrl: undefined,
+        useStripeUrl: false,
     },
 );
 
@@ -79,7 +82,15 @@ const emit = defineEmits<{
                             </td>
                             <td class="py-3 text-right">
                                 <a
-                                    v-if="downloadUrl"
+                                    v-if="props.useStripeUrl && invoice.url"
+                                    :href="invoice.url"
+                                    target="_blank"
+                                    class="gap-1.5 px-2 py-1 text-sm font-medium inline-flex items-center rounded-md text-foreground hover:bg-accent hover:text-accent-foreground"
+                                >
+                                    <Download class="h-4 w-4" />
+                                </a>
+                                <a
+                                    v-else-if="downloadUrl"
                                     :href="downloadUrl(invoice)"
                                     class="gap-1.5 px-2 py-1 text-sm font-medium inline-flex items-center rounded-md text-foreground hover:bg-accent hover:text-accent-foreground"
                                 >

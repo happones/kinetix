@@ -81,6 +81,7 @@ const props = defineProps<{
   currencySymbol: string;
   publishableKey: string;
   trialGeneric: boolean;
+  invoicesUseStripeUrl: boolean;
 }>();
 
 // Optional dot-path -> label map for capability rows (customise per app).
@@ -145,6 +146,7 @@ const subscribe = (plan: KinetixPlanData) => {
         <KinetixInvoicesTable
           :invoices="invoices"
           :download-url="(invoice) => billing.downloadInvoice(invoice.id)"
+          :use-stripe-url="invoicesUseStripeUrl"
         />
       </div>
 

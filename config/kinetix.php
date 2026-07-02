@@ -754,6 +754,10 @@ return [
         // Product label shown on downloaded invoices.
         'product' => env('KINETIX_BILLING_PRODUCT', 'Subscription'),
 
+        // When true, invoice download links point directly to Stripe's hosted
+        // PDF instead of going through the Kinetix download route (DomPDF).
+        'invoices_use_stripe_url' => env('KINETIX_BILLING_INVOICES_USE_STRIPE_URL', false),
+
         // Inertia page component the bundled BillingController renders.
         'view' => env('KINETIX_BILLING_VIEW', 'Billing/Index'),
 

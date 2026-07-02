@@ -45,6 +45,7 @@ class BillingController
             'currencySymbol'         => config('kinetix.billing.currency_symbol', '$'),
             'publishableKey'         => config('cashier.key') ?? config('services.stripe.key'),
             'trialGeneric'           => (bool) config('kinetix.billing.trial_generic', false),
+            'invoicesUseStripeUrl'   => (bool) config('kinetix.billing.invoices_use_stripe_url', false),
         ]);
     }
 
