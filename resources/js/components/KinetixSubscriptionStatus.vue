@@ -123,7 +123,7 @@ const hasActions = computed(() => {
 
         <CardFooter v-if="hasActions" class="pt-6 border-t border-border">
             <button
-                v-if="!subscription.onGracePeriod"
+                v-if="!subscription?.onGracePeriod"
                 type="button"
                 :class="
                     cn(
