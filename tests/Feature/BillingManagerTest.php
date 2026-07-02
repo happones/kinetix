@@ -345,6 +345,8 @@ class BillingManagerTest extends TestCase
 
     public function test_subscription_data_includes_trial_information(): void
     {
+        config(['kinetix.billing.trial_generic' => true]);
+
         $billable                 = new FakeBillable;
         $billable->isGenericTrial = true;
         $billable->trial_ends_at  = now()->addDays(10);
@@ -353,6 +355,8 @@ class BillingManagerTest extends TestCase
         $this->assertTrue($data['onTrial']);
         $this->assertTrue($data['onGenericTrial']);
         $this->assertEquals($billable->trial_ends_at->toIso8601String(), $data['trialEndsAt']);
+
+        config(['kinetix.billing.trial_generic' => false]);
 
         $billable2                     = new FakeBillable;
         $billable2->sub                = new FakeStripeSubscription;
@@ -367,6 +371,8 @@ class BillingManagerTest extends TestCase
 
     public function test_subscribe_passes_trial_days_from_plan(): void
     {
+        config(['kinetix.billing.trial_generic' => false]);
+
         $billable = new FakeBillable;
         $plan     = Plan::create([
             'name'                    => 'Trial Plan',
@@ -379,5 +385,24 @@ class BillingManagerTest extends TestCase
         BillingManager::for($billable)->subscribe('trial-plan', 'pm_card');
 
         $this->assertContains('create:price_trial_m:pm_card:trial-14', $billable->calls);
+    }
+
+    public function test_subscribe_does_not_pass_trial_days_from_plan_if_trial_generic_is_true(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable = new FakeBillable;
+        $plan     = Plan::create([
+            'name'                    => 'Trial Plan 2',
+            'slug'                    => 'trial-plan-2',
+            'monthly_price'           => 19,
+            'stripe_monthly_price_id' => 'price_trial_m2',
+            'trial_days'              => 14,
+        ]);
+
+        BillingManager::for($billable)->subscribe('trial-plan-2', 'pm_card');
+
+        $this->assertContains('create:price_trial_m2:pm_card', $billable->calls);
+        $this->assertNotContains('create:price_trial_m2:pm_card:trial-14', $billable->calls);
     }
 }

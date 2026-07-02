@@ -179,15 +179,16 @@ class BillingManager
         /** @var object|null $subscription */
         $subscription = $this->subscription();
 
-        $onGenericTrial     = method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial();
-        $genericTrialEndsAt = $onGenericTrial                                  && method_exists($this->billable, 'trialEndsAt')
+        $trialGeneric       = (bool) config('kinetix.billing.trial_generic', false);
+        $onGenericTrial     = $trialGeneric   && method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial();
+        $genericTrialEndsAt = $onGenericTrial && method_exists($this->billable, 'trialEndsAt')
             ? $this->billable->trialEndsAt($this->subscriptionType())?->toIso8601String()
             : null;
 
         $onTrial     = false;
         $trialEndsAt = null;
 
-        if ($subscription !== null) {
+        if (! $trialGeneric && $subscription !== null) {
             $onTrial     = method_exists($subscription, 'onTrial') && $subscription->onTrial();
             $trialEndsAt = $onTrial ? $subscription->trial_ends_at?->toIso8601String() : null;
         }
@@ -264,7 +265,8 @@ class BillingManager
 
         $builder = $this->billable->newSubscription($this->subscriptionType(), $priceId);
 
-        if ($plan->trial_days !== null && $plan->trial_days > 0) {
+        $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
+        if (! $trialGeneric && $plan->trial_days !== null && $plan->trial_days > 0) {
             $builder->trialDays($plan->trial_days);
         }
 

@@ -86,6 +86,35 @@ If you want to bill **Teams** (or any model other than the default `User`), foll
    * `BillingManager::resolve()` will automatically extract the current team from the `{team}` route parameter (or fall back to the user's `currentTeam` relation).
    * Make sure to update the URLs in your client-side page (`Billing/Index.vue`) to prepend `/${currentTeam.id}` (or similar) to match these routes.
 
+### Trial Period Setup
+
+Kinetix Billing supports two types of trial modes:
+
+#### A. Subscription Trials (Card Upfront)
+The user enters their credit card to start a subscription, but is not charged until the trial period expires.
+1. **Configure Trial Days**: In your `plans` database table or seeder, set the `trial_days` column (e.g. `14` or `30`) for the corresponding plan.
+2. Ensure `KINETIX_BILLING_TRIAL_GENERIC` (or `kinetix.billing.trial_generic` config key) is set to `false` (default).
+3. When the user subscribes, Cashier creates the subscription in Stripe with the specified trial days.
+
+#### B. Generic Trials (No Card Upfront)
+Users get trial access immediately upon registration without providing their payment details. Once the trial expires, they are prompted to subscribe with a card.
+1. **Configure Kinetix Billing**: In your `.env` file, enable generic trials:
+   ```env
+   KINETIX_BILLING_TRIAL_GENERIC=true
+   ```
+2. **Assign Trial on Registration**: In your registration controller, set the `trial_ends_at` column on the user (or team) model:
+   ```php
+   $user = User::create([
+       'name' => $data['name'],
+       'email' => $data['email'],
+       'password' => Hash::make($data['password']),
+       'trial_ends_at' => now()->addDays(14),
+   ]);
+   ```
+3. When `KINETIX_BILLING_TRIAL_GENERIC` is `true`:
+   * Kinetix reports the generic trial status (`trial_ends_at`) to the UI.
+   * Subscription creations ignore the plan's `trial_days` column to prevent users from getting a second trial in Stripe after their generic trial ends.
+
 ---
 
 ## 3. Configuration
@@ -96,6 +125,7 @@ If you want to bill **Teams** (or any model other than the default `User`), foll
 |---|---|---|
 | `enabled` | `false` | Master switch for the module |
 | `teams` | `false` | Enable Team-scoped billing routes and automatic resolution |
+| `trial_generic` | `false` | Enable generic trials (no card upfront) and skip Stripe trials |
 | `billable` | `App\Models\User` | Documented billable class |
 | `plan_model` | `Happones\Kinetix\Billing\Plan` | Swap for your own Plan subclass |
 | `subscription` | `default` | Cashier subscription "type" |
