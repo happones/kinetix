@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.2] - 2026-07-02
+
+### Added
+
+- **Plan Card Trial Badges** — Updated `KinetixPlanCard` to show a beautiful trial days badge (e.g. "14-day trial") under the price if the plan has `trialDays` and `showTrial` prop is true. **(published)**
+- **Pricing Table Trial toggle prop** — Added `showPlanTrials` prop to `KinetixPricingTable` to allow host apps to hide trial badges on pricing cards when the user is ineligible. **(published)**
+
+## [0.69.1] - 2026-07-02
+
+### Added
+
+- **Generic Trial Isolation Config** — Introduced `trial_generic` configuration setting to fully isolate generic trial mode (database driven) from Stripe subscription trial mode. When active, new Stripe subscriptions ignore plan `trial_days` to prevent double-trialling. **(published)**
+
 ## [0.69.0] - 2026-07-02
 
 ### Added

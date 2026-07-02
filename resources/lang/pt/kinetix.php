@@ -102,6 +102,7 @@ return [
     'billing_trial'                => 'Avaliação',
     'billing_trial_ends_on'        => 'A avaliação termina em',
     'billing_trial_active'         => 'Você está em um período de avaliação gratuita até :date.',
+    'billing_trial_badge'          => 'Avaliação de :days dias',
     'billing_invoices'             => 'Faturas',
     'billing_date'                 => 'Data',
     'billing_total'                => 'Total',

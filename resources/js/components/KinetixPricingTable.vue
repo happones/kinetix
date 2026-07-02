@@ -16,6 +16,7 @@ const props = withDefaults(
         /** Show the monthly/yearly toggle (only when plans expose yearly prices). */
         showCycleToggle?: boolean;
         currencySymbol?: string;
+        showPlanTrials?: boolean;
         featureLabels?: Record<string, string>;
     }>(),
     {
@@ -26,6 +27,7 @@ const props = withDefaults(
         cycle: 'monthly',
         showCycleToggle: false,
         currencySymbol: '$',
+        showPlanTrials: true,
         featureLabels: () => ({}),
     },
 );
@@ -101,6 +103,7 @@ const columns = computed(() => {
                 :is-selected="plan.slug === selectedSlug"
                 :loading="loading"
                 :can-subscribe="!loading"
+                :show-trial="showPlanTrials"
                 @subscribe="emit('subscribe', $event)"
             />
         </div>

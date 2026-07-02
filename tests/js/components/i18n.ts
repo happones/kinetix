@@ -38,6 +38,7 @@ export const i18n = createI18n({
                 billing_trial: 'Trial',
                 billing_trial_ends_on: 'Trial ends on',
                 billing_trial_active: 'You are on a free trial until {date}.',
+                billing_trial_badge: '{days}-day trial',
                 billing_invoices: 'Invoices',
                 billing_date: 'Date',
                 billing_total: 'Total',

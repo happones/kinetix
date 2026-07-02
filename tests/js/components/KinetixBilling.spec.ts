@@ -67,6 +67,34 @@ describe('KinetixPlanCard', () => {
         expect(wrapper.find('button').exists()).toBe(false);
         expect(wrapper.text()).toContain('Current plan');
     });
+
+    it('shows the trial badge when plan has trialDays and showTrial is true', () => {
+        const wrapper = mount(KinetixPlanCard, {
+            props: {
+                plan: {
+                    ...proPlan,
+                    trialDays: 14,
+                },
+                showTrial: true,
+            },
+        });
+
+        expect(wrapper.text()).toContain('14-day trial');
+    });
+
+    it('hides the trial badge when showTrial is false', () => {
+        const wrapper = mount(KinetixPlanCard, {
+            props: {
+                plan: {
+                    ...proPlan,
+                    trialDays: 14,
+                },
+                showTrial: false,
+            },
+        });
+
+        expect(wrapper.text()).not.toContain('14-day trial');
+    });
 });
 
 describe('KinetixPricingTable', () => {

@@ -21,6 +21,8 @@ const props = withDefaults(
         canSubscribe?: boolean;
         /** 'monthly' | 'yearly' — which price to display. */
         cycle?: 'monthly' | 'yearly';
+        /** Whether to show the plan's trial badge. */
+        showTrial?: boolean;
         currencySymbol?: string;
         /**
          * Optional dot-path → label map rendering capability rows with a check/X
@@ -35,6 +37,7 @@ const props = withDefaults(
         canSubscribe: true,
         cycle: 'monthly',
         currencySymbol: '$',
+        showTrial: true,
         featureLabels: () => ({}),
     },
 );
@@ -129,6 +132,21 @@ const ctaLabel = computed(() =>
                 <span class="text-sm font-normal text-muted-foreground">{{
                     periodLabel
                 }}</span>
+            </div>
+
+            <div
+                v-if="showTrial && plan.trialDays && plan.trialDays > 0"
+                class="mt-2 font-semibold text-amber-600 dark:text-amber-400 gap-1.5 flex items-center text-[10px]"
+            >
+                <span
+                    class="px-2 py-0.5 bg-amber-500/10 border-amber-500/20 tracking-wide rounded-full border capitalize"
+                >
+                    {{
+                        t('kinetix.billing_trial_badge', {
+                            days: plan.trialDays,
+                        })
+                    }}
+                </span>
             </div>
 
             <ul class="mt-6 space-y-2.5 text-sm">
