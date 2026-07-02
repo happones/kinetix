@@ -37,9 +37,24 @@ class BillingManager
         if ($resolver) {
             $billable = is_callable($resolver) ? $resolver($user) : $user;
         } elseif (config('kinetix.billing.teams', false)) {
-            $request  = request();
-            $team     = $request->route('team') ?? ($user ? ($user->currentTeam ?? null) : null);
-            $billable = $team                   ?? $user;
+            $request = request();
+            $team    = $request->route('team');
+
+            if ($team !== null && ! $team instanceof Model) {
+                /** @var class-string<Model> $modelClass */
+                $modelClass = config('kinetix.billing.billable', 'App\\Models\\Team');
+                if (class_exists($modelClass)) {
+                    $modelInstance = new $modelClass;
+                    $routeKeyName  = $modelInstance->getRouteKeyName();
+                    $team          = $modelClass::query()->where($routeKeyName, $team)->first();
+                }
+            }
+
+            if ($team === null && $user) {
+                $team = $user->currentTeam ?? null;
+            }
+
+            $billable = $team ?? $user;
         } else {
             $billable = $user;
         }

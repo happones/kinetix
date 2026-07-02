@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.8] - 2026-07-02
+
+### Fixed
+
+- **Team Billing resolution fallback** — Corrected `BillingManager::resolve()` to check if the `{team}` route parameter contains a string or integer (e.g. ID/slug from initial route parameter binding before substitution) and dynamically query the database for the corresponding Model instance, avoiding type mismatch `RuntimeException` crashes. **(published)**
+
 ## [0.68.7] - 2026-07-02
 
 ### Changed

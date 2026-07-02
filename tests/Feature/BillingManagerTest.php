@@ -280,4 +280,31 @@ class BillingManagerTest extends TestCase
         $manager2 = BillingManager::resolve();
         $this->assertSame($team, $manager2->billable());
     }
+
+    public function test_resolve_handles_string_team_route_parameter(): void
+    {
+        $team = FakeBillable::create();
+
+        $request = request();
+        $request->setRouteResolver(function () use ($team) {
+            return new class($team->id)
+            {
+                public function __construct(protected $id) {}
+
+                public function parameter(string $name, $default = null)
+                {
+                    return $name === 'team' ? (string) $this->id : null;
+                }
+            };
+        });
+
+        config([
+            'kinetix.billing.teams'    => true,
+            'kinetix.billing.billable' => FakeBillable::class,
+        ]);
+
+        $manager = BillingManager::resolve();
+        $this->assertInstanceOf(FakeBillable::class, $manager->billable());
+        $this->assertEquals($team->id, $manager->billable()->id);
+    }
 }
