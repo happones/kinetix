@@ -20,44 +20,19 @@ class BillingManager
 {
     public function __construct(protected Model $billable) {}
 
+    // -------------------------------------------------------------------
+    // Static factories
+    // -------------------------------------------------------------------
+
     public static function for(Model $billable): self
     {
         return new self($billable);
     }
 
-    /**
-     * Resolve the billable from the authenticated user via the configured
-     * resolver, falling back to the user itself.
-     */
     public static function resolve(): self
     {
-        $resolver = config('kinetix.billing.resolve_billable');
         $user     = auth()->user();
-
-        if ($resolver) {
-            $billable = is_callable($resolver) ? $resolver($user) : $user;
-        } elseif (config('kinetix.billing.teams', false)) {
-            $request = request();
-            $team    = $request->route('team');
-
-            if ($team !== null && ! $team instanceof Model) {
-                /** @var class-string<Model> $modelClass */
-                $modelClass = config('kinetix.billing.billable', 'App\\Models\\Team');
-                if (class_exists($modelClass)) {
-                    $modelInstance = new $modelClass;
-                    $routeKeyName  = $modelInstance->getRouteKeyName();
-                    $team          = $modelClass::query()->where($routeKeyName, $team)->first();
-                }
-            }
-
-            if ($team === null && $user) {
-                $team = $user->currentTeam ?? null;
-            }
-
-            $billable = $team ?? $user;
-        } else {
-            $billable = $user;
-        }
+        $billable = static::resolveConfiguredBillable($user);
 
         if (! $billable instanceof Model) {
             throw new RuntimeException('Kinetix Billing could not resolve a billable model for the current request.');
@@ -66,14 +41,58 @@ class BillingManager
         return new self($billable);
     }
 
+    protected static function resolveConfiguredBillable($user): mixed
+    {
+        $resolver = config('kinetix.billing.resolve_billable');
+
+        if ($resolver) {
+            return is_callable($resolver) ? $resolver($user) : $user;
+        }
+
+        if (config('kinetix.billing.teams', false)) {
+            return static::resolveTeam($user) ?? $user;
+        }
+
+        return $user;
+    }
+
+    protected static function resolveTeam($user): ?Model
+    {
+        return static::findTeamFromRoute() ?? ($user->currentTeam ?? null);
+    }
+
+    protected static function findTeamFromRoute(): ?Model
+    {
+        $request = request();
+        $team    = $request->route('team');
+
+        if ($team instanceof Model) {
+            return $team;
+        }
+
+        if ($team === null) {
+            return null;
+        }
+
+        /** @var class-string<Model> $modelClass */
+        $modelClass = config('kinetix.billing.billable', 'App\\Models\\Team');
+
+        if (! class_exists($modelClass)) {
+            return null;
+        }
+
+        $modelInstance = new $modelClass;
+
+        return $modelClass::query()->where($modelInstance->getRouteKeyName(), $team)->first();
+    }
+
+    // -------------------------------------------------------------------
+    // Public accessors
+    // -------------------------------------------------------------------
+
     public function billable(): Model
     {
         return $this->billable;
-    }
-
-    protected function subscriptionType(): string
-    {
-        return (string) config('kinetix.billing.subscription', 'default');
     }
 
     /**
@@ -83,66 +102,34 @@ class BillingManager
      */
     public function plans(): SupportCollection
     {
-        /** @var class-string<Plan> $model */
-        $model = config('kinetix.billing.plan_model', Plan::class);
-
         /** @var Collection<int, Plan> $plans */
-        $plans = $model::query()->active()->ordered()->get();
+        $plans = $this->planModel()::query()->active()->ordered()->get();
 
         return $plans->map(static fn (Plan $plan): PlanData => PlanData::fromPlan($plan))->values();
     }
 
     public function currentPlan(): ?Plan
     {
-        if (method_exists($this->billable, 'currentPlan')) {
-            $plan = $this->billable->currentPlan();
-
-            if ($plan !== null) {
-                return $plan;
-            }
-        }
-
-        $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
-
-        if ($trialGeneric && method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial()) {
-            $trialPlanSlug = $this->billable->trial_plan ?? null;
-
-            if ($trialPlanSlug !== null) {
-                /** @var class-string<Plan> $model */
-                $model = config('kinetix.billing.plan_model', Plan::class);
-
-                $plan = $model::query()->where('slug', $trialPlanSlug)->first();
-
-                if ($plan !== null) {
-                    return $plan;
-                }
-            }
-        }
-
-        return $this->resolveFreePlan();
+        return $this->billableCurrentPlan()
+            ?? $this->genericTrialPlan()
+            ?? $this->resolveFreePlan();
     }
 
-    protected function resolveFreePlan(): ?Plan
-    {
-        /** @var class-string<Plan> $model */
-        $model = config('kinetix.billing.plan_model', Plan::class);
+    // -------------------------------------------------------------------
+    // Stripe helpers
+    // -------------------------------------------------------------------
 
-        return $model::query()->active()->ordered()
-            ->where(function ($query) {
-                $query->where('is_free', true)
-                    ->orWhere('monthly_price', '<=', 0);
-            })
-            ->first();
-    }
-
-    /**
-     * Ensure the billable exists as a Stripe customer before issuing intents.
-     */
     public function ensureStripeCustomer(): void
     {
-        if (($this->billable->stripe_id ?? null) === null && method_exists($this->billable, 'createAsStripeCustomer')) {
-            $this->billable->createAsStripeCustomer();
+        if (($this->billable->stripe_id ?? null) !== null) {
+            return;
         }
+
+        if (! method_exists($this->billable, 'createAsStripeCustomer')) {
+            return;
+        }
+
+        $this->billable->createAsStripeCustomer();
     }
 
     public function setupIntent(): mixed
@@ -205,140 +192,48 @@ class BillingManager
             ->all();
     }
 
+    // -------------------------------------------------------------------
+    // Subscription data
+    // -------------------------------------------------------------------
+
     /**
      * @return array{active: bool, onGracePeriod: bool, status: ?string, endsAt: ?string, stripePrice: ?string, onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool, trialPlan: ?string}
      */
     public function subscriptionData(): array
     {
-        /** @var object|null $subscription */
         $subscription = $this->subscription();
 
-        $trialGeneric       = (bool) config('kinetix.billing.trial_generic', false);
-        $onGenericTrial     = $trialGeneric   && method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial();
-        $genericTrialEndsAt = $onGenericTrial && method_exists($this->billable, 'trialEndsAt')
-            ? $this->billable->trialEndsAt($this->subscriptionType())?->toIso8601String()
-            : null;
-
-        $onTrial     = false;
-        $trialEndsAt = null;
-
-        if (! $trialGeneric && $subscription !== null) {
-            $onTrial     = method_exists($subscription, 'onTrial') && $subscription->onTrial();
-            $trialEndsAt = $onTrial ? $subscription->trial_ends_at?->toIso8601String() : null;
-        }
-
         return [
-            'active'         => $subscription !== null && (bool) ($subscription->active() ?? false),
-            'onGracePeriod'  => $subscription !== null && (bool) ($subscription->onGracePeriod() ?? false),
-            'status'         => $subscription !== null ? (string) ($subscription->stripe_status ?? '') : null,
-            'endsAt'         => $subscription !== null ? $subscription->ends_at?->toIso8601String() : null,
-            'stripePrice'    => $subscription !== null ? $subscription->stripe_price ?? null : null,
-            'onTrial'        => $onTrial || $onGenericTrial,
-            'trialEndsAt'    => $trialEndsAt ?? $genericTrialEndsAt,
-            'onGenericTrial' => $onGenericTrial,
-            'trialPlan'      => $onGenericTrial ? ($this->billable->trial_plan ?? null) : null,
+            'active'        => $subscription !== null && (bool) ($subscription->active() ?? false),
+            'onGracePeriod' => $subscription !== null && (bool) ($subscription->onGracePeriod() ?? false),
+            'status'        => $subscription !== null ? (string) ($subscription->stripe_status ?? '') : null,
+            'endsAt'        => $subscription !== null ? $subscription->ends_at?->toIso8601String() : null,
+            'stripePrice'   => $subscription !== null ? $subscription->stripe_price ?? null : null,
+            ...$this->resolveTrialData($subscription),
         ];
     }
 
-    protected function subscription(): mixed
-    {
-        if (! method_exists($this->billable, 'subscription')) {
-            return null;
-        }
+    // -------------------------------------------------------------------
+    // Subscription lifecycle
+    // -------------------------------------------------------------------
 
-        return $this->billable->subscription($this->subscriptionType());
-    }
-
-    protected function subscribed(): bool
-    {
-        return method_exists($this->billable, 'subscribed')
-            && $this->billable->subscribed($this->subscriptionType());
-    }
-
-    /**
-     * Subscribe to, swap to, or downgrade from a plan. Free plans cancel the
-     * current paid subscription (downgrade); paid plans create or swap.
-     * When trial_generic is active and the plan has trial_days, a generic
-     * trial is set on the billable model instead of creating a Stripe
-     * subscription — no payment method is required.
-     */
     public function subscribe(string $planSlug, ?string $paymentMethod = null, string $cycle = 'monthly'): void
     {
-        /** @var class-string<Plan> $model */
-        $model = config('kinetix.billing.plan_model', Plan::class);
+        $plan = $this->resolvePlan($planSlug);
 
-        /** @var Plan $plan */
-        $plan = $model::query()->where('slug', $planSlug)->firstOrFail();
-
-        $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
-        $planHasTrial = $plan->trial_days !== null && $plan->trial_days > 0;
-
-        // Downgrade: a free plan means cancel any active paid subscription.
         if ($plan->isFree()) {
-            if ($this->subscribed()) {
-                $this->subscription()->cancel();
-            }
+            $this->cancelActiveSubscription();
 
             return;
         }
 
-        // When trial_generic is active and the plan has trial days, set up a
-        // generic trial on the billable instead of creating a Stripe
-        // subscription. This allows subscribing without a payment method.
-        if ($trialGeneric && $planHasTrial) {
-            if ($this->subscribed()) {
-                $this->subscription()->cancel();
-            }
-
-            $this->billable->forceFill([
-                'trial_ends_at' => now()->addDays($plan->trial_days),
-                'trial_plan'    => $planSlug,
-            ])->save();
+        if ($this->shouldUseGenericTrial($plan)) {
+            $this->startGenericTrial($planSlug, $plan);
 
             return;
         }
 
-        $priceId = $plan->stripePriceId($cycle);
-
-        if ($priceId === null) {
-            throw new RuntimeException("Plan [{$planSlug}] has no Stripe price id for the [{$cycle}] cycle.");
-        }
-
-        if ($this->subscribed()) {
-            $subscription = $this->subscription();
-
-            if ($subscription->onGracePeriod()) {
-                $subscription->resume();
-            }
-
-            $subscription->swap($priceId);
-
-            return;
-        }
-
-        // Clear any active generic trial when creating a real Stripe subscription.
-        if ($trialGeneric && method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial()) {
-            $this->billable->forceFill([
-                'trial_ends_at' => null,
-                'trial_plan'    => null,
-            ])->save();
-        }
-
-        $hasTrial                = ! $trialGeneric && $planHasTrial;
-        $hasDefaultPaymentMethod = method_exists($this->billable, 'hasDefaultPaymentMethod')
-            && $this->billable->hasDefaultPaymentMethod();
-
-        if ($paymentMethod === null && ! $hasTrial && ! $hasDefaultPaymentMethod) {
-            throw new RuntimeException('A payment method is required to start a new subscription.');
-        }
-
-        $builder = $this->billable->newSubscription($this->subscriptionType(), $priceId);
-
-        if ($hasTrial) {
-            $builder->trialDays($plan->trial_days);
-        }
-
-        $builder->create($paymentMethod);
+        $this->handlePaidSubscription($plan, $planSlug, $paymentMethod, $cycle);
     }
 
     public function addPaymentMethod(string $paymentMethod): void
@@ -346,9 +241,11 @@ class BillingManager
         $this->ensureStripeCustomer();
         $this->billable->addPaymentMethod($paymentMethod);
 
-        if (! $this->billable->hasDefaultPaymentMethod()) {
-            $this->billable->updateDefaultPaymentMethod($paymentMethod);
+        if ($this->billable->hasDefaultPaymentMethod()) {
+            return;
         }
+
+        $this->billable->updateDefaultPaymentMethod($paymentMethod);
     }
 
     public function removePaymentMethod(string $id): void
@@ -368,17 +265,282 @@ class BillingManager
 
     public function cancel(): void
     {
-        if ($this->subscribed()) {
-            $this->subscription()->cancel();
+        if (! $this->subscribed()) {
+            return;
         }
+
+        $this->subscription()->cancel();
     }
 
     public function resume(): void
     {
         $subscription = $this->subscription();
 
-        if ($subscription !== null && $subscription->onGracePeriod()) {
+        if ($subscription === null) {
+            return;
+        }
+
+        if (! $subscription->onGracePeriod()) {
+            return;
+        }
+
+        $subscription->resume();
+    }
+
+    // -------------------------------------------------------------------
+    // Config helpers
+    // -------------------------------------------------------------------
+
+    /**
+     * @return class-string<Plan>
+     */
+    protected function planModel(): string
+    {
+        return config('kinetix.billing.plan_model', Plan::class);
+    }
+
+    protected function isTrialGenericEnabled(): bool
+    {
+        return (bool) config('kinetix.billing.trial_generic', false);
+    }
+
+    protected function subscriptionType(): string
+    {
+        return (string) config('kinetix.billing.subscription', 'default');
+    }
+
+    // -------------------------------------------------------------------
+    // Cashier guards
+    // -------------------------------------------------------------------
+
+    protected function subscription(): mixed
+    {
+        if (! method_exists($this->billable, 'subscription')) {
+            return null;
+        }
+
+        return $this->billable->subscription($this->subscriptionType());
+    }
+
+    protected function subscribed(): bool
+    {
+        return method_exists($this->billable, 'subscribed')
+            && $this->billable->subscribed($this->subscriptionType());
+    }
+
+    protected function hasDefaultPaymentMethod(): bool
+    {
+        return method_exists($this->billable, 'hasDefaultPaymentMethod')
+            && $this->billable->hasDefaultPaymentMethod();
+    }
+
+    protected function isOnGenericTrial(): bool
+    {
+        if (! $this->isTrialGenericEnabled()) {
+            return false;
+        }
+
+        return method_exists($this->billable, 'onGenericTrial')
+            && $this->billable->onGenericTrial();
+    }
+
+    // -------------------------------------------------------------------
+    // Current plan resolution
+    // -------------------------------------------------------------------
+
+    protected function billableCurrentPlan(): ?Plan
+    {
+        if (! method_exists($this->billable, 'currentPlan')) {
+            return null;
+        }
+
+        return $this->billable->currentPlan() ?: null;
+    }
+
+    protected function genericTrialPlan(): ?Plan
+    {
+        if (! $this->isOnGenericTrial()) {
+            return null;
+        }
+
+        $slug = $this->billable->trial_plan ?? null;
+
+        if ($slug === null) {
+            return null;
+        }
+
+        return $this->planModel()::query()->where('slug', $slug)->first();
+    }
+
+    protected function resolveFreePlan(): ?Plan
+    {
+        return $this->planModel()::query()->active()->ordered()
+            ->where(function ($query) {
+                $query->where('is_free', true)
+                    ->orWhere('monthly_price', '<=', 0);
+            })
+            ->first();
+    }
+
+    // -------------------------------------------------------------------
+    // Trial resolution
+    // -------------------------------------------------------------------
+
+    /**
+     * @param  object|null                                                                          $subscription
+     * @return array{onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool, trialPlan: ?string}
+     */
+    protected function resolveTrialData($subscription): array
+    {
+        if ($this->isOnGenericTrial()) {
+            return [
+                'onTrial'        => true,
+                'trialEndsAt'    => $this->genericTrialEndsAt(),
+                'onGenericTrial' => true,
+                'trialPlan'      => $this->billable->trial_plan ?? null,
+            ];
+        }
+
+        $stripeTrial = $this->isOnStripeTrial($subscription);
+
+        return [
+            'onTrial'        => $stripeTrial,
+            'trialEndsAt'    => $stripeTrial ? $subscription->trial_ends_at?->toIso8601String() : null,
+            'onGenericTrial' => false,
+            'trialPlan'      => null,
+        ];
+    }
+
+    protected function isOnStripeTrial($subscription): bool
+    {
+        if ($this->isTrialGenericEnabled()) {
+            return false;
+        }
+
+        if ($subscription === null) {
+            return false;
+        }
+
+        return method_exists($subscription, 'onTrial') && $subscription->onTrial();
+    }
+
+    protected function genericTrialEndsAt(): ?string
+    {
+        if (! method_exists($this->billable, 'trialEndsAt')) {
+            return null;
+        }
+
+        return $this->billable->trialEndsAt($this->subscriptionType())?->toIso8601String();
+    }
+
+    // -------------------------------------------------------------------
+    // Subscribe subroutines
+    // -------------------------------------------------------------------
+
+    protected function resolvePlan(string $planSlug): Plan
+    {
+        /** @var Plan $plan */
+        $plan = $this->planModel()::query()->where('slug', $planSlug)->firstOrFail();
+
+        return $plan;
+    }
+
+    protected function shouldUseGenericTrial(Plan $plan): bool
+    {
+        if (! $this->isTrialGenericEnabled()) {
+            return false;
+        }
+
+        return $plan->trial_days !== null && $plan->trial_days > 0;
+    }
+
+    protected function cancelActiveSubscription(): void
+    {
+        if (! $this->subscribed()) {
+            return;
+        }
+
+        $this->subscription()->cancel();
+    }
+
+    protected function startGenericTrial(string $planSlug, Plan $plan): void
+    {
+        $this->cancelActiveSubscription();
+        $this->setGenericTrialData($plan->trial_days, $planSlug);
+    }
+
+    protected function handlePaidSubscription(Plan $plan, string $planSlug, ?string $paymentMethod, string $cycle): void
+    {
+        $priceId = $plan->stripePriceId($cycle);
+
+        if ($priceId === null) {
+            throw new RuntimeException("Plan [{$planSlug}] has no Stripe price id for the [{$cycle}] cycle.");
+        }
+
+        if ($this->subscribed()) {
+            $this->swapExistingSubscription($priceId);
+
+            return;
+        }
+
+        $this->clearGenericTrialIfActive();
+        $this->validatePaymentMethod($paymentMethod, $plan);
+        $this->createNewSubscription($priceId, $paymentMethod, $plan);
+    }
+
+    protected function swapExistingSubscription(string $priceId): void
+    {
+        $subscription = $this->subscription();
+
+        if ($subscription->onGracePeriod()) {
             $subscription->resume();
         }
+
+        $subscription->swap($priceId);
+    }
+
+    protected function clearGenericTrialIfActive(): void
+    {
+        if (! $this->isOnGenericTrial()) {
+            return;
+        }
+
+        $this->setGenericTrialData(null, null);
+    }
+
+    protected function setGenericTrialData(?int $trialDays, ?string $planSlug): void
+    {
+        $this->billable->forceFill([
+            'trial_ends_at' => $trialDays !== null ? now()->addDays($trialDays) : null,
+            'trial_plan'    => $planSlug,
+        ])->save();
+    }
+
+    protected function validatePaymentMethod(?string $paymentMethod, Plan $plan): void
+    {
+        if ($paymentMethod !== null) {
+            return;
+        }
+
+        if (! $this->isTrialGenericEnabled() && $plan->trial_days !== null && $plan->trial_days > 0) {
+            return;
+        }
+
+        if ($this->hasDefaultPaymentMethod()) {
+            return;
+        }
+
+        throw new RuntimeException('A payment method is required to start a new subscription.');
+    }
+
+    protected function createNewSubscription(string $priceId, ?string $paymentMethod, Plan $plan): void
+    {
+        $builder = $this->billable->newSubscription($this->subscriptionType(), $priceId);
+
+        if (! $this->isTrialGenericEnabled() && $plan->trial_days !== null && $plan->trial_days > 0) {
+            $builder->trialDays($plan->trial_days);
+        }
+
+        $builder->create($paymentMethod);
     }
 }
