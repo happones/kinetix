@@ -125,27 +125,36 @@ Users get trial access immediately upon registration without providing their pay
        $table->string('trial_plan')->nullable();
    });
    ```
-   This column stores which plan the user is currently trialing during the generic trial period.
-2. **Configure Kinetix Billing**: In your `.env` file, enable generic trials:
-   ```env
-   KINETIX_BILLING_TRIAL_GENERIC=true
-   ```
-3. **Set `trial_days` on your plans**: In your `plans` table or seeder, add `trial_days` to the plans users can trial (e.g. `14` or `30`).
-4. **Assign Trial on Registration**: In your registration controller, set the `trial_ends_at` and `trial_plan` columns on the user (or team) model:
-   ```php
-   $user = User::create([
-       'name' => $data['name'],
-       'email' => $data['email'],
-       'password' => Hash::make($data['password']),
-       'trial_ends_at' => now()->addDays(14),
-       'trial_plan' => 'pro',
-   ]);
-   ```
-5. When `KINETIX_BILLING_TRIAL_GENERIC` is `true`:
-   * Subscribing to a plan that has `trial_days` sets up a generic trial on the billable model (`trial_ends_at` + `trial_plan`) **without** creating a Stripe subscription — no payment method is required.
-   * While the generic trial is active, `HasPlan::currentPlan()` returns the trial plan; once expired, it falls back to the Stripe subscription.
-   * `BillingManager::subscriptionData()` includes the `trialPlan` key with the current trial plan slug (or `null`).
-   * Plans without `trial_days` create normal Stripe subscriptions as usual (payment method required).
+       This column stores which plan the user is currently trialing during the generic trial period.
+2. **Add the `trial_taken_at` column**: Add a `trial_taken_at` (nullable timestamp) column to prevent users from taking more than one trial:
+    ```php
+    Schema::table('users', function (Blueprint $table) {
+        $table->timestamp('trial_taken_at')->nullable();
+    });
+    ```
+    Once a user starts or is assigned a generic trial, `trial_taken_at` is set to the current timestamp. Future subscription attempts via the billing page will require a payment method — the user cannot take a second free trial.
+3. **Configure Kinetix Billing**: In your `.env` file, enable generic trials:
+    ```env
+    KINETIX_BILLING_TRIAL_GENERIC=true
+    ```
+4. **Set `trial_days` on your plans**: In your `plans` table or seeder, add `trial_days` to the plans users can trial (e.g. `14` or `30`).
+5. **Assign Trial on Registration**: In your registration controller, set the `trial_ends_at`, `trial_plan` and `trial_taken_at` columns on the user (or team) model:
+    ```php
+    $user = User::create([
+        'name' => $data['name'],
+        'email' => $data['email'],
+        'password' => Hash::make($data['password']),
+        'trial_ends_at' => now()->addDays(14),
+        'trial_plan' => 'pro',
+        'trial_taken_at' => now(),
+    ]);
+    ```
+6. When `KINETIX_BILLING_TRIAL_GENERIC` is `true`:
+    * Subscribing to a plan that has `trial_days` sets up a generic trial on the billable model (`trial_ends_at` + `trial_plan` + `trial_taken_at`) **without** creating a Stripe subscription — no payment method is required.
+    * While the generic trial is active, `HasPlan::currentPlan()` returns the trial plan; once expired, it falls back to the Stripe subscription.
+    * `BillingManager::subscriptionData()` includes the `trialPlan` key with the current trial plan slug (or `null`).
+    * Plans without `trial_days` create normal Stripe subscriptions as usual (payment method required).
+    * **One trial per user**: Once `trial_taken_at` is set, the user cannot start another generic trial. Any subsequent subscription attempt will require a payment method and go directly to a paid subscription.
 
 ---
 

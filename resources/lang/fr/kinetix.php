@@ -106,6 +106,7 @@ return [
     'billing_trial_badge'              => 'Essai de :days jours',
     'billing_trial_notice_title'       => 'Aucun moyen de paiement requis',
     'billing_trial_notice_description' => "Vous pouvez démarrer votre essai sans carte bancaire. Vous ne serez facturé qu'à la fin de l'essai si vous choisissez un forfait payant.",
+    'billing_trial_already_used'       => 'Vous avez déjà utilisé votre essai gratuit. Veuillez ajouter un moyen de paiement pour vous abonner.',
     'billing_invoices'                 => 'Factures',
     'billing_date'                     => 'Date',
     'billing_total'                    => 'Total',

@@ -345,6 +345,11 @@ class BillingManager
             && $this->billable->onGenericTrial();
     }
 
+    protected function hasAlreadyUsedTrial(): bool
+    {
+        return $this->billable->trial_taken_at !== null;
+    }
+
     // -------------------------------------------------------------------
     // Current plan resolution
     // -------------------------------------------------------------------
@@ -452,7 +457,11 @@ class BillingManager
             return false;
         }
 
-        return $plan->trial_days !== null && $plan->trial_days > 0;
+        if ($plan->trial_days === null || $plan->trial_days <= 0) {
+            return false;
+        }
+
+        return ! $this->hasAlreadyUsedTrial();
     }
 
     protected function cancelActiveSubscription(): void
@@ -511,10 +520,16 @@ class BillingManager
 
     protected function setGenericTrialData(?int $trialDays, ?string $planSlug): void
     {
-        $this->billable->forceFill([
+        $data = [
             'trial_ends_at' => $trialDays !== null ? now()->addDays($trialDays) : null,
             'trial_plan'    => $planSlug,
-        ])->save();
+        ];
+
+        if ($trialDays !== null) {
+            $data['trial_taken_at'] = now();
+        }
+
+        $this->billable->forceFill($data)->save();
     }
 
     protected function validatePaymentMethod(?string $paymentMethod, Plan $plan): void
@@ -529,6 +544,10 @@ class BillingManager
 
         if ($this->hasDefaultPaymentMethod()) {
             return;
+        }
+
+        if ($this->hasAlreadyUsedTrial()) {
+            throw new RuntimeException('You have already used your free trial. A payment method is required to subscribe.');
         }
 
         throw new RuntimeException('A payment method is required to start a new subscription.');

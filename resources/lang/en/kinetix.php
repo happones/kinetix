@@ -106,6 +106,7 @@ return [
     'billing_trial_badge'              => ':days-day trial',
     'billing_trial_notice_title'       => 'No payment method required',
     'billing_trial_notice_description' => 'You can start your trial without entering a credit card. You will only be charged when your trial ends and you choose a paid plan.',
+    'billing_trial_already_used'       => 'You have already used your free trial. Please add a payment method to subscribe.',
     'billing_invoices'                 => 'Invoices',
     'billing_date'                     => 'Date',
     'billing_total'                    => 'Total',

@@ -163,6 +163,7 @@ class BillingManagerTest extends TestCase
             $table->increments('id');
             $table->timestamp('trial_ends_at')->nullable();
             $table->string('trial_plan')->nullable();
+            $table->timestamp('trial_taken_at')->nullable();
         });
 
         Schema::create('plans', function (Blueprint $table) {
@@ -622,5 +623,98 @@ class BillingManagerTest extends TestCase
 
         $this->assertTrue($freePlan->fresh()->isFree());
         $this->assertFalse($paidPlan->fresh()->isFree());
+    }
+
+    public function test_generic_trial_sets_trial_taken_at(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable = FakeBillable::create();
+        $plan     = Plan::create([
+            'name'                    => 'Trial Plan',
+            'slug'                    => 'trial-taken',
+            'monthly_price'           => 19,
+            'stripe_monthly_price_id' => 'price_trial_taken',
+            'trial_days'              => 14,
+        ]);
+
+        BillingManager::for($billable)->subscribe('trial-taken');
+
+        $billable->refresh();
+
+        $this->assertNotNull($billable->getAttribute('trial_taken_at'));
+    }
+
+    public function test_cannot_start_second_generic_trial(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable = FakeBillable::create();
+        $billable->forceFill(['trial_taken_at' => now()->subDays(10)])->save();
+
+        $plan = Plan::create([
+            'name'                    => 'Second Trial',
+            'slug'                    => 'second-trial',
+            'monthly_price'           => 19,
+            'stripe_monthly_price_id' => 'price_second',
+            'trial_days'              => 14,
+        ]);
+
+        $billableWithoutPm = new class extends FakeBillable
+        {
+            public function hasDefaultPaymentMethod(): bool
+            {
+                return false;
+            }
+        };
+        $billableWithoutPm->id = $billable->id;
+        $billableWithoutPm->forceFill([
+            'trial_taken_at' => $billable->trial_taken_at,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('You have already used your free trial.');
+
+        BillingManager::for($billableWithoutPm)->subscribe('second-trial', null);
+    }
+
+    public function test_can_subscribe_with_payment_after_trial_used(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable = FakeBillable::create();
+        $billable->forceFill(['trial_taken_at' => now()->subDays(10)])->save();
+
+        $plan = Plan::create([
+            'name'                    => 'Paid After Trial',
+            'slug'                    => 'paid-after-trial',
+            'monthly_price'           => 29,
+            'stripe_monthly_price_id' => 'price_paid_after',
+        ]);
+
+        BillingManager::for($billable)->subscribe('paid-after-trial', 'pm_card');
+
+        $this->assertContains('create:price_paid_after:pm_card', $billable->calls);
+    }
+
+    public function test_trial_taken_at_not_cleared_on_cancel(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable                 = FakeBillable::create();
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+        $billable->forceFill([
+            'trial_plan'     => 'pro',
+            'trial_taken_at' => now()->subDays(5),
+        ])->save();
+
+        BillingManager::for($billable)->cancel();
+
+        $billable->refresh();
+
+        $this->assertNotNull($billable->getAttribute('trial_taken_at'));
+        $this->assertNull($billable->getAttribute('trial_plan'));
+        $this->assertNull($billable->getAttribute('trial_ends_at'));
     }
 }
