@@ -12,6 +12,7 @@ export interface KinetixBillingEndpoints {
     resume: string;
     addPaymentMethod: string;
     removePaymentMethod: (id: string) => string;
+    downloadInvoice: (id: string) => string;
 }
 
 /**
@@ -73,5 +74,6 @@ export function useKinetixBilling(endpoints: KinetixBillingEndpoints) {
         removePaymentMethod,
         cancel,
         resume,
+        downloadInvoice: (id: string) => endpoints.downloadInvoice(id),
     };
 }

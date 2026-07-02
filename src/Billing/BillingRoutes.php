@@ -19,7 +19,7 @@ class BillingRoutes
     public static function register(): void
     {
         $prefix = (string) config('kinetix.billing.route_prefix', 'billing');
-        if (config('kinetix.billing.teams', false)) {
+        if (config('kinetix.billing.teams', false) && config('kinetix.tenancy.subdomain') === null) {
             $prefix = '{team}/'.$prefix;
         }
         $name       = (string) config('kinetix.billing.route_name', 'billing.');

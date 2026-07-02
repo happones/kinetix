@@ -99,6 +99,7 @@ const billing = useKinetixBilling({
   resume: '/billing/resume',
   addPaymentMethod: '/billing/payment-methods',
   removePaymentMethod: (id: string) => `/billing/payment-methods/${id}`,
+  downloadInvoice: (id: string) => `/billing/invoices/${id}/download`,
 });
 
 const subscribe = (plan: KinetixPlanData) => {
@@ -143,7 +144,7 @@ const subscribe = (plan: KinetixPlanData) => {
 
         <KinetixInvoicesTable
           :invoices="invoices"
-          :download-url="(invoice) => `/billing/invoices/${invoice.id}/download`"
+          :download-url="(invoice) => billing.downloadInvoice(invoice.id)"
         />
       </div>
 

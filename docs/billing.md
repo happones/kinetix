@@ -100,12 +100,35 @@ If you want to bill **Teams** (or any model other than the default `User`), foll
        addPaymentMethod: teamUrl((team) => route('billing.payment-methods.add', { team })).value,
        removePaymentMethod: (id: string) =>
            teamUrl((team) => route('billing.payment-methods.remove', { team, id })).value,
+       downloadInvoice: (id: string) =>
+           teamUrl((team) => route('billing.invoices.download', { team, id })).value,
    });
    ```
    > Requires the `currentTeam` prop to be shared via `HandleInertiaRequests::share()`:
    > ```php
    > 'currentTeam' => fn () => $request->user()?->currentTeam,
    > ```
+
+### Subdomain-based Tenancy
+
+If you serve each team on its own subdomain (`acme.example.com/billing`), set the
+column name used to match the tenant from the request host:
+
+```env
+KINETIX_TENANCY_SUBDOMAIN=subdomain
+```
+
+When set:
+* Billing routes are registered **without** a `{team}` prefix — the team is already
+  in the hostname.
+* `BillingManager::resolve()` extracts the subdomain and queries the billable model
+  where the configured column matches it (e.g. `Team::where('subdomain', 'acme')->first()`).
+* If no team matches the subdomain, it falls back to the authenticated user
+  (user-scoped billing).
+* The frontend URLs stay the same as the non-team defaults (no `teamUrl` needed).
+
+> `KINETIX_TENANCY_SUBDOMAIN` is a **global** Kinetix config. It affects all
+> features that resolve the current team, not only billing.
 
 ### Trial Period Setup
 

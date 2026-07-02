@@ -49,7 +49,7 @@ class BillingManager
             return is_callable($resolver) ? $resolver($user) : $user;
         }
 
-        if (config('kinetix.billing.teams', false)) {
+        if (config('kinetix.billing.teams', false) || config('kinetix.tenancy.subdomain') !== null) {
             return static::resolveTeam($user) ?? $user;
         }
 
@@ -58,7 +58,34 @@ class BillingManager
 
     protected static function resolveTeam($user): ?Model
     {
+        $subdomainColumn = config('kinetix.tenancy.subdomain');
+
+        if ($subdomainColumn !== null) {
+            return static::findTeamFromSubdomain($subdomainColumn) ?? ($user->currentTeam ?? null);
+        }
+
         return static::findTeamFromRoute() ?? ($user->currentTeam ?? null);
+    }
+
+    protected static function findTeamFromSubdomain(string $column): ?Model
+    {
+        $host  = request()->getHost();
+        $parts = explode('.', $host);
+
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $subdomain = $parts[0];
+
+        /** @var class-string<Model> $modelClass */
+        $modelClass = config('kinetix.billing.billable', 'App\\Models\\Team');
+
+        if (! class_exists($modelClass)) {
+            return null;
+        }
+
+        return $modelClass::query()->where($column, $subdomain)->first();
     }
 
     protected static function findTeamFromRoute(): ?Model

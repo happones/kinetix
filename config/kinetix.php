@@ -21,6 +21,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Kinetix Tenancy
+    |--------------------------------------------------------------------------
+    |
+    | When your application serves multiple teams on subdomains (e.g.
+    | acme.example.com), set the column name used to match a tenant from
+    | the request host. Kinetix then resolves the current team from the
+    | subdomain and registers plain routes (no {team} prefix).
+    | Set to null (default) to use standard route-parameter tenancy.
+    |
+    */
+    'tenancy' => [
+        'subdomain' => env('KINETIX_TENANCY_SUBDOMAIN', null),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Kinetix Assets
     |--------------------------------------------------------------------------
     |
