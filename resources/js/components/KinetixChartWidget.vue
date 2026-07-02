@@ -12,6 +12,7 @@ import {
     VisCrosshair,
 } from '@unovis/vue';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { statusBadgeClass } from '@/composables/useStatusColor';
 import type { KinetixChartMetric, KinetixWidget } from '@/types';
 import Card from './primitives/Card.vue';
@@ -19,7 +20,10 @@ import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
+import KinetixEmptyState from './KinetixEmptyState.vue';
 import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
+
+const { t } = useI18n();
 
 const props = defineProps<{
     widget: KinetixWidget;
@@ -60,11 +64,21 @@ const chartData = computed(() => {
     });
 });
 
-const xAccessor = (d: any) => d.x;
+const hasData = computed(() => {
+    if (isCircular.value) {
+        return pieData.value.length > 0;
+    }
+    if (isHorizontalBar.value) {
+        return horizontalBars.value.length > 0;
+    }
+    return chartData.value.length > 0;
+});
+
+const xAccessor = (d: any) => d?.x;
 
 const yAccessors = computed(() => {
     return datasets.value.map(
-        (_: any, index: number) => (d: any) => d[`y_${index}`],
+        (_: any, index: number) => (d: any) => d?.[`y_${index}`],
     );
 });
 
@@ -172,8 +186,8 @@ const pieData = computed(() => {
     }));
 });
 
-const pieValueAccessor = (d: any) => d.value;
-const pieLabelAccessor = (d: any) => d.label;
+const pieValueAccessor = (d: any) => d?.value;
+const pieLabelAccessor = (d: any) => d?.label;
 const pieColorAccessor = (_: any, index: number) =>
     themeColors[index % themeColors.length];
 
@@ -279,7 +293,7 @@ const pieTooltipTemplate = (d: any) => {
         <CardContent class="font-sans w-full text-muted-foreground">
             <!-- Area gradient defs (referenced by VisArea fill) -->
             <svg
-                v-if="chartType === 'area'"
+                v-if="chartType === 'area' && hasData"
                 aria-hidden="true"
                 style="position: absolute; width: 0; height: 0"
             >
@@ -307,103 +321,113 @@ const pieTooltipTemplate = (d: any) => {
                 </defs>
             </svg>
 
-            <!-- Horizontal bars (div-based, crisp) -->
-            <div v-if="isHorizontalBar" class="space-y-3 py-2">
-                <div
-                    v-for="bar in horizontalBars"
-                    :key="bar.label"
-                    class="gap-3 flex items-center"
-                >
-                    <span
-                        class="text-xs w-24 shrink-0 truncate text-right text-muted-foreground"
-                        >{{ bar.label }}</span
-                    >
-                    <span
-                        class="h-6 flex-1 overflow-hidden rounded-md bg-muted/40"
+            <template v-if="hasData">
+                <!-- Horizontal bars (div-based, crisp) -->
+                <div v-if="isHorizontalBar" class="space-y-3 py-2">
+                    <div
+                        v-for="bar in horizontalBars"
+                        :key="bar.label"
+                        class="gap-3 flex items-center"
                     >
                         <span
-                            class="block h-full rounded-md transition-all"
-                            :style="{
-                                width: `${bar.pct}%`,
-                                backgroundColor: bar.color,
-                            }"
+                            class="text-xs w-24 shrink-0 truncate text-right text-muted-foreground"
+                            >{{ bar.label }}</span
+                        >
+                        <span
+                            class="h-6 flex-1 overflow-hidden rounded-md bg-muted/40"
+                        >
+                            <span
+                                class="block h-full rounded-md transition-all"
+                                :style="{
+                                    width: `${bar.pct}%`,
+                                    backgroundColor: bar.color,
+                                }"
+                            />
+                        </span>
+                        <span
+                            class="text-xs font-medium w-12 shrink-0 text-foreground tabular-nums"
+                            >{{ bar.value }}</span
+                        >
+                    </div>
+                </div>
+
+                <!-- Circular Charts (Pie/Donut) -->
+                <div v-else-if="isCircular" class="relative h-[300px] w-full">
+                    <VisSingleContainer :data="pieData" height="300">
+                        <VisDonut
+                            :value="pieValueAccessor"
+                            :id="pieLabelAccessor"
+                            :arcWidth="arcWidthValue"
+                            :color="pieColorAccessor"
                         />
-                    </span>
-                    <span
-                        class="text-xs font-medium w-12 shrink-0 text-foreground tabular-nums"
-                        >{{ bar.value }}</span
+                        <VisTooltip :template="pieTooltipTemplate" />
+                    </VisSingleContainer>
+                    <div
+                        v-if="centerValue"
+                        class="inset-0 pointer-events-none absolute flex flex-col items-center justify-center"
                     >
+                        <span class="text-2xl font-bold text-foreground">{{
+                            centerValue
+                        }}</span>
+                        <span
+                            v-if="centerCaption"
+                            class="text-xs text-muted-foreground"
+                            >{{ centerCaption }}</span
+                        >
+                    </div>
                 </div>
-            </div>
 
-            <!-- Circular Charts (Pie/Donut) -->
-            <div v-else-if="isCircular" class="relative h-[300px] w-full">
-                <VisSingleContainer :data="pieData" height="300">
-                    <VisDonut
-                        :value="pieValueAccessor"
-                        :id="pieLabelAccessor"
-                        :arcWidth="arcWidthValue"
-                        :color="pieColorAccessor"
-                    />
-                    <VisTooltip :template="pieTooltipTemplate" />
-                </VisSingleContainer>
-                <div
-                    v-if="centerValue"
-                    class="inset-0 pointer-events-none absolute flex flex-col items-center justify-center"
-                >
-                    <span class="text-2xl font-bold text-foreground">{{
-                        centerValue
-                    }}</span>
-                    <span
-                        v-if="centerCaption"
-                        class="text-xs text-muted-foreground"
-                        >{{ centerCaption }}</span
+                <!-- XY Charts (Line/Area/Bar) -->
+                <VisXYContainer v-else :data="chartData" height="300">
+                    <template
+                        v-if="chartType === 'line' || chartType === 'area'"
                     >
-                </div>
-            </div>
-
-            <!-- XY Charts (Line/Area/Bar) -->
-            <VisXYContainer v-else :data="chartData" height="300">
-                <template v-if="chartType === 'line' || chartType === 'area'">
-                    <VisArea
-                        v-if="chartType === 'area'"
+                        <VisArea
+                            v-if="chartType === 'area'"
+                            :x="xAccessor"
+                            :y="yAccessors"
+                            :color="areaColors"
+                        />
+                        <VisLine
+                            v-for="(_, index) in datasets"
+                            :key="index"
+                            :x="xAccessor"
+                            :y="yAccessors[index]"
+                            :color="colorAccessor(null, index)"
+                        />
+                    </template>
+                    <VisStackedBar
+                        v-if="chartType === 'bar' && stacked"
                         :x="xAccessor"
                         :y="yAccessors"
-                        :color="areaColors"
+                        :color="groupedBarColors"
                     />
-                    <VisLine
-                        v-for="(_, index) in datasets"
-                        :key="index"
+                    <VisGroupedBar
+                        v-else-if="chartType === 'bar'"
                         :x="xAccessor"
-                        :y="yAccessors[index]"
-                        :color="colorAccessor(null, index)"
+                        :y="yAccessors"
+                        :color="groupedBarColors"
                     />
-                </template>
-                <VisStackedBar
-                    v-if="chartType === 'bar' && stacked"
-                    :x="xAccessor"
-                    :y="yAccessors"
-                    :color="groupedBarColors"
+                    <VisAxis
+                        type="x"
+                        :tickValues="chartData.map((d) => d.x)"
+                        :tickFormat="(tickVal: number) => labels[tickVal] || ''"
+                    />
+                    <VisAxis type="y" />
+                    <VisCrosshair />
+                    <VisTooltip :template="tooltipTemplate" />
+                </VisXYContainer>
+            </template>
+            <template v-else>
+                <KinetixEmptyState
+                    :title="t('kinetix.chart_empty')"
+                    icon="trending-up"
                 />
-                <VisGroupedBar
-                    v-else-if="chartType === 'bar'"
-                    :x="xAccessor"
-                    :y="yAccessors"
-                    :color="groupedBarColors"
-                />
-                <VisAxis
-                    type="x"
-                    :tickValues="chartData.map((d) => d.x)"
-                    :tickFormat="(tickVal: number) => labels[tickVal] || ''"
-                />
-                <VisAxis type="y" />
-                <VisCrosshair />
-                <VisTooltip :template="tooltipTemplate" />
-            </VisXYContainer>
+            </template>
 
             <!-- Legend -->
             <div
-                v-if="showLegend && legendItems.length"
+                v-if="showLegend && legendItems.length && hasData"
                 class="mt-4 gap-4 flex flex-wrap items-center justify-center"
             >
                 <span

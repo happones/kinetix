@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.4] - 2026-07-01
+
+### Fixed
+
+- **Chart Widget (`KinetixChartWidget`)** — Added optional chaining and null-safety guards to data accessors (`xAccessor`, `yAccessors`, `pieValueAccessor`, `pieLabelAccessor`), and added a fallback rendering state using `<KinetixEmptyState>` when no data/labels are present, avoiding runtime TypeError crashes in Unovis components. **(published)**
+
 ## [0.68.3] - 2026-07-01
 
 ### Fixed

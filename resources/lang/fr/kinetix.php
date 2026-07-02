@@ -390,6 +390,7 @@ return [
     'mail_send_test'            => 'Envoyer un test',
     'rating_out_of'             => 'sur :max',
     'rating_reviews'            => 'Basé sur :total avis',
+    'chart_empty'               => 'Aucune donnée disponible',
     'period_today'              => 'Aujourd’hui',
     'period_yesterday'          => 'Hier',
     'period_7d'                 => '7 derniers jours',

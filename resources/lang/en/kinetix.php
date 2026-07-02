@@ -410,6 +410,7 @@ return [
     'rating_reviews' => 'Based on :total reviews',
 
     // Period filter
+    'chart_empty'      => 'No data available',
     'period_today'     => 'Today',
     'period_yesterday' => 'Yesterday',
     'period_7d'        => 'Last 7 days',
