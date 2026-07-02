@@ -374,7 +374,7 @@ class BillingManager
 
     protected function hasAlreadyUsedTrial(): bool
     {
-        return $this->billable->trial_taken_at !== null;
+        return $this->billable->getAttribute('trial_taken_at') !== null;
     }
 
     // -------------------------------------------------------------------
