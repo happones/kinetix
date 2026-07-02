@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-use Happones\Kinetix\Billing\Plan;
 
 return [
 
@@ -725,7 +724,7 @@ return [
     'billing' => [
         'enabled'    => env('KINETIX_BILLING_ENABLED', false),
         'billable'   => env('KINETIX_BILLING_BILLABLE', 'App\\Models\\User'),
-        'plan_model' => env('KINETIX_BILLING_PLAN_MODEL', Plan::class),
+        'plan_model' => env('KINETIX_BILLING_PLAN_MODEL', 'Happones\\Kinetix\\Billing\\Plan'),
 
         // Cashier subscription "type" (Cashier's default is 'default').
         'subscription' => env('KINETIX_BILLING_SUBSCRIPTION', 'default'),

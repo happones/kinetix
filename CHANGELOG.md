@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.5] - 2026-07-01
+
+### Fixed
+
+- **Kinetix Config (`config/kinetix.php`)** — Changed the `billing.plan_model` default class reference to a string class path representation (`'Happones\Kinetix\Billing\Plan'`), matching the styling of `billable` and avoiding class loading/import resolution errors in host applications where the package is not yet fully bootstrapped. **(published)**
+
 ## [0.68.4] - 2026-07-01
 
 ### Fixed
