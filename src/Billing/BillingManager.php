@@ -95,10 +95,44 @@ class BillingManager
     public function currentPlan(): ?Plan
     {
         if (method_exists($this->billable, 'currentPlan')) {
-            return $this->billable->currentPlan();
+            $plan = $this->billable->currentPlan();
+
+            if ($plan !== null) {
+                return $plan;
+            }
         }
 
-        return null;
+        $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
+
+        if ($trialGeneric && method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial()) {
+            $trialPlanSlug = $this->billable->trial_plan ?? null;
+
+            if ($trialPlanSlug !== null) {
+                /** @var class-string<Plan> $model */
+                $model = config('kinetix.billing.plan_model', Plan::class);
+
+                $plan = $model::query()->where('slug', $trialPlanSlug)->first();
+
+                if ($plan !== null) {
+                    return $plan;
+                }
+            }
+        }
+
+        return $this->resolveFreePlan();
+    }
+
+    protected function resolveFreePlan(): ?Plan
+    {
+        /** @var class-string<Plan> $model */
+        $model = config('kinetix.billing.plan_model', Plan::class);
+
+        return $model::query()->active()->ordered()
+            ->where(function ($query) {
+                $query->where('is_free', true)
+                    ->orWhere('monthly_price', '<=', 0);
+            })
+            ->first();
     }
 
     /**

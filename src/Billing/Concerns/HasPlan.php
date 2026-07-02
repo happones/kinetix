@@ -34,28 +34,36 @@ trait HasPlan
             }
         }
 
-        if (! method_exists($this, 'subscription')) {
-            return null;
-        }
+        if (method_exists($this, 'subscription')) {
+            $subscription = $this->subscription($type);
 
-        $subscription = $this->subscription($type);
+            if ($subscription !== null) {
+                $priceId = $subscription->stripe_price ?? null;
 
-        if ($subscription === null) {
-            return null;
-        }
+                if ($priceId !== null) {
+                    /** @var class-string<Plan> $model */
+                    $model = config('kinetix.billing.plan_model', Plan::class);
 
-        $priceId = $subscription->stripe_price ?? null;
+                    $plan = $model::query()
+                        ->where('stripe_monthly_price_id', $priceId)
+                        ->orWhere('stripe_yearly_price_id', $priceId)
+                        ->first();
 
-        if ($priceId === null) {
-            return null;
+                    if ($plan !== null) {
+                        return $plan;
+                    }
+                }
+            }
         }
 
         /** @var class-string<Plan> $model */
         $model = config('kinetix.billing.plan_model', Plan::class);
 
-        return $model::query()
-            ->where('stripe_monthly_price_id', $priceId)
-            ->orWhere('stripe_yearly_price_id', $priceId)
+        return $model::query()->active()->ordered()
+            ->where(function ($query) {
+                $query->where('is_free', true)
+                    ->orWhere('monthly_price', '<=', 0);
+            })
             ->first();
     }
 
