@@ -45,6 +45,14 @@ const formattedTrialEndsAt = computed(() => {
 const trialPlanName = computed(() => {
     return props.subscription?.trialPlan ?? null;
 });
+
+const hasActions = computed(() => {
+    if (!props.subscription) {
+        return false;
+    }
+
+    return props.subscription.active || props.subscription.onTrial || props.subscription.onGracePeriod;
+});
 </script>
 
 <template>
@@ -113,7 +121,7 @@ const trialPlanName = computed(() => {
             </p>
         </CardContent>
 
-        <CardFooter v-if="subscription" class="pt-6 border-t border-border">
+        <CardFooter v-if="hasActions" class="pt-6 border-t border-border">
             <button
                 v-if="!subscription.onGracePeriod"
                 type="button"

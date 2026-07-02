@@ -84,7 +84,28 @@ If you want to bill **Teams** (or any model other than the default `User`), foll
    When `KINETIX_BILLING_TEAMS` (or `kinetix.billing.teams` config key) is `true`:
    * Billing routes are automatically prefixed with `{team}/billing` instead of `billing`.
    * `BillingManager::resolve()` will automatically extract the current team from the `{team}` route parameter (or fall back to the user's `currentTeam` relation).
-   * Make sure to update the URLs in your client-side page (`Billing/Index.vue`) to prepend `/${currentTeam.id}` (or similar) to match these routes.
+    * Make sure to update the URLs in your client-side page (`Billing/Index.vue`) to prepend `/${currentTeam.id}` (or similar) to match these routes.
+
+4. **Team-scoped frontend routing with `useKinetixTeam`**:
+   Kinetix ships a `useKinetixTeam` composable that resolves the current team from Inertia page props and builds team-prefixed URLs:
+   ```ts
+   import { useKinetixTeam } from '@/composables/useKinetixTeam';
+
+   const { currentTeam, teamUrl } = useKinetixTeam();
+
+   const billing = useKinetixBilling({
+       subscribe: teamUrl((team) => route('billing.subscribe', { team })).value,
+       cancel: teamUrl((team) => route('billing.cancel', { team })).value,
+       resume: teamUrl((team) => route('billing.resume', { team })).value,
+       addPaymentMethod: teamUrl((team) => route('billing.payment-methods.add', { team })).value,
+       removePaymentMethod: (id: string) =>
+           teamUrl((team) => route('billing.payment-methods.remove', { team, id })).value,
+   });
+   ```
+   > Requires the `currentTeam` prop to be shared via `HandleInertiaRequests::share()`:
+   > ```php
+   > 'currentTeam' => fn () => $request->user()?->currentTeam,
+   > ```
 
 ### Trial Period Setup
 
