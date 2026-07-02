@@ -60,6 +60,7 @@ import KinetixPaymentMethods from '@/components/kinetix/KinetixPaymentMethods.vu
 import KinetixSubscriptionStatus from '@/components/kinetix/KinetixSubscriptionStatus.vue';
 import KinetixInvoicesTable from '@/components/kinetix/KinetixInvoicesTable.vue';
 import KinetixSecurePayments from '@/components/kinetix/KinetixSecurePayments.vue';
+import KinetixTrialNotice from '@/components/kinetix/KinetixTrialNotice.vue';
 import { useKinetixBilling } from '@/composables/useKinetixBilling';
 import type {
   KinetixInvoice,
@@ -79,6 +80,7 @@ const props = defineProps<{
   subscription: KinetixSubscriptionData | null;
   currencySymbol: string;
   publishableKey: string;
+  trialGeneric: boolean;
 }>();
 
 // Optional dot-path -> label map for capability rows (customise per app).
@@ -122,6 +124,8 @@ const subscribe = (plan: KinetixPlanData) => {
       @subscribe="subscribe"
       @update:cycle="cycle = $event"
     />
+
+    <KinetixTrialNotice v-if="trialGeneric" />
 
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div class="lg:col-span-2 space-y-6">
