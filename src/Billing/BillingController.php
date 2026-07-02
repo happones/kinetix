@@ -84,10 +84,10 @@ class BillingController
         return back()->with('status', (string) trans('kinetix.billing_payment_method_added'));
     }
 
-    public function removePaymentMethod(Request $request, string $id): RedirectResponse
+    public function removePaymentMethod(Request $request): RedirectResponse
     {
         try {
-            $this->manager()->removePaymentMethod($id);
+            $this->manager()->removePaymentMethod((string) $request->route('id'));
         } catch (Throwable $e) {
             return back()->withErrors(['message' => $e->getMessage()]);
         }
@@ -95,9 +95,9 @@ class BillingController
         return back()->with('status', (string) trans('kinetix.billing_payment_method_removed'));
     }
 
-    public function downloadInvoice(Request $request, string $id): mixed
+    public function downloadInvoice(Request $request): mixed
     {
-        return $this->manager()->downloadInvoice($id);
+        return $this->manager()->downloadInvoice((string) $request->route('id'));
     }
 
     public function cancel(Request $request): RedirectResponse
