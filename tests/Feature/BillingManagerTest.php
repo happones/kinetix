@@ -11,6 +11,7 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -23,9 +24,18 @@ class FakeStripeSubscription
 
     public ?string $stripe_price = 'price_pro_m';
 
+    public ?Carbon $trial_ends_at = null;
+
+    public bool $isOnTrial = false;
+
     public array $calls = [];
 
     public function __construct(public bool $grace = false) {}
+
+    public function onTrial(): bool
+    {
+        return $this->isOnTrial;
+    }
 
     public function active(): bool
     {
@@ -55,11 +65,21 @@ class FakeStripeSubscription
 
 class FakeSubscriptionBuilder
 {
+    public ?int $trialDays = null;
+
     public function __construct(public FakeBillable $billable, public string $price) {}
+
+    public function trialDays(int $days): self
+    {
+        $this->trialDays = $days;
+
+        return $this;
+    }
 
     public function create(?string $paymentMethod = null): void
     {
-        $this->billable->calls[] = "create:{$this->price}:{$paymentMethod}";
+        $trialString             = $this->trialDays !== null ? ":trial-{$this->trialDays}" : '';
+        $this->billable->calls[] = "create:{$this->price}:{$paymentMethod}{$trialString}";
     }
 }
 
@@ -77,7 +97,21 @@ class FakeBillable extends Model
 
     public bool $isSubscribed = false;
 
+    public bool $isGenericTrial = false;
+
+    public ?Carbon $trial_ends_at = null;
+
     public array $calls = [];
+
+    public function onGenericTrial(): bool
+    {
+        return $this->isGenericTrial;
+    }
+
+    public function trialEndsAt(string $type = 'default'): ?Carbon
+    {
+        return $this->trial_ends_at;
+    }
 
     public function subscribed(string $type = 'default'): bool
     {
@@ -131,6 +165,7 @@ class BillingManagerTest extends TestCase
             $table->string('stripe_yearly_price_id')->nullable();
             $table->json('features')->nullable();
             $table->json('highlighted_features')->nullable();
+            $table->unsignedInteger('trial_days')->nullable();
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0);
@@ -306,5 +341,43 @@ class BillingManagerTest extends TestCase
         $manager = BillingManager::resolve();
         $this->assertInstanceOf(FakeBillable::class, $manager->billable());
         $this->assertEquals($team->id, $manager->billable()->id);
+    }
+
+    public function test_subscription_data_includes_trial_information(): void
+    {
+        $billable                 = new FakeBillable;
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+
+        $data = BillingManager::for($billable)->subscriptionData();
+        $this->assertTrue($data['onTrial']);
+        $this->assertTrue($data['onGenericTrial']);
+        $this->assertEquals($billable->trial_ends_at->toIso8601String(), $data['trialEndsAt']);
+
+        $billable2                     = new FakeBillable;
+        $billable2->sub                = new FakeStripeSubscription;
+        $billable2->sub->isOnTrial     = true;
+        $billable2->sub->trial_ends_at = now()->addDays(5);
+
+        $data2 = BillingManager::for($billable2)->subscriptionData();
+        $this->assertTrue($data2['onTrial']);
+        $this->assertFalse($data2['onGenericTrial']);
+        $this->assertEquals($billable2->sub->trial_ends_at->toIso8601String(), $data2['trialEndsAt']);
+    }
+
+    public function test_subscribe_passes_trial_days_from_plan(): void
+    {
+        $billable = new FakeBillable;
+        $plan     = Plan::create([
+            'name'                    => 'Trial Plan',
+            'slug'                    => 'trial-plan',
+            'monthly_price'           => 19,
+            'stripe_monthly_price_id' => 'price_trial_m',
+            'trial_days'              => 14,
+        ]);
+
+        BillingManager::for($billable)->subscribe('trial-plan', 'pm_card');
+
+        $this->assertContains('create:price_trial_m:pm_card:trial-14', $billable->calls);
     }
 }

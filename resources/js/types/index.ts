@@ -781,7 +781,10 @@ export interface KinetixInvoice {
 export interface KinetixSubscriptionData {
     active: boolean;
     onGracePeriod: boolean;
-    status: string;
+    status: string | null;
     endsAt: string | null;
     stripePrice: string | null;
+    onTrial: boolean;
+    trialEndsAt: string | null;
+    onGenericTrial: boolean;
 }

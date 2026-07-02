@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('stripe_yearly_price_id')->nullable();
             $table->json('features')->nullable();
             $table->json('highlighted_features')->nullable();
+            $table->unsignedInteger('trial_days')->nullable();
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0);

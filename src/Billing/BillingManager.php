@@ -172,22 +172,35 @@ class BillingManager
     }
 
     /**
-     * @return array{active: bool, onGracePeriod: bool, status: string, endsAt: ?string, stripePrice: ?string}|null
+     * @return array{active: bool, onGracePeriod: bool, status: ?string, endsAt: ?string, stripePrice: ?string, onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool}
      */
-    public function subscriptionData(): ?array
+    public function subscriptionData(): array
     {
+        /** @var object|null $subscription */
         $subscription = $this->subscription();
 
-        if ($subscription === null) {
-            return null;
+        $onGenericTrial     = method_exists($this->billable, 'onGenericTrial') && $this->billable->onGenericTrial();
+        $genericTrialEndsAt = $onGenericTrial                                  && method_exists($this->billable, 'trialEndsAt')
+            ? $this->billable->trialEndsAt($this->subscriptionType())?->toIso8601String()
+            : null;
+
+        $onTrial     = false;
+        $trialEndsAt = null;
+
+        if ($subscription !== null) {
+            $onTrial     = method_exists($subscription, 'onTrial') && $subscription->onTrial();
+            $trialEndsAt = $onTrial ? $subscription->trial_ends_at?->toIso8601String() : null;
         }
 
         return [
-            'active'        => (bool) ($subscription->active() ?? false),
-            'onGracePeriod' => (bool) ($subscription->onGracePeriod() ?? false),
-            'status'        => (string) ($subscription->stripe_status ?? ''),
-            'endsAt'        => $subscription->ends_at?->toIso8601String(),
-            'stripePrice'   => $subscription->stripe_price ?? null,
+            'active'         => $subscription !== null && (bool) ($subscription->active() ?? false),
+            'onGracePeriod'  => $subscription !== null && (bool) ($subscription->onGracePeriod() ?? false),
+            'status'         => $subscription !== null ? (string) ($subscription->stripe_status ?? '') : null,
+            'endsAt'         => $subscription !== null ? $subscription->ends_at?->toIso8601String() : null,
+            'stripePrice'    => $subscription !== null ? $subscription->stripe_price ?? null : null,
+            'onTrial'        => $onTrial || $onGenericTrial,
+            'trialEndsAt'    => $trialEndsAt ?? $genericTrialEndsAt,
+            'onGenericTrial' => $onGenericTrial,
         ];
     }
 
@@ -249,9 +262,13 @@ class BillingManager
             throw new RuntimeException('A payment method is required to start a new subscription.');
         }
 
-        $this->billable
-            ->newSubscription($this->subscriptionType(), $priceId)
-            ->create($paymentMethod);
+        $builder = $this->billable->newSubscription($this->subscriptionType(), $priceId);
+
+        if ($plan->trial_days !== null && $plan->trial_days > 0) {
+            $builder->trialDays($plan->trial_days);
+        }
+
+        $builder->create($paymentMethod);
     }
 
     public function addPaymentMethod(string $paymentMethod): void

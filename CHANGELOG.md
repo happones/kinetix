@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.69.0] - 2026-07-02
+
+### Added
+
+- **Plan Trials (`trial_days`)** — Added a `trial_days` column to the `plans` table and model properties to allow configuring trial periods per-plan. If a plan specifies trial days, new subscriptions will automatically be started with those trial days in Stripe. **(published)**
+- **Trial Status reporting** — Extended `BillingManager::subscriptionData()` to return trial details (`onTrial`, `trialEndsAt`, `onGenericTrial`) to the frontend, supporting both generic trials (started via database `trial_ends_at` without card upfront) and Cashier subscription trials (card upfront). **(published)**
+- **Subscription Status Card Trial Alert** — Updated `KinetixSubscriptionStatus.vue` to display a distinct amber trial badge and a trial active notification banner alerting users when they are on trial. **(published)**
+
 ## [0.68.8] - 2026-07-02
 
 ### Fixed

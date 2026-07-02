@@ -27,6 +27,7 @@ class PlanData extends Data
         public bool $isFeatured,
         public bool $isFree,
         public int $sortOrder,
+        public ?int $trialDays,
     ) {}
 
     public static function fromPlan(Plan $plan): self
@@ -43,6 +44,7 @@ class PlanData extends Data
             isFeatured: (bool) $plan->is_featured,
             isFree: $plan->isFree(),
             sortOrder: (int) $plan->sort_order,
+            trialDays: $plan->trial_days !== null ? (int) $plan->trial_days : null,
         );
     }
 }

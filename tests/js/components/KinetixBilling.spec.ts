@@ -126,6 +126,9 @@ describe('KinetixSubscriptionStatus', () => {
                     status: 'active',
                     endsAt: null,
                     stripePrice: 'p',
+                    onTrial: false,
+                    trialEndsAt: null,
+                    onGenericTrial: false,
                 },
                 cancelLabel: 'Cancel subscription',
             },
@@ -143,6 +146,9 @@ describe('KinetixSubscriptionStatus', () => {
                     status: 'active',
                     endsAt: '2030-01-01',
                     stripePrice: 'p',
+                    onTrial: false,
+                    trialEndsAt: null,
+                    onGenericTrial: false,
                 },
                 resumeLabel: 'Resume subscription',
             },
@@ -151,6 +157,25 @@ describe('KinetixSubscriptionStatus', () => {
         expect(wrapper.text()).toContain('Resume subscription');
         await wrapper.get('button').trigger('click');
         expect(wrapper.emitted('resume')).toHaveLength(1);
+    });
+
+    it('shows the trial badge and active message when on trial', () => {
+        const wrapper = mount(KinetixSubscriptionStatus, {
+            props: {
+                subscription: {
+                    active: true,
+                    onGracePeriod: false,
+                    status: 'trialing',
+                    endsAt: null,
+                    onTrial: true,
+                    trialEndsAt: '2030-01-01T12:00:00',
+                    onGenericTrial: false,
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain('Trial');
+        expect(wrapper.text()).toContain('2030');
     });
 
     it('renders the empty state with no subscription', () => {

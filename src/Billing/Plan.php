@@ -24,6 +24,7 @@ use Illuminate\Support\Str;
  * @property bool                      $is_featured
  * @property bool                      $is_active
  * @property int                       $sort_order
+ * @property int|null                  $trial_days
  */
 class Plan extends Model
 {
@@ -45,6 +46,7 @@ class Plan extends Model
         'is_featured',
         'is_active',
         'sort_order',
+        'trial_days',
     ];
 
     /**
@@ -58,6 +60,7 @@ class Plan extends Model
         'monthly_price'        => 'decimal:2',
         'yearly_price'         => 'decimal:2',
         'sort_order'           => 'integer',
+        'trial_days'           => 'integer',
     ];
 
     protected static function booted(): void
