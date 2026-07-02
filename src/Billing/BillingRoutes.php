@@ -18,7 +18,10 @@ class BillingRoutes
 {
     public static function register(): void
     {
-        $prefix     = (string) config('kinetix.billing.route_prefix', 'billing');
+        $prefix = (string) config('kinetix.billing.route_prefix', 'billing');
+        if (config('kinetix.billing.teams', false)) {
+            $prefix = 'teams/{team}/'.$prefix;
+        }
         $name       = (string) config('kinetix.billing.route_name', 'billing.');
         $middleware = config('kinetix.billing.middleware', ['web', 'auth']);
         $controller = BillingController::class;

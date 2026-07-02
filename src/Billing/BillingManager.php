@@ -34,7 +34,15 @@ class BillingManager
         $resolver = config('kinetix.billing.resolve_billable');
         $user     = auth()->user();
 
-        $billable = is_callable($resolver) ? $resolver($user) : $user;
+        if ($resolver) {
+            $billable = is_callable($resolver) ? $resolver($user) : $user;
+        } elseif (config('kinetix.billing.teams', false)) {
+            $request  = request();
+            $team     = $request->route('team') ?? ($user ? ($user->currentTeam ?? null) : null);
+            $billable = $team                   ?? $user;
+        } else {
+            $billable = $user;
+        }
 
         if (! $billable instanceof Model) {
             throw new RuntimeException('Kinetix Billing could not resolve a billable model for the current request.');

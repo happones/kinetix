@@ -9,21 +9,26 @@ An **optional** billing/pricing module that wraps [Laravel Cashier](https://lara
 ## 1. Installation
 
 ```bash
-# 1. Cashier (the billing engine) + its tables
+# 1. Cashier (the billing engine)
 composer require laravel/cashier
+
+# 2. Publish Cashier's migrations (customize if needed before running)
+php artisan vendor:publish --tag="cashier-migrations"
 php artisan migrate
 
-# 2. The Kinetix `plans` table
+# 3. The Kinetix `plans` table
 php artisan vendor:publish --tag=kinetix-billing-migrations
 php artisan migrate
 
-# 3. Scaffold the billing page (+ optional example plans)
+# 4. Scaffold the billing page (+ optional example plans)
 php artisan kinetix:make-billing --seeder
 ```
 
-Make sure Stripe.js is available on the billing page — either load the script tag
-`<script src="https://js.stripe.com/v3/"></script>` or `npm i @stripe/stripe-js`
-(the module auto-detects either).
+Install `@stripe/stripe-js` on the frontend for secure card processing:
+```bash
+npm install @stripe/stripe-js
+```
+Make sure Stripe.js is available on the billing page (the module will automatically detect the npm package or a global script tag if loaded via `<script src="https://js.stripe.com/v3/"></script>`).
 
 ---
 
@@ -50,6 +55,37 @@ If the billable is **not** the authenticated user (e.g. the user's current team)
 ],
 ```
 
+### Team Billing Setup
+
+If you want to bill **Teams** (or any model other than the default `User`), follow these additional steps:
+
+1. **Cashier Migrations**:
+   In the Cashier migrations published during installation, change all foreign key references from `users` (or `user_id`) to `teams` (or `team_id`) to attach cashier tables to the Team model instead of Users.
+
+2. **Register Customer Model**:
+   Inside the `boot` method of your `AppServiceProvider`, register the `Team` model as Cashier's customer model:
+   ```php
+   use Laravel\Cashier\Cashier;
+   use App\Models\Team;
+
+   public function boot(): void
+   {
+       Cashier::useCustomerModel(Team::class);
+   }
+   ```
+
+3. **Configure Kinetix Billing**:
+   In your `.env` file, enable team-scoped billing and configure the billable model:
+   ```env
+   KINETIX_BILLING_TEAMS=true
+   KINETIX_BILLING_BILLABLE="App\Models\Team"
+   ```
+
+   When `KINETIX_BILLING_TEAMS` (or `kinetix.billing.teams` config key) is `true`:
+   * Billing routes are automatically prefixed with `teams/{team}/billing` instead of `billing`.
+   * `BillingManager::resolve()` will automatically extract the current team from the `{team}` route parameter (or fall back to the user's `currentTeam` relation).
+   * Make sure to update the URLs in your client-side page (`Billing/Index.vue`) to prepend `/teams/${currentTeam.id}` (or similar) to match these routes.
+
 ---
 
 ## 3. Configuration
@@ -59,6 +95,7 @@ If the billable is **not** the authenticated user (e.g. the user's current team)
 | Key | Default | Purpose |
 |---|---|---|
 | `enabled` | `false` | Master switch for the module |
+| `teams` | `false` | Enable Team-scoped billing routes and automatic resolution |
 | `billable` | `App\Models\User` | Documented billable class |
 | `plan_model` | `Happones\Kinetix\Billing\Plan` | Swap for your own Plan subclass |
 | `subscription` | `default` | Cashier subscription "type" |

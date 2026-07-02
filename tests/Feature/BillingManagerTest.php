@@ -10,6 +10,7 @@ use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -255,5 +256,28 @@ class BillingManagerTest extends TestCase
 
         $this->assertContains('cancel', $billable->sub->calls);
         $this->assertContains('resume', $billable->sub->calls);
+    }
+
+    public function test_resolve_supports_team_billing_option(): void
+    {
+        $team = new FakeBillable;
+
+        $user = new class extends User
+        {
+            public $currentTeam;
+        };
+        $user->currentTeam = $team;
+
+        $this->actingAs($user);
+
+        // Without team config, it resolves user
+        config(['kinetix.billing.teams' => false]);
+        $manager = BillingManager::resolve();
+        $this->assertSame($user, $manager->billable());
+
+        // With team config, it resolves the current team
+        config(['kinetix.billing.teams' => true]);
+        $manager2 = BillingManager::resolve();
+        $this->assertSame($team, $manager2->billable());
     }
 }

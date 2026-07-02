@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.6] - 2026-07-02
+
+### Added
+
+- **Team Billing Support** — Introduced a new `billing.teams` configuration key (controlled by `KINETIX_BILLING_TEAMS` env variable) to enable Team-scoped billing out-of-the-box. When active, billing routes are automatically prefixed with `teams/{team}/billing`, and `BillingManager::resolve()` resolves the team model from request parameters or the user's `currentTeam` relation. **(published)**
+
+### Documentation
+
+- **Billing Setup Guide (`docs/billing.md`)** — Updated the billing guide to document Cashier migration publishing (`vendor:publish --tag="cashier-migrations"`), `@stripe/stripe-js` installation, and steps for setting up team-scoped billing (e.g. database schema changes and AppServiceProvider model registration).
+
 ## [0.68.5] - 2026-07-01
 
 ### Fixed

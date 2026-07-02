@@ -723,6 +723,7 @@ return [
     */
     'billing' => [
         'enabled'    => env('KINETIX_BILLING_ENABLED', false),
+        'teams'      => env('KINETIX_BILLING_TEAMS', false),
         'billable'   => env('KINETIX_BILLING_BILLABLE', 'App\\Models\\User'),
         'plan_model' => env('KINETIX_BILLING_PLAN_MODEL', 'Happones\\Kinetix\\Billing\\Plan'),
 
