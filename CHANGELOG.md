@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.2] - 2026-07-01
+
+### Fixed
+
+- **Stripe JS Composable (`useKinetixStripe`)** — Changed dynamic import using Vite-ignored comments to a direct dynamic import to prevent resolution errors at runtime.
+- **Kinetix Event Calendar Tests** — Fixed flaky unit tests in `KinetixEventCalendar.spec.ts` by pinning the system time using fake timers in the test setup.
+
+### Refactored
+
+- **Billing Page Layout (`Billing/Index.vue`)** — Realigned the template output in `MakeBillingCommand` to place pricing tables and payment method/invoices sections in the specified grid layout. **(published)**
+- **Extract Secure Payments Card** — Refactored the "Secure Payments" section to a new reusable component `KinetixSecurePayments.vue`, loading translation keys (`billing_secure_payments` / `billing_secure_payments_desc`) dynamically from translated files. **(published)**
+
 ## [0.68.0] - 2026-06-27
 
 ### Added

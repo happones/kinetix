@@ -59,6 +59,7 @@ import KinetixPricingTable from '@/components/kinetix/KinetixPricingTable.vue';
 import KinetixPaymentMethods from '@/components/kinetix/KinetixPaymentMethods.vue';
 import KinetixSubscriptionStatus from '@/components/kinetix/KinetixSubscriptionStatus.vue';
 import KinetixInvoicesTable from '@/components/kinetix/KinetixInvoicesTable.vue';
+import KinetixSecurePayments from '@/components/kinetix/KinetixSecurePayments.vue';
 import { useKinetixBilling } from '@/composables/useKinetixBilling';
 import type {
   KinetixInvoice,
@@ -109,29 +110,21 @@ const subscribe = (plan: KinetixPlanData) => {
 
 <template>
   <div class="mx-auto max-w-7xl space-y-10 p-8">
+    <KinetixPricingTable
+      :plans="plans"
+      :current-plan-slug="currentPlan?.slug ?? null"
+      :selected-slug="preselectedPlanSlug"
+      :cycle="cycle"
+      :show-cycle-toggle="true"
+      :currency-symbol="currencySymbol"
+      :feature-labels="featureLabels"
+      :loading="billing.processing.value"
+      @subscribe="subscribe"
+      @update:cycle="cycle = $event"
+    />
+
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div class="lg:col-span-2">
-        <KinetixPricingTable
-          :plans="plans"
-          :current-plan-slug="currentPlan?.slug ?? null"
-          :selected-slug="preselectedPlanSlug"
-          :cycle="cycle"
-          :show-cycle-toggle="true"
-          :currency-symbol="currencySymbol"
-          :feature-labels="featureLabels"
-          :loading="billing.processing.value"
-          @subscribe="subscribe"
-          @update:cycle="cycle = $event"
-        />
-      </div>
-
-      <div class="space-y-6">
-        <KinetixSubscriptionStatus
-          :subscription="subscription"
-          @cancel="billing.cancel"
-          @resume="billing.resume"
-        />
-
+      <div class="lg:col-span-2 space-y-6">
         <KinetixPaymentMethods
           :payment-methods="paymentMethods"
           :selected-id="selectedPaymentMethodId"
@@ -143,13 +136,23 @@ const subscribe = (plan: KinetixPlanData) => {
           @remove="billing.removePaymentMethod"
           @added="billing.addPaymentMethod"
         />
+
+        <KinetixInvoicesTable
+          :invoices="invoices"
+          :download-url="(invoice) => `/billing/invoices/${invoice.id}/download`"
+        />
+      </div>
+
+      <div class="space-y-6">
+        <KinetixSubscriptionStatus
+          :subscription="subscription"
+          @cancel="billing.cancel"
+          @resume="billing.resume"
+        />
+
+        <KinetixSecurePayments />
       </div>
     </div>
-
-    <KinetixInvoicesTable
-      :invoices="invoices"
-      :download-url="(invoice) => `/billing/invoices/${invoice.id}/download`"
-    />
   </div>
 </template>
 VUE;

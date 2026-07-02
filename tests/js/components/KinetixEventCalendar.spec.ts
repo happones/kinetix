@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createI18n } from 'vue-i18n';
 import KinetixEventCalendar from '@/components/KinetixEventCalendar.vue';
 
@@ -41,6 +41,15 @@ const mountIt = () =>
     });
 
 describe('KinetixEventCalendar', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-06-15'));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it('renders a 6-week grid with weekday headers', () => {
         const w = mountIt();
         // 7 weekday headers + 42 day cells.

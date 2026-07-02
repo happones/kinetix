@@ -77,10 +77,7 @@ export function useKinetixStripe(options: UseKinetixStripeOptions) {
         }
 
         try {
-            // Variable specifier + @vite-ignore so bundlers don't require the optional
-            // dependency at build time when the host relies on the global script tag.
-            const specifier = '@stripe/stripe-js';
-            const mod: any = await import(/* @vite-ignore */ specifier);
+            const mod: any = await import('@stripe/stripe-js');
 
             return await mod.loadStripe(key);
         } catch {

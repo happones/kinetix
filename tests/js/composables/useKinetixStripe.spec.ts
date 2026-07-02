@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { useKinetixStripe } from '@/composables/useKinetixStripe';
 
+vi.mock('@stripe/stripe-js', () => ({
+    loadStripe: vi.fn().mockResolvedValue(null),
+}));
+
 interface FakeElement {
     type: string;
     opts: any;
