@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.68.3] - 2026-07-01
+
+### Fixed
+
+- **Pricing Table component (`KinetixPricingTable`)** — Changed the absolute alias import of `KinetixPlanCard` to a relative import, correcting compilation issues in host applications where published files live under a subdirectory. **(published)**
+
 ## [0.68.2] - 2026-07-01
 
 ### Fixed
