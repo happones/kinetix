@@ -36,6 +36,7 @@ interface Column {
     inputType?: string | null;
     placeholder?: string | null;
     numberConfig?: Record<string, unknown> | null;
+    view?: string | null;
 }
 
 interface RecordDescription {
@@ -50,6 +51,9 @@ interface TableRecord {
     icons: Record<string, string | null>;
     iconColors: Record<string, string | null>;
     badgeColors: Record<string, string | null>;
+    progress: Record<string, number | null>;
+    progressColors: Record<string, string | null>;
+    viewProps: Record<string, Record<string, any>>;
 }
 
 const props = defineProps<{
@@ -103,7 +107,14 @@ const resolveIcon = (name?: string) => {
     return standardIconMap[name.toLowerCase()] || null;
 };
 
-// Colors mapping
+const FILL: Record<string, string> = {
+    success: 'bg-success',
+    danger: 'bg-destructive',
+    warning: 'bg-warning',
+    info: 'bg-info',
+    primary: 'bg-primary',
+    gray: 'bg-muted-foreground',
+};
 </script>
 
 <template>
@@ -205,6 +216,43 @@ const resolveIcon = (name?: string) => {
         <span class="text-xs font-mono text-muted-foreground">{{
             record.values[col.name]
         }}</span>
+    </div>
+
+    <!-- Progress Mode -->
+    <div
+        v-else-if="col.type === 'progress'"
+        class="gap-2.5 inline-flex items-center"
+    >
+        <span
+            v-if="record.values[col.name] !== null"
+            class="text-sm font-medium"
+            :class="statusTextClass(record.progressColors[col.name] || 'primary')"
+        >
+            {{ record.values[col.name] }}
+        </span>
+        <div
+            v-if="record.progress[col.name] !== null"
+            class="w-12 bg-muted rounded-full h-1 overflow-hidden"
+        >
+            <div
+                class="h-full rounded-full transition-all duration-300"
+                :class="FILL[record.progressColors[col.name] || 'primary'] ?? FILL.primary"
+                :style="{ width: `${record.progress[col.name]}%` }"
+            />
+        </div>
+    </div>
+
+    <!-- Custom View Component Mode -->
+    <div
+        v-else-if="col.type === 'view' && col.view"
+        class="inline-flex items-center"
+    >
+        <component
+            :is="col.view"
+            :record="record"
+            :value="record.values[col.name]"
+            v-bind="record.viewProps[col.name] || {}"
+        />
     </div>
 
     <!-- Editable: Select Mode -->

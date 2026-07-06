@@ -588,6 +588,7 @@ export interface KinetixTableColumn {
     type: string;
     isBadge?: boolean;
     hasSummary?: boolean;
+    view?: string | null;
 }
 
 export interface KinetixTableFilter {
@@ -626,6 +627,9 @@ export interface KinetixTableRecord {
     icons: Record<string, string | null>;
     iconColors: Record<string, string>;
     badgeColors: Record<string, string>;
+    progress: Record<string, number | null>;
+    progressColors: Record<string, string>;
+    viewProps: Record<string, Record<string, any>>;
     descriptions: Record<
         string,
         { text: string | null; position: 'above' | 'below' }

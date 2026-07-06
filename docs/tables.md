@@ -169,6 +169,58 @@ NumberInputColumn::make('stock')->min(0)->step(1);
 NumberInputColumn::make('price')->currency('USD');
 ```
 
+### 10. `ProgressColumn`
+Displays numeric/quantity values with a supporting progress bar. Very useful for stock tracking, capacities, goals, etc.:
+- `progress(int|float|string|Closure $progress)`: Defines the progress percentage (0 to 100). Can be a number, a string representing another column name, or a closure.
+- `maxValue(int|float|string|Closure $maxValue)`: Dynamically computes percentage if no explicit progress is specified (`($value / $maxValue) * 100`).
+- `color(string|Closure $color)`: Status color for the text and bar (`success`, `danger`, `warning`, `info`, `primary`, `gray`).
+
+```php
+use Happones\Kinetix\Tables\Columns\ProgressColumn;
+
+// Stock tracking with warning threshold
+ProgressColumn::make('quantity')
+    ->maxValue(fn ($record) => $record->min_stock * 5)
+    ->color(fn ($value, $record) => $value < $record->min_stock ? 'danger' : 'success');
+```
+
+### 11. `ViewColumn`
+Renders a column using a custom Vue component registered in your host application:
+- `view(string $componentName)`: Set the name of the globally or locally registered Vue component.
+- `props(array|Closure $props)`: Key-value pairs or a closure that returns props to pass to the Vue component for the row.
+
+```php
+use Happones\Kinetix\Tables\Columns\ViewColumn;
+
+ViewColumn::make('avatar')
+    ->view('UserAvatarCell')
+    ->props(fn ($record) => [
+        'size' => 48,
+        'borderColor' => $record->active ? 'green' : 'gray',
+    ]);
+```
+
+Custom Vue components receive the following default props:
+*   `record`: The full `KinetixTableRecord` object representing the row.
+*   `value`: The resolved state/value of the column for the row.
+*   Any extra props evaluated from `props(...)` are bound via `v-bind`.
+
+---
+
+## Custom Cell Slots (Frontend Overrides)
+If you are rendering the `<KinetixTable>` component on a custom page and need page-level ad-hoc overrides, you can use Vue's scoped slots.
+KinetixTable dynamically generates slots for each column in the format `cell-{column_name}`:
+
+```vue
+<KinetixTable :table="table">
+    <template #cell-status="{ record, value }">
+        <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+            {{ value }} (ID: {{ record.id }})
+        </span>
+    </template>
+</KinetixTable>
+```
+
 ---
 
 ## Table Filters Reference

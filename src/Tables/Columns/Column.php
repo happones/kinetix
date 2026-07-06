@@ -183,6 +183,7 @@ abstract class Column
             placeholder: $extra['placeholder']                 ?? null,
             numberConfig: $extra['numberConfig']               ?? null,
             hasSummary: $this->hasSummarizers(),
+            view: $extra['view'] ?? null,
         );
     }
 

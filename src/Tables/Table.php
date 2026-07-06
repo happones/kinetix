@@ -558,11 +558,14 @@ class Table implements Arrayable, JsonSerializable
      */
     protected function formatRecord(Model $record): TableRowData
     {
-        $rowValues       = [];
-        $rowIcons        = [];
-        $rowIconColors   = [];
-        $rowBadgeColors  = [];
-        $rowDescriptions = [];
+        $rowValues         = [];
+        $rowIcons          = [];
+        $rowIconColors     = [];
+        $rowBadgeColors    = [];
+        $rowDescriptions   = [];
+        $rowProgress       = [];
+        $rowProgressColors = [];
+        $rowViewProps      = [];
 
         foreach ($this->columns as $column) {
             $colName = $column->getName();
@@ -586,6 +589,15 @@ class Table implements Arrayable, JsonSerializable
                 if ($column->toArray()['isBadge'] ?? false) {
                     $rowBadgeColors[$colName] = $column->getBadgeColor($record);
                 }
+            }
+
+            if ($column instanceof Columns\ProgressColumn) {
+                $rowProgress[$colName]       = $column->getProgress($record);
+                $rowProgressColors[$colName] = $column->getProgressColor($record);
+            }
+
+            if ($column instanceof Columns\ViewColumn) {
+                $rowViewProps[$colName] = $column->getViewProps($record);
             }
         }
 
@@ -611,6 +623,9 @@ class Table implements Arrayable, JsonSerializable
             descriptions: $rowDescriptions,
             recordUrl: $recordUrlStr,
             actions: $resolvedActions,
+            progress: $rowProgress,
+            progressColors: $rowProgressColors,
+            viewProps: $rowViewProps,
         );
     }
 

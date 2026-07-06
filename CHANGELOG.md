@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ViewColumn` table column** — Added new `ViewColumn` (`view` type) that allows rendering table cells via custom Vue components registered in the host application with dynamic row-specific props. **(published)**
+- **Custom cell slots** — Added dynamic scoped slots in `KinetixTable` (e.g. `cell-{column_name}`) enabling easy page-level ad-hoc Vue overrides for table cells. **(published)**
+- **`ProgressColumn` table column** — Added new `ProgressColumn` (`progress` type) for displaying numeric or quantity values with a supporting progress bar. Highly customizable with custom progress calculations, max values, and status colors. **(published)**
 - **`is_free` column on plans** — Added `is_free` boolean column to the plans migration, model, and seeder template. `Plan::isFree()` now checks the column first, then falls back to `monthly_price <= 0`. **(published)**
 - **Generic trial `trial_plan` support** — When `trial_generic` is enabled, subscribing to a plan with `trial_days` sets `trial_ends_at` and `trial_plan` on the billable model without creating a Stripe subscription (no payment method required). Consumers must add a `trial_plan` (nullable string) column to their billable model's table. `HasPlan::currentPlan()` returns the trial plan while the trial is active, then falls back to Stripe. `BillingManager::subscriptionData()` now includes `trialPlan`. **(published)**
 - **`trialPlan` in `KinetixSubscriptionData`** — TypeScript interface updated with `trialPlan: string | null`. **(published)**

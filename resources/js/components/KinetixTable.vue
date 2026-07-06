@@ -1127,13 +1127,21 @@ const onDrop = async () => {
                                     : '',
                             ]"
                         >
-                            <KinetixTableCell
+                            <slot
+                                :name="`cell-${col.name}`"
                                 :col="col"
                                 :record="record"
+                                :value="record.values[col.name]"
                                 :row-index="rowIndex"
-                                @update-cell="updateCell"
-                                @copy-to-clipboard="copyToClipboard"
-                            />
+                            >
+                                <KinetixTableCell
+                                    :col="col"
+                                    :record="record"
+                                    :row-index="rowIndex"
+                                    @update-cell="updateCell"
+                                    @copy-to-clipboard="copyToClipboard"
+                                />
+                            </slot>
                         </td>
 
                         <!-- Record Row Actions -->

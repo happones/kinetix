@@ -40,5 +40,7 @@ class ColumnData extends Data
         public ?array $numberConfig = null,
         // Whether this column renders a summary in the footer.
         public bool $hasSummary = false,
+        // ViewColumn specific
+        public ?string $view = null,
     ) {}
 }

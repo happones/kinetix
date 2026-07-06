@@ -15,6 +15,9 @@ class TableRowData extends Data
      * @param array<string, string|null>                                $icons
      * @param array<string, string>                                     $iconColors
      * @param array<string, string>                                     $badgeColors
+     * @param array<string, int|float|null>                             $progress
+     * @param array<string, string>                                     $progressColors
+     * @param array<string, array<string, mixed>>                       $viewProps
      * @param array<string, array{text: string|null, position: string}> $descriptions
      * @param array<int, ActionData>                                    $actions
      */
@@ -27,5 +30,8 @@ class TableRowData extends Data
         public array $descriptions,
         public ?string $recordUrl = null,
         public array $actions = [],
+        public array $progress = [],
+        public array $progressColors = [],
+        public array $viewProps = [],
     ) {}
 }
