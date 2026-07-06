@@ -76,7 +76,7 @@ class IconEntry extends Entry
     {
         $raw = $this->getRawState($record);
 
-        if ($raw instanceof HasIcon) {
+        if ($raw instanceof HasIcon || (is_object($raw) && method_exists($raw, 'getIcon'))) {
             return $raw->getIcon();
         }
 
@@ -107,7 +107,7 @@ class IconEntry extends Entry
     {
         $raw = $this->getRawState($record);
 
-        if ($raw instanceof HasColor) {
+        if ($raw instanceof HasColor || (is_object($raw) && method_exists($raw, 'getColor'))) {
             return $raw->getColor() ?? 'gray';
         }
 

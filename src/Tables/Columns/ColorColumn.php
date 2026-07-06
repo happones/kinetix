@@ -24,7 +24,7 @@ class ColorColumn extends Column
             return null;
         }
 
-        if ($value instanceof HasColor) {
+        if ($value instanceof HasColor || (is_object($value) && method_exists($value, 'getColor'))) {
             return $value->getColor();
         }
 

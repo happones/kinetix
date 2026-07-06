@@ -189,7 +189,7 @@ abstract class Entry extends Component
     {
         $raw = $this->getRawState($record);
 
-        if ($raw instanceof HasIcon) {
+        if ($raw instanceof HasIcon || (is_object($raw) && method_exists($raw, 'getIcon'))) {
             return $raw->getIcon();
         }
 
@@ -209,7 +209,7 @@ abstract class Entry extends Component
     {
         $raw = $this->getRawState($record);
 
-        if ($raw instanceof HasColor) {
+        if ($raw instanceof HasColor || (is_object($raw) && method_exists($raw, 'getColor'))) {
             return $raw->getColor();
         }
 
@@ -241,7 +241,7 @@ abstract class Entry extends Component
      */
     protected function resolveEnumState(mixed $value): mixed
     {
-        if ($value instanceof HasLabel) {
+        if ($value instanceof HasLabel || (is_object($value) && method_exists($value, 'getLabel'))) {
             return $value->getLabel();
         }
 

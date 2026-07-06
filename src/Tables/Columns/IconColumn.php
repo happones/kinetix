@@ -70,7 +70,7 @@ class IconColumn extends Column
     {
         $state = $this->getState($record);
 
-        if ($state instanceof HasIcon) {
+        if ($state instanceof HasIcon || (is_object($state) && method_exists($state, 'getIcon'))) {
             return $state->getIcon();
         }
 
@@ -98,7 +98,7 @@ class IconColumn extends Column
     {
         $state = $this->getState($record);
 
-        if ($state instanceof HasColor) {
+        if ($state instanceof HasColor || (is_object($state) && method_exists($state, 'getColor'))) {
             return $state->getColor() ?? 'gray';
         }
 

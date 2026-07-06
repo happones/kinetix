@@ -91,7 +91,7 @@ class TextColumn extends Column
         }
 
         // Auto-resolve Enums to their labels
-        if ($value instanceof HasLabel) {
+        if ($value instanceof HasLabel || (is_object($value) && method_exists($value, 'getLabel'))) {
             $value = $value->getLabel();
         } elseif ($value instanceof \BackedEnum) {
             $value = $value->value;
@@ -144,7 +144,7 @@ class TextColumn extends Column
     {
         $rawState = parent::getState($record);
 
-        if ($rawState instanceof HasColor) {
+        if ($rawState instanceof HasColor || (is_object($rawState) && method_exists($rawState, 'getColor'))) {
             return $rawState->getColor() ?? 'gray';
         }
 

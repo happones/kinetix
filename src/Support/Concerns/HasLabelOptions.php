@@ -19,7 +19,7 @@ trait HasLabelOptions
         $options = [];
 
         foreach (self::cases() as $case) {
-            $label = $case instanceof HasLabel
+            $label = ($case instanceof HasLabel || (is_object($case) && method_exists($case, 'getLabel')))
                 ? $case->getLabel()
                 : ($case instanceof BackedEnum ? $case->value : $case->name);
 

@@ -120,7 +120,7 @@ class Select extends Field
         if (is_string($this->options) && is_subclass_of($this->options, \UnitEnum::class)) {
             $options = [];
             foreach ($this->options::cases() as $case) {
-                $label = $case instanceof HasLabel
+                $label = ($case instanceof HasLabel || method_exists($case, 'getLabel'))
                     ? $case->getLabel()
                     : ($case instanceof \BackedEnum ? $case->value : $case->name);
 

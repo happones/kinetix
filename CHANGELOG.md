@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Filament contract cross-compatibility** — Enhanced Kinetix's contract validations (e.g. `HasLabel`, `HasColor`, `HasIcon`) to automatically detect and consume matching methods (`getLabel()`, `getColor()`, `getIcon()`) on enums or objects, ensuring 100% transparent compatibility with Filament's support contracts without requiring duplicate interface declarations or code changes. **(published)**
 - **Searchable and Remote-Search Filters** — Added `searchable()` and `searchUsing()` support to `SelectFilter` (single select) and `MultiSelectFilter` (multiple select). Searchable select filters render as a `KinetixCombobox` and remote search filters lazily fetch results dynamically from the database. **(published)**
 - **Reusable `KinetixCheckboxList` component** — Extracted a new reusable component `<KinetixCheckboxList>` with built-in support for local and remote searching (debounced, token-secured) and checked preservation (keeping selected options visible even when filtered out). Renders checkbox lists for both `checkbox-list` form fields and `multi-select` table filters. **(published)**
 - **`ViewColumn` table column** — Added new `ViewColumn` (`view` type) that allows rendering table cells via custom Vue components registered in the host application with dynamic row-specific props. **(published)**

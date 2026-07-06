@@ -94,7 +94,7 @@ class ExportColumn
     {
         $value = data_get($record, $this->name);
 
-        if ($value instanceof HasLabel) {
+        if ($value instanceof HasLabel || (is_object($value) && method_exists($value, 'getLabel'))) {
             $value = $value->getLabel();
         } elseif ($value instanceof BackedEnum) {
             $value = $value->value;
