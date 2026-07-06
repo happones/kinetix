@@ -618,6 +618,8 @@ export interface KinetixTableFilter {
     maxValue?: string | null;
     minuteStep?: number;
     hour12?: boolean;
+    isSearchable?: boolean;
+    searchToken?: string | null;
     weekStartsOn?: number | null;
 }
 

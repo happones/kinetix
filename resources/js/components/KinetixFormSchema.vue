@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { inputClass, textareaClass } from '@/composables/useShadcnVariants';
 import KinetixAddressPicker from './KinetixAddressPicker.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
+import KinetixCheckboxList from './KinetixCheckboxList.vue';
 import KinetixCombobox from './KinetixCombobox.vue';
 import KinetixCopyableInput from './KinetixCopyableInput.vue';
 import KinetixDatePicker from './KinetixDatePicker.vue';
@@ -634,43 +635,16 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                 />
 
                 <!-- Checkbox List -->
-                <div
+                <KinetixCheckboxList
                     v-else-if="comp.type === 'checkbox-list'"
-                    class="gap-2"
-                    :class="
-                        comp.isInline
-                            ? 'gap-4 flex flex-wrap items-center'
-                            : 'flex flex-col'
-                    "
-                >
-                    <label
-                        v-for="(lbl, val) in comp.options"
-                        :key="val"
-                        class="gap-2 text-sm flex items-center text-foreground"
-                        :class="
-                            comp.isDisabled
-                                ? 'cursor-not-allowed opacity-50'
-                                : 'cursor-pointer'
-                        "
-                    >
-                        <KinetixCheckbox
-                            :checked="isInArray(values[comp.name], String(val))"
-                            :disabled="comp.isDisabled"
-                            @change="
-                                emit(
-                                    'update:value',
-                                    comp.name,
-                                    toggleArrayValue(
-                                        values[comp.name],
-                                        String(val),
-                                        $event,
-                                    ),
-                                )
-                            "
-                        />
-                        {{ lbl }}
-                    </label>
-                </div>
+                    :value="values[comp.name]"
+                    :options="comp.options"
+                    :inline="comp.isInline"
+                    :disabled="comp.isDisabled"
+                    :searchable="comp.isSearchable"
+                    :search-token="comp.searchToken"
+                    @update:value="(v) => emit('update:value', comp.name, v)"
+                />
 
                 <!-- Color Picker -->
                 <div

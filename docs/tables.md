@@ -237,14 +237,20 @@ Renders as a checkbox.
 Renders as a dropdown select.
 - `options(array|Closure|string $options)`: Dropdown option pairs, a closure, or an Enum class (auto-mapped to value→label).
 - `attribute(string $attribute)`: Maps query parameters directly to database columns. If omitted, defaults to the filter name.
+- `searchable()`: Renders the select dropdown as a searchable combobox.
+- `searchUsing(string $model, string $labelColumn = 'name', array $searchColumns = ['name'], string $valueColumn = 'id')`: Dynamically queries the model's database table when searching. The selection is securely query-guarded via tokens.
 
 ### 3. `MultiSelectFilter`
-Renders as a checkbox list; matches any selected value via `whereIn`. Extends `SelectFilter` (same `options()`, including Enum classes).
+Renders as a checkbox list; matches any selected value via `whereIn`. Extends `SelectFilter` (supports all the same options, including Enum classes, `searchable()`, and `searchUsing()`). When searchable or remote-searching, a search input is rendered at the top of the checkbox list to query options.
 
 ```php
 use Happones\Kinetix\Tables\Filters\MultiSelectFilter;
 
 MultiSelectFilter::make('status')->options(PostStatus::class);
+
+// Remote search multi-select filter
+MultiSelectFilter::make('user_ids')
+    ->searchUsing(User::class, 'name', ['name', 'email']);
 ```
 
 ### 4. `TernaryFilter`

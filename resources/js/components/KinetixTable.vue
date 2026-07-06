@@ -31,6 +31,8 @@ import type {
 } from '@/types';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
+import KinetixCheckboxList from './KinetixCheckboxList.vue';
+import KinetixCombobox from './KinetixCombobox.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixDatePicker from './KinetixDatePicker.vue';
 import KinetixDateTimePicker from './KinetixDateTimePicker.vue';
@@ -615,8 +617,26 @@ const onDrop = async () => {
                                             >{{ filter.label }}</label
                                         >
 
-                                        <KinetixSelect
+                                        <KinetixCombobox
                                             v-if="
+                                                (filter.type === 'select' ||
+                                                    filter.type === 'ternary') &&
+                                                filter.isSearchable
+                                            "
+                                            :value="
+                                                activeFilters[filter.name] ?? ''
+                                            "
+                                            :options="
+                                                getFilterOptions(filter.options)
+                                            "
+                                            :search-token="filter.searchToken"
+                                            @update:value="
+                                                setFilter(filter.name, $event)
+                                            "
+                                        />
+
+                                        <KinetixSelect
+                                            v-else-if="
                                                 filter.type === 'select' ||
                                                 filter.type === 'ternary'
                                             "
@@ -924,37 +944,20 @@ const onDrop = async () => {
                                         </div>
 
                                         <!-- Multi-select -->
-                                        <div
+                                        <KinetixCheckboxList
                                             v-if="
                                                 filter.type === 'multi-select'
                                             "
-                                            class="gap-1.5 max-h-44 pr-1 flex flex-col overflow-y-auto"
-                                        >
-                                            <label
-                                                v-for="(
-                                                    lbl, val
-                                                ) in filter.options"
-                                                :key="val"
-                                                class="gap-2 text-xs flex cursor-pointer items-center text-foreground select-none"
-                                            >
-                                                <KinetixCheckbox
-                                                    :checked="
-                                                        isMultiSelected(
-                                                            filter.name,
-                                                            String(val),
-                                                        )
-                                                    "
-                                                    @change="
-                                                        toggleMulti(
-                                                            filter.name,
-                                                            String(val),
-                                                            $event,
-                                                        )
-                                                    "
-                                                />
-                                                {{ lbl }}
-                                            </label>
-                                        </div>
+                                            :value="
+                                                activeFilters[filter.name] || []
+                                            "
+                                            :options="filter.options"
+                                            :searchable="filter.isSearchable"
+                                            :search-token="filter.searchToken"
+                                            @update:value="
+                                                setFilter(filter.name, $event)
+                                            "
+                                        />
                                     </div>
                                 </div>
                             </PopoverContent>

@@ -33,5 +33,8 @@ class FilterData extends Data
         public bool $hour12 = false,
         // WeekFilter — first day of week (0=Sun … 6=Sat).
         public ?int $weekStartsOn = null,
+        // Searchable filters specific
+        public bool $isSearchable = false,
+        public ?string $searchToken = null,
     ) {}
 }

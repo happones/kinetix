@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Searchable and Remote-Search Filters** — Added `searchable()` and `searchUsing()` support to `SelectFilter` (single select) and `MultiSelectFilter` (multiple select). Searchable select filters render as a `KinetixCombobox` and remote search filters lazily fetch results dynamically from the database. **(published)**
+- **Reusable `KinetixCheckboxList` component** — Extracted a new reusable component `<KinetixCheckboxList>` with built-in support for local and remote searching (debounced, token-secured) and checked preservation (keeping selected options visible even when filtered out). Renders checkbox lists for both `checkbox-list` form fields and `multi-select` table filters. **(published)**
 - **`ViewColumn` table column** — Added new `ViewColumn` (`view` type) that allows rendering table cells via custom Vue components registered in the host application with dynamic row-specific props. **(published)**
 - **Custom cell slots** — Added dynamic scoped slots in `KinetixTable` (e.g. `cell-{column_name}`) enabling easy page-level ad-hoc Vue overrides for table cells. **(published)**
 - **`ProgressColumn` table column** — Added new `ProgressColumn` (`progress` type) for displaying numeric or quantity values with a supporting progress bar. Highly customizable with custom progress calculations, max values, and status colors. **(published)**
