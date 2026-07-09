@@ -34,6 +34,7 @@ export function useKinetixTokens() {
     async function create(payload: {
         name: string;
         abilities: string[];
+        expires_at?: string | null;
     }): Promise<{ token: KinetixToken; plainTextToken: string } | null> {
         return kinetixFetch<{ token: KinetixToken; plainTextToken: string }>(
             base(),

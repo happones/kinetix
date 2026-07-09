@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.0] - 2026-07-10
+
+### Added
+
+- **Token expiration** — the developer-token create form now includes an
+  optional expiration date (shadcn calendar, future dates only): persisted via
+  Sanctum's native `expires_at` (`createToken()`'s third argument, end of the
+  chosen day), automatically rejected by the guard once past, surfaced in
+  `TokenData.expiresAt` and badged in the token list (red "Expired" when
+  past). Server validates `expires_at` as a future date (422 otherwise).
+  **(published)**
+
 ## [0.85.0] - 2026-07-10
 
 ### Added

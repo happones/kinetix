@@ -20,6 +20,7 @@ class TokenData extends Data
         public array $abilities,
         public ?string $lastUsedAt,
         public ?string $createdAt,
+        public ?string $expiresAt = null,
     ) {}
 
     /**
@@ -32,6 +33,7 @@ class TokenData extends Data
         $abilities  = $token->getAttribute('abilities');
         $lastUsedAt = $token->getAttribute('last_used_at');
         $createdAt  = $token->getAttribute('created_at');
+        $expiresAt  = $token->getAttribute('expires_at');
 
         return new self(
             $token->getKey(),
@@ -39,6 +41,7 @@ class TokenData extends Data
             is_array($abilities) ? array_values($abilities) : [],
             $lastUsedAt instanceof \DateTimeInterface ? $lastUsedAt->format(\DateTimeInterface::ATOM) : null,
             $createdAt instanceof \DateTimeInterface ? $createdAt->format(\DateTimeInterface::ATOM) : null,
+            $expiresAt instanceof \DateTimeInterface ? $expiresAt->format(\DateTimeInterface::ATOM) : null,
         );
     }
 }

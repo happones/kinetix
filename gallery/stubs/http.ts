@@ -131,6 +131,7 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
                     abilities: ['posts.read', 'posts.write'],
                     lastUsedAt: '2026-06-20T10:00:00Z',
                     createdAt: '2026-06-01T09:00:00Z',
+                    expiresAt: '2026-12-31T23:59:59Z',
                 },
                 {
                     id: 2,
@@ -138,6 +139,15 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
                     abilities: ['*'],
                     lastUsedAt: null,
                     createdAt: '2026-06-18T14:30:00Z',
+                    expiresAt: null,
+                },
+                {
+                    id: 3,
+                    name: 'Legacy import',
+                    abilities: ['posts.read'],
+                    lastUsedAt: '2026-01-05T08:00:00Z',
+                    createdAt: '2025-11-01T08:00:00Z',
+                    expiresAt: '2026-02-01T00:00:00Z',
                 },
             ],
             scopes: {

@@ -507,6 +507,8 @@ App-wide hotkeys. **Frontend-only** — no backend, no config, no migration. Roa
 
 ## 20. Kinetix Developer Tokens (optional, requires laravel/sanctum)
 
+- **Expiration (v0.86.0)**: `TokenController::store` validates `expires_at` (`nullable|date|after:now`), parses with `Date::parse()->endOfDay()` and passes it as `createToken()`'s 3rd arg (Sanctum-native; guard auto-rejects expired). `TokenData.expiresAt` (ATOM) / `KinetixToken.expiresAt` TS. Manager: `KinetixDatePicker` (min tomorrow) in the create form + list badge (`token_expired` red / `token_expires {date}` muted). i18n `token_expires_at/_hint/_expires/_expired`. Tests: `TokensTest` expiration cases, `KinetixTokenManager.spec.ts`.
+
 Self-service personal access tokens. Roadmap v0.14.0. **Requires `laravel/sanctum`** + the authenticatable model uses `Laravel\Sanctum\HasApiTokens` (else endpoints abort 500). Config block `tokens` (`enabled`, `scopes` = key→label).
 
 - **Scope registry** (`TokenScopeRegistry`, singleton seeded from `config('kinetix.tokens.scopes')`; facade `KinetixTokens::scopes([...])` merges more at boot): the catalog of grantable Sanctum **abilities**. `register()` accepts key→label or a plain key list; `all()`/`keys()`.

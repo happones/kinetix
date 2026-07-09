@@ -100,6 +100,36 @@ class TokensTest extends TestCase
         $this->assertCount(1, $user->fresh()->tokens);
     }
 
+    public function test_store_accepts_an_optional_expiration_date(): void
+    {
+        $user = $this->user();
+
+        $response = $this->actingAs($user)->postJson('/_kinetix/tokens', [
+            'name'       => 'Expiring',
+            'abilities'  => ['posts.read'],
+            'expires_at' => now()->addDays(30)->format('Y-m-d'),
+        ]);
+
+        $response->assertCreated();
+
+        // Persisted at the end of the chosen day, and serialized in the DTO.
+        $token = $user->fresh()->tokens->first();
+        $this->assertSame(
+            now()->addDays(30)->endOfDay()->toDateTimeString(),
+            $token->expires_at->toDateTimeString(),
+        );
+        $this->assertNotNull($response->json('token.expiresAt'));
+    }
+
+    public function test_store_rejects_a_past_expiration_date(): void
+    {
+        $this->actingAs($this->user())->postJson('/_kinetix/tokens', [
+            'name'       => 'Stale',
+            'abilities'  => ['posts.read'],
+            'expires_at' => now()->subDay()->format('Y-m-d'),
+        ])->assertStatus(422);
+    }
+
     public function test_store_rejects_abilities_outside_the_registry(): void
     {
         $user = $this->user();

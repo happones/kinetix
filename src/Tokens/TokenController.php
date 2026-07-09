@@ -8,6 +8,7 @@ use Happones\Kinetix\Data\TokenData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\Rule;
 
 /**
@@ -42,6 +43,7 @@ class TokenController
             'name'        => ['required', 'string', 'max:255'],
             'abilities'   => ['array'],
             'abilities.*' => ['string'],
+            'expires_at'  => ['nullable', 'date', 'after:now'],
         ];
 
         // When the host declares a scope catalog, tokens must be granted at
@@ -55,7 +57,13 @@ class TokenController
 
         $abilities = $validated['abilities'] ?? ['*'];
 
-        $newToken = $user->createToken($validated['name'], $abilities);
+        // Optional expiration — Sanctum's guard rejects the token past this
+        // date. A bare Y-m-d expires at the END of that day.
+        $expiresAt = isset($validated['expires_at'])
+            ? Date::parse($validated['expires_at'])->endOfDay()
+            : null;
+
+        $newToken = $user->createToken($validated['name'], $abilities, $expiresAt);
 
         // The plaintext token is shown exactly once.
         return response()->json([

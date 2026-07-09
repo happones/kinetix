@@ -58,6 +58,7 @@ KinetixTokens::scopes(['posts.read' => 'Read posts']); // provider boot (merges 
   `index`/`store`/`destroy` operate on `$request->user()->tokens()`.
 - **Reveal once**: `store` returns `plainTextToken` exactly once; it is never
   persisted readable. `index` never includes it.
+- **Expiration**: `store` accepts optional `expires_at` (future date, 422 otherwise) → `createToken($name, $abilities, $expiresAt)` persisted at END of the chosen day; Sanctum's guard rejects expired tokens automatically. The manager form has a `KinetixDatePicker` (min = tomorrow) and the list badges expiry (`token_expires`/`token_expired`).
 - Endpoints (team-aware prefix): `GET/POST {prefix}/tokens`,
   `DELETE {prefix}/tokens/{token}`.
 - Enforce on your API with standard Sanctum:

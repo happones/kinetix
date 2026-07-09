@@ -96,6 +96,15 @@ revokes tokens. All strings are localized (`token_*` keys, en/es/fr/pt).
 
 ---
 
+### Expiration
+
+The create form includes an optional **expiration date** (shadcn calendar).
+The token is persisted with Sanctum's native `expires_at` — the guard rejects
+it automatically past that date (end of the chosen day) — and the list badges
+each token with its expiry (red **Expired** once past). Leave it empty for a
+non-expiring token. Server-side, `expires_at` must be a future date (422
+otherwise).
+
 ## 3. Enforcing scopes on your API
 
 Kinetix only issues the tokens — guarding your API routes is standard Sanctum.

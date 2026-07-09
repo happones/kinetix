@@ -411,6 +411,7 @@ export interface KinetixToken {
     abilities: string[];
     lastUsedAt: string | null;
     createdAt: string | null;
+    expiresAt?: string | null;
 }
 
 /** A spotlight result item. */

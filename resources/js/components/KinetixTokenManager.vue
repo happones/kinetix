@@ -6,6 +6,7 @@ import { useKinetixTokens } from '@/composables/useKinetixTokens';
 import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
 import type { KinetixToken } from '@/types';
 import KinetixCheckbox from './KinetixCheckbox.vue';
+import KinetixDatePicker from './KinetixDatePicker.vue';
 import KinetixLabel from './KinetixLabel.vue';
 
 /**
@@ -19,7 +20,19 @@ const { tokens, scopes, load, create, remove } = useKinetixTokens();
 const creating = ref(false);
 const newName = ref('');
 const selectedScopes = ref<string[]>([]);
+const expiresAt = ref<string | null>(null);
 const revealed = ref<string | null>(null);
+
+/** Expirations start tomorrow (the backend requires a future date). */
+const minExpiration = computed(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return tomorrow.toISOString().slice(0, 10);
+});
+
+const isExpired = (token: KinetixToken): boolean =>
+    token.expiresAt != null && new Date(token.expiresAt) < new Date();
 
 const hasScopes = computed(() => Object.keys(scopes.value).length > 0);
 
@@ -29,12 +42,14 @@ function startCreate(): void {
     creating.value = true;
     newName.value = '';
     selectedScopes.value = [];
+    expiresAt.value = null;
 }
 
 function cancelCreate(): void {
     creating.value = false;
     newName.value = '';
     selectedScopes.value = [];
+    expiresAt.value = null;
 }
 
 function toggleScope(name: string, checked: boolean): void {
@@ -52,6 +67,7 @@ async function save(): Promise<void> {
         const result = await create({
             name: newName.value.trim(),
             abilities: selectedScopes.value,
+            expires_at: expiresAt.value,
         });
 
         if (result?.plainTextToken) {
@@ -178,6 +194,21 @@ function formatDate(value: string | null): string {
                 {{ t('kinetix.token_full_access') }}
             </p>
 
+            <div class="space-y-2 sm:max-w-56">
+                <KinetixLabel for="token-expires-at">{{
+                    t('kinetix.token_expires_at')
+                }}</KinetixLabel>
+                <KinetixDatePicker
+                    id="token-expires-at"
+                    :value="expiresAt"
+                    :min-value="minExpiration"
+                    @update:value="expiresAt = $event"
+                />
+                <p class="text-xs text-muted-foreground">
+                    {{ t('kinetix.token_expires_hint') }}
+                </p>
+            </div>
+
             <div class="gap-2 flex justify-end">
                 <button
                     type="button"
@@ -226,6 +257,25 @@ function formatDate(value: string | null): string {
                         </div>
                     </div>
                     <div class="gap-3 flex items-center">
+                        <span
+                            v-if="token.expiresAt"
+                            class="px-1.5 py-0.5 font-medium rounded-md text-[11px]"
+                            :class="
+                                isExpired(token)
+                                    ? 'bg-destructive/10 text-destructive'
+                                    : 'bg-muted text-muted-foreground'
+                            "
+                        >
+                            {{
+                                isExpired(token)
+                                    ? t('kinetix.token_expired')
+                                    : t('kinetix.token_expires', {
+                                          date: new Date(
+                                              token.expiresAt,
+                                          ).toLocaleDateString(),
+                                      })
+                            }}
+                        </span>
                         <span class="text-xs text-muted-foreground">
                             {{ t('kinetix.token_last_used') }}:
                             {{ formatDate(token.lastUsedAt) }}
