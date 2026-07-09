@@ -124,7 +124,7 @@ Displays text strings with additional formatting structures:
 - `dateTime(?string $format = null)`: Same semantics, defaulting to `config('kinetix.formats.datetime')` (default `lll`, includes the time).
 - `isoDate(?string $format = null)` / `isoDateTime(?string $format = null)`: Format with explicit Carbon isoFormat tokens, localized (`->isoDate('LL')` → "9 de julio de 2026" in `es`). Filament-compatible.
 - `locale(string $locale)`: Override the formatting locale for this column (defaults to `app()->getLocale()`).
-- `money(string $currency)`: Prepends currency signs (defaults to USD).
+- `money(string $currency = 'USD', int $divideBy = 1, ?string $locale = null)`: Formats as **localized currency** via intl (`$1,234.50` in `en`, `1.234,50 €` in `de`). `$divideBy` converts minor units (`100` for cents); the locale resolves from the argument, then the column `->locale()`, then the app locale. Filament-compatible.
 - `limit(int $limit)`: Truncates text.
 - `description(string|Closure $description, string $position = 'below')`: Displays secondary description lines.
 

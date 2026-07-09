@@ -24,6 +24,15 @@ class DatedRecord extends Model
     protected $casts = ['published_at' => 'datetime'];
 }
 
+class PricedRecord extends Model
+{
+    protected $table = 'priced_records';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+}
+
 class LocalizedDateFormattingTest extends TestCase
 {
     protected function setUp(): void
@@ -126,5 +135,58 @@ class LocalizedDateFormattingTest extends TestCase
         $data = DateFilter::make('published_at')->toData();
 
         $this->assertSame('pt', $data->locale);
+    }
+
+    public function test_money_formats_with_intl_in_the_app_locale(): void
+    {
+        Schema::create('priced_records', function (Blueprint $table) {
+            $table->increments('id');
+            $table->decimal('price', 10, 2);
+        });
+        PricedRecord::create(['price' => 1234.5]);
+        $record = PricedRecord::query()->firstOrFail();
+
+        app()->setLocale('en');
+        $this->assertSame('$1,234.50', TextColumn::make('price')->money('USD')->getState($record));
+
+        // Localized separators/symbol placement (de: 1.234,50 €).
+        app()->setLocale('de');
+        $state = (string) TextColumn::make('price')->money('EUR')->getState($record);
+        $this->assertStringContainsString('1.234,50', $state);
+        $this->assertStringContainsString('€', $state);
+    }
+
+    public function test_money_supports_divide_by_and_an_explicit_locale(): void
+    {
+        Schema::create('priced_records', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('price'); // stored in cents
+        });
+        PricedRecord::create(['price' => 123450]);
+        $record = PricedRecord::query()->firstOrFail();
+
+        app()->setLocale('de');
+
+        // divideBy converts minor units; the locale argument beats the app locale.
+        $this->assertSame(
+            '$1,234.50',
+            TextColumn::make('price')->money('USD', divideBy: 100, locale: 'en')->getState($record),
+        );
+    }
+
+    public function test_infolist_money_formats_the_same_way(): void
+    {
+        Schema::create('priced_records', function (Blueprint $table) {
+            $table->increments('id');
+            $table->decimal('price', 10, 2);
+        });
+        PricedRecord::create(['price' => 99.9]);
+
+        app()->setLocale('en');
+
+        $this->assertSame(
+            '$99.90',
+            TextEntry::make('price')->money('USD')->getState(PricedRecord::query()->firstOrFail()),
+        );
     }
 }

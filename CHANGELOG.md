@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.80.0] - 2026-07-09
+
+### Changed
+
+- **`money()` is now locale-aware** on `TextColumn` and infolist `TextEntry`:
+  values format through intl's `NumberFormatter::CURRENCY` in the application
+  locale (`$1,234.50` in `en`, `1.234,50 €` in `de`) instead of the previous
+  hardcoded `$1,234.56 USD`. New Filament-compatible signature
+  `money(string $currency = 'USD', int $divideBy = 1, ?string $locale = null)` —
+  `$divideBy` converts minor units (e.g. `100` when amounts are stored in
+  cents) and the locale resolves from the argument → the column/entry
+  `->locale()` → the app locale. Falls back to `CODE 1,234.50` when ext-intl
+  is unavailable. Shared `FormatsMoney` concern, mirroring
+  `Summarizer::money()`.
+
 ## [0.79.0] - 2026-07-09
 
 ### Added

@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
 use Happones\Kinetix\Support\Concerns\FormatsDates;
+use Happones\Kinetix\Support\Concerns\FormatsMoney;
 use Happones\Kinetix\Support\Contracts\HasColor;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 class TextColumn extends Column
 {
     use FormatsDates;
+    use FormatsMoney;
 
     protected bool $isBadge = false;
 
@@ -23,8 +25,6 @@ class TextColumn extends Column
     protected string|Closure|null $description = null;
 
     protected string $descriptionPosition = 'below'; // below, above
-
-    protected ?string $currencyCode = null;
 
     protected function getType(): string
     {
@@ -60,13 +60,6 @@ class TextColumn extends Column
         return $this;
     }
 
-    public function money(string $currency = 'USD'): static
-    {
-        $this->currencyCode = $currency;
-
-        return $this;
-    }
-
     public function getState(Model $record): mixed
     {
         $value = parent::getState($record);
@@ -87,10 +80,8 @@ class TextColumn extends Column
         // Apply date formatting (localized isoFormat or plain PHP format).
         $value = $this->formatDateValue($value);
 
-        // Apply money formatting
-        if ($this->currencyCode !== null) {
-            $value = '$'.number_format((float) $value, 2).' '.$this->currencyCode;
-        }
+        // Apply money formatting (localized intl currency).
+        $value = $this->formatMoneyValue($value);
 
         // Apply string limits
         if ($this->limit !== null && is_string($value)) {

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Infolists\Components;
 
 use Happones\Kinetix\Support\Concerns\FormatsDates;
+use Happones\Kinetix\Support\Concerns\FormatsMoney;
 use Illuminate\Database\Eloquent\Model;
 
 class TextEntry extends Entry
 {
     use FormatsDates;
+    use FormatsMoney;
 
     protected bool $isBadge = false;
 
@@ -18,8 +20,6 @@ class TextEntry extends Entry
     protected bool $isInline = false;
 
     protected ?int $limit = null;
-
-    protected ?string $currencyCode = null;
 
     protected function getType(): string
     {
@@ -57,13 +57,6 @@ class TextEntry extends Entry
         return $this;
     }
 
-    public function money(string $currency = 'USD'): static
-    {
-        $this->currencyCode = $currency;
-
-        return $this;
-    }
-
     public function getState(?Model $record = null): mixed
     {
         $value = parent::getState($record);
@@ -77,9 +70,8 @@ class TextEntry extends Entry
         // Apply date formatting (localized isoFormat or plain PHP format).
         $value = $this->formatDateValue($value);
 
-        if ($this->currencyCode !== null) {
-            $value = '$'.number_format((float) $value, 2).' '.$this->currencyCode;
-        }
+        // Apply money formatting (localized intl currency).
+        $value = $this->formatMoneyValue($value);
 
         if ($this->limit !== null && is_string($value)) {
             $value = str($value)->limit($this->limit)->toString();
