@@ -2,8 +2,8 @@
 import { useI18n } from 'vue-i18n';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import Alert from './primitives/Alert.vue';
-import AlertTitle from './primitives/AlertTitle.vue';
 import AlertDescription from './primitives/AlertDescription.vue';
+import AlertTitle from './primitives/AlertTitle.vue';
 
 const { t } = useI18n();
 </script>

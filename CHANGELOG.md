@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.81.0] - 2026-07-09
+
+### Added
+
+- **Import template download** — the import modal now offers a "Download
+  template" link (on by default): a CSV whose header row is the importer's
+  column **labels**, which auto-map when the filled file is uploaded back.
+  Per-importer control via `protected bool $downloadableTemplate = false` and
+  `protected ?string $templateFileName` (default: a studly of the importer
+  class name — `ProductImporter.csv`). New
+  `GET {prefix}/imports/template?importer={token}` endpoint
+  (`kinetix.imports.template`, 404 when disabled); `ImportAction` carries the
+  template filename in the `open-importer` dispatch, and `KinetixImporter`
+  accepts it as the `template` prop for manual mounting. i18n
+  `download_template` in en/es/fr/pt. **(published)**
+
 ## [0.80.1] - 2026-07-09
 
 ### Fixed

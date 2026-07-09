@@ -26,15 +26,19 @@ import { cn } from './primitives/cn';
 const { t } = useI18n();
 const open = ref(false);
 const token = ref<string | null>(null);
+const template = ref<string | null>(null);
 
 function onOpen(event: Event): void {
-    const detail = (event as CustomEvent<{ importer?: string }>).detail;
+    const detail = (
+        event as CustomEvent<{ importer?: string; template?: string | null }>
+    ).detail;
 
     if (!detail?.importer) {
         return;
     }
 
     token.value = detail.importer;
+    template.value = detail.template ?? null;
     open.value = true;
 }
 
@@ -73,7 +77,11 @@ onBeforeUnmount(() =>
                     </DialogClose>
                 </div>
 
-                <KinetixImporter v-if="token" :importer="token" />
+                <KinetixImporter
+                    v-if="token"
+                    :importer="token"
+                    :template="template"
+                />
             </DialogContent>
         </DialogPortal>
     </DialogRoot>

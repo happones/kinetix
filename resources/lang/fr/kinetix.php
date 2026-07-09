@@ -47,6 +47,7 @@ return [
     'not_mapped'                => '— Non assigné —',
     'rows_detected'             => ':count lignes détectées',
     'start_import'              => 'Démarrer l\'import',
+    'download_template'         => 'Télécharger le modèle',
     'importing'                 => 'Import en cours…',
     'import_started'            => 'Import en file d\'attente. Vous serez notifié à la fin.',
     'export_started'            => 'Export en file d\'attente. Vous serez notifié à la fin.',

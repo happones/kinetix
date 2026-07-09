@@ -59,29 +59,6 @@ const getColumnSpan = (span: any) => {
     return undefined;
 };
 
-// Toggle a value inside a multi-select array (used by checkbox-list fields).
-const toggleArrayValue = (
-    current: any,
-    optionValue: string,
-    checked: boolean,
-) => {
-    const next = Array.isArray(current) ? [...current] : [];
-    const index = next.indexOf(optionValue);
-
-    if (checked && index === -1) {
-        next.push(optionValue);
-    }
-
-    if (!checked && index !== -1) {
-        next.splice(index, 1);
-    }
-
-    return next;
-};
-
-const isInArray = (current: any, optionValue: string) =>
-    Array.isArray(current) && current.includes(optionValue);
-
 // --- Repeater helpers ---------------------------------------------------------
 // Build a blank item from the sub-schema's field defaults (recursing layouts).
 const buildBlankItem = (schema: any[]) => {

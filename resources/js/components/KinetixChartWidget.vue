@@ -15,12 +15,12 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { statusBadgeClass } from '@/composables/useStatusColor';
 import type { KinetixChartMetric, KinetixWidget } from '@/types';
+import KinetixEmptyState from './KinetixEmptyState.vue';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
-import KinetixEmptyState from './KinetixEmptyState.vue';
 import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
 
 const { t } = useI18n();
@@ -68,9 +68,11 @@ const hasData = computed(() => {
     if (isCircular.value) {
         return pieData.value.length > 0;
     }
+
     if (isHorizontalBar.value) {
         return horizontalBars.value.length > 0;
     }
+
     return chartData.value.length > 0;
 });
 

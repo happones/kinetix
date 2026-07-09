@@ -240,29 +240,6 @@ const setRangePart = (
     setFilter(name, { ...(activeFilters.value[name] || {}), [part]: value });
 };
 
-const isMultiSelected = (name: string, val: string) => {
-    const current = activeFilters.value[name];
-
-    return Array.isArray(current) && current.includes(val);
-};
-
-const toggleMulti = (name: string, val: string, checked: boolean) => {
-    const current = Array.isArray(activeFilters.value[name])
-        ? [...activeFilters.value[name]]
-        : [];
-    const index = current.indexOf(val);
-
-    if (checked && index === -1) {
-        current.push(val);
-    }
-
-    if (!checked && index !== -1) {
-        current.splice(index, 1);
-    }
-
-    setFilter(name, current);
-};
-
 // Row Click
 const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
     // Avoid redirect if clicking a button or checkbox

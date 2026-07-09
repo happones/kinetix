@@ -100,6 +100,33 @@ class ContactImporter extends Importer
 | `context(Request $request): array` | Request context captured at dispatch, restored on the worker (see below) |
 | `getContext(): array` / `$this->context` | Read the restored context inside `importRow()` / `resolveRecord()` |
 | `token()` / `fromToken()` | Signed class token passed to/from the frontend |
+| `protected bool $downloadableTemplate = true` | Offer a "Download template" link in the import modal |
+| `protected ?string $templateFileName = null` | Template filename (null = studly class name, `ProductImporter.csv`) |
+
+### Downloadable template
+
+The import modal shows a **Download template** link by default — a CSV whose
+header row is the importer's column **labels**, which auto-map when the filled
+file is uploaded back. Opt out or rename per importer:
+
+```php
+class ProductImporter extends Importer
+{
+    protected bool $downloadableTemplate = false;   // hide the link
+    protected ?string $templateFileName = 'products.csv'; // default: ProductImporter.csv
+}
+```
+
+Served by `GET {prefix}/imports/template?importer={token}`
+(`kinetix.imports.template`) — 404 when the importer disables it. When opening
+the modal manually (without `ImportAction`), pass the filename via the
+`template` prop / event detail:
+
+```js
+window.dispatchEvent(new CustomEvent('kinetix:open-importer', {
+    detail: { importer: token, template: 'products.csv' },
+}));
+```
 
 ### Multi-tenancy: carrying the request context into the queue
 
@@ -148,6 +175,7 @@ All under the configured Kinetix route prefix (default `_kinetix`), using the `w
 
 | Route | Purpose |
 |---|---|
+| `GET {prefix}/imports/template` | Download the importer's CSV template (404 when disabled) |
 | `POST {prefix}/imports/upload` | Store the file, return preview + auto-mapping |
 | `POST {prefix}/imports/preview` | Re-parse the stored file with new CSV options |
 | `POST {prefix}/imports/start` | Validate required mappings and dispatch the job |

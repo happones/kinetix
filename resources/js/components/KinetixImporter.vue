@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { UploadCloud, Loader2, ArrowRight } from '@lucide/vue';
+import { UploadCloud, Loader2, ArrowRight, Download } from '@lucide/vue';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
@@ -13,9 +13,15 @@ const props = withDefaults(
     defineProps<{
         importer: string;
         routePrefix?: string | null;
+        /**
+         * Template filename when the importer offers a downloadable template
+         * (serialized by ImportAction; null hides the link).
+         */
+        template?: string | null;
     }>(),
     {
         routePrefix: null,
+        template: null,
     },
 );
 
@@ -27,6 +33,12 @@ const prefix = computed(
         (page.props.kinetix_config as any)?.route_prefix ??
         props.routePrefix ??
         '_kinetix',
+);
+
+const templateUrl = computed(() =>
+    props.template
+        ? `/${prefix.value}/imports/template?importer=${encodeURIComponent(props.importer)}`
+        : null,
 );
 
 const file = ref<File | null>(null);
@@ -271,6 +283,15 @@ const startImport = async () => {
                     {{ t('kinetix.upload') }}
                 </button>
             </div>
+            <a
+                v-if="templateUrl"
+                :href="templateUrl"
+                :download="template ?? undefined"
+                class="mt-3 gap-1.5 text-xs font-medium inline-flex items-center text-primary hover:underline"
+            >
+                <Download class="h-3.5 w-3.5" />
+                {{ t('kinetix.download_template') }}
+            </a>
         </div>
 
         <p

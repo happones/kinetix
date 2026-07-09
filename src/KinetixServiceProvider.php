@@ -1777,6 +1777,9 @@ class KinetixServiceProvider extends ServiceProvider
         Route::middleware($middleware)
             ->prefix("{$prefix}/imports")
             ->group(function () {
+                Route::get('template', [ImportController::class, 'template'])
+                    ->name('kinetix.imports.template');
+
                 Route::post('upload', [ImportController::class, 'upload'])
                     ->name('kinetix.imports.upload');
 

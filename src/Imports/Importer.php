@@ -25,6 +25,18 @@ abstract class Importer
     protected array $context = [];
 
     /**
+     * Whether the import modal offers a "Download template" link — a CSV whose
+     * headers are this importer's column labels (they auto-map on upload).
+     */
+    protected bool $downloadableTemplate = true;
+
+    /**
+     * Filename for the downloaded template. Null = a studly of the importer
+     * class name (`ProductImporter` → `ProductImporter.csv`).
+     */
+    protected ?string $templateFileName = null;
+
+    /**
      * Define the target columns the file can be mapped onto.
      *
      * @return array<int, ImportColumn>
@@ -76,6 +88,27 @@ abstract class Importer
     public function queue(): ?string
     {
         return null;
+    }
+
+    public function hasDownloadableTemplate(): bool
+    {
+        return $this->downloadableTemplate;
+    }
+
+    public function getTemplateFileName(): string
+    {
+        return $this->templateFileName
+            ?? str(class_basename(static::class))->studly()->append('.csv')->toString();
+    }
+
+    /**
+     * The template's header row: the column labels, which auto-map on upload.
+     *
+     * @return array<int, string>
+     */
+    public function getTemplateHeaders(): array
+    {
+        return array_map(fn (ImportColumn $column): string => $column->getLabel(), static::getColumns());
     }
 
     /**

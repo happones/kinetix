@@ -47,6 +47,7 @@ return [
     'not_mapped'                => '— Sin asignar —',
     'rows_detected'             => ':count filas detectadas',
     'start_import'              => 'Iniciar importación',
+    'download_template'         => 'Descargar plantilla',
     'importing'                 => 'Importando…',
     'import_started'            => 'Importación en cola. Se te notificará cuando finalice.',
     'export_started'            => 'Exportación en cola. Se te notificará cuando finalice.',

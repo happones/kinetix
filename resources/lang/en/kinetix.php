@@ -47,6 +47,7 @@ return [
     'not_mapped'                => '— Not mapped —',
     'rows_detected'             => ':count rows detected',
     'start_import'              => 'Start import',
+    'download_template'         => 'Download template',
     'importing'                 => 'Importing…',
     'import_started'            => 'Import queued. You will be notified when it finishes.',
     'export_started'            => 'Export queued. You will be notified when it finishes.',

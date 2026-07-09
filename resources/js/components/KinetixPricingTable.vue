@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import KinetixPlanCard from './KinetixPlanCard.vue';
 import type { KinetixPlanData } from '@/types';
+import KinetixPlanCard from './KinetixPlanCard.vue';
 
 const { t } = useI18n();
 

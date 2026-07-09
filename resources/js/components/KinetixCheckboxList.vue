@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import KinetixCheckbox from './KinetixCheckbox.vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type { KinetixSharedProps } from '@/types';
+import KinetixCheckbox from './KinetixCheckbox.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -29,7 +28,6 @@ const emit = defineEmits<{
     (e: 'update:value', value: Array<string | number>): void;
 }>();
 
-const { t } = useI18n();
 const page = usePage<KinetixSharedProps>();
 
 const searchQuery = ref('');
@@ -54,16 +52,19 @@ const baseItems = computed<Record<string, string>>(() =>
 // Filter items locally if not remote
 const filteredItems = computed<Record<string, string>>(() => {
     const q = searchQuery.value.trim().toLowerCase();
+
     if (!q || remote.value) {
         return baseItems.value;
     }
 
     const res: Record<string, string> = {};
+
     for (const [val, lbl] of Object.entries(baseItems.value)) {
         if (lbl.toLowerCase().includes(q)) {
             res[val] = lbl;
         }
     }
+
     return res;
 });
 
@@ -80,8 +81,10 @@ const itemsToRender = computed<Array<{ value: string; label: string }>>(() => {
 
     // 2. Add currently selected items that were filtered out
     const selectedList = props.value ?? [];
+
     for (const val of selectedList) {
         const valStr = String(val);
+
         if (!seen.has(valStr)) {
             const label = labelMap.value[valStr] ?? valStr;
             list.push({ value: valStr, label });
@@ -139,6 +142,7 @@ watch(
 
 function isChecked(val: string): boolean {
     const selectedList = props.value ?? [];
+
     return selectedList.some((v) => String(v) === val);
 }
 

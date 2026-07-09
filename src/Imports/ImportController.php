@@ -23,6 +23,27 @@ class ImportController
     protected string $storageDirectory = 'kinetix-imports';
 
     /**
+     * Download a CSV template for the importer: a header row of the column
+     * labels (they auto-map on upload). 404 unless the importer enables it.
+     */
+    public function template(Request $request): mixed
+    {
+        try {
+            $importer = Importer::fromToken($request->string('importer')->toString());
+        } catch (Throwable $e) {
+            abort(404);
+        }
+
+        abort_unless($importer->hasDownloadableTemplate(), 404);
+
+        return response()->streamDownload(function () use ($importer): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $importer->getTemplateHeaders());
+            fclose($handle);
+        }, $importer->getTemplateFileName(), ['Content-Type' => 'text/csv']);
+    }
+
+    /**
      * Store an uploaded file and return the parsed preview + automatic mapping.
      */
     public function upload(Request $request): JsonResponse
