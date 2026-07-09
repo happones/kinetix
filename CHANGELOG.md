@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-07-10
+
+### Added
+
+- **`KinetixRoleMatrix`** — a spreadsheet-style role manager: role cards with
+  live member counts, and a modal editor whose table has one row per feature
+  and one column per ability (canonical CRUD columns first, custom abilities
+  appended, em-dash where a feature doesn't declare the ability; clicking a
+  module name toggles its whole row). Same endpoints, `roles.manage` gating and
+  team rules as `KinetixRoleManager`. **(published)**
+- **`usersCount` on the roles endpoint** — `GET {prefix}/permissions/roles` now
+  includes each role's member count (`withCount('users')`), surfaced in
+  `RoleData` / the `KinetixRole` TS type.
+
+### Changed
+
+- **`KinetixMemberProvisioner` polish** — role options are headline-cased for
+  display (`support-agent` → "Support Agent") while still submitting the raw
+  slug, and the email field uses a `name@example.com` placeholder instead of
+  repeating the label. **(published)**
+
 ## [0.83.0] - 2026-07-09
 
 ### Fixed

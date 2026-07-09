@@ -199,6 +199,7 @@ export interface KinetixRole {
     id: number | string | null;
     name: string;
     permissions: string[];
+    usersCount?: number | null;
 }
 
 /** Impersonation state shared from the server (for the banner). */

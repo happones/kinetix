@@ -24,9 +24,15 @@ const { t } = useI18n();
 const email = ref('');
 const role = ref(props.assignableRoles[0] ?? '');
 
+/** Headline-case a role slug for display (`support-agent` → `Support Agent`). */
+const roleLabel = (name: string): string =>
+    name
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
 /** KinetixSelect expects a `{ value: label }` record. */
 const roleOptions = computed<Record<string, string>>(() =>
-    Object.fromEntries(props.assignableRoles.map((r) => [r, r])),
+    Object.fromEntries(props.assignableRoles.map((r) => [r, roleLabel(r)])),
 );
 
 function submit(): void {
@@ -57,7 +63,7 @@ function submit(): void {
                 type="email"
                 required
                 :class="inputClass"
-                :placeholder="t('kinetix.member_email')"
+                placeholder="name@example.com"
             />
         </div>
 

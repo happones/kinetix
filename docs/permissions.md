@@ -378,13 +378,31 @@ built-in `roles.manage` ability:
 
 <Screenshot name="role-manager" alt="Role manager" />
 
+### `KinetixRoleMatrix` — the module × ability grid
+
+Prefer a compact, spreadsheet-style editor? `<KinetixRoleMatrix>` shows **role
+cards** (with live member counts) and edits each role in a modal whose table has
+one row per feature and one column per ability — canonical CRUD columns first
+(`viewAny → forceDelete`), custom abilities appended, and an em-dash where a
+feature doesn't declare that ability. Clicking a module name toggles its whole
+row. Same endpoints, gating and team rules as `KinetixRoleManager`:
+
+```vue
+<KinetixCan permission="roles.manage">
+  <KinetixRoleMatrix />
+</KinetixCan>
+```
+
+<Screenshot name="role-matrix" alt="Role cards with member counts" />
+<Screenshot name="role-matrix-editor" alt="Role editor — module × ability matrix" />
+
 It talks to the built-in endpoints registered under your Kinetix route prefix
 (team-aware), all gated by `roles.manage` (super-admin bypasses):
 
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `{prefix}/permissions/features` | Permission catalog grouped by feature |
-| `GET` | `{prefix}/permissions/roles` | List roles with their permissions |
+| `GET` | `{prefix}/permissions/roles` | List roles with their permissions + `usersCount` |
 | `POST` | `{prefix}/permissions/roles` | Create a role |
 | `PUT` | `{prefix}/permissions/roles/{role}` | Rename / sync a role's permissions |
 | `DELETE` | `{prefix}/permissions/roles/{role}` | Delete a role |

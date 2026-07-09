@@ -18,6 +18,7 @@ class RoleData extends Data
         public int|string|null $id,
         public string $name,
         public array $permissions,
+        public ?int $usersCount = null,
     ) {}
 
     /**
@@ -25,10 +26,13 @@ class RoleData extends Data
      */
     public static function fromModel($role): self
     {
+        $usersCount = $role->getAttribute('users_count');
+
         return new self(
             $role->getKey(),
             $role->name,
             $role->permissions->pluck('name')->values()->all(),
+            $usersCount !== null ? (int) $usersCount : null,
         );
     }
 }

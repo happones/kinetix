@@ -52,6 +52,8 @@ class PermissionManagementTest extends TestCase
         $app['config']->set('cache.default', 'array');
         // Routes + the `roles` feature register at boot only when enabled.
         $app['config']->set('kinetix.permissions.enabled', true);
+        // spatie's Role::users() resolves the model from the guard's provider.
+        $app['config']->set('auth.providers.users.model', PermUser::class);
     }
 
     protected function setUp(): void
@@ -111,6 +113,19 @@ class PermissionManagementTest extends TestCase
             ->deleteJson("/_kinetix/permissions/roles/{$role->id}")
             ->assertOk();
         $this->assertDatabaseMissing('roles', ['name' => 'editor']);
+    }
+
+    public function test_roles_index_includes_the_member_count(): void
+    {
+        $manager = $this->actingAsManager();
+
+        Role::findOrCreate('editor', 'web');
+        $manager->assignRole('editor');
+
+        $response = $this->actingAs($manager)->getJson('/_kinetix/permissions/roles')->assertOk();
+
+        $editor = collect($response->json())->firstWhere('name', 'editor');
+        $this->assertSame(1, $editor['usersCount']);
     }
 
     public function test_users_without_manage_permission_are_denied(): void

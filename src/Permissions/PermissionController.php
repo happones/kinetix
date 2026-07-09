@@ -54,6 +54,7 @@ class PermissionController
 
         $roles = $this->roleModel()::query()
             ->with('permissions')
+            ->withCount('users')
             ->get()
             ->map(static fn ($role): RoleData => RoleData::fromModel($role))
             ->values();

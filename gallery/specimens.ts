@@ -166,6 +166,8 @@ import KinetixPageHeader from '@/components/KinetixPageHeader.vue';
 import KinetixImpersonationBanner from '@/components/KinetixImpersonationBanner.vue';
 import KinetixActionDropdown from '@/components/KinetixActionDropdown.vue';
 import KinetixMemberActivation from '@/components/KinetixMemberActivation.vue';
+import KinetixMemberProvisioner from '@/components/KinetixMemberProvisioner.vue';
+import KinetixRoleMatrix from '@/components/KinetixRoleMatrix.vue';
 import KinetixPermissionMatrix from '@/components/KinetixPermissionMatrix.vue';
 import KinetixActivityLog from '@/components/KinetixActivityLog.vue';
 import KinetixRoleManager from '@/components/KinetixRoleManager.vue';
@@ -1413,6 +1415,29 @@ export const specimens: Specimen[] = [
             features: permissionFeatures,
             modelValue: ['users.view', 'orders.view'],
         },
+    },
+    {
+        name: 'role-matrix',
+        title: 'Role matrix (cards + member counts)',
+        component: KinetixRoleMatrix,
+        frame: 'card',
+        width: 760,
+    },
+    {
+        name: 'role-matrix-editor',
+        title: 'Role matrix editor (module × ability)',
+        component: KinetixRoleMatrix,
+        frame: 'card',
+        width: 760,
+        openSelector: '[title="Edit"]',
+    },
+    {
+        name: 'member-provisioner',
+        title: 'Member provisioning form',
+        component: KinetixMemberProvisioner,
+        frame: 'card',
+        width: 640,
+        props: { assignableRoles: ['editor', 'viewer', 'support-agent'] },
     },
     {
         name: 'member-activation',

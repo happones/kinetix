@@ -185,7 +185,7 @@ Register once: `app.use(KinetixPermissions)` (from `@/plugins/kinetixPermissions
 
 ### 4. Role management UI
 
-Drop in `<KinetixRoleManager>` (gate it behind `roles.manage`). It uses the endpoints
+Drop in `<KinetixRoleManager>` (grouped checkbox lists) or `<KinetixRoleMatrix>` (role cards with member counts + a module × ability grid editor — canonical CRUD columns, custom abilities appended, click a module to toggle its row), both gated behind `roles.manage`. They use the endpoints
 `{prefix}/permissions/{features,roles}` (CRUD, gated by `roles.manage`). For custom
 flows compose `KinetixPermissionMatrix` (`v-model` of permission keys) with
 `useKinetixRoles`. Seed starter roles with `KinetixRolesSeeder`.

@@ -53,6 +53,21 @@ describe('KinetixMemberProvisioner', () => {
         expect(options).toEqual(['editor', 'viewer']);
     });
 
+    it('headline-cases the role labels while emitting the raw slug', async () => {
+        const wrapper = mountProvisioner(['support-agent']);
+
+        // Display label is humanized; the submitted value stays the slug.
+        expect(wrapper.find('option').text()).toBe('Support Agent');
+
+        await wrapper.get('input[type="email"]').setValue('a@example.com');
+        await wrapper.get('form').trigger('submit');
+
+        expect(wrapper.emitted('submit')?.[0]).toEqual([
+            'a@example.com',
+            'support-agent',
+        ]);
+    });
+
     it('emits submit with the email and selected role', async () => {
         const wrapper = mountProvisioner(['editor', 'viewer']);
 
