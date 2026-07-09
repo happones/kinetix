@@ -241,11 +241,35 @@ function formatDate(value: string | null): string {
             </p>
 
             <div v-for="token in tokens" :key="String(token.id)" class="p-3">
-                <div class="gap-2 flex flex-wrap items-center justify-between">
+                <!-- Name + scopes on the left, revoke pinned top-right; the
+                     meta line below wraps freely so narrow screens stack. -->
+                <div class="gap-2 flex items-start justify-between">
                     <div class="min-w-0">
-                        <span class="text-sm font-medium text-foreground">{{
-                            token.name
-                        }}</span>
+                        <div class="gap-2 flex flex-wrap items-center">
+                            <span
+                                class="text-sm font-medium truncate text-foreground"
+                                >{{ token.name }}</span
+                            >
+                            <span
+                                v-if="token.expiresAt"
+                                class="px-1.5 py-0.5 font-medium rounded-md text-[11px] whitespace-nowrap"
+                                :class="
+                                    isExpired(token)
+                                        ? 'bg-destructive/10 text-destructive'
+                                        : 'bg-muted text-muted-foreground'
+                                "
+                            >
+                                {{
+                                    isExpired(token)
+                                        ? t('kinetix.token_expired')
+                                        : t('kinetix.token_expires', {
+                                              date: new Date(
+                                                  token.expiresAt,
+                                              ).toLocaleDateString(),
+                                          })
+                                }}
+                            </span>
+                        </div>
                         <div class="mt-1 gap-1 flex flex-wrap">
                             <span
                                 v-for="ability in token.abilities"
@@ -256,39 +280,32 @@ function formatDate(value: string | null): string {
                             </span>
                         </div>
                     </div>
-                    <div class="gap-3 flex items-center">
-                        <span
-                            v-if="token.expiresAt"
-                            class="px-1.5 py-0.5 font-medium rounded-md text-[11px]"
-                            :class="
-                                isExpired(token)
-                                    ? 'bg-destructive/10 text-destructive'
-                                    : 'bg-muted text-muted-foreground'
-                            "
-                        >
-                            {{
-                                isExpired(token)
-                                    ? t('kinetix.token_expired')
-                                    : t('kinetix.token_expires', {
-                                          date: new Date(
-                                              token.expiresAt,
-                                          ).toLocaleDateString(),
-                                      })
-                            }}
-                        </span>
-                        <span class="text-xs text-muted-foreground">
-                            {{ t('kinetix.token_last_used') }}:
-                            {{ formatDate(token.lastUsedAt) }}
-                        </span>
-                        <button
-                            :class="
-                                buttonVariants({ variant: 'ghost', size: 'sm' })
-                            "
-                            @click="onDelete(token)"
-                        >
-                            {{ t('kinetix.token_revoke') }}
-                        </button>
-                    </div>
+                    <button
+                        :class="
+                            buttonVariants({ variant: 'ghost', size: 'sm' })
+                        "
+                        class="shrink-0"
+                        @click="onDelete(token)"
+                    >
+                        {{ t('kinetix.token_revoke') }}
+                    </button>
+                </div>
+
+                <div
+                    class="mt-2 gap-x-4 gap-y-1 text-xs flex flex-wrap text-muted-foreground"
+                >
+                    <span>
+                        {{ t('kinetix.token_created') }}:
+                        {{
+                            token.createdAt
+                                ? new Date(token.createdAt).toLocaleDateString()
+                                : '—'
+                        }}
+                    </span>
+                    <span>
+                        {{ t('kinetix.token_last_used') }}:
+                        {{ formatDate(token.lastUsedAt) }}
+                    </span>
                 </div>
             </div>
         </div>

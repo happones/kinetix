@@ -1053,6 +1053,12 @@ export const specimens: Specimen[] = [
         width: 720,
     },
     {
+        name: 'token-manager-mobile',
+        title: 'API token manager (mobile)',
+        component: KinetixTokenManager,
+        width: 360,
+    },
+    {
         name: 'connected-accounts',
         title: 'Connected accounts',
         component: KinetixConnectedAccounts,

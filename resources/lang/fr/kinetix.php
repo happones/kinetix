@@ -307,6 +307,7 @@ return [
     'token_scopes'           => 'Portées',
     'token_full_access'      => 'Ce jeton aura un accès complet.',
     'token_expires_at'       => 'Date d\'expiration (optionnelle)',
+    'token_created'          => 'Créé le',
     'token_expires_hint'     => 'Le jeton cesse de fonctionner à la fin de ce jour. Vide = sans expiration.',
     'token_expires'          => 'Expire le {date}',
     'token_expired'          => 'Expiré',

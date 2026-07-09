@@ -307,6 +307,7 @@ return [
     'token_scopes'           => 'Permisos',
     'token_full_access'      => 'Este token tendrá acceso total.',
     'token_expires_at'       => 'Fecha de expiración (opcional)',
+    'token_created'          => 'Creado',
     'token_expires_hint'     => 'El token deja de funcionar al final de ese día. Vacío = sin expiración.',
     'token_expires'          => 'Expira {date}',
     'token_expired'          => 'Expirado',

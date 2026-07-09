@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.86.1] - 2026-07-10
+
+### Changed
+
+- **`KinetixTokenManager` list polish** — each token now shows its creation
+  date, the expiry badge sits next to the name, and the row layout stacks
+  cleanly on mobile (meta line wraps; Revoke stays pinned top-right).
+  **(published)**
+
 ## [0.86.0] - 2026-07-10
 
 ### Added

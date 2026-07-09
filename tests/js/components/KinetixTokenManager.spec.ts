@@ -90,6 +90,26 @@ describe('KinetixTokenManager', () => {
         });
     });
 
+    it('shows the creation date for each token', () => {
+        tokens.value = [
+            {
+                id: 1,
+                name: 'Live',
+                abilities: [],
+                lastUsedAt: null,
+                createdAt: '2026-06-01T09:00:00Z',
+                expiresAt: null,
+            },
+        ];
+
+        const w = mountManager();
+
+        expect(w.text()).toContain('token_created');
+        expect(w.text()).toContain(
+            new Date('2026-06-01T09:00:00Z').toLocaleDateString(),
+        );
+    });
+
     it('shows an expiry badge and flags expired tokens', () => {
         tokens.value = [
             {
