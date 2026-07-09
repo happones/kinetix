@@ -365,6 +365,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | PDF Templates (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Configurable PDF document formats — the Mailable of PDFs. Subclass
+    | PdfTemplate, register it (KinetixPdf::register(QuotePdf::class)) and
+    | mount <KinetixPdfTemplate template="quote" /> for a live-preview
+    | configurator; settings persist per template (and per team when team
+    | scoping is on — `teams` inherits the global kinetix.teams).
+    |
+    | - `driver`: auto | spatie (spatie/laravel-pdf, Chromium fidelity) |
+    |   barryvdh (barryvdh/laravel-dompdf) | dompdf (dompdf/dompdf direct).
+    |   `auto` picks the first installed, in that order.
+    |
+    */
+    'pdf' => [
+        'enabled' => env('KINETIX_PDF_ENABLED', false),
+        'driver'  => env('KINETIX_PDF_DRIVER', 'auto'),
+        'teams'   => env('KINETIX_PDF_TEAMS'), // null = inherit kinetix.teams
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Spotlight Command Palette (optional)
     |--------------------------------------------------------------------------
     |

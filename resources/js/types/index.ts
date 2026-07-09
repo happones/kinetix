@@ -232,6 +232,28 @@ export interface KinetixWebhookLog {
     endpointUrl?: string | null;
 }
 
+/** One configurable knob of a PDF template. */
+export interface KinetixPdfField {
+    name: string;
+    type: 'color' | 'text' | 'select' | 'toggle' | 'number';
+    label: string;
+    default: unknown;
+    help: string | null;
+    palette: string[];
+    options: Record<string, string>;
+    maxLength: number | null;
+}
+
+/** A registered PdfTemplate's descriptor for <KinetixPdfTemplate>. */
+export interface KinetixPdfTemplateData {
+    key: string;
+    label: string;
+    fields: KinetixPdfField[];
+    settings: Record<string, unknown>;
+    defaults: Record<string, unknown>;
+    hasLogo: boolean;
+}
+
 /** One logged API request (kinetix.api-log middleware). */
 export interface KinetixApiLog {
     id: number | string | null;

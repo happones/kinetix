@@ -308,6 +308,8 @@ return [
     'token_full_access'      => 'This token will have full access.',
     'token_expires_at'       => 'Expiration date (optional)',
     'token_created'          => 'Created',
+    'pdf_reset'              => 'Reset defaults',
+    'pdf_preview_hint'       => 'Live preview with sample data — identical to the final PDF.',
     'token_expires_hint'     => 'The token stops working at the end of that day. Leave empty for no expiration.',
     'token_expires'          => 'Expires {date}',
     'token_expired'          => 'Expired',

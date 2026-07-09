@@ -67,6 +67,8 @@ use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\Onboarding\OnboardingController;
 use Happones\Kinetix\Onboarding\OnboardingManager;
 use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
+use Happones\Kinetix\Pdf\PdfTemplateController;
+use Happones\Kinetix\Pdf\PdfTemplateRegistry;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
@@ -127,6 +129,7 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The permission registry accumulates feature definitions app-wide.
         $this->app->singleton(PermissionRegistry::class);
+        $this->app->singleton(PdfTemplateRegistry::class);
 
         // The settings store + page registry are app-wide singletons.
         $this->app->singleton(SettingsManager::class);
@@ -376,6 +379,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000018_create_kinetix_api_logs_table.php' => database_path('migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'),
             ], 'kinetix-api-logs-migrations');
 
+            // Publish the optional PDF Templates settings migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000019_create_kinetix_pdf_templates_table.php' => database_path('migrations/2026_01_01_000019_create_kinetix_pdf_templates_table.php'),
+            ], 'kinetix-pdf-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -473,6 +481,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Mail Templates module (editable email templates)
         $this->registerMailTemplates();
+
+        // Register the optional PDF Templates module (configurable documents)
+        $this->registerPdfTemplates();
 
         // Register the optional Health metrics module (status widget)
         $this->registerHealth();
@@ -880,6 +891,40 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('logs', [WebhookController::class, 'allLogs'])->name('kinetix.webhooks.all-logs');
                 Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
                 Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->name('kinetix.webhooks.redeliver');
+            });
+    }
+
+    /**
+     * Wire the optional PDF Templates module: registry + the configurator
+     * endpoints (descriptor, settings, live preview, download), gated by
+     * `viewKinetixPdf` (local-only unless the host defines the gate).
+     */
+    protected function registerPdfTemplates(): void
+    {
+        if (! config('kinetix.pdf.enabled', false)) {
+            return;
+        }
+
+        if (! Gate::has('viewKinetixPdf')) {
+            Gate::define('viewKinetixPdf', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix       = '{current_team}/'.$prefix;
+            $middleware[] = 'kinetix.permissions.team';
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/pdf-templates")
+            ->group(function (): void {
+                Route::get('/', [PdfTemplateController::class, 'index'])->name('kinetix.pdf-templates.index');
+                Route::get('{template}', [PdfTemplateController::class, 'show'])->name('kinetix.pdf-templates.show');
+                Route::patch('{template}', [PdfTemplateController::class, 'update'])->name('kinetix.pdf-templates.update');
+                Route::get('{template}/preview', [PdfTemplateController::class, 'preview'])->name('kinetix.pdf-templates.preview');
+                Route::get('{template}/download', [PdfTemplateController::class, 'download'])->name('kinetix.pdf-templates.download');
             });
     }
 

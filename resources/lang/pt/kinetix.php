@@ -308,6 +308,8 @@ return [
     'token_full_access'      => 'Este token terá acesso total.',
     'token_expires_at'       => 'Data de expiração (opcional)',
     'token_created'          => 'Criado',
+    'pdf_reset'              => 'Restaurar padrões',
+    'pdf_preview_hint'       => 'Pré-visualização com dados de exemplo — idêntica ao PDF final.',
     'token_expires_hint'     => 'O token deixa de funcionar no final desse dia. Vazio = sem expiração.',
     'token_expires'          => 'Expira {date}',
     'token_expired'          => 'Expirado',

@@ -169,6 +169,7 @@ import KinetixMemberActivation from '@/components/KinetixMemberActivation.vue';
 import KinetixMemberProvisioner from '@/components/KinetixMemberProvisioner.vue';
 import KinetixRoleMatrix from '@/components/KinetixRoleMatrix.vue';
 import KinetixIntegrationLogs from '@/components/KinetixIntegrationLogs.vue';
+import KinetixPdfTemplate from '@/components/KinetixPdfTemplate.vue';
 import KinetixPermissionMatrix from '@/components/KinetixPermissionMatrix.vue';
 import KinetixActivityLog from '@/components/KinetixActivityLog.vue';
 import KinetixRoleManager from '@/components/KinetixRoleManager.vue';
@@ -1422,6 +1423,14 @@ export const specimens: Specimen[] = [
             features: permissionFeatures,
             modelValue: ['users.view', 'orders.view'],
         },
+    },
+    {
+        name: 'pdf-template',
+        title: 'PDF template configurator',
+        component: KinetixPdfTemplate,
+        frame: 'card',
+        width: 1000,
+        props: { template: 'quote', previewHeight: 560 },
     },
     {
         name: 'integration-logs',

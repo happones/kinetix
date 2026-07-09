@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.88.0] - 2026-07-10
+
+### Added
+
+- **PDF Templates** — configurable document formats, the Mailable of PDFs:
+  - `PdfTemplate` classes (`static $key`, `fields()`, `sampleData()`,
+    `paper()`, `logo()`) with a polished built-in generic document (header,
+    parties, line items, totals, notes, signature, footer) and escape hatches
+    (`html()` in PHP or a Blade `view()`).
+  - Declarative `PdfField` knobs (color w/ palette, text, select, toggle,
+    number) rendered as controls by **`<KinetixPdfTemplate>`** — live iframe
+    preview of unsaved changes, save (persisted per template and per team when
+    team scoping is on), reset-to-defaults and sample-PDF download.
+  - `KinetixPdf` facade (`register`/`render`/`pdf`) for generating real
+    documents with the stored settings applied.
+  - Driver auto-detection: `spatie/laravel-pdf` → `barryvdh/laravel-dompdf` →
+    `dompdf/dompdf` (configurable via `kinetix.pdf.driver`).
+  - Endpoints gated by `viewKinetixPdf`; only declared fields are ever read
+    from requests. Migration tag `kinetix-pdf-migrations`. **(published)**
+
 ## [0.87.0] - 2026-07-10
 
 ### Added
