@@ -14,6 +14,7 @@ Activate this skill when:
 - Declaring grantable scopes (`KinetixTokens::scopes`) or configuring `kinetix.tokens`.
 - Mounting `<KinetixTokenManager>` / using `useKinetixTokens`.
 - Enforcing token abilities on API routes (`auth:sanctum`, `ability:`).
+- Logging/auditing token-authenticated API requests (`kinetix.api-log` middleware, `<KinetixIntegrationLogs>`).
 
 ## Documentation
 
@@ -62,6 +63,25 @@ KinetixTokens::scopes(['posts.read' => 'Read posts']); // provider boot (merges 
 - Enforce on your API with standard Sanctum:
   `Route::middleware(['auth:sanctum', 'ability:posts.write'])` or
   `$request->user()->tokenCan('posts.write')`.
+
+## API request logging (audit what each token calls)
+
+Compose the `kinetix.api-log` middleware into the same group to log every
+request — method, path, status, duration (ms), ip and the Sanctum **token
+id/name** (`currentAccessToken()`), so you can answer "what is this
+integration's token actually doing?":
+
+```php
+Route::middleware(['auth:sanctum', 'kinetix.api-log'])
+    ->prefix('api/v1')
+    ->group(function () { /* … */ });
+```
+
+- Opt-in via `kinetix.api_logs.enabled`; publish `--tag=kinetix-api-logs-migrations` and migrate.
+- The row is written in `terminate()` (zero request latency) and logging never throws into the response path.
+- Request/response bodies are opt-in (`log_request_body`/`log_response_body`), size-capped (`body_limit`) and sensitive keys (`redact`) become `[redacted]`.
+- View per-token activity with `<KinetixIntegrationLogs only="api" />` (feed `GET {prefix}/api-logs`, gate `viewKinetixApiLogs` — local-only default, define it in production). Retention: schedule `kinetix:api-logs:prune`.
+- Full guide: `docs/integration-logs.md`.
 
 ---
 

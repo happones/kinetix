@@ -115,6 +115,21 @@ if ($request->user()->tokenCan('posts.write')) {
 }
 ```
 
+### Auditing what each token calls
+
+Compose the `kinetix.api-log` middleware into the same group to log every
+request — method, path, status, duration and the **token id/name** — and
+inspect them with `<KinetixIntegrationLogs only="api" />`:
+
+```php
+Route::middleware(['auth:sanctum', 'kinetix.api-log'])
+    ->prefix('api/v1')
+    ->group(function () { /* … */ });
+```
+
+See [Integration Logs](/integration-logs) for configuration (opt-in bodies,
+redaction, retention).
+
 ---
 
 ## 4. The endpoints
