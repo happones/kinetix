@@ -168,7 +168,7 @@ The default entry for scalar values.
 TextEntry::make('title');
 TextEntry::make('email')->copyable()->icon('mail');
 TextEntry::make('status')->badge()->color(fn ($state) => $state === 'active' ? 'success' : 'gray');
-TextEntry::make('published_at')->dateTime();          // M j, Y g:i a
+TextEntry::make('published_at')->dateTime();          // localized (app locale)
 TextEntry::make('created_at')->date('d/m/Y');
 TextEntry::make('price')->money('USD');               // $1,234.50 USD
 TextEntry::make('bio')->limit(120);                   // truncate long strings
@@ -179,8 +179,10 @@ TextEntry::make('role')->inlineLabel();               // label + value on one ro
 |---|---|
 | `->badge(bool = true)` | Render the value as a colored badge |
 | `->copyable(bool = true)` | Show a copy-to-clipboard button |
-| `->date(string $format = 'M j, Y')` | Format a date value |
-| `->dateTime(string $format = 'M j, Y g:i a')` | Format a datetime value |
+| `->date(?string $format = null)` | Format a date value — no argument = **localized** to the app locale via `config('kinetix.formats.date')` (isoFormat `ll`); a format string = plain PHP `format()` |
+| `->dateTime(?string $format = null)` | Format a datetime value — same semantics, token `config('kinetix.formats.datetime')` (`lll`) |
+| `->isoDate(?string $format = null)` / `->isoDateTime(?string $format = null)` | Explicit localized isoFormat tokens (Filament-compatible) |
+| `->locale(string $locale)` | Override the formatting locale for this entry |
 | `->money(string $currency = 'USD')` | Format as currency |
 | `->limit(int)` | Truncate long strings with an ellipsis |
 | `->inlineLabel(bool = true)` | Place the label and value side by side |

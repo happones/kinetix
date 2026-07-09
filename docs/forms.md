@@ -408,7 +408,7 @@ DateTimePicker::make('scheduled_at')
 | Method | Applies to | Description |
 |---|---|---|
 | `->native()` | both | Render the native input instead of the shadcn calendar |
-| `->locale(string)` | both | BCP-47 calendar locale (`'es'`, `'fr'`, `'en-US'`) |
+| `->locale(string)` | both | BCP-47 calendar locale (`'es'`, `'fr'`, `'en-US'`) — **defaults to the application locale** (`app()->getLocale()`, `es_MX` → `es-MX`); also the default for `MonthPicker`/`WeekPicker`/`DateRangePicker` calendars and `NumberField` number formatting |
 | `->minuteStep(int)` | DateTimePicker | Minute granularity for the time column (default 5) |
 | `->twelveHour()` | DateTimePicker | 12-hour clock with an AM/PM column |
 

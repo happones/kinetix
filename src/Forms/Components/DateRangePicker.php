@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use Happones\Kinetix\Support\KinetixLocale;
+
 /**
  * A date-range field storing `{from, to}` (each an ISO 'Y-m-d' string). Renders
  * the shadcn range calendar in a popover by default, or two native date inputs
@@ -77,7 +79,7 @@ class DateRangePicker extends Field
     {
         return [
             'useCalendar' => $this->useCalendar,
-            'locale'      => $this->dateLocale,
+            'locale'      => $this->dateLocale ?? KinetixLocale::bcp47(),
             'minuteStep'  => 5,
             'hour12'      => false,
         ];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables\Filters;
 
+use Happones\Kinetix\Support\KinetixLocale;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -68,7 +69,7 @@ class MonthFilter extends Filter
     {
         return [
             'useCalendar' => $this->useCalendar,
-            'locale'      => $this->locale,
+            'locale'      => $this->locale ?? KinetixLocale::bcp47(),
             'minValue'    => $this->minValue,
             'maxValue'    => $this->maxValue,
         ];

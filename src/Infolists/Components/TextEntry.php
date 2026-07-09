@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Infolists\Components;
 
-use Carbon\CarbonInterface;
+use Happones\Kinetix\Support\Concerns\FormatsDates;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 
 class TextEntry extends Entry
 {
+    use FormatsDates;
+
     protected bool $isBadge = false;
 
     protected bool $isCopyable = false;
 
     protected bool $isInline = false;
-
-    protected ?string $dateFormat = null;
 
     protected ?int $limit = null;
 
@@ -51,20 +50,6 @@ class TextEntry extends Entry
         return $this;
     }
 
-    public function date(string $format = 'M j, Y'): static
-    {
-        $this->dateFormat = $format;
-
-        return $this;
-    }
-
-    public function dateTime(string $format = 'M j, Y g:i a'): static
-    {
-        $this->dateFormat = $format;
-
-        return $this;
-    }
-
     public function limit(int $limit): static
     {
         $this->limit = $limit;
@@ -89,13 +74,8 @@ class TextEntry extends Entry
 
         $value = $this->resolveEnumState($value);
 
-        if ($this->dateFormat !== null) {
-            if ($value instanceof CarbonInterface) {
-                $value = $value->format($this->dateFormat);
-            } elseif (is_string($value)) {
-                $value = Carbon::parse($value)->format($this->dateFormat);
-            }
-        }
+        // Apply date formatting (localized isoFormat or plain PHP format).
+        $value = $this->formatDateValue($value);
 
         if ($this->currencyCode !== null) {
             $value = '$'.number_format((float) $value, 2).' '.$this->currencyCode;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use Happones\Kinetix\Support\KinetixLocale;
+
 /**
  * A month-only picker. Renders a shadcn month grid by default (value 'Y-m',
  * e.g. "2026-06"), or a native <input type="month"> via native(). Bounds via
@@ -47,7 +49,7 @@ class MonthPicker extends Field
     {
         return [
             'useCalendar' => $this->useCalendar,
-            'locale'      => $this->dateLocale,
+            'locale'      => $this->dateLocale ?? KinetixLocale::bcp47(),
             'minuteStep'  => 5,
             'hour12'      => false,
         ];

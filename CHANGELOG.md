@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-07-09
+
+### Added
+
+- **Locale-aware date formatting** for table columns and infolist entries:
+  `->date()` / `->dateTime()` with **no argument** now render through Carbon's
+  `isoFormat()` in the application locale — "Jul 9, 2026" in `en`,
+  "9 de jul. de 2026" in `es` — using the tokens from the new
+  `config('kinetix.formats')` block (`date` default `ll`, `datetime` default
+  `lll`). Passing a format string keeps the previous plain PHP `format()`
+  behaviour. New `->isoDate($tokens?)` / `->isoDateTime($tokens?)`
+  (Filament-compatible, explicit localized tokens) and `->locale('fr')`
+  per-column/entry override. Shared `FormatsDates` concern powers both
+  `TextColumn` and `TextEntry`.
+- **`kinetix.formats` config block** — application-wide default date/datetime
+  output formats (`KINETIX_DATE_FORMAT` / `KINETIX_DATETIME_FORMAT` env keys).
+
+### Changed
+
+- **Date/Month/Week/Range pickers, date filters and `NumberField` now default
+  their locale to the application locale** (as BCP-47 — `es_MX` → `es-MX`)
+  instead of the browser locale: calendars, weekday/month names and number
+  formatting follow `app()->getLocale()` automatically. An explicit
+  `->locale()` on the component still wins. **(published — no frontend change
+  required; the value is serialized from the backend)**
+- `->date()` / `->dateTime()` **without arguments** now produce localized
+  output instead of the fixed English `M j, Y` / `M j, Y g:i a`. In `en` the
+  rendering is nearly identical ("Jul 9, 2026"); in other locales it is now
+  correctly translated. Call `->date('M j, Y')` to keep the exact old output.
+
 ## [0.78.0] - 2026-07-09
 
 Production-hardening batch from real-app integration feedback.

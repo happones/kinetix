@@ -66,6 +66,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Kinetix Date & Time Formats
+    |--------------------------------------------------------------------------
+    |
+    | Default output formats for date/datetime table columns and infolist
+    | entries when no explicit format is given (`->date()`, `->dateTime()`).
+    | These are Carbon *isoFormat* tokens, rendered in the application locale
+    | (e.g. `ll` → "Jul 9, 2026" in en, "9 jul 2026" in es). Common tokens:
+    | `L` 07/09/2026 · `LL` July 9, 2026 · `ll` Jul 9, 2026 · `lll` adds time.
+    | Per-column overrides: `->date('d/m/Y')` (plain PHP format),
+    | `->isoDate('LL')` (isoFormat), `->locale('fr')`.
+    |
+    */
+    'formats' => [
+        'date'     => env('KINETIX_DATE_FORMAT', 'll'),
+        'datetime' => env('KINETIX_DATETIME_FORMAT', 'lll'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Kinetix Notifications
     |--------------------------------------------------------------------------
     |

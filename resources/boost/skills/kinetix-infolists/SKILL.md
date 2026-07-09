@@ -15,7 +15,7 @@ Activate this skill when:
 - Displaying record details without editing (the display-only twin of Forms).
 - Adding entries like `TextEntry`, `IconEntry`, `ImageEntry`, or `ColorEntry`.
 - Grouping details with `Section::make()`, `Grid::make()`, `Fieldset::make()`, or `Tabs::make()->tabs([Tab::make(...)])`.
-- Formatting values for display (`badge()`, `date()`, `money()`, `limit()`, `copyable()`).
+- Formatting values for display (`badge()`, `date()`, `money()`, `limit()`, `copyable()`). `date()`/`dateTime()` with no argument localize to the app locale (Carbon `isoFormat`, tokens from `config('kinetix.formats')`); `isoDate()`/`isoDateTime()` take explicit tokens; `->locale()` overrides.
 - Resolving values with `state()` / `formatStateUsing()` callbacks or conditional visibility.
 
 ## Documentation

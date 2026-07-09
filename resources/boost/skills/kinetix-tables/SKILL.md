@@ -16,6 +16,7 @@ Activate this skill when:
 - Creating inline cell editors (`SelectColumn`, `ToggleColumn`, `TextInputColumn`, `CheckboxColumn`, `NumberInputColumn` (steppers + decimal/percent/currency)).
 - Adding footer **summaries** with `Column::summarize(Sum/Average/Count/Range/custom)` (also `ExportColumn::summarize()` to append a totals row to exports).
 - Appending query filters: `Filter` (checkbox), `SelectFilter`, `MultiSelectFilter` (whereIn), `TernaryFilter` (boolean tri-state), `DateFilter`, `DateTimeFilter`, `DateRangeFilter` (with optional `->calendar()` shadcn/Reka range calendar), `NumberRangeFilter`, `MonthFilter`/`YearFilter`/`WeekFilter`, `AddressFilter` (OR-LIKE text search across `->columns([...])`).
+- Localized dates: `TextColumn::date()`/`dateTime()` with no argument format via Carbon `isoFormat()` in the **app locale** (`config('kinetix.formats.date'|'datetime')`, defaults `ll`/`lll`); a format string = plain PHP `format()`; `isoDate()`/`isoDateTime()` take explicit iso tokens; `->locale()` overrides per column. Date filters' calendars also default to the app locale.
 - Filament-compatible sugar: `Column::state(fn ($record) => …)` (alias `getStateUsing()`) overrides the raw cell value before `formatStateUsing()`; `SelectFilter`/`MultiSelectFilter` `->relationship('author', 'name', ?Closure)` builds options from the related model and filters via `whereHas` (prefer `searchUsing()` for large related tables).
 - Attaching row-level record actions or header toolbar buttons.
 - Styling table rows with custom CSS background status classes.

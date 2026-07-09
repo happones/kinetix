@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms\Components;
 
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Support\KinetixLocale;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -107,7 +108,7 @@ class NumberField extends Field
             'decimals' => $this->minDecimals === null
                 ? null
                 : ['min' => $this->minDecimals, 'max' => $this->maxDecimals],
-            'locale' => $this->numberLocale,
+            'locale' => $this->numberLocale ?? KinetixLocale::bcp47(),
         ];
     }
 

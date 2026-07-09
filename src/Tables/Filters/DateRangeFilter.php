@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables\Filters;
 
+use Happones\Kinetix\Support\KinetixLocale;
 use Illuminate\Database\Eloquent\Builder;
 
 class DateRangeFilter extends Filter
@@ -131,7 +132,7 @@ class DateRangeFilter extends Filter
         return [
             'useCalendar'    => $this->useCalendar,
             'numberOfMonths' => $this->numberOfMonths,
-            'locale'         => $this->locale,
+            'locale'         => $this->locale ?? KinetixLocale::bcp47(),
             'weekdayFormat'  => $this->weekdayFormat,
             'fixedWeeks'     => $this->fixedWeeks,
             'minValue'       => $this->minValue,

@@ -4,20 +4,19 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables\Columns;
 
-use Carbon\CarbonInterface;
 use Closure;
+use Happones\Kinetix\Support\Concerns\FormatsDates;
 use Happones\Kinetix\Support\Contracts\HasColor;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 
 class TextColumn extends Column
 {
+    use FormatsDates;
+
     protected bool $isBadge = false;
 
     protected string|Closure|null $badgeColor = 'gray';
-
-    protected ?string $dateFormat = null;
 
     protected ?int $limit = null;
 
@@ -42,20 +41,6 @@ class TextColumn extends Column
     public function badgeColor(string|Closure $color): static
     {
         $this->badgeColor = $color;
-
-        return $this;
-    }
-
-    public function date(string $format = 'M j, Y'): static
-    {
-        $this->dateFormat = $format;
-
-        return $this;
-    }
-
-    public function dateTime(string $format = 'M j, Y g:i a'): static
-    {
-        $this->dateFormat = $format;
 
         return $this;
     }
@@ -99,14 +84,8 @@ class TextColumn extends Column
             $value = $value->name;
         }
 
-        // Apply date formatting
-        if ($this->dateFormat !== null) {
-            if ($value instanceof CarbonInterface) {
-                $value = $value->format($this->dateFormat);
-            } elseif (is_string($value)) {
-                $value = Carbon::parse($value)->format($this->dateFormat);
-            }
-        }
+        // Apply date formatting (localized isoFormat or plain PHP format).
+        $value = $this->formatDateValue($value);
 
         // Apply money formatting
         if ($this->currencyCode !== null) {

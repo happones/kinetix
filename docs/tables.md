@@ -120,8 +120,10 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
 Displays text strings with additional formatting structures:
 - `badge()`: Wraps the value in a rounded badge.
 - `badgeColor(string|Closure $color)`: Sets status colors (`success`, `danger`, `warning`, `info`, `gray`).
-- `date(string $format)`: Formats carbon/datetime values.
-- `dateTime(string $format)`: Formats carbon/datetime values.
+- `date(?string $format = null)`: Formats carbon/datetime values. **With no argument the output is localized** to the application locale via Carbon `isoFormat()`, using the token from `config('kinetix.formats.date')` (default `ll` — "Jul 9, 2026" in `en`, "9 de jul. de 2026" in `es`). Passing a format keeps the plain, non-localized PHP `format()` behaviour (`->date('d/m/Y')`).
+- `dateTime(?string $format = null)`: Same semantics, defaulting to `config('kinetix.formats.datetime')` (default `lll`, includes the time).
+- `isoDate(?string $format = null)` / `isoDateTime(?string $format = null)`: Format with explicit Carbon isoFormat tokens, localized (`->isoDate('LL')` → "9 de julio de 2026" in `es`). Filament-compatible.
+- `locale(string $locale)`: Override the formatting locale for this column (defaults to `app()->getLocale()`).
 - `money(string $currency)`: Prepends currency signs (defaults to USD).
 - `limit(int $limit)`: Truncates text.
 - `description(string|Closure $description, string $position = 'below')`: Displays secondary description lines.
@@ -307,7 +309,7 @@ DateRangeFilter::make('created_at')->months(2)->locale('es');
 | `->native(bool = true)` | Use two native date inputs instead of the calendar |
 | `->calendar(bool = true)` | Explicitly use the calendar variant (the default) |
 | `->months(int)` | Number of month grids shown side by side |
-| `->locale(string)` | BCP-47 locale for weekday/month names, e.g. `'es'`, `'fr'` |
+| `->locale(string)` | BCP-47 locale for weekday/month names, e.g. `'es'`, `'fr'` — **defaults to the application locale** (`app()->getLocale()`, `es_MX` → `es-MX`) |
 | `->weekdayFormat(string)` | Weekday header labels: `'narrow'` (default), `'short'`, `'long'` |
 | `->fixedWeeks(bool = true)` | Always render 6 week rows for a constant calendar height |
 | `->minValue(string)` | Earliest selectable date (`'Y-m-d'`); earlier dates are disabled |

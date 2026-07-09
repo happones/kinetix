@@ -153,7 +153,7 @@ class FiltersTest extends TestCase
         $this->assertFalse($native->useCalendar);
         $this->assertSame('date-range', $calendar->type);
         $this->assertSame(1, $calendar->numberOfMonths);
-        $this->assertNull($calendar->locale);
+        $this->assertSame('en', $calendar->locale); // defaults to the app locale (BCP-47)
     }
 
     public function test_date_and_datetime_filters_default_to_calendar(): void

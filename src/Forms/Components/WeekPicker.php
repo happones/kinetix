@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use Happones\Kinetix\Support\KinetixLocale;
+
 /**
  * A week-only picker. Renders a shadcn calendar that selects the clicked day's
  * ISO week by default (value 'o-\WW', e.g. "2026-W25"), or a native
@@ -73,7 +75,7 @@ class WeekPicker extends Field
     {
         return [
             'useCalendar' => $this->useCalendar,
-            'locale'      => $this->dateLocale,
+            'locale'      => $this->dateLocale ?? KinetixLocale::bcp47(),
             'minuteStep'  => 5,
             'hour12'      => false,
         ];

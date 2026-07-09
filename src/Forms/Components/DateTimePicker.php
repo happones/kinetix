@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use Happones\Kinetix\Support\KinetixLocale;
+
 class DateTimePicker extends Field
 {
     protected bool $useCalendar = true;
@@ -66,7 +68,7 @@ class DateTimePicker extends Field
     {
         return [
             'useCalendar' => $this->useCalendar,
-            'locale'      => $this->dateLocale,
+            'locale'      => $this->dateLocale ?? KinetixLocale::bcp47(),
             'minuteStep'  => $this->minuteStep,
             'hour12'      => $this->hour12,
         ];
