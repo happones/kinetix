@@ -207,15 +207,22 @@ onMounted(load);
                 <div class="gap-2 flex items-center justify-between">
                     <div class="gap-2 min-w-0 flex items-center">
                         <ShieldCheck class="size-4 shrink-0 text-primary" />
-                        <p class="truncate font-semibold text-foreground">
+                        <p class="font-semibold truncate text-foreground">
                             {{ role.name }}
                         </p>
                     </div>
                     <span
-                        v-if="role.usersCount !== null && role.usersCount !== undefined"
-                        class="rounded-md px-2 py-0.5 text-[11px] font-medium bg-secondary text-secondary-foreground"
+                        v-if="
+                            role.usersCount !== null &&
+                            role.usersCount !== undefined
+                        "
+                        class="px-2 py-0.5 font-medium rounded-md bg-secondary text-[11px] text-secondary-foreground"
                     >
-                        {{ t('kinetix.role_members', { count: role.usersCount }) }}
+                        {{
+                            t('kinetix.role_members', {
+                                count: role.usersCount,
+                            })
+                        }}
                     </span>
                 </div>
                 <p class="text-xs text-muted-foreground">
@@ -226,7 +233,7 @@ onMounted(load);
                     }}
                 </p>
                 <div
-                    class="mt-auto gap-1 pt-2 flex justify-end border-t border-border"
+                    class="gap-1 pt-2 mt-auto flex justify-end border-t border-border"
                 >
                     <button
                         type="button"
@@ -320,11 +327,15 @@ onMounted(load);
                         >
                             <table class="text-sm w-full">
                                 <thead>
-                                    <tr class="border-b border-border bg-muted/50">
+                                    <tr
+                                        class="border-b border-border bg-muted/50"
+                                    >
                                         <th
                                             class="px-3 py-2 font-medium text-left"
                                         >
-                                            {{ t('kinetix.role_matrix_module') }}
+                                            {{
+                                                t('kinetix.role_matrix_module')
+                                            }}
                                         </th>
                                         <th
                                             v-for="column in abilityColumns"
@@ -342,7 +353,7 @@ onMounted(load);
                                         class="border-b border-border last:border-0 hover:bg-accent/50"
                                     >
                                         <td
-                                            class="cursor-pointer px-3 py-2 font-medium select-none text-foreground"
+                                            class="px-3 py-2 font-medium cursor-pointer text-foreground select-none"
                                             @click="toggleRow(feature)"
                                         >
                                             {{ feature.label }}
@@ -360,7 +371,7 @@ onMounted(load);
                                                     )
                                                 "
                                                 type="button"
-                                                class="size-6 rounded-md inline-flex items-center justify-center border transition-colors"
+                                                class="size-6 inline-flex items-center justify-center rounded-md border transition-colors"
                                                 :class="
                                                     has(
                                                         permissionFor(
@@ -420,9 +431,7 @@ onMounted(load);
             @update:open="(v: boolean) => !v && (deleteTarget = null)"
         >
             <DialogPortal>
-                <DialogOverlay
-                    class="inset-0 bg-black/80 fixed z-50"
-                />
+                <DialogOverlay class="inset-0 bg-black/80 fixed z-50" />
                 <DialogContent
                     class="max-w-sm rounded-xl p-6 shadow-lg fixed top-1/2 left-1/2 z-50 w-[92vw] -translate-x-1/2 -translate-y-1/2 border border-border bg-card text-card-foreground outline-none"
                 >

@@ -11,6 +11,9 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 #[TypeScript]
 class WebhookLogData extends Data
 {
+    /**
+     * @param array<string, mixed>|null $payload
+     */
     public function __construct(
         public int|string|null $id,
         public string $event,
@@ -18,10 +21,16 @@ class WebhookLogData extends Data
         public bool $success,
         public int $attempt,
         public ?string $createdAt,
+        public ?array $payload = null,
+        public ?string $response = null,
+        public ?string $endpointName = null,
+        public ?string $endpointUrl = null,
     ) {}
 
     public static function fromModel(WebhookLog $log): self
     {
+        $endpoint = $log->relationLoaded('endpoint') ? $log->getRelation('endpoint') : null;
+
         return new self(
             $log->getKey(),
             $log->event,
@@ -29,6 +38,10 @@ class WebhookLogData extends Data
             $log->success,
             $log->attempt,
             $log->created_at?->toIso8601String(),
+            $log->payload,
+            $log->response,
+            $endpoint?->name,
+            $endpoint?->url,
         );
     }
 }

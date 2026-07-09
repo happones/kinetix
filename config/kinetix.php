@@ -342,6 +342,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API Request Logs (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Log requests hitting your token-authenticated API (SaaS integrations):
+    | method, path, status, duration, token, ip — and optionally the request/
+    | response bodies (opt-in, size-capped, sensitive keys redacted). Attach
+    | the `kinetix.api-log` middleware to your API group; rows are written in
+    | terminate() so logging adds no latency. View them with
+    | <KinetixIntegrationLogs> (gate: `viewKinetixApiLogs`). Schedule
+    | `kinetix:api-logs:prune` to keep the table bounded.
+    |
+    */
+    'api_logs' => [
+        'enabled'           => env('KINETIX_API_LOGS_ENABLED', false),
+        'log_request_body'  => env('KINETIX_API_LOGS_REQUEST_BODY', false),
+        'log_response_body' => env('KINETIX_API_LOGS_RESPONSE_BODY', false),
+        'body_limit'        => env('KINETIX_API_LOGS_BODY_LIMIT', 10240),
+        'retention_days'    => env('KINETIX_API_LOGS_RETENTION_DAYS', 30),
+        'redact'            => ['password', 'password_confirmation', 'secret', 'token', 'authorization'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Spotlight Command Palette (optional)
     |--------------------------------------------------------------------------
     |

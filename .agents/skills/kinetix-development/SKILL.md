@@ -468,6 +468,14 @@ Global search over models, navigation and actions, authorization-aware. **Off by
 
 ---
 
+## Kinetix Integration Logs (v0.85.0)
+
+- **API request logs** (`src/Api/`): `ApiLog` model (`kinetix_api_logs`, append-only — `UPDATED_AT = null`, only `created_at` indexed), `LogApiRequest` middleware (alias `kinetix.api-log`, ALWAYS registered; no-ops unless `kinetix.api_logs.enabled`) — start time stored on `$request->attributes` because Laravel resolves a FRESH instance for `terminate()`; writes after response (no latency), captures sanctum `currentAccessToken()` id/name via `method_exists`, bodies opt-in (`log_request_body`/`log_response_body`) with `redact` keys → `[redacted]` and `body_limit` cap (oversized request bodies → `['_truncated' => true]`, responses substr+…). Never throws (try/catch Throwable).
+- **Feed**: `GET {prefix}/api-logs` (`ApiLogController::index`, gate `viewKinetixApiLogs` — local-only default via `Gate::has` pattern; registered only when enabled; team prefix aware). Filters `?result=success|failed` (status <400 / >=400), `?search=` (path/token_name). `ApiLogData` DTO / `KinetixApiLog` TS.
+- **Webhook logs enriched**: `WebhookLogData` +`payload`/`response`/`endpointName`/`endpointUrl` (endpoint loaded via new `WebhookLog::endpoint()` BelongsTo, serialized only when eager-loaded); new cross-endpoint feed `GET {prefix}/webhooks/logs` (`WebhookController::allLogs`, `webhooks.manage`, scoped to `scopedEndpoints()`, same result/search filters). Route declared BEFORE `{endpoint}/logs`.
+- **Prune**: `kinetix:api-logs:prune {--days=}` (default `api_logs.retention_days` 30), mirrors WebhooksPruneCommand.
+- **Viewer** `KinetixIntegrationLogs.vue`: tabs (or `only="webhooks"|"api"`), result segmented filter + debounced search + pagination (15), detail reka Dialog with pretty-printed JSON (`pretty()` parses strings) + redeliver button (existing endpoint). i18n `logs_*` + `refresh`. Migration tag `kinetix-api-logs-migrations`. Tests: `ApiLogsTest`, `WebhooksTest::test_all_logs_feed...`, `KinetixIntegrationLogs.spec.ts`. Docs `docs/integration-logs.md` (+ sidebar).
+
 ## 18. Kinetix Webhooks (optional, outbound event delivery)
 
 Customers subscribe endpoints to platform events; signed/queued/retried/logged delivery with SSRF protection. **Off by default** (`kinetix.webhooks.enabled`). Roadmap v0.10.0. Two migrations (`kinetix-webhooks-migrations`): `kinetix_webhook_endpoints` (team_id, name, url, secret, events json, active) + `kinetix_webhook_logs` (endpoint_id, event, payload, status_code, success, attempt, response).

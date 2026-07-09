@@ -226,6 +226,24 @@ export interface KinetixWebhookLog {
     success: boolean;
     attempt: number;
     createdAt: string | null;
+    payload?: Record<string, unknown> | null;
+    response?: string | null;
+    endpointName?: string | null;
+    endpointUrl?: string | null;
+}
+
+/** One logged API request (kinetix.api-log middleware). */
+export interface KinetixApiLog {
+    id: number | string | null;
+    method: string;
+    path: string;
+    status: number;
+    durationMs: number | null;
+    tokenName: string | null;
+    ip: string | null;
+    requestBody: Record<string, unknown> | null;
+    responseBody: string | null;
+    createdAt: string | null;
 }
 
 /** A step shown in the <KinetixWizard> indicator. */

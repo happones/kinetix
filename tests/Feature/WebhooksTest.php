@@ -149,6 +149,47 @@ class WebhooksTest extends TestCase
         ], $attributes));
     }
 
+    public function test_all_logs_feed_includes_payload_endpoint_and_filters_by_result(): void
+    {
+        $endpoint = $this->endpoint();
+        WebhookLog::create([
+            'webhook_endpoint_id' => $endpoint->id,
+            'event'               => 'order.created',
+            'payload'             => ['order_id' => 7],
+            'status_code'         => 200,
+            'success'             => true,
+            'attempt'             => 1,
+            'response'            => '{"ok":true}',
+        ]);
+        WebhookLog::create([
+            'webhook_endpoint_id' => $endpoint->id,
+            'event'               => 'order.shipped',
+            'payload'             => ['order_id' => 8],
+            'status_code'         => 500,
+            'success'             => false,
+            'attempt'             => 3,
+        ]);
+
+        $all = $this->actingAs($this->manager())
+            ->getJson('/_kinetix/webhooks/logs')
+            ->assertOk();
+
+        $this->assertSame(2, $all->json('pagination.total'));
+        // Enriched payload for the viewer: what was sent, where, and the reply.
+        $row = collect($all->json('data'))->firstWhere('event', 'order.created');
+        $this->assertSame(['order_id' => 7], $row['payload']);
+        $this->assertSame('{"ok":true}', $row['response']);
+        $this->assertSame('Endpoint', $row['endpointName']);
+        $this->assertSame('https://8.8.8.8/hook', $row['endpointUrl']);
+
+        // Result filter narrows to failures.
+        $failed = $this->actingAs($this->manager())
+            ->getJson('/_kinetix/webhooks/logs?result=failed')
+            ->assertOk();
+        $this->assertSame(1, $failed->json('pagination.total'));
+        $this->assertSame('order.shipped', $failed->json('data.0.event'));
+    }
+
     public function test_ssrf_guard_blocks_private_and_allows_public(): void
     {
         $this->assertFalse(WebhookUrlGuard::isAllowed('http://127.0.0.1/x'));

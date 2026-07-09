@@ -103,8 +103,8 @@ describe('KinetixRoleMatrix', () => {
         await w.get('[title="Edit"]').trigger('click');
         await w.vm.$nextTick();
 
-        const headers = [...document.body.querySelectorAll('th')].map(
-            (th) => th.textContent?.trim(),
+        const headers = [...document.body.querySelectorAll('th')].map((th) =>
+            th.textContent?.trim(),
         );
         // Module column, then view/create (canonical order), then the custom refund.
         expect(headers).toEqual(['Module', 'View', 'Create', 'Refund']);

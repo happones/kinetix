@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Webhooks;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
@@ -25,6 +26,14 @@ class WebhookLog extends Model
     protected $table = 'kinetix_webhook_logs';
 
     protected $guarded = [];
+
+    /**
+     * @return BelongsTo<WebhookEndpoint, $this>
+     */
+    public function endpoint(): BelongsTo
+    {
+        return $this->belongsTo(WebhookEndpoint::class, 'webhook_endpoint_id');
+    }
 
     /**
      * @return array<string, string>

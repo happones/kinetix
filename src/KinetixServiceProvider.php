@@ -10,9 +10,12 @@ use Happones\Kinetix\Activity\ActivityController;
 use Happones\Kinetix\Activity\ActivityLogger;
 use Happones\Kinetix\Announcements\AnnouncementController;
 use Happones\Kinetix\Announcements\AnnouncementManager;
+use Happones\Kinetix\Api\ApiLogController;
+use Happones\Kinetix\Api\Middleware\LogApiRequest;
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
+use Happones\Kinetix\Commands\ApiLogsPruneCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
 use Happones\Kinetix\Commands\MakeBillingCommand;
@@ -251,6 +254,7 @@ class KinetixServiceProvider extends ServiceProvider
                 WebhooksPruneCommand::class,
                 SendReportsCommand::class,
                 PermissionsSyncCommand::class,
+                ApiLogsPruneCommand::class,
                 InstallCommand::class,
             ]);
 
@@ -365,6 +369,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000017_add_kinetix_team_fields_to_permission_tables.php' => database_path('migrations/2026_01_01_000017_add_kinetix_team_fields_to_permission_tables.php'),
             ], 'kinetix-permission-team-migrations');
 
+            // Publish the optional API request logs migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000018_create_kinetix_api_logs_table.php' => database_path('migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'),
+            ], 'kinetix-api-logs-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -412,6 +421,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Webhooks module (outbound event delivery)
         $this->registerWebhooks();
+
+        // Register the optional API request logs module (middleware + viewer feed)
+        $this->registerApiLogs();
 
         $this->registerTokens();
 
@@ -863,8 +875,43 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::delete('{endpoint}', [WebhookController::class, 'destroy'])->name('kinetix.webhooks.destroy');
                 Route::post('{endpoint}/rotate', [WebhookController::class, 'rotate'])->name('kinetix.webhooks.rotate');
                 Route::post('{endpoint}/test', [WebhookController::class, 'test'])->name('kinetix.webhooks.test');
+                Route::get('logs', [WebhookController::class, 'allLogs'])->name('kinetix.webhooks.all-logs');
                 Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
                 Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->name('kinetix.webhooks.redeliver');
+            });
+    }
+
+    /**
+     * Wire the optional API request logs module: a terminable middleware the
+     * host attaches to its API group (`kinetix.api-log`) plus the read feed
+     * behind the integration-logs viewer, gated by `viewKinetixApiLogs`
+     * (local-only unless the host defines the gate).
+     */
+    protected function registerApiLogs(): void
+    {
+        // The alias is always available; the middleware no-ops while disabled.
+        $this->app['router']->aliasMiddleware('kinetix.api-log', LogApiRequest::class);
+
+        if (! config('kinetix.api_logs.enabled', false)) {
+            return;
+        }
+
+        if (! Gate::has('viewKinetixApiLogs')) {
+            Gate::define('viewKinetixApiLogs', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix       = '{current_team}/'.$prefix;
+            $middleware[] = 'kinetix.permissions.team';
+        }
+
+        Route::middleware($middleware)
+            ->prefix($prefix)
+            ->group(function (): void {
+                Route::get('api-logs', [ApiLogController::class, 'index'])->name('kinetix.api-logs.index');
             });
     }
 

@@ -132,6 +132,7 @@ export default withMermaid(
           { text: "Activity Log", link: "/activity" },
           { text: "Feature Flags", link: "/feature-flags" },
           { text: "Webhooks", link: "/webhooks" },
+          { text: "Integration Logs", link: "/integration-logs" },
           { text: "Queue Health", link: "/queue" },
           { text: "System Health", link: "/health" },
         ],

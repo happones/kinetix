@@ -16,6 +16,10 @@ Activate this skill when:
 - Mounting `<KinetixWebhookManager>` / using `useKinetixWebhooks`.
 - Working on signing, SSRF validation, retries, or delivery logs.
 
+## Integration logs viewer
+
+`<KinetixIntegrationLogs>` lists webhook deliveries (payload, response, endpoint, redeliver) and — when `kinetix.api_logs.enabled` — API requests logged by the `kinetix.api-log` middleware (attach it to the host's API group; row written in terminate(), bodies opt-in + redacted + capped). Feeds: `GET {prefix}/webhooks/logs` (`webhooks.manage`) and `GET {prefix}/api-logs` (`viewKinetixApiLogs`, local-only default). Prune with `kinetix:webhooks:prune` / `kinetix:api-logs:prune`. Docs: `docs/integration-logs.md`.
+
 ## Documentation
 
 For full details, reference `docs/webhooks.md` (published at https://happones.github.io/kinetix/webhooks).

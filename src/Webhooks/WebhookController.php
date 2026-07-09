@@ -114,7 +114,49 @@ class WebhookController
         Gate::authorize('webhooks.manage');
 
         $endpoint  = $this->findEndpoint($request);
-        $paginator = $endpoint->logs()->latest()->paginate(15);
+        $paginator = $endpoint->logs()->with('endpoint')->latest()->paginate(15);
+
+        return response()->json([
+            'data' => $paginator->getCollection()
+                ->map(static fn (WebhookLog $log): WebhookLogData => WebhookLogData::fromModel($log))
+                ->values(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page'    => $paginator->lastPage(),
+                'total'        => $paginator->total(),
+            ],
+        ]);
+    }
+
+    /**
+     * Delivery log across ALL of the (team-scoped) endpoints — the feed behind
+     * the integration-logs viewer. Filter with `?result=success|failed` and
+     * `?search=` (event / endpoint name).
+     */
+    public function allLogs(Request $request): JsonResponse
+    {
+        Gate::authorize('webhooks.manage');
+
+        $query = WebhookLog::query()
+            ->with('endpoint')
+            ->whereIn('webhook_endpoint_id', $this->scopedEndpoints()->select('id'))
+            ->latest()
+            ->latest('id');
+
+        if ($request->query('result') === 'success') {
+            $query->where('success', true);
+        } elseif ($request->query('result') === 'failed') {
+            $query->where('success', false);
+        }
+
+        if (($search = trim((string) $request->query('search'))) !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('event', 'like', "%{$search}%")
+                    ->orWhereHas('endpoint', fn ($e) => $e->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        $paginator = $query->paginate(15);
 
         return response()->json([
             'data' => $paginator->getCollection()

@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.85.0] - 2026-07-10
+
+### Added
+
+- **Integration Logs** — observability for SaaS integrations:
+  - **API request logs** (opt-in `kinetix.api_logs`): the `kinetix.api-log`
+    middleware logs method, path, status, duration, ip and the Sanctum token
+    id/name of every request on your API group — written in `terminate()` (no
+    request latency). Request/response bodies are opt-in, size-capped and
+    sensitive keys are redacted. Feed at `GET {prefix}/api-logs`
+    (gate `viewKinetixApiLogs`), migration tag `kinetix-api-logs-migrations`,
+    retention via `kinetix:api-logs:prune`.
+  - **Webhook delivery logs enriched** — `WebhookLogData` now carries the
+    payload, response and endpoint name/URL; new cross-endpoint feed
+    `GET {prefix}/webhooks/logs` (`webhooks.manage`) with result/search
+    filters.
+  - **`<KinetixIntegrationLogs>`** viewer — tabbed (webhook deliveries / API
+    requests, or a single feed via `only`), success/failed filter, debounced
+    search, pagination, and a detail modal with pretty-printed payloads and
+    one-click webhook redelivery. **(published)**
+
 ## [0.84.0] - 2026-07-10
 
 ### Added

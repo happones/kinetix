@@ -168,6 +168,7 @@ import KinetixActionDropdown from '@/components/KinetixActionDropdown.vue';
 import KinetixMemberActivation from '@/components/KinetixMemberActivation.vue';
 import KinetixMemberProvisioner from '@/components/KinetixMemberProvisioner.vue';
 import KinetixRoleMatrix from '@/components/KinetixRoleMatrix.vue';
+import KinetixIntegrationLogs from '@/components/KinetixIntegrationLogs.vue';
 import KinetixPermissionMatrix from '@/components/KinetixPermissionMatrix.vue';
 import KinetixActivityLog from '@/components/KinetixActivityLog.vue';
 import KinetixRoleManager from '@/components/KinetixRoleManager.vue';
@@ -1415,6 +1416,13 @@ export const specimens: Specimen[] = [
             features: permissionFeatures,
             modelValue: ['users.view', 'orders.view'],
         },
+    },
+    {
+        name: 'integration-logs',
+        title: 'Integration logs (webhook deliveries)',
+        component: KinetixIntegrationLogs,
+        frame: 'card',
+        width: 780,
     },
     {
         name: 'role-matrix',
