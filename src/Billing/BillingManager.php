@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Billing;
 
 use Happones\Kinetix\Data\PlanData;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as SupportCollection;
@@ -49,7 +50,7 @@ class BillingManager
             return is_callable($resolver) ? $resolver($user) : $user;
         }
 
-        if (config('kinetix.billing.teams', false) || config('kinetix.tenancy.subdomain') !== null) {
+        if (KinetixTeams::enabledFor('billing') || config('kinetix.tenancy.subdomain') !== null) {
             return static::resolveTeam($user) ?? $user;
         }
 

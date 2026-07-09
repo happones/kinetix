@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Permissions\Middleware;
 
 use Closure;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Http\Request;
 use Spatie\Permission\PermissionRegistrar;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,7 +24,7 @@ class SetPermissionsTeam
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (config('kinetix.permissions.teams', false)) {
+        if (KinetixTeams::enabledFor('permissions')) {
             $user = $request->user();
             $team = $user?->currentTeam;
 

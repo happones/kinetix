@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Activity;
 
 use Happones\Kinetix\Data\ActivityData;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -108,7 +109,7 @@ class ActivityLogger
 
     protected function teamId(): int|string|null
     {
-        if (! config('kinetix.activity.teams', false)) {
+        if (! KinetixTeams::enabledFor('activity')) {
             return null;
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Billing;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -19,7 +20,7 @@ class BillingRoutes
     public static function register(): void
     {
         $prefix = (string) config('kinetix.billing.route_prefix', 'billing');
-        if (config('kinetix.billing.teams', false) && config('kinetix.tenancy.subdomain') === null) {
+        if (KinetixTeams::enabledFor('billing') && config('kinetix.tenancy.subdomain') === null) {
             $prefix = '{team}/'.$prefix;
         }
         $name       = (string) config('kinetix.billing.route_name', 'billing.');

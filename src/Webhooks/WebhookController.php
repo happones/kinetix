@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Webhooks;
 
 use Happones\Kinetix\Data\WebhookEndpointData;
 use Happones\Kinetix\Data\WebhookLogData;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -174,7 +175,7 @@ class WebhookController
 
     protected function teamId(): int|string|null
     {
-        if (! config('kinetix.webhooks.teams', false)) {
+        if (! KinetixTeams::enabledFor('webhooks')) {
             return null;
         }
 

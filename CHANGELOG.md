@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-07-09
+
+### Changed
+
+- **Per-module `teams` flags now inherit the global `kinetix.teams`** —
+  tri-state: `null` (new default) inherits the global switch, `true`/`false`
+  overrides per module. One line (`KINETIX_TEAMS_ENABLED=true`) now team-scopes
+  the whole suite (permissions, membership, settings, webhooks, onboarding,
+  wizards, features, activity, billing) instead of requiring nine flags; the
+  per-module override remains for mixed setups (e.g. team-scoped app with
+  personal billing). Resolution goes through the new
+  `Support\KinetixTeams::enabledFor($module)` helper. **(published config)**
+  > Upgrade note: previously published configs pin each flag to `false` —
+  > re-publish `kinetix-config` (or change the flags you want inheriting to
+  > `env('…_TEAMS')` with no default) to adopt inheritance.
+
 ## [0.81.0] - 2026-07-09
 
 ### Added

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Wizards;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -47,7 +48,7 @@ class WizardManager
 
     protected function teamId(Model $user): int|string|null
     {
-        if (! config('kinetix.wizards.teams', false)) {
+        if (! KinetixTeams::enabledFor('wizards')) {
             return null;
         }
 

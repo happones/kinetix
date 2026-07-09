@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Settings;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 
@@ -117,7 +118,7 @@ class SettingsManager
 
     protected function teamId(): int|string|null
     {
-        if (! config('kinetix.settings.teams', false)) {
+        if (! KinetixTeams::enabledFor('settings')) {
             return null;
         }
 

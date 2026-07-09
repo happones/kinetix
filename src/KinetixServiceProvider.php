@@ -81,6 +81,7 @@ use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Tags\TagController;
 use Happones\Kinetix\Tags\TagManager;
 use Happones\Kinetix\Tags\TagRegistry;
@@ -491,7 +492,7 @@ class KinetixServiceProvider extends ServiceProvider
         // Surface the classic silent misconfiguration: Kinetix team scoping on
         // but spatie's own `permission.teams` off — the middleware would set a
         // team id that every hasRole()/can() call silently ignores.
-        if (config('kinetix.permissions.teams', false)
+        if (KinetixTeams::enabledFor('permissions')
             && class_exists(PermissionRegistrar::class)
             && ! config('permission.teams', false)) {
             Log::warning(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Webhooks;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Spatie\WebhookServer\WebhookCall;
 
 /**
@@ -74,7 +75,7 @@ class WebhookDispatcher
 
     protected function teamId(): int|string|null
     {
-        if (! config('kinetix.webhooks.teams', false)) {
+        if (! KinetixTeams::enabledFor('webhooks')) {
             return null;
         }
 

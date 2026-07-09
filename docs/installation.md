@@ -277,6 +277,25 @@ return [
 | `KINETIX_TEAMS_ENABLED` | `false` | Scope routes/queries to the current team |
 | `KINETIX_ROUTE_PREFIX` | `_kinetix` | Prefix for internal API routes |
 
+### Team scoping: one switch, per-module overrides
+
+`kinetix.teams` is the single switch for team scoping — besides prefixing
+Kinetix's internal routes with `{current_team}/`, it is the **default for every
+module's own `teams` flag** (permissions, membership, settings, webhooks,
+onboarding, wizards, features, activity, billing). Each module flag is
+tri-state:
+
+- `null` (the default) — inherit `kinetix.teams`;
+- `true` / `false` — explicit override for that module.
+
+```php
+'teams' => true,                       // everything team-scoped…
+'billing' => ['teams' => false],       // …except billing (personal subscriptions)
+```
+
+> Flipping a module's scope on a live app changes which rows its queries see
+> (`team_id` filters) — plan a data migration if you change it after launch.
+
 ## Next steps
 
 - [**Resources**](/resources) — scaffold a full CRUD with one command.

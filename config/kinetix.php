@@ -167,6 +167,12 @@ return [
     | routing (e.g., Jetstream Teams). This will scope Kinetix's internal
     | routes and automatically configure URL default parameters for actions.
     |
+    | This is also the DEFAULT for every module's own `teams` flag (permissions,
+    | membership, settings, webhooks, onboarding, wizards, features, activity,
+    | billing): leave a module's flag at null to inherit this value, or set it
+    | to true/false explicitly to override per module (e.g. a team-scoped app
+    | with personal billing).
+    |
     */
     'teams' => env('KINETIX_TEAMS_ENABLED', false),
 
@@ -241,7 +247,7 @@ return [
     */
     'permissions' => [
         'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
-        'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
+        'teams'            => env('KINETIX_PERMISSIONS_TEAMS'), // null = inherit kinetix.teams
         'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
         'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
     ],
@@ -267,7 +273,7 @@ return [
     */
     'membership' => [
         'enabled'           => env('KINETIX_MEMBERSHIP_ENABLED', false),
-        'teams'             => env('KINETIX_MEMBERSHIP_TEAMS', false),
+        'teams'             => env('KINETIX_MEMBERSHIP_TEAMS'), // null = inherit kinetix.teams
         'user_model'        => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
         'assignable_roles'  => ['editor', 'viewer'],
         'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
@@ -294,7 +300,7 @@ return [
     */
     'settings' => [
         'enabled'   => env('KINETIX_SETTINGS_ENABLED', false),
-        'teams'     => env('KINETIX_SETTINGS_TEAMS', false),
+        'teams'     => env('KINETIX_SETTINGS_TEAMS'), // null = inherit kinetix.teams
         'cache'     => env('KINETIX_SETTINGS_CACHE', true),
         'cache_key' => 'kinetix.settings',
         'view'      => env('KINETIX_SETTINGS_VIEW', 'Kinetix/Settings'),
@@ -327,7 +333,7 @@ return [
         // uses spatie's tries/timeout config.
         'driver' => env('KINETIX_WEBHOOKS_DRIVER', 'auto'),
 
-        'teams'          => env('KINETIX_WEBHOOKS_TEAMS', false),
+        'teams'          => env('KINETIX_WEBHOOKS_TEAMS'), // null = inherit kinetix.teams
         'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
         'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
         'tries'          => env('KINETIX_WEBHOOKS_TRIES', 3),
@@ -440,7 +446,7 @@ return [
         'enabled' => env('KINETIX_ONBOARDING_ENABLED', false),
 
         // Track progress per team instead of per user.
-        'teams' => env('KINETIX_ONBOARDING_TEAMS', false),
+        'teams' => env('KINETIX_ONBOARDING_TEAMS'), // null = inherit kinetix.teams
     ],
 
     /*
@@ -667,7 +673,7 @@ return [
         'enabled' => env('KINETIX_WIZARDS_ENABLED', false),
 
         // Track completion per team instead of per user.
-        'teams' => env('KINETIX_WIZARDS_TEAMS', false),
+        'teams' => env('KINETIX_WIZARDS_TEAMS'), // null = inherit kinetix.teams
 
         // @var array<string, string> wizard slug => route name to redirect to
         'gates' => [
@@ -693,7 +699,7 @@ return [
     'features' => [
         'enabled' => env('KINETIX_FEATURES_ENABLED', false),
         'driver'  => env('KINETIX_FEATURES_DRIVER', 'auto'),
-        'teams'   => env('KINETIX_FEATURES_TEAMS', false),
+        'teams'   => env('KINETIX_FEATURES_TEAMS'), // null = inherit kinetix.teams
     ],
 
     /*
@@ -740,7 +746,7 @@ return [
         // otherwise the native kinetix_activity table. Force with 'spatie' / 'native'.
         'driver' => env('KINETIX_ACTIVITY_DRIVER', 'auto'),
 
-        'teams'          => env('KINETIX_ACTIVITY_TEAMS', false),
+        'teams'          => env('KINETIX_ACTIVITY_TEAMS'), // null = inherit kinetix.teams
         'per_page'       => env('KINETIX_ACTIVITY_PER_PAGE', 15),
         'retention_days' => env('KINETIX_ACTIVITY_RETENTION_DAYS', 365),
     ],
@@ -758,7 +764,7 @@ return [
     */
     'billing' => [
         'enabled'       => env('KINETIX_BILLING_ENABLED', false),
-        'teams'         => env('KINETIX_BILLING_TEAMS', false),
+        'teams'         => env('KINETIX_BILLING_TEAMS'), // null = inherit kinetix.teams
         'trial_generic' => env('KINETIX_BILLING_TRIAL_GENERIC', false),
         'billable'      => env('KINETIX_BILLING_BILLABLE', 'App\\Models\\User'),
         'plan_model'    => env('KINETIX_BILLING_PLAN_MODEL', 'Happones\\Kinetix\\Billing\\Plan'),

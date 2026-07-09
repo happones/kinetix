@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Features;
 
 use Closure;
+use Happones\Kinetix\Support\KinetixTeams;
 use Laravel\Pennant\Feature;
 
 /**
@@ -119,7 +120,7 @@ class FeatureManager
     {
         $user = auth()->user();
 
-        if (config('kinetix.features.teams', false) && $user?->currentTeam !== null) {
+        if (KinetixTeams::enabledFor('features') && $user?->currentTeam !== null) {
             return $user->currentTeam;
         }
 

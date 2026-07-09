@@ -360,6 +360,10 @@ Route::post('/x', ...)->middleware('plan.feature:capabilities.api');
 
 ---
 
+## Team scoping (v0.82.0)
+
+`Support\KinetixTeams::enabledFor('module')` resolves each module's `kinetix.{module}.teams` with tri-state inheritance: `null` (default) → inherit global `kinetix.teams`; explicit `true`/`false` wins. ALWAYS use the helper (never `config('kinetix.x.teams', false)`) for data scoping in modules; the global flag alone still drives route prefixing (`{current_team}/`). Modules covered: permissions, membership, settings, webhooks, onboarding, wizards, features, activity, billing. Tests `KinetixTeamsTest`.
+
 ## 11. Kinetix Permissions (optional, Spatie Laravel Permission)
 
 Feature-scoped roles and permissions integrated with `spatie/laravel-permission`. Enforcement flows through Laravel's Gate; this system adds sync commands, super-admin bypasses, and multi-tenant bridging.

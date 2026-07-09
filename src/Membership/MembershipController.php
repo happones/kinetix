@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Membership;
 
 use Happones\Kinetix\Data\MemberProvisionData;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -236,7 +237,7 @@ class MembershipController
 
     protected function teamId(Request $request): int|string|null
     {
-        if (! config('kinetix.membership.teams', false)) {
+        if (! KinetixTeams::enabledFor('membership')) {
             return null;
         }
 
@@ -286,7 +287,7 @@ class MembershipController
      */
     protected function withTeam(int|string|null $teamId, callable $callback): void
     {
-        if (! config('kinetix.membership.teams', false) || ! class_exists(PermissionRegistrar::class)) {
+        if (! KinetixTeams::enabledFor('membership') || ! class_exists(PermissionRegistrar::class)) {
             $callback();
 
             return;

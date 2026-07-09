@@ -65,7 +65,7 @@ See `docs/permissions.md` §4.
 Enabling `kinetix.permissions.teams` alone does nothing — spatie ignores the
 team id unless its own flag is on (Kinetix logs a boot warning on the mismatch):
 
-1. `config/kinetix.php` → `'permissions' => ['teams' => true]`.
+1. `config/kinetix.php` → `'permissions' => ['teams' => true]` — or leave it `null` and set the global `'teams' => true`, which every module's flag inherits (v0.82.0).
 2. `config/permission.php` → `'teams' => true`.
 3. `php artisan vendor:publish --tag=kinetix-permission-team-migrations && php artisan migrate` — Kinetix's **hybrid** teams migration (nullable `team_id` outside the PK → roles can be team-scoped *or* global).
 4. Append `kinetix.permissions.team` to the host's `web` middleware group (Kinetix only auto-applies it to its own routes; without this, `hasRole()`/`can()` in app routes have no team context).

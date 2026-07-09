@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Onboarding;
 
 use Happones\Kinetix\Data\OnboardingData;
 use Happones\Kinetix\Data\OnboardingStepData;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -89,7 +90,7 @@ class OnboardingManager
 
     protected function teamId(Model $user): int|string|null
     {
-        if (! config('kinetix.onboarding.teams', false)) {
+        if (! KinetixTeams::enabledFor('onboarding')) {
             return null;
         }
 
