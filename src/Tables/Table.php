@@ -424,6 +424,11 @@ class Table implements Arrayable, JsonSerializable
      */
     public function toData(): TableData
     {
+        // Filters may resolve relationship options against the table's model.
+        foreach ($this->filters as $filter) {
+            $filter->forModel($this->getModelClass());
+        }
+
         $query = $this->getResolvedQuery();
 
         // Compute column summaries over the full filtered dataset, before

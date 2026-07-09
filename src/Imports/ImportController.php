@@ -110,6 +110,8 @@ class ImportController
             $mapping,
             $user !== null ? $user::class : null,
             $user?->getKey(),
+            // The worker has no request — capture tenant/user context now.
+            $importer->context($request),
         );
 
         // Use the connection's default queue unless the importer pins a specific

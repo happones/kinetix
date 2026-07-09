@@ -147,6 +147,7 @@ Grid::make(12)
 To ensure column layouts render correctly without depending on dynamic Tailwind compiler classes (which JIT compilers purge), Kinetix evaluates `columnSpan` parameters into inline CSS styles:
 - **`columnSpan(int)`**: Renders inline `grid-column: span X / span X`.
 - **`columnSpan('full')`**: Renders inline `grid-column: 1 / -1`.
+- **`columnSpanFull()`**: Filament-compatible shorthand for `columnSpan('full')`.
 
 ### 2. Section Cards
 The `Section` component wraps nested elements in a clean visual container complete with title, description, and column layouts.

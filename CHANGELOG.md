@@ -13,8 +13,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-07-09
+
+Production-hardening batch from real-app integration feedback.
+
+### Fixed
+
+- **Kanban + enum casts** — a `statusColumn` cast to a PHP enum no longer crashes
+  `toData()` ("Object of class … could not be converted to string"): grouping
+  stringifies `BackedEnum` → backing value / `UnitEnum` → case name, and moves
+  re-cast the plain string. Numeric status keys are also stringified so strict
+  status validation matches.
+- **Kanban move authorization** — the `kanban-move` endpoint now authorizes the
+  *record*, not just the board descriptor: when the model has a registered
+  policy, every move checks `update` (or the ability named via
+  `->authorizeMove()`); `->moveScope(['team_id' => $id])` seals tenant
+  constraints into the encrypted descriptor and 404s lookups outside them.
+  Previously any authenticated user could move records of other tenants by
+  guessing ids.
+- **Queued imports lose the tenant** — new `Importer::context(Request): array`
+  hook, captured at dispatch and restored on the worker before any
+  `importRow()` (`$this->context` / `getContext()`). Closes the multi-tenant
+  leak where a queued importer had to infer the team.
+- **Platform super-admin with spatie teams** — the `Gate::before` bypass now
+  also honors a *teamless* role assignment (team `NULL`), so a platform
+  super-admin keeps access inside every team. Previously `hasRole()` was
+  team-scoped and the bypass silently vanished outside the assigning team.
+
 ### Added
 
+- **`kinetix-permission-team-migrations`** publish tag — hybrid teams migration
+  for spatie's permission tables: nullable `team_id` **outside** the pivot
+  primary key (unique index instead), enabling global + team-scoped roles.
+- **Config-mismatch warning** — a `Log::warning` at boot when
+  `kinetix.permissions.teams` is true but spatie's `permission.teams` is false
+  (the team id would be silently ignored).
+- **`OnboardingStep::cta()` accepts a Closure** for the href, resolved per
+  request with the authenticated user — required for team-scoped URLs, since
+  steps register in `boot()`.
+- **Filament-compatible API sugar**: `Column::state()` / `getStateUsing()`
+  (derive the raw cell value), `SelectFilter::relationship($name, $titleColumn,
+  ?Closure)` (options from the related model + `whereHas`, also on
+  `MultiSelectFilter`), and `Component::columnSpanFull()`.
 - **Filament contract cross-compatibility** — Enhanced Kinetix's contract validations (e.g. `HasLabel`, `HasColor`, `HasIcon`) to automatically detect and consume matching methods (`getLabel()`, `getColor()`, `getIcon()`) on enums or objects, ensuring 100% transparent compatibility with Filament's support contracts without requiring duplicate interface declarations or code changes. **(published)**
 - **Searchable and Remote-Search Filters** — Added `searchable()` and `searchUsing()` support to `SelectFilter` (single select) and `MultiSelectFilter` (multiple select). Searchable select filters render as a `KinetixCombobox` and remote search filters lazily fetch results dynamically from the database. **(published)**
 - **Reusable `KinetixCheckboxList` component** — Extracted a new reusable component `<KinetixCheckboxList>` with built-in support for local and remote searching (debounced, token-secured) and checked preservation (keeping selected options visible even when filtered out). Renders checkbox lists for both `checkbox-list` form fields and `multi-select` table filters. **(published)**

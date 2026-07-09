@@ -41,6 +41,15 @@ abstract class Component
         return $this;
     }
 
+    /**
+     * Span the full row regardless of the schema's column count
+     * (Filament-compatible shorthand for `columnSpan('full')`).
+     */
+    public function columnSpanFull(): static
+    {
+        return $this->columnSpan('full');
+    }
+
     public function hidden(bool|Closure $condition = true): static
     {
         $this->isHidden = $condition;

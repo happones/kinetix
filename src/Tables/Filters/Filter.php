@@ -18,6 +18,13 @@ class Filter
 
     protected mixed $default = null;
 
+    /**
+     * The table's model class, injected by Table (relationship resolution).
+     *
+     * @var class-string|null
+     */
+    protected ?string $modelClass = null;
+
     public function __construct(string $name)
     {
         $this->name  = $name;
@@ -46,6 +53,18 @@ class Filter
     public function default(mixed $value): static
     {
         $this->default = $value;
+
+        return $this;
+    }
+
+    /**
+     * Inject the owning table's model class (called by Table before use).
+     *
+     * @param class-string $modelClass
+     */
+    public function forModel(string $modelClass): static
+    {
+        $this->modelClass = $modelClass;
 
         return $this;
     }

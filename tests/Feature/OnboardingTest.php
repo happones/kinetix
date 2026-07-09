@@ -87,6 +87,19 @@ class OnboardingTest extends TestCase
         $response->assertJsonPath('steps.1.manual', false);
     }
 
+    public function test_a_closure_cta_href_is_resolved_per_request_with_the_user(): void
+    {
+        KinetixOnboarding::step('team-step', 'Set up your team')
+            ->cta('Open settings', fn (OnboardingUser $user): string => "/teams/{$user->getKey()}/settings");
+
+        $user = $this->user();
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/onboarding')
+            ->assertOk()
+            ->assertJsonPath('steps.2.ctaHref', "/teams/{$user->getKey()}/settings");
+    }
+
     public function test_auto_detected_steps_complete_from_app_state(): void
     {
         $user           = $this->user();

@@ -33,7 +33,7 @@ class OnboardingManager
                 $completedCount++;
             }
 
-            $steps[] = OnboardingStepData::fromStep($step, $completed);
+            $steps[] = OnboardingStepData::fromStep($step, $completed, $user);
         }
 
         $total = count($steps);

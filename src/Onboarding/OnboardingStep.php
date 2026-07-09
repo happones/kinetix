@@ -14,6 +14,11 @@ use Closure;
  *         ->cta('Resend email', '/email/verify')
  *         ->icon('mail')
  *         ->completedUsing(fn ($user) => $user->hasVerifiedEmail());
+ *
+ * The CTA href may be a Closure resolved per request with the authenticated
+ * user — required for URLs that depend on request state (current team, etc.):
+ *
+ *     ->cta('Invite teammates', fn ($user) => route('teams.members', $user->currentTeam))
  */
 class OnboardingStep
 {
@@ -21,7 +26,7 @@ class OnboardingStep
 
     protected ?string $ctaLabel = null;
 
-    protected ?string $ctaHref = null;
+    protected Closure|string|null $ctaHref = null;
 
     protected ?string $icon = null;
 
@@ -47,7 +52,12 @@ class OnboardingStep
         return $this;
     }
 
-    public function cta(string $label, string $href): static
+    /**
+     * The step's action button. `$href` accepts a plain URL, or a Closure
+     * `fn ($user): string` resolved per request — steps register at boot, so
+     * request-dependent URLs (current team, tenant prefixes) need the Closure.
+     */
+    public function cta(string $label, Closure|string $href): static
     {
         $this->ctaLabel = $label;
         $this->ctaHref  = $href;
@@ -103,8 +113,15 @@ class OnboardingStep
         return $this->ctaLabel;
     }
 
-    public function getCtaHref(): ?string
+    /**
+     * Resolve the CTA href — Closures receive the authenticated user.
+     */
+    public function getCtaHref(mixed $user = null): ?string
     {
+        if ($this->ctaHref instanceof Closure) {
+            return (string) ($this->ctaHref)($user);
+        }
+
         return $this->ctaHref;
     }
 

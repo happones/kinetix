@@ -111,6 +111,10 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
 - `toggleable(bool $isToggleable = true, bool $isToggledHiddenByDefault = false)`: Allows users to hide/show the column.
 - `copyable(bool $condition = true)`: Shows a click-to-copy button on the cell (on hover) that copies its value to the clipboard. Works on any column type.
 - `formatStateUsing(Closure $callback)`: Formats the value dynamically on the backend before serialization.
+- `state(Closure|mixed $state)`: Overrides how the raw cell value is resolved — a Closure (`fn ($record) => …`) or a constant — instead of reading the attribute named after the column. `formatStateUsing()` still runs afterwards. Filament-compatible (alias: `getStateUsing()`):
+  ```php
+  TextColumn::make('total')->state(fn (Order $o) => $o->subtotal + $o->tax);
+  ```
 
 ### 1. `TextColumn`
 Displays text strings with additional formatting structures:
@@ -237,11 +241,17 @@ Renders as a checkbox.
 Renders as a dropdown select.
 - `options(array|Closure|string $options)`: Dropdown option pairs, a closure, or an Enum class (auto-mapped to value→label).
 - `attribute(string $attribute)`: Maps query parameters directly to database columns. If omitted, defaults to the filter name.
+- `relationship(string $name, string $titleColumn, ?Closure $modifyQueryUsing = null)`: Filament-compatible — options come from the related model (`key => title column`) and the filter applies `whereHas` on the relation's key:
+  ```php
+  SelectFilter::make('author')->relationship('author', 'name');
+  SelectFilter::make('author')->relationship('author', 'name', fn ($q) => $q->where('active', true));
+  ```
+  For large related tables prefer `searchUsing()` (options load lazily instead of all at once).
 - `searchable()`: Renders the select dropdown as a searchable combobox.
 - `searchUsing(string $model, string $labelColumn = 'name', array $searchColumns = ['name'], string $valueColumn = 'id')`: Dynamically queries the model's database table when searching. The selection is securely query-guarded via tokens.
 
 ### 3. `MultiSelectFilter`
-Renders as a checkbox list; matches any selected value via `whereIn`. Extends `SelectFilter` (supports all the same options, including Enum classes, `searchable()`, and `searchUsing()`). When searchable or remote-searching, a search input is rendered at the top of the checkbox list to query options.
+Renders as a checkbox list; matches any selected value via `whereIn`. Extends `SelectFilter` (supports all the same options, including Enum classes, `relationship()`, `searchable()`, and `searchUsing()`). When searchable or remote-searching, a search input is rendered at the top of the checkbox list to query options.
 
 ```php
 use Happones\Kinetix\Tables\Filters\MultiSelectFilter;

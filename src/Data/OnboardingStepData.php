@@ -22,14 +22,14 @@ class OnboardingStepData extends Data
         public bool $manual,
     ) {}
 
-    public static function fromStep(OnboardingStep $step, bool $completed): self
+    public static function fromStep(OnboardingStep $step, bool $completed, mixed $user = null): self
     {
         return new self(
             $step->key,
             $step->title,
             $step->getDescription(),
             $step->getCtaLabel(),
-            $step->getCtaHref(),
+            $step->getCtaHref($user),
             $step->getIcon(),
             $completed,
             $step->isManual(),

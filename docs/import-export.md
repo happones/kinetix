@@ -97,7 +97,44 @@ class ContactImporter extends Importer
 | `importRow(array $data): void` | Per-row handler (override for custom logic) |
 | `chunkSize(): int` | Rows per DB transaction (default `1000`) |
 | `queue(): ?string` | Queue the job runs on (default queue otherwise) |
+| `context(Request $request): array` | Request context captured at dispatch, restored on the worker (see below) |
+| `getContext(): array` / `$this->context` | Read the restored context inside `importRow()` / `resolveRecord()` |
 | `token()` / `fromToken()` | Signed class token passed to/from the frontend |
+
+### Multi-tenancy: carrying the request context into the queue
+
+The queued job runs with **no HTTP request** — `auth()->user()`, the current
+team, session, etc. are all unavailable. If `importRow()` needs tenant scoping
+(almost always in a multi-tenant app), override `context()`: it is called **at
+dispatch time** (inside the request), serialized with the job, and restored on
+the worker instance before any row is imported.
+
+```php
+use Illuminate\Http\Request;
+
+class ProductImporter extends Importer
+{
+    public function context(Request $request): array
+    {
+        return [
+            'team_id' => $request->user()?->currentTeam?->getKey(),
+            'user_id' => $request->user()?->getKey(),
+        ];
+    }
+
+    public function importRow(array $data): void
+    {
+        Product::create([
+            ...$data,
+            'team_id' => $this->context['team_id'],   // never "the first team in the DB"
+        ]);
+    }
+}
+```
+
+> **Warning**: without this, a queued importer that infers the tenant (e.g.
+> `Team::first()`) is a real multi-tenant leak. Keep the returned array to
+> serializable scalars — it travels through the queue payload.
 
 ### Smart auto-mapping
 

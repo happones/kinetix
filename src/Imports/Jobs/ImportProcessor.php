@@ -31,6 +31,7 @@ class ImportProcessor implements ShouldQueue
      * @param array<string, mixed>    $options
      * @param array<string, int|null> $mapping        column name => source header index
      * @param class-string|null       $recipientClass
+     * @param array<string, mixed>    $context        request context captured by Importer::context()
      */
     public function __construct(
         protected string $importerClass,
@@ -39,12 +40,13 @@ class ImportProcessor implements ShouldQueue
         protected array $mapping,
         protected ?string $recipientClass = null,
         protected int|string|null $recipientId = null,
+        protected array $context = [],
     ) {}
 
     public function handle(): void
     {
         /** @var Importer $importer */
-        $importer = new $this->importerClass;
+        $importer = (new $this->importerClass)->withContext($this->context);
         $options  = ImportOptionsData::from($this->options);
 
         $disk                 = KinetixDisk::name();

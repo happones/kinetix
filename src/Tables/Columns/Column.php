@@ -29,6 +29,8 @@ abstract class Column
 
     protected ?Closure $formatStateUsing = null;
 
+    protected mixed $stateUsing = null;
+
     /**
      * @var array<int, Summarizer>
      */
@@ -100,6 +102,29 @@ abstract class Column
         return $this;
     }
 
+    /**
+     * Override how the raw cell state is resolved (Filament-compatible):
+     * instead of reading the record attribute named after the column, use the
+     * given Closure (`fn ($record) => …`) or constant. `formatStateUsing()`
+     * still runs on the resolved state afterwards.
+     *
+     *     TextColumn::make('total')->state(fn (Order $o) => $o->subtotal + $o->tax);
+     */
+    public function state(mixed $state): static
+    {
+        $this->stateUsing = $state;
+
+        return $this;
+    }
+
+    /**
+     * Filament-compatible alias of {@see state()}.
+     */
+    public function getStateUsing(mixed $state): static
+    {
+        return $this->state($state);
+    }
+
     public function getName(): string
     {
         return $this->name;
@@ -147,7 +172,13 @@ abstract class Column
      */
     public function getState(Model $record): mixed
     {
-        $value = data_get($record, $this->name);
+        if ($this->stateUsing !== null) {
+            $value = $this->stateUsing instanceof Closure
+                ? ($this->stateUsing)($record)
+                : $this->stateUsing;
+        } else {
+            $value = data_get($record, $this->name);
+        }
 
         if ($this->formatStateUsing !== null) {
             return ($this->formatStateUsing)($value, $record);

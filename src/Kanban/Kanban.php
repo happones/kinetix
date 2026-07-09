@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Kanban;
 
+use BackedEnum;
 use Closure;
 use Happones\Kinetix\Data\KanbanCardData;
 use Happones\Kinetix\Data\KanbanColumnData;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
+use UnitEnum;
 
 /**
  * A drag-and-drop board: records grouped into columns by a status attribute.
@@ -40,6 +42,13 @@ class Kanban
     protected ?Closure $modifyQuery = null;
 
     protected ?string $heading = null;
+
+    protected ?string $moveAbility = null;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $moveScope = [];
 
     public function __construct(protected mixed $queryOrModel) {}
 
@@ -102,6 +111,34 @@ class Kanban
         return $this;
     }
 
+    /**
+     * The Gate ability checked against the record on every move (via the host's
+     * policy). Defaults to `update` whenever the model has a registered policy —
+     * call this to check a different ability.
+     */
+    public function authorizeMove(string $ability): static
+    {
+        $this->moveAbility = $ability;
+
+        return $this;
+    }
+
+    /**
+     * Constraints (column => value) the record must match to be movable —
+     * evaluated now (in the request) and enforced on the move endpoint's
+     * lookup. The tenant guard for boards without a policy:
+     *
+     *     ->moveScope(['team_id' => $request->user()->currentTeam->getKey()])
+     *
+     * @param array<string, mixed> $constraints serializable values only
+     */
+    public function moveScope(array $constraints): static
+    {
+        $this->moveScope = $constraints;
+
+        return $this;
+    }
+
     public function toData(): KanbanData
     {
         $records = $this->records();
@@ -109,7 +146,7 @@ class Kanban
         $columns = [];
         foreach ($this->statuses as $key => $def) {
             $cards = $records
-                ->filter(fn (Model $r): bool => (string) $r->getAttribute($this->statusColumn) === (string) $key)
+                ->filter(fn (Model $r): bool => $this->statusKey($r) === (string) $key)
                 ->map(fn (Model $r): KanbanCardData => new KanbanCardData(
                     id: $r->getKey(),
                     title: (string) $this->resolve($this->cardTitle, $r),
@@ -134,9 +171,30 @@ class Kanban
             model: Crypt::encrypt([
                 'model'        => $this->getModelClass(),
                 'statusColumn' => $this->statusColumn,
-                'statuses'     => array_keys($this->statuses),
+                'statuses'     => array_map(strval(...), array_keys($this->statuses)),
+                'moveAbility'  => $this->moveAbility,
+                'moveScope'    => $this->moveScope,
             ]),
         );
+    }
+
+    /**
+     * The record's status as a board-column key — enum casts resolve to their
+     * backing value (BackedEnum) or case name (UnitEnum).
+     */
+    protected function statusKey(Model $record): string
+    {
+        $value = $record->getAttribute($this->statusColumn);
+
+        if ($value instanceof BackedEnum) {
+            return (string) $value->value;
+        }
+
+        if ($value instanceof UnitEnum) {
+            return $value->name;
+        }
+
+        return (string) $value;
     }
 
     /**

@@ -45,6 +45,11 @@ KinetixOnboarding::step('verify-email', 'Verify your email')
     ->completedUsing(fn ($user) => $user->hasVerifiedEmail()); // auto-detected
 
 KinetixOnboarding::step('read-docs', 'Read the quickstart');   // manual (Mark as done)
+
+// Request-dependent CTA URLs (current team, tenant prefixes): pass a Closure —
+// steps register in boot(), so a plain string can't reach request state.
+KinetixOnboarding::step('invite-team', 'Invite a teammate')
+    ->cta('Invite', fn ($user) => route('teams.members', $user->currentTeam));
 ```
 
 - A step with `completedUsing` is **auto** (completion computed live, never

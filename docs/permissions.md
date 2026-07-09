@@ -123,6 +123,40 @@ If you remove features or abilities from your codebase, you can automatically de
 php artisan kinetix:permissions:sync --prune
 ```
 
+### Run it on every deploy — and in your tests
+
+The permission catalog lives in code (your service provider), but enforcement
+reads the **database**. If the `permissions` table is stale or empty, roles
+appear to "create fine" but carry no permissions — a confusing failure mode.
+Make the sync part of both lifecycles:
+
+**Deploy** — after migrations:
+
+```bash
+php artisan migrate --force
+php artisan kinetix:permissions:sync
+```
+
+**Tests** — permissions start empty on a fresh test database, so sync before
+each test that touches roles (Pest example):
+
+```php
+beforeEach(function () {
+    $this->artisan('kinetix:permissions:sync');
+});
+```
+
+or in a PHPUnit `setUp()`:
+
+```php
+protected function setUp(): void
+{
+    parent::setUp();
+
+    $this->artisan('kinetix:permissions:sync');
+}
+```
+
 ---
 
 ## 3. Super Admin Role
@@ -139,11 +173,30 @@ Gate::before(function ($user, string $ability) {
 
 This bypasses all gate checks for any user carrying the `super-admin` role (or whichever role name is configured under `'super_admin_role'`).
 
+### Platform super-admin with teams
+
+When spatie team scoping is active (see §4), `hasRole()` becomes **team-scoped** —
+a super-admin assigned inside team A would lose the bypass inside team B. Kinetix
+handles this: the `Gate::before` also honors a **teamless** assignment (role
+attached with team `NULL`), so a platform-wide super-admin is one assigned with
+no team context:
+
+```php
+app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId(null);
+$user->assignRole('super-admin');   // global — bypasses gates inside every team
+```
+
+A super-admin assigned *inside* a team keeps the bypass only in that team.
+Teamless assignments require the hybrid teams migration below (spatie's stock
+teams migration puts the team key in the pivot's primary key, which cannot be
+`NULL`).
+
 ---
 
 ## 4. Multi-Tenant (Teams) Support
 
-If your application scopes roles and permissions per team:
+If your application scopes roles and permissions per team, **all four steps are
+required** — a common pitfall is enabling only the Kinetix flag:
 
 1. Enable the `teams` setting in `config/kinetix.php`:
    ```php
@@ -151,7 +204,35 @@ If your application scopes roles and permissions per team:
        'teams' => true,
    ],
    ```
-2. Apply the `kinetix.permissions.team` middleware to your routes or global middleware stack.
+2. Enable spatie's own team scoping in `config/permission.php` — **without this,
+   the team id Kinetix sets is silently ignored** and every `hasRole()`/`can()`
+   stays global (Kinetix logs a warning at boot when it detects this mismatch):
+   ```php
+   // config/permission.php
+   'teams' => true,
+   ```
+3. Make the permission tables teams-ready with Kinetix's **hybrid** migration
+   (nullable `team_id` outside the primary key, so roles can be global *or*
+   team-scoped — spatie's own stub forces every assignment into a team):
+   ```bash
+   php artisan vendor:publish --tag=kinetix-permission-team-migrations
+   php artisan migrate
+   ```
+   > Already ran spatie's stock `add_teams_fields` migration? Convert manually:
+   > make `team_id` nullable on `model_has_roles` / `model_has_permissions`,
+   > drop the composite primary key and replace it with a unique index that
+   > includes `team_id`. The Kinetix migration skips tables that already have
+   > the column.
+4. Apply the `kinetix.permissions.team` middleware. Kinetix applies it to its
+   **own** routes automatically — for `hasRole()`/`can()` to have team context
+   inside *your* routes, append it to your `web` group in `bootstrap/app.php`:
+   ```php
+   ->withMiddleware(function (Middleware $middleware) {
+       $middleware->web(append: [
+           'kinetix.permissions.team',   // or the FQCN: \Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam::class
+       ]);
+   })
+   ```
 
 This ensures roles and permissions are resolved only within the context of the active team.
 

@@ -11,6 +11,7 @@ use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 use ReflectionMethod;
 
 class RuledImporter extends Importer
@@ -37,6 +38,26 @@ class SampleImporter extends Importer
             ImportColumn::make('email')->guess(['e-mail']),
             ImportColumn::make('phone')->guess(['celular']),
         ];
+    }
+}
+
+class ContextRecordingImporter extends Importer
+{
+    /**
+     * @var array<int, array<string, mixed>>
+     */
+    public static array $seen = [];
+
+    protected static ?string $model = Model::class;
+
+    public static function getColumns(): array
+    {
+        return [ImportColumn::make('name')];
+    }
+
+    public function importRow(array $data): void
+    {
+        static::$seen[] = $this->getContext();
     }
 }
 
@@ -107,6 +128,32 @@ class ImportTest extends TestCase
     {
         // A column mapped to null is treated as unmapped (isset() is false), so no rules.
         $this->assertSame([], $this->invokeMappedRules(['email' => null]));
+    }
+
+    public function test_with_context_round_trips(): void
+    {
+        $importer = (new SampleImporter)->withContext(['team_id' => 7]);
+
+        $this->assertSame(['team_id' => 7], $importer->getContext());
+        $this->assertSame([], (new SampleImporter)->getContext());
+    }
+
+    public function test_the_queued_job_restores_the_context_before_importing_rows(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('kinetix-imports/ctx.csv', "name\nAda\nGrace\n");
+        ContextRecordingImporter::$seen = [];
+
+        (new ImportProcessor(
+            ContextRecordingImporter::class,
+            'kinetix-imports/ctx.csv',
+            [],
+            ['name' => 0],
+            context: ['team_id' => 42],
+        ))->handle();
+
+        // Both rows imported with the dispatch-time context restored.
+        $this->assertSame([['team_id' => 42], ['team_id' => 42]], ContextRecordingImporter::$seen);
     }
 
     /**

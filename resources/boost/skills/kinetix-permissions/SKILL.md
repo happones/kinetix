@@ -60,6 +60,35 @@ Safe with Kinetix — team-scoped permissions bridge through `currentTeam` +
 `PermissionRegistrar` (`kinetix.permissions.team` middleware), not `$user->teams()`.
 See `docs/permissions.md` §4.
 
+### Teams: the four required steps
+
+Enabling `kinetix.permissions.teams` alone does nothing — spatie ignores the
+team id unless its own flag is on (Kinetix logs a boot warning on the mismatch):
+
+1. `config/kinetix.php` → `'permissions' => ['teams' => true]`.
+2. `config/permission.php` → `'teams' => true`.
+3. `php artisan vendor:publish --tag=kinetix-permission-team-migrations && php artisan migrate` — Kinetix's **hybrid** teams migration (nullable `team_id` outside the PK → roles can be team-scoped *or* global).
+4. Append `kinetix.permissions.team` to the host's `web` middleware group (Kinetix only auto-applies it to its own routes; without this, `hasRole()`/`can()` in app routes have no team context).
+
+### Platform super-admin (teamless)
+
+With spatie teams on, `hasRole()` is team-scoped. The Kinetix `Gate::before`
+additionally honors a **teamless** assignment — assign with a NULL team id for
+a platform-wide super-admin:
+
+```php
+app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId(null);
+$user->assignRole('super-admin');   // bypasses gates inside every team
+```
+
+A super-admin assigned inside a team keeps the bypass only in that team.
+
+### Sync on deploy and in tests
+
+`kinetix:permissions:sync` must run **after migrations on every deploy** and in
+test setup (`beforeEach`/`setUp`) — an empty `permissions` table makes roles
+appear to work while carrying no permissions.
+
 ---
 
 ## Backend Usage

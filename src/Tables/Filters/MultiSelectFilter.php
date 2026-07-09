@@ -34,6 +34,12 @@ class MultiSelectFilter extends SelectFilter
             return;
         }
 
+        if ($this->relationshipName !== null) {
+            $query->whereHas($this->relationshipName, fn (Builder $q) => $q->whereKey($values));
+
+            return;
+        }
+
         $query->whereIn($this->attribute ?? $this->name, $values);
     }
 }

@@ -60,6 +60,18 @@ KinetixOnboarding::step('read-docs', 'Read the quickstart'); // manual, no CTA
 - A step **without** `completedUsing` is **manual** — the checklist shows a
   "Mark as done" button, and the completion is persisted.
 
+### Request-dependent CTA URLs (teams, tenants)
+
+Steps register in `boot()` — before any request exists — so a URL that depends
+on request state (the current team, a tenant prefix) can't be built as a plain
+string there. Pass a **Closure** instead; it receives the authenticated user
+and is resolved on every read:
+
+```php
+KinetixOnboarding::step('invite-team', 'Invite a teammate')
+    ->cta('Invite', fn ($user) => route('teams.members', $user->currentTeam));
+```
+
 ### Mounting the checklist
 
 ```vue

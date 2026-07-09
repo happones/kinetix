@@ -100,6 +100,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
@@ -357,6 +358,12 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php' => database_path('migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php'),
             ], 'kinetix-mail-templates-migrations');
 
+            // Publish the hybrid teams migration for spatie's permission tables
+            // (nullable team key outside the PK → global + team-scoped roles).
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000017_add_kinetix_team_fields_to_permission_tables.php' => database_path('migrations/2026_01_01_000017_add_kinetix_team_fields_to_permission_tables.php'),
+            ], 'kinetix-permission-team-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
@@ -481,6 +488,19 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
+        // Surface the classic silent misconfiguration: Kinetix team scoping on
+        // but spatie's own `permission.teams` off — the middleware would set a
+        // team id that every hasRole()/can() call silently ignores.
+        if (config('kinetix.permissions.teams', false)
+            && class_exists(PermissionRegistrar::class)
+            && ! config('permission.teams', false)) {
+            Log::warning(
+                'Kinetix: `kinetix.permissions.teams` is true but spatie\'s `permission.teams` is false — '
+                .'roles/permissions will NOT be team-scoped. Set `\'teams\' => true` in config/permission.php '
+                .'and make the tables teams-ready (vendor:publish --tag=kinetix-permission-team-migrations).'
+            );
+        }
+
         // The built-in feature that guards the role-management endpoints/UI.
         app(PermissionRegistry::class)->feature('roles')->label('Roles & Permissions')->ability('manage', 'Manage roles');
 
@@ -489,15 +509,50 @@ class KinetixServiceProvider extends ServiceProvider
 
         if ($superAdmin !== '') {
             Gate::before(function ($user, string $ability) use ($superAdmin): ?bool {
-                if (method_exists($user, 'hasRole') && $user->hasRole($superAdmin)) {
-                    return true;
-                }
-
-                return null;
+                return $this->isSuperAdmin($user, $superAdmin) ? true : null;
             });
         }
 
         $this->registerPermissionRoutes();
+    }
+
+    /**
+     * Whether the user holds the super-admin role — in the current team context
+     * or, when spatie team scoping is active, as a global assignment (team
+     * NULL, so a platform super-admin keeps access inside every team).
+     */
+    protected function isSuperAdmin(mixed $user, string $role): bool
+    {
+        if (! method_exists($user, 'hasRole')) {
+            return false;
+        }
+
+        if ($user->hasRole($role)) {
+            return true;
+        }
+
+        // With spatie teams on, hasRole() above was scoped to the current team;
+        // re-check with a NULL team id to honor a teamless assignment.
+        if (! $user instanceof Model || ! config('permission.teams', false) || ! class_exists(PermissionRegistrar::class)) {
+            return false;
+        }
+
+        $registrar = $this->app->make(PermissionRegistrar::class);
+        $current   = $registrar->getPermissionsTeamId();
+
+        if ($current === null) {
+            return false; // Already teamless — the first check covered it.
+        }
+
+        try {
+            $registrar->setPermissionsTeamId(null);
+            $user->unsetRelation('roles');
+
+            return $user->hasRole($role);
+        } finally {
+            $registrar->setPermissionsTeamId($current);
+            $user->unsetRelation('roles');
+        }
     }
 
     /**
@@ -1643,7 +1698,8 @@ class KinetixServiceProvider extends ServiceProvider
                 })->name('kinetix.tables.reorder');
 
                 // Kanban card move: set a record's status column to a target
-                // status, guarded by the board's signed descriptor.
+                // status, guarded by the board's signed descriptor (statuses,
+                // move scope) and the host's policy.
                 Route::post('kanban-move', function () {
                     try {
                         $payload = Crypt::decrypt((string) request('model'));
@@ -1654,6 +1710,8 @@ class KinetixServiceProvider extends ServiceProvider
                     $modelClass   = is_array($payload) ? ($payload['model'] ?? null) : null;
                     $statusColumn = is_array($payload) ? ($payload['statusColumn'] ?? null) : null;
                     $statuses     = is_array($payload) ? ($payload['statuses'] ?? []) : [];
+                    $moveAbility  = is_array($payload) ? ($payload['moveAbility'] ?? null) : null;
+                    $moveScope    = is_array($payload) ? ($payload['moveScope'] ?? []) : [];
                     $status       = (string) request('status');
 
                     if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
@@ -1664,10 +1722,30 @@ class KinetixServiceProvider extends ServiceProvider
                         return response()->json(['status' => 'error', 'message' => 'Invalid status.'], 403);
                     }
 
-                    $record = $modelClass::find(request('recordId'));
+                    // The board's moveScope() constraints bound the lookup — a
+                    // record outside them (e.g. another tenant's) is a 404.
+                    $query = $modelClass::query();
+
+                    if (is_array($moveScope)) {
+                        foreach ($moveScope as $column => $value) {
+                            $query->where((string) $column, $value);
+                        }
+                    }
+
+                    $record = $query->find(request('recordId'));
 
                     if (! $record) {
                         return response()->json(['status' => 'error', 'message' => 'Record not found.'], 404);
+                    }
+
+                    // Authorize via the host's policy: the explicit ability from
+                    // authorizeMove(), or `update` whenever a policy exists.
+                    $ability = is_string($moveAbility)
+                        ? $moveAbility
+                        : (Gate::getPolicyFor($modelClass) !== null ? 'update' : null);
+
+                    if ($ability !== null && Gate::forUser(request()->user())->denies($ability, $record)) {
+                        return response()->json(['status' => 'error', 'message' => 'Forbidden.'], 403);
                     }
 
                     $record->{$statusColumn} = $status;

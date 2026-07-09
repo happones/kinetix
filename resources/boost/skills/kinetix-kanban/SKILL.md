@@ -41,6 +41,22 @@ No migration or config flag. `toData()` bakes a signed descriptor; the
 `POST {prefix}/tables/kanban-move` endpoint (always registered) decrypts it and
 only writes the declared status column to one of the declared statuses.
 
+### Enum status columns
+
+A `statusColumn` cast to a PHP enum works natively: grouping stringifies
+`BackedEnum` → backing value / `UnitEnum` → case name, and the move re-casts the
+plain string. Use the backing values as the `statuses()` keys.
+
+### Record-level authorization (multi-tenant — use at least one)
+
+- **Policy (automatic)**: when the model has a registered policy, every move is
+  authorized against it — `update` by default, or `->authorizeMove('moveCard')`
+  for a specific ability. Denied → 403 + card snaps back.
+- **`->moveScope(['team_id' => $teamId])`**: column=>value constraints evaluated
+  in the request, sealed in the encrypted descriptor and enforced on the move
+  lookup (outside → 404). Without one of these, any authenticated user who can
+  guess a record id can move records of other tenants.
+
 ## Frontend
 
 ```vue

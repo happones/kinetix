@@ -34,6 +34,27 @@ return Inertia::render('Tasks/Board', ['board' => $board->toData()]);
 - **`statuses`** — column key → label, or `['label' => …, 'color' => …]`.
 - **`cardTitle`** / **`cardDescription`** — an attribute name or a closure.
 - **`query`** — modify the base query (filters, eager loads).
+- **`moveScope`** / **`authorizeMove`** — guard who can move which records (see below).
+
+### Enum status columns
+
+A `statusColumn` cast to a PHP enum works out of the box — grouping stringifies
+the cast value (`BackedEnum` → its backing value, `UnitEnum` → the case name),
+and a move assigns the plain status string back, which Eloquent re-casts:
+
+```php
+enum DealPhase: string
+{
+    case Lead = 'lead';
+    case Won  = 'won';
+}
+
+// Deal: protected $casts = ['phase' => DealPhase::class];
+
+Kanban::make(Deal::query())
+    ->statusColumn('phase')
+    ->statuses(['lead' => 'Lead', 'won' => 'Won']);   // keys = backing values
+```
 
 ---
 
@@ -61,10 +82,10 @@ successful move so server-side ordering/derived data stays in sync.
 ## How the move is secured
 
 `toData()` bakes a **signed descriptor** (`Crypt::encrypt`) of the model, status
-column and allowed statuses into the payload — the same mechanism as editable
-table cells. The `kanban-move` endpoint decrypts it and only writes the declared
-status column to one of the declared statuses, so a client can't tamper with the
-target column or push an arbitrary value.
+column, allowed statuses, move scope and move ability into the payload — the
+same mechanism as editable table cells. The `kanban-move` endpoint decrypts it
+and only writes the declared status column to one of the declared statuses, so a
+client can't tamper with the target column or push an arbitrary value.
 
 | Method | Route                              | Name                          |
 | ------ | ---------------------------------- | ----------------------------- |
@@ -72,3 +93,33 @@ target column or push an arbitrary value.
 
 The endpoint takes `{ model, recordId, status }` and is always available (guarded
 by the descriptor); no migration or config flag is needed.
+
+### Record-level authorization (multi-tenant)
+
+The descriptor proves the *board* is legitimate — it does not by itself prove
+the *record* belongs to the requesting user. Two layers close that (use at
+least one in a multi-tenant app):
+
+**1. Policy check (automatic).** When the model has a registered policy, every
+move is authorized against it — by default the `update` ability, or whichever
+ability you name:
+
+```php
+Kanban::make(Deal::query())->authorizeMove('moveCard');   // checks DealPolicy::moveCard($user, $deal)
+```
+
+A denied policy returns `403` and the card snaps back. With no policy
+registered, no ability is checked (matching the rest of Kinetix's
+opt-in-enforcement modules).
+
+**2. Move scope (baked constraints).** `moveScope()` takes `column => value`
+constraints evaluated **now** (in the request, where the tenant is known),
+sealed into the encrypted descriptor and enforced on the endpoint's record
+lookup — a record outside them is a `404`, so users can't move other tenants'
+records by guessing ids:
+
+```php
+Kanban::make(Deal::query())
+    ->query(fn ($q) => $q->where('team_id', $teamId))
+    ->moveScope(['team_id' => $teamId]);   // same constraint, enforced on move
+```

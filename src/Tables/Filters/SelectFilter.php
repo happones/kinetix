@@ -67,6 +67,57 @@ class SelectFilter extends Filter
         return $this;
     }
 
+    protected ?string $relationshipName = null;
+
+    protected ?string $relationshipTitleColumn = null;
+
+    protected ?Closure $modifyRelationshipQuery = null;
+
+    /**
+     * Filter by an Eloquent relationship (Filament-compatible): the options
+     * come from the related model (`key => title column`) and the filter
+     * applies a `whereHas` on the relation's key.
+     *
+     *     SelectFilter::make('author')->relationship('author', 'name');
+     *     SelectFilter::make('author')->relationship('author', 'name', fn ($q) => $q->where('active', true));
+     */
+    public function relationship(string $name, string $titleColumn, ?Closure $modifyQueryUsing = null): static
+    {
+        $this->relationshipName        = $name;
+        $this->relationshipTitleColumn = $titleColumn;
+        $this->modifyRelationshipQuery = $modifyQueryUsing;
+
+        return $this;
+    }
+
+    /**
+     * Resolve the relationship's options from the related model's table.
+     *
+     * @return array<string, string>
+     */
+    protected function resolveRelationshipOptions(): array
+    {
+        if ($this->relationshipName === null || $this->modelClass === null) {
+            return [];
+        }
+
+        $relation = (new $this->modelClass)->{$this->relationshipName}();
+        $related  = $relation->getRelated();
+
+        $query = $related->newQuery();
+
+        if ($this->modifyRelationshipQuery !== null) {
+            ($this->modifyRelationshipQuery)($query);
+        }
+
+        $options = [];
+        foreach ($query->get() as $row) {
+            $options[(string) $row->getKey()] = (string) data_get($row, $this->relationshipTitleColumn);
+        }
+
+        return $options;
+    }
+
     /**
      * Set the database column to filter by. Defaults to the filter name.
      */
@@ -125,6 +176,10 @@ class SelectFilter extends Filter
             return $this->resolveSelectedOptions();
         }
 
+        if ($this->relationshipName !== null) {
+            return $this->resolveRelationshipOptions();
+        }
+
         if ($this->options instanceof Closure) {
             return ($this->options)();
         }
@@ -150,6 +205,12 @@ class SelectFilter extends Filter
     {
         if ($this->query !== null) {
             parent::apply($query, $value);
+
+            return;
+        }
+
+        if ($this->relationshipName !== null) {
+            $query->whereHas($this->relationshipName, fn (Builder $q) => $q->whereKey($value));
 
             return;
         }
