@@ -1414,8 +1414,9 @@ class KinetixServiceProvider extends ServiceProvider
             $routePrefix = config('kinetix.route_prefix', '_kinetix');
 
             if (config('kinetix.teams', false)) {
+                // URL segment → the team's ROUTE key (slug/uuid-aware).
                 $team = request()->route('current_team')
-                    ?? (auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->id : null);
+                    ?? (auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->getRouteKey() : null);
 
                 if ($team) {
                     $routePrefix = "{$team}/{$routePrefix}";

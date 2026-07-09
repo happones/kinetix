@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tags;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -88,6 +89,8 @@ class TagController
             return null;
         }
 
-        return $request->route('current_team');
+        // Translates a slug/uuid route segment to the team's primary key and
+        // verifies the user's membership (404 otherwise).
+        return KinetixTeams::currentTeamKey($request);
     }
 }

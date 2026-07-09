@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Presence;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -21,8 +22,9 @@ class PresenceManager
         $base = (string) config('kinetix.presence.channel', 'kinetix-presence');
 
         if (config('kinetix.teams', false)) {
-            $team = request()->route('current_team')
-                ?? (auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->getKey() : null);
+            // Primary key (route segments may be slugs) so the channel name is
+            // stable regardless of how the host routes teams.
+            $team = KinetixTeams::currentTeamKey();
 
             if ($team) {
                 return "{$base}.{$team}";

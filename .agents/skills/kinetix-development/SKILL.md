@@ -364,6 +364,8 @@ Route::post('/x', ...)->middleware('plan.feature:capabilities.api');
 
 `Support\KinetixTeams::enabledFor('module')` resolves each module's `kinetix.{module}.teams` with tri-state inheritance: `null` (default) → inherit global `kinetix.teams`; explicit `true`/`false` wins. ALWAYS use the helper (never `config('kinetix.x.teams', false)`) for data scoping in modules; the global flag alone still drives route prefixing (`{current_team}/`). Modules covered: permissions, membership, settings, webhooks, onboarding, wizards, features, activity, billing. Tests `KinetixTeamsTest`.
 
+**`{current_team}` resolution (v0.83.0)**: the segment is the team's ROUTE key (host may use slugs/uuids) — NEVER store it as team_id. Use `KinetixTeams::currentTeamKey($request?)`: bound Model → getKey(); scalar → resolved through the user's teams relation (`kinetix.team_switcher.teams_relation`) by `getRouteKeyName()` with `abort(404)` when not a member (membership enforcement built in); no relation on the user → raw segment passthrough (legacy id-routed hosts, membership on the host). Falls back to `auth()->user()` outside HTTP and to `currentTeam->getKey()` without a segment. Consumers: SavedViewController/TagController/MembershipController `teamId()`, `PresenceManager::channelName()`. URL building (route prefix share, Actions, Resources) keeps the RAW segment / `getRouteKey()` — URLs want route keys, scoping wants primary keys. Tests `TeamRouteKeyTest`.
+
 ## 11. Kinetix Permissions (optional, Spatie Laravel Permission)
 
 Feature-scoped roles and permissions integrated with `spatie/laravel-permission`. Enforcement flows through Laravel's Gate; this system adds sync commands, super-admin bypasses, and multi-tenant bridging.

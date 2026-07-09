@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-07-09
+
+### Fixed
+
+- **`{current_team}` resolved by route key + membership check** — team-aware
+  scoping (saved views, tags, membership, presence channel) previously stored
+  the raw route segment as the `team_id`, breaking hosts that route teams by
+  slug/uuid (`Team::getRouteKeyName()`), and never verified membership. New
+  `KinetixTeams::currentTeamKey()`: a bound model → its key; a scalar segment →
+  resolved through the authenticated user's teams relation by route key name
+  (**404 when the team isn't one of the user's** — membership is now enforced);
+  hosts whose user model has no teams relation keep the legacy raw-segment
+  behaviour (documented as host-side enforcement). The shared route prefix
+  fallback now uses `currentTeam->getRouteKey()` for URLs instead of `->id`.
+
 ## [0.82.0] - 2026-07-09
 
 ### Changed

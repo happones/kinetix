@@ -241,7 +241,9 @@ class MembershipController
             return null;
         }
 
-        return $request->route('current_team') ?? $request->user()?->currentTeam?->getKey();
+        // Translates a slug/uuid route segment to the team's primary key and
+        // verifies the user's membership (404 otherwise).
+        return KinetixTeams::currentTeamKey($request);
     }
 
     protected function expiryHours(): int

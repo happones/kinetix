@@ -296,6 +296,22 @@ tri-state:
 > Flipping a module's scope on a live app changes which rows its queries see
 > (`team_id` filters) — plan a data migration if you change it after launch.
 
+### The `{current_team}` segment: route keys & membership
+
+With teams on, Kinetix's routes gain a leading `{current_team}` parameter. The
+segment carries the team's **route key** (`Team::getRouteKeyName()` — often a
+slug or uuid, not the id). Kinetix resolves it via
+`KinetixTeams::currentTeamKey()`:
+
+- a **bound model** (if your app registered a binding) → its primary key;
+- a scalar segment → looked up **through the authenticated user's teams
+  relation** (`kinetix.team_switcher.teams_relation`, default `teams`) by the
+  route key name. This doubles as the **membership check**: a segment that is
+  not one of the user's teams responds `404`;
+- if the user model has no teams relation, the raw segment is trusted as the
+  key (id-routed teams) and **membership enforcement is your responsibility**
+  (e.g. a middleware on your side).
+
 ## Next steps
 
 - [**Resources**](/resources) — scaffold a full CRUD with one command.
