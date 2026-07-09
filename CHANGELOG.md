@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.80.1] - 2026-07-09
+
+### Fixed
+
+- **CI: `npm ci` EUSAGE failure** — the `esbuild` npm override (`^0.25.0`)
+  conflicted with the new direct devDependency (`^0.25.12`), which makes npm's
+  lockfile virtual-load fail with a misleading "can only install with an
+  existing package-lock.json" error. The override now references the direct
+  dependency (`"esbuild": "$esbuild"`, like `vite`).
+- **CI: fatal in `SummarizerTest`** — the private `query()` test helper collides
+  with a public `query()` on the newest `orchestra/testbench` `TestCase`;
+  renamed to `productQuery()`.
+- **CI/docs workflows: Node 20 → 22** (vite 8 line requires Node `^20.19 || >=22`).
+
 ## [0.80.0] - 2026-07-09
 
 ### Changed

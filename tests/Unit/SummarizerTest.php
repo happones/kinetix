@@ -46,31 +46,31 @@ class SummarizerTest extends TestCase
         ]);
     }
 
-    private function query()
+    private function productQuery()
     {
         return SummaryProduct::query();
     }
 
     public function test_sum(): void
     {
-        $this->assertSame('600', Sum::make()->summarize($this->query(), 'price')->value);
+        $this->assertSame('600', Sum::make()->summarize($this->productQuery(), 'price')->value);
     }
 
     public function test_average(): void
     {
-        $this->assertSame('200', Average::make()->summarize($this->query(), 'price')->value);
+        $this->assertSame('200', Average::make()->summarize($this->productQuery(), 'price')->value);
     }
 
     public function test_count_counts_rows(): void
     {
-        $this->assertSame('3', Count::make()->summarize($this->query(), 'id')->value);
+        $this->assertSame('3', Count::make()->summarize($this->productQuery(), 'id')->value);
     }
 
     public function test_count_with_scoped_query(): void
     {
         $value = Count::make()
             ->query(fn ($q) => $q->where('is_published', true))
-            ->summarize($this->query(), 'id')
+            ->summarize($this->productQuery(), 'id')
             ->value;
 
         $this->assertSame('2', $value);
@@ -78,13 +78,13 @@ class SummarizerTest extends TestCase
 
     public function test_range_renders_min_and_max(): void
     {
-        $this->assertSame('100 – 300', Range::make()->summarize($this->query(), 'price')->value);
+        $this->assertSame('100 – 300', Range::make()->summarize($this->productQuery(), 'price')->value);
     }
 
     public function test_range_excludes_null_by_default(): void
     {
         // rating has a null row; min 2, max 4.
-        $this->assertSame('2 – 4', Range::make()->summarize($this->query(), 'rating')->value);
+        $this->assertSame('2 – 4', Range::make()->summarize($this->productQuery(), 'rating')->value);
     }
 
     public function test_label_prefix_suffix_and_numeric(): void
@@ -93,7 +93,7 @@ class SummarizerTest extends TestCase
             ->label('Total')
             ->numeric(decimalPlaces: 2, locale: 'en')
             ->prefix('$')
-            ->summarize($this->query(), 'price');
+            ->summarize($this->productQuery(), 'price');
 
         $this->assertSame('Total', $result->label);
         $this->assertSame('$600.00', $result->value);
@@ -103,7 +103,7 @@ class SummarizerTest extends TestCase
     {
         $value = Summarizer::make()
             ->using(fn ($q) => $q->max('price'))
-            ->summarize($this->query(), 'price')
+            ->summarize($this->productQuery(), 'price')
             ->value;
 
         $this->assertSame('300', $value);
@@ -111,8 +111,8 @@ class SummarizerTest extends TestCase
 
     public function test_hidden_summarizer_returns_null(): void
     {
-        $this->assertNull(Sum::make()->hidden()->summarize($this->query(), 'price'));
-        $this->assertNull(Sum::make()->visible(false)->summarize($this->query(), 'price'));
+        $this->assertNull(Sum::make()->hidden()->summarize($this->productQuery(), 'price'));
+        $this->assertNull(Sum::make()->visible(false)->summarize($this->productQuery(), 'price'));
     }
 
     public function test_table_serializes_summaries(): void
