@@ -47,10 +47,20 @@ php artisan vendor:publish --tag=kinetix-assets
 php artisan vendor:publish --tag=kinetix-styles
 ```
 
-::: tip Upgrading
-The published files are copies. After a package upgrade, re-publish with `--force`
-(e.g. `php artisan vendor:publish --tag=kinetix-components --force`) and review the
-[changelog](https://github.com/happones/kinetix/blob/main/CHANGELOG.md) for entries
+::: tip Upgrading — automatic
+`kinetix:install` registers `@php artisan kinetix:upgrade` in your composer.json's
+`post-autoload-dump` (the same pattern as Filament's `filament:upgrade`), so every
+`composer install`/`update` re-publishes the volatile published assets —
+**components** (+ composables, stores, TS types) and **translations** (recompiling
+the Vue i18n bundle when `laravel-vue-i18n-generator` is installed). It only
+refreshes targets you have already published, and skips apps that never adopted
+them.
+
+Because the hook **overwrites** the published copies, treat them as
+vendor-managed: customize via wrappers, slots, props and config — not by editing
+the published files. If you *do* maintain local edits, remove the hook from
+composer.json and re-publish manually with `--force`, reviewing the
+[changelog](https://github.com/happones/kinetix/blob/main/CHANGELOG.md) entries
 marked **(published)**.
 :::
 

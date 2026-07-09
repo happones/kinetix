@@ -468,6 +468,10 @@ Global search over models, navigation and actions, authorization-aware. **Off by
 
 ---
 
+## Auto-upgrade hook (v0.87.0)
+
+`kinetix:upgrade` (UpgradeCommand) force-republishes ONLY adopted volatile tags — components when `resource_path('js/components/kinetix')` exists, translations when `lang_path('en/kinetix.php')` exists (+ runs `vue-i18n:generate` when registered in `Artisan::all()`); prints a rebuild reminder, no-op message otherwise. `kinetix:install` wires `@php artisan kinetix:upgrade` into the HOST's composer.json `post-autoload-dump` via `Support\ComposerHook::ensure($path,$event,$script)` (idempotent; composer only runs ROOT scripts — a package cannot self-register hooks; Filament pattern). Published copies become vendor-managed → docs tell hosts to customize via wrappers/config, or remove the hook if they edit published files. Tests `UpgradeCommandTest`.
+
 ## Kinetix Integration Logs (v0.85.0)
 
 - **API request logs** (`src/Api/`): `ApiLog` model (`kinetix_api_logs`, append-only — `UPDATED_AT = null`, only `created_at` indexed), `LogApiRequest` middleware (alias `kinetix.api-log`, ALWAYS registered; no-ops unless `kinetix.api_logs.enabled`) — start time stored on `$request->attributes` because Laravel resolves a FRESH instance for `terminate()`; writes after response (no latency), captures sanctum `currentAccessToken()` id/name via `method_exists`, bodies opt-in (`log_request_body`/`log_response_body`) with `redact` keys → `[redacted]` and `body_limit` cap (oversized request bodies → `['_truncated' => true]`, responses substr+…). Never throws (try/catch Throwable).

@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.87.0] - 2026-07-10
+
+### Added
+
+- **Auto-upgrade on composer update** (the Filament pattern) — new
+  `kinetix:upgrade` command re-publishes the volatile published assets:
+  components (+ composables, stores, TS types) and translations, recompiling
+  the Vue i18n bundle when `laravel-vue-i18n-generator` is installed. It only
+  refreshes targets the app has already published (never dumps files into apps
+  that didn't adopt them). `kinetix:install` now registers
+  `@php artisan kinetix:upgrade` in the host composer.json's
+  `post-autoload-dump` (idempotent) — remove the hook if you maintain local
+  edits to published files, which the upgrade overwrites.
+
 ## [0.86.1] - 2026-07-10
 
 ### Changed

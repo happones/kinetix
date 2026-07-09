@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Support\ComposerHook;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -219,9 +220,30 @@ JS;
             $this->info("resources/js/app.{$ext} is already configured.");
         }
 
+        $this->registerUpgradeHook();
+
         $this->info('Kinetix installation and configuration completed successfully!');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Wire `kinetix:upgrade` into composer's post-autoload-dump so published
+     * components/translations re-publish on every composer install/update
+     * (the Filament pattern — composer only runs root scripts, so the hook
+     * must live in the host's composer.json).
+     */
+    protected function registerUpgradeHook(): void
+    {
+        $added = ComposerHook::ensure(
+            base_path('composer.json'),
+            'post-autoload-dump',
+            '@php artisan kinetix:upgrade',
+        );
+
+        if ($added) {
+            $this->info('Registered `@php artisan kinetix:upgrade` in composer.json (post-autoload-dump) — published components/translations now refresh on composer update.');
+        }
     }
 
     /**

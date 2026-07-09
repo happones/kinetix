@@ -31,6 +31,7 @@ use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\SendReportsCommand;
+use Happones\Kinetix\Commands\UpgradeCommand;
 use Happones\Kinetix\Commands\WebhooksPruneCommand;
 use Happones\Kinetix\Comments\CommentController;
 use Happones\Kinetix\Comments\CommentManager;
@@ -255,6 +256,7 @@ class KinetixServiceProvider extends ServiceProvider
                 SendReportsCommand::class,
                 PermissionsSyncCommand::class,
                 ApiLogsPruneCommand::class,
+                UpgradeCommand::class,
                 InstallCommand::class,
             ]);
 
