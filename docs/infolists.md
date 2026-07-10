@@ -158,6 +158,7 @@ All entries share these base methods (defined on `Entry`):
 | `->columnSpan(int\|string)` | Grid span (`'full'` or a column count) |
 | `->visible()` / `->hidden()` | Boolean or `Closure` visibility |
 | `->visibleOn()` / `->hiddenOn()` | Restrict by operation |
+| `->authorize(string\|Closure\|bool, mixed $subject = null)` | Gate-based visibility (see [§6](#6-conditional-visibility)) |
 | `->extraAttributes(array)` | Arbitrary attributes passed to the wrapper |
 
 ### TextEntry
@@ -373,6 +374,19 @@ TextEntry::make('deleted_at')
 ```
 
 Hidden entries are dropped during serialization, so they never reach the client.
+
+### Authorization (Gate/Policy)
+Entries also support the same `->authorize()` shorthand as [Actions](actions.md#9-authorization--visibility) and [Form fields](forms.md#5-operations--visibility-constraints) — a Gate-based alternative to a `visible()` closure. An entry that fails its check is omitted from the serialized payload entirely.
+
+```php
+// Laravel policy ability — checked against the record via Gate::allows($ability, $record):
+TextEntry::make('salary')->authorize('viewFinancials');
+
+// Explicit subject, or any custom logic:
+TextEntry::make('ssn')->authorize(fn ($record) => auth()->user()->isHr());
+```
+
+Without an explicit subject, a record-dependent ability defers to visible when no record is present yet, exactly like `Action::authorize()`.
 
 ---
 

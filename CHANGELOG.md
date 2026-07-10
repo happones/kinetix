@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.91.0] - 2026-07-10
+
+### Added
+
+- **Role/permission-gated Widgets, Form fields & Infolist entries** — hide any
+  of the three from certain users based on a Laravel Gate ability, role
+  check, or arbitrary closure, mirroring the authorization already available
+  on `Action`:
+  - `Widgets\Widget` gains `->visible(bool|Closure)`, `->hidden(bool|Closure)`
+    and `->authorize(string|Closure|bool $ability, mixed $arguments = null)`
+    (`Gate::allows($ability, $arguments)`), plus `shouldRender()`. A widget
+    has no per-record pass, so unlike Actions a bare string ability is
+    checked immediately — never deferred.
+  - `WidgetsGrid::toArray()` now filters unauthorized/hidden widgets
+    **before** computing any widget's data — a denied user never receives
+    the widget's payload (not even hidden in the response), and its
+    (possibly expensive) query never runs. This also fixes a pre-existing
+    inefficiency where the sort comparator called each widget's `getData()`
+    twice.
+  - `Forms\Components\Component` and `Infolists\Components\Component` now
+    both use the same `Support\Concerns\HasAuthorization` trait as `Action`,
+    adding `->authorize(string $ability, mixed $subject = null)` alongside
+    the existing `->visible()`/`->hidden()`. Without an explicit subject, a
+    record-dependent ability defers to visible until a record exists (e.g.
+    `create` forms) — exactly like `EditAction::make()->authorize('update')`.
+    Unauthorized fields/entries are dropped from validation, hydration, and
+    the serialized payload.
+  - Docs: `docs/widgets.md` §6, `docs/forms.md` §5, `docs/infolists.md` §6.
+  - Tests: `WidgetAuthorizationTest`, `FormFieldAuthorizationTest`,
+    `InfolistEntryAuthorizationTest`.
+
 ## [0.90.0] - 2026-07-10
 
 ### Added

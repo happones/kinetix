@@ -225,7 +225,7 @@ Placeholder::make('Account ID')
     ->content(fn ($record) => $record?->id ?? '—')
 ```
 
-All layout components share the base `columnSpan()`, `visible()/hidden()` and `visibleOn()/hiddenOn()` methods, and nest arbitrarily.
+All layout components share the base `columnSpan()`, `visible()/hidden()`, `visibleOn()/hiddenOn()`, and `authorize()` methods (see [§5 Operations & Visibility Constraints](#5-operations--visibility-constraints)), and nest arbitrarily.
 
 ### 7. Wizard
 Break a form into validated steps with `Wizard::make()->steps([Step::make(...)])`. Advancing is gated on the current step's required fields. Also available as a standalone page component with gating middleware — see the dedicated [Wizard](/wizard) guide.
@@ -847,6 +847,28 @@ Provide dynamic rules evaluated on the server using closures.
 TextInput::make('billing_vat_id')
     ->visible(fn (?Order $record) => $record && $record->requires_vat);
 ```
+
+### Authorization (Gate/Policy)
+Fields are authorized **on the server**, using the same `->authorize()` shorthand as [Actions](actions.md#9-authorization--visibility). A field that fails its check is dropped everywhere the form touches it: `toArray()`/`toData()` (never sent to the frontend), `getValidationRules()` (no rule generated), and `getState()` (never dehydrated) — so a user can't reveal or submit a field they aren't allowed to see.
+
+```php
+// Laravel policy ability — checked against the record via Gate::allows($ability, $record):
+TextInput::make('internal_notes')->authorize('editInternalNotes');
+
+// Explicit subject (e.g. a create-time field with no record yet):
+TextInput::make('role')->authorize('assignRole', Post::class);
+
+// Any custom logic:
+TextInput::make('salary')->authorize(fn (?Employee $record) => auth()->user()->isHr());
+```
+
+| Method | Behaviour |
+|---|---|
+| `->authorize(string $ability, mixed $subject = null)` | `Gate::allows($ability, $subject ?? $record)` |
+| `->authorize(Closure $cb)` | `$cb($record)` returns a boolean |
+| `->authorize(bool)` | Static gate |
+
+Without an explicit subject, a record-dependent ability can't be evaluated until a record exists — it defers to visible on `create` (no record) and is checked normally on `edit`, exactly like `EditAction::make()->authorize('update')`.
 
 ---
 

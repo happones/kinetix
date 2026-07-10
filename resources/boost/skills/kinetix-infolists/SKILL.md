@@ -73,4 +73,5 @@ public function show(User $user)
 - **Enum contracts**: Lean on `HasLabel`, `HasColor`, and `HasIcon` enum contracts so one Enum drives the label, badge color, and icon consistently across Tables and Infolists.
 - **Relationship attributes**: Use dot-notation (`TextEntry::make('company.name')`) to read related models without a manual `state()` callback.
 - **Conditional closures**: Use `->visible(fn ($record) => ...)` and `->color(fn ($state) => ...)` to keep detail views dynamic; hidden entries are stripped before serialization.
+- **Role/permission-gated entries**: use `->authorize(string $ability, mixed $subject = null)` (Gate-based, same shorthand as `Action::authorize()`/Forms) alongside `->visible()`/`->hidden()` for sensitive fields (e.g. `TextEntry::make('salary')->authorize('viewFinancials')`). Unauthorized entries are omitted from the serialized payload entirely.
 - **Read-only by design**: Do not add inputs, validation, or two-way bindings to infolists — use Kinetix Forms for editable schemas.

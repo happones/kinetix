@@ -37,17 +37,20 @@ class WidgetsGrid implements Arrayable, JsonSerializable
 
     public function toArray(): array
     {
-        // Sort widgets by sort order ascending
-        usort($this->widgets, function ($a, $b) {
-            $sortA = $a->toArray()['sort'] ?? 0;
-            $sortB = $b->toArray()['sort'] ?? 0;
+        // Widgets failing visible()/hidden()/authorize() are dropped before
+        // toArray() (and therefore getData()) ever runs — an unauthorized
+        // user never receives the widget's payload, not even hidden in the
+        // response, and its (possibly costly) data query never executes.
+        $widgets = array_values(array_filter(
+            $this->widgets,
+            static fn (Widget $widget): bool => $widget->shouldRender(),
+        ));
 
-            return $sortA <=> $sortB;
-        });
+        usort($widgets, static fn (Widget $a, Widget $b): int => $a->getSort() <=> $b->getSort());
 
         return [
             'columns' => $this->columns,
-            'widgets' => array_map(fn ($w) => $w->toArray(), $this->widgets),
+            'widgets' => array_map(static fn (Widget $w): array => $w->toArray(), $widgets),
         ];
     }
 

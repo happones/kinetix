@@ -4,20 +4,27 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
-use Closure;
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class Component
 {
     /**
+     * Fluent `visible()`/`hidden()` (closures receive the record) plus
+     * `authorize(string $ability, mixed $subject = null)` — a Gate-based
+     * shorthand for permission/role-gated fields. Without an explicit
+     * `$subject`, a record-dependent ability (e.g. `->authorize('update')`)
+     * defers to `true` until a record exists (edit forms), exactly like
+     * `Action::authorize()` — pass the subject explicitly for create-time
+     * checks: `->authorize('create', Post::class)`.
+     */
+    use HasAuthorization;
+
+    /**
      * @var int|string|array<string, int|string>
      */
     protected mixed $columnSpan = 'full';
-
-    protected bool|Closure $isHidden = false;
-
-    protected bool|Closure $isVisible = true;
 
     /**
      * @var string|array<int, string>|null
@@ -48,20 +55,6 @@ abstract class Component
     public function columnSpanFull(): static
     {
         return $this->columnSpan('full');
-    }
-
-    public function hidden(bool|Closure $condition = true): static
-    {
-        $this->isHidden = $condition;
-
-        return $this;
-    }
-
-    public function visible(bool|Closure $condition = true): static
-    {
-        $this->isVisible = $condition;
-
-        return $this;
     }
 
     /**
@@ -107,23 +100,7 @@ abstract class Component
             }
         }
 
-        if ($this->isHidden instanceof Closure) {
-            if (($this->isHidden)($record)) {
-                return true;
-            }
-        } elseif ($this->isHidden) {
-            return true;
-        }
-
-        if ($this->isVisible instanceof Closure) {
-            if (! ($this->isVisible)($record)) {
-                return true;
-            }
-        } elseif (! $this->isVisible) {
-            return true;
-        }
-
-        return false;
+        return ! $this->shouldRender($record);
     }
 
     /**

@@ -79,3 +79,4 @@ public function store(Request $request)
 - **Dynamic Closures**: Leverage closures on field configurations (e.g. `disabled(fn() => !auth()->user()->isAdmin())`) to make forms dynamic to active contexts.
 - **Select Option Mapping**: Use native Enum reflection mapping directly (e.g. `options(PostStatus::class)`) to easily bind Enums cast on models.
 - **Eager Refactoring**: Avoid complex inline HTML attributes, use `extraInputAttributes()` to inject Tailwind classes or custom settings cleanly.
+- **Role/permission-gated fields**: use `->authorize(string $ability, mixed $subject = null)` (Gate-based, same shorthand as `Action::authorize()`) alongside `->visible()`/`->hidden()`. Without an explicit `$subject`, a record-dependent ability defers to visible on `create` (no record yet) and is checked normally on `edit`. Unauthorized fields are dropped from validation, hydration, and the serialized payload — never rely on hiding a field client-side only.

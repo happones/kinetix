@@ -284,11 +284,34 @@ Every widget extends the abstract `Widget` base class and inherits the following
 | `columnSpan` | `columnSpan(int\|string\|array $columnSpan)` | Grid span — an integer, a string (e.g. `'full'`), or a responsive breakpoint map. Defaults to `12`. |
 | `sort` | `sort(int $sort)` | Order within the grid. Defaults to `0`. |
 | `headerAction` | `headerAction(string $label, string $url, ?string $icon = null)` | Add a link/button to the widget header (e.g. "Export", "View all"). Chainable for multiple. Rendered in Chart/Table/List widget headers. |
+| `visible` / `hidden` | `visible(bool\|Closure $condition = true)` / `hidden(bool\|Closure $condition = true)` | Manual show/hide, evaluated server-side. |
+| `authorize` | `authorize(string\|Closure\|bool $ability, mixed $arguments = null)` | Gate-based visibility — role/permission gating (see below). |
 
 All widgets are created via `Widget::make()` and serialize to a `{ id, type, title, description, columnSpan, sort, headerActions, data }` payload.
 
 For arbitrary custom content (a hero/CTA card, a segmented control), use a
 `CustomWidget` and its per-id named slot in `<KinetixWidgetsGrid>`.
+
+### Authorization & visibility (roles/permissions)
+
+Widgets are authorized **on the server**, via `WidgetsGrid::toArray()`. A widget that fails `visible()`/`hidden()`/`authorize()` is dropped **before** its `data` is ever computed — the frontend never receives the widget at all (not even a hidden flag), and its (possibly expensive) query never runs.
+
+```php
+StatsOverviewWidget::make(...)->authorize('viewFinancials'); // Gate::allows('viewFinancials')
+
+RevenueChartWidget::make(...)->visible(fn () => auth()->user()->hasRole('admin'));
+
+TeamStatsWidget::make(...)->authorize('viewTeamStats', $team); // Gate::allows('viewTeamStats', $team)
+```
+
+A widget has no natural "record" to authorize against (unlike Actions/Forms/Infolists), so a bare `->authorize('ability')` always checks `Gate::allows('ability')` immediately — it never defers. Pass `$arguments` when the ability needs a subject.
+
+| Method | Behaviour |
+|---|---|
+| `->authorize(string $ability, mixed $arguments = null)` | `Gate::allows($ability, $arguments)` when `$arguments` is given, else `Gate::allows($ability)` |
+| `->authorize(Closure $cb)` | `$cb()` returns a boolean |
+| `->authorize(bool)` | Static gate |
+| `->visible(bool\|Closure)` / `->hidden(bool\|Closure)` | Manual show/hide; `hidden` takes precedence when both are set |
 
 ### 1. `StatsOverviewWidget`
 Groups multiple statistical KPI cards.

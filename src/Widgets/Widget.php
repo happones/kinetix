@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Widgets;
 
+use Closure;
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Support\Facades\Gate;
 use JsonSerializable;
 
 abstract class Widget implements Arrayable, JsonSerializable
@@ -27,6 +29,14 @@ abstract class Widget implements Arrayable, JsonSerializable
      * @var array<int, array{label: string, url: string, icon: string|null}>
      */
     protected array $headerActions = [];
+
+    protected bool|Closure $isVisible = true;
+
+    protected bool|Closure $isHidden = false;
+
+    protected string|Closure|bool|null $authorizeUsing = null;
+
+    protected mixed $authorizeArguments = null;
 
     public function __construct()
     {
@@ -83,6 +93,83 @@ abstract class Widget implements Arrayable, JsonSerializable
         return $this;
     }
 
+    /**
+     * Show/hide the widget based on a boolean or a closure (e.g. role checks).
+     */
+    public function visible(bool|Closure $condition = true): static
+    {
+        $this->isVisible = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Inverse of {@see visible()} — hide the widget when the condition is true.
+     */
+    public function hidden(bool|Closure $condition = true): static
+    {
+        $this->isHidden = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Restrict the widget to users passing a Laravel Gate ability, a boolean,
+     * or a closure. A widget has no natural "record" to authorize against —
+     * pass `$arguments` for abilities that take a subject
+     * (`->authorize('view', $team)`), or omit it for a bare ability
+     * (`->authorize('viewFinancials')`, i.e. `Gate::allows('viewFinancials')`).
+     *
+     *     StatsOverviewWidget::make(...)->authorize('viewFinancials');
+     *     ChartWidget::make(...)->visible(fn () => auth()->user()->hasRole('admin'));
+     */
+    public function authorize(string|Closure|bool $ability, mixed $arguments = null): static
+    {
+        $this->authorizeUsing     = $ability;
+        $this->authorizeArguments = $arguments;
+
+        return $this;
+    }
+
+    /**
+     * Whether this widget passes both visibility and authorization — checked
+     * by {@see WidgetsGrid::toArray()} before the widget is serialized (or its
+     * `getData()` even runs), so a user who fails either check never receives
+     * the widget's payload at all.
+     */
+    public function shouldRender(): bool
+    {
+        return $this->passesVisibility() && $this->passesAuthorization();
+    }
+
+    protected function passesVisibility(): bool
+    {
+        if ($this->isHidden instanceof Closure ? ($this->isHidden)() : $this->isHidden) {
+            return false;
+        }
+
+        return $this->isVisible instanceof Closure ? (bool) ($this->isVisible)() : (bool) $this->isVisible;
+    }
+
+    protected function passesAuthorization(): bool
+    {
+        if ($this->authorizeUsing === null) {
+            return true;
+        }
+
+        if (is_bool($this->authorizeUsing)) {
+            return $this->authorizeUsing;
+        }
+
+        if ($this->authorizeUsing instanceof Closure) {
+            return (bool) ($this->authorizeUsing)();
+        }
+
+        return $this->authorizeArguments !== null
+            ? Gate::allows($this->authorizeUsing, $this->authorizeArguments)
+            : Gate::allows($this->authorizeUsing);
+    }
+
     public function getId(): string
     {
         return $this->id;
@@ -91,6 +178,11 @@ abstract class Widget implements Arrayable, JsonSerializable
     public function getType(): string
     {
         return $this->type;
+    }
+
+    public function getSort(): int
+    {
+        return $this->sort ?? 0;
     }
 
     abstract protected function getData(): array;
