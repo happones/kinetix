@@ -62,6 +62,15 @@ const SOLID_BUTTON: Record<string, string> = {
     info: 'bg-info text-info-foreground hover:bg-info/90 focus-visible:ring-info/20',
 };
 
+const FILL: Record<string, string> = {
+    success: 'bg-success',
+    danger: 'bg-destructive',
+    warning: 'bg-warning',
+    info: 'bg-info',
+    primary: 'bg-primary',
+    gray: 'bg-muted-foreground',
+};
+
 /** Soft badge: tinted background, status text, subtle border. */
 export function statusBadgeClass(color?: KinetixStatusColor): string {
     return (
@@ -94,4 +103,9 @@ export function statusButtonClass(color?: KinetixStatusColor): string {
         SOLID_BUTTON[color as string] ??
         'bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/20'
     );
+}
+
+/** Solid fill (progress bars/rings — no text/border, just the background). */
+export function statusFillClass(color?: KinetixStatusColor): string {
+    return FILL[color as string] ?? FILL.primary;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     statusBadgeClass,
     statusButtonClass,
+    statusFillClass,
     statusInteractiveTextClass,
     statusSoftClass,
     statusTextClass,
@@ -50,5 +51,13 @@ describe('useStatusColor', () => {
         expect(statusInteractiveTextClass('success')).toBe(
             'text-success focus:text-success',
         );
+    });
+
+    it('resolves solid fill classes for progress bars/rings, falling back to primary', () => {
+        expect(statusFillClass('danger')).toBe('bg-destructive');
+        expect(statusFillClass('warning')).toBe('bg-warning');
+        expect(statusFillClass('gray')).toBe('bg-muted-foreground');
+        expect(statusFillClass('nope')).toBe('bg-primary');
+        expect(statusFillClass(undefined)).toBe('bg-primary');
     });
 });

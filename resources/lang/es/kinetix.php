@@ -120,6 +120,8 @@ return [
     'billing_payment_required'         => 'Agrega un método de pago antes de suscribirte a un plan de pago.',
     'billing_secure_payments'          => 'Pagos seguros',
     'billing_secure_payments_desc'     => 'Utilizamos Stripe para el procesamiento seguro de pagos. Tu información de tarjeta de crédito nunca toca nuestros servidores.',
+    'billing_usage_title'              => 'Uso de este periodo',
+    'billing_usage_over_limit'         => 'Has alcanzado el límite incluido para este uso.',
 
     // Selectores de fecha y vista previa
     'pick_date'            => 'Elegir fecha',

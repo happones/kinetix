@@ -41,6 +41,7 @@ class BillingController
             'defaultPaymentMethodId' => $manager->defaultPaymentMethodId(),
             'invoices'               => $manager->invoices(),
             'subscription'           => $manager->subscriptionData(),
+            'usage'                  => $manager->usage(),
             'currency'               => config('kinetix.billing.currency', 'USD'),
             'currencySymbol'         => config('kinetix.billing.currency_symbol', '$'),
             'publishableKey'         => config('cashier.key') ?? config('services.stripe.key'),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Billing;
 
 use Happones\Kinetix\Data\PlanData;
+use Happones\Kinetix\Data\UsageMetricData;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -241,6 +242,33 @@ class BillingManager
         ];
     }
 
+    /**
+     * Metered usage for the current billing period, for the
+     * `<KinetixUsageMeters>` progress display. Empty unless the billable
+     * implements {@see Contracts\ProvidesUsageMetrics} (or just exposes a
+     * `meteredUsage(?Plan $plan): array` method — hybrid detection) — that
+     * app-specific logic is the only piece Kinetix can't know on its own
+     * (how many API calls, seats, GB were actually consumed).
+     *
+     * @return array<int, UsageMetricData>
+     */
+    public function usage(): array
+    {
+        if (! method_exists($this->billable, 'meteredUsage')) {
+            return [];
+        }
+
+        $plan = $this->currentPlan();
+
+        /** @var array<int, UsageMetric> $metrics */
+        $metrics = (array) $this->billable->meteredUsage($plan);
+
+        return array_map(
+            static fn (UsageMetric $metric): UsageMetricData => UsageMetricData::fromMetric($metric, $plan),
+            $metrics,
+        );
+    }
+
     // -------------------------------------------------------------------
     // Subscription lifecycle
     // -------------------------------------------------------------------
@@ -290,6 +318,35 @@ class BillingManager
             'vendor'  => (string) config('app.name'),
             'product' => (string) config('kinetix.billing.product', 'Subscription'),
         ]);
+    }
+
+    /**
+     * Report metered usage to Stripe for the active subscription (Cashier's
+     * `SubscriptionItem::reportUsage()`) — the write-side companion to
+     * {@see usage()}'s read-only progress display. A no-op when there is no
+     * active subscription or the price id doesn't match a subscription item.
+     *
+     * @param string|null $priceId the metered price's Stripe id; null uses the
+     *                             subscription's single item (a plan with more
+     *                             than one price must pass it explicitly)
+     */
+    public function reportUsage(int $quantity = 1, ?string $priceId = null): void
+    {
+        $subscription = $this->subscription();
+
+        if ($subscription === null) {
+            return;
+        }
+
+        if ($priceId !== null && method_exists($subscription, 'reportUsageFor')) {
+            $subscription->reportUsageFor($priceId, $quantity);
+
+            return;
+        }
+
+        if (method_exists($subscription, 'reportUsage')) {
+            $subscription->reportUsage($quantity);
+        }
     }
 
     public function cancel(): void

@@ -175,6 +175,7 @@ import KinetixActivityLog from '@/components/KinetixActivityLog.vue';
 import KinetixRoleManager from '@/components/KinetixRoleManager.vue';
 import KinetixMemberList from '@/components/KinetixMemberList.vue';
 import KinetixSubscriptionStatus from '@/components/KinetixSubscriptionStatus.vue';
+import KinetixUsageMeters from '@/components/KinetixUsageMeters.vue';
 import KinetixInvoicesTable from '@/components/KinetixInvoicesTable.vue';
 import KinetixChartWidget from '@/components/KinetixChartWidget.vue';
 import KinetixCustomWidget from '@/components/KinetixCustomWidget.vue';
@@ -1516,6 +1517,50 @@ export const specimens: Specimen[] = [
         frame: 'card',
         width: 640,
         props: { invoices },
+    },
+    {
+        name: 'usage-meters',
+        title: 'Metered usage — progress meters',
+        component: KinetixUsageMeters,
+        frame: 'card',
+        width: 480,
+        props: {
+            metrics: [
+                {
+                    key: 'api_calls',
+                    label: 'API calls',
+                    used: 3200,
+                    limit: 5000,
+                    percent: 64,
+                    display: '3,200 / 5,000 calls',
+                    unit: 'calls',
+                    color: 'primary',
+                    overLimit: false,
+                },
+                {
+                    key: 'seats',
+                    label: 'Seats',
+                    used: 9,
+                    limit: 10,
+                    percent: 90,
+                    display: '9 / 10 seats',
+                    unit: 'seats',
+                    color: 'warning',
+                    overLimit: false,
+                },
+                {
+                    key: 'storage',
+                    label: 'Storage',
+                    used: 120,
+                    limit: 100,
+                    percent: 100,
+                    display: '120 / 100 GB',
+                    unit: 'GB',
+                    color: 'danger',
+                    overLimit: true,
+                },
+            ],
+        },
     },
 
     // --- Widgets ---------------------------------------------------------------

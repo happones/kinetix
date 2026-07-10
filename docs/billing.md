@@ -256,7 +256,72 @@ Route::post('/api/tokens', ...)->middleware('plan.feature:capabilities.api');
 
 ---
 
-## 5. Routes
+## 5. Metered usage
+
+<Screenshot name="usage-meters" alt="Metered usage — progress meters" />
+
+For **metered** Stripe prices (API calls, seats, storage, …) you usually want a
+progress bar showing how much of the plan's included allowance has been used.
+Kinetix can't know *how* your app measures usage — that's inherently
+app-specific — so the customization point is a single method on your billable:
+
+```php
+use Happones\Kinetix\Billing\Plan;
+use Happones\Kinetix\Billing\UsageMetric;
+
+class Team extends Model // + Billable, HasPlan
+{
+    /** @return array<int, UsageMetric> */
+    public function meteredUsage(?Plan $plan): array
+    {
+        return [
+            UsageMetric::make('api_calls')
+                ->label('API calls')
+                ->used($this->apiCallsThisPeriod())
+                ->unit('calls'),
+
+            UsageMetric::make('seats')
+                ->label('Seats')
+                ->used($this->members()->count())
+                ->limit(10), // explicit — skips the plan lookup below
+        ];
+    }
+}
+```
+
+- Implementing `Happones\Kinetix\Billing\Contracts\ProvidesUsageMetrics` is
+  **optional** (hybrid detection, like Kinetix's other contracts) — any
+  billable exposing a `meteredUsage(?Plan $plan): array` method is picked up
+  the same way.
+- **The limit** comes from `UsageMetric::limit()` when set; otherwise it falls
+  back to the current plan's `features.usage.{key}` (so `Team` and `Plan`
+  stay the single source of truth for allowances — see §4). `null` on either
+  side means unlimited.
+- **The color** defaults to threshold-based (`primary` under 80%, `warning`
+  80–99%, `danger` at/over the limit) — fully overridable per metric:
+
+  ```php
+  UsageMetric::make('storage')->used($gb)->unit('GB')
+      ->color(fn (float $percent, bool $overLimit) => $overLimit ? 'danger' : 'info');
+  ```
+
+`BillingManager::usage(): array<UsageMetricData>` resolves the metrics against
+the billable's current plan, and `BillingController::index()` already passes
+it as the `usage` prop — mount `<KinetixUsageMeters :metrics="usage" />`
+(§8) to display it; it renders nothing when the array is empty, so it's safe
+to always include even for apps with no metered pricing.
+
+To actually bill for the usage, report it to Stripe (Cashier's
+`SubscriptionItem::reportUsage()`) — typically from a scheduled command or
+right after the unit of work happens:
+
+```php
+BillingManager::for($team)->reportUsage(1, $meteredPriceId);
+```
+
+---
+
+## 6. Routes
 
 Either flip `auto_routes` + `enabled` to `true`, or register explicitly in a routes file:
 
@@ -268,7 +333,7 @@ Registers (under the configured prefix/name): `index`, `subscribe`, `payment-met
 
 ---
 
-## 6. BillingManager
+## 7. BillingManager
 
 The controller is thin; all Cashier orchestration lives in `Happones\Kinetix\Billing\BillingManager`. Use it directly anywhere:
 
@@ -283,6 +348,8 @@ $manager->resume();
 $manager->paymentMethods();                      // camelCase arrays for the UI
 $manager->invoices();
 $manager->subscriptionData();
+$manager->usage();                               // array<UsageMetricData> — see §5
+$manager->reportUsage(1, $meteredPriceId);        // report to Stripe
 ```
 
 `subscribe()` is smart: a **free** plan cancels the current subscription (downgrade); when `trial_generic` is enabled and the plan has `trial_days`, it sets a generic trial on the billable without creating a Stripe subscription; otherwise a paid plan **swaps** an existing subscription (resuming first if on a grace period) or **creates** a new one (requires a payment method).
@@ -300,10 +367,12 @@ In addition to the methods above, `BillingManager` exposes:
 | `addPaymentMethod(string $paymentMethod)` | `void` | Attach a payment method; sets it as default if none exists yet. |
 | `removePaymentMethod(string $id)` | `void` | Detach the payment method with the given id. |
 | `downloadInvoice(string $invoiceId)` | `mixed` | Streamed PDF download response for the invoice (vendor/product set from config). |
+| `usage()` | `array<UsageMetricData>` | Metered usage metrics resolved against the current plan (empty unless the billable reports usage — see §5). |
+| `reportUsage(int $quantity = 1, ?string $priceId = null)` | `void` | Report metered usage to Stripe via Cashier's `SubscriptionItem::reportUsage()`. No-op without an active subscription. |
 
 ---
 
-## 7. Vue components
+## 8. Vue components
 
 All components are token-only (shadcn semantic tokens) and take labels via props, so they theme and translate cleanly. Import from your published path (`@/components/kinetix/...`).
 
@@ -314,6 +383,7 @@ All components are token-only (shadcn semantic tokens) and take labels via props
 | `KinetixPaymentMethods` | Saved cards + add-card via Stripe Elements |
 | `KinetixSubscriptionStatus` | Status badge + cancel/resume |
 | `KinetixInvoicesTable` | Invoice list with per-row download |
+| `KinetixUsageMeters` | Metered-usage progress bars (renders nothing when there's nothing to show) |
 
 <Screenshot name="pricing-table" alt="Pricing table — plan cards" />
 
@@ -329,7 +399,7 @@ The `useKinetixBilling(endpoints)` composable centralises the Inertia visits (`s
 
 ---
 
-## 8. The `kinetix:make-billing` command
+## 9. The `kinetix:make-billing` command
 
 ```bash
 php artisan kinetix:make-billing            # scaffold resources/js/pages/Billing/Index.vue

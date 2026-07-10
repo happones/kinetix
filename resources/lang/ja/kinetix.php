@@ -116,6 +116,8 @@ return [
     'billing_payment_required'         => '有料プランを購読する前に支払い方法を追加してください。',
     'billing_secure_payments'          => '安全な決済',
     'billing_secure_payments_desc'     => '決済処理には Stripe を使用しています。クレジットカード情報が当社のサーバーに保存されることはありません。',
+    'billing_usage_title'              => '今期の利用状況',
+    'billing_usage_over_limit'         => 'この利用量はプランの上限に達しました。',
     'pick_date'                        => '日付を選択',
     'pick_month'                       => '月を選択',
     'pick_year'                        => '年を選択',

@@ -116,6 +116,8 @@ return [
     'billing_payment_required'         => '订阅付费套餐前请先添加支付方式。',
     'billing_secure_payments'          => '安全支付',
     'billing_secure_payments_desc'     => '我们使用 Stripe 进行安全支付处理。您的信用卡信息不会经过我们的服务器。',
+    'billing_usage_title'              => '本周期用量',
+    'billing_usage_over_limit'         => '您已达到此用量的套餐上限。',
     'pick_date'                        => '选择日期',
     'pick_month'                       => '选择月份',
     'pick_year'                        => '选择年份',

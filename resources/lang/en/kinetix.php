@@ -120,6 +120,8 @@ return [
     'billing_payment_required'         => 'Please add a payment method before subscribing to a paid plan.',
     'billing_secure_payments'          => 'Secure Payments',
     'billing_secure_payments_desc'     => 'We use Stripe for secure payment processing. Your credit card information never touches our servers.',
+    'billing_usage_title'              => 'Usage this period',
+    'billing_usage_over_limit'         => 'You\'ve reached the included limit for this usage.',
 
     // Pickers & file preview
     'pick_date'            => 'Pick a date',

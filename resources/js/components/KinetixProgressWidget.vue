@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { statusTextClass } from '@/composables/useStatusColor';
+import { statusFillClass, statusTextClass } from '@/composables/useStatusColor';
 import type { KinetixProgressData, KinetixWidget } from '@/types';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
@@ -29,17 +29,7 @@ const data = computed<KinetixProgressData>(
 
 const percent = computed(() => Math.max(0, Math.min(100, data.value.percent)));
 
-/** Solid fill class for the bar/ring (static strings keep Tailwind's JIT happy). */
-const FILL: Record<string, string> = {
-    success: 'bg-success',
-    danger: 'bg-destructive',
-    warning: 'bg-warning',
-    info: 'bg-info',
-    primary: 'bg-primary',
-    gray: 'bg-muted-foreground',
-};
-
-const fillClass = computed(() => FILL[data.value.color] ?? FILL.primary);
+const fillClass = computed(() => statusFillClass(data.value.color));
 const ringTextClass = computed(() => statusTextClass(data.value.color));
 
 // Ring geometry — radius 42 in a 100×100 viewBox.

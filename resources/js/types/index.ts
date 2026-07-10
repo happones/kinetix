@@ -838,3 +838,16 @@ export interface KinetixSubscriptionData {
     onGenericTrial: boolean;
     trialPlan: string | null;
 }
+
+/** One metered usage dimension (API calls, seats, storage, …) for <KinetixUsageMeters>. */
+export interface KinetixUsageMetricData {
+    key: string;
+    label: string;
+    used: number;
+    limit: number | null;
+    percent: number;
+    display: string;
+    unit: string | null;
+    color: string;
+    overLimit: boolean;
+}

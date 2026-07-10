@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.90.0] - 2026-07-10
+
+### Added
+
+- **Metered-usage billing** — progress display for Stripe metered prices
+  (API calls, seats, storage, …), with fully customizable measurement logic:
+  - `Happones\Kinetix\Billing\UsageMetric` — fluent VO (`make($key)->label()
+    ->used()->unit()->limit()->color(string|Closure)`) declared by the
+    billable's `meteredUsage(?Plan $plan): array` method (hybrid detection —
+    implementing `Billing\Contracts\ProvidesUsageMetrics` is optional).
+  - `BillingManager::usage(): array<UsageMetricData>` resolves each metric
+    against the billable's current plan: an explicit `limit()` wins,
+    otherwise it falls back to the plan's `features.usage.{key}` (`null`
+    either side = unlimited); percent is capped at 100 and `overLimit` flags
+    when used ≥ limit; color defaults to threshold-based (`primary` under
+    80%, `warning` 80–99%, `danger` at/over the limit) and is fully
+    overridable per metric via a closure `(percent, overLimit) => color`.
+    Wired into `BillingController::index()` as the `usage` prop.
+  - `BillingManager::reportUsage(int $quantity = 1, ?string $priceId = null)`
+    — the write-side companion, a guarded wrapper around Cashier's
+    `SubscriptionItem::reportUsage()`/`reportUsageFor()`.
+  - **`<KinetixUsageMeters>`** — a progress-bar card, one bar per metric;
+    renders nothing when there's nothing to show, so it's safe to always
+    mount alongside `KinetixSubscriptionStatus`. The scaffolded
+    `kinetix:make-billing` page now wires it in.
+  - New shared `statusFillClass()` in `useStatusColor.ts` (solid progress-bar
+    fill, extracted from `KinetixProgressWidget`'s local map — both
+    components now share it).
+  - i18n `billing_usage_title` / `billing_usage_over_limit` across all seven
+    shipped locales. **(published)**
+
 ## [0.89.0] - 2026-07-10
 
 ### Added

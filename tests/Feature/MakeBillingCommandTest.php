@@ -20,6 +20,7 @@ class MakeBillingCommandTest extends TestCase
         $contents = File::get($pagePath);
         $this->assertStringContainsString('KinetixPricingTable', $contents);
         $this->assertStringContainsString('KinetixPaymentMethods', $contents);
+        $this->assertStringContainsString('KinetixUsageMeters', $contents);
         $this->assertStringContainsString('useKinetixBilling', $contents);
 
         File::deleteDirectory(resource_path('js/pages/Billing'));

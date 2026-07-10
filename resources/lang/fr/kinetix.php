@@ -120,6 +120,8 @@ return [
     'billing_payment_required'         => 'Ajoutez un moyen de paiement avant de souscrire à un forfait payant.',
     'billing_secure_payments'          => 'Paiements sécurisés',
     'billing_secure_payments_desc'     => 'Nous utilisons Stripe pour le traitement sécurisé des paiements. Les informations de votre carte bancaire ne transitent jamais par nos serveurs.',
+    'billing_usage_title'              => 'Utilisation de la période',
+    'billing_usage_over_limit'         => 'Vous avez atteint la limite incluse pour cette utilisation.',
 
     // Sélecteurs de date et aperçu
     'pick_date'            => 'Choisir une date',

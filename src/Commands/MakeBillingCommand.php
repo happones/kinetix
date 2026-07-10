@@ -58,6 +58,7 @@ import { ref } from 'vue';
 import KinetixPricingTable from '@/components/kinetix/KinetixPricingTable.vue';
 import KinetixPaymentMethods from '@/components/kinetix/KinetixPaymentMethods.vue';
 import KinetixSubscriptionStatus from '@/components/kinetix/KinetixSubscriptionStatus.vue';
+import KinetixUsageMeters from '@/components/kinetix/KinetixUsageMeters.vue';
 import KinetixInvoicesTable from '@/components/kinetix/KinetixInvoicesTable.vue';
 import KinetixSecurePayments from '@/components/kinetix/KinetixSecurePayments.vue';
 import KinetixTrialNotice from '@/components/kinetix/KinetixTrialNotice.vue';
@@ -67,6 +68,7 @@ import type {
   KinetixPaymentMethod,
   KinetixPlanData,
   KinetixSubscriptionData,
+  KinetixUsageMetricData,
 } from '@/types';
 
 const props = defineProps<{
@@ -78,6 +80,7 @@ const props = defineProps<{
   defaultPaymentMethodId: string | null;
   invoices: KinetixInvoice[];
   subscription: KinetixSubscriptionData | null;
+  usage: KinetixUsageMetricData[];
   currencySymbol: string;
   publishableKey: string;
   trialGeneric: boolean;
@@ -156,6 +159,9 @@ const subscribe = (plan: KinetixPlanData) => {
           @cancel="billing.cancel"
           @resume="billing.resume"
         />
+
+        <!-- Only renders when a metered plan reports usage (see meteredUsage() on your billable) -->
+        <KinetixUsageMeters :metrics="usage" />
 
         <KinetixSecurePayments />
       </div>
