@@ -33,11 +33,11 @@ class LogSpatieWebhookCall
         WebhookLog::create([
             'webhook_endpoint_id' => $endpointId,
             'event'               => $event->meta['kinetix_event'] ?? 'unknown',
-            'payload'             => $payload,
+            'payload'             => config('kinetix.webhooks.log_payloads', true) ? $payload : null,
             'status_code'         => $event->response?->getStatusCode(),
             'success'             => $event instanceof WebhookCallSucceededEvent,
             'attempt'             => $event->attempt,
-            'response'            => Str::limit($body, 1000),
+            'response'            => Str::limit($body, (int) config('kinetix.webhooks.response_limit', 1000)),
         ]);
     }
 }

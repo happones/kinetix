@@ -112,6 +112,29 @@ The body is `{"event": "...", "data": { ... }}`.
   Schedule::command('kinetix:webhooks:prune')->daily();
   ```
 
+### The delivery log
+
+**No extra setup**: logging is always on with the module, for both delivery
+drivers (native job and spatie's webhook-server, which is bridged per attempt).
+The `kinetix_webhook_logs` table ships inside the same
+`kinetix-webhooks-migrations` publish tag. Each entry records the event, the
+sent payload, the response body, status code, success flag and attempt number —
+browse them per endpoint in the dashboard or across endpoints with
+[`<KinetixIntegrationLogs>`](/integration-logs).
+
+Two knobs (both optional):
+
+```php
+'webhooks' => [
+    'log_payloads'   => true,   // store the sent payload with each entry
+    'response_limit' => 1000,   // max stored response-body characters
+],
+```
+
+Set `log_payloads = false` when your events carry sensitive data — entries then
+keep everything except the payload (redelivery from old entries won't be
+possible without it).
+
 ---
 
 ## 5. Testing your webhooks
@@ -140,6 +163,7 @@ Team-aware, under the Kinetix route prefix, gated by `webhooks.manage`:
 | `DELETE` | `{prefix}/webhooks/{endpoint}` | Delete |
 | `POST` | `{prefix}/webhooks/{endpoint}/rotate` | New signing secret |
 | `POST` | `{prefix}/webhooks/{endpoint}/test` | Queue a test delivery |
+| `GET` | `{prefix}/webhooks/logs` | Delivery logs across all endpoints (`?result=`, `?search=`) |
 | `GET` | `{prefix}/webhooks/{endpoint}/logs` | Delivery logs |
 | `POST` | `{prefix}/webhooks/logs/{log}/redeliver` | Re-queue a delivery |
 

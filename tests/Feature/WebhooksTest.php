@@ -245,6 +245,22 @@ class WebhooksTest extends TestCase
         $this->assertSame(200, $log->status_code);
     }
 
+    public function test_log_payloads_off_keeps_the_entry_without_the_payload(): void
+    {
+        config()->set('kinetix.webhooks.log_payloads', false);
+        config()->set('kinetix.webhooks.response_limit', 5);
+        Http::fake(['*' => Http::response('a-very-long-response-body', 200)]);
+
+        $endpoint = $this->endpoint();
+        (new DispatchWebhookJob($endpoint->id, 'order.created', ['secret_field' => 'pii']))->handle();
+
+        $log = WebhookLog::firstOrFail();
+        $this->assertNull($log->payload);
+        // The stored response honors the configurable cap (5 chars + ellipsis).
+        $this->assertSame('a-ver...', $log->response);
+        $this->assertTrue($log->success);
+    }
+
     public function test_job_blocks_ssrf_url_without_sending(): void
     {
         Http::fake();

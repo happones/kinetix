@@ -80,7 +80,7 @@ class DispatchWebhookJob implements ShouldQueue
             throw $e; // retry
         }
 
-        $this->log($endpoint, $response->status(), $response->successful(), $attempt, Str::limit($response->body(), 1000));
+        $this->log($endpoint, $response->status(), $response->successful(), $attempt, Str::limit($response->body(), (int) config('kinetix.webhooks.response_limit', 1000)));
 
         if (! $response->successful()) {
             throw new RuntimeException("Webhook delivery to endpoint {$endpoint->getKey()} returned {$response->status()}.");
@@ -92,7 +92,7 @@ class DispatchWebhookJob implements ShouldQueue
         WebhookLog::create([
             'webhook_endpoint_id' => $endpoint->getKey(),
             'event'               => $this->event,
-            'payload'             => $this->payload,
+            'payload'             => config('kinetix.webhooks.log_payloads', true) ? $this->payload : null,
             'status_code'         => $status,
             'success'             => $success,
             'attempt'             => $attempt,

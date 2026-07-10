@@ -333,10 +333,18 @@ return [
         // uses spatie's tries/timeout config.
         'driver' => env('KINETIX_WEBHOOKS_DRIVER', 'auto'),
 
-        'teams'          => env('KINETIX_WEBHOOKS_TEAMS'), // null = inherit kinetix.teams
-        'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
-        'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
-        'tries'          => env('KINETIX_WEBHOOKS_TRIES', 3),
+        'teams'         => env('KINETIX_WEBHOOKS_TEAMS'), // null = inherit kinetix.teams
+        'allow_private' => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
+        'timeout'       => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
+        'tries'         => env('KINETIX_WEBHOOKS_TRIES', 3),
+
+        // Delivery log: every attempt is recorded automatically (no extra
+        // setup — the logs table ships in kinetix-webhooks-migrations).
+        // `log_payloads` stores the sent payload with each entry (turn off if
+        // your events carry sensitive data); `response_limit` caps the stored
+        // response body; prune with kinetix:webhooks:prune.
+        'log_payloads'   => env('KINETIX_WEBHOOKS_LOG_PAYLOADS', true),
+        'response_limit' => env('KINETIX_WEBHOOKS_RESPONSE_LIMIT', 1000),
         'retention_days' => env('KINETIX_WEBHOOKS_RETENTION_DAYS', 30),
     ],
 

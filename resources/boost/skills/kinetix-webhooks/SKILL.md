@@ -18,7 +18,7 @@ Activate this skill when:
 
 ## Integration logs viewer
 
-`<KinetixIntegrationLogs>` lists webhook deliveries (payload, response, endpoint, redeliver) and — when `kinetix.api_logs.enabled` — API requests logged by the `kinetix.api-log` middleware (attach it to the host's API group; row written in terminate(), bodies opt-in + redacted + capped). Feeds: `GET {prefix}/webhooks/logs` (`webhooks.manage`) and `GET {prefix}/api-logs` (`viewKinetixApiLogs`, local-only default). Prune with `kinetix:webhooks:prune` / `kinetix:api-logs:prune`. Docs: `docs/integration-logs.md`.
+`<KinetixIntegrationLogs>` lists webhook deliveries (payload, response, endpoint, redeliver) and — when `kinetix.api_logs.enabled` — API requests logged by the `kinetix.api-log` middleware (attach it to the host's API group; row written in terminate(), bodies opt-in + redacted + capped). Feeds: `GET {prefix}/webhooks/logs` (`webhooks.manage`) and `GET {prefix}/api-logs` (`viewKinetixApiLogs`, local-only default). Webhook logging is automatic with the module (both drivers; table ships in kinetix-webhooks-migrations) — knobs: `webhooks.log_payloads` (default true) and `webhooks.response_limit` (default 1000). Prune with `kinetix:webhooks:prune` / `kinetix:api-logs:prune`. Docs: `docs/integration-logs.md`.
 
 ## Documentation
 

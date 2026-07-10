@@ -23,8 +23,11 @@ feeds expose it, both gated by `webhooks.manage` and team-scoped:
 | `POST` | `{prefix}/webhooks/logs/{log}/redeliver` | Re-dispatch a delivery |
 
 Each entry includes the **payload**, the **response body**, and the endpoint's
-name/URL — everything the detail modal shows. Retention:
-`kinetix:webhooks:prune` (config `kinetix.webhooks.retention_days`).
+name/URL — everything the detail modal shows. Logging is automatic with the
+module (no extra config); tune it with `kinetix.webhooks.log_payloads`
+(default `true` — disable for sensitive payloads) and
+`kinetix.webhooks.response_limit` (stored response cap, default 1000 chars).
+Retention: `kinetix:webhooks:prune` (config `kinetix.webhooks.retention_days`).
 
 ---
 

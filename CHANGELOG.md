@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.88.1] - 2026-07-10
+
+### Added
+
+- **Webhook delivery-log knobs** — logging remains automatic with the module
+  (both drivers, no extra setup; the logs table ships inside
+  `kinetix-webhooks-migrations`), now tunable: `kinetix.webhooks.log_payloads`
+  (default `true` — disable when events carry sensitive data) and
+  `kinetix.webhooks.response_limit` (stored response cap, previously a
+  hardcoded 1000 chars). Applied by the native job and the spatie bridge alike.
+
+### Docs
+
+- Webhooks: new "The delivery log" section (automatic logging, knobs, the
+  cross-endpoint `GET {prefix}/webhooks/logs` feed in the endpoints table);
+  Integration Logs page cross-references the knobs.
+
 ## [0.88.0] - 2026-07-10
 
 ### Added
