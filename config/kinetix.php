@@ -66,6 +66,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Published Translations
+    |--------------------------------------------------------------------------
+    |
+    | Which locales `vendor:publish --tag=kinetix-translations` copies into
+    | lang/ (and `kinetix:upgrade` refreshes). Your app is English-only? Set
+    | ['en'] and the other catalogs are never published. null/empty = all
+    | shipped locales (en, es, fr, pt, zh, ja, ru). The env var takes a
+    | comma-separated list: KINETIX_TRANSLATION_LOCALES=en,es
+    |
+    */
+    'translations' => [
+        'locales' => env('KINETIX_TRANSLATION_LOCALES'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Kinetix Date & Time Formats
     |--------------------------------------------------------------------------
     |

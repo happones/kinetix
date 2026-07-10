@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.89.0] - 2026-07-10
+
+### Added
+
+- **Chinese (zh), Japanese (ja) and Russian (ru) translations** — the full
+  411-key catalog in each, with key parity enforced by the test suite.
+  Shipped locales are now en, es, fr, pt, zh, ja, ru.
+- **Selective translation publishing** — choose which locale catalogs
+  `--tag=kinetix-translations` copies (and `kinetix:upgrade` refreshes) via
+  `kinetix.translations.locales`: an array in the published config or a
+  comma-separated `KINETIX_TRANSLATION_LOCALES=en,es` env value. Pick one,
+  several or leave null/empty for all. English-only apps: `['en']` and no
+  other catalog ever lands in `lang/`.
+
 ## [0.88.2] - 2026-07-10
 
 ### Added

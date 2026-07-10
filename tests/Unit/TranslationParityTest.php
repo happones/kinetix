@@ -8,7 +8,7 @@ use Happones\Kinetix\Tests\TestCase;
 
 class TranslationParityTest extends TestCase
 {
-    private const LOCALES = ['en', 'es', 'fr', 'pt'];
+    private const LOCALES = ['en', 'es', 'fr', 'pt', 'zh', 'ja', 'ru'];
 
     /**
      * @return array<string, mixed>
@@ -23,7 +23,7 @@ class TranslationParityTest extends TestCase
         $en = array_keys($this->load('en'));
         sort($en);
 
-        foreach (['es', 'fr', 'pt'] as $locale) {
+        foreach (array_slice(self::LOCALES, 1) as $locale) {
             $keys = array_keys($this->load($locale));
             sort($keys);
 

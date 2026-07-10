@@ -15,6 +15,10 @@ works for guests too, so it can sit on the login screen or a setup wizard.
 Enable the feature and list your locales (code → native label, shown in its own
 language):
 
+> Kinetix ships its own UI strings in **en, es, fr, pt, zh, ja, ru** — list
+> only the locales your app supports (and match
+> `kinetix.translations.locales` so only those catalogs get published).
+
 ```php
 'locale' => [
     'enabled' => env('KINETIX_LOCALE_ENABLED', true),
@@ -24,6 +28,9 @@ language):
         'es' => 'Español',
         'fr' => 'Français',
         'pt' => 'Português',
+        'zh' => '中文',
+        'ja' => '日本語',
+        'ru' => 'Русский',
     ],
 
     'store_on_user' => true,        // persist on the user's `locale` column when present

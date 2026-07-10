@@ -276,10 +276,10 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../resources/js/types'       => resource_path('js/types'),
             ], 'kinetix-components');
 
-            // Publish translations directly into Laravel lang directory so generators can pick them up
-            $this->publishes([
-                __DIR__.'/../resources/lang' => lang_path(),
-            ], 'kinetix-translations');
+            // Publish translations directly into Laravel lang directory so
+            // generators can pick them up — limited to the locales selected in
+            // `kinetix.translations.locales` (null/empty = all shipped).
+            $this->publishes($this->translationPublishMap(), 'kinetix-translations');
 
             // Publish the fallback shadcn design tokens (only needed if the app
             // doesn't already define them, e.g. outside a shadcn-vue starter kit).
@@ -892,6 +892,38 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
                 Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->name('kinetix.webhooks.redeliver');
             });
+    }
+
+    /**
+     * Build the per-locale publish map for the `kinetix-translations` tag,
+     * honoring the `kinetix.translations.locales` selection (string
+     * "en,es" from env, or an array in the published config).
+     *
+     * @return array<string, string>
+     */
+    protected function translationPublishMap(): array
+    {
+        $shipped = array_map('basename', glob(__DIR__.'/../resources/lang/*', GLOB_ONLYDIR) ?: []);
+
+        $selected = config('kinetix.translations.locales');
+
+        if (is_string($selected)) {
+            $selected = array_filter(array_map('trim', explode(',', $selected)));
+        }
+
+        $selected = array_intersect((array) $selected, $shipped);
+
+        if ($selected === []) {
+            $selected = $shipped;
+        }
+
+        $map = [];
+
+        foreach ($selected as $locale) {
+            $map[__DIR__."/../resources/lang/{$locale}"] = lang_path($locale);
+        }
+
+        return $map;
     }
 
     /**
