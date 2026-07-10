@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Pdf\Contracts\ProvidesPdfData;
 use Happones\Kinetix\Pdf\KinetixPdf;
 use Happones\Kinetix\Pdf\PdfField;
 use Happones\Kinetix\Pdf\PdfTemplate;
@@ -165,5 +166,36 @@ class PdfTemplatesTest extends TestCase
 
         $this->assertStringContainsString('Q-2049', $html);
         $this->assertStringContainsString('Custom line', $html);
+    }
+
+    public function test_models_providing_pdf_data_are_accepted_directly(): void
+    {
+        // Implementing the interface…
+        $contracted = new class implements ProvidesPdfData
+        {
+            public function toPdfData(): array
+            {
+                return ['number' => 'Q-3001', 'items' => []];
+            }
+        };
+        $this->assertStringContainsString('Q-3001', KinetixPdf::render('quote', $contracted));
+
+        // …or just exposing the method (hybrid detection, Filament-style).
+        $duckTyped = new class
+        {
+            public function toPdfData(): array
+            {
+                return ['number' => 'Q-3002', 'items' => []];
+            }
+        };
+        $this->assertStringContainsString('Q-3002', KinetixPdf::render('quote', $duckTyped));
+    }
+
+    public function test_objects_without_pdf_data_throw_a_clear_exception(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('toPdfData');
+
+        KinetixPdf::render('quote', new \stdClass);
     }
 }

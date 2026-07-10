@@ -166,14 +166,57 @@ import KinetixPdfTemplate from '@/components/kinetix/KinetixPdfTemplate.vue';
 
 ## 4. Generating real documents
 
-At runtime (a controller, a queued job, an email attachment), render with your
-actual data — the stored settings apply automatically:
+### 4.1 Preparing your model — `ProvidesPdfData`
+
+Your Eloquent models don't know about PDFs out of the box. Teach them by
+implementing the **`ProvidesPdfData`** contract — one `toPdfData()` method that
+maps the record onto the template's data shape:
+
+```php
+use Happones\Kinetix\Pdf\Contracts\ProvidesPdfData;
+
+class Quote extends Model implements ProvidesPdfData
+{
+    /** @return array<string, mixed> */
+    public function toPdfData(): array
+    {
+        return [
+            'number'  => $this->number,
+            'date'    => $this->created_at->toDateString(),
+            'status'  => $this->status->getLabel(),
+            'from'    => ['name' => config('app.name'), 'lines' => [config('mail.from.address')]],
+            'to'      => ['name' => $this->customer->name, 'lines' => [$this->customer->email]],
+            'items'   => $this->items->map(fn ($item) => [
+                'sku'   => $item->sku,
+                'name'  => $item->name,
+                'qty'   => $item->qty,
+                'price' => number_format($item->price, 2),
+                'total' => number_format($item->total, 2),
+            ])->all(),
+            'summary' => [
+                ['label' => 'Subtotal', 'value' => number_format($this->subtotal, 2)],
+                ['label' => 'Total', 'value' => number_format($this->total, 2)],
+            ],
+            'notes' => $this->notes,
+        ];
+    }
+}
+```
+
+> The interface is optional (**hybrid detection**, like Kinetix's other
+> contracts): any object exposing a `toPdfData(): array` method is accepted
+> the same way. Objects without it throw a clear `InvalidArgumentException`.
+
+### 4.2 Rendering
+
+At runtime (a controller, a queued job, an email attachment) pass the model —
+or a plain array — and the stored configurator settings apply automatically:
 
 ```php
 use Happones\Kinetix\Pdf\KinetixPdf;
 
-$html = KinetixPdf::render('quote', $quote->toPdfData()); // HTML string
-$pdf  = KinetixPdf::pdf('quote', $quote->toPdfData());    // PDF binary
+$html = KinetixPdf::render('quote', $quote); // HTML string
+$pdf  = KinetixPdf::pdf('quote', $quote);    // PDF binary
 
 return response($pdf, 200, [
     'Content-Type'        => 'application/pdf',
@@ -181,7 +224,9 @@ return response($pdf, 200, [
 ]);
 ```
 
-The `data` array for the built-in document:
+### 4.3 The data shape
+
+The `data` array (what `toPdfData()` returns) for the built-in document:
 
 ```php
 [

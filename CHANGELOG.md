@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.88.2] - 2026-07-10
+
+### Added
+
+- **`ProvidesPdfData` contract** — teach a model how to print itself:
+  implement `toPdfData(): array` and pass the model directly to
+  `KinetixPdf::render()/pdf()` (and `PdfTemplate::render()/pdf()`). The
+  interface is optional (hybrid method detection, like Kinetix's other
+  contracts); plain arrays keep working, and objects without the method throw
+  a clear exception.
+
+### Docs
+
+- PDF Templates: the "Generating real documents" section now documents the
+  model setup end-to-end (`ProvidesPdfData` implementation, hybrid detection,
+  the data shape) instead of referencing an unexplained `toPdfData()` call.
+
 ## [0.88.1] - 2026-07-10
 
 ### Added

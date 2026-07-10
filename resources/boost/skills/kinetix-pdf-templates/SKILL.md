@@ -29,8 +29,10 @@ class QuotePdf extends PdfTemplate
 }
 
 KinetixPdf::register(QuotePdf::class);          // provider boot()
-$pdf = KinetixPdf::pdf('quote', $realData);     // binary, stored settings applied
+$pdf = KinetixPdf::pdf('quote', $quote);        // binary, stored settings applied
 ```
+
+- Models implement `Pdf\Contracts\ProvidesPdfData` (`toPdfData(): array` mapping the record onto the data shape) and are passed directly to `render()/pdf()`; the interface is optional (hybrid detection — any object with the method works), plain arrays are always accepted, other objects throw.
 
 - Default `fields()` = standard knobs (accent/text color, font, title, logo, status, SKU, striped, footer, signature); override with `PdfField::color/text/select/toggle/number`.
 - Default layout = built-in generic document (`DocumentBuilder`, dompdf-safe inline CSS). Custom: override `html()` (PHP) or `view()` (Blade, receives settings/data/template).

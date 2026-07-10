@@ -157,15 +157,17 @@ abstract class PdfTemplate
     }
 
     /**
-     * Render the document HTML.
+     * Render the document HTML. `$data` may be an array, any object exposing
+     * `toPdfData(): array` (see {@see Contracts\ProvidesPdfData}), or null
+     * for the template's sample data.
      *
-     * @param array<string, mixed>|null $data     null = sampleData()
-     * @param array<string, mixed>      $settings extra overrides on top of the stored settings
+     * @param array<string, mixed>|object|null $data
+     * @param array<string, mixed>             $settings extra overrides on top of the stored settings
      */
-    public function render(?array $data = null, array $settings = []): string
+    public function render(array|object|null $data = null, array $settings = []): string
     {
         $settings = array_merge($this->settings(), $settings);
-        $data ??= $this->sampleData();
+        $data     = $this->resolveData($data) ?? $this->sampleData();
 
         if (($view = $this->view()) !== null) {
             return view($view, ['settings' => $settings, 'data' => $data, 'template' => $this])->render();
@@ -177,14 +179,37 @@ abstract class PdfTemplate
     /**
      * Render and convert to a PDF binary via the configured driver.
      *
-     * @param array<string, mixed>|null $data
-     * @param array<string, mixed>      $settings
+     * @param array<string, mixed>|object|null $data
+     * @param array<string, mixed>             $settings
      */
-    public function pdf(?array $data = null, array $settings = []): string
+    public function pdf(array|object|null $data = null, array $settings = []): string
     {
         [$paper, $orientation] = $this->paper();
 
         return PdfDriver::output($this->render($data, $settings), $paper, $orientation);
+    }
+
+    /**
+     * Normalize the data argument: arrays pass through; objects must expose
+     * `toPdfData(): array` — the {@see Contracts\ProvidesPdfData} contract,
+     * accepted with hybrid detection (implementing the interface is optional).
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function resolveData(array|object|null $data): ?array
+    {
+        if ($data === null || is_array($data)) {
+            return $data;
+        }
+
+        if (method_exists($data, 'toPdfData')) {
+            return (array) $data->toPdfData();
+        }
+
+        throw new \InvalidArgumentException(
+            $data::class.' cannot provide PDF data — implement '.Contracts\ProvidesPdfData::class
+            .' (a toPdfData(): array method) or pass an array.'
+        );
     }
 
     /**

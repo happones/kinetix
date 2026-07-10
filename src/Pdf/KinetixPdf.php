@@ -30,9 +30,9 @@ class KinetixPdf
     }
 
     /**
-     * @param array<string, mixed>|null $data
+     * @param array<string, mixed>|object|null $data an array, or any object exposing toPdfData()
      */
-    public static function render(string $key, ?array $data = null): string
+    public static function render(string $key, array|object|null $data = null): string
     {
         $template = static::template($key);
 
@@ -44,9 +44,9 @@ class KinetixPdf
     }
 
     /**
-     * @param array<string, mixed>|null $data
+     * @param array<string, mixed>|object|null $data an array, or any object exposing toPdfData()
      */
-    public static function pdf(string $key, ?array $data = null): string
+    public static function pdf(string $key, array|object|null $data = null): string
     {
         $template = static::template($key);
 
