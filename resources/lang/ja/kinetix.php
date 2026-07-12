@@ -472,4 +472,10 @@ return [
     'report_schedule_create'        => 'スケジュールを作成',
     'report_schedule_created'       => 'レポートのスケジュールを作成しました。',
     'report_schedule_create_failed' => 'レポートのスケジュールを作成できませんでした。',
+
+    // Confidential Fields
+    'confidential_unlock'             => 'ロック解除',
+    'confidential_lock'               => 'ロック',
+    'confidential_password_label'     => 'パスワード',
+    'confidential_password_incorrect' => 'パスワードが正しくありません。',
 ];

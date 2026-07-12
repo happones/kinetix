@@ -472,4 +472,10 @@ return [
     'report_schedule_create'        => 'Запланировать',
     'report_schedule_created'       => 'Расписание отчёта создано.',
     'report_schedule_create_failed' => 'Не удалось создать расписание отчёта.',
+
+    // Confidential Fields
+    'confidential_unlock'             => 'Разблокировать',
+    'confidential_lock'               => 'Заблокировать',
+    'confidential_password_label'     => 'Пароль',
+    'confidential_password_incorrect' => 'Неверный пароль.',
 ];

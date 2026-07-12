@@ -472,4 +472,10 @@ return [
     'report_schedule_create'        => '创建定时任务',
     'report_schedule_created'       => '报告定时任务已创建。',
     'report_schedule_create_failed' => '无法创建报告定时任务。',
+
+    // Confidential Fields
+    'confidential_unlock'             => '解锁',
+    'confidential_lock'               => '锁定',
+    'confidential_password_label'     => '密码',
+    'confidential_password_incorrect' => '密码错误。',
 ];

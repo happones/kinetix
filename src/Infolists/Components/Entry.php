@@ -277,11 +277,12 @@ abstract class Entry extends Component
             color: $this->getColor($record),
             url: $this->getUrl($record),
             openUrlInNewTab: $this->openUrlInNewTab,
-            isBadge: $extra['isBadge']       ?? null,
-            isCopyable: $extra['isCopyable'] ?? null,
-            isCircular: $extra['isCircular'] ?? null,
-            size: $extra['size']             ?? null,
-            isInline: $extra['isInline']     ?? false,
+            isBadge: $extra['isBadge']               ?? null,
+            isCopyable: $extra['isCopyable']         ?? null,
+            isCircular: $extra['isCircular']         ?? null,
+            size: $extra['size']                     ?? null,
+            isInline: $extra['isInline']             ?? false,
+            isConfidential: $extra['isConfidential'] ?? null,
             extraAttributes: $this->extraAttributes ?: null,
         );
     }

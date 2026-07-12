@@ -19,6 +19,8 @@ class TextEntry extends Entry
 
     protected bool $isInline = false;
 
+    protected bool $isConfidential = false;
+
     protected ?int $limit = null;
 
     protected function getType(): string
@@ -36,6 +38,18 @@ class TextEntry extends Entry
     public function copyable(bool $condition = true): static
     {
         $this->isCopyable = $condition;
+
+        return $this;
+    }
+
+    /**
+     * UI-only affordance flag (a padlock icon) — the actual masking is
+     * always enforced by `ConfidentialCast` on the model attribute itself,
+     * regardless of whether an entry declares this.
+     */
+    public function confidential(bool $condition = true): static
+    {
+        $this->isConfidential = $condition;
 
         return $this;
     }
@@ -83,9 +97,10 @@ class TextEntry extends Entry
     protected function getExtraData(?Model $record = null): array
     {
         return [
-            'isBadge'    => $this->isBadge,
-            'isCopyable' => $this->isCopyable,
-            'isInline'   => $this->isInline,
+            'isBadge'        => $this->isBadge,
+            'isCopyable'     => $this->isCopyable,
+            'isInline'       => $this->isInline,
+            'isConfidential' => $this->isConfidential,
         ];
     }
 }

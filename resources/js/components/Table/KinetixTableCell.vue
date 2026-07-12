@@ -4,11 +4,13 @@ import {
     Copy,
     Edit3,
     Eye,
+    Lock,
     Plus,
     Trash2,
     XCircle,
 } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
+import { requestConfidentialUnlock } from '@/composables/useKinetixConfidential';
 import {
     statusBadgeClass as getBadgeColorClass,
     statusTextClass,
@@ -32,6 +34,7 @@ interface Column {
     isPreviewable?: boolean;
     size?: number | null;
     isCopyable?: boolean;
+    isConfidential?: boolean;
     options?: Record<string, string> | null;
     inputType?: string | null;
     placeholder?: string | null;
@@ -151,6 +154,15 @@ const FILL: Record<string, string> = {
             >
                 <Copy class="size-3.5" />
             </button>
+            <button
+                v-if="col.isConfidential"
+                type="button"
+                class="text-muted-foreground opacity-0 transition-opacity group-hover/copy:opacity-100 hover:text-foreground"
+                :title="t('kinetix.confidential_unlock')"
+                @click.stop="requestConfidentialUnlock()"
+            >
+                <Lock class="size-3.5" />
+            </button>
         </span>
         <span
             v-if="
@@ -226,17 +238,22 @@ const FILL: Record<string, string> = {
         <span
             v-if="record.values[col.name] !== null"
             class="text-sm font-medium"
-            :class="statusTextClass(record.progressColors[col.name] || 'primary')"
+            :class="
+                statusTextClass(record.progressColors[col.name] || 'primary')
+            "
         >
             {{ record.values[col.name] }}
         </span>
         <div
             v-if="record.progress[col.name] !== null"
-            class="w-12 bg-muted rounded-full h-1 overflow-hidden"
+            class="w-12 h-1 overflow-hidden rounded-full bg-muted"
         >
             <div
                 class="h-full rounded-full transition-all duration-300"
-                :class="FILL[record.progressColors[col.name] || 'primary'] ?? FILL.primary"
+                :class="
+                    FILL[record.progressColors[col.name] || 'primary'] ??
+                    FILL.primary
+                "
                 :style="{ width: `${record.progress[col.name]}%` }"
             />
         </div>

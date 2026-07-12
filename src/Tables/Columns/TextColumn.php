@@ -18,6 +18,8 @@ class TextColumn extends Column
 
     protected bool $isBadge = false;
 
+    protected bool $isConfidential = false;
+
     protected string|Closure|null $badgeColor = 'gray';
 
     protected ?int $limit = null;
@@ -34,6 +36,18 @@ class TextColumn extends Column
     public function badge(bool $condition = true): static
     {
         $this->isBadge = $condition;
+
+        return $this;
+    }
+
+    /**
+     * UI-only affordance flag (a padlock icon) — the actual masking is
+     * always enforced by `ConfidentialCast` on the model attribute itself,
+     * regardless of whether a column declares this.
+     */
+    public function confidential(bool $condition = true): static
+    {
+        $this->isConfidential = $condition;
 
         return $this;
     }
@@ -130,6 +144,7 @@ class TextColumn extends Column
         return [
             'isBadge'             => $this->isBadge,
             'descriptionPosition' => $this->descriptionPosition,
+            'isConfidential'      => $this->isConfidential,
         ];
     }
 }

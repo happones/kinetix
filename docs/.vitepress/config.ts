@@ -120,6 +120,7 @@ export default withMermaid(
           { text: "Browser Sessions", link: "/sessions" },
           { text: "Developer Tokens", link: "/tokens" },
           { text: "GDPR self-service", link: "/gdpr" },
+          { text: "Confidential Fields", link: "/confidential" },
         ],
       },
       {

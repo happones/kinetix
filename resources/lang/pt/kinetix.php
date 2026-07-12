@@ -534,4 +534,10 @@ return [
     'report_schedule_create'        => 'Agendar',
     'report_schedule_created'       => 'Agendamento de relatório criado.',
     'report_schedule_create_failed' => 'Não foi possível criar o agendamento do relatório.',
+
+    // Confidential Fields
+    'confidential_unlock'             => 'Desbloquear',
+    'confidential_lock'               => 'Bloquear',
+    'confidential_password_label'     => 'Senha',
+    'confidential_password_incorrect' => 'Senha incorreta.',
 ];

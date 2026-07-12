@@ -16,6 +16,8 @@ use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
 use Happones\Kinetix\Commands\ApiLogsPruneCommand;
+use Happones\Kinetix\Commands\ConfidentialEncryptExistingCommand;
+use Happones\Kinetix\Commands\ConfidentialRotateKeyCommand;
 use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
@@ -39,6 +41,10 @@ use Happones\Kinetix\Commands\WebhooksPruneCommand;
 use Happones\Kinetix\Comments\CommentController;
 use Happones\Kinetix\Comments\CommentManager;
 use Happones\Kinetix\Comments\CommentRegistry;
+use Happones\Kinetix\Confidential\ConfidentialController;
+use Happones\Kinetix\Confidential\ConfidentialManager;
+use Happones\Kinetix\Confidential\KeyManagers\KeyManager;
+use Happones\Kinetix\Confidential\KeyManagers\LocalKeyManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountController;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
@@ -249,6 +255,16 @@ class KinetixServiceProvider extends ServiceProvider
             return $registry;
         });
         $this->app->singleton(ReportRunDispatcher::class);
+
+        // Confidential fields: 'local' (zero-dependency, wraps keys via the
+        // app's own APP_KEY) or a host-supplied class implementing KeyManager
+        // (e.g. their own AWS/GCP KMS or Vault Transit binding).
+        $this->app->bind(KeyManager::class, function () {
+            $driver = (string) config('kinetix.confidential.key_manager', 'local');
+
+            return $driver === 'local' ? new LocalKeyManager : $this->app->make($driver);
+        });
+        $this->app->singleton(ConfidentialManager::class);
     }
 
     /**
@@ -283,6 +299,8 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeReportCommand::class,
                 DispatchDueReportSchedulesCommand::class,
                 ReportRunsPruneCommand::class,
+                ConfidentialRotateKeyCommand::class,
+                ConfidentialEncryptExistingCommand::class,
                 UpgradeCommand::class,
                 InstallCommand::class,
             ]);
@@ -514,6 +532,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Reports Center module (queued, tracked reports)
         $this->registerReportsCenter();
+
+        // Register the optional Confidential Fields module (encrypted, masked attributes)
+        $this->registerConfidential();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1613,6 +1634,37 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Register the optional Confidential Fields module: the reveal-gate
+     * unlock/lock endpoints and their gate.
+     */
+    protected function registerConfidential(): void
+    {
+        if (! config('kinetix.confidential.enabled', false)) {
+            return;
+        }
+
+        if (! Gate::has('revealKinetixConfidential')) {
+            Gate::define('revealKinetixConfidential', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)->prefix("{$prefix}")->group(function () {
+            Route::post('confidential/unlock', [ConfidentialController::class, 'unlock'])->name('kinetix.confidential.unlock');
+            Route::post('confidential/lock', [ConfidentialController::class, 'lock'])->name('kinetix.confidential.lock');
+        });
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -1781,6 +1833,19 @@ class KinetixServiceProvider extends ServiceProvider
             'enabled' => (bool) config('kinetix.reports_center.enabled', false),
             'poll'    => (int) config('kinetix.reports_center.poll', 5000),
         ]);
+
+        // Confidential fields: reveal-gate state for the header unlock widget.
+        Inertia::share('kinetix_confidential', function () {
+            $unlockedUntil = config('kinetix.confidential.enabled', false)
+                ? $this->app->make(ConfidentialManager::class)->unlockedUntil()
+                : null;
+
+            return [
+                'enabled'       => (bool) config('kinetix.confidential.enabled', false),
+                'ttlMinutes'    => (int) config('kinetix.confidential.reveal_ttl_minutes', 5),
+                'unlockedUntil' => $unlockedUntil?->toIso8601String(),
+            ];
+        });
     }
 
     /**

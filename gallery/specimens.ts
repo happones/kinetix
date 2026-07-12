@@ -39,6 +39,7 @@ import KinetixReportLauncher from '@/components/KinetixReportLauncher.vue';
 import KinetixReportRunsTable from '@/components/KinetixReportRunsTable.vue';
 import KinetixReportSchedules from '@/components/KinetixReportSchedules.vue';
 import KinetixReportsCenter from '@/components/KinetixReportsCenter.vue';
+import KinetixConfidentialUnlock from '@/components/KinetixConfidentialUnlock.vue';
 
 // Slug + signature showcase for the gallery.
 const SlugSignatureShowcase: Component = {
@@ -158,6 +159,37 @@ const CopyableInputShowcase: Component = {
                 copyable: true,
                 revealable: true,
             }),
+        ]);
+    },
+};
+
+// A small, static showcase of a masked vs. revealed confidential field —
+// illustrates the concept without needing real backend crypto.
+const ConfidentialMaskShowcase: Component = {
+    render() {
+        const row = (label: string, value: string) =>
+            h(
+                'div',
+                {
+                    class: 'flex items-center justify-between rounded-lg border border-border bg-card p-3',
+                },
+                [
+                    h(
+                        'span',
+                        { class: 'text-sm text-muted-foreground' },
+                        label,
+                    ),
+                    h(
+                        'span',
+                        { class: 'text-sm font-medium text-foreground' },
+                        value,
+                    ),
+                ],
+            );
+
+        return h('div', { class: 'flex flex-col gap-3' }, [
+            row('National ID', '•••••••6789'),
+            row('National ID (unlocked)', '123-45-6789'),
         ]);
     },
 };
@@ -1306,6 +1338,20 @@ export const specimens: Specimen[] = [
         title: 'Reports Center — tabbed (launcher, runs, schedules)',
         component: KinetixReportsCenter,
         width: 760,
+    },
+    {
+        name: 'confidential-mask',
+        title: 'Confidential Fields — masked vs. unlocked',
+        component: ConfidentialMaskShowcase,
+        frame: 'card',
+        width: 380,
+    },
+    {
+        name: 'confidential-unlock',
+        title: 'Confidential Fields — unlock dialog (open)',
+        component: KinetixConfidentialUnlock,
+        width: 340,
+        openSelector: '#specimen button',
     },
     {
         name: 'language-switcher',

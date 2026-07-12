@@ -534,4 +534,10 @@ return [
     'report_schedule_create'        => 'Programmer',
     'report_schedule_created'       => 'Programmation de rapport créée.',
     'report_schedule_create_failed' => 'Impossible de créer la programmation du rapport.',
+
+    // Confidential Fields
+    'confidential_unlock'             => 'Déverrouiller',
+    'confidential_lock'               => 'Verrouiller',
+    'confidential_password_label'     => 'Mot de passe',
+    'confidential_password_incorrect' => 'Mot de passe incorrect.',
 ];

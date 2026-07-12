@@ -210,6 +210,7 @@ abstract class Column
             options: $extra['options']                         ?? null,
             isBadge: $extra['isBadge']                         ?? null,
             descriptionPosition: $extra['descriptionPosition'] ?? null,
+            isConfidential: $extra['isConfidential']           ?? null,
             inputType: $extra['inputType']                     ?? null,
             placeholder: $extra['placeholder']                 ?? null,
             numberConfig: $extra['numberConfig']               ?? null,

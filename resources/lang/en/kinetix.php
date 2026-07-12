@@ -560,4 +560,10 @@ return [
     'report_schedule_create'        => 'Schedule',
     'report_schedule_created'       => 'Report schedule created.',
     'report_schedule_create_failed' => 'Could not create the report schedule.',
+
+    // Confidential Fields
+    'confidential_unlock'             => 'Unlock',
+    'confidential_lock'               => 'Lock',
+    'confidential_password_label'     => 'Password',
+    'confidential_password_incorrect' => 'Incorrect password.',
 ];

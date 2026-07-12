@@ -77,6 +77,8 @@ export interface KinetixSharedProps {
     kinetix_cookie_consent?: KinetixCookieConsentConfig;
     /** Reports Center config (enabled + poll interval). */
     kinetix_reports_center?: KinetixQueueConfig;
+    /** Confidential-fields reveal-gate state, for <KinetixConfidentialUnlock>. */
+    kinetix_confidential?: KinetixConfidentialConfig;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
 }
@@ -110,6 +112,14 @@ export interface KinetixHealthSnapshot {
 export interface KinetixQueueConfig {
     enabled: boolean;
     poll: number;
+}
+
+/** Confidential-fields reveal-gate state, shared via Inertia. */
+export interface KinetixConfidentialConfig {
+    enabled: boolean;
+    ttlMinutes: number;
+    /** ISO timestamp the current reveal window expires at, or `null` if locked. */
+    unlockedUntil: string | null;
 }
 
 /** A monitored queue and its current depth/wait. */
@@ -691,6 +701,7 @@ export interface KinetixTableColumn {
     isToggledHiddenByDefault: boolean;
     type: string;
     isBadge?: boolean;
+    isConfidential?: boolean;
     hasSummary?: boolean;
     view?: string | null;
 }
@@ -791,6 +802,7 @@ export interface KinetixInfolistEntry {
     isBadge?: boolean | null;
     isCopyable?: boolean | null;
     isCircular?: boolean | null;
+    isConfidential?: boolean | null;
     size?: number | string | null;
     isInline: boolean;
     extraAttributes?: Record<string, string> | null;

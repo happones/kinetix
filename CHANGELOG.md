@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.99.0] - 2026-07-12
+
+### Added
+
+- **Confidential Fields** — field-level encryption for Eloquent attributes,
+  new namespace `Happones\Kinetix\Confidential` and config
+  `kinetix.confidential`. Zero new Composer dependencies (`openssl_encrypt`/
+  `decrypt` + Laravel's own `Crypt`/`Hash`/`Cache`/`Session`):
+  - **`ConfidentialCast`** — add it to any string attribute's `casts()` and
+    it's encrypted at rest and masked on read (`••••6789`) everywhere the
+    attribute is accessed (Table, Infolist, Blade, API Resources, tinker) —
+    masking is enforced in the cast itself, not in any UI layer, so a
+    `->confidential()` flag on `TextColumn`/`TextEntry` is purely a cosmetic
+    padlock icon. Per-field `ConfidentialCast::class.':<visible>,<head|tail>'`
+    controls how many real characters stay visible. A column that already
+    has plaintext data reads safely as-is (treated as legacy plaintext) and
+    can be migrated in place with `php artisan kinetix:confidential:encrypt-existing`.
+  - **Reveal gate**: `<KinetixConfidentialUnlock>` (zero props, mount once)
+    prompts for the current password and opens a short, session-scoped
+    reveal window (`reveal_ttl_minutes`, default 5) with a live countdown.
+    Queued jobs (Reports Center exports included) have no active session,
+    so confidential columns stay masked there by default — a deliberate
+    safety property, not a gap.
+  - **Key management**: one "current" Data Encryption Key at a time
+    (`kinetix_confidential_keys`), rotated via
+    `php artisan kinetix:confidential:rotate-key` — old keys stay retained
+    so historical data keeps decrypting after rotation. The unwrapped key
+    is cached (`key_cache_ttl_minutes`), so a KMS-backed key manager is
+    called at most once per cache window, never once per row/field.
+  - Ships a zero-dependency local key manager (wraps via the app's own
+    `APP_KEY`); a host app can bind its own AWS/GCP KMS or Vault Transit
+    driver by implementing the 2-method `KeyManager` interface — no cloud
+    SDK is bundled.
+  - Docs: `docs/confidential.md`. **(published)**
+
 ## [0.98.0] - 2026-07-12
 
 ### Added

@@ -59,6 +59,12 @@ const page = {
         },
         // Surfaced for the reports-center specimens (poll 0 → no interval).
         kinetix_reports_center: { enabled: true, poll: 0 },
+        // Surfaced for the confidential-fields unlock specimen (locked state).
+        kinetix_confidential: {
+            enabled: true,
+            ttlMinutes: 5,
+            unlockedUntil: null,
+        },
     },
     url: '/',
     component: 'Gallery',

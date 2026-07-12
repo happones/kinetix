@@ -33,6 +33,9 @@ class ColumnData extends Data
         // TextColumn specific
         public ?bool $isBadge = null,
         public ?string $descriptionPosition = null,
+        // UI-only affordance flag — actual masking is enforced by
+        // ConfidentialCast regardless of whether this flag is set.
+        public ?bool $isConfidential = null,
         // TextInputColumn specific
         public ?string $inputType = null,
         public ?string $placeholder = null,

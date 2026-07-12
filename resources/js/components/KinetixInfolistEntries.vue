@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Check, Circle, Copy, ExternalLink } from '@lucide/vue';
+import { Check, Circle, Copy, ExternalLink, Lock } from '@lucide/vue';
 import { reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
+import { requestConfidentialUnlock } from '@/composables/useKinetixConfidential';
 import { resolveIcon as resolveActionIcon } from '@/composables/useKinetixIcons';
 import {
     actionButtonVariant,
@@ -377,6 +378,15 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
                         class="h-3.5 w-3.5 text-success"
                     />
                     <Copy v-else class="h-3.5 w-3.5" />
+                </button>
+                <button
+                    v-if="entry.isConfidential"
+                    type="button"
+                    class="text-muted-foreground transition-colors hover:text-foreground"
+                    :title="t('kinetix.confidential_unlock')"
+                    @click="requestConfidentialUnlock()"
+                >
+                    <Lock class="h-3.5 w-3.5" />
                 </button>
             </div>
         </div>

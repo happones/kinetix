@@ -980,6 +980,116 @@ in the DB with live progress, cancellation, retry, and a downloadable file.
 
 ---
 
+## 48. Kinetix Confidential Fields (encrypted, masked model attributes, v0.99.0)
+
+New namespace `Happones\Kinetix\Confidential` (`src/Confidential/`), config
+`kinetix.confidential`. Field-level encryption for Eloquent string attributes,
+masked by default, revealed for a short session window after password
+confirmation. Zero new Composer dependencies — `openssl_encrypt`/`decrypt`
+(`aes-256-gcm`) + Laravel's own `Crypt`/`Hash`/`Cache`/`Session`.
+
+- **Key design decision**: enforcement lives entirely in a custom Eloquent
+  cast (`ConfidentialCast implements CastsAttributes` — the first custom cast
+  in this codebase, confirmed via `grep -rln "implements CastsAttributes" src/`
+  returning zero prior hits), NOT in any UI layer. Every consumer (Table,
+  Infolist, Blade, API Resource, an Exporter/Report column, tinker) sees the
+  already-masked-or-real value transparently just by reading the attribute —
+  one enforcement point protects everywhere. `TextColumn::confidential()`/
+  `TextEntry::confidential()` are UI-only affordance flags (a padlock icon,
+  surfaced as `isConfidential` on `ColumnData`/`InfolistEntryData` following
+  the exact pattern every prior column/entry field used, e.g. `TextColumn`'s
+  `isBadge`) — removing the flag does not weaken security.
+- **Performance-driven key architecture** (the part explicitly asked for):
+  NOT one Data Encryption Key (DEK) per row — that would mean a KMS-backed
+  driver gets network-called once per confidential value on every rendered
+  row. Instead: one "current" DEK at a time, tracked in
+  `kinetix_confidential_keys` (`key_id`, `driver`, `wrapped_key`, `is_current`,
+  `retired_at` — the only migration this feature needs), generated via
+  `kinetix:confidential:rotate-key`. `ConfidentialManager::currentKey()`
+  unwraps it once and **caches the raw bytes** (`Cache::remember`, TTL
+  `kinetix.confidential.key_cache_ttl_minutes`) so a KMS round-trip happens
+  at most once per cache window, not once per field. Every encrypted
+  envelope embeds the `key_id` it was encrypted under, so rotation never
+  breaks decrypting older data (`dataKeyFor($keyId)` resolves + caches any
+  historical key too).
+- **`ConfidentialCipher`** — byte-level `aes-256-gcm` encrypt/decrypt, storing
+  a self-contained JSON envelope (`{v,k,iv,tag,c}`) in the host's own column
+  (no schema change beyond `TEXT`/`LONGTEXT`). `decrypt()` **fails gracefully**:
+  a stored value that isn't valid envelope JSON is treated as legacy
+  plaintext (masked/returned as-is, not a crash) — this is what makes
+  retrofitting the cast onto an already-populated column safe by default.
+  `kinetix:confidential:encrypt-existing {model} {--column=*} {--chunk=500}`
+  migrates such a column in place (chunks through, re-assigns each column to
+  itself inside `Confidential::revealed()` so the read isn't masked, then
+  `save()` round-trips it through `set()` to actually encrypt it).
+- **`KeyManager` interface** (`generateDataKey()`/`unwrap()`) — the first
+  genuine interface-based pluggable driver in this codebase (confirmed
+  `KinetixDisk` is a plain static helper over `Storage`, not a contract, and
+  `ActivityLogger::usesSpatie()` is an internal `match` branch, not a
+  swappable object). Ships `LocalKeyManager` only (wraps via the app's own
+  `APP_KEY` through `Crypt::encryptString()`/`decryptString()`, zero network
+  calls). `config('kinetix.confidential.key_manager')`: literal `'local'`
+  binds `LocalKeyManager`; any other value is treated as a class-string and
+  bound directly — so a host supplies their own AWS/GCP KMS or Vault Transit
+  driver with **zero shipped cloud SDK dependency**. Documented (not built)
+  AWS KMS example in `docs/confidential.md`.
+- **`ConfidentialManager`/`Confidential` facade** (mirrors the
+  `KinetixActivity`/`KinetixReportsCenter` static-facade-over-a-service
+  style): `isUnlocked()` checks a process-local override stack first (for
+  `revealed()`, below), then a session-stored `unlocked_at` timestamp + TTL
+  (`kinetix.confidential.reveal_ttl_minutes`) — mirrors
+  `ImpersonationManager`'s `session()->put/has/forget` storage shape (the
+  only existing session-flag precedent in the codebase), adding the TTL
+  check it doesn't have. **Load-bearing detail**: outside an active
+  cookie-backed HTTP session (e.g. inside a queued job), `session()` resolves
+  a fresh, empty, per-process store that was never populated by `unlock()` —
+  so `isUnlocked()` naturally returns `false` there with zero special-casing.
+  This means **Reports Center/Exporter queued jobs mask confidential columns
+  by default** — a real, deliberate security property, not a gap.
+  `unlock(password)` reuses GDPR's exact `Hash::check($password,
+  $user->getAuthPassword())` idiom, gated by `Gate::allows('revealKinetixConfidential')`
+  (same one-gate-per-module, allow-local-by-default convention as every
+  other optional module). `revealed(Closure $callback)` is a process-local
+  escape hatch (mirrors `Model::withoutEvents()`) for an explicitly-
+  authorized, synchronous backend code path that needs real values outside
+  the session/UI flow — used by the `encrypt-existing` command above.
+  `unlock()`/`lock()` each log through `KinetixActivity::log()`
+  (`ImpersonationManager::log()`'s exact call shape — the only other
+  programmatic, non-trait-observer caller of that facade in the codebase).
+- **`HasConfidentialAttributes`** concern — deliberately thin (confirmed
+  `casts()` is never composed via traits anywhere in this codebase; every
+  model declares it standalone). Doesn't touch `casts()` — adds one static
+  helper, `confidentialColumns()`, introspecting `getCasts()` for
+  `ConfidentialCast::class` entries, for a host's own audit tooling.
+- **Vue**: `<KinetixConfidentialUnlock>` (zero props, mount once in a
+  layout header — padlock button, opens a shadcn `Dialog` password prompt,
+  shows a live countdown + "Lock now" once unlocked). `useKinetixConfidential()`
+  reads the `kinetix_confidential` shared prop (`{enabled, ttlMinutes,
+  unlockedUntil}`); `unlock()`/`lock()` POST then `router.reload()` (so any
+  already-rendered masked Table/Infolist values refresh too — server-side
+  truth is always re-checked by the cast on every request; the frontend
+  countdown is cosmetic only). A masked `KinetixTableCell.vue`/
+  `KinetixInfolistEntries.vue` cell's own small lock icon calls a shared,
+  module-level `requestConfidentialUnlock()` (not a fresh composable/interval
+  per cell) to open the same dialog instance.
+- **Limitations documented, not built**: string attributes only; masking
+  doesn't preserve separators (`123-45-6789` → `•••••••6789`, not
+  `•••-••-6789`); confidential columns shouldn't be `->searchable()`/
+  `->sortable()` (ciphertext is unique per row even for identical plaintext —
+  a fresh random IV every time — so DB-level comparison is meaningless; a
+  blind-index/HMAC companion column is the documented future extension);
+  one global keyring in v1, not per-team (a natural future extension given
+  Kinetix's existing team-scoping conventions elsewhere).
+- Tests: `ConfidentialCipherTest` (round-trip, tamper detection, legacy-
+  plaintext fallback), `LocalKeyManagerTest`, `ConfidentialManagerTest`
+  (unlock/lock/TTL-expiry via `Carbon::setTestNow()`/`revealed()`/activity
+  logging), `ConfidentialCastTest` (mask/reveal, colon-argument overrides),
+  `ConfidentialControllerTest`, `ConfidentialRotateKeyCommandTest` (rotation
+  keeps old envelopes decryptable), `ConfidentialEncryptExistingCommandTest`.
+  Full guide: `docs/confidential.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

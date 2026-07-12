@@ -31,6 +31,9 @@ class InfolistEntryData extends Data
         public ?bool $isCircular = null,
         public int|string|null $size = null,
         public bool $isInline = false,
+        // UI-only affordance flag — actual masking is enforced by
+        // ConfidentialCast regardless of whether this flag is set.
+        public ?bool $isConfidential = null,
         public ?array $extraAttributes = null,
         // Layout components specific
         public ?array $schema = null,

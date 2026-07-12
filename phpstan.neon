@@ -34,6 +34,11 @@ parameters:
             identifier: trait.unused
             path: src/Activity/Concerns/LogsKinetixActivity.php
 
+        # Confidential-fields trait added to the host app's Eloquent models, not used in-package.
+        -
+            identifier: trait.unused
+            path: src/Confidential/Concerns/HasConfidentialAttributes.php
+
         # Taggable trait added to the host app's Eloquent models, not used in-package.
         -
             identifier: trait.unused

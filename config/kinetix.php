@@ -1003,4 +1003,42 @@ return [
         'retention_days' => env('KINETIX_REPORTS_CENTER_RETENTION_DAYS', 7),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Confidential Fields (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Field-level encryption + masking for Eloquent attributes. Add
+    | `ConfidentialCast` to a model's `casts()` to encrypt a string column at
+    | rest and mask it on read (e.g. `••••6789`) until the current session
+    | unlocks it via password confirmation. Enforcement lives in the cast
+    | itself, so every consumer (Table, Infolist, exports, tinker) sees the
+    | already-masked-or-real value with zero extra work per surface.
+    |
+    | - `key_manager`: 'local' (wraps keys via the app's own APP_KEY, zero
+    |   network calls) or a class implementing
+    |   Happones\Kinetix\Confidential\KeyManagers\KeyManager (e.g. your own
+    |   AWS/GCP KMS or Vault Transit binding).
+    | - `reveal_ttl_minutes`: how long an unlock lasts before re-confirming.
+    | - `key_cache_ttl_minutes`: how long an unwrapped data key stays cached
+    |   before the key manager is asked to unwrap it again — this is what
+    |   keeps a KMS-backed driver from being called once per field/row.
+    |
+    */
+    'confidential' => [
+        'enabled' => env('KINETIX_CONFIDENTIAL_ENABLED', false),
+
+        'key_manager' => env('KINETIX_CONFIDENTIAL_KEY_MANAGER', 'local'),
+
+        'reveal_ttl_minutes' => env('KINETIX_CONFIDENTIAL_REVEAL_TTL', 5),
+
+        'require_password' => env('KINETIX_CONFIDENTIAL_REQUIRE_PASSWORD', true),
+
+        // Default trailing characters shown when masked (per-field
+        // overridable via `ConfidentialCast::class.':<visible>,<head|tail>'`).
+        'mask_visible' => env('KINETIX_CONFIDENTIAL_MASK_VISIBLE', 4),
+
+        'key_cache_ttl_minutes' => env('KINETIX_CONFIDENTIAL_KEY_CACHE_TTL', 10),
+    ],
+
 ];
