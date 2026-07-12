@@ -513,4 +513,20 @@ return [
 
     // Keyboard shortcuts
     'shortcuts_title' => 'Keyboard shortcuts',
+
+    // Timezone picker
+    'timezone_placeholder'        => 'Select a timezone…',
+    'timezone_search_placeholder' => 'Search timezones…',
+    'timezone_empty'              => 'No timezone found.',
+    'timezone_clear'              => 'Clear',
+    'timezone_region_africa'      => 'Africa',
+    'timezone_region_america'     => 'America',
+    'timezone_region_antarctica'  => 'Antarctica',
+    'timezone_region_arctic'      => 'Arctic',
+    'timezone_region_asia'        => 'Asia',
+    'timezone_region_atlantic'    => 'Atlantic',
+    'timezone_region_australia'   => 'Australia',
+    'timezone_region_europe'      => 'Europe',
+    'timezone_region_indian'      => 'Indian Ocean',
+    'timezone_region_pacific'     => 'Pacific',
 ];

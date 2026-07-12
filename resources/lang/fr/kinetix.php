@@ -487,4 +487,20 @@ return [
 
     // Raccourcis clavier
     'shortcuts_title' => 'Raccourcis clavier',
+
+    // Sélecteur de fuseau horaire
+    'timezone_placeholder'        => 'Sélectionner un fuseau horaire…',
+    'timezone_search_placeholder' => 'Rechercher un fuseau horaire…',
+    'timezone_empty'              => 'Aucun fuseau horaire trouvé.',
+    'timezone_clear'              => 'Effacer',
+    'timezone_region_africa'      => 'Afrique',
+    'timezone_region_america'     => 'Amérique',
+    'timezone_region_antarctica'  => 'Antarctique',
+    'timezone_region_arctic'      => 'Arctique',
+    'timezone_region_asia'        => 'Asie',
+    'timezone_region_atlantic'    => 'Atlantique',
+    'timezone_region_australia'   => 'Australie',
+    'timezone_region_europe'      => 'Europe',
+    'timezone_region_indian'      => 'Océan Indien',
+    'timezone_region_pacific'     => 'Pacifique',
 ];

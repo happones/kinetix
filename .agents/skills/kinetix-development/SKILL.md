@@ -822,6 +822,18 @@ Roadmap v0.65.0. Config `mail_templates` (`enabled`). Migration `kinetix_mail_te
 
 ---
 
+## 45. Kinetix Timezone Picker (searchable combobox, v0.93.0)
+
+Standalone, publish-only Vue component — no PHP builder, no backend. `KinetixTimezonePicker` (`resources/js/components/`), built on the same Reka Combobox primitives as `KinetixCombobox` (Anchor/Trigger/Portal/Content/Input/Empty/Viewport/Item/ItemIndicator, now also `Group`/`Label` for region headings).
+
+- **Zone list**: `Intl.supportedValuesOf('timeZone')` (~418 IANA zones) — no bundled/maintained zone list. Each zone's `region` = first path segment (`America`, `Europe`, … 10 total, verified via a quick `Intl.supportedValuesOf` sweep); `name` = last path segment with `_`→` ` (e.g. `America/Argentina/Buenos_Aires` → `Buenos Aires`); `offset` via `Intl.DateTimeFormat('en-US', {timeZone,timeZoneName:'longOffset'}).formatToParts()` → `GMT-06:00` reformatted to `UTC-06:00` (parsed to signed minutes for sorting).
+- **Props**: `modelValue` (v-model, IANA id), `regions?: string[]|null` (filter to these region prefixes), `display?: 'name'|'offset'|'both'` (default `both` — `'offset'` drops the name entirely, e.g. just `UTC-06:00`), `groupByRegion?` (default `true`, region heading via `ComboboxLabel`), `showCurrentTime?` (default `false` — live clock next to the selection, `setInterval` 30s, cleared `onBeforeUnmount`), `locale?`, `placeholder?`, `disabled?`, `clearable?` (× button, stops propagation so it doesn't reopen the trigger). Sorted by UTC offset then name (within/across region groups).
+- **`ComboboxInput` gotcha**: pass `:display-value="(value) => allZones.find(z => z.value === value)?.display ?? ''"` — without it, reopening the combobox shows the raw IANA id (`America/Mexico_City`) in the search box instead of the friendly rendered label, since Reka's Combobox defaults to displaying the underlying value.
+- **Region names localized** via `t('kinetix.timezone_region_' + region.toLowerCase())` (10 keys, en/es/fr/pt/zh/ja/ru) — city/region NAMES themselves (`Mexico City`, `Buenos Aires`) are NOT translated (they come straight from the IANA identifier, matching how most real-world timezone pickers work).
+- Tests: `KinetixTimezonePicker.spec.ts` (display modes, region filter/grouping, selection emit, clear, current-time toggle). Full guide: `docs/timezone-picker.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

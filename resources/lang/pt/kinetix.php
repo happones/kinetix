@@ -487,4 +487,20 @@ return [
 
     // Atalhos de teclado
     'shortcuts_title' => 'Atalhos de teclado',
+
+    // Seletor de fuso horário
+    'timezone_placeholder'        => 'Selecione um fuso horário…',
+    'timezone_search_placeholder' => 'Buscar fusos horários…',
+    'timezone_empty'              => 'Nenhum fuso horário encontrado.',
+    'timezone_clear'              => 'Limpar',
+    'timezone_region_africa'      => 'África',
+    'timezone_region_america'     => 'América',
+    'timezone_region_antarctica'  => 'Antártida',
+    'timezone_region_arctic'      => 'Ártico',
+    'timezone_region_asia'        => 'Ásia',
+    'timezone_region_atlantic'    => 'Atlântico',
+    'timezone_region_australia'   => 'Austrália',
+    'timezone_region_europe'      => 'Europa',
+    'timezone_region_indian'      => 'Oceano Índico',
+    'timezone_region_pacific'     => 'Pacífico',
 ];

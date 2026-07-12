@@ -110,6 +110,36 @@ const PeriodFilterShowcase: Component = {
     },
 };
 
+// Timezone picker — default (both, grouped) + offset-only + flat-list variants.
+const TimezonePickerShowcase: Component = {
+    render() {
+        const field = (label: string, node: unknown) =>
+            h('div', { class: 'space-y-1.5' }, [
+                h('p', { class: 'text-sm font-medium text-foreground' }, label),
+                node,
+            ]);
+
+        return h('div', { class: 'flex w-80 flex-col gap-5' }, [
+            field(
+                'Default — grouped, current time',
+                h(KinetixTimezonePicker, {
+                    modelValue: 'America/Mexico_City',
+                    clearable: true,
+                    showCurrentTime: true,
+                }),
+            ),
+            field(
+                'Offset only — Americas + Europe',
+                h(KinetixTimezonePicker, {
+                    modelValue: 'Europe/Madrid',
+                    display: 'offset',
+                    regions: ['America', 'Europe'],
+                }),
+            ),
+        ]);
+    },
+};
+
 // Copyable / revealable text inputs for the gallery.
 const CopyableInputShowcase: Component = {
     render() {
@@ -145,6 +175,7 @@ import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
 import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
+import KinetixTimezonePicker from '@/components/KinetixTimezonePicker.vue';
 import KinetixRatingWidget from '@/components/KinetixRatingWidget.vue';
 import KinetixProgressWidget from '@/components/KinetixProgressWidget.vue';
 import KinetixHeroWidget from '@/components/KinetixHeroWidget.vue';
@@ -1282,6 +1313,25 @@ export const specimens: Specimen[] = [
         component: PeriodFilterShowcase,
         frame: 'card',
         width: 420,
+    },
+    {
+        name: 'timezone-picker',
+        title: 'Timezone picker (grouped, offset-only)',
+        component: TimezonePickerShowcase,
+        frame: 'card',
+        width: 420,
+    },
+    {
+        name: 'timezone-picker-open',
+        title: 'Timezone picker — searchable dropdown open',
+        component: KinetixTimezonePicker,
+        frame: 'card',
+        width: 340,
+        openSelector: '#specimen button',
+        props: {
+            modelValue: 'America/Mexico_City',
+            regions: ['America'],
+        },
     },
     {
         name: 'media-library',

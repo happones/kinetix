@@ -376,6 +376,9 @@ export type KinetixCalendarEventDisplay = 'modal' | 'sheet';
 /** Which edge <KinetixSheet> slides in from. */
 export type KinetixSheetSide = 'top' | 'right' | 'bottom' | 'left';
 
+/** What each <KinetixTimezonePicker> option (and its trigger) shows. */
+export type KinetixTimezoneDisplay = 'name' | 'offset' | 'both';
+
 /** A Kanban card. */
 export interface KinetixKanbanCard {
     id: number | string;

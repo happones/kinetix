@@ -87,6 +87,7 @@ export default withMermaid(
         items: [
           { text: "Widgets", link: "/widgets" },
           { text: "Period Filter", link: "/period-filter" },
+          { text: "Timezone Picker", link: "/timezone-picker" },
           { text: "Notifications", link: "/notifications" },
           { text: "Mail Templates", link: "/mail-templates" },
           { text: "Notification Preferences", link: "/notification-preferences" },

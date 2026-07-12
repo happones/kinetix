@@ -487,4 +487,20 @@ return [
 
     // Atajos de teclado
     'shortcuts_title' => 'Atajos de teclado',
+
+    // Selector de zona horaria
+    'timezone_placeholder'        => 'Selecciona una zona horaria…',
+    'timezone_search_placeholder' => 'Buscar zonas horarias…',
+    'timezone_empty'              => 'No se encontró ninguna zona horaria.',
+    'timezone_clear'              => 'Quitar',
+    'timezone_region_africa'      => 'África',
+    'timezone_region_america'     => 'América',
+    'timezone_region_antarctica'  => 'Antártida',
+    'timezone_region_arctic'      => 'Ártico',
+    'timezone_region_asia'        => 'Asia',
+    'timezone_region_atlantic'    => 'Atlántico',
+    'timezone_region_australia'   => 'Australia',
+    'timezone_region_europe'      => 'Europa',
+    'timezone_region_indian'      => 'Océano Índico',
+    'timezone_region_pacific'     => 'Pacífico',
 ];

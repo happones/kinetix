@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.94.0] - 2026-07-12
+
+### Added
+
+- **`<KinetixTimezonePicker>`** — a new, standalone searchable timezone
+  combobox (built on the same Reka Combobox primitives as
+  `KinetixCombobox`), over every IANA zone the runtime supports
+  (`Intl.supportedValuesOf('timeZone')` — no bundled zone list to maintain):
+  - `regions` — restrict the list to specific IANA region prefixes (e.g.
+    `['America', 'Europe']`).
+  - `display: 'name' | 'offset' | 'both'` (default `both`) — `'offset'` shows
+    just the UTC offset with no location name at all (e.g. `UTC-06:00`).
+  - `groupByRegion` (default `true`) — a localized region heading
+    (Africa/America/Asia/…) groups the dropdown; options are sorted by UTC
+    offset then name throughout.
+  - `showCurrentTime` — a live-updating clock next to the selected zone.
+  - `clearable` — a clear (×) affordance.
+  - Docs: `docs/timezone-picker.md` (new sidebar entry under *Interface &
+    UX*). Tests: `KinetixTimezonePicker.spec.ts`. **(published)**
+
 ## [0.93.0] - 2026-07-12
 
 ### Added
