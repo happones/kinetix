@@ -76,6 +76,7 @@ export default withMermaid(
         items: [
           { text: "Import & Export", link: "/import-export" },
           { text: "Scheduled Reports", link: "/reports" },
+          { text: "Reports Center", link: "/reports-center" },
           { text: "Relation Managers", link: "/relation-managers" },
           { text: "Comments", link: "/comments" },
           { text: "Tags", link: "/tags" },

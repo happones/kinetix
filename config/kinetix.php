@@ -970,4 +970,37 @@ return [
         'policy_url' => env('KINETIX_COOKIE_CONSENT_POLICY_URL'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Reports Center (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Large-dataset CSV/XLSX report generation: queued, DB-tracked (live
+    | progress, cancellable, retryable), and schedulable (one-off or
+    | recurring). Distinct from the lightweight, email-only `reports` block
+    | above — this is the productized version with a launcher UI, a runs
+    | table ("failed jobs"-style: download/cancel/retry), and a scheduled
+    | reports list. Define report TYPES by extending
+    | `Happones\Kinetix\ReportsCenter\Report` (reuses the Exporter machinery
+    | for chunked data access) in `discover_path` (auto-discovered — no
+    | manual registration needed) or register others manually via
+    | `KinetixReportsCenter::register()`.
+    |
+    */
+    'reports_center' => [
+        'enabled' => env('KINETIX_REPORTS_CENTER_ENABLED', false),
+
+        // Directory (+ namespace) auto-scanned for `Report` subclasses.
+        'discover_path'      => app_path('Kinetix/Reports'),
+        'discover_namespace' => 'App\\Kinetix\\Reports',
+
+        // Frontend poll interval (ms) for the runs/schedules widgets.
+        'poll' => env('KINETIX_REPORTS_CENTER_POLL', 5000),
+
+        // Days a completed run's row + generated file are kept before
+        // `kinetix:report-runs:prune` removes them. Also used to compute
+        // each run's `expires_at` (completed_at + retention_days).
+        'retention_days' => env('KINETIX_REPORTS_CENTER_RETENTION_DAYS', 7),
+    ],
+
 ];

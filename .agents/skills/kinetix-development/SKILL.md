@@ -879,6 +879,107 @@ granular per-category (necessary/analytics/marketing) consent manager.
 
 ---
 
+## 47. Kinetix Reports Center (queued, DB-tracked, cancellable report generation, v0.98.0)
+
+New namespace `Happones\Kinetix\ReportsCenter` (`src/ReportsCenter/`), config
+`kinetix.reports_center` — deliberately separate from the existing, untouched,
+email-only `Happones\Kinetix\Reports`/`kinetix.reports` (see §43). That system
+emails a report on a cadence with zero persistence; this one tracks every run
+in the DB with live progress, cancellation, retry, and a downloadable file.
+
+- **`Report`** (`extends Exporter`, unchanged `query()`/`getColumns()`/`chunkSize()`/
+  `format()`/`queue()`) adds `label()`/`description()` (launcher display),
+  `estimatesTotal()` (default `true` — gates an upfront `COUNT(*)` for a real
+  percentage; `false` skips it, `processed_rows` still increments but no %),
+  and `schedule($at?, $launchedBy?, $parameters, $reportScheduleId?): ReportRun`
+  — the tracked dispatch entry point. `export()` is **overridden** to redirect
+  into `schedule()` (a stray call to the inherited `Exporter::export()` would
+  silently bypass all tracking). `kinetix:make-report {name}` generates one
+  straight into `discover_path` (default `app/Kinetix/Reports`).
+- **Migrations**: `kinetix_report_schedules` (recurring **definition** — `report_class`,
+  `frequency` enum-string `once|daily|weekly|monthly`, `parameters` json,
+  `enabled`, `next_run_at`/`last_run_at`, plain `created_by_id` FK —
+  **not** a morph pair, matches `Comment::author()`'s plain-`belongsTo`-to-the-
+  configured-auth-model convention, not `Activity::causer()`'s real morph)
+  and `kinetix_report_runs` (an **execution** — `status` enum-string, `processed_rows`,
+  `total_rows`/`percent` nullable = indeterminate, `disk`/`path`/`file_name`,
+  `expires_at`, plain `launched_by_id`).
+- **`ReportRunStatus`** enum implements `HasColor`+`HasLabel` (auto-resolved by
+  `TextColumn::badge()` — zero frontend color logic needed): `Pending|Running`
+  →gray/info, `Completed`→success, `Failed`→danger, `Cancelled`→gray.
+  `isCancellable()` (Pending|Running), `isRetryable()` (Failed|Cancelled).
+- **`ReportRunJob`** mirrors `ExportProcessor`'s verified chunk-and-write shape,
+  plus: a lightweight raw `status` column read at the top of `handle()` (no-op
+  if already cancelled before pickup) **and once per chunk** inside the
+  `chunk()` callback — returning `false` from that callback is standard
+  `Builder::chunk()` behavior and halts iteration cleanly. This is **cooperative
+  cancellation**: the job's own loop breaks early, it does **not** kill the
+  queue-worker process, which works identically across every queue driver
+  (database/Redis/SQS/Horizon) with no driver-specific job-deletion support
+  needed. Progress (`processed_rows`/`percent`) is persisted via a raw
+  `DB::table()->update()` once per chunk (not per row). On success:
+  `expires_at = now()->addDays(retention_days)` — a real, row-backed expiry
+  (unlike the plain Export/GDPR download links, which have none). `handle()`'s
+  own catch **re-throws** (lets `$tries`/`backoff` retry transient errors);
+  only the `failed()` lifecycle hook writes `status=Failed`. "Retry" (frontend
+  action) dispatches a **fresh** `ReportRun` row+job — it does not reuse
+  Laravel's own per-job retry, which stays reserved for transient failures.
+- **`ReportRegistry`** — the **one deliberate exception** to Kinetix's otherwise
+  universal explicit-`::register()`-in-a-provider convention (verified: every
+  other registry in the codebase is manual-only). Hybrid: `discover($directory,
+  $namespace)` (additive directory scan for `Report` subclasses, default wired
+  to `config('kinetix.reports_center.discover_path')` = `app_path('Kinetix/Reports')`
+  — exactly where `kinetix:make-report` output lands, zero extra host wiring)
+  + `register($class)` (manual, for classes living elsewhere). Stable identity
+  is the FQCN (`report_class` column); the frontend-facing id stays the
+  existing `Crypt`-encrypted `token()`/`fromToken()` inherited from `Exporter`.
+- **Route-model-binding gotcha** (verified root cause, fixed everywhere in this
+  module): `tests/TestCase.php` strips `SubstituteBindings` for all test
+  routes, so an implicit `cancel(ReportRun $run)`-style type-hint silently
+  resolves to an **empty** model under test, not the real row. Controllers
+  here use `Request $request` + `$request->route('run')` + `->whereKey()->firstOrFail()`
+  instead (the established `WebhookController` pattern) — no Kinetix
+  controller uses bare Eloquent route-model-binding type-hints for this reason.
+  `download()` is route-model-bound + Gate-checked (not the Crypt-token
+  pattern the plain Export/GDPR downloads use) specifically to get a real
+  `expires_at` guard.
+- **Config** `kinetix.reports_center`: `enabled`, `discover_path`/`discover_namespace`,
+  `poll` (ms, shared to Inertia as `kinetix_reports_center`), `retention_days`.
+  No separate disk key (reuses `KinetixDisk::name()`) or queue-connection key
+  (reuses the per-class `Report::queue()` override) — both already the one
+  global/per-class precedent `Exporter` established.
+- **Commands**: `kinetix:report-schedules:dispatch-due` (host schedules every
+  minute — Kinetix doesn't own cron, same convention as `kinetix:reports:send`;
+  advances `next_run_at` via `ReportFrequency::next()`, `once` self-disables
+  after firing), `kinetix:report-runs:prune {--days=}` (deletes file+row for
+  expired completed runs, row-only for old failed/cancelled ones).
+- **Vue**: `KinetixReportLauncher` (card per discovered type, "Run now"),
+  `KinetixReportRunsTable` (`useKinetixReportRuns()` + unmodified `<KinetixTable>`
+  — its own `usePoll` only activates when `table.poll` is set, which this
+  definition deliberately leaves unset so the composable's external polling
+  and the component coexist with zero conflict; cancel/retry/download are
+  ordinary `Table` row `Action`s, not bespoke composable methods), `KinetixReportSchedules`
+  (same + create/edit form), `KinetixReportsCenter` (thin Reka-tabs wrapper
+  around all three — both standalone components AND the wrapper are shipped,
+  either is a valid integration point). All three take zero props.
+- **Vitest gotchas hit while testing these**: a mock composable returning a
+  plain `{value: [...]}` object (not a real `ref()`) breaks `v-for` — Vue's
+  template unwrapping only recognizes genuine `Ref` instances. `vi.hoisted()`
+  callbacks run at true hoist time, before ES imports resolve — calling
+  `ref()` inside one throws; a plain top-level `const` declared before
+  `vi.mock(...)` works instead, since only the mock's *registration* is
+  hoisted, not its factory's execution timing. `shallowMount` auto-stubs
+  third-party primitives too (Reka `TabsRoot`/etc.), hiding their slotted
+  content — use `mount()` with *targeted* `global.stubs` for your own child
+  components only.
+- Tests: `ReportRunJobTest` (happy path + `expires_at`, mid-chunk cancel via a
+  `DB::listen()` query-counting technique, cancel-before-pickup no-op, failure
+  only via `failed()`), `ReportRegistryTest` (manual+discover dedup, rejects
+  non-`Report` classes), `DispatchDueReportSchedulesCommandTest`,
+  `ReportRunControllerTest`. Full guide: `docs/reports-center.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

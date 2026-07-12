@@ -57,6 +57,8 @@ const page = {
             position: 'bottom',
             policyUrl: '/cookie-policy',
         },
+        // Surfaced for the reports-center specimens (poll 0 → no interval).
+        kinetix_reports_center: { enabled: true, poll: 0 },
     },
     url: '/',
     component: 'Gallery',

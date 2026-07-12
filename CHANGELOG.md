@@ -13,6 +13,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.98.0] - 2026-07-12
+
+### Added
+
+- **Reports Center** — queued, DB-tracked CSV/XLSX report generation for
+  large datasets, new namespace `Happones\Kinetix\ReportsCenter` and config
+  `kinetix.reports_center` (deliberately separate from the existing
+  email-only `kinetix.reports`/`Happones\Kinetix\Reports` — the two are
+  independent, use either or both):
+  - **`Report`** (`extends Exporter`, unchanged chunked `query()`/`getColumns()`/
+    `format()`) — define one with `php artisan kinetix:make-report {name}`,
+    dropped into `app/Kinetix/Reports` and **auto-discovered**, no manual
+    registration required (register classes living elsewhere via
+    `KinetixReportsCenter::register()`).
+  - Every launch creates a `kinetix_report_runs` row tracked through
+    `pending → running → completed|failed|cancelled`, with a live
+    `processed_rows`/`percent` progress updated once per chunk (not per row).
+  - **Cancellation** is cooperative — the queued job checks the run's status
+    at the top of `handle()` and once per chunk, halting cleanly on its own;
+    it does not (and cannot) kill the queue-worker process, so it works
+    identically across every queue driver (database, Redis, SQS, Horizon).
+  - **Retry** dispatches a fresh run with the same report/parameters; only a
+    truly failed job (retries exhausted) marks `status=failed` — a transient
+    error retried by Laravel's own `$tries` never surfaces as "Failed."
+  - **Download** is disk-agnostic (same `KinetixDisk` config as the rest of
+    Kinetix) and gated by a real, row-backed `expires_at`, pruned via
+    `php artisan kinetix:report-runs:prune`.
+  - **Scheduling & recurrence**: a `ReportSchedule` definition (`once`,
+    `daily`, `weekly`, `monthly`) is dispatched by
+    `php artisan kinetix:report-schedules:dispatch-due`, wired into the
+    host's own scheduler (Kinetix doesn't own cron).
+  - **`<KinetixReportLauncher>`** (pick a report type, "Run now"),
+    **`<KinetixReportRunsTable>`** ("failed jobs"-style status/progress/
+    download/cancel/retry table), **`<KinetixReportSchedules>`**
+    (recurring/scheduled definitions + create/edit form), and
+    **`<KinetixReportsCenter>`** (tabbed wrapper around all three) — all
+    take zero props, self-fetching and polling on `kinetix.reports_center.poll`.
+    Every standalone component is also valid mounted on its own.
+  - Docs: `docs/reports-center.md`. **(published)**
+
 ## [0.97.0] - 2026-07-12
 
 ### Added

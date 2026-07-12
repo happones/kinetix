@@ -75,6 +75,8 @@ export interface KinetixSharedProps {
     kinetix_health?: KinetixQueueConfig;
     /** Cookie consent bar config, for <KinetixCookieConsent>. */
     kinetix_cookie_consent?: KinetixCookieConsentConfig;
+    /** Reports Center config (enabled + poll interval). */
+    kinetix_reports_center?: KinetixQueueConfig;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
 }
@@ -910,4 +912,25 @@ export interface KinetixUsageMetricData {
     unit: string | null;
     color: string;
     overLimit: boolean;
+}
+
+/** A registered `Report` type, for <KinetixReportLauncher>. */
+export interface ReportTypeData {
+    token: string;
+    label: string;
+    description: string | null;
+    format: string;
+}
+
+/** A recurring/scheduled report definition, for <KinetixReportSchedules>. */
+export interface ReportScheduleData {
+    id: number | string;
+    reportClass: string;
+    reportLabel: string;
+    frequency: string;
+    parameters: Record<string, unknown> | null;
+    enabled: boolean;
+    nextRunAt: string | null;
+    lastRunAt: string | null;
+    notifyOnCompletion: boolean;
 }

@@ -16,6 +16,7 @@ use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
 use Happones\Kinetix\Commands\ApiLogsPruneCommand;
+use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
 use Happones\Kinetix\Commands\MakeBillingCommand;
@@ -25,10 +26,12 @@ use Happones\Kinetix\Commands\MakeImporterCommand;
 use Happones\Kinetix\Commands\MakeInfolistCommand;
 use Happones\Kinetix\Commands\MakeNotificationCommand;
 use Happones\Kinetix\Commands\MakeRelationManagerCommand;
+use Happones\Kinetix\Commands\MakeReportCommand;
 use Happones\Kinetix\Commands\MakeResourceCommand;
 use Happones\Kinetix\Commands\MakeSettingsPageCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
+use Happones\Kinetix\Commands\ReportRunsPruneCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\SendReportsCommand;
 use Happones\Kinetix\Commands\UpgradeCommand;
@@ -76,6 +79,11 @@ use Happones\Kinetix\Presence\PresenceManager;
 use Happones\Kinetix\Queue\QueueController;
 use Happones\Kinetix\Queue\QueueMetrics;
 use Happones\Kinetix\Reports\ReportRegistry;
+use Happones\Kinetix\ReportsCenter\ReportRegistry as ReportsCenterRegistry;
+use Happones\Kinetix\ReportsCenter\ReportRunController;
+use Happones\Kinetix\ReportsCenter\ReportRunDispatcher;
+use Happones\Kinetix\ReportsCenter\ReportScheduleController;
+use Happones\Kinetix\ReportsCenter\ReportTypeController;
 use Happones\Kinetix\SavedViews\SavedViewController;
 use Happones\Kinetix\SavedViews\SavedViewManager;
 use Happones\Kinetix\Sessions\BrowserSessionManager;
@@ -228,6 +236,19 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The scheduled-reports registry (definitions registered app-side).
         $this->app->singleton(ReportRegistry::class);
+
+        // The Reports Center registry: manual registration + directory
+        // auto-discovery of `Report` subclasses (see registerReportsCenter()).
+        $this->app->singleton(ReportsCenterRegistry::class, function (): ReportsCenterRegistry {
+            $registry = new ReportsCenterRegistry;
+            $registry->discover(
+                (string) config('kinetix.reports_center.discover_path', app_path('Kinetix/Reports')),
+                (string) config('kinetix.reports_center.discover_namespace', 'App\\Kinetix\\Reports'),
+            );
+
+            return $registry;
+        });
+        $this->app->singleton(ReportRunDispatcher::class);
     }
 
     /**
@@ -259,6 +280,9 @@ class KinetixServiceProvider extends ServiceProvider
                 SendReportsCommand::class,
                 PermissionsSyncCommand::class,
                 ApiLogsPruneCommand::class,
+                MakeReportCommand::class,
+                DispatchDueReportSchedulesCommand::class,
+                ReportRunsPruneCommand::class,
                 UpgradeCommand::class,
                 InstallCommand::class,
             ]);
@@ -487,6 +511,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Health metrics module (status widget)
         $this->registerHealth();
+
+        // Register the optional Reports Center module (queued, tracked reports)
+        $this->registerReportsCenter();
 
         // Share notifications and active config with Inertia
         if (class_exists(Inertia::class)) {
@@ -1532,6 +1559,60 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * Wire the optional Reports Center module: large-dataset, queued,
+     * DB-tracked report generation (progress, cancellation, retry, one-off
+     * and recurring scheduling). Gated by the `viewKinetixReportsCenter`
+     * ability (defaults to allow only in `local`). Distinct from the
+     * lightweight, email-only `reports`/`ScheduledReport` system.
+     */
+    protected function registerReportsCenter(): void
+    {
+        if (! config('kinetix.reports_center.enabled', false)) {
+            return;
+        }
+
+        if (! Gate::has('viewKinetixReportsCenter')) {
+            Gate::define('viewKinetixReportsCenter', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)->prefix("{$prefix}")->group(function () {
+            Route::get('report-types', [ReportTypeController::class, 'index'])->name('kinetix.report-types.index');
+
+            Route::get('report-runs', [ReportRunController::class, 'index'])->name('kinetix.report-runs.index');
+            Route::post('report-runs/launch', [ReportRunController::class, 'launch'])->name('kinetix.report-runs.launch');
+            Route::post('report-runs/{run}/cancel', [ReportRunController::class, 'cancel'])->name('kinetix.report-runs.cancel');
+            Route::post('report-runs/{run}/retry', [ReportRunController::class, 'retry'])->name('kinetix.report-runs.retry');
+
+            Route::get('report-schedules', [ReportScheduleController::class, 'index'])->name('kinetix.report-schedules.index');
+            Route::post('report-schedules', [ReportScheduleController::class, 'store'])->name('kinetix.report-schedules.store');
+            Route::put('report-schedules/{schedule}', [ReportScheduleController::class, 'update'])->name('kinetix.report-schedules.update');
+            Route::delete('report-schedules/{schedule}', [ReportScheduleController::class, 'destroy'])->name('kinetix.report-schedules.destroy');
+            Route::post('report-schedules/{schedule}/run-now', [ReportScheduleController::class, 'runNow'])->name('kinetix.report-schedules.run-now');
+        });
+
+        // Registered WITHOUT the team prefix, same reasoning as the existing
+        // export/GDPR download routes: also reached from a queued job's
+        // notification link, which has no team route context at build time.
+        Route::middleware($middleware)
+            ->prefix((string) config('kinetix.route_prefix', '_kinetix'))
+            ->group(function () {
+                Route::get('report-runs/{run}/download', [ReportRunController::class, 'download'])
+                    ->name('kinetix.report-runs.download');
+            });
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -1692,6 +1773,13 @@ class KinetixServiceProvider extends ServiceProvider
         Inertia::share('kinetix_health', fn () => [
             'enabled' => (bool) config('kinetix.health.enabled', false),
             'poll'    => (int) config('kinetix.health.poll', 30000),
+        ]);
+
+        // Reports Center config (enabled + poll interval), for the launcher /
+        // runs table / schedules list components.
+        Inertia::share('kinetix_reports_center', fn () => [
+            'enabled' => (bool) config('kinetix.reports_center.enabled', false),
+            'poll'    => (int) config('kinetix.reports_center.poll', 5000),
         ]);
     }
 

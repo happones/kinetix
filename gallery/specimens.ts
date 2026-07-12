@@ -35,6 +35,10 @@ import KinetixMailTemplates from '@/components/KinetixMailTemplates.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
 import KinetixCookieConsent from '@/components/KinetixCookieConsent.vue';
+import KinetixReportLauncher from '@/components/KinetixReportLauncher.vue';
+import KinetixReportRunsTable from '@/components/KinetixReportRunsTable.vue';
+import KinetixReportSchedules from '@/components/KinetixReportSchedules.vue';
+import KinetixReportsCenter from '@/components/KinetixReportsCenter.vue';
 
 // Slug + signature showcase for the gallery.
 const SlugSignatureShowcase: Component = {
@@ -1278,6 +1282,30 @@ export const specimens: Specimen[] = [
         component: KinetixCookieConsent,
         width: 700,
         fullPage: true,
+    },
+    {
+        name: 'reports-center-launcher',
+        title: 'Reports Center — launcher',
+        component: KinetixReportLauncher,
+        width: 700,
+    },
+    {
+        name: 'reports-center-runs',
+        title: 'Reports Center — runs table',
+        component: KinetixReportRunsTable,
+        width: 760,
+    },
+    {
+        name: 'reports-center-schedules',
+        title: 'Reports Center — scheduled reports',
+        component: KinetixReportSchedules,
+        width: 760,
+    },
+    {
+        name: 'reports-center',
+        title: 'Reports Center — tabbed (launcher, runs, schedules)',
+        component: KinetixReportsCenter,
+        width: 760,
     },
     {
         name: 'language-switcher',
