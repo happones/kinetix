@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.91.1] - 2026-07-11
+
+### Fixed
+
+- **`<KinetixWizard>` horizontal stepper overflow** — with 5-6+ steps and/or
+  realistic (longer) labels, the `stepper` variant's horizontal indicator
+  could overflow its container width, breaking the page's layout on mobile
+  and tablet viewports (worst case: the `fullWidth: false` compact indicator
+  ran its circles/connectors straight off the card on a phone-width screen).
+  Fixed by wrapping the horizontal indicator in its own scroll container
+  (`overflow-x-auto`) so it scrolls internally instead of breaking the page,
+  and by letting step titles/descriptions `truncate` instead of forcing the
+  row wider than its allotted flex space. Verified across mobile/tablet/
+  desktop viewports for every variant (`stepper` horizontal/vertical,
+  `default`, `gradient`, `panels`, `vertical`, `simple`) with 6 steps and
+  long labels — no horizontal overflow in any combination. **(published)**
+
 ## [0.91.0] - 2026-07-10
 
 ### Added

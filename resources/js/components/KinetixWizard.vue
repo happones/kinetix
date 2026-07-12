@@ -187,38 +187,97 @@ function goTo(index: number): void {
     >
         <!-- ===== Indicator ===== -->
         <!-- stepper: the official reka/shadcn stepper (horizontal or vertical) -->
+        <!-- Horizontal is wrapped in its own scroll container: with many steps
+             (5-6+) or long labels, the strip can need more width than the
+             viewport has — it scrolls internally instead of breaking the
+             page's layout. Vertical is a fixed-width column, never needs it. -->
+        <div
+            v-if="variant === 'stepper' && orientation === 'horizontal'"
+            class="overflow-x-auto"
+        >
+            <StepperRoot
+                :model-value="current + 1"
+                orientation="horizontal"
+                class="flex"
+                :class="
+                    fullWidth
+                        ? 'mb-6 gap-2 w-full items-center'
+                        : 'mb-6 gap-2 mx-auto w-fit items-center'
+                "
+            >
+                <StepperItem
+                    v-for="(s, i) in steps"
+                    :key="stepKey(s, i)"
+                    :step="i + 1"
+                    :disabled="linear && i > maxReached"
+                    class="group min-w-0 flex disabled:pointer-events-none disabled:opacity-50"
+                    :class="
+                        fullWidth
+                            ? 'gap-2 flex-1 items-center last:flex-none'
+                            : 'gap-2 shrink-0 items-center'
+                    "
+                >
+                    <StepperTrigger
+                        as-child
+                        class="gap-3 min-w-0 flex items-center"
+                        @click="goTo(i)"
+                    >
+                        <button
+                            type="button"
+                            class="gap-3 min-w-0 flex items-center"
+                        >
+                            <StepperIndicator
+                                class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground group-data-[state=completed]:border-primary group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground"
+                            >
+                                <Check
+                                    v-if="statusOf(i) === 'complete'"
+                                    class="size-4"
+                                />
+                                <component
+                                    :is="resolveIcon(s.icon)"
+                                    v-else-if="resolveIcon(s.icon)"
+                                    class="size-4"
+                                />
+                                <template v-else>{{ i + 1 }}</template>
+                            </StepperIndicator>
+                            <span class="sm:block min-w-0 hidden text-left">
+                                <StepperTitle
+                                    class="text-sm font-medium block truncate text-foreground"
+                                    >{{ s.label }}</StepperTitle
+                                >
+                                <StepperDescription
+                                    v-if="s.description"
+                                    class="text-xs block truncate text-muted-foreground"
+                                    >{{ s.description }}</StepperDescription
+                                >
+                            </span>
+                        </button>
+                    </StepperTrigger>
+                    <StepperSeparator
+                        v-if="i < steps.length - 1"
+                        class="h-0.5 shrink-0 rounded-full bg-border group-data-[state=completed]:bg-primary"
+                        :class="fullWidth ? 'flex-1' : 'w-10'"
+                    />
+                </StepperItem>
+            </StepperRoot>
+        </div>
+
+        <!-- vertical: fixed-width column, wraps text normally within its own width -->
         <StepperRoot
-            v-if="variant === 'stepper'"
+            v-else-if="variant === 'stepper'"
             :model-value="current + 1"
-            :orientation="orientation"
-            class="flex"
-            :class="
-                orientation === 'vertical'
-                    ? 'gap-0 md:w-64 shrink-0 flex-col'
-                    : fullWidth
-                      ? 'mb-6 gap-2 w-full items-center'
-                      : 'mb-6 gap-2 mx-auto w-fit items-center'
-            "
+            orientation="vertical"
+            class="gap-0 md:w-64 flex shrink-0 flex-col"
         >
             <StepperItem
                 v-for="(s, i) in steps"
                 :key="stepKey(s, i)"
                 :step="i + 1"
                 :disabled="linear && i > maxReached"
-                class="group flex disabled:pointer-events-none disabled:opacity-50"
-                :class="
-                    orientation === 'vertical'
-                        ? 'gap-3'
-                        : fullWidth
-                          ? 'gap-2 flex-1 items-center last:flex-none'
-                          : 'gap-2 items-center'
-                "
+                class="group gap-3 flex disabled:pointer-events-none disabled:opacity-50"
             >
-                <!-- indicator column (with the connector below it when vertical) -->
-                <div
-                    v-if="orientation === 'vertical'"
-                    class="flex flex-col items-center self-stretch"
-                >
+                <!-- indicator column, with the connector below it -->
+                <div class="flex flex-col items-center self-stretch">
                     <StepperTrigger as-child @click="goTo(i)">
                         <button type="button">
                             <StepperIndicator
@@ -244,12 +303,8 @@ function goTo(index: number): void {
                 </div>
 
                 <!-- text -->
-                <StepperTrigger
-                    v-if="orientation === 'vertical'"
-                    as-child
-                    @click="goTo(i)"
-                >
-                    <button type="button" class="pb-6 text-left">
+                <StepperTrigger as-child @click="goTo(i)">
+                    <button type="button" class="min-w-0 pb-6 text-left">
                         <StepperTitle
                             class="text-sm font-medium block text-foreground"
                             >{{ s.label }}</StepperTitle
@@ -261,48 +316,6 @@ function goTo(index: number): void {
                         >
                     </button>
                 </StepperTrigger>
-
-                <!-- horizontal: trigger (indicator + title) then separator -->
-                <template v-else>
-                    <StepperTrigger
-                        as-child
-                        class="gap-3 flex items-center"
-                        @click="goTo(i)"
-                    >
-                        <button type="button" class="gap-3 flex items-center">
-                            <StepperIndicator
-                                class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground group-data-[state=completed]:border-primary group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground"
-                            >
-                                <Check
-                                    v-if="statusOf(i) === 'complete'"
-                                    class="size-4"
-                                />
-                                <component
-                                    :is="resolveIcon(s.icon)"
-                                    v-else-if="resolveIcon(s.icon)"
-                                    class="size-4"
-                                />
-                                <template v-else>{{ i + 1 }}</template>
-                            </StepperIndicator>
-                            <span class="sm:block hidden text-left">
-                                <StepperTitle
-                                    class="text-sm font-medium block text-foreground"
-                                    >{{ s.label }}</StepperTitle
-                                >
-                                <StepperDescription
-                                    v-if="s.description"
-                                    class="text-xs block text-muted-foreground"
-                                    >{{ s.description }}</StepperDescription
-                                >
-                            </span>
-                        </button>
-                    </StepperTrigger>
-                    <StepperSeparator
-                        v-if="i < steps.length - 1"
-                        class="h-0.5 rounded-full bg-border group-data-[state=completed]:bg-primary"
-                        :class="fullWidth ? 'flex-1' : 'w-10'"
-                    />
-                </template>
             </StepperItem>
         </StepperRoot>
 
