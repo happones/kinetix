@@ -441,4 +441,10 @@ return [
     'timezone_region_europe'           => '欧洲',
     'timezone_region_indian'           => '印度洋',
     'timezone_region_pacific'          => '太平洋',
+
+    // Cookie consent
+    'cookie_consent_message'     => '我们使用 Cookie 来改善您的体验。',
+    'cookie_consent_policy_link' => '了解更多',
+    'cookie_consent_accept'      => '接受',
+    'cookie_consent_decline'     => '拒绝',
 ];

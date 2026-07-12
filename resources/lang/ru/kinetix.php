@@ -441,4 +441,10 @@ return [
     'timezone_region_europe'           => 'Европа',
     'timezone_region_indian'           => 'Индийский океан',
     'timezone_region_pacific'          => 'Тихий океан',
+
+    // Cookie consent
+    'cookie_consent_message'     => 'Мы используем файлы cookie, чтобы улучшить ваш опыт.',
+    'cookie_consent_policy_link' => 'Узнать больше',
+    'cookie_consent_accept'      => 'Принять',
+    'cookie_consent_decline'     => 'Отклонить',
 ];

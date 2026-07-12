@@ -441,4 +441,10 @@ return [
     'timezone_region_europe'           => 'ヨーロッパ',
     'timezone_region_indian'           => 'インド洋',
     'timezone_region_pacific'          => '太平洋',
+
+    // Cookie consent
+    'cookie_consent_message'     => 'より良い体験のためにクッキーを使用しています。',
+    'cookie_consent_policy_link' => '詳細を見る',
+    'cookie_consent_accept'      => '同意する',
+    'cookie_consent_decline'     => '拒否する',
 ];

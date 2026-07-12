@@ -26,9 +26,10 @@ for (const specimen of specimens) {
   for (const theme of themes) {
     const page = await browser.newPage({
       deviceScaleFactor: 2,
-      // Open-popover specimens capture the viewport (not the #specimen crop),
-      // so give them a snug viewport instead of the default 1280×720.
-      viewport: specimen.openSelector
+      // Open-popover / fullPage specimens capture the viewport (not the
+      // #specimen crop), so give them a snug viewport instead of the
+      // default 1280×720.
+      viewport: specimen.openSelector || specimen.fullPage
         ? { width: (specimen.width ?? 760) + 64, height: 460 }
         : undefined,
     });
@@ -55,6 +56,15 @@ for (const specimen of specimens) {
       await page.screenshot({ path: file });
       await page.close();
       console.log(`✓ ${specimen.name}${suffix}.png (opened)`);
+      continue;
+    }
+
+    // Specimens with `position: fixed` content (e.g. a cookie consent bar)
+    // also escape #specimen, but need no click — just a full-page capture.
+    if (specimen.fullPage) {
+      await page.screenshot({ path: file });
+      await page.close();
+      console.log(`✓ ${specimen.name}${suffix}.png (full page)`);
       continue;
     }
 

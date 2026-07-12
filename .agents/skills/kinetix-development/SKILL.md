@@ -842,6 +842,43 @@ Standalone, publish-only Vue component — no PHP builder, no backend. `KinetixT
 
 ---
 
+## 46. Kinetix Cookie Consent (optional, simple accept/decline bar, v0.97.0)
+
+Config-only feature (no migration/route/controller) — comparable in scope to
+`spatie/laravel-cookie-consent`: a **simple accept/decline bar**, NOT a
+granular per-category (necessary/analytics/marketing) consent manager.
+
+- **Config** `kinetix.cookie_consent`: `enabled` (default false), `cookie_name`
+  (default `kinetix_cookie_consent`), `expiry_days` (default 365), `position`
+  (`'bottom'`|`'top'`, default bottom), `policy_url` (optional link shown in
+  the bar). Shared to Inertia as `kinetix_cookie_consent` (mirrors the
+  `kinetix_impersonation`/`kinetix_health` shape — a thin config-only prop, no
+  business logic in the share closure).
+- **Visibility is resolved entirely client-side** (mirrors `useKinetixAppearance`'s
+  direct `document.cookie` read/write, not a server round-trip):
+  `useKinetixCookieConsent()` → `{ config, visible, checkConsent, accept, decline }`.
+  `visible`/`checked` are MODULE-LEVEL SINGLETON refs (same rationale as
+  `useKinetixAppearance`'s `appearance` ref — a mount-once, app-wide banner).
+  `checkConsent()` (called `onMounted`) reads the configured cookie; absent →
+  show. `accept()`/`decline()` write `accepted`/`declined` for `expiry_days`
+  days and hide the bar.
+- **`<KinetixCookieConsent>`** — zero props, mount once in the root layout.
+  Renders nothing if `config.enabled` is false. shadcn Card-style bar,
+  `position:fixed` bottom/top, `Transition` fade+slide. Reads consent
+  server-side via `request()->cookie(config('kinetix.cookie_consent.cookie_name'))`
+  if a project needs to conditionally render a script tag.
+- **Gallery gotcha**: `position:fixed` content escapes the `#specimen` crop
+  the screenshot tooling uses (like teleported popovers) but needs no click to
+  show — added a new `Specimen.fullPage` flag (`scripts/screenshots.mjs`) for
+  this case, since the existing `openSelector` full-page path always fires a
+  click first (which would have hidden the bar via its own accept/decline
+  button before the screenshot).
+- i18n `cookie_consent_message`/`cookie_consent_policy_link`/`cookie_consent_accept`/
+  `cookie_consent_decline`. Tests: `useKinetixCookieConsent.spec.ts`,
+  `KinetixCookieConsent.spec.ts`. Full guide: `docs/cookie-consent.md`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

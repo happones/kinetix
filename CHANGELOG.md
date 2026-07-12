@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.97.0] - 2026-07-12
+
+### Added
+
+- **`<KinetixCookieConsent>`** — a shadcn-styled cookie consent bar (a simple
+  accept/decline bar, comparable in scope to `spatie/laravel-cookie-consent`
+  — not a granular per-category consent manager). No migration, route, or
+  controller: config-only (`kinetix.cookie_consent`: `enabled`, `cookie_name`,
+  `expiry_days`, `position` bottom|top, `policy_url`), shared to Inertia as
+  `kinetix_cookie_consent`. Mount once with zero props; visibility is
+  resolved entirely client-side (`useKinetixCookieConsent()` reads/writes a
+  plain browser cookie, no server round-trip) — accepting/declining hides the
+  bar for `expiry_days` days. Docs: `docs/cookie-consent.md`. Tests:
+  `useKinetixCookieConsent.spec.ts`, `KinetixCookieConsent.spec.ts`.
+  **(published)**
+
 ## [0.96.0] - 2026-07-12
 
 ### Added

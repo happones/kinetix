@@ -503,4 +503,10 @@ return [
     'timezone_region_europe'      => 'Europa',
     'timezone_region_indian'      => 'Océano Índico',
     'timezone_region_pacific'     => 'Pacífico',
+
+    // Cookie consent
+    'cookie_consent_message'     => 'Usamos cookies para mejorar tu experiencia.',
+    'cookie_consent_policy_link' => 'Más información',
+    'cookie_consent_accept'      => 'Aceptar',
+    'cookie_consent_decline'     => 'Rechazar',
 ];

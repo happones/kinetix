@@ -943,4 +943,31 @@ return [
         'enabled' => env('KINETIX_MAIL_TEMPLATES_ENABLED', false),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Cookie Consent (optional)
+    |--------------------------------------------------------------------------
+    |
+    | A shadcn-styled cookie consent bar — mount <KinetixCookieConsent /> once
+    | in your layout. It shows until the visitor accepts or declines, then
+    | writes a plain browser cookie (no server round-trip) and stays hidden.
+    | A simple accept/decline bar, not a granular per-category consent manager.
+    |
+    */
+    'cookie_consent' => [
+        'enabled' => env('KINETIX_COOKIE_CONSENT_ENABLED', false),
+
+        // Name of the browser cookie recording the visitor's choice.
+        'cookie_name' => env('KINETIX_COOKIE_CONSENT_COOKIE_NAME', 'kinetix_cookie_consent'),
+
+        // How long the choice is remembered before the bar reappears.
+        'expiry_days' => env('KINETIX_COOKIE_CONSENT_EXPIRY_DAYS', 365),
+
+        // 'bottom' | 'top'.
+        'position' => env('KINETIX_COOKIE_CONSENT_POSITION', 'bottom'),
+
+        // Optional link to your cookie/privacy policy page, shown in the bar.
+        'policy_url' => env('KINETIX_COOKIE_CONSENT_POLICY_URL'),
+    ],
+
 ];

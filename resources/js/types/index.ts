@@ -73,8 +73,19 @@ export interface KinetixSharedProps {
     kinetix_queue?: KinetixQueueConfig;
     /** Health widget config (enabled + poll interval). */
     kinetix_health?: KinetixQueueConfig;
+    /** Cookie consent bar config, for <KinetixCookieConsent>. */
+    kinetix_cookie_consent?: KinetixCookieConsentConfig;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
+}
+
+/** Cookie consent bar config shared via Inertia. */
+export interface KinetixCookieConsentConfig {
+    enabled: boolean;
+    cookieName?: string;
+    expiryDays?: number;
+    position?: 'bottom' | 'top';
+    policyUrl?: string | null;
 }
 
 /** A single application-health check result. */

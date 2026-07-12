@@ -49,6 +49,14 @@ const page = {
         kinetix_queue: { enabled: true, poll: 0 },
         // Surfaced for the health-status specimen (poll 0 → no interval).
         kinetix_health: { enabled: true, poll: 0 },
+        // Surfaced for the cookie-consent specimen.
+        kinetix_cookie_consent: {
+            enabled: true,
+            cookieName: 'kinetix_gallery_cookie_consent',
+            expiryDays: 365,
+            position: 'bottom',
+            policyUrl: '/cookie-policy',
+        },
     },
     url: '/',
     component: 'Gallery',

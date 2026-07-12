@@ -529,4 +529,10 @@ return [
     'timezone_region_europe'      => 'Europe',
     'timezone_region_indian'      => 'Indian Ocean',
     'timezone_region_pacific'     => 'Pacific',
+
+    // Cookie consent
+    'cookie_consent_message'     => 'We use cookies to improve your experience.',
+    'cookie_consent_policy_link' => 'Learn more',
+    'cookie_consent_accept'      => 'Accept',
+    'cookie_consent_decline'     => 'Decline',
 ];

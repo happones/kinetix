@@ -34,6 +34,7 @@ import KinetixComments from '@/components/KinetixComments.vue';
 import KinetixMailTemplates from '@/components/KinetixMailTemplates.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
+import KinetixCookieConsent from '@/components/KinetixCookieConsent.vue';
 
 // Slug + signature showcase for the gallery.
 const SlugSignatureShowcase: Component = {
@@ -227,6 +228,9 @@ export interface Specimen {
     frame?: 'card' | 'bare';
     /** Click this selector then capture the full page (for teleported popovers). */
     openSelector?: string;
+    /** Capture the full page instead of cropping to #specimen — for content
+     * that's `position: fixed` (escapes the frame) but needs no click to show. */
+    fullPage?: boolean;
 }
 
 // Form layout fixtures (rendered through KinetixFormSchema).
@@ -1267,6 +1271,13 @@ export const specimens: Specimen[] = [
         component: KinetixAnnouncements,
         width: 420,
         openSelector: '#specimen button',
+    },
+    {
+        name: 'cookie-consent',
+        title: 'Cookie consent bar',
+        component: KinetixCookieConsent,
+        width: 700,
+        fullPage: true,
     },
     {
         name: 'language-switcher',

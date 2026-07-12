@@ -1620,6 +1620,24 @@ class KinetixServiceProvider extends ServiceProvider
             ];
         });
 
+        // Cookie consent bar config, for <KinetixCookieConsent>. Whether the
+        // visitor has already responded is resolved client-side (a plain
+        // browser cookie, no server round-trip) — this only ships the
+        // configurable bits.
+        Inertia::share('kinetix_cookie_consent', function () {
+            if (! config('kinetix.cookie_consent.enabled', false)) {
+                return ['enabled' => false];
+            }
+
+            return [
+                'enabled'    => true,
+                'cookieName' => config('kinetix.cookie_consent.cookie_name', 'kinetix_cookie_consent'),
+                'expiryDays' => (int) config('kinetix.cookie_consent.expiry_days', 365),
+                'position'   => config('kinetix.cookie_consent.position', 'bottom'),
+                'policyUrl'  => config('kinetix.cookie_consent.policy_url'),
+            ];
+        });
+
         // Resolved feature flags for the current scope, for useKinetixFeature / <KinetixFeature>.
         Inertia::share('kinetix_features', function () {
             if (! config('kinetix.features.enabled', false)) {
