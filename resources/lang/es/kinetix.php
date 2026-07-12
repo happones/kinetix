@@ -30,6 +30,7 @@ return [
     'hide'                      => 'Ocultar',
     'confirm'                   => 'Confirmar',
     'cancel'                    => 'Cancelar',
+    'close'                     => 'Cerrar',
     'confirm_heading'           => '¿Estás seguro?',
     'key'                       => 'Clave',
     'value'                     => 'Valor',
@@ -187,10 +188,20 @@ return [
     'kanban_move_failed' => 'No se pudo mover la tarjeta. Inténtalo de nuevo.',
 
     // Event calendar
-    'calendar_today' => 'Hoy',
-    'calendar_prev'  => 'Mes anterior',
-    'calendar_next'  => 'Mes siguiente',
-    'calendar_more'  => '+:count más',
+    'calendar_today'      => 'Hoy',
+    'calendar_prev'       => 'Mes anterior',
+    'calendar_next'       => 'Mes siguiente',
+    'calendar_prev_week'  => 'Semana anterior',
+    'calendar_next_week'  => 'Semana siguiente',
+    'calendar_prev_day'   => 'Día anterior',
+    'calendar_next_day'   => 'Día siguiente',
+    'calendar_more'       => '+:count más',
+    'calendar_view_month' => 'Mes',
+    'calendar_view_week'  => 'Semana',
+    'calendar_view_day'   => 'Día',
+    'calendar_all_day'    => 'Todo el día',
+    'calendar_no_events'  => 'Sin eventos',
+    'calendar_view_event' => 'Ver detalles',
 
     // Announcements
     'announcements_title' => 'Novedades',

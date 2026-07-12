@@ -30,6 +30,7 @@ return [
     'hide'                      => 'Masquer',
     'confirm'                   => 'Confirmer',
     'cancel'                    => 'Annuler',
+    'close'                     => 'Fermer',
     'confirm_heading'           => 'Êtes-vous sûr ?',
     'key'                       => 'Clé',
     'value'                     => 'Valeur',
@@ -187,10 +188,20 @@ return [
     'kanban_move_failed' => 'Impossible de déplacer la carte. Veuillez réessayer.',
 
     // Event calendar
-    'calendar_today' => 'Aujourd’hui',
-    'calendar_prev'  => 'Mois précédent',
-    'calendar_next'  => 'Mois suivant',
-    'calendar_more'  => '+:count de plus',
+    'calendar_today'      => 'Aujourd’hui',
+    'calendar_prev'       => 'Mois précédent',
+    'calendar_next'       => 'Mois suivant',
+    'calendar_prev_week'  => 'Semaine précédente',
+    'calendar_next_week'  => 'Semaine suivante',
+    'calendar_prev_day'   => 'Jour précédent',
+    'calendar_next_day'   => 'Jour suivant',
+    'calendar_more'       => '+:count de plus',
+    'calendar_view_month' => 'Mois',
+    'calendar_view_week'  => 'Semaine',
+    'calendar_view_day'   => 'Jour',
+    'calendar_all_day'    => 'Toute la journée',
+    'calendar_no_events'  => 'Aucun événement',
+    'calendar_view_event' => 'Voir les détails',
 
     // Announcements
     'announcements_title' => 'Nouveautés',

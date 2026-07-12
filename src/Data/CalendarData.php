@@ -12,9 +12,15 @@ class CalendarData extends Data
 {
     /**
      * @param array<int, CalendarEventData> $events
+     * @param string                        $timezone IANA timezone events are resolved against
+     *                                                server-side (defaults to `config('app.timezone')`).
+     *                                                The frontend may override it per-instance; since
+     *                                                `start`/`end` are absolute instants, either
+     *                                                timezone renders the same events correctly.
      */
     public function __construct(
         public ?string $heading,
         public array $events,
+        public string $timezone,
     ) {}
 }

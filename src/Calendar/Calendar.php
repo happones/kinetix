@@ -7,15 +7,16 @@ namespace Happones\Kinetix\Calendar;
 use Closure;
 use Happones\Kinetix\Data\CalendarData;
 use Happones\Kinetix\Data\CalendarEventData;
+use Happones\Kinetix\Support\KinetixTimezone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Builds a month-view calendar of events from an Eloquent query. Read-only: the
- * component navigates months client-side over the supplied events; scope the
- * window with ->query() if a model has many records.
+ * Builds a month/week/day-view calendar of events from an Eloquent query.
+ * Read-only: the component navigates client-side over the supplied events;
+ * scope the window with ->query() if a model has many records.
  *
  *     Calendar::make(Event::query())
  *         ->dateColumn('starts_at')
@@ -23,6 +24,10 @@ use Illuminate\Support\Collection;
  *         ->title('name')
  *         ->color(fn (Event $e) => $e->calendar->color)
  *         ->url(fn (Event $e) => route('events.show', $e));
+ *
+ * Events are serialized as absolute-instant ISO-8601 datetimes (never
+ * date-only strings), so the frontend can correctly re-render them in any
+ * timezone regardless of which timezone the server used to format them.
  */
 class Calendar
 {
@@ -34,11 +39,15 @@ class Calendar
 
     protected Closure|string|null $color = null;
 
+    protected Closure|string|null $description = null;
+
     protected ?Closure $url = null;
 
     protected ?Closure $modifyQuery = null;
 
     protected ?string $heading = null;
+
+    protected string|Closure|null $timezone = null;
 
     public function __construct(protected mixed $queryOrModel) {}
 
@@ -78,9 +87,31 @@ class Calendar
         return $this;
     }
 
+    public function description(Closure|string|null $description): static
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
     public function url(Closure $url): static
     {
         $this->url = $url;
+
+        return $this;
+    }
+
+    /**
+     * The IANA timezone events resolve against (e.g. `America/Mexico_City`,
+     * or a closure like `fn () => auth()->user()->timezone`). Defaults to
+     * `config('app.timezone')`. Since events serialize as absolute-instant
+     * ISO-8601 datetimes, this mostly matters for `allDay` auto-detection
+     * (whether a start/end falls exactly at midnight) — the frontend can
+     * still re-render in a different timezone via its own `timezone` prop.
+     */
+    public function timezone(string|Closure|null $timezone): static
+    {
+        $this->timezone = $timezone;
 
         return $this;
     }
@@ -101,23 +132,32 @@ class Calendar
 
     public function toData(): CalendarData
     {
+        $timezone = $this->resolveTimezone();
+
         $events = $this->records()
-            ->map(function (Model $r): ?CalendarEventData {
+            ->map(function (Model $r) use ($timezone): ?CalendarEventData {
                 $start = $r->getAttribute($this->dateColumn);
 
                 if ($start === null) {
                     return null;
                 }
 
-                $end = $this->endColumn !== null ? $r->getAttribute($this->endColumn) : null;
+                $start = Carbon::parse($start)->setTimezone($timezone);
+                $end   = $this->endColumn !== null ? $r->getAttribute($this->endColumn) : null;
+                $end   = $end             !== null ? Carbon::parse($end)->setTimezone($timezone) : null;
+
+                $allDay = $start->format('H:i:s') === '00:00:00'
+                    && ($end === null || $end->format('H:i:s') === '00:00:00');
 
                 return new CalendarEventData(
                     id: $r->getKey(),
                     title: (string) $this->resolve($this->title, $r),
-                    start: Carbon::parse($start)->toDateString(),
-                    end: $end !== null ? Carbon::parse($end)->toDateString() : null,
+                    start: $start->toIso8601String(),
+                    end: $end?->toIso8601String(),
+                    allDay: $allDay,
                     color: $this->color === null ? null : ($this->resolve($this->color, $r) ?: null),
                     url: $this->url !== null ? ($this->url)($r) : null,
+                    description: $this->description === null ? null : ($this->resolve($this->description, $r) ?: null),
                 );
             })
             ->filter()
@@ -127,7 +167,17 @@ class Calendar
         return new CalendarData(
             heading: $this->heading,
             events: $events,
+            timezone: $timezone,
         );
+    }
+
+    protected function resolveTimezone(): string
+    {
+        if ($this->timezone instanceof Closure) {
+            return ($this->timezone)() ?? KinetixTimezone::default();
+        }
+
+        return $this->timezone ?? KinetixTimezone::default();
     }
 
     /**

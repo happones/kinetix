@@ -343,21 +343,38 @@ export interface KinetixAnnouncement {
     isNew: boolean;
 }
 
-/** A calendar event. */
+/**
+ * A calendar event. `start`/`end` are absolute-instant ISO-8601 datetimes
+ * (with UTC offset) — safe to re-render in any timezone client-side.
+ */
 export interface KinetixCalendarEvent {
     id: number | string;
     title: string;
     start: string;
     end: string | null;
+    /** True when start/end fall exactly at midnight (no meaningful time-of-day). */
+    allDay: boolean;
     color: string | null;
     url: string | null;
+    description: string | null;
 }
 
-/** A calendar: a list of events the component lays out by month. */
+/** A calendar: a list of events the component lays out by month/week/day. */
 export interface KinetixCalendarData {
     heading: string | null;
     events: KinetixCalendarEvent[];
+    /** IANA timezone events were resolved against server-side. */
+    timezone: string;
 }
+
+/** Which day/week/month view is active in <KinetixEventCalendar>. */
+export type KinetixCalendarView = 'month' | 'week' | 'day';
+
+/** How <KinetixEventCalendar> presents an event's details on click. */
+export type KinetixCalendarEventDisplay = 'modal' | 'sheet';
+
+/** Which edge <KinetixSheet> slides in from. */
+export type KinetixSheetSide = 'top' | 'right' | 'bottom' | 'left';
 
 /** A Kanban card. */
 export interface KinetixKanbanCard {

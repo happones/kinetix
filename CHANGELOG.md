@@ -13,6 +13,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.93.0] - 2026-07-12
+
+### Added
+
+- **Calendar: timezone-correct rendering, week/day views, and an event
+  details popup**:
+  - **Timezone support** — `Calendar::timezone(string|Closure|null)` (default
+    `config('app.timezone')` via the new `Support\KinetixTimezone` helper).
+    Events serialize as **absolute-instant ISO-8601 datetimes** instead of
+    date-only strings, so the frontend can correctly re-render them under
+    *any* timezone — the server's resolved default (`calendar.timezone`), or
+    a client override via the new `timezone` prop (e.g. the viewer's own
+    browser zone). `CalendarEventData` gains `allDay` (auto-detected: true
+    when start/end fall exactly at midnight) and `description`.
+  - **Month/week/day views** — opt-in via the new `views` prop (default
+    `['month']`, unchanged single-view behavior); a switcher appears once
+    more than one view is listed. Week/day render an hourly grid with an
+    all-day banner and a current-time indicator, horizontally scrollable so
+    7 day-columns never break page layout on narrow viewports.
+    `startHour`/`endHour` restrict the visible hour range; `anchorDate`
+    (ISO `Y-MM-DD`) sets the initial window (e.g. for deep-linking).
+  - **Event details popup** — clicking an event opens a built-in modal
+    (default) or a new standalone **`<KinetixSheet>`** primitive
+    (`event-display="sheet"`, `sheet-side` top/right/bottom/left) showing
+    the color, formatted date/time range, description, and a "View details"
+    link when `url` is set. `@event-click` always fires regardless;
+    `:show-event-details="false"` opts out of the built-in popup entirely.
+  - `Calendar::description(string|Closure|null)` — optional per-event
+    description shown in the details popup.
+  - Docs: `docs/calendar.md` rewritten with dedicated sections + screenshots
+    for timezones, views, and the event popup.
+  - Tests: extended `CalendarTest` (PHP) and `KinetixEventCalendar.spec.ts`
+    (timezone correctness across a day boundary, view switching, hourly
+    positioning, popup modes), new `KinetixSheet.spec.ts`. **(published)**
+
+### Changed
+
+- **Breaking: `CalendarEventData.start`/`.end` format** — previously plain
+  `Y-m-d` date strings, now full ISO-8601 datetimes with a UTC offset (e.g.
+  `2026-06-15T09:00:00+00:00`). If you read `calendar.events[].start`/`.end`
+  directly (outside the `<KinetixEventCalendar>` component itself), update
+  that code to parse a datetime instead of a bare date. `CalendarData` also
+  gains a required `timezone` field.
+
 ## [0.92.0] - 2026-07-11
 
 ### Added
