@@ -51,4 +51,17 @@ class ProgressWidgetTest extends TestCase
         $this->assertSame(0, $data['percent']);
         $this->assertSame('0%', $data['display']);
     }
+
+    public function test_display_and_caption_accept_null(): void
+    {
+        $data = ProgressWidget::make()
+            ->value(50)
+            ->target(100)
+            ->display(null)
+            ->caption(null)
+            ->toArray()['data'];
+
+        $this->assertSame('50%', $data['display']); // null → falls back to the percentage
+        $this->assertNull($data['caption']);
+    }
 }

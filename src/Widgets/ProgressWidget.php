@@ -48,14 +48,14 @@ class ProgressWidget extends Widget
     /**
      * Override the big value text (defaults to the computed percentage).
      */
-    public function display(string $display): static
+    public function display(?string $display): static
     {
         $this->display = $display;
 
         return $this;
     }
 
-    public function caption(string $caption): static
+    public function caption(?string $caption): static
     {
         $this->caption = $caption;
 

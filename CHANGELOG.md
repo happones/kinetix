@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.94.1] - 2026-07-12
+
+### Fixed
+
+- **`ProgressWidget::display()`/`caption()` reject `null`** — both properties
+  are already nullable (`caption` has no default text), but the setters
+  required a `string`, forcing a conditional `->caption(...)` call at the
+  callsite whenever the value might be empty. Both now accept `?string`.
+
 ## [0.94.0] - 2026-07-12
 
 ### Added
