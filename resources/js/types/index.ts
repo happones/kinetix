@@ -643,7 +643,9 @@ export interface KinetixWidget {
         | 'list'
         | 'rating'
         | 'hero'
-        | 'progress';
+        | 'progress'
+        | 'queue-stats'
+        | 'health-status';
     title?: string;
     description?: string;
     columnSpan: number | string | Record<string, number | string>;
@@ -654,6 +656,13 @@ export interface KinetixWidget {
 
 export interface KinetixWidgetsGridData {
     columns: number | Record<string, number>;
+    gap: number | string | Record<string, number | string>;
+    /** `masonry` ignores each widget's `columnSpan` — one widget per column, packed by height. */
+    layout: 'grid' | 'masonry';
+    /** `grid-auto-flow: dense` — only applies to `layout: 'grid'`. */
+    dense: boolean;
+    /** Number of masonry columns (only used when `layout === 'masonry'`) — distinct from `columns`. */
+    masonryColumns: number | Record<string, number>;
     widgets: KinetixWidget[];
 }
 

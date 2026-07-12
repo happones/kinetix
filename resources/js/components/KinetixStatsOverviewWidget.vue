@@ -399,12 +399,21 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
 </template>
 
 <style scoped>
+/*
+ * Container queries (not viewport media queries) so the stat-card columns
+ * respond to this widget's OWN rendered width — critical once it can live
+ * inside a narrow masonry column or a small columnSpan, where the viewport
+ * may be wide (desktop) while the widget itself is only a few hundred px.
+ */
+.kinetix-stats-wrapper {
+    container-type: inline-size;
+}
 .kinetix-stats-grid {
     display: grid;
     gap: 1.5rem;
     grid-template-columns: repeat(1, minmax(0, 1fr));
 }
-@media (min-width: 640px) {
+@container (min-width: 480px) {
     .kinetix-stats-grid {
         grid-template-columns: repeat(
             min(var(--stats-cols, 3), 2),
@@ -412,7 +421,7 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
         );
     }
 }
-@media (min-width: 1024px) {
+@container (min-width: 800px) {
     .kinetix-stats-grid {
         grid-template-columns: repeat(var(--stats-cols, 3), minmax(0, 1fr));
     }

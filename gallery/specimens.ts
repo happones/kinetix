@@ -211,6 +211,7 @@ import KinetixInvoicesTable from '@/components/KinetixInvoicesTable.vue';
 import KinetixChartWidget from '@/components/KinetixChartWidget.vue';
 import KinetixCustomWidget from '@/components/KinetixCustomWidget.vue';
 import KinetixTableWidget from '@/components/KinetixTableWidget.vue';
+import KinetixWidgetsGrid from '@/components/KinetixWidgetsGrid.vue';
 import KinetixKanban from '@/components/KinetixKanban.vue';
 import KinetixEventCalendar from '@/components/KinetixEventCalendar.vue';
 
@@ -1827,6 +1828,29 @@ export const specimens: Specimen[] = [
                     { class: 'text-sm text-muted-foreground' },
                     'Anything can go inside a custom widget.',
                 ),
+        },
+    },
+    {
+        name: 'widgets-grid-masonry',
+        title: 'Widgets grid — masonry layout',
+        component: KinetixWidgetsGrid,
+        width: 1040,
+        props: {
+            grid: {
+                columns: 12,
+                gap: '1.5rem',
+                layout: 'masonry',
+                dense: false,
+                masonryColumns: { default: 1, sm: 2, lg: 3 },
+                widgets: [
+                    statsWidget,
+                    listWidget,
+                    chartWidget,
+                    hBarChartWidget,
+                    donutChartWidget,
+                    tableWidget,
+                ],
+            },
         },
     },
     {

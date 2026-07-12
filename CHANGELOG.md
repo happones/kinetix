@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.95.0] - 2026-07-12
+
+### Added
+
+- **Widget grids: masonry layout, gap/dense customization, and two new
+  self-polling widget types**:
+  - **`WidgetsGrid::masonry(int|array $columns = 3)`** — a true
+    column-balanced masonry layout: each widget occupies exactly one column
+    (its `columnSpan` is ignored) and is placed into whichever column is
+    currently shortest, eliminating the height gaps a plain CSS grid leaves
+    between row-mates of different heights. Rendered by the new
+    `<KinetixMasonryColumns>` (`resources/js/components/widgets/`), whose
+    packing algorithm lives in a pure, unit-tested composable
+    (`useMasonryColumns.ts`).
+  - **`WidgetsGrid::gap(int|string|array $gap)`** (default `'1.5rem'`) and
+    **`->dense(bool = true)`** (`grid-auto-flow: dense` on the standard
+    `columnSpan` grid) — both accept the same responsive breakpoint-map shape
+    as `columns()`.
+  - **`QueueStatsWidget`** / **`HealthStatusWidget`** (types `queue-stats` /
+    `health-status`) — thin `Widget` wrappers with no data payload that let
+    the existing live `<KinetixQueueStats>`/`<KinetixHealthStatus>` panels be
+    positioned (`columnSpan`/`sort`) and gated (`authorize()`) inside a grid;
+    the Vue components keep self-polling exactly as they do standalone.
+  - `KinetixStatsOverviewWidget`'s internal stat-card grid now uses a CSS
+    `@container` query instead of viewport `@media` breakpoints, so it lays
+    out correctly by its own rendered width (e.g. inside a narrow masonry
+    column), not the browser viewport.
+  - Docs: `docs/widgets.md` gains Masonry/Gap & Dense sections, a callout
+    that a bare `columnSpan` doesn't auto-stack on mobile, and reference
+    entries for the two new widget types. Tests: `WidgetsGridTest`,
+    `useMasonryColumns.spec.ts`, `KinetixMasonryColumns.spec.ts`,
+    `KinetixWidgetsGrid.spec.ts`, `QueueStatsWidgetTest`,
+    `HealthStatusWidgetTest`. **(published)**
+
 ## [0.94.1] - 2026-07-12
 
 ### Fixed

@@ -3,12 +3,19 @@ import { CheckCircle2, CircleAlert, CircleX, HeartPulse } from '@lucide/vue';
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixHealth } from '@/composables/useKinetixHealth';
+import type { KinetixWidget } from '@/types';
 
 /**
  * A compact, live application-health widget powered by spatie/laravel-health.
  * Shows an overall status badge and a list of checks with their status. Polls on
  * the shared interval. Complements (doesn't replace) the health dashboard.
+ *
+ * Accepts (and ignores) an optional `widget` prop so it can be placed inside
+ * a `<KinetixWidgetsGrid>` via `HealthStatusWidget` — it keeps self-polling
+ * via `useKinetixHealth()` regardless, rather than reading from `widget.data`.
  */
+defineProps<{ widget?: KinetixWidget }>();
+
 const { t } = useI18n();
 const { snapshot, failed, start } = useKinetixHealth();
 

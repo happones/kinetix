@@ -10,13 +10,20 @@ import {
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixQueue } from '@/composables/useKinetixQueue';
+import type { KinetixWidget } from '@/types';
 
 /**
  * A compact, live queue-health widget — throughput, recent & failed jobs, and
  * pending depth per queue. Reads Horizon's metrics when installed (with a status
  * badge), otherwise queue sizes + failed_jobs. Polls on the shared interval.
  * Drop it in a Kinetix dashboard; it complements (doesn't replace) Horizon.
+ *
+ * Accepts (and ignores) an optional `widget` prop so it can be placed inside
+ * a `<KinetixWidgetsGrid>` via `QueueStatsWidget` — it keeps self-polling via
+ * `useKinetixQueue()` regardless, rather than reading from `widget.data`.
  */
+defineProps<{ widget?: KinetixWidget }>();
+
 const { t } = useI18n();
 const { snapshot, failed, start, retry, forget } = useKinetixQueue();
 

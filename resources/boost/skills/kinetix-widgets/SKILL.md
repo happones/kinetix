@@ -17,6 +17,8 @@ Activate this skill when:
 - Displaying lightweight summary tables inside widgets grids using `Happones\Kinetix\Widgets\TableWidget`.
 - Showing a goal/quota progress bar or ring via `Happones\Kinetix\Widgets\ProgressWidget` (`->value()->target()->color()->ring()`).
 - Injecting custom Vue components using `Happones\Kinetix\Widgets\CustomWidget` and custom slots.
+- Switching a grid to a gap-free masonry layout via `WidgetsGrid::masonry()`, or backfilling gaps in the standard grid via `->dense()`.
+- Positioning the existing live queue/health panels inside a grid via `Happones\Kinetix\Widgets\QueueStatsWidget` / `Happones\Kinetix\Widgets\HealthStatusWidget`.
 
 ## Documentation
 
@@ -96,3 +98,6 @@ defineProps<{
   - **IMPORTANT**: If your chart uses string category labels on the X-axis (e.g. `'Jan'`, `'Feb'`), mapping them directly will trigger continuous scale `NaN` errors. To prevent this, map the X coordinate to consecutive integers (`0, 1, 2, ...`). Supply those index coordinates to the `:tickValues` prop of `<VisAxis type="x" />`, and translate them back to string labels inside the `:tickFormat` lookup function.
 - **Translations & Documentation**: Do not hardcode strings; always define them in translations and keep documentation updated for any new components or options.
 - **Role/permission-gated widgets**: hide widgets from certain users with `->visible(bool|Closure)`, `->hidden(bool|Closure)`, or `->authorize(string|Closure|bool $ability, mixed $arguments = null)` (a Gate-based shorthand, e.g. `->authorize('viewFinancials')`). This is checked server-side in `WidgetsGrid::toArray()` **before** the widget's data is computed — an unauthorized user never receives the widget's payload, and its query never runs. Unlike Actions/Forms, a widget has no per-record pass, so a bare ability is checked immediately (no deferral); pass `$arguments` for abilities needing a subject.
+- **Masonry & layout customization**: `->gap($value)` (CSS length or responsive map, default `'1.5rem'`), `->dense()` (`grid-auto-flow: dense` on the standard `columnSpan` grid — visual order may then differ from DOM order), `->masonry($columns = 3)` (true column-balanced layout — each widget occupies one column and `columnSpan` is ignored; best for widgets of similar width but varying height).
+- **`columnSpan` doesn't auto-stack on mobile**: a bare `->columnSpan(4)` applies at every breakpoint. Always pass a responsive map for anything narrower than full width: `->columnSpan(['default' => 12, 'lg' => 4])`.
+- **`QueueStatsWidget` / `HealthStatusWidget`**: thin wrappers with no `data` payload — they only position/gate the existing self-polling `<KinetixQueueStats>`/`<KinetixHealthStatus>` panels inside a grid (`->columnSpan()`, `->sort()`, `->authorize()`). The Vue components keep polling their own endpoints exactly as they do standalone.

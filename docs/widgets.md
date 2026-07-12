@@ -268,6 +268,53 @@ Inside the `<style scoped>` tag of the grid, standard CSS media queries intercep
 
 This layout system ensures that cards adapt smoothly to any resolution.
 
+::: warning `columnSpan` doesn't auto-stack on mobile
+A bare `->columnSpan(4)` applies at **every** breakpoint, including mobile —
+it does not automatically fall back to full width on narrow screens. For
+anything narrower than `'full'`/`12`, always pass a responsive map instead:
+`->columnSpan(['default' => 12, 'lg' => 4])`. Every widget example in this
+page follows that pattern; copy it rather than a bare integer.
+:::
+
+### Masonry Layout
+
+The default grid leaves gaps whenever row-mates have different heights (a
+short stat card next to a tall chart, for example). `WidgetsGrid::masonry()`
+switches to a true column-balanced layout instead — each widget occupies
+exactly one column (its `columnSpan` is ignored) and is placed into whichever
+column is currently shortest, eliminating the gaps entirely:
+
+```php
+$grid = WidgetsGrid::make()
+    ->gap('1.5rem')
+    ->masonry(['default' => 1, 'sm' => 2, 'lg' => 3])
+    ->widgets([...]);
+```
+
+`masonry()` takes the column count — a bare number or a responsive map, same
+shape as `columns()` but a separate concept (masonry columns vs. the 12-unit
+grid). Best for widgets of similar width but varying height (stat cards,
+lists, charts). If you still need multi-column-span widgets (e.g. a wide
+chart beside two narrow stats), use `dense()` below instead, which keeps
+`columnSpan` semantics.
+
+<Screenshot name="widgets-grid-masonry" alt="Widgets grid — masonry layout balancing six widgets of varying height across three columns" />
+
+### Gap & Dense Packing
+
+`->gap($value)` controls spacing between widgets — a bare CSS length
+(`'1.5rem'`, `16`→`16px`) or a responsive map, same shape as `columns()`.
+Defaults to `'1.5rem'`.
+
+`->dense()` backfills gaps in the **standard** `columnSpan`-based grid via
+CSS `grid-auto-flow: dense` — later, smaller widgets are pulled up into
+earlier holes instead of strictly following DOM order. Visual order may then
+differ from reading order, so it's opt-in:
+
+```php
+WidgetsGrid::make()->columns(12)->dense()->widgets([...]);
+```
+
 ---
 
 ## 6. Widget Types Reference
@@ -457,4 +504,26 @@ ProgressWidget::make()->title('Monthly goal')
 A wrapper widget designed to expose custom slots.
 - **Methods**:
   - `properties(array $payload)`: Custom settings and variables payload serialized to the Vue template.
+
+### 9. `QueueStatsWidget`
+Drops the existing `<KinetixQueueStats>` live queue-health panel (throughput,
+recent/failed jobs, per-queue depth — reading Horizon's metrics when
+installed) into a `WidgetsGrid` layout. It contributes no data of its own —
+the Vue component keeps self-polling exactly as it does standalone — this
+widget only positions it (`columnSpan`, `sort`) and gates it
+(`visible()`/`authorize()`).
+
+```php
+QueueStatsWidget::make()->columnSpan(['default' => 12, 'lg' => 6]);
+```
+
+### 10. `HealthStatusWidget`
+Drops the existing `<KinetixHealthStatus>` live application-health panel
+(powered by `spatie/laravel-health`) into a `WidgetsGrid` layout. Like
+`QueueStatsWidget`, it contributes no data of its own — the Vue component
+keeps self-polling — this widget only positions and gates it.
+
+```php
+HealthStatusWidget::make()->columnSpan(['default' => 12, 'lg' => 6]);
+```
 
