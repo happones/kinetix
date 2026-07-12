@@ -274,6 +274,12 @@ export interface KinetixWizardStep {
     label: string;
     description?: string | null;
     icon?: string | null;
+    /**
+     * Accent color for this step's indicator once active/complete
+     * (`success` · `danger` · `warning` · `info` · `primary` · `gray`).
+     * Defaults to `primary`. `stepper` variant only.
+     */
+    color?: string | null;
 }
 
 /** Visual style of the wizard step indicator. */
@@ -284,6 +290,18 @@ export type KinetixWizardVariant =
     | 'vertical'
     | 'panels'
     | 'gradient';
+
+/**
+ * How each step's indicator + label are arranged — `stepper` variant,
+ * horizontal orientation only (vertical already places the label beside the
+ * indicator column and is unaffected):
+ * - `inline` (default): indicator + label side by side; label hidden below `sm:`.
+ * - `stacked`: indicator on top, label/description centered below — always
+ *   visible, truncated to one line.
+ * - `tooltip`: indicator only; label/description shown in a hover/focus
+ *   tooltip — the most compact option for many steps on narrow viewports.
+ */
+export type KinetixWizardStepLayout = 'inline' | 'stacked' | 'tooltip';
 
 /** Per-user accessibility preferences. */
 export interface KinetixAccessibility {

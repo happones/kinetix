@@ -31,6 +31,8 @@ class Wizard extends Component
 
     protected bool $fullWidth = true;
 
+    protected string $stepLayout = 'inline';
+
     protected ?string $slug = null;
 
     public static function make(): static
@@ -82,6 +84,19 @@ class Wizard extends Component
     }
 
     /**
+     * How each step's indicator + label are arranged (`stepper` variant,
+     * horizontal orientation only): `inline` (default) side by side,
+     * `stacked` indicator on top, or `tooltip` indicator only + label on
+     * hover/focus — the most compact option for many steps.
+     */
+    public function stepLayout(string $stepLayout): static
+    {
+        $this->stepLayout = $stepLayout;
+
+        return $this;
+    }
+
+    /**
      * Tie this wizard to a gating slug so it can mark completion via the
      * `kinetix.wizard:<slug>` middleware on finish.
      */
@@ -122,6 +137,7 @@ class Wizard extends Component
             variant: $this->variant,
             orientation: $this->orientation,
             fullWidth: $this->fullWidth,
+            stepLayout: $this->stepLayout,
             slug: $this->slug,
         );
     }

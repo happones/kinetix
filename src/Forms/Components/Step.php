@@ -20,6 +20,8 @@ class Step extends Component
 
     protected ?string $icon = null;
 
+    protected ?string $color = null;
+
     /**
      * @var array<int, Component>
      */
@@ -61,6 +63,17 @@ class Step extends Component
         return $this;
     }
 
+    /**
+     * Accent color for this step's indicator once active/complete
+     * (`success`|`danger`|`warning`|`info`|`primary`|`gray`). Defaults to primary.
+     */
+    public function color(string $color): static
+    {
+        $this->color = $color;
+
+        return $this;
+    }
+
     public function columns(int $columns): static
     {
         $this->columns = $columns;
@@ -98,6 +111,7 @@ class Step extends Component
             description: $description !== null ? (string) $description : null,
             columns: $this->columns,
             icon: $this->icon,
+            color: $this->color,
         );
     }
 }

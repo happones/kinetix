@@ -297,6 +297,12 @@ const wizardSteps = [
     { key: 'done', label: 'Finish', icon: 'check' },
 ];
 
+const wizardStepsWithColor = [
+    { key: 'account', label: 'Account', icon: 'user', color: 'success' },
+    { key: 'plan', label: 'Plan', icon: 'credit-card', color: 'info' },
+    { key: 'done', label: 'Finish', icon: 'check', color: 'warning' },
+];
+
 const stepBody = (text: string) => () =>
     h('div', { class: 'py-6 text-sm text-muted-foreground' }, text);
 
@@ -817,6 +823,61 @@ export const specimens: Specimen[] = [
             fullWidth: false,
             step: 1,
         },
+        slots: wizardSlots,
+    },
+    {
+        name: 'wizard-simple',
+        title: 'Wizard — simple',
+        component: KinetixWizard,
+        frame: 'card',
+        width: 640,
+        props: { steps: wizardSteps, variant: 'simple', step: 1 },
+        slots: wizardSlots,
+    },
+    {
+        name: 'wizard-vertical-rail',
+        title: 'Wizard — vertical (left rail)',
+        component: KinetixWizard,
+        frame: 'card',
+        width: 640,
+        props: { steps: wizardSteps, variant: 'vertical', step: 1 },
+        slots: wizardSlots,
+    },
+    {
+        name: 'wizard-stacked',
+        title: 'Wizard — stepper (stacked step layout)',
+        component: KinetixWizard,
+        frame: 'card',
+        width: 640,
+        props: {
+            steps: wizardSteps,
+            variant: 'stepper',
+            stepLayout: 'stacked',
+            step: 1,
+        },
+        slots: wizardSlots,
+    },
+    {
+        name: 'wizard-tooltip',
+        title: 'Wizard — stepper (tooltip step layout)',
+        component: KinetixWizard,
+        frame: 'card',
+        width: 640,
+        props: {
+            steps: wizardSteps,
+            variant: 'stepper',
+            stepLayout: 'tooltip',
+            step: 1,
+        },
+        slots: wizardSlots,
+    },
+    {
+        name: 'wizard-step-colors',
+        title: 'Wizard — per-step colors',
+        component: KinetixWizard,
+        frame: 'card',
+        width: 640,
+        props: { steps: wizardStepsWithColor, variant: 'stepper', step: 2 },
         slots: wizardSlots,
     },
     {

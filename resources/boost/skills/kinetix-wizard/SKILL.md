@@ -45,12 +45,26 @@ Advancing is blocked until the current step's **required** fields are filled
 </KinetixWizard>
 ```
 
-- `steps: { key?, label, description?, icon? }[]`, `variant`, `slug?`,
+- `steps: { key?, label, description?, icon?, color? }[]`, `variant`, `slug?`,
   `v-model:step`, `linear` (default true), `beforeNext(fromIndex) => bool|Promise`
   (return false to block — per-step validation).
 - Content slot per `step.key` or scoped `#default="{ step, index, stepKey }"`;
   `#actions="{ next, prev, finish, isFirst, isLast, busy, current }"` overrides
   the nav bar. Events: `update:step`, `step-change`, `finish`.
+- **`stepLayout`** (`stepper` variant, horizontal only; default `inline`):
+  `inline` (indicator + label side by side, label hidden below `sm:`),
+  `stacked` (indicator on top, label always visible, truncated), or `tooltip`
+  (indicator only — label/description on hover/focus via reka `Tooltip*`
+  primitives; most compact for many steps on narrow viewports). PHP:
+  `Wizard::make()->stepLayout('stacked')`.
+- **Per-step `color`** (`stepper` variant): `{ ..., color: 'success' }` accents
+  that step's indicator once active/complete (`success|danger|warning|info|
+  primary|gray`, via `statusButtonClass`); upcoming steps stay neutral
+  regardless. PHP: `Step::make('Account')->color('success')`.
+- The horizontal `stepper` indicator sits in its own `overflow-x-auto`
+  wrapper and labels `truncate` — with many steps (5-6+) or long labels it
+  scrolls internally instead of breaking the page layout, across every
+  `stepLayout`/`fullWidth` combination.
 
 ## Gating middleware
 

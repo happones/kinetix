@@ -26,6 +26,7 @@ const steps = computed<KinetixWizardStep[]>(() =>
         label: s.heading,
         description: s.description,
         icon: s.icon,
+        color: s.color,
     })),
 );
 
@@ -73,6 +74,7 @@ function beforeNext(index: number): boolean {
         :steps="steps"
         :variant="comp.variant || 'stepper'"
         :orientation="comp.orientation || 'horizontal'"
+        :step-layout="comp.stepLayout || 'inline'"
         :full-width="comp.fullWidth ?? true"
         :slug="comp.slug"
         :before-next="beforeNext"

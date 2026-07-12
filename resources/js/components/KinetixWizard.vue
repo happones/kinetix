@@ -8,13 +8,24 @@ import {
     StepperSeparator,
     StepperTitle,
     StepperTrigger,
+    TooltipArrow,
+    TooltipContent,
+    TooltipPortal,
+    TooltipProvider,
+    TooltipRoot,
+    TooltipTrigger,
 } from 'reka-ui';
 import { computed, ref, useSlots, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixWizard } from '@/composables/useKinetixWizard';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixWizardStep, KinetixWizardVariant } from '@/types';
+import { statusButtonClass } from '@/composables/useStatusColor';
+import type {
+    KinetixWizardStep,
+    KinetixWizardStepLayout,
+    KinetixWizardVariant,
+} from '@/types';
 import { cn } from './primitives/cn';
 
 /**
@@ -32,6 +43,12 @@ const props = withDefaults(
         variant?: KinetixWizardVariant;
         /** Indicator orientation for the `stepper` / `vertical` variants. */
         orientation?: 'horizontal' | 'vertical';
+        /**
+         * How each step's indicator + label are arranged (`stepper` variant,
+         * horizontal only): `inline` (default) side by side, `stacked`
+         * indicator on top, or `tooltip` indicator only + label on hover/focus.
+         */
+        stepLayout?: KinetixWizardStepLayout;
         /** Gating slug — completion is persisted on finish. */
         slug?: string | null;
         /** Controlled current step index (v-model:step). */
@@ -50,6 +67,7 @@ const props = withDefaults(
     {
         variant: 'stepper',
         orientation: 'horizontal',
+        stepLayout: 'inline',
         slug: null,
         step: undefined,
         linear: true,
@@ -101,6 +119,22 @@ function statusOf(index: number): 'complete' | 'active' | 'upcoming' {
     }
 
     return index === current.value ? 'active' : 'upcoming';
+}
+
+/**
+ * The `stepper` indicator's fill: neutral while upcoming, otherwise the
+ * step's own `color` (Gate-independent status token) or primary by default.
+ * Computed in script (not via `group-data-[state=]:` CSS selectors) since a
+ * per-step color can't be expressed as a static Tailwind class.
+ */
+function indicatorClass(step: KinetixWizardStep, index: number): string {
+    if (statusOf(index) === 'upcoming') {
+        return 'border border-border bg-card text-muted-foreground';
+    }
+
+    return step.color
+        ? statusButtonClass(step.color)
+        : 'bg-primary text-primary-foreground';
 }
 
 function setStep(index: number): void {
@@ -195,71 +229,172 @@ function goTo(index: number): void {
             v-if="variant === 'stepper' && orientation === 'horizontal'"
             class="overflow-x-auto"
         >
-            <StepperRoot
-                :model-value="current + 1"
-                orientation="horizontal"
-                class="flex"
-                :class="
-                    fullWidth
-                        ? 'mb-6 gap-2 w-full items-center'
-                        : 'mb-6 gap-2 mx-auto w-fit items-center'
-                "
-            >
-                <StepperItem
-                    v-for="(s, i) in steps"
-                    :key="stepKey(s, i)"
-                    :step="i + 1"
-                    :disabled="linear && i > maxReached"
-                    class="group min-w-0 flex disabled:pointer-events-none disabled:opacity-50"
+            <TooltipProvider :disable-hoverable-content="true">
+                <StepperRoot
+                    :model-value="current + 1"
+                    orientation="horizontal"
+                    class="flex"
                     :class="
                         fullWidth
-                            ? 'gap-2 flex-1 items-center last:flex-none'
-                            : 'gap-2 shrink-0 items-center'
+                            ? 'mb-6 gap-2 w-full items-center'
+                            : 'mb-6 gap-2 mx-auto w-fit items-center'
                     "
                 >
-                    <StepperTrigger
-                        as-child
-                        class="gap-3 min-w-0 flex items-center"
-                        @click="goTo(i)"
+                    <StepperItem
+                        v-for="(s, i) in steps"
+                        :key="stepKey(s, i)"
+                        :step="i + 1"
+                        :disabled="linear && i > maxReached"
+                        class="group min-w-0 flex disabled:pointer-events-none disabled:opacity-50"
+                        :class="[
+                            fullWidth ? 'flex-1 last:flex-none' : 'shrink-0',
+                            stepLayout === 'stacked'
+                                ? 'gap-2 items-start'
+                                : 'gap-2 items-center',
+                        ]"
                     >
-                        <button
-                            type="button"
+                        <!-- inline (default): indicator + label side by side, label hidden below sm: -->
+                        <StepperTrigger
+                            v-if="stepLayout === 'inline'"
+                            as-child
                             class="gap-3 min-w-0 flex items-center"
+                            @click="goTo(i)"
                         >
-                            <StepperIndicator
-                                class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground group-data-[state=completed]:border-primary group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground"
+                            <button
+                                type="button"
+                                class="gap-3 min-w-0 flex items-center"
                             >
-                                <Check
-                                    v-if="statusOf(i) === 'complete'"
-                                    class="size-4"
-                                />
-                                <component
-                                    :is="resolveIcon(s.icon)"
-                                    v-else-if="resolveIcon(s.icon)"
-                                    class="size-4"
-                                />
-                                <template v-else>{{ i + 1 }}</template>
-                            </StepperIndicator>
-                            <span class="sm:block min-w-0 hidden text-left">
-                                <StepperTitle
-                                    class="text-sm font-medium block truncate text-foreground"
-                                    >{{ s.label }}</StepperTitle
+                                <StepperIndicator
+                                    class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full transition-colors"
+                                    :class="indicatorClass(s, i)"
                                 >
-                                <StepperDescription
-                                    v-if="s.description"
-                                    class="text-xs block truncate text-muted-foreground"
-                                    >{{ s.description }}</StepperDescription
+                                    <Check
+                                        v-if="statusOf(i) === 'complete'"
+                                        class="size-4"
+                                    />
+                                    <component
+                                        :is="resolveIcon(s.icon)"
+                                        v-else-if="resolveIcon(s.icon)"
+                                        class="size-4"
+                                    />
+                                    <template v-else>{{ i + 1 }}</template>
+                                </StepperIndicator>
+                                <span class="sm:block min-w-0 hidden text-left">
+                                    <StepperTitle
+                                        class="text-sm font-medium block truncate text-foreground"
+                                        >{{ s.label }}</StepperTitle
+                                    >
+                                    <StepperDescription
+                                        v-if="s.description"
+                                        class="text-xs block truncate text-muted-foreground"
+                                        >{{ s.description }}</StepperDescription
+                                    >
+                                </span>
+                            </button>
+                        </StepperTrigger>
+
+                        <!-- stacked: indicator on top, label/description centered below, always visible -->
+                        <StepperTrigger
+                            v-else-if="stepLayout === 'stacked'"
+                            as-child
+                            class="gap-1.5 min-w-0 flex flex-col items-center"
+                            @click="goTo(i)"
+                        >
+                            <button
+                                type="button"
+                                class="gap-1.5 min-w-0 flex flex-col items-center"
+                            >
+                                <StepperIndicator
+                                    class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full transition-colors"
+                                    :class="indicatorClass(s, i)"
                                 >
-                            </span>
-                        </button>
-                    </StepperTrigger>
-                    <StepperSeparator
-                        v-if="i < steps.length - 1"
-                        class="h-0.5 shrink-0 rounded-full bg-border group-data-[state=completed]:bg-primary"
-                        :class="fullWidth ? 'flex-1' : 'w-10'"
-                    />
-                </StepperItem>
-            </StepperRoot>
+                                    <Check
+                                        v-if="statusOf(i) === 'complete'"
+                                        class="size-4"
+                                    />
+                                    <component
+                                        :is="resolveIcon(s.icon)"
+                                        v-else-if="resolveIcon(s.icon)"
+                                        class="size-4"
+                                    />
+                                    <template v-else>{{ i + 1 }}</template>
+                                </StepperIndicator>
+                                <span class="min-w-0 max-w-full text-center">
+                                    <StepperTitle
+                                        class="text-xs font-medium block truncate text-foreground"
+                                        >{{ s.label }}</StepperTitle
+                                    >
+                                    <StepperDescription
+                                        v-if="s.description"
+                                        class="block truncate text-[11px] text-muted-foreground"
+                                        >{{ s.description }}</StepperDescription
+                                    >
+                                </span>
+                            </button>
+                        </StepperTrigger>
+
+                        <!-- tooltip: indicator only, label/description on hover/focus -->
+                        <TooltipRoot v-else>
+                            <TooltipTrigger as-child>
+                                <StepperTrigger as-child @click="goTo(i)">
+                                    <button
+                                        type="button"
+                                        :aria-label="
+                                            s.description
+                                                ? `${s.label}: ${s.description}`
+                                                : s.label
+                                        "
+                                    >
+                                        <StepperIndicator
+                                            class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full transition-colors"
+                                            :class="indicatorClass(s, i)"
+                                        >
+                                            <Check
+                                                v-if="
+                                                    statusOf(i) === 'complete'
+                                                "
+                                                class="size-4"
+                                            />
+                                            <component
+                                                :is="resolveIcon(s.icon)"
+                                                v-else-if="resolveIcon(s.icon)"
+                                                class="size-4"
+                                            />
+                                            <template v-else>{{
+                                                i + 1
+                                            }}</template>
+                                        </StepperIndicator>
+                                    </button>
+                                </StepperTrigger>
+                            </TooltipTrigger>
+                            <TooltipPortal>
+                                <TooltipContent
+                                    :side-offset="6"
+                                    class="px-3 py-1.5 text-sm shadow-md data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-50 max-w-[16rem] rounded-md border border-border bg-popover text-popover-foreground"
+                                >
+                                    <p class="font-medium">{{ s.label }}</p>
+                                    <p
+                                        v-if="s.description"
+                                        class="text-muted-foreground"
+                                    >
+                                        {{ s.description }}
+                                    </p>
+                                    <TooltipArrow class="fill-popover" />
+                                </TooltipContent>
+                            </TooltipPortal>
+                        </TooltipRoot>
+
+                        <StepperSeparator
+                            v-if="i < steps.length - 1"
+                            class="h-0.5 shrink-0 rounded-full bg-border group-data-[state=completed]:bg-primary"
+                            :class="[
+                                fullWidth ? 'flex-1' : 'w-10',
+                                stepLayout === 'stacked' ? 'mt-[18px]' : '',
+                            ]"
+                        />
+                    </StepperItem>
+                </StepperRoot>
+            </TooltipProvider>
         </div>
 
         <!-- vertical: fixed-width column, wraps text normally within its own width -->
@@ -281,7 +416,8 @@ function goTo(index: number): void {
                     <StepperTrigger as-child @click="goTo(i)">
                         <button type="button">
                             <StepperIndicator
-                                class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground group-data-[state=completed]:border-primary group-data-[state=completed]:bg-primary group-data-[state=completed]:text-primary-foreground"
+                                class="size-9 text-sm font-semibold flex shrink-0 items-center justify-center rounded-full transition-colors"
+                                :class="indicatorClass(s, i)"
                             >
                                 <Check
                                     v-if="statusOf(i) === 'complete'"

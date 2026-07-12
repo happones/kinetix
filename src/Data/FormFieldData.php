@@ -49,12 +49,16 @@ class FormFieldData extends Data
         public ?string $description = null,
         public ?int $columns = null,
         public ?string $icon = null,
+        // Wizard step specific — accent color for its indicator once active/complete.
+        public ?string $color = null,
         // Placeholder content (read-only display component).
         public ?string $content = null,
         // Wizard layout: indicator variant + optional gating slug.
         public ?string $variant = null,
         public ?string $orientation = null,
         public ?bool $fullWidth = null,
+        // How each step's indicator + label are arranged: inline | stacked | tooltip.
+        public ?string $stepLayout = null,
         public ?string $slug = null,
         // Repeater specific
         public ?int $minItems = null,

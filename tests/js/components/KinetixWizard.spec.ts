@@ -136,4 +136,55 @@ describe('KinetixWizard', () => {
         expect(root.classes()).toContain('w-fit');
         expect(root.classes()).toContain('mx-auto');
     });
+
+    it('defaults to the inline step layout (label hidden below sm:)', () => {
+        const wrapper = mountWizard();
+        expect(wrapper.text()).toContain('Account');
+        // Inline wraps the label in a `sm:block hidden` span.
+        expect(wrapper.html()).toContain('sm:block');
+    });
+
+    it('renders the stacked step layout with the label always visible', () => {
+        const wrapper = mountWizard({ stepLayout: 'stacked' });
+        expect(wrapper.text()).toContain('Account');
+        expect(wrapper.text()).toContain('Profile');
+        // Stacked never hides the label behind a breakpoint.
+        expect(wrapper.html()).not.toContain('sm:block');
+    });
+
+    it('renders the tooltip step layout with the label as an aria-label, not visible text', () => {
+        const wrapper = mountWizard({ stepLayout: 'tooltip' });
+        // The label isn't rendered as visible text (the tooltip is closed by default)...
+        expect(wrapper.text()).not.toContain('Account');
+        expect(wrapper.text()).not.toContain('Profile');
+        // ...but it's still available to assistive tech via aria-label.
+        const trigger = wrapper
+            .findAll('button')
+            .find((b) => b.attributes('aria-label') === 'Account');
+        expect(trigger).toBeTruthy();
+    });
+
+    it('applies a per-step color to its indicator once active/complete', () => {
+        const wrapper = mountWizard({
+            steps: [
+                { key: 'a', label: 'Account', color: 'success' },
+                { key: 'b', label: 'Profile' },
+            ],
+        });
+
+        // Step "a" is active (index 0) and colored — solid success fill.
+        expect(wrapper.html()).toContain('bg-success');
+    });
+
+    it('leaves an upcoming step neutral regardless of its configured color', () => {
+        const wrapper = mountWizard({
+            steps: [
+                { key: 'a', label: 'Account' },
+                { key: 'b', label: 'Profile', color: 'danger' },
+            ],
+        });
+
+        // Step "b" is upcoming — its color must not leak into the neutral state.
+        expect(wrapper.html()).not.toContain('bg-destructive');
+    });
 });

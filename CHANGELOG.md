@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.92.0] - 2026-07-11
+
+### Added
+
+- **`<KinetixWizard>` configurable step layout + per-step colors** (`stepper`
+  variant):
+  - **`stepLayout`** (`inline` (default) | `stacked` | `tooltip`, horizontal
+    orientation only) — `inline` keeps the existing indicator+label side by
+    side; `stacked` puts the indicator on top and the label/description
+    centered below, always visible (unlike `inline`, never hidden on
+    mobile); `tooltip` shows the indicator only, with the label/description
+    revealed on hover/focus via a `reka-ui` Tooltip — the most compact
+    option for 5-6+ steps on narrow viewports. PHP: `Wizard::make()
+    ->stepLayout('stacked'|'tooltip')`.
+  - **Per-step `color`** — `{ ..., color: 'success' }` on a `KinetixWizardStep`
+    (or `Step::make($label)->color('success')` in PHP) accents that step's
+    indicator once active/complete (`success|danger|warning|info|primary|
+    gray`, the same tokens as everywhere else in Kinetix); upcoming steps
+    always stay neutral regardless of their configured color.
+  - Both apply to the standalone `<KinetixWizard>` and the PHP form-layout
+    `Wizard`/`Step` builders (they share the same Vue core).
+  - Docs: `docs/wizard.md` — every variant now has its own screenshot in its
+    own section (`stepper`, vertical orientation, compact, `default`,
+    `gradient`, `panels`, `vertical` rail, `simple`), plus new sections for
+    step layout and per-step colors.
+  - Tests: extended `KinetixWizard.spec.ts` (stepLayout rendering + per-step
+    color) and `WizardLayoutTest` (PHP serialization). **(published)**
+
 ## [0.91.2] - 2026-07-11
 
 ### Fixed

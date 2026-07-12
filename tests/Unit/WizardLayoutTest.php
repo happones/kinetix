@@ -65,4 +65,27 @@ class WizardLayoutTest extends TestCase
     {
         $this->assertNull(Wizard::make()->steps([])->toData('create', null));
     }
+
+    public function test_wizard_serializes_step_layout(): void
+    {
+        $default = Wizard::make()->steps([Step::make('One')->schema([TextInput::make('a')])])
+            ->toData('create', null);
+        $this->assertSame('inline', $default->stepLayout);
+
+        $stacked = Wizard::make()->stepLayout('stacked')
+            ->steps([Step::make('One')->schema([TextInput::make('a')])])
+            ->toData('create', null);
+        $this->assertSame('stacked', $stacked->stepLayout);
+    }
+
+    public function test_step_serializes_its_own_color(): void
+    {
+        $data = Wizard::make()->steps([
+            Step::make('Account')->color('success')->schema([TextInput::make('email')]),
+            Step::make('Profile')->schema([TextInput::make('name')]),
+        ])->toData('create', null);
+
+        $this->assertSame('success', $data->schema[0]->color);
+        $this->assertNull($data->schema[1]->color);
+    }
 }

@@ -22,11 +22,12 @@ use Happones\Kinetix\Forms\Components\TextInput;
 Wizard::make()
     ->variant('stepper') // stepper (default) | default | simple | vertical | panels | gradient
     ->fullWidth() // ->fullWidth(false) for a compact, centered indicator
+    ->stepLayout('stacked') // inline (default) | stacked | tooltip — stepper variant, horizontal only
     ->steps([
         Step::make('Account')->schema([
             TextInput::make('email')->required(),
         ]),
-        Step::make('Profile')->icon('user')->description('About you')->schema([
+        Step::make('Profile')->icon('user')->description('About you')->color('info')->schema([
             TextInput::make('name')->required(),
         ]),
     ])
@@ -35,6 +36,11 @@ Wizard::make()
 Advancing is blocked until the **required** fields in the current step are
 filled (server-side validation still runs on submit). Fields across all steps
 are validated and saved like any other layout.
+
+See [§2 Step layout](#step-layout-stepper-variant-horizontal) and
+[§2 Per-step colors](#per-step-colors-stepper-variant) below for what
+`stepLayout()` and `Step::color()` do — they apply to both surfaces since the
+form layout renders through the same `<KinetixWizard>` core.
 
 ---
 
@@ -70,16 +76,17 @@ function onFinish() {
 
 ### Props
 
-| Prop         | Type                                                          | Default     | Notes |
-| ------------ | ------------------------------------------------------------- | ----------- | ----- |
-| `steps`      | `KinetixWizardStep[]`                                         | —           | `{ key?, label, description?, icon? }` |
-| `variant`    | `stepper \| default \| simple \| vertical \| panels \| gradient` | `stepper`   | Step-indicator style |
-| `orientation`| `horizontal \| vertical`                                      | `horizontal`| Stepper orientation (the `stepper` variant) |
-| `fullWidth`  | `boolean`                                                     | `true`      | Stretch the horizontal indicator to fill the container and distribute steps evenly. `false` = compact, centered, content-sized |
-| `slug`       | `string \| null`                                              | `null`      | When set, finishing marks completion server-side (gate) |
-| `step`       | `number`                                                      | `0`         | Controlled current step (`v-model:step`) |
-| `linear`     | `boolean`                                                     | `true`      | Restrict indicator jumps to reached steps |
-| `beforeNext` | `(fromIndex) => boolean \| Promise<boolean>`                  | —           | Return `false` / reject to block advancing (per-step validation) |
+| Prop          | Type                                                              | Default      | Notes |
+| ------------- | ------------------------------------------------------------------ | ------------ | ----- |
+| `steps`       | `KinetixWizardStep[]`                                             | —            | `{ key?, label, description?, icon?, color? }` |
+| `variant`     | `stepper \| default \| simple \| vertical \| panels \| gradient` | `stepper`    | Step-indicator style |
+| `orientation` | `horizontal \| vertical`                                          | `horizontal` | Stepper orientation (the `stepper` variant) |
+| `stepLayout`  | `inline \| stacked \| tooltip`                                    | `inline`     | How each step's indicator + label are arranged (`stepper` variant, horizontal only) |
+| `fullWidth`   | `boolean`                                                          | `true`       | Stretch the horizontal indicator to fill the container and distribute steps evenly. `false` = compact, centered, content-sized |
+| `slug`        | `string \| null`                                                  | `null`       | When set, finishing marks completion server-side (gate) |
+| `step`        | `number`                                                          | `0`          | Controlled current step (`v-model:step`) |
+| `linear`      | `boolean`                                                          | `true`       | Restrict indicator jumps to reached steps |
+| `beforeNext`  | `(fromIndex) => boolean \| Promise<boolean>`                      | —            | Return `false` / reject to block advancing (per-step validation) |
 
 ### Events & slots
 
@@ -92,30 +99,144 @@ function onFinish() {
 
 `stepper` *(default)* is the official shadcn/Reka **Stepper** — numbered
 indicators with titles, descriptions and connecting separators, built on
-`reka-ui`'s Stepper primitives. Set `orientation="vertical"` for a left-rail
-layout. The other designs: `default` (numbered circles + connectors), `simple`
-(progress bar + counter), `vertical` (left rail), `panels` (filled pills), and
-`gradient` (an eye-catching gradient-filled indicator).
+`reka-ui`'s Stepper primitives.
 
 <Screenshot name="wizard-stepper" alt="Wizard — stepper variant (default)" />
 
-<Screenshot name="wizard-stepper-vertical" alt="Wizard — vertical stepper" />
+```vue
+<KinetixWizard :steps="steps" />
+```
+
+Set `orientation="vertical"` for a left-rail stepper (indicator + label side
+by side, one step per row):
+
+<Screenshot name="wizard-stepper-vertical" alt="Wizard — stepper, vertical orientation" />
 
 ```vue
-<KinetixWizard :steps="steps" />                              <!-- stepper (default) -->
-<KinetixWizard :steps="steps" orientation="vertical" />       <!-- vertical stepper -->
-<KinetixWizard :steps="steps" variant="gradient" />           <!-- other designs -->
-<KinetixWizard :steps="steps" :full-width="false" />          <!-- compact, centered -->
+<KinetixWizard :steps="steps" orientation="vertical" />
 ```
 
 By default the horizontal indicator stretches to fill its container, spreading
 the steps evenly. Pass `:full-width="false"` (or `->fullWidth(false)` on the PHP
 `Wizard`) for a compact indicator that sizes to its content and centers itself —
-handy when the form is narrower than the page.
+handy when the form is narrower than the page:
+
+<Screenshot name="wizard-compact" alt="Wizard — stepper, compact (full-width off)" />
+
+```vue
+<KinetixWizard :steps="steps" :full-width="false" />
+```
+
+The other designs — each a self-contained, differently-styled indicator (none
+support `stepLayout` or per-step `color`, see below):
+
+<Screenshot name="wizard-default" alt="Wizard — default variant" />
+
+```vue
+<KinetixWizard :steps="steps" variant="default" />
+```
 
 <Screenshot name="wizard-gradient" alt="Wizard — gradient variant" />
 
+```vue
+<KinetixWizard :steps="steps" variant="gradient" />
+```
+
 <Screenshot name="wizard-panels" alt="Wizard — panels variant" />
+
+```vue
+<KinetixWizard :steps="steps" variant="panels" />
+```
+
+<Screenshot name="wizard-vertical-rail" alt="Wizard — vertical variant (left rail)" />
+
+```vue
+<KinetixWizard :steps="steps" variant="vertical" />
+```
+
+<Screenshot name="wizard-simple" alt="Wizard — simple variant (progress bar + counter)" />
+
+```vue
+<KinetixWizard :steps="steps" variant="simple" />
+```
+
+### Step layout (`stepper` variant, horizontal)
+
+`stepLayout` controls how each step's indicator and label are arranged —
+independent of `variant`/`orientation`/`fullWidth`/per-step `color`, so any
+combination works:
+
+- **`inline`** *(default)* — indicator + label side by side; the label is
+  hidden below the `sm` breakpoint (see the default screenshot above).
+- **`stacked`** — indicator on top, label/description centered below,
+  **always** visible (not hidden on mobile), truncated to one line each. Good
+  when the label matters more than a side-by-side saving of vertical space.
+- **`tooltip`** — indicator only; label/description are shown in a hover/focus
+  tooltip instead. The most compact option — ideal for many steps (5-6+) on
+  narrow viewports, since no label text is ever laid out inline. The label is
+  still available to assistive tech via `aria-label` on the trigger.
+
+<Screenshot name="wizard-stacked" alt="Wizard — stacked step layout" />
+
+```vue
+<KinetixWizard :steps="steps" step-layout="stacked" />
+```
+
+<Screenshot name="wizard-tooltip" alt="Wizard — tooltip step layout" />
+
+```vue
+<KinetixWizard :steps="steps" step-layout="tooltip" />
+```
+
+On the PHP form layout, set it once for the whole `Wizard`:
+
+```php
+Wizard::make()->stepLayout('stacked')->steps([...]);
+```
+
+### Per-step colors (`stepper` variant)
+
+Give an individual step its own accent color once it's active/complete —
+independent of `stepLayout`. Upcoming steps always stay neutral regardless of
+their configured color, so the accent only appears once the user reaches or
+passes that step:
+
+<Screenshot name="wizard-step-colors" alt="Wizard — per-step colors" />
+
+```vue
+<script setup>
+const steps = [
+  { key: 'account', label: 'Account', icon: 'user', color: 'success' },
+  { key: 'plan', label: 'Plan', icon: 'credit-card', color: 'info' },
+  { key: 'done', label: 'Finish', icon: 'check', color: 'warning' },
+];
+</script>
+
+<template>
+  <KinetixWizard :steps="steps" />
+</template>
+```
+
+```php
+Wizard::make()->steps([
+    Step::make('Account')->icon('user')->color('success')->schema([...]),
+    Step::make('Plan')->icon('credit-card')->color('info')->schema([...]),
+    Step::make('Finish')->icon('check')->color('warning')->schema([...]),
+]);
+```
+
+Accepted colors: `success` · `danger` · `warning` · `info` · `primary` · `gray`
+(same tokens as everywhere else in Kinetix — Actions, badges, stat cards).
+
+### Overflow / responsive behavior
+
+With many steps (5-6+) and/or long labels, the horizontal `stepper` indicator
+can need more width than the viewport has. Rather than breaking the page's
+layout, it scrolls internally (the indicator strip sits in its own scroll
+container), and step titles/descriptions truncate instead of forcing the row
+wider. This holds across every `stepLayout` and combination of `fullWidth` —
+tested at mobile (375px), tablet (768px) and desktop widths with 6 steps and
+realistic label lengths.
 
 ---
 
