@@ -23,7 +23,7 @@ features:
     link: /resources
   - icon: 🗂️
     title: Boards, Calendar & Records
-    details: Drag-and-drop Kanban boards, an event calendar, read-only infolists, authorizable/confirmable actions (buttons, bulk, groups), inline relation managers, threaded comments and polymorphic tags.
+    details: Drag-and-drop Kanban boards, a timezone-correct event calendar with month/week/day views and a built-in event modal/sheet, read-only infolists, authorizable/confirmable actions (buttons, bulk, groups), inline relation managers, threaded comments and polymorphic tags.
     link: /kanban
   - icon: 🔁
     title: Import/Export
@@ -43,7 +43,7 @@ features:
     link: /settings
   - icon: ⌨️
     title: Search & Experience
-    details: Cmd+K spotlight, conflict-safe keyboard shortcuts, accessibility preferences + screen-reader primitives, onboarding (checklist, empty states, product tour), real-time notifications & presence/online indicators, a "what's new" feed, dark-mode & language switchers, and dashboard stat/chart widgets.
+    details: Cmd+K spotlight, conflict-safe keyboard shortcuts, accessibility preferences + screen-reader primitives, onboarding (checklist, empty states, product tour), real-time notifications & presence/online indicators, a "what's new" feed, dark-mode & language switchers, a searchable timezone picker, and dashboard stat/chart widgets.
     link: /spotlight
 ---
 
