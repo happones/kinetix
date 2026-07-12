@@ -9,16 +9,23 @@ import {
 } from '@internationalized/date';
 import type { ZonedDateTime } from '@internationalized/date';
 import { ChevronLeft, ChevronRight, X } from '@lucide/vue';
-import { computed, onMounted, ref, shallowRef } from 'vue';
+import { computed, nextTick, onMounted, ref, shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { useActionConfirmation } from '@/composables/useKinetixActions';
+import { resolveIcon } from '@/composables/useKinetixIcons';
+import {
+    actionButtonVariant,
+    buttonVariants,
+} from '@/composables/useShadcnVariants';
 import type {
+    KinetixAction,
     KinetixCalendarData,
     KinetixCalendarEvent,
     KinetixCalendarEventDisplay,
     KinetixCalendarView,
     KinetixSheetSide,
 } from '@/types';
+import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixSheet from './KinetixSheet.vue';
 import { cn } from './primitives/cn';
 
@@ -93,6 +100,10 @@ const tz = computed(
 const isMounted = ref(false);
 onMounted(() => {
     isMounted.value = true;
+
+    if (activeView.value === 'week' || activeView.value === 'day') {
+        nextTick(() => scrollToNow());
+    }
 });
 
 const activeView = ref<KinetixCalendarView>(props.view ?? props.views[0]);
@@ -100,6 +111,10 @@ const activeView = ref<KinetixCalendarView>(props.view ?? props.views[0]);
 function setView(v: KinetixCalendarView): void {
     activeView.value = v;
     emit('update:view', v);
+
+    if (v === 'week' || v === 'day') {
+        nextTick(() => scrollToNow());
+    }
 }
 
 // The anchor day driving every view's visible window; navigation shifts it by
@@ -153,6 +168,10 @@ function shiftAnchor(delta: number): void {
 
 function goToday(): void {
     anchor.value = zonedToday(tz.value);
+
+    if (activeView.value === 'week' || activeView.value === 'day') {
+        nextTick(() => scrollToNow());
+    }
 }
 
 const monthLabel = computed(() =>
@@ -357,6 +376,27 @@ const nowIndicator = computed(() => {
     };
 });
 
+// Scrollable hourly grid — scrolled programmatically so the current time
+// stays in view when switching into week/day (rather than defaulting to the
+// top of the visible hour range, which can be well before "now").
+const hourlyGridRef = ref<HTMLElement | null>(null);
+const HOUR_ROW_PX = 64; // h-16 = 4rem = 64px, matches the hourly grid rows.
+
+function scrollToNow(): void {
+    const el = hourlyGridRef.value;
+
+    if (!el || !nowIndicator.value) {
+        return;
+    }
+
+    const totalHeightPx = hours.value.length * HOUR_ROW_PX;
+    const targetPx = (nowIndicator.value.topPct / 100) * totalHeightPx;
+
+    // Leave a third of the viewport's height above "now" for context, rather
+    // than pinning it to the very top edge.
+    el.scrollTop = Math.max(0, targetPx - el.clientHeight / 3);
+}
+
 function onSlotClick(date: CalendarDate, hour: number): void {
     const cdt = new CalendarDateTime(date.year, date.month, date.day, hour, 0);
     const instant = toZoned(cdt, tz.value).toDate();
@@ -380,6 +420,27 @@ function openEvent(event: KinetixCalendarEvent): void {
 function closeDetails(): void {
     detailsOpen.value = false;
 }
+
+// Event actions (edit/delete/custom) — shared with Tables/Infolists/etc., so
+// `requiresConfirmation()` actions open the same KinetixConfirmModal and
+// everything else (inertiaVisit/httpRequest/dispatch/url) runs immediately.
+const {
+    pendingAction,
+    isConfirmOpen,
+    requestAction,
+    confirm: onConfirmAction,
+    cancel: onCancelAction,
+} = useActionConfirmation();
+
+function handleEventAction(action: KinetixAction): void {
+    requestAction(action);
+}
+
+const eventActionClass = (action: KinetixAction) =>
+    buttonVariants({
+        variant: action.color ? actionButtonVariant(action.color) : 'ghost',
+        size: action.isIconButton ? 'icon-sm' : 'sm',
+    });
 
 const dateFmt = computed(
     () =>
@@ -423,6 +484,13 @@ const eventRangeLabel = computed(() => {
 
     return `${startDate} · ${startTime} – ${timeFmt.value.format(end.toDate())}`;
 });
+
+// Defensive fallback: `actions` is always present in real server payloads
+// (defaults to `[]`), but hand-built fixtures (tests, gallery specimens)
+// predating this field may omit it.
+const selectedEventActions = computed<KinetixAction[]>(
+    () => selectedEvent.value?.actions ?? [],
+);
 </script>
 
 <template>
@@ -621,7 +689,10 @@ const eventRangeLabel = computed(() => {
                     </div>
 
                     <!-- Hourly grid -->
-                    <div class="flex max-h-[36rem] overflow-y-auto">
+                    <div
+                        ref="hourlyGridRef"
+                        class="flex max-h-[36rem] overflow-y-auto"
+                    >
                         <div
                             class="w-14 left-0 sticky z-10 shrink-0 bg-background"
                         >
@@ -751,6 +822,39 @@ const eventRangeLabel = computed(() => {
                                 >
                                     {{ t('kinetix.calendar_view_event') }}
                                 </a>
+
+                                <div
+                                    v-if="selectedEventActions.length"
+                                    class="gap-2 mt-4 flex flex-wrap items-center"
+                                >
+                                    <button
+                                        v-for="(
+                                            action, idx
+                                        ) in selectedEventActions"
+                                        :key="idx"
+                                        type="button"
+                                        :class="eventActionClass(action)"
+                                        :title="
+                                            action.isIconButton
+                                                ? action.label
+                                                : undefined
+                                        "
+                                        :aria-label="
+                                            action.isIconButton
+                                                ? action.label
+                                                : undefined
+                                        "
+                                        @click="handleEventAction(action)"
+                                    >
+                                        <component
+                                            :is="resolveIcon(action.icon)"
+                                            v-if="action.icon"
+                                        />
+                                        <span v-if="!action.isIconButton">{{
+                                            action.label
+                                        }}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -792,7 +896,45 @@ const eventRangeLabel = computed(() => {
                 >
                     {{ t('kinetix.calendar_view_event') }}
                 </a>
+
+                <div
+                    v-if="selectedEventActions.length"
+                    class="gap-2 flex flex-wrap items-center"
+                >
+                    <button
+                        v-for="(action, idx) in selectedEventActions"
+                        :key="idx"
+                        type="button"
+                        :class="eventActionClass(action)"
+                        :title="action.isIconButton ? action.label : undefined"
+                        :aria-label="
+                            action.isIconButton ? action.label : undefined
+                        "
+                        @click="handleEventAction(action)"
+                    >
+                        <component
+                            :is="resolveIcon(action.icon)"
+                            v-if="action.icon"
+                        />
+                        <span v-if="!action.isIconButton">{{
+                            action.label
+                        }}</span>
+                    </button>
+                </div>
             </div>
         </KinetixSheet>
+
+        <!-- Confirmation modal for event actions that require it -->
+        <KinetixConfirmModal
+            v-model:open="isConfirmOpen"
+            :heading="pendingAction?.modalHeading"
+            :description="pendingAction?.modalDescription"
+            :icon="pendingAction?.modalIcon"
+            :color="pendingAction?.color"
+            :submit-label="pendingAction?.modalSubmitActionLabel"
+            :cancel-label="pendingAction?.modalCancelActionLabel"
+            @confirm="onConfirmAction"
+            @cancel="onCancelAction"
+        />
     </div>
 </template>

@@ -148,6 +148,12 @@ month-only calendar:
   today's column.
 - **`day`** — the same hourly grid for a single day.
 
+Switching into `week`/`day` (via the switcher, mounting directly in that
+view, or clicking "Today" while already there) automatically scrolls the
+hourly grid so the current time stays in view, with a little context above
+it — so you never land on a view scrolled to midnight with "now" hidden far
+below the fold.
+
 `startHour`/`endHour` restrict the visible hour range (e.g. `:start-hour="8"
 :end-hour="18"` for business hours). The hourly grid sits in its own
 horizontally-scrollable container, so 7 day-columns never break the page's
@@ -187,6 +193,39 @@ suppress the built-in popup entirely and handle everything yourself via
 The sheet is powered by a standalone **`<KinetixSheet>`** primitive
 (`open`, `side`, `title`, `description` props; `#header`/`#footer` slots) —
 reusable anywhere you want a shadcn Sheet-style slide-in panel, not just here.
+
+### Event actions (edit / delete / custom)
+
+Optional per-event actions — shown in **both** the modal and the sheet —
+resolve against each event's underlying record via
+`Calendar::eventActions()`, exactly like `Table::recordActions()`:
+
+```php
+use Happones\Kinetix\Actions\Action;
+
+Calendar::make(Event::query())
+    ->dateColumn('starts_at')
+    ->title('name')
+    ->eventActions([
+        Action::make('edit')
+            ->icon('pencil')
+            ->inertiaVisit(fn (Event $e) => route('events.edit', $e)),
+
+        Action::make('delete')
+            ->icon('trash')
+            ->color('danger')
+            ->requiresConfirmation('Delete this event?')
+            ->inertiaVisit(fn (Event $e) => route('events.destroy', $e), ['method' => 'delete']),
+    ]);
+```
+
+Actions omitted entirely still work with a purely read-only calendar — this
+is opt-in. `Action` is the same fluent builder used by table row actions and
+page headers, so it supports the full set: `inertiaVisit()`, `request()`
+(background HTTP), `dispatch()` (a custom browser event for the parent page
+to handle), `requiresConfirmation()` (gates the action behind
+`KinetixConfirmModal`), `authorize()`/`visible()`/`hidden()` for per-user
+gating, icons, and color.
 
 ---
 

@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.96.0] - 2026-07-12
+
+### Added
+
+- **Calendar: scroll-to-now and per-event actions**:
+  - Switching the event calendar into `week`/`day` view — via the switcher,
+    mounting directly in that view, or clicking "Today" while already
+    there — now auto-scrolls the hourly grid so the current time stays in
+    view (with a little context above it), instead of defaulting to the
+    scrolled-to-midnight top edge. No-op when "now" falls outside
+    `startHour`/`endHour`.
+  - **`Calendar::eventActions(array $actions)`** — optional per-event actions
+    (edit/delete/custom), resolved against each event's underlying record
+    exactly like `Table::recordActions()`. Reuses the same `Action` builder
+    and execution engine as Tables/PageHeader/Infolists
+    (`inertiaVisit()`/`request()`/`dispatch()`/`requiresConfirmation()` via
+    `KinetixConfirmModal`/`authorize()`/`visible()`/`hidden()`), rendered as
+    small icon+label buttons identically in **both** the event-details modal
+    and sheet. `CalendarEventData` gains `actions: ActionData[]` (defaults
+    `[]` — omit for a purely read-only calendar).
+  - Docs: `docs/calendar.md` gains a "Scroll-to-now" note and an "Event
+    actions" section. Tests: `CalendarTest`, `KinetixEventCalendar.spec.ts`.
+    **(published)**
+
 ## [0.95.0] - 2026-07-12
 
 ### Added

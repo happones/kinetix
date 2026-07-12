@@ -357,6 +357,8 @@ export interface KinetixCalendarEvent {
     color: string | null;
     url: string | null;
     description: string | null;
+    /** Per-event actions (edit/delete/custom) resolved via `Calendar::eventActions()`. */
+    actions: KinetixAction[];
 }
 
 /** A calendar: a list of events the component lays out by month/week/day. */

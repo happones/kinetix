@@ -26,6 +26,7 @@ For full details, reference `docs/calendar.md` (published at https://happones.gi
 ## Backend (server-driven, like Tables/Kanban)
 
 ```php
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Calendar\Calendar;
 
 $calendar = Calendar::make(Event::query())
@@ -36,10 +37,23 @@ $calendar = Calendar::make(Event::query())
     ->description(fn (Event $e) => $e->notes)   // optional, shown in the popup
     ->url(fn (Event $e) => route('events.show', $e))
     ->query(fn ($q) => $q->whereMonth('starts_at', now()->month))
-    ->timezone(fn () => auth()->user()->timezone ?? 'UTC'); // optional, defaults to config('app.timezone')
+    ->timezone(fn () => auth()->user()->timezone ?? 'UTC') // optional, defaults to config('app.timezone')
+    ->eventActions([                                        // optional — omit for read-only
+        Action::make('edit')->icon('pencil')
+            ->inertiaVisit(fn (Event $e) => route('events.edit', $e)),
+        Action::make('delete')->icon('trash')->color('danger')
+            ->requiresConfirmation('Delete this event?')
+            ->inertiaVisit(fn (Event $e) => route('events.destroy', $e), ['method' => 'delete']),
+    ]);
 
 return Inertia::render('Calendar', ['calendar' => $calendar->toData()]);
 ```
+
+`eventActions()` resolves each `Action` against its event's underlying
+record, exactly like `Table::recordActions()` — the same fluent `Action`
+builder used by tables/page headers, so `inertiaVisit()`/`request()`
+(background HTTP)/`dispatch()` (custom browser event)/`requiresConfirmation()`
+/`authorize()`/`visible()`/`hidden()` all work identically here.
 
 No migration, route or config flag — it's read-only and navigates client-side
 over the supplied events (scope a sensible window for big datasets).
@@ -76,9 +90,15 @@ midnight).
   calendar with zero backend round-trip.
 - **Event details popup**: clicking an event opens a built-in modal (default)
   or sheet (`event-display="sheet"`, `sheet-side` top/right/bottom/left) with
-  the color, formatted range, description, and a "View details" link when
-  `url` is set. `@event-click` always fires too; `:show-event-details="false"`
-  suppresses the built-in popup for fully custom handling.
+  the color, formatted range, description, a "View details" link when `url`
+  is set, and any `eventActions` as small icon+label buttons — identically in
+  both the modal and the sheet. `@event-click` always fires too;
+  `:show-event-details="false"` suppresses the built-in popup for fully
+  custom handling.
+- **Scroll-to-now**: switching into `week`/`day` (via the switcher, mounting
+  directly in that view, or clicking "Today" while already there) auto-scrolls
+  the hourly grid so the current time stays in view — a no-op when "now" falls
+  outside `start-hour`/`end-hour`.
 - `week-starts-on` 0–6 (default Monday); `locale` drives month/weekday/hour
   labels; `start-hour`/`end-hour` restrict the week/day hourly range (e.g.
   business hours `8`/`18`). i18n `calendar_*` (en/es/fr/pt/zh/ja/ru).

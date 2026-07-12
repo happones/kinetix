@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Calendar\Calendar;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -131,5 +132,60 @@ class CalendarTest extends TestCase
             ->toData();
 
         $this->assertSame('Details for Launch', $data->events[0]->description);
+    }
+
+    public function test_events_have_no_actions_by_default(): void
+    {
+        $data = Calendar::make(CalendarEvent::query())
+            ->dateColumn('starts_at')
+            ->title('name')
+            ->query(fn ($q) => $q->where('name', 'Launch'))
+            ->toData();
+
+        $this->assertSame([], $data->events[0]->actions);
+    }
+
+    public function test_event_actions_resolve_per_record(): void
+    {
+        $data = Calendar::make(CalendarEvent::query())
+            ->dateColumn('starts_at')
+            ->title('name')
+            ->eventActions([
+                Action::make('edit')->icon('pencil')
+                    ->inertiaVisit(fn (CalendarEvent $e) => "/events/{$e->id}/edit"),
+                Action::make('delete')->icon('trash')->color('danger')
+                    ->requiresConfirmation('Delete this event?')
+                    ->inertiaVisit(fn (CalendarEvent $e) => "/events/{$e->id}", ['method' => 'delete']),
+            ])
+            ->query(fn ($q) => $q->where('name', 'Launch'))
+            ->toData();
+
+        $actions = $data->events[0]->actions;
+        $this->assertCount(2, $actions);
+
+        $this->assertSame('edit', $actions[0]->name);
+        $this->assertSame('/events/1/edit', $actions[0]->url);
+        $this->assertFalse($actions[0]->requiresConfirmation);
+
+        $this->assertSame('delete', $actions[1]->name);
+        $this->assertSame('/events/1', $actions[1]->url);
+        $this->assertSame(['method' => 'delete'], $actions[1]->inertiaVisit);
+        $this->assertTrue($actions[1]->requiresConfirmation);
+        $this->assertSame('Delete this event?', $actions[1]->modalHeading);
+        $this->assertSame('danger', $actions[1]->color);
+    }
+
+    public function test_event_actions_respect_authorization_per_record(): void
+    {
+        $data = Calendar::make(CalendarEvent::query())
+            ->dateColumn('starts_at')
+            ->title('name')
+            ->eventActions([
+                Action::make('edit')->authorize(false),
+            ])
+            ->query(fn ($q) => $q->where('name', 'Launch'))
+            ->toData();
+
+        $this->assertSame([], $data->events[0]->actions);
     }
 }

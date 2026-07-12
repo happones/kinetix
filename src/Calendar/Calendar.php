@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Calendar;
 
 use Closure;
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\CalendarData;
 use Happones\Kinetix\Data\CalendarEventData;
 use Happones\Kinetix\Support\KinetixTimezone;
@@ -48,6 +49,11 @@ class Calendar
     protected ?string $heading = null;
 
     protected string|Closure|null $timezone = null;
+
+    /**
+     * @var array<int, Action>
+     */
+    protected array $eventActions = [];
 
     public function __construct(protected mixed $queryOrModel) {}
 
@@ -130,6 +136,28 @@ class Calendar
         return $this;
     }
 
+    /**
+     * Per-event actions (edit/delete/custom), shown in the built-in event
+     * details modal/sheet — resolved against each event's underlying record,
+     * exactly like `Table::recordActions()`. Optional: omit for a purely
+     * read-only calendar.
+     *
+     *     Calendar::make(Event::query())
+     *         ->eventActions([
+     *             Action::make('edit')->icon('pencil')->inertiaVisit(fn ($e) => route('events.edit', $e)),
+     *             Action::make('delete')->icon('trash')->color('danger')
+     *                 ->requiresConfirmation()->inertiaVisit(fn ($e) => route('events.destroy', $e), ['method' => 'delete']),
+     *         ]);
+     *
+     * @param array<int, Action> $actions
+     */
+    public function eventActions(array $actions): static
+    {
+        $this->eventActions = $actions;
+
+        return $this;
+    }
+
     public function toData(): CalendarData
     {
         $timezone = $this->resolveTimezone();
@@ -149,6 +177,14 @@ class Calendar
                 $allDay = $start->format('H:i:s') === '00:00:00'
                     && ($end === null || $end->format('H:i:s') === '00:00:00');
 
+                $resolvedActions = [];
+                foreach ($this->eventActions as $action) {
+                    $data = $action->toData($r);
+                    if ($data !== null) {
+                        $resolvedActions[] = $data;
+                    }
+                }
+
                 return new CalendarEventData(
                     id: $r->getKey(),
                     title: (string) $this->resolve($this->title, $r),
@@ -158,6 +194,7 @@ class Calendar
                     color: $this->color === null ? null : ($this->resolve($this->color, $r) ?: null),
                     url: $this->url !== null ? ($this->url)($r) : null,
                     description: $this->description === null ? null : ($this->resolve($this->description, $r) ?: null),
+                    actions: $resolvedActions,
                 );
             })
             ->filter()

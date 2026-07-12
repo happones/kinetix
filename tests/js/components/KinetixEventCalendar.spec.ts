@@ -320,6 +320,201 @@ describe('KinetixEventCalendar', () => {
         });
     });
 
+    describe('scroll-to-now', () => {
+        it('scrolls the hourly grid to the current time when mounted directly in day view', async () => {
+            const w = mountIt({ views: ['day'], view: 'day' });
+            await nextTick();
+
+            const grid = w.find('.overflow-y-auto').element as HTMLElement;
+            // System time is pinned to 12:00 UTC — 50% through the default
+            // 0-24h grid (24 hours * 64px/hour * 0.5 = 768px).
+            expect(grid.scrollTop).toBe(768);
+        });
+
+        it('scrolls to the current time when switching from month to week view', async () => {
+            const w = mountIt({ views: ['month', 'week'] });
+            const weekButton = w
+                .findAll('[role="group"] button')
+                .find((b) => b.text() === 'Week');
+            await weekButton?.trigger('click');
+            await nextTick();
+
+            const grid = w.find('.overflow-y-auto').element as HTMLElement;
+            expect(grid.scrollTop).toBe(768);
+        });
+
+        it('scrolls to the current time again when "Today" is clicked while in day view', async () => {
+            const w = mountIt({
+                views: ['day'],
+                view: 'day',
+                anchorDate: '2026-06-01',
+            });
+            await nextTick();
+
+            const grid = w.find('.overflow-y-auto').element as HTMLElement;
+            grid.scrollTop = 0; // simulate the user having scrolled away
+
+            const todayButton = w
+                .findAll('button')
+                .find((b) => b.text() === 'Today');
+            await todayButton?.trigger('click');
+            await nextTick();
+
+            expect(grid.scrollTop).toBe(768);
+        });
+
+        it('does not scroll when the current time falls outside startHour/endHour', async () => {
+            // System time is 12:00 UTC — outside an 08:00-10:00 window.
+            const w = mountIt({
+                views: ['day'],
+                view: 'day',
+                startHour: 8,
+                endHour: 10,
+            });
+            await nextTick();
+
+            const grid = w.find('.overflow-y-auto').element as HTMLElement;
+            expect(grid.scrollTop).toBe(0);
+        });
+    });
+
+    describe('event actions', () => {
+        const editAction = {
+            name: 'edit',
+            label: 'Edit',
+            icon: 'pencil',
+            color: 'primary',
+            isIconButton: false,
+            requiresConfirmation: false,
+            dispatchEvent: 'calendar-edit',
+            dispatchData: { id: 1 },
+            url: null,
+            inertiaVisit: null,
+            httpRequest: null,
+            isPreview: false,
+            isDownload: false,
+            shouldOpenInNewTab: false,
+        };
+
+        const deleteAction = {
+            name: 'delete',
+            label: 'Delete',
+            icon: 'trash',
+            color: 'danger',
+            isIconButton: false,
+            requiresConfirmation: true,
+            modalHeading: 'Delete event?',
+            modalDescription: 'This cannot be undone.',
+            modalIcon: 'alert-triangle',
+            modalSubmitActionLabel: 'Confirm delete',
+            modalCancelActionLabel: null,
+            dispatchEvent: 'calendar-delete',
+            dispatchData: { id: 1 },
+            url: null,
+            inertiaVisit: null,
+            httpRequest: null,
+            isPreview: false,
+            isDownload: false,
+            shouldOpenInNewTab: false,
+        };
+
+        const calendarWithActions = {
+            heading: null,
+            timezone: 'UTC',
+            events: [
+                {
+                    ...calendar.events[0],
+                    actions: [editAction, deleteAction],
+                },
+            ],
+        };
+
+        it('renders no action buttons when an event has none', async () => {
+            const w = mountIt();
+            await w
+                .findAll('button')
+                .find((b) => b.text() === 'Launch')
+                ?.trigger('click');
+            await nextTick();
+
+            expect(document.body.textContent).not.toContain('Edit');
+        });
+
+        it('runs a non-confirmation action immediately (modal display)', async () => {
+            const w = mountIt({ calendar: calendarWithActions });
+            const handler = vi.fn();
+            window.addEventListener('kinetix:calendar-edit', handler);
+
+            await w
+                .findAll('button')
+                .find((b) => b.text() === 'Launch')
+                ?.trigger('click');
+            await nextTick();
+
+            const editButton = Array.from(
+                document.body.querySelectorAll('button'),
+            ).find((b) => b.textContent?.trim() === 'Edit');
+            editButton?.dispatchEvent(
+                new MouseEvent('click', { bubbles: true }),
+            );
+            await nextTick();
+
+            expect(handler).toHaveBeenCalledTimes(1);
+            window.removeEventListener('kinetix:calendar-edit', handler);
+        });
+
+        it('gates a requiresConfirmation action behind KinetixConfirmModal (modal display)', async () => {
+            const w = mountIt({ calendar: calendarWithActions });
+            const handler = vi.fn();
+            window.addEventListener('kinetix:calendar-delete', handler);
+
+            await w
+                .findAll('button')
+                .find((b) => b.text() === 'Launch')
+                ?.trigger('click');
+            await nextTick();
+
+            const deleteButton = Array.from(
+                document.body.querySelectorAll('button'),
+            ).find((b) => b.textContent?.trim() === 'Delete');
+            deleteButton?.dispatchEvent(
+                new MouseEvent('click', { bubbles: true }),
+            );
+            await nextTick();
+
+            // Not run yet — waiting on confirmation.
+            expect(handler).not.toHaveBeenCalled();
+            expect(document.body.textContent).toContain('Delete event?');
+
+            const confirmButton = Array.from(
+                document.body.querySelectorAll('button'),
+            ).find((b) => b.textContent?.trim() === 'Confirm delete');
+            confirmButton?.dispatchEvent(
+                new MouseEvent('click', { bubbles: true }),
+            );
+            await nextTick();
+
+            expect(handler).toHaveBeenCalledTimes(1);
+            window.removeEventListener('kinetix:calendar-delete', handler);
+        });
+
+        it('renders event actions in the sheet display too', async () => {
+            const w = mountIt({
+                calendar: calendarWithActions,
+                eventDisplay: 'sheet',
+            });
+            await w
+                .findAll('button')
+                .find((b) => b.text() === 'Launch')
+                ?.trigger('click');
+            await nextTick();
+
+            const panel = document.body.querySelector('.shadow-2xl');
+            expect(panel?.textContent).toContain('Edit');
+            expect(panel?.textContent).toContain('Delete');
+        });
+    });
+
     describe('day-click', () => {
         it('emits day-click with the ISO date when an empty cell is clicked', async () => {
             const w = mountIt();
