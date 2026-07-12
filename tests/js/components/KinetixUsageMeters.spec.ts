@@ -45,6 +45,23 @@ describe('KinetixUsageMeters', () => {
         expect(w.html()).toBe('<!--v-if-->');
     });
 
+    it('renders nothing (and does not throw) when metrics is omitted', () => {
+        const w = mount(KinetixUsageMeters, {
+            global: { plugins: [i18n] },
+        });
+
+        expect(w.html()).toBe('<!--v-if-->');
+    });
+
+    it('renders nothing (and does not throw) when metrics is explicitly null', () => {
+        const w = mount(KinetixUsageMeters, {
+            props: { metrics: null as unknown as KinetixUsageMetricData[] },
+            global: { plugins: [i18n] },
+        });
+
+        expect(w.html()).toBe('<!--v-if-->');
+    });
+
     it('renders one bar per metric with the resolved fill color and width', () => {
         const w = mount(KinetixUsageMeters, {
             props: {

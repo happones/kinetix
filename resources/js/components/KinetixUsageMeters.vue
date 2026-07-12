@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { statusFillClass, statusTextClass } from '@/composables/useStatusColor';
 import type { KinetixUsageMetricData } from '@/types';
@@ -21,20 +22,25 @@ import CardTitle from './primitives/CardTitle.vue';
  */
 const props = withDefaults(
     defineProps<{
-        metrics: KinetixUsageMetricData[];
+        metrics?: KinetixUsageMetricData[] | null;
         title?: string | null;
     }>(),
-    { title: null },
+    { metrics: () => [], title: null },
 );
 
 const { t } = useI18n();
+
+// Guards against `metrics` arriving as `null`/omitted (e.g. the controller's
+// usage() call failing) in addition to the withDefaults() fallback, so a
+// transient server-side hiccup never blanks the whole billing page.
+const metrics = computed(() => props.metrics ?? []);
 
 const percentFor = (metric: KinetixUsageMetricData) =>
     Math.max(0, Math.min(100, metric.percent));
 </script>
 
 <template>
-    <Card v-if="props.metrics.length > 0">
+    <Card v-if="metrics.length > 0">
         <CardHeader>
             <CardTitle>{{
                 props.title ?? t('kinetix.billing_usage_title')
@@ -43,7 +49,7 @@ const percentFor = (metric: KinetixUsageMetricData) =>
 
         <CardContent class="gap-5 flex flex-col">
             <div
-                v-for="metric in props.metrics"
+                v-for="metric in metrics"
                 :key="metric.key"
                 class="gap-1.5 flex flex-col"
             >

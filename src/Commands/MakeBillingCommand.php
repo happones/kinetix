@@ -71,21 +71,26 @@ import type {
   KinetixUsageMetricData,
 } from '@/types';
 
-const props = defineProps<{
-  plans: KinetixPlanData[];
-  currentPlan: KinetixPlanData | null;
-  preselectedPlanSlug: string | null;
-  intent: { client_secret: string } | null;
-  paymentMethods: KinetixPaymentMethod[];
-  defaultPaymentMethodId: string | null;
-  invoices: KinetixInvoice[];
-  subscription: KinetixSubscriptionData | null;
-  usage: KinetixUsageMetricData[];
-  currencySymbol: string;
-  publishableKey: string;
-  trialGeneric: boolean;
-  invoicesUseStripeUrl: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    plans: KinetixPlanData[];
+    currentPlan: KinetixPlanData | null;
+    preselectedPlanSlug: string | null;
+    intent: { client_secret: string } | null;
+    paymentMethods: KinetixPaymentMethod[];
+    defaultPaymentMethodId: string | null;
+    invoices: KinetixInvoice[];
+    subscription: KinetixSubscriptionData | null;
+    // Optional with a default below: the controller always sends it, but this
+    // is a safety net against a transient server-side hiccup blanking the page.
+    usage?: KinetixUsageMetricData[];
+    currencySymbol: string;
+    publishableKey: string;
+    trialGeneric: boolean;
+    invoicesUseStripeUrl: boolean;
+  }>(),
+  { usage: () => [] },
+);
 
 // Optional dot-path -> label map for capability rows (customise per app).
 const featureLabels: Record<string, string> = {};

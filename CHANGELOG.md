@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.91.2] - 2026-07-11
+
+### Fixed
+
+- **`<KinetixUsageMeters>` blank-page crash when `usage` is missing** — if the
+  billing controller ever fails to send `usage` (a transient Stripe outage, a
+  one-off 500, a partial SSR render), the page rendered blank instead of
+  degrading gracefully. `metrics` is now optional with a `[]` default
+  (`withDefaults`), plus a `computed` that falls back to `[]` even if the prop
+  arrives as an explicit `null` — so a server-side hiccup never blanks the
+  billing page, it just hides the usage card. The `kinetix:make-billing`
+  scaffold's `usage` prop is the same fix: optional with a `[]` default,
+  removing the "Missing required prop" warning when the controller can't
+  compute usage for a request. **(published)**
+
 ## [0.91.1] - 2026-07-11
 
 ### Fixed
