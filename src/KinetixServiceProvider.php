@@ -426,6 +426,12 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000019_create_kinetix_pdf_templates_table.php' => database_path('migrations/2026_01_01_000019_create_kinetix_pdf_templates_table.php'),
             ], 'kinetix-pdf-migrations');
 
+            // Publish the optional Reports Center module's migrations.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000020_create_kinetix_report_schedules_table.php' => database_path('migrations/2026_01_01_000020_create_kinetix_report_schedules_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'      => database_path('migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'),
+            ], 'kinetix-reports-center-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
