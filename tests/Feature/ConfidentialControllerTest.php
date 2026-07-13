@@ -32,6 +32,7 @@ class ConfidentialControllerTest extends TestCase
     {
         parent::defineEnvironment($app);
 
+        $app['config']->set('cache.default', 'array');
         $app['config']->set('kinetix.confidential.enabled', true);
         $app['config']->set('auth.providers.users.model', ConfidentialControllerTestUser::class);
     }

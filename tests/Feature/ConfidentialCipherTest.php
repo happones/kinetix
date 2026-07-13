@@ -9,11 +9,22 @@ use Happones\Kinetix\Confidential\ConfidentialKey;
 use Happones\Kinetix\Confidential\KeyManagers\LocalKeyManager;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 class ConfidentialCipherTest extends TestCase
 {
+    /**
+     * @param Application $app
+     */
+    protected function defineEnvironment($app): void
+    {
+        parent::defineEnvironment($app);
+
+        $app['config']->set('cache.default', 'array');
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
