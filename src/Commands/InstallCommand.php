@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Commands;
 use Happones\Kinetix\Support\ComposerHook;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\ServiceProvider;
 
 class InstallCommand extends Command
 {
@@ -17,7 +18,8 @@ class InstallCommand extends Command
      */
     protected $signature = 'kinetix:install
         {--charts : Also install chart/widget dependencies (@unovis/vue, @unovis/ts)}
-        {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}';
+        {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}
+        {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}';
 
     /**
      * The console command description.
@@ -222,9 +224,110 @@ JS;
 
         $this->registerUpgradeHook();
 
+        if ($this->option('provider')) {
+            $this->scaffoldProvider();
+        }
+
         $this->info('Kinetix installation and configuration completed successfully!');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Scaffold a dedicated `App\Providers\KinetixServiceProvider` (the Filament
+     * pattern: keep all Kinetix registration out of AppServiceProvider) and
+     * register it in bootstrap/providers.php. Idempotent — skips an existing
+     * provider file and a provider already listed.
+     */
+    protected function scaffoldProvider(): void
+    {
+        $providerClass = 'App\\Providers\\KinetixServiceProvider';
+        $providerPath  = app_path('Providers/KinetixServiceProvider.php');
+
+        if (File::exists($providerPath)) {
+            $this->info('App\\Providers\\KinetixServiceProvider already exists — skipping.');
+        } else {
+            File::ensureDirectoryExists(dirname($providerPath));
+            File::put($providerPath, $this->providerStub());
+            $this->info('Created app/Providers/KinetixServiceProvider.php');
+        }
+
+        $bootstrapPath = base_path('bootstrap/providers.php');
+
+        if (! File::exists($bootstrapPath)) {
+            $this->warn("bootstrap/providers.php not found — register {$providerClass}::class manually.");
+
+            return;
+        }
+
+        $added = ServiceProvider::addProviderToBootstrapFile($providerClass, $bootstrapPath);
+
+        if ($added) {
+            $this->info('Registered App\\Providers\\KinetixServiceProvider in bootstrap/providers.php.');
+        } else {
+            $this->info('App\\Providers\\KinetixServiceProvider already registered in bootstrap/providers.php.');
+        }
+    }
+
+    /**
+     * The dedicated-provider stub. Resources under app/Kinetix/Resources are
+     * auto-discovered, so the stub only shows the non-resource surface and the
+     * "registrar class per module" convention.
+     */
+    protected function providerStub(): string
+    {
+        return <<<'PHP'
+        <?php
+
+        declare(strict_types=1);
+
+        namespace App\Providers;
+
+        use Happones\Kinetix\Permissions\KinetixPermissions;
+        use Illuminate\Support\ServiceProvider;
+
+        /**
+         * Dedicated home for all Kinetix registration, keeping AppServiceProvider
+         * lean. Prefer one small "registrar" class per module (a class that just
+         * declares/returns its content) and call it from boot().
+         */
+        class KinetixServiceProvider extends ServiceProvider
+        {
+            public function boot(): void
+            {
+                $this->registerPermissions();
+                // $this->registerModules();
+            }
+
+            /**
+             * Resources under app/Kinetix/Resources are auto-discovered (see
+             * config/kinetix.php `permissions.discover_path`). Declare here only the
+             * non-resource features/abilities your app needs.
+             */
+            protected function registerPermissions(): void
+            {
+                // KinetixPermissions::feature('configuration')
+                //     ->label('Configuration')
+                //     ->abilities([
+                //         'viewAny' => 'View business data',
+                //         'update'  => 'Update business data',
+                //     ]);
+            }
+
+            /**
+             * Register optional Kinetix module content. Keep each module's content
+             * in its own registrar class, then call it here:
+             *
+             *     \App\Kinetix\WebhookEvents::register();
+             *     \App\Kinetix\OnboardingSteps::register();
+             *     \App\Kinetix\SpotlightLinks::register();
+             */
+            // protected function registerModules(): void
+            // {
+            //     //
+            // }
+        }
+        PHP;
     }
 
     /**

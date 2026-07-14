@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Permissions;
 
+use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\Concerns\DiscoversClasses;
+
 /**
  * The single source of truth for Kinetix permissions. Features can be declared
- * explicitly (`feature('billing')->ability('manage')`) or auto-derived from a
- * Kinetix Resource (`resource(PostResource::class)`), giving the hybrid model:
- * zero boilerplate for resources, full control for everything else.
+ * explicitly (`feature('billing')->ability('manage')`), auto-derived from a
+ * Kinetix Resource (`resource(PostResource::class)`), or auto-discovered from a
+ * conventional resources directory (`discoverResources(in:, for:)`), giving the
+ * hybrid model: zero boilerplate for resources, full control for everything else.
  *
  * Bound as a singleton so app code accumulates definitions, then the
  * `kinetix:permissions:sync` command and the frontend share the same canonical
@@ -16,6 +20,8 @@ namespace Happones\Kinetix\Permissions;
  */
 class PermissionRegistry
 {
+    use DiscoversClasses;
+
     /**
      * @var array<string, Feature>
      */
@@ -27,6 +33,21 @@ class PermissionRegistry
      * @var array<int, class-string>
      */
     protected array $resources = [];
+
+    /**
+     * Directories (+ base namespace) scanned for `Resource` subclasses.
+     *
+     * @var array<int, array{0: string, 1: string}>
+     */
+    protected array $discoverPaths = [];
+
+    /**
+     * Resource classes already resolved, so repeat `features()` calls don't
+     * re-run their `registerPermissions()` hook.
+     *
+     * @var array<class-string, true>
+     */
+    protected array $resolved = [];
 
     /**
      * Declare (or fetch) a feature by name.
@@ -47,6 +68,19 @@ class PermissionRegistry
         if (! in_array($resourceClass, $this->resources, true)) {
             $this->resources[] = $resourceClass;
         }
+
+        return $this;
+    }
+
+    /**
+     * Auto-discover `Resource` subclasses in a directory and derive their
+     * permissions, additive to any manual `resource()` calls. Resources that
+     * don't override `permissionFeature()` opt out silently, so scanning never
+     * over-grants. Call multiple times to add more roots.
+     */
+    public function discoverResources(string $directory, string $namespace): static
+    {
+        $this->discoverPaths[] = [$directory, rtrim($namespace, '\\')];
 
         return $this;
     }
@@ -81,14 +115,19 @@ class PermissionRegistry
 
     protected function resolveResources(): void
     {
-        if ($this->resources === []) {
-            return;
-        }
-
         $pending         = $this->resources;
         $this->resources = [];
 
-        foreach ($pending as $resourceClass) {
+        foreach ($this->discoverPaths as [$directory, $namespace]) {
+            $pending = [...$pending, ...$this->scanForSubclasses($directory, $namespace, Resource::class)];
+        }
+
+        foreach (array_unique($pending) as $resourceClass) {
+            if (isset($this->resolved[$resourceClass])) {
+                continue;
+            }
+
+            $this->resolved[$resourceClass] = true;
             $resourceClass::registerPermissions($this);
         }
     }

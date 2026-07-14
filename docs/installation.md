@@ -98,6 +98,9 @@ php artisan kinetix:install --charts
 
 # add real-time notification deps (@laravel/echo-vue):
 php artisan kinetix:install --broadcasting
+
+# scaffold a dedicated App\Providers\KinetixServiceProvider:
+php artisan kinetix:install --provider
 ```
 
 It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are
@@ -108,6 +111,26 @@ assumed from your starter kit): `pinia`, `vue-i18n`, `reka-ui`,
 > If you see a Vite error like *Failed to resolve import "@internationalized/date"*,
 > a required dependency is missing — run `php artisan kinetix:install` (or install
 > the package listed above manually).
+
+### A dedicated service provider (recommended)
+
+Kinetix registration (feature permissions, module content, gates) grows over
+time. Rather than piling it into `AppServiceProvider`, keep it in a dedicated
+provider — the Filament pattern. `--provider` scaffolds
+`app/Providers/KinetixServiceProvider.php` and registers it in
+`bootstrap/providers.php` (idempotent — safe to re-run):
+
+```bash
+php artisan kinetix:install --provider
+```
+
+Resources under `app/Kinetix/Resources` are auto-discovered (see
+[Permissions](./permissions.md)), so the provider only holds your non-resource
+features and module content. Keep each module's content in its own small
+"registrar" class (a class that just declares/returns its content) and call it
+from the provider's `boot()` — e.g. `WebhookEvents::register()`,
+`OnboardingSteps::register()`. This keeps `AppServiceProvider` limited to
+framework-level defaults.
 
 ::: details Manual Installation & Configuration
 

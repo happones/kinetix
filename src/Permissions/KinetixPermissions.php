@@ -9,6 +9,7 @@ namespace Happones\Kinetix\Permissions;
  * provider:
  *
  *     KinetixPermissions::resource(PostResource::class);
+ *     KinetixPermissions::discoverResources(in: app_path('Kinetix/Resources'), for: 'App\Kinetix\Resources');
  *     KinetixPermissions::feature('billing')->label('Billing')->ability('manage');
  */
 class KinetixPermissions
@@ -29,6 +30,15 @@ class KinetixPermissions
     public static function resource(string $resourceClass): PermissionRegistry
     {
         return static::registry()->resource($resourceClass);
+    }
+
+    /**
+     * Auto-discover `Resource` subclasses in a directory and derive their
+     * permissions (additive to manual `resource()` calls).
+     */
+    public static function discoverResources(string $in, string $for): PermissionRegistry
+    {
+        return static::registry()->discoverResources($in, $for);
     }
 
     /**

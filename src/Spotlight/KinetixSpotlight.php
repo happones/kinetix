@@ -28,4 +28,14 @@ class KinetixSpotlight
     {
         static::registry()->register($sources);
     }
+
+    /**
+     * Auto-discover `SpotlightSource` implementations in a directory (additive
+     * to manual `register()` calls). Discovered classes are resolved from the
+     * container.
+     */
+    public static function discover(string $in, string $for): void
+    {
+        static::registry()->discover($in, $for);
+    }
 }

@@ -67,6 +67,39 @@ By default, defining a feature name auto-registers the 5 standard CRUD abilities
 * `posts.update` (Update)
 * `posts.delete` (Delete)
 
+#### How Resources Are Registered (Auto-Discovery)
+
+Resources placed in `app/Kinetix/Resources` are **auto-discovered** — you do not
+list them anywhere. Kinetix scans that directory and derives permissions from
+each Resource's `permissionFeature()`; a Resource that returns `null` (the
+default) is skipped, so discovery never over-grants. This is controlled by
+`config/kinetix.php`:
+
+```php
+'permissions' => [
+    // Set to null to disable discovery and register resources manually.
+    'discover_path'      => app_path('Kinetix/Resources'),
+    'discover_namespace' => 'App\\Kinetix\\Resources',
+],
+```
+
+To register a Resource that lives outside the discovered directory (or when you
+disable discovery), register it explicitly from a service provider:
+
+```php
+use Happones\Kinetix\Permissions\KinetixPermissions;
+
+KinetixPermissions::resource(\App\Other\PostResource::class);
+
+// Or point discovery at an additional directory:
+KinetixPermissions::discoverResources(
+    in: app_path('Domain/Resources'),
+    for: 'App\\Domain\\Resources',
+);
+```
+
+Manual and discovered registrations merge without duplicates.
+
 #### Customizing Resource Abilities
 If a resource requires custom abilities on top of CRUD, override the `registerPermissions` method:
 

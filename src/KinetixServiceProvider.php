@@ -141,8 +141,23 @@ class KinetixServiceProvider extends ServiceProvider
             'kinetix'
         );
 
-        // The permission registry accumulates feature definitions app-wide.
-        $this->app->singleton(PermissionRegistry::class);
+        // The permission registry accumulates feature definitions app-wide, and
+        // optionally auto-discovers `Resource` subclasses from a conventional
+        // directory (config-driven, mirrors the Reports Center below).
+        $this->app->singleton(PermissionRegistry::class, function (): PermissionRegistry {
+            $registry = new PermissionRegistry;
+
+            $discoverPath = config('kinetix.permissions.discover_path');
+
+            if ($discoverPath !== null) {
+                $registry->discoverResources(
+                    (string) $discoverPath,
+                    (string) config('kinetix.permissions.discover_namespace', 'App\\Kinetix\\Resources'),
+                );
+            }
+
+            return $registry;
+        });
         $this->app->singleton(PdfTemplateRegistry::class);
 
         // The settings store + page registry are app-wide singletons.
@@ -158,8 +173,22 @@ class KinetixServiceProvider extends ServiceProvider
         // The feature-flag manager (pennant bridge / native evaluator).
         $this->app->singleton(FeatureManager::class);
 
-        // The spotlight source registry (command palette).
-        $this->app->singleton(SpotlightRegistry::class);
+        // The spotlight source registry (command palette), with optional
+        // directory auto-discovery of `SpotlightSource` implementations.
+        $this->app->singleton(SpotlightRegistry::class, function (): SpotlightRegistry {
+            $registry = new SpotlightRegistry;
+
+            $discoverPath = config('kinetix.spotlight.discover_path');
+
+            if ($discoverPath !== null) {
+                $registry->discover(
+                    (string) $discoverPath,
+                    (string) config('kinetix.spotlight.discover_namespace', 'App\\Kinetix\\Spotlight'),
+                );
+            }
+
+            return $registry;
+        });
 
         // The webhook event registry + dispatcher.
         $this->app->singleton(WebhookEventRegistry::class);

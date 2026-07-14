@@ -55,6 +55,30 @@ KinetixSpotlight::register([
 ]);
 ```
 
+### Auto-discovering source classes
+
+For sources you'd rather keep as dedicated classes, put any `SpotlightSource`
+implementation in `app/Kinetix/Spotlight` and it is discovered automatically
+(additive to `register()`). Discovered classes are resolved from the container,
+so they may declare constructor dependencies. Configure or disable it in
+`config/kinetix.php`:
+
+```php
+'spotlight' => [
+    // Set to null to disable discovery.
+    'discover_path'      => app_path('Kinetix/Spotlight'),
+    'discover_namespace' => 'App\\Kinetix\\Spotlight',
+],
+```
+
+You can also point discovery at another directory from a service provider:
+
+```php
+use Happones\Kinetix\Spotlight\KinetixSpotlight;
+
+KinetixSpotlight::discover(in: app_path('Domain/Spotlight'), for: 'App\\Domain\\Spotlight');
+```
+
 ---
 
 ## 2. Authorization (the important part)

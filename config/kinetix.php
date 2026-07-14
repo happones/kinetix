@@ -266,6 +266,13 @@ return [
         'teams'            => env('KINETIX_PERMISSIONS_TEAMS'), // null = inherit kinetix.teams
         'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
         'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
+
+        // Directory (+ namespace) auto-scanned for `Resource` subclasses whose
+        // CRUD abilities are derived automatically — no per-resource
+        // registration needed. Set `discover_path` to null to disable and
+        // register resources manually via `KinetixPermissions::resource()`.
+        'discover_path'      => app_path('Kinetix/Resources'),
+        'discover_namespace' => 'App\\Kinetix\\Resources',
     ],
 
     /*
@@ -427,6 +434,12 @@ return [
         'enabled' => env('KINETIX_SPOTLIGHT_ENABLED', false),
         'driver'  => env('KINETIX_SPOTLIGHT_DRIVER', 'auto'),
         'limit'   => env('KINETIX_SPOTLIGHT_LIMIT', 5),
+
+        // Directory (+ namespace) auto-scanned for `SpotlightSource` classes,
+        // additive to sources registered via `KinetixSpotlight::register()`.
+        // Set to null to disable discovery.
+        'discover_path'      => app_path('Kinetix/Spotlight'),
+        'discover_namespace' => 'App\\Kinetix\\Spotlight',
     ],
 
     /*
