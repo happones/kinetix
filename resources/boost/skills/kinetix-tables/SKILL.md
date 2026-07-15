@@ -20,6 +20,8 @@ Activate this skill when:
 - Filament-compatible sugar: `Column::state(fn ($record) => …)` (alias `getStateUsing()`) overrides the raw cell value before `formatStateUsing()`; `SelectFilter`/`MultiSelectFilter` `->relationship('author', 'name', ?Closure)` builds options from the related model and filters via `whereHas` (prefer `searchUsing()` for large related tables).
 - Attaching row-level record actions or header toolbar buttons.
 - Styling table rows with custom CSS background status classes.
+- **Sorting by relationship columns**: `TextColumn::make('author.name')->sortable()` sorts via a correlated subquery (BelongsTo/HasOne). The sort key is allowlisted to defined sortable columns. Custom/multi-column sort: `->sortable(using: fn (Builder $q, string $dir) => $q->orderBy(...))`.
+- **Client-side (TanStack) mode**: `Table::make(...)->clientSide()` ships the full (capped, default 500) row set once and a TanStack engine does search/sort/pagination in-browser — no round-trip. Same PHP API; `<KinetixTable>` lazy-loads the renderer only when `clientSide` is set. Needs the optional peer `@tanstack/vue-table`. Best for small datasets; omits server-only features (interactive filters, saved views, polling, reorder, bulk actions) — keep the default server-driven mode for those or for large data.
 
 ## Documentation
 

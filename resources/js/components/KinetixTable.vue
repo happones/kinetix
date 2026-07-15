@@ -12,7 +12,14 @@ import {
     PopoverRoot,
     PopoverTrigger,
 } from 'reka-ui';
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import {
+    ref,
+    computed,
+    watch,
+    onMounted,
+    onBeforeUnmount,
+    defineAsyncComponent,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     executeAction,
@@ -49,6 +56,13 @@ import KinetixTablePagination from './Table/KinetixTablePagination.vue';
 const props = defineProps<{
     table: KinetixTableData;
 }>();
+
+// Client-side ("TanStack") variant is loaded lazily so its dependency stays
+// code-split off the default server-driven path — only tables that opt into
+// `Table::clientSide()` ever fetch it.
+const KinetixDataTable = defineAsyncComponent(
+    () => import('./KinetixDataTable.vue'),
+);
 
 const { t } = useI18n();
 
@@ -463,7 +477,12 @@ const onDrop = async () => {
 </script>
 
 <template>
+    <!-- Client-side variant: full row set rendered by the TanStack engine. -->
+    <KinetixDataTable v-if="table.clientSide" :table="table" />
+
+    <!-- Default: server-driven table (search/sort/filter/paginate via Inertia). -->
     <div
+        v-else
         data-slot="card"
         class="kinetix-table-wrapper backdrop-blur-sm rounded-xl shadow-sm flex flex-col overflow-hidden border border-border bg-card text-card-foreground"
     >
@@ -597,7 +616,8 @@ const onDrop = async () => {
                                         <KinetixCombobox
                                             v-if="
                                                 (filter.type === 'select' ||
-                                                    filter.type === 'ternary') &&
+                                                    filter.type ===
+                                                        'ternary') &&
                                                 filter.isSearchable
                                             "
                                             :value="

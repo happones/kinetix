@@ -856,6 +856,8 @@ export interface KinetixTableData {
     hasSummaries?: boolean;
     reorderable?: boolean;
     savedViewsKey?: string | null;
+    /** When true, all rows are shipped and a TanStack renderer handles interactions client-side. */
+    clientSide?: boolean;
 }
 
 /** A computed column summary (sum/average/count/range/custom). */

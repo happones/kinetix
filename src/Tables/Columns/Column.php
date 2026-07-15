@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tables\Columns;
 use Closure;
 use Happones\Kinetix\Data\ColumnData;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class Column
@@ -18,6 +19,8 @@ abstract class Column
     protected bool $isSearchable = false;
 
     protected bool $isSortable = false;
+
+    protected ?Closure $sortUsing = null;
 
     protected string $alignment = 'left'; // left, center, right
 
@@ -73,11 +76,25 @@ abstract class Column
         return $this;
     }
 
-    public function sortable(bool $condition = true): static
+    /**
+     * Mark the column sortable. Dot-notation names (`author.name`) sort by the
+     * related column via a correlated subquery (BelongsTo / HasOne). For any
+     * other case, pass a custom sort resolver:
+     * `->sortable(using: fn (Builder $query, string $direction) => $query->orderBy(...))`.
+     *
+     * @param Closure(Builder, string): mixed|null $using
+     */
+    public function sortable(bool $condition = true, ?Closure $using = null): static
     {
         $this->isSortable = $condition;
+        $this->sortUsing  = $using;
 
         return $this;
+    }
+
+    public function getSortUsing(): ?Closure
+    {
+        return $this->sortUsing;
     }
 
     public function alignment(string $alignment): static

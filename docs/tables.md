@@ -98,6 +98,42 @@ defineProps<{
 
 ---
 
+## Rendering Modes: Server-driven vs Client-side
+
+By default Kinetix Tables are **server-driven**: search, sort, filtering and pagination run at the database level, and each interaction is an Inertia partial reload. This scales to large datasets and keeps state in the URL (shareable/back-button friendly).
+
+For **small, fully-loadable datasets**, opt into **client-side mode** with `->clientSide()`. The full (capped) result set is shipped once and a **TanStack Table** engine handles search / sort / pagination entirely in the browser — no round-trip per interaction:
+
+```php
+Table::make(Team::query())
+    ->columns([
+        TextColumn::make('name')->searchable()->sortable(),
+        TextColumn::make('members_count')->sortable(),
+    ])
+    ->clientSide();          // ship all rows; browser does the rest
+
+Table::make(Country::query())->clientSide(max: 300);   // lower the safety cap (default 500)
+```
+
+The same PHP `Table` API drives both modes — you only add `->clientSide()`. The frontend `<KinetixTable>` component is unchanged; it lazy-loads the TanStack-backed renderer only when a table is client-side, so the dependency is **code-split** off the server-driven path.
+
+::: tip Install the optional peer
+Client-side mode needs `@tanstack/vue-table` in your app (`npm install @tanstack/vue-table`). It's an **optional** peer dependency — server-driven tables never load it.
+:::
+
+**When to use which:**
+
+| | Server-driven (default) | Client-side (`->clientSide()`) |
+|---|---|---|
+| Dataset size | Any (DB-paginated) | Small (≤ the cap, default 500 rows) |
+| Search / sort / paginate | Database, per interaction | In-browser, instant |
+| Interactive filters, saved views, polling, reorder, bulk actions | ✅ | — (use server mode) |
+| Sort accuracy | Exact (DB-level) | On the **displayed** value (formatted); for exact numeric/date ordering keep server mode |
+
+Client-side mode covers search, sort, pagination, column visibility, row actions and row clicks. For heavy interactive filtering or very large data, stay server-driven.
+
+---
+
 ## Column Builders Reference
 
 All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tables\Columns` namespace.
@@ -106,7 +142,17 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
 - `make(string $name)`: Instantiates a column. The name can use dot-notation for relationship fields (e.g. `user.profile.phone`).
 - `label(string $label)`: Customizes the display label in the header.
 - `searchable(bool $condition = true)`: Enables search queries against this column.
-- `sortable(bool $condition = true)`: Enables active header sorting.
+- `sortable(bool $condition = true, ?Closure $using = null)`: Enables active header sorting. The sort key is **allowlisted** against the defined sortable columns, so an arbitrary query-string value can never reach the query. Three modes:
+  - Plain column (`TextColumn::make('name')->sortable()`) → `ORDER BY name`.
+  - **Relationship column** (`TextColumn::make('author.name')->sortable()`) → sorts by the related column via a correlated subquery (no join, no row duplication). Supports `BelongsTo` and `HasOne`.
+  - **Custom resolver** for anything else (multi-column, computed, `HasMany` aggregates):
+    ```php
+    TextColumn::make('full_name')->sortable(
+        using: fn (Builder $query, string $direction) => $query
+            ->orderBy('last_name', $direction)
+            ->orderBy('first_name', $direction),
+    );
+    ```
 - `alignment(string $alignment)`: Sets horizontal alignment (`left`, `center`, `right`).
 - `toggleable(bool $isToggleable = true, bool $isToggledHiddenByDefault = false)`: Allows users to hide/show the column.
 - `copyable(bool $condition = true)`: Shows a click-to-copy button on the cell (on hover) that copies its value to the clipboard. Works on any column type.

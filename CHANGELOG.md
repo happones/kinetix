@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.102.0] - 2026-07-15
+
+### Added
+
+- **Tables — sort by relationship columns.** `TextColumn::make('author.name')->sortable()`
+  now sorts by the related column via a correlated subquery (no join, so no row
+  duplication or column collision), supporting `BelongsTo` and `HasOne`. The
+  sort key is **allowlisted** against the defined sortable columns, so an
+  arbitrary query-string value can never reach `orderBy`. `sortable()` gains an
+  optional custom resolver for multi-column / computed / aggregate sorts:
+  `->sortable(using: fn (Builder $q, string $dir) => $q->orderBy(...))`.
+
+- **Tables — client-side (TanStack) rendering mode.** `Table::make(...)->clientSide()`
+  ships the full (capped, default 500) result set once and a TanStack Table
+  engine performs search / sort / pagination entirely in the browser — no
+  round-trip per interaction. Same PHP `Table` API and same `<KinetixTable>`
+  entry point; the TanStack-backed renderer (`KinetixDataTable`) is **async-loaded
+  only when a table opts in**, so the dependency is code-split off the
+  server-driven path. `@tanstack/vue-table` is an **optional** peer dependency
+  (`npm install @tanstack/vue-table`) — server-driven tables never load it. Best
+  for small, fully-loadable datasets; server-only features (interactive filters,
+  saved views, polling, reorder, bulk actions) remain in the default mode.
+  Sorting/searching operate on the serialized display value. **(published)**
+  - Docs: `docs/tables.md` (Rendering Modes; `sortable()`).
+
 ## [0.101.0] - 2026-07-15
 
 ### Added

@@ -19,6 +19,9 @@ use Happones\Kinetix\Tables\Filters\Filter;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
 
@@ -93,6 +96,19 @@ class Table implements Arrayable, JsonSerializable
     protected string $queryPrefix = '';
 
     protected ?string $savedViewsKey = null;
+
+    /**
+     * When true, the full (capped) result set is shipped to the client and a
+     * TanStack-backed renderer does search / sort / pagination in the browser —
+     * no round-trip per interaction. Best for small, fully-loadable datasets.
+     */
+    protected bool $clientSide = false;
+
+    /**
+     * Safety cap on rows serialized in client-side mode, so an unbounded table
+     * can never dump the whole database into the payload.
+     */
+    protected int $clientSideMax = 500;
 
     /**
      * Create a new table builder instance.
@@ -288,6 +304,22 @@ class Table implements Arrayable, JsonSerializable
         return $this;
     }
 
+    /**
+     * Render this table client-side: ship the full (capped) result set once and
+     * let a TanStack-backed renderer handle search / sort / pagination in the
+     * browser. Intended for small, fully-loadable datasets — for large data or
+     * interactive server filters, keep the default server-driven mode.
+     *
+     * @param int $max Safety cap on rows serialized (default 500).
+     */
+    public function clientSide(bool $condition = true, int $max = 500): static
+    {
+        $this->clientSide    = $condition;
+        $this->clientSideMax = $max;
+
+        return $this;
+    }
+
     public function recordUrl(Closure $callback): static
     {
         $this->recordUrl = $callback;
@@ -391,17 +423,7 @@ class Table implements Arrayable, JsonSerializable
         }
 
         // Apply sorting
-        $sort      = $this->param('sort');
-        $direction = $this->param('direction', 'asc');
-        if ($sort !== null && $sort !== '') {
-            // Only allow direct columns to prevent join validation errors
-            if (! str_contains($sort, '.')) {
-                $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
-            }
-        } elseif ($this->reorderColumn !== null) {
-            // Reorderable tables default to the persisted manual order.
-            $query->orderBy($this->reorderColumn);
-        }
+        $this->applySort($query);
 
         // Apply active filters
         $activeFilters = $this->param('filters', []);
@@ -417,6 +439,87 @@ class Table implements Arrayable, JsonSerializable
         }
 
         return $query;
+    }
+
+    /**
+     * Apply the active sort. The sort key is allowlisted against the defined,
+     * `sortable()` columns (so an arbitrary query-string value can never reach
+     * `orderBy` and blow up a query). Precedence:
+     *   1. a column's custom `sortable(using: …)` resolver,
+     *   2. a dot-notation relation column (`author.name`) → correlated subquery,
+     *   3. a plain column → `orderBy`.
+     * Falls back to the persisted manual order for reorderable tables.
+     */
+    protected function applySort(Builder $query): void
+    {
+        $sort      = $this->param('sort');
+        $direction = strtolower((string) $this->param('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        if ($sort === null || $sort === '') {
+            if ($this->reorderColumn !== null) {
+                $query->orderBy($this->reorderColumn);
+            }
+
+            return;
+        }
+
+        $column = collect($this->columns)->first(
+            fn (Column $c) => $c->getName() === (string) $sort && $c->isSortable()
+        );
+
+        if ($column === null) {
+            return;
+        }
+
+        $using = $column->getSortUsing();
+        if ($using !== null) {
+            $using($query, $direction);
+
+            return;
+        }
+
+        if (! str_contains((string) $sort, '.')) {
+            $query->orderBy((string) $sort, $direction);
+
+            return;
+        }
+
+        $this->applyRelationSort($query, (string) $sort, $direction);
+    }
+
+    /**
+     * Sort by a `relation.column` key via a correlated subquery — no join, so
+     * no row duplication or column-collision. Supports BelongsTo and HasOne
+     * (single-level); anything else is skipped rather than risking a bad query.
+     */
+    protected function applyRelationSort(Builder $query, string $sort, string $direction): void
+    {
+        [$relationName, $attribute] = explode('.', $sort, 2);
+
+        // Only single-level relations, and the method must exist on the model.
+        if (str_contains($attribute, '.') || ! method_exists($query->getModel(), $relationName)) {
+            return;
+        }
+
+        $relation = $query->getModel()->{$relationName}();
+        if (! $relation instanceof Relation) {
+            return;
+        }
+
+        $related = $relation->getRelated();
+        $sub     = $related->newQuery()
+            ->select($related->qualifyColumn($attribute))
+            ->limit(1);
+
+        if ($relation instanceof BelongsTo) {
+            $sub->whereColumn($relation->getQualifiedOwnerKeyName(), $relation->getQualifiedForeignKeyName());
+        } elseif ($relation instanceof HasOne) {
+            $sub->whereColumn($relation->getQualifiedForeignKeyName(), $relation->getQualifiedParentKeyName());
+        } else {
+            return;
+        }
+
+        $query->orderBy($sub, $direction);
     }
 
     /**
@@ -441,7 +544,13 @@ class Table implements Arrayable, JsonSerializable
 
         $perPage = (int) $this->param('perPage', (string) $this->defaultPaginationPageOption);
 
-        if ($this->isPaginated) {
+        if ($this->clientSide) {
+            // Ship the full (capped) set; the browser paginates. Base-query
+            // search/sort/filters still apply on load via getResolvedQuery().
+            foreach ($query->limit($this->clientSideMax)->get() as $record) {
+                $records[] = $this->formatRecord($record);
+            }
+        } elseif ($this->isPaginated) {
             $paginator = $query->paginate($perPage, ['*'], $this->queryPrefix.'page');
 
             foreach ($paginator->items() as $record) {
@@ -514,6 +623,7 @@ class Table implements Arrayable, JsonSerializable
             hasSummaries: $hasSummaries,
             reorderable: $this->reorderColumn !== null,
             savedViewsKey: $this->savedViewsKey,
+            clientSide: $this->clientSide,
         );
     }
 

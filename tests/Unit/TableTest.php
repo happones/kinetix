@@ -94,4 +94,42 @@ class TableTest extends TestCase
 
         $this->assertSame('5s', $data['poll']);
     }
+
+    public function test_client_side_ships_all_rows_without_server_pagination(): void
+    {
+        foreach (range(1, 15) as $i) {
+            TblItem::create(['name' => "item {$i}"]);
+        }
+
+        // Server-driven (default): page 1 of 10.
+        $server = Table::make(TblItem::query())
+            ->columns([TextColumn::make('name')])
+            ->toArray();
+        $this->assertCount(10, $server['records']);
+        $this->assertSame(15, $server['pagination']['total']);
+        $this->assertFalse($server['clientSide']);
+
+        // Client-side: all rows, no server pagination meta.
+        $client = Table::make(TblItem::query())
+            ->columns([TextColumn::make('name')])
+            ->clientSide()
+            ->toArray();
+        $this->assertCount(15, $client['records']);
+        $this->assertNull($client['pagination']);
+        $this->assertTrue($client['clientSide']);
+    }
+
+    public function test_client_side_respects_the_row_cap(): void
+    {
+        foreach (range(1, 10) as $i) {
+            TblItem::create(['name' => "item {$i}"]);
+        }
+
+        $data = Table::make(TblItem::query())
+            ->columns([TextColumn::make('name')])
+            ->clientSide(max: 3)
+            ->toArray();
+
+        $this->assertCount(3, $data['records']);
+    }
 }

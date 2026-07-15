@@ -44,5 +44,7 @@ class TableData extends Data
         public bool $hasSummaries = false,
         public bool $reorderable = false,
         public ?string $savedViewsKey = null,
+        // Client-side mode: full row set shipped, browser handles interactions.
+        public bool $clientSide = false,
     ) {}
 }
