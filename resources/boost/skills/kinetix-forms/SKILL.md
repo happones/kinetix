@@ -14,7 +14,10 @@ Activate this skill when:
 - Building input forms for resource pages or action modals.
 - Adding fields like `TextInput`, `NumberField` (steppers + decimal/percent/currency), `Slider`, `Rating` (stars + half), `PinInput` (OTP), `SlugInput` (auto from a source field), `SignaturePad` (canvas → PNG data URL), `PhoneInput` (international, country selector + E.164), `Select`, `Checkbox`, `Toggle`, `DateTimePicker`, `DateRangePicker`, `AddressPicker`, `RichEditor` (WYSIWYG: basic/tiptap/markdown), `Textarea`, `Hidden`, `Radio`, `CheckboxList`, `ColorPicker`, `TagsInput`, `KeyValue`, `Repeater`, or `FileUpload`. Date/Month/Week/Range pickers and `NumberField` default their calendar/number locale to the **application locale** (BCP-47); `->locale('fr')` overrides per field.
 - Structuring layouts: `Grid::make(n)`, `Section::make()` (card), `Fieldset::make()` (bordered legend), `Tabs::make()->tabs([Tab::make()->icon()->schema()])`, `Split::make([...])` (responsive flex row), `Placeholder::make()->content()` (read-only, not a field), `Wizard::make()->steps([Step::make()])` (multi-step — see the `kinetix-wizard` skill). All nest and share `columnSpan()`/`columnSpanFull()` (Filament-compatible shorthand for `columnSpan('full')`)/`visible()`/`hidden()`.
-- Adding Laravel validation rules dynamically to inputs (`required()`, `maxLength()`, `rules()`).
+- Adding Laravel validation rules dynamically to inputs (`required()`, `maxLength()`, `rules()`), custom messages (`validationMessages()`), or attribute names (`validationAttribute()`).
+- Validating either **fluently** (`$form->validate()`) or via a **FormRequest** (`KinetixFormRequest` / the `ResolvesKinetixForm` trait) — rules live in the form, never duplicated.
+- Enabling **live validation** with Laravel Precognition (`->precognitive()` / `->validationUrl()`).
+- Surfacing validation errors inside **Tabs/Wizards** (auto-switch to the offending tab/step, focus the first errored field).
 - Using lifecycle hooks (`afterStateHydrated()`, `dehydrateStateUsing()`).
 
 ## Documentation
@@ -54,22 +57,62 @@ $form = Form::make(Post::make())
 
 ### 2. Validation & Submission
 
+Two supported paths — pick per endpoint; **rules always live in the form**, never duplicated.
+
+**Fluent** (inline in the controller):
+
 ```php
 public function store(Request $request)
 {
     $form = $this->buildForm();
 
-    // Validates inputs using built-in Laravel validator mapping
-    $validated = $form->validate($request->all());
-
-    // Retrieve processed state including dehydration transformations
-    $state = $form->getState($request->all());
-
-    Post::create($state);
+    $form->validate($request->all());          // rules + messages + attributes
+    Post::create($form->getState($request->all()));  // dehydrated state
 
     return redirect()->route('posts.index');
 }
 ```
+
+**FormRequest bridge** (for `authorize()`, `prepareForValidation()`, Precognition):
+
+```php
+use Happones\Kinetix\Forms\Http\KinetixFormRequest;
+
+class StorePostRequest extends KinetixFormRequest
+{
+    protected function form(): Form { return PostForm::make()->model(Post::class); }
+}
+
+// Controller — dehydratedState() = validated + dehydrated (drops saved(false) fields):
+public function store(StorePostRequest $request)
+{
+    Post::create($request->dehydratedState());
+}
+```
+
+Already extending another base request? `use ResolvesKinetixForm;` + implement `form()` — same API.
+
+### 3. Live Validation (Precognition)
+
+Reuse the FormRequest rules to validate fields as the user types — **no extra npm dependency** (built-in client):
+
+```php
+// Route: add the middleware so Precognition has rules to run.
+Route::post('/posts', [PostController::class, 'store'])
+    ->middleware(\Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class);
+
+// Form: opt in.
+PostForm::make()->precognitive();               // validate against the submit URL
+PostForm::make()->validationUrl(route('posts.store'), 'post'); // or an explicit endpoint
+```
+
+```vue
+<KinetixForm :form="postForm" validation-url="/posts" @submit="submit" />
+```
+
+### 4. Error Focus in Tabs & Wizards
+
+`KinetixForm` reads Inertia's `errors` automatically (a controller `ValidationException` now renders with no wiring). Errored **tabs/wizard steps** are marked, the form **switches/jumps to the first offending one**, and the **first errored field is focused + scrolled into view** — fully recursive (wizard-in-tab-in-section resolves correctly). Live per-field validation never steals focus from the field being edited.
 
 ---
 

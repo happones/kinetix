@@ -40,6 +40,15 @@ abstract class Field extends Component
     protected array $rules = [];
 
     /**
+     * Custom validation messages keyed by rule name (e.g. `['required' => '...']`).
+     *
+     * @var array<string, string>
+     */
+    protected array $validationMessages = [];
+
+    protected ?string $validationAttribute = null;
+
+    /**
      * @var array<string, string>
      */
     protected array $extraAttributes = [];
@@ -189,6 +198,31 @@ abstract class Field extends Component
         return $this;
     }
 
+    /**
+     * Override the validation messages for this field. Keys are rule names
+     * (`required`, `email`, `max`…); they are namespaced to this field on the
+     * way into the validator so they only apply here.
+     *
+     * @param array<string, string> $messages
+     */
+    public function validationMessages(array $messages): static
+    {
+        $this->validationMessages = array_merge($this->validationMessages, $messages);
+
+        return $this;
+    }
+
+    /**
+     * Human-friendly name used inside validation messages (`:attribute`).
+     * Defaults to the field label when omitted.
+     */
+    public function validationAttribute(string $attribute): static
+    {
+        $this->validationAttribute = $attribute;
+
+        return $this;
+    }
+
     public function maxLength(int $length): static
     {
         $this->rules[] = "max:{$length}";
@@ -277,6 +311,37 @@ abstract class Field extends Component
         }
 
         return $resolvedRules;
+    }
+
+    /**
+     * Validation messages namespaced to this field (`{name}.{rule}` => message),
+     * ready to merge into a Laravel validator's message bag.
+     *
+     * @return array<string, string>
+     */
+    public function getValidationMessages(): array
+    {
+        $messages = [];
+        foreach ($this->validationMessages as $rule => $message) {
+            $messages["{$this->name}.{$rule}"] = $message;
+        }
+
+        return $messages;
+    }
+
+    /**
+     * The `:attribute` replacement for this field — the explicit override,
+     * otherwise the (string) label. Returns null when neither is available.
+     */
+    public function getValidationAttribute(?Model $record = null): ?string
+    {
+        if ($this->validationAttribute !== null) {
+            return $this->validationAttribute;
+        }
+
+        $label = $this->label instanceof Closure ? ($this->label)($record) : $this->label;
+
+        return $label !== null ? (string) $label : null;
     }
 
     /**

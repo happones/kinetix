@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { schemaHasError } from '@/composables/useKinetixFormErrors';
 import type { KinetixWizardStep } from '@/types';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 import KinetixWizard from './KinetixWizard.vue';
@@ -8,7 +9,11 @@ import KinetixWizard from './KinetixWizard.vue';
  * Renders a `wizard` form-layout component: maps each `wizard-step` to a
  * KinetixWizard step whose content recurses back into KinetixFormSchema.
  * Advancing is gated on the current step's required fields being filled
- * (server validation still applies on submit).
+ * (client-side); server validation still applies on submit.
+ *
+ * Validation-aware: steps whose fields hold an error are marked on the
+ * indicator, navigable regardless of linear gating, and when errors arrive the
+ * wizard jumps to the first offending step (unless the current one has one).
  */
 const props = defineProps<{
     comp: any;
@@ -28,6 +33,35 @@ const steps = computed<KinetixWizardStep[]>(() =>
         icon: s.icon,
         color: s.color,
     })),
+);
+
+const current = ref(0);
+
+const errorKeys = computed(() => Object.keys(props.errors ?? {}));
+
+const stepHasError = (index: number): boolean =>
+    schemaHasError(props.comp.schema?.[index]?.schema, errorKeys.value);
+
+const errorSteps = computed<number[]>(() =>
+    (props.comp.schema ?? [])
+        .map((_: any, i: number) => i)
+        .filter((i: number) => stepHasError(i)),
+);
+
+// Jump to the first step with an error when the error set changes, unless the
+// current step already has one (avoids yanking the user during live editing).
+watch(
+    errorKeys,
+    (keys) => {
+        if (keys.length === 0 || stepHasError(current.value)) {
+            return;
+        }
+
+        if (errorSteps.value.length > 0) {
+            current.value = errorSteps.value[0];
+        }
+    },
+    { deep: true },
 );
 
 const isFilled = (v: any): boolean =>
@@ -71,12 +105,14 @@ function beforeNext(index: number): boolean {
 
 <template>
     <KinetixWizard
+        v-model:step="current"
         :steps="steps"
         :variant="comp.variant || 'stepper'"
         :orientation="comp.orientation || 'horizontal'"
         :step-layout="comp.stepLayout || 'inline'"
         :full-width="comp.fullWidth ?? true"
         :slug="comp.slug"
+        :error-steps="errorSteps"
         :before-next="beforeNext"
     >
         <template #default="{ index }">

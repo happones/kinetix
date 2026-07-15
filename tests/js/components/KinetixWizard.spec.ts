@@ -187,4 +187,34 @@ describe('KinetixWizard', () => {
         // Step "b" is upcoming — its color must not leak into the neutral state.
         expect(wrapper.html()).not.toContain('bg-destructive');
     });
+
+    it('marks errored steps destructive on the indicator', () => {
+        const wrapper = mountWizard({ errorSteps: [1] });
+        expect(wrapper.html()).toContain('bg-destructive');
+    });
+
+    it('keeps an errored step navigable even under linear gating', async () => {
+        // Step 1 is unreached (linear default) so normally locked, but it holds
+        // an error — the user must be able to jump straight to it.
+        const wrapper = mountWizard({ variant: 'panels', errorSteps: [1] });
+
+        const profilePill = wrapper
+            .findAll('button')
+            .find((b) => b.text().includes('Profile'))!;
+        expect(profilePill.attributes('disabled')).toBeUndefined();
+
+        await profilePill.trigger('click');
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('#panel-b').exists()).toBe(true);
+        expect(wrapper.emitted('step-change')?.at(-1)).toEqual([1]);
+    });
+
+    it('locks an unreached step with no error under linear gating', () => {
+        const wrapper = mountWizard({ variant: 'panels' });
+        const profilePill = wrapper
+            .findAll('button')
+            .find((b) => b.text().includes('Profile'))!;
+        expect(profilePill.attributes('disabled')).toBeDefined();
+    });
 });

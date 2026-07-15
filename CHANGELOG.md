@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.101.0] - 2026-07-15
+
+### Added
+
+- **Forms validation — FormRequest, Precognition & error focus.** Forms now
+  validate through three interchangeable paths, all sharing one set of rules
+  defined in the schema (never duplicated):
+  - **FormRequest bridge** — `KinetixFormRequest` (extend it, implement
+    `form()`) and the `ResolvesKinetixForm` trait (for requests that already
+    extend another base) derive `rules()`/`messages()`/`attributes()` straight
+    from the form. `dehydratedState()` returns the validated **and** dehydrated
+    payload (runs `dehydrateStateUsing()` hooks, drops `saved(false)` fields).
+    Namespace `Happones\Kinetix\Forms\Http`.
+  - **Live validation (Precognition)** — opt in with `Form::precognitive()` /
+    `Form::validationUrl()`; add Laravel's `HandlePrecognitiveRequests`
+    middleware to the route and fields validate against the server as they
+    change, reusing the FormRequest rules. Ships a **built-in** Precognition
+    client (`useKinetixPrecognition`, on `fetch` + the XSRF cookie) — **zero
+    new npm/Composer dependencies**.
+  - **Custom messages & attributes** — `Field::validationMessages()` /
+    `Field::validationAttribute()` and form-level `Form::messages()` /
+    `Form::validationAttributes()`. Each field defaults its `:attribute` to its
+    label, so validator messages read naturally out of the box.
+  - **Error focus in Tabs & Wizards** — `KinetixForm` now reads Inertia's
+    `errors` bag automatically (a controller `ValidationException` renders with
+    no wiring) and hides a stale submit error the moment its field is edited.
+    Tabs/Wizard steps holding an error are marked (destructive indicator,
+    `aria-invalid`), the form switches/jumps to the first offending one (error
+    steps stay navigable even under a `linear` wizard), and the first errored
+    field is focused + scrolled into view — resolved recursively for any
+    nesting via the shared `useKinetixFormErrors` helper. `KinetixWizard` gains
+    an `errorSteps` prop. **(published)**
+  - Docs: `docs/forms.md` §6, `docs/wizard.md`.
+
 ## [0.99.0] - 2026-07-12
 
 ### Added

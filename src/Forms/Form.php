@@ -31,6 +31,26 @@ class Form implements Arrayable, JsonSerializable
 
     protected string $operation = 'create';
 
+    /**
+     * Form-level validation message overrides (highest precedence).
+     *
+     * @var array<string, string>
+     */
+    protected array $messages = [];
+
+    /**
+     * Form-level `:attribute` overrides (highest precedence).
+     *
+     * @var array<string, string>
+     */
+    protected array $validationAttributes = [];
+
+    protected bool $precognitive = false;
+
+    protected ?string $validationUrl = null;
+
+    protected string $validationMethod = 'post';
+
     public function __construct(?Model $record = null)
     {
         if ($record !== null) {
@@ -128,6 +148,57 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
+     * Override validation messages at the form level (highest precedence).
+     * Keys are the standard Laravel dotted form (`email.required`, `email.email`).
+     *
+     * @param array<string, string> $messages
+     */
+    public function messages(array $messages): static
+    {
+        $this->messages = array_merge($this->messages, $messages);
+
+        return $this;
+    }
+
+    /**
+     * Override `:attribute` names at the form level (highest precedence).
+     *
+     * @param array<string, string> $attributes
+     */
+    public function validationAttributes(array $attributes): static
+    {
+        $this->validationAttributes = array_merge($this->validationAttributes, $attributes);
+
+        return $this;
+    }
+
+    /**
+     * Opt this form into live, server-authoritative validation via Laravel
+     * Precognition. The client validates fields as the user edits them by
+     * hitting `$validationUrl` (defaults to the submit endpoint, set on the
+     * client) with a `Precognition` header — reusing these exact rules.
+     */
+    public function precognitive(bool $condition = true): static
+    {
+        $this->precognitive = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Point Precognition validation at a specific endpoint. Optional — when
+     * omitted the client reuses the form's submit URL.
+     */
+    public function validationUrl(string $url, string $method = 'post'): static
+    {
+        $this->validationUrl    = $url;
+        $this->validationMethod = strtolower($method);
+        $this->precognitive     = true;
+
+        return $this;
+    }
+
+    /**
      * Get all validation rules.
      *
      * @return array<string, array<int, string>>
@@ -146,18 +217,74 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
-     * Validate the form input.
+     * Aggregate validation messages: field-level (`->validationMessages()`)
+     * first, then form-level overrides which win.
+     *
+     * @return array<string, string>
+     */
+    public function getValidationMessages(): array
+    {
+        $messages = [];
+        foreach ($this->getFields() as $field) {
+            if (! $field->isHidden($this->operation, $this->record)) {
+                $messages = array_merge($messages, $field->getValidationMessages());
+            }
+        }
+
+        return array_merge($messages, $this->messages);
+    }
+
+    /**
+     * Aggregate `:attribute` names: each visible field defaults to its label,
+     * then form-level overrides win. Empty entries are dropped so Laravel falls
+     * back to its own humanised name.
+     *
+     * @return array<string, string>
+     */
+    public function getValidationAttributes(): array
+    {
+        $attributes = [];
+        foreach ($this->getFields() as $name => $field) {
+            if ($field->isHidden($this->operation, $this->record)) {
+                continue;
+            }
+
+            $attribute = $field->getValidationAttribute($this->record);
+            if ($attribute !== null && $attribute !== '') {
+                $attributes[$name] = $attribute;
+            }
+        }
+
+        return array_merge($attributes, $this->validationAttributes);
+    }
+
+    /**
+     * Build a Laravel validator seeded with this form's rules, messages, and
+     * attributes. Shared by `validate()` and the FormRequest bridge so every
+     * validation path (fluent, FormRequest, Precognition) stays identical.
+     *
+     * @param array<string, mixed> $inputData
+     */
+    public function makeValidator(array $inputData = []): \Illuminate\Validation\Validator
+    {
+        $data = array_merge($this->data, $inputData);
+
+        return Validator::make(
+            $data,
+            $this->getValidationRules(),
+            $this->getValidationMessages(),
+            $this->getValidationAttributes(),
+        );
+    }
+
+    /**
+     * Validate the form input, throwing a ValidationException on failure.
      *
      * @return array<string, mixed>
      */
     public function validate(array $inputData = []): array
     {
-        $data  = array_merge($this->data, $inputData);
-        $rules = $this->getValidationRules();
-
-        $validator = Validator::make($data, $rules);
-
-        return $validator->validate();
+        return $this->makeValidator($inputData)->validate();
     }
 
     /**
@@ -234,6 +361,9 @@ class Form implements Arrayable, JsonSerializable
             data: $this->data,
             rules: $this->getValidationRules(),
             operation: $this->operation,
+            precognitive: $this->precognitive,
+            validationUrl: $this->validationUrl,
+            validationMethod: $this->validationMethod,
         );
     }
 

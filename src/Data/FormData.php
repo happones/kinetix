@@ -20,5 +20,11 @@ class FormData extends Data
         public array $data,
         public array $rules,
         public string $operation = 'create',
+        // Live (Precognition) validation: when enabled the client validates
+        // fields against the server as they change. `validationUrl` is optional
+        // — the client falls back to the form's submit URL when it is null.
+        public bool $precognitive = false,
+        public ?string $validationUrl = null,
+        public string $validationMethod = 'post',
     ) {}
 }

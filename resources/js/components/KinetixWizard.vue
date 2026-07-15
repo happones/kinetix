@@ -63,6 +63,12 @@ const props = withDefaults(
         fullWidth?: boolean;
         /** Guard run before advancing/finishing a step. */
         beforeNext?: (fromIndex: number) => boolean | Promise<boolean>;
+        /**
+         * Indexes of steps that currently hold a validation error. Their
+         * indicator is marked destructive and they stay navigable even under
+         * `linear` gating, so a user can jump straight to the failing step.
+         */
+        errorSteps?: number[];
     }>(),
     {
         variant: 'stepper',
@@ -72,6 +78,7 @@ const props = withDefaults(
         step: undefined,
         linear: true,
         fullWidth: true,
+        errorSteps: () => [],
     },
 );
 
@@ -121,6 +128,20 @@ function statusOf(index: number): 'complete' | 'active' | 'upcoming' {
     return index === current.value ? 'active' : 'upcoming';
 }
 
+/** Whether a step currently holds a validation error. */
+function hasError(index: number): boolean {
+    return props.errorSteps.includes(index);
+}
+
+/**
+ * A step's indicator is disabled under linear gating once it's past the
+ * furthest-reached step — except errored steps, which stay reachable so the
+ * user can jump to a failed step surfaced after submit.
+ */
+function stepDisabled(index: number): boolean {
+    return props.linear && index > maxReached.value && !hasError(index);
+}
+
 /**
  * The `stepper` indicator's fill: neutral while upcoming, otherwise the
  * step's own `color` (Gate-independent status token) or primary by default.
@@ -128,6 +149,10 @@ function statusOf(index: number): 'complete' | 'active' | 'upcoming' {
  * per-step color can't be expressed as a static Tailwind class.
  */
 function indicatorClass(step: KinetixWizardStep, index: number): string {
+    if (hasError(index)) {
+        return 'bg-destructive text-white ring-2 ring-destructive/30';
+    }
+
     if (statusOf(index) === 'upcoming') {
         return 'border border-border bg-card text-muted-foreground';
     }
@@ -202,7 +227,8 @@ function goTo(index: number): void {
         return;
     }
 
-    if (props.linear && index > maxReached.value) {
+    // Errored steps are always reachable, even ahead under linear gating.
+    if (props.linear && index > maxReached.value && !hasError(index)) {
         return;
     }
 
@@ -244,7 +270,7 @@ function goTo(index: number): void {
                         v-for="(s, i) in steps"
                         :key="stepKey(s, i)"
                         :step="i + 1"
-                        :disabled="linear && i > maxReached"
+                        :disabled="stepDisabled(i)"
                         class="group min-w-0 flex disabled:pointer-events-none disabled:opacity-50"
                         :class="[
                             fullWidth ? 'flex-1 last:flex-none' : 'shrink-0',
@@ -408,7 +434,7 @@ function goTo(index: number): void {
                 v-for="(s, i) in steps"
                 :key="stepKey(s, i)"
                 :step="i + 1"
-                :disabled="linear && i > maxReached"
+                :disabled="stepDisabled(i)"
                 class="group gap-3 flex disabled:pointer-events-none disabled:opacity-50"
             >
                 <!-- indicator column, with the connector below it -->
@@ -488,24 +514,28 @@ function goTo(index: number): void {
                 v-for="(s, i) in steps"
                 :key="stepKey(s, i)"
                 type="button"
-                :disabled="linear && i > maxReached"
+                :disabled="stepDisabled(i)"
                 class="gap-2 rounded-lg px-3 py-2 text-sm flex items-center border text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                 :class="[
                     fullWidth ? 'flex-1' : '',
-                    statusOf(i) === 'active'
-                        ? 'shadow-sm border-primary bg-primary text-primary-foreground'
-                        : statusOf(i) === 'complete'
-                          ? 'border-primary/40 bg-primary/10 text-foreground'
-                          : 'border-border bg-card text-muted-foreground',
+                    hasError(i)
+                        ? 'border-destructive bg-destructive/5 text-destructive'
+                        : statusOf(i) === 'active'
+                          ? 'shadow-sm border-primary bg-primary text-primary-foreground'
+                          : statusOf(i) === 'complete'
+                            ? 'border-primary/40 bg-primary/10 text-foreground'
+                            : 'border-border bg-card text-muted-foreground',
                 ]"
                 @click="goTo(i)"
             >
                 <span
                     class="size-5 text-xs font-semibold flex shrink-0 items-center justify-center rounded-full"
                     :class="
-                        statusOf(i) === 'active'
-                            ? 'bg-primary-foreground/20'
-                            : 'bg-muted'
+                        hasError(i)
+                            ? 'text-white bg-destructive'
+                            : statusOf(i) === 'active'
+                              ? 'bg-primary-foreground/20'
+                              : 'bg-muted'
                     "
                 >
                     <Check v-if="statusOf(i) === 'complete'" class="size-3" />
@@ -523,7 +553,7 @@ function goTo(index: number): void {
             <li v-for="(s, i) in steps" :key="stepKey(s, i)">
                 <button
                     type="button"
-                    :disabled="linear && i > maxReached"
+                    :disabled="stepDisabled(i)"
                     class="gap-3 p-2 flex w-full items-start rounded-md text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                     :class="
                         statusOf(i) === 'active'
@@ -535,9 +565,11 @@ function goTo(index: number): void {
                     <span
                         class="mt-0.5 size-6 text-xs font-semibold flex shrink-0 items-center justify-center rounded-full"
                         :class="
-                            statusOf(i) === 'upcoming'
-                                ? 'border border-border text-muted-foreground'
-                                : 'bg-primary text-primary-foreground'
+                            hasError(i)
+                                ? 'text-white bg-destructive'
+                                : statusOf(i) === 'upcoming'
+                                  ? 'border border-border text-muted-foreground'
+                                  : 'bg-primary text-primary-foreground'
                         "
                     >
                         <Check
@@ -570,22 +602,24 @@ function goTo(index: number): void {
             <template v-for="(s, i) in steps" :key="stepKey(s, i)">
                 <button
                     type="button"
-                    :disabled="linear && i > maxReached"
+                    :disabled="stepDisabled(i)"
                     class="gap-1.5 flex flex-col items-center disabled:cursor-not-allowed"
                     @click="goTo(i)"
                 >
                     <span
                         class="size-9 text-sm font-semibold flex items-center justify-center rounded-full transition-all"
                         :class="
-                            variant === 'gradient'
-                                ? statusOf(i) !== 'upcoming'
-                                    ? 'to-fuchsia-500 text-white shadow-md bg-gradient-to-br from-primary'
-                                    : 'border border-border bg-card text-muted-foreground'
-                                : statusOf(i) === 'active'
-                                  ? 'bg-primary text-primary-foreground ring-[3px] ring-ring/30'
-                                  : statusOf(i) === 'complete'
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'border border-border bg-card text-muted-foreground'
+                            hasError(i)
+                                ? 'text-white bg-destructive ring-2 ring-destructive/30'
+                                : variant === 'gradient'
+                                  ? statusOf(i) !== 'upcoming'
+                                      ? 'to-fuchsia-500 text-white shadow-md bg-gradient-to-br from-primary'
+                                      : 'border border-border bg-card text-muted-foreground'
+                                  : statusOf(i) === 'active'
+                                    ? 'bg-primary text-primary-foreground ring-[3px] ring-ring/30'
+                                    : statusOf(i) === 'complete'
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'border border-border bg-card text-muted-foreground'
                         "
                     >
                         <Check

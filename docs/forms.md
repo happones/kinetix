@@ -910,8 +910,29 @@ TextInput::make('password')
     ]);
 ```
 
-### 4. Controller Execution
-Run the validation directly using the `$form->validate($request->all())` helper:
+### 4. Custom Messages & Attribute Names
+Every rule the schema generates flows through Laravel's validator, so you can override its messages and the `:attribute` placeholder. By default each field contributes its **label** as the `:attribute`, so messages already read naturally ("The Email Address field is required."). Override per field, or at the form level:
+
+```php
+TextInput::make('email')
+    ->label('Email Address')
+    ->required()
+    ->email()
+    ->validationMessages([
+        'required' => 'We really need your email.',   // keyed by rule name
+        'email'    => 'That doesn’t look like an email.',
+    ])
+    ->validationAttribute('work email');               // overrides the label in messages
+
+// Form-level overrides win over field-level ones (keyed the standard dotted way):
+Form::make()
+    ->schema([...])
+    ->messages(['email.required' => 'Email is mandatory.'])
+    ->validationAttributes(['email' => 'E-mail']);
+```
+
+### 5. Controller Execution (fluent)
+Run the validation directly using the `$form->validate($request->all())` helper. It uses the same rules, messages, and attributes described above:
 
 ```php
 public function store(Request $request)
@@ -928,6 +949,108 @@ public function store(Request $request)
 
     return redirect()->route('users.index');
 }
+```
+
+### 6. FormRequest Bridge
+When you prefer a dedicated **FormRequest** (for `authorize()`, `prepareForValidation()`, custom `after` hooks, etc.), don't re-declare the rules — pull them from the form so validation lives in **one place**. Extend `KinetixFormRequest` and implement `form()`:
+
+```php
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Forms\Http\KinetixFormRequest;
+
+class StorePostRequest extends KinetixFormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->can('create', Post::class);
+    }
+
+    protected function form(): Form
+    {
+        return PostForm::make()->model(Post::class);
+    }
+
+    // Optional — layered on top of the schema's rules/messages/attributes:
+    protected function additionalRules(): array
+    {
+        return ['captcha' => ['required']];
+    }
+}
+```
+
+The request's `rules()`, `messages()`, and `attributes()` are derived from the form automatically. In the controller, `dehydratedState()` returns the **validated + dehydrated** data (runs `dehydrateStateUsing()` hooks and drops `saved(false)` fields):
+
+```php
+public function store(StorePostRequest $request)
+{
+    Post::create($request->dehydratedState());
+
+    return redirect()->route('posts.index');
+}
+```
+
+Already extending another base request? Use the trait instead — same API:
+
+```php
+use Happones\Kinetix\Forms\Http\ResolvesKinetixForm;
+
+class StorePostRequest extends ApiFormRequest
+{
+    use ResolvesKinetixForm;
+
+    protected function form(): Form { return PostForm::make(); }
+}
+```
+
+### 7. Live Validation (Precognition)
+Kinetix ships a **built-in [Laravel Precognition](https://laravel.com/docs/precognition) client** (no extra npm dependency) that validates fields against the server **as the user edits them**, reusing your FormRequest rules. Two steps:
+
+**1. Add the middleware to the route and use a Kinetix FormRequest** (so Precognition has rules to run):
+
+```php
+use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
+
+Route::post('/posts', [PostController::class, 'store'])
+    ->middleware(HandlePrecognitiveRequests::class);
+```
+
+**2. Opt the form in.** The client validates against the submit URL as fields change:
+
+```php
+PostForm::make()
+    ->precognitive()                        // reuse the submit URL (set on the client)
+    // or point it explicitly:
+    ->validationUrl(route('posts.store'), 'post');
+```
+
+On the Vue side, pass the endpoint (when the form didn't hard-code one) via `validationUrl`:
+
+```vue
+<KinetixForm :form="postForm" validation-url="/posts" @submit="submit" />
+```
+
+As the user edits a field it's debounced-validated server-side; a `422` surfaces the message inline (live errors win over the last submit's), a pass clears it. `KinetixForm` also **hides a stale submit error** for a field the moment the user starts editing it.
+
+### 8. Error Focus in Tabs & Wizards
+Server (and live) validation errors are **rendered and revealed automatically**, even when the offending field is inside a collapsed layout:
+
+- `KinetixForm` reads Inertia's `errors` bag directly — a `ValidationException` from your controller now shows in the UI with no wiring.
+- **Tabs** mark any tab whose fields carry an error (a destructive dot + `aria-invalid`) and switch to the first offending tab on submit — so an error is never hidden behind an inactive tab.
+- **Wizards** mark errored steps on the indicator (destructive), keep them **navigable even under linear gating**, and jump to the first errored step on submit.
+- After the right panel is revealed, the **first errored field is focused and scrolled into view** (in declaration/DOM order), retrying across frames until its panel mounts.
+
+This is fully recursive — a wizard inside a tab inside a section resolves correctly, because each container independently reveals the child holding an error. Live (per-field) validation never yanks focus off the field being edited, since its error is already in the active panel.
+
+```mermaid
+graph TD
+    A[Controller / Precognition returns errors] --> B[KinetixForm merges Inertia + live errors]
+    B --> C{Field inside a container?}
+    C -->|Tab| D[Mark tab + switch to first errored tab]
+    C -->|Wizard| E[Mark step + jump to first errored step]
+    C -->|Plain| F[Render inline error]
+    D --> G[Focus + scroll first errored field]
+    E --> G
+    F --> G
 ```
 
 ---
