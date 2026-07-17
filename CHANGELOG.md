@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.106.0] - 2026-07-17
+
+### Fixed
+
+- **`kinetix:make-resource --simple` now scaffolds a working modal CRUD.** The
+  flag has always documented per-row Edit/Delete plus a toolbar Create in modals,
+  but the generated controller attached **no** row actions and the Vue page's
+  `openEditModal` was dead code (never wired) — so only Create worked. The
+  generated controller now attaches per-row `EditAction`/`DeleteAction`: **Edit**
+  re-renders the index with `?edit={id}` (an Inertia partial visit that preserves
+  scroll/state) so the modal opens prefilled with the **raw** record, and
+  **Delete** confirms then issues the `DELETE`. The controller passes an
+  `editRecord` prop and `Index.vue` opens the editor from it (closing clears the
+  `?edit` param). `index()` now receives a `Request` even without `--team`.
+  Regenerate simple resources to pick this up.
+
 ## [0.105.0] - 2026-07-16
 
 ### Fixed

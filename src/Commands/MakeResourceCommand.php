@@ -281,7 +281,7 @@ PHP;
 
         // Team-aware index signature, base query, and create expression. Adjust
         // the `team_id` column / scope to match your application's team schema.
-        $indexParams = $teams ? 'Request $request' : '';
+        $indexParams = ($teams || $simple) ? 'Request $request' : '';
         $indexQuery  = $teams
             ? "{$modelName}::where('team_id', \$request->user()->currentTeam->id)"
             : "{$modelName}::query()";
@@ -326,6 +326,8 @@ namespace App\Http\Controllers\Kinetix;
 use App\Http\Controllers\Controller;
 use App\Kinetix\Resources\\{$resourceClass};
 use App\Models\\{$modelName};
+use Happones\Kinetix\Actions\DeleteAction;
+use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
@@ -341,12 +343,32 @@ PHP;
             }
             $template .= <<<PHP
 
-        \$table = {$resourceClass}::table(Table::make(\$query));
+        // Per-row Edit/Delete. Edit re-renders this page with ?edit={id} (an
+        // Inertia partial visit that preserves scroll/state) so the modal opens
+        // prefilled with the record; Delete confirms, then DELETEs the row.
+        \$table = {$resourceClass}::table(Table::make(\$query))
+            ->recordActions([
+                EditAction::make()->inertiaVisit(
+                    fn (\$record) => route('{$routePrefix}.index', ['edit' => \$record->getKey()]),
+                    ['method' => 'get', 'preserveState' => true, 'preserveScroll' => true],
+                ),
+                DeleteAction::make()->inertiaVisit(
+                    fn (\$record) => route('{$routePrefix}.destroy', \$record),
+                    ['method' => 'delete', 'preserveScroll' => true],
+                ),
+            ]);
+
         \$form = {$resourceClass}::form(Form::make(new {$modelName}()));
+
+        // When ?edit={id} is present, hand the raw record to the modal for editing.
+        \$editRecord = \$request->filled('edit')
+            ? {$modelName}::query()->whereKey(\$request->integer('edit'))->first()
+            : null;
 
         return inertia('Kinetix/{$pluralName}/Index', [
             'table' => \$table->toArray(),
             'formBlueprint' => \$form->toArray(),
+            'editRecord' => \$editRecord,
             'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
@@ -493,7 +515,7 @@ PHP;
             // Create single Index view with modals
             $indexTemplate = <<<VUE
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
@@ -502,6 +524,9 @@ import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
 const props = defineProps<{
   table: KinetixTableData;
   formBlueprint: any;
+  // Raw record passed by the controller when the URL carries ?edit={id}; the
+  // table's Edit action performs that partial visit, which opens the modal here.
+  editRecord?: Record<string, any> | null;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
@@ -517,28 +542,46 @@ const openCreateModal = () => {
   isModalOpen.value = true;
 };
 
-const openEditModal = (record: any) => {
+const openEditModal = (record: Record<string, any>) => {
   isEditing.value = true;
   activeRecordId.value = record.id;
   activeForm.value = { ...props.formBlueprint, data: { ...record } };
   isModalOpen.value = true;
 };
 
+// Open the editor whenever the server hands us a record via ?edit={id}.
+watch(
+  () => props.editRecord,
+  (record) => {
+    if (record) {
+      openEditModal(record);
+    }
+  },
+  { immediate: true },
+);
+
+const closeModal = () => {
+  isModalOpen.value = false;
+
+  // Drop the ?edit param so refreshing doesn't reopen the editor.
+  if (isEditing.value) {
+    router.get('/{$pluralSlug}', {}, { preserveScroll: true, replace: true });
+  }
+};
+
 const handleFormSubmit = (values: Record<string, any>) => {
+  const options = {
+    preserveScroll: true,
+    onSuccess: () => {
+      isModalOpen.value = false;
+    },
+  };
+
   if (isEditing.value && activeRecordId.value) {
-    router.put(`/{$pluralSlug}/\${activeRecordId.value}`, values, {
-      preserveScroll: true,
-      onSuccess: () => {
-        isModalOpen.value = false;
-      },
-    });
+    // update() redirects back to index (no ?edit), so the editor closes cleanly.
+    router.put(`/{$pluralSlug}/\${activeRecordId.value}`, values, options);
   } else {
-    router.post('/{$pluralSlug}', values, {
-      preserveScroll: true,
-      onSuccess: () => {
-        isModalOpen.value = false;
-      },
-    });
+    router.post('/{$pluralSlug}', values, options);
   }
 };
 </script>
@@ -566,15 +609,15 @@ const handleFormSubmit = (values: Record<string, any>) => {
     <div
       v-if="isModalOpen"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity"
-      @click.self="isModalOpen = false"
+      @click.self="closeModal"
     >
       <div class="w-full max-w-2xl bg-white dark:bg-neutral-900 border dark:border-neutral-800 rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         <div class="p-6 border-b dark:border-neutral-800 flex justify-between items-center">
           <h3 class="font-semibold text-lg text-neutral-900 dark:text-white">
             {{ isEditing ? 'Edit Entry Details' : 'Create New Entry' }}
           </h3>
-          <button 
-            @click="isModalOpen = false" 
+          <button
+            @click="closeModal"
             class="text-neutral-400 hover:text-neutral-500"
           >
             &times;
