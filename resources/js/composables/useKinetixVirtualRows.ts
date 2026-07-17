@@ -64,7 +64,7 @@ export function useKinetixVirtualRows(
         enabled.value
             ? virtualizer.value.getVirtualItems().map((row) => ({
                   index: row.index,
-                  key: row.key,
+                  key: row.key as string | number,
                   start: row.start,
                   size: row.size,
               }))

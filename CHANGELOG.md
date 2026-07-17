@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.103.1] - 2026-07-16
+
+### Fixed
+
+- **`vue-tsc` type errors** introduced in 0.103.0: the virtualization `measureRow`
+  refs (`KinetixComments`, `KanbanColumn`) now accept Vue's element-ref union, the
+  virtual-row `key` is narrowed off `@tanstack`'s `bigint`-capable type, the
+  date-range filter value is cast to the calendar's shape, and `buildTableQuery`
+  returns an Inertia-compatible payload type. `npx vue-tsc --noEmit` is clean.
+
+### Added
+
+- **`kinetix:install --tanstack`** installs the client-side table + list
+  virtualization peers (`@tanstack/vue-table`, `@tanstack/vue-virtual`) in one
+  step, mirroring `--charts`. Documented in the installation guide, and Comments /
+  Kanban / Tables docs note the optional peer.
+
 ## [0.103.0] - 2026-07-16
 
 ### Changed

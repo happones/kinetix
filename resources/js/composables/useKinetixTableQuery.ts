@@ -41,7 +41,7 @@ export function buildTableQuery(
     prefix: string,
     mergedState: Record<string, unknown>,
     currentSearch: string,
-): Record<string, unknown> {
+): Record<string, any> {
     const own: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(mergedState)) {

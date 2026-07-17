@@ -118,7 +118,7 @@ Table::make(Country::query())->clientSide(max: 300);   // lower the safety cap (
 The same PHP `Table` API drives both modes — you only add `->clientSide()`. The frontend `<KinetixTable>` component is unchanged; it lazy-loads the TanStack-backed renderer only when a table is client-side, so the dependency is **code-split** off the server-driven path.
 
 ::: tip Install the optional peer
-Client-side mode needs `@tanstack/vue-table` in your app (`npm install @tanstack/vue-table`). It's an **optional** peer dependency — server-driven tables never load it.
+Client-side mode needs `@tanstack/vue-table` in your app (`npm install @tanstack/vue-table`, or `php artisan kinetix:install --tanstack`). It's an **optional** peer dependency — server-driven tables never load it.
 :::
 
 **When to use which:**

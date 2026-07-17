@@ -18,6 +18,7 @@ class InstallCommand extends Command
      */
     protected $signature = 'kinetix:install
         {--charts : Also install chart/widget dependencies (@unovis/vue, @unovis/ts)}
+        {--tanstack : Also install client-side table + list virtualization deps (@tanstack/vue-table, @tanstack/vue-virtual)}
         {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}
         {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}';
 
@@ -69,6 +70,14 @@ class InstallCommand extends Command
         if ($this->option('charts')) {
             $dependencies['@unovis/vue'] = '^1.3.0';
             $dependencies['@unovis/ts']  = '^1.3.0';
+        }
+
+        // Client-side (TanStack) tables and the long-list virtualization used by
+        // KinetixComments / KinetixKanban. Both are optional peers — only apps
+        // that opt into those features need them.
+        if ($this->option('tanstack')) {
+            $dependencies['@tanstack/vue-table']   = '^8.0.0';
+            $dependencies['@tanstack/vue-virtual'] = '^3.0.0';
         }
 
         if ($this->option('broadcasting')) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, type ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixComments } from '@/composables/useKinetixComments';
@@ -59,8 +59,10 @@ const commentRows = computed<CommentRow[]>(() =>
 );
 
 // Measure real row heights only while virtualized (dynamic comment heights).
-const measureRow = (el: Element | null): void => {
-    if (virtual.enabled.value) {
+const measureRow = (
+    el: Element | ComponentPublicInstance | null,
+): void => {
+    if (virtual.enabled.value && el instanceof Element) {
         virtual.measureElement(el);
     }
 };

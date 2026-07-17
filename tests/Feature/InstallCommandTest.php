@@ -86,6 +86,8 @@ JS);
         // Feature-specific deps are NOT added without their flags.
         $this->assertArrayNotHasKey('@unovis/vue', $deps);
         $this->assertArrayNotHasKey('@laravel/echo-vue', $deps);
+        $this->assertArrayNotHasKey('@tanstack/vue-table', $deps);
+        $this->assertArrayNotHasKey('@tanstack/vue-virtual', $deps);
 
         $this->assertTrue(File::exists($this->base.'/resources/js/stores/index.ts'));
         $this->assertStringContainsString('createPinia', File::get($this->base.'/resources/js/stores/index.ts'));
@@ -95,11 +97,17 @@ JS);
     {
         $this->seedEntryFile('ts');
 
-        $this->runInstaller(['--charts' => true, '--broadcasting' => true]);
+        $this->runInstaller([
+            '--charts'       => true,
+            '--tanstack'     => true,
+            '--broadcasting' => true,
+        ]);
 
         $deps = json_decode(File::get($this->base.'/package.json'), true)['dependencies'];
         $this->assertArrayHasKey('@unovis/vue', $deps);
         $this->assertArrayHasKey('@unovis/ts', $deps);
+        $this->assertArrayHasKey('@tanstack/vue-table', $deps);
+        $this->assertArrayHasKey('@tanstack/vue-virtual', $deps);
         $this->assertArrayHasKey('@laravel/echo-vue', $deps);
     }
 

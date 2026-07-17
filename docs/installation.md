@@ -18,6 +18,8 @@ to any feature in the sidebar.
 | `vue-sonner` | `^2.0` *(toasts)* |
 | `@lucide/vue` | `^1.0` *(icons)* |
 | `@laravel/echo-vue` | `^2.3` *(only for broadcasting)* |
+| `@tanstack/vue-table` | `^8.0` *(only for client-side tables — `->clientSide()`)* |
+| `@tanstack/vue-virtual` | `^3.0` *(only for long-list virtualization — Comments / Kanban)* |
 | shadcn-vue / Reka UI | any *(`components.json` present)* |
 
 ## 1. Install the package
@@ -96,6 +98,10 @@ php artisan kinetix:install
 # add chart/widget deps (@unovis/vue, @unovis/ts):
 php artisan kinetix:install --charts
 
+# add client-side table + list virtualization deps
+# (@tanstack/vue-table, @tanstack/vue-virtual):
+php artisan kinetix:install --tanstack
+
 # add real-time notification deps (@laravel/echo-vue):
 php artisan kinetix:install --broadcasting
 
@@ -105,8 +111,11 @@ php artisan kinetix:install --provider
 
 It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are
 assumed from your starter kit): `pinia`, `vue-i18n`, `reka-ui`,
-`@internationalized/date`, `@lucide/vue`, `vue-sonner`. The `--charts` and
-`--broadcasting` flags add the optional, feature-specific packages.
+`@internationalized/date`, `@lucide/vue`, `vue-sonner`. The `--charts`,
+`--tanstack` and `--broadcasting` flags add the optional, feature-specific
+packages (`--tanstack` covers `@tanstack/vue-table` for `->clientSide()` tables
+and `@tanstack/vue-virtual` for the long-list virtualization in Comments and
+Kanban).
 
 > If you see a Vite error like *Failed to resolve import "@internationalized/date"*,
 > a required dependency is missing — run `php artisan kinetix:install` (or install
@@ -138,8 +147,9 @@ If you prefer to configure everything manually:
 
 ### 4.1 Install dependencies
 
-Install the core runtime dependencies (add `@unovis/vue @unovis/ts` for charts and
-`@laravel/echo-vue` for broadcasting):
+Install the core runtime dependencies (add `@unovis/vue @unovis/ts` for charts,
+`@tanstack/vue-table @tanstack/vue-virtual` for client-side tables + long-list
+virtualization, and `@laravel/echo-vue` for broadcasting):
 
 ::: code-group
 ```bash [npm]
