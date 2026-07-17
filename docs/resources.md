@@ -211,10 +211,11 @@ php artisan kinetix:make-resource {ModelName} [options]
 
 | Option | Description |
 |---|---|
-| `--simple` | Creates a single-page resource with CRUD modals inside the index page instead of separate views. |
+| `--simple` | Creates a single-page resource whose table hosts create/edit/view/delete **modals** (Kinetix-owned CRUD) — the page is just `<KinetixTable :table>`. See [§4.2](#_2-simple-resource-simple). |
+| `--reorderable` | Adds `->reorderable('sort_order')` to the generated table (drag handles + persisted order). Ensure the model's table has an integer `sort_order` column. |
 | `--soft-deletes` | Automatically adds soft delete filters (`withTrashed`) and registers restore/force-delete controller actions. |
-| `--generate` | Reflects database table column data types to automatically populate the resource's Form and Table schemas. |
-| `--team` | Team-aware scaffold: routes nested under the `{current_team}` segment, `index()` query scoped to `currentTeam`, and `team_id` set on create. Auto-enabled when `kinetix.teams` is `true`. Adjust the `team_id` column/scope to your schema. |
+| `--generate` | Reflects database table column data types to automatically populate the resource's Form, Table **and Infolist** schemas. |
+| `--team` | Team-aware scaffold: routes nested under the `{current_team}` segment, and the resource's `getEloquentQuery()` / `mutateFormDataBeforeSave()` scope reads/writes to `currentTeam` and stamp `team_id` on create. Auto-enabled when `kinetix.teams` is `true`. Adjust the `team_id` column/scope to your schema. |
 
 > **Teams scope.** Kinetix's own endpoints (inline edits, imports, uploads, exports) already prefix with `{current_team}` when `kinetix.teams` is on. Your **resource's** routes and query scoping are *not* automatic — use `--team` so the generated controller filters by the current team and the routes nest under the team segment.
 
@@ -271,17 +272,81 @@ Generates separate views for listing, creating, and editing records. Recommended
 ```
 
 ### 2. Simple Resource (`--simple`)
-Generates a single index page. Creation and edits are handled via dialog modals/drawers triggered inline from the table toolbar or rows. Ideal for lightweight models (like tags, categories, or statuses).
+Generates a **single index page** whose table hosts every interaction: create
+(toolbar), and per-row view, edit and delete — all as modals inside
+`KinetixTable`. Ideal for lightweight models (tags, categories, statuses).
+
+The page is just the table:
+
+```vue
+<script setup lang="ts">
+import KinetixTable from '@/components/kinetix/KinetixTable.vue';
+import type { KinetixTableData } from '@/types';
+
+defineProps<{ table: KinetixTableData }>();
+</script>
+
+<template>
+  <KinetixTable :table="table" />
+</template>
+```
+
+Everything is driven by the serialized `table`. In the controller you opt the
+table into modal CRUD with `->recordModals(Resource::class)` and mark actions
+with `->modal(...)`:
+
+```php
+public function index()
+{
+    $table = ClientResource::table(Table::make(ClientResource::getEloquentQuery()))
+        ->recordModals(ClientResource::class)   // host the modals in the table
+        ->reorderable()                         // optional: drag-to-reorder
+        ->toolbarActions([
+            CreateAction::make()->modal('create'),
+        ])
+        ->recordActions([
+            ViewAction::make()->modal('view'),   // read-only infolist modal
+            EditAction::make()->modal('edit'),
+            DeleteAction::make()->modal('delete'),
+        ]);
+
+    return inertia('Kinetix/Clients/Index', ['table' => $table->toArray()]);
+}
+```
+
+**How CRUD runs (Kinetix-owned).** Create/edit/view/delete never leave the page:
+`KinetixTable` opens a `KinetixForm` (create/edit) or `KinetixInfolist` (view)
+modal, and persists through a signed Kinetix record endpoint
+(`_kinetix/tables/record`). No per-action controller methods or routes are
+generated — only the `index` route is needed. The endpoint is guarded by an
+encrypted `{ model, resource }` token and, when the model has a policy, the
+matching ability (`view` / `create` / `update` / `delete`). Validation flows
+through the resource's own `form()`, so errors surface in the modal and the
+table reloads with fresh data on save.
+
+**Fresh record on edit.** Opening the edit modal fetches a fresh copy of the
+record from the server by default, so a change made since the table loaded is
+never silently overwritten. Switch to the already-loaded row (no round-trip)
+globally with the `kinetix.tables.record_source` config (`server` | `row`) or
+per table:
+
+```php
+->recordModals(ClientResource::class, source: 'row')
+```
+
+**View modal.** The View action renders the resource's `infolist()` (server-
+resolved, read-only). `--generate` scaffolds an `infolist()` for you; remove the
+method (or the `ViewAction`) to drop the View button.
 
 #### Generated Directory File Tree
 ```
 ├── app/
 │   ├── Http/Controllers/Kinetix/
-│   │   └── ClientController.php        <-- CRUD endpoints
+│   │   └── ClientController.php        <-- index() only (CRUD is Kinetix-owned)
 │   └── Kinetix/Resources/
-│       └── ClientResource.php          <-- Shared schema
+│       └── ClientResource.php          <-- table() + form() + infolist()
 └── resources/js/pages/Kinetix/Clients/
-    └── Index.vue                       <-- Table Grid & Form modals combined
+    └── Index.vue                       <-- just <KinetixTable :table>
 ```
 
 ---
@@ -551,6 +616,13 @@ use App\Http\Controllers\Kinetix\ArticleController;
 
 Route::resource('articles', ArticleController::class);
 ```
+
+> **Simple resources need only the index route.** Because a `--simple` resource's
+> CRUD is Kinetix-owned (handled by the in-table modals + the record endpoint),
+> register just its listing route:
+> ```php
+> Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
+> ```
 
 #### Soft Deletes Routing
 If your resource supports soft deletes, register the `restore` and `force-delete` helper endpoints manually:

@@ -46,5 +46,7 @@ class TableData extends Data
         public ?string $savedViewsKey = null,
         // Client-side mode: full row set shipped, browser handles interactions.
         public bool $clientSide = false,
+        // In-table modal CRUD wiring (simple resources). Null = disabled.
+        public ?RecordModalsData $recordModals = null,
     ) {}
 }

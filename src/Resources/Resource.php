@@ -8,6 +8,7 @@ use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route as RouteFacade;
 
@@ -79,6 +80,30 @@ abstract class Resource
     public static function infolist(Infolist $infolist): Infolist
     {
         return $infolist;
+    }
+
+    /**
+     * The base Eloquent query for this resource. Override to scope every read
+     * and write to a tenant/team (e.g. `Model::where('team_id', ...)`). Used by
+     * the generated index page and by the in-table modal endpoint to look up a
+     * record, so a scoped query here keeps modal CRUD tenant-safe.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return static::getModel()::query();
+    }
+
+    /**
+     * Hook to mutate submitted form data before it is written, per operation
+     * ('create' | 'edit'). Override to inject server-owned columns (e.g.
+     * `$data['team_id'] = ...`) that are not part of the form schema.
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public static function mutateFormDataBeforeSave(array $data, string $operation, ?Model $record = null): array
+    {
+        return $data;
     }
 
     /**

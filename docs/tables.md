@@ -579,6 +579,7 @@ Table-level methods control refresh, pagination, and row behavior:
 - `paginated(bool|array $options)`: Toggles pagination or sets the page-size options. Pass `false` to disable pagination (the full result set is rendered), or an array of integers to override the selectable per-page options (default `[5, 10, 25, 50]`).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
+- `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
 
 ```php
 Table::make(Post::query())

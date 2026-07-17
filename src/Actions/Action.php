@@ -86,6 +86,13 @@ class Action
 
     protected ?string $modalCancelActionLabel = null;
 
+    /**
+     * When set, the action opens an in-table record modal instead of running a
+     * navigate/dispatch behaviour. One of 'create' | 'edit' | 'view' | 'delete'.
+     * Handled by KinetixTable when the table opts into {@see Table::recordModals()}.
+     */
+    protected ?string $modalMode = null;
+
     public function __construct(string $name)
     {
         $this->name  = $name;
@@ -378,6 +385,20 @@ class Action
     }
 
     /**
+     * Open an in-table record modal when clicked instead of navigating or
+     * dispatching. Requires the table to opt in via {@see Table::recordModals()}.
+     * Mode is one of 'create' | 'edit' | 'view' | 'delete'; KinetixTable then
+     * fetches the fresh form/infolist (or uses the row) and persists CRUD
+     * through the signed Kinetix record endpoint.
+     */
+    public function modal(string $mode = 'edit'): static
+    {
+        $this->modalMode = $mode;
+
+        return $this;
+    }
+
+    /**
      * Convert the action to ActionData, or null when hidden/unauthorized.
      */
     public function toData(?Model $record = null): ?ActionData
@@ -462,6 +483,7 @@ class Action
             previewType: $this->previewType,
             shortcut: $this->shortcut,
             isIconButton: $this->isIconButton,
+            modal: $this->modalMode,
         );
     }
 

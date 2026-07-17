@@ -13,6 +13,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.108.0] - 2026-07-17
+
+### Added
+
+- **Kinetix-owned in-table modal CRUD for simple resources (published).** A
+  `--simple` resource page is now literally `<KinetixTable :table>` and can
+  create, edit, view (via the resource's `infolist()`), reorder and delete —
+  no modal markup or submit wiring in the page. Opt in on the table with
+  `Table::recordModals(PostResource::class)` and flag actions with
+  `->modal('create'|'edit'|'view'|'delete')`; `KinetixTable` hosts the form and
+  infolist modals and runs CRUD through a new signed record endpoint
+  (`_kinetix/tables/record` + `/resolve`), guarded by an encrypted
+  `{ model, resource }` token and the model's policy (view/create/update/delete,
+  enforced when a policy exists — same rule as cell-update/kanban-move).
+- **Fresh-record-on-edit (published).** Opening the edit modal fetches a fresh
+  copy of the record from the server by default, so a concurrent change is never
+  silently overwritten. Configure globally with `kinetix.tables.record_source`
+  (`server` default, or `row` to prefill from the already-loaded row) or per
+  table via `->recordModals(Resource::class, source: 'row')`.
+- **`Action::modal(string $mode)`** — opens an in-table record modal instead of
+  navigating/dispatching (serialized as `modal` on the action DTO).
+- **Resource hooks `getEloquentQuery()` and `mutateFormDataBeforeSave()`** — the
+  base query is reused by the generated index page and the modal endpoint (so
+  team scoping applies to CRUD), and submitted data can be mutated per operation
+  (e.g. stamping `team_id`).
+- **`kinetix:make-resource --reorderable`** — adds `->reorderable('sort_order')`
+  to a generated table (drag handles + persisted order).
+- `record_created` / `record_updated` / `record_deleted` translation strings
+  across all 7 shipped locales **(published)**.
+
+### Changed
+
+- **`kinetix:make-resource --simple` scaffold (published).** The generated
+  controller is now index-only (CRUD is handled by Kinetix); the generated
+  `Index.vue` is just `<KinetixTable :table>`; the resource gains a scaffolded
+  `infolist()` (drives the View modal) and, with `--team`, `getEloquentQuery()` /
+  `mutateFormDataBeforeSave()` overrides. The previous event-dispatch + in-page
+  modal approach (v0.107.0) is replaced. Regenerate with
+  `php artisan kinetix:make-resource {Model} --simple` (review your routes: a
+  simple resource now needs only its `index` GET route).
+
 ## [0.107.1] - 2026-07-17
 
 ### Fixed

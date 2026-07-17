@@ -49,5 +49,8 @@ class ActionData extends Data
         public ?string $shortcut = null,
         // Compact icon-only button (no visible label / outline).
         public bool $isIconButton = false,
+        // Opens an in-table record modal ('create'|'edit'|'view'|'delete')
+        // instead of navigating/dispatching. See Table::recordModals().
+        public ?string $modal = null,
     ) {}
 }

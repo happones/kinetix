@@ -224,6 +224,9 @@ return [
     'saved'                  => 'Enregistré.',
     'save_failed'            => 'Échec de l’enregistrement.',
     'action_failed'          => 'L’action n’a pas pu être effectuée.',
+    'record_created'         => 'Enregistrement créé avec succès.',
+    'record_updated'         => 'Enregistrement mis à jour avec succès.',
+    'record_deleted'         => 'Enregistrement supprimé avec succès.',
     'deleted'                => 'Supprimé.',
     'delete_failed'          => 'Échec de la suppression.',
 

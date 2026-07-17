@@ -224,6 +224,9 @@ return [
     'saved'                  => 'Guardado.',
     'save_failed'            => 'No se pudo guardar.',
     'action_failed'          => 'No se pudo completar la acción.',
+    'record_created'         => 'Registro creado correctamente.',
+    'record_updated'         => 'Registro actualizado correctamente.',
+    'record_deleted'         => 'Registro eliminado correctamente.',
     'deleted'                => 'Eliminado.',
     'delete_failed'          => 'No se pudo eliminar.',
 

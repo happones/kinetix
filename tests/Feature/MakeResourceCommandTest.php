@@ -45,28 +45,51 @@ class MakeResourceCommandTest extends TestCase
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
     }
 
-    public function test_simple_resource_wires_modal_crud_actions(): void
+    public function test_simple_resource_wires_kinetix_owned_modal_crud(): void
     {
         $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true])
             ->assertSuccessful();
 
         $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
 
-        // Create/Edit dispatch browser events (open the in-page modal); Delete is
-        // a server DELETE. No dead code, no separate pages.
+        // Kinetix-owned modal CRUD: the table opts in via recordModals() and the
+        // create/view/edit/delete actions open in-table modals. No per-action
+        // controller methods / routes.
         $this->assertStringContainsString('use Happones\Kinetix\Actions\CreateAction;', $controller);
+        $this->assertStringContainsString('use Happones\Kinetix\Actions\ViewAction;', $controller);
         $this->assertStringContainsString('use Happones\Kinetix\Actions\EditAction;', $controller);
         $this->assertStringContainsString('use Happones\Kinetix\Actions\DeleteAction;', $controller);
-        $this->assertStringContainsString('->toolbarActions([', $controller);
-        $this->assertStringContainsString("CreateAction::make()->dispatch('posts-create')", $controller);
-        $this->assertStringContainsString("EditAction::make()->dispatch('posts-edit')", $controller);
-        $this->assertStringContainsString("route('posts.destroy', \$record)", $controller);
+        $this->assertStringContainsString('->recordModals(PostResource::class)', $controller);
+        $this->assertStringContainsString('PostResource::getEloquentQuery()', $controller);
+        $this->assertStringContainsString("CreateAction::make()->modal('create')", $controller);
+        $this->assertStringContainsString("ViewAction::make()->modal('view')", $controller);
+        $this->assertStringContainsString("EditAction::make()->modal('edit')", $controller);
+        $this->assertStringContainsString("DeleteAction::make()->modal('delete')", $controller);
 
+        // The simple controller is index-only (no store/update/destroy methods).
+        $this->assertStringNotContainsString('public function store(', $controller);
+        $this->assertStringNotContainsString('public function update(', $controller);
+        $this->assertStringNotContainsString('public function destroy(', $controller);
+
+        // The Resource ships an infolist() so the View modal has content.
+        $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString('public static function infolist(Infolist $infolist): Infolist', $resource);
+
+        // The generated PHP must be syntactically valid.
+        foreach ([
+            app_path('Http/Controllers/Kinetix/PostController.php'),
+            app_path('Kinetix/Resources/PostResource.php'),
+        ] as $php) {
+            exec('php -l '.escapeshellarg($php).' 2>&1', $out, $code);
+            $this->assertSame(0, $code, "Generated file has a syntax error: {$php}\n".implode("\n", $out));
+        }
+
+        // The page is just <KinetixTable :table> — no modal markup / submit wiring.
         $index = File::get(resource_path('js/pages/Kinetix/Posts/Index.vue'));
-        // The page listens for the dispatched events and opens the modal.
-        $this->assertStringContainsString("addEventListener('kinetix:posts-create'", $index);
-        $this->assertStringContainsString("addEventListener('kinetix:posts-edit'", $index);
-        $this->assertStringContainsString('openEditModal', $index);
+        $this->assertStringContainsString('<KinetixTable :table="table" />', $index);
+        $this->assertStringNotContainsString('addEventListener', $index);
+        $this->assertStringNotContainsString('openEditModal', $index);
+        $this->assertStringNotContainsString('formBlueprint', $index);
 
         // Simple mode does not scaffold separate Create/Edit pages.
         $this->assertFileDoesNotExist(resource_path('js/pages/Kinetix/Posts/Create.vue'));
@@ -75,6 +98,62 @@ class MakeResourceCommandTest extends TestCase
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
         File::deleteDirectory(app_path('Kinetix'));
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_reorderable_option_enables_drag_reordering(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true, '--reorderable' => true])
+            ->assertSuccessful();
+
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        $this->assertStringContainsString('->reorderable()', $controller);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_simple_team_resource_scopes_query_in_the_resource(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true, '--team' => true])
+            ->assertSuccessful();
+
+        // Team scoping + team_id stamping live on the resource so the modal
+        // endpoint (which uses getEloquentQuery / mutateFormDataBeforeSave) stays
+        // tenant-safe.
+        $resourcePath = app_path('Kinetix/Resources/PostResource.php');
+        $resource     = File::get($resourcePath);
+        $this->assertStringContainsString('public static function getEloquentQuery(): Builder', $resource);
+        $this->assertStringContainsString("where('team_id', request()->user()->currentTeam->id)", $resource);
+        $this->assertStringContainsString("\$data['team_id'] = request()->user()->currentTeam->id", $resource);
+
+        exec('php -l '.escapeshellarg($resourcePath).' 2>&1', $out, $code);
+        $this->assertSame(0, $code, "Generated team resource has a syntax error:\n".implode("\n", $out));
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_simple_soft_deletes_controller_is_valid_php(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true, '--soft-deletes' => true])
+            ->assertSuccessful();
+
+        $controllerPath = app_path('Http/Controllers/Kinetix/PostController.php');
+        $controller     = File::get($controllerPath);
+
+        // Soft-delete controllers still get restore/forceDelete (+ their imports).
+        $this->assertStringContainsString('use App\Models\Post;', $controller);
+        $this->assertStringContainsString('public function restore(', $controller);
+        $this->assertStringContainsString('->withTrashed()', $controller);
+
+        exec('php -l '.escapeshellarg($controllerPath).' 2>&1', $out, $code);
+        $this->assertSame(0, $code, "Generated soft-delete controller has a syntax error:\n".implode("\n", $out));
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete($controllerPath);
     }
 
     public function test_full_resource_wires_row_edit_and_delete_actions(): void

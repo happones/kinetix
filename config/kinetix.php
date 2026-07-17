@@ -637,6 +637,13 @@ return [
         // Locale used to format numeric column summaries (Sum/Average/Range).
         // Null uses the app locale; e.g. 'de-DE' for European grouping.
         'number_locale' => env('KINETIX_TABLES_NUMBER_LOCALE'),
+
+        // Where an in-table edit modal (simple resources, Table::recordModals())
+        // reads a record: 'server' fetches a fresh copy so concurrent edits are
+        // never lost; 'row' prefills from the already-loaded row (no round-trip,
+        // but shows the value as of the last table load). Per-table override:
+        // ->recordModals(Resource::class, source: 'row').
+        'record_source' => env('KINETIX_TABLES_RECORD_SOURCE', 'server'),
     ],
 
     'saved_views' => [

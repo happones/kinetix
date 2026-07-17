@@ -21,6 +21,7 @@ class MakeResourceCommand extends Command
                             {--simple : Create a single-page resource with modals rather than separate pages}
                             {--soft-deletes : Add soft delete filters, columns, and actions}
                             {--team : Scaffold team-aware routes & queries (auto-enabled when kinetix.teams is true)}
+                            {--reorderable : Enable drag-and-drop row reordering (persists to a `sort_order` integer column)}
                             {--generate : Read database table columns to automatically populate form and table schemas}';
 
     /**
@@ -46,6 +47,7 @@ class MakeResourceCommand extends Command
         $simple      = $this->option('simple');
         $softDeletes = $this->option('soft-deletes');
         $generate    = $this->option('generate');
+        $reorderable = (bool) $this->option('reorderable');
         // Team-aware when explicitly requested or when the package teams mode is on.
         $teams = $this->option('team') || (bool) config('kinetix.teams', false);
 
@@ -58,13 +60,13 @@ class MakeResourceCommand extends Command
         }
 
         // Generate schema lists
-        [$formFields, $tableColumns] = $this->getSchemaDefinitions($modelClass, $generate, $softDeletes);
+        [$formFields, $tableColumns, $infolistEntries] = $this->getSchemaDefinitions($modelClass, $generate, $softDeletes);
 
         // 1. Create PHP Resource Class
-        $this->createResourceClass($modelName, $resourceClass, $formFields, $tableColumns);
+        $this->createResourceClass($modelName, $resourceClass, $formFields, $tableColumns, $infolistEntries, $teams);
 
         // 2. Create Resource Controller
-        $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes, $teams);
+        $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes, $teams, $reorderable);
 
         // 3. Create Vue frontend pages
         $this->createVuePages($modelName, $pluralName, $pluralSlug, $simple, $softDeletes, $formFields, $tableColumns);
@@ -75,21 +77,33 @@ class MakeResourceCommand extends Command
 
         $controllerRef = "\\App\\Http\\Controllers\\Kinetix\\{$modelName}Controller::class";
 
+        // Simple resources are single-page: create/edit/view/delete run through
+        // Kinetix's own signed record endpoint (Table::recordModals()), so only
+        // the index route is needed.
+        $indent = $teams ? '       ' : '   ';
+        $emit   = function (string $line) use ($indent): void {
+            $this->line($indent.$line);
+        };
+
         if ($teams) {
             $this->line('   // Team-aware: nest under the {current_team} segment Kinetix uses.');
             $this->line("   Route::prefix('{current_team}')->group(function () {");
-            $this->line("       Route::resource('{$pluralSlug}', {$controllerRef});");
-            if ($softDeletes) {
-                $this->line("       Route::post('{$pluralSlug}/{id}/restore', [{$controllerRef}, 'restore'])->name('{$pluralSlug}.restore');");
-                $this->line("       Route::delete('{$pluralSlug}/{id}/force-delete', [{$controllerRef}, 'forceDelete'])->name('{$pluralSlug}.force-delete');");
-            }
-            $this->line('   });');
+        }
+
+        if ($simple) {
+            $emit("Route::get('{$pluralSlug}', [{$controllerRef}, 'index'])->name('{$pluralSlug}.index');");
+            $emit('// Create / edit / view / delete are handled by Kinetix (no extra routes).');
         } else {
-            $this->line("   Route::resource('{$pluralSlug}', {$controllerRef});");
-            if ($softDeletes) {
-                $this->line("   Route::post('{$pluralSlug}/{id}/restore', [{$controllerRef}, 'restore'])->name('{$pluralSlug}.restore');");
-                $this->line("   Route::delete('{$pluralSlug}/{id}/force-delete', [{$controllerRef}, 'forceDelete'])->name('{$pluralSlug}.force-delete');");
-            }
+            $emit("Route::resource('{$pluralSlug}', {$controllerRef});");
+        }
+
+        if ($softDeletes) {
+            $emit("Route::post('{$pluralSlug}/{id}/restore', [{$controllerRef}, 'restore'])->name('{$pluralSlug}.restore');");
+            $emit("Route::delete('{$pluralSlug}/{id}/force-delete', [{$controllerRef}, 'forceDelete'])->name('{$pluralSlug}.force-delete');");
+        }
+
+        if ($teams) {
+            $this->line('   });');
         }
 
         return self::SUCCESS;
@@ -118,14 +132,16 @@ class MakeResourceCommand extends Command
      */
     protected function getSchemaDefinitions(string $modelClass, bool $generate, bool $softDeletes): array
     {
-        $formFields   = [];
-        $tableColumns = [];
+        $formFields      = [];
+        $tableColumns    = [];
+        $infolistEntries = [];
 
         if (! $generate) {
-            $formFields[]   = "                TextInput::make('title')->required(),";
-            $tableColumns[] = "                TextColumn::make('title')->searchable()->sortable(),";
+            $formFields[]      = "                TextInput::make('title')->required(),";
+            $tableColumns[]    = "                TextColumn::make('title')->searchable()->sortable(),";
+            $infolistEntries[] = "                TextEntry::make('title'),";
 
-            return [$formFields, $tableColumns];
+            return [$formFields, $tableColumns, $infolistEntries];
         }
 
         try {
@@ -158,51 +174,61 @@ class MakeResourceCommand extends Command
 
                 $formRule  = '';
                 $tableRule = '';
+                $entryRule = "                TextEntry::make('{$colName}')";
 
                 if ($colType === 'boolean' || $colType === 'tinyint' || Str::startsWith($colName, 'is_')) {
                     $formRule  = "                Toggle::make('{$colName}')";
                     $tableRule = "                ToggleColumn::make('{$colName}')";
+                    $entryRule = "                IconEntry::make('{$colName}')->boolean()";
                 } elseif (Str::contains($colName, 'email')) {
                     $formRule  = "                TextInput::make('{$colName}')->email()";
                     $tableRule = "                TextColumn::make('{$colName}')";
+                    $entryRule = "                TextEntry::make('{$colName}')->copyable()->icon('mail')";
                 } elseif ($colType === 'text') {
                     $formRule  = "                Textarea::make('{$colName}')";
                     $tableRule = "                TextColumn::make('{$colName}')->limit(50)";
+                    $entryRule = "                TextEntry::make('{$colName}')";
                 } elseif (in_array($colType, ['datetime', 'timestamp', 'date'], true)) {
                     $formRule  = "                DateTimePicker::make('{$colName}')";
                     $tableRule = "                TextColumn::make('{$colName}')->dateTime()";
+                    $entryRule = "                TextEntry::make('{$colName}')->dateTime()";
                 } elseif (Str::contains($colType, 'int') || in_array($colType, ['decimal', 'float', 'double'], true)) {
                     $formRule  = "                TextInput::make('{$colName}')->numeric()";
                     $tableRule = "                TextColumn::make('{$colName}')->sortable()";
+                    $entryRule = "                TextEntry::make('{$colName}')";
                 } else {
                     $formRule  = "                TextInput::make('{$colName}')";
                     $tableRule = "                TextColumn::make('{$colName}')->searchable()->sortable()";
+                    $entryRule = "                TextEntry::make('{$colName}')";
                 }
 
                 if (! $isNullable) {
                     $formRule .= '->required()';
                 }
 
-                $formFields[]   = $formRule.',';
-                $tableColumns[] = $tableRule.',';
+                $formFields[]      = $formRule.',';
+                $tableColumns[]    = $tableRule.',';
+                $infolistEntries[] = $entryRule.',';
             }
 
             if (empty($formFields)) {
-                $formFields[]   = "                TextInput::make('title')->required(),";
-                $tableColumns[] = "                TextColumn::make('title')->searchable()->sortable(),";
+                $formFields[]      = "                TextInput::make('title')->required(),";
+                $tableColumns[]    = "                TextColumn::make('title')->searchable()->sortable(),";
+                $infolistEntries[] = "                TextEntry::make('title'),";
             }
         } catch (\Exception $e) {
-            $formFields[]   = "                TextInput::make('title')->required(),";
-            $tableColumns[] = "                TextColumn::make('title')->searchable()->sortable(),";
+            $formFields[]      = "                TextInput::make('title')->required(),";
+            $tableColumns[]    = "                TextColumn::make('title')->searchable()->sortable(),";
+            $infolistEntries[] = "                TextEntry::make('title'),";
         }
 
-        return [$formFields, $tableColumns];
+        return [$formFields, $tableColumns, $infolistEntries];
     }
 
     /**
      * Generate Kinetix Resource PHP config class.
      */
-    protected function createResourceClass(string $modelName, string $resourceClass, array $formFields, array $tableColumns): void
+    protected function createResourceClass(string $modelName, string $resourceClass, array $formFields, array $tableColumns, array $infolistEntries = [], bool $teams = false): void
     {
         $directory = app_path('Kinetix/Resources');
         $filePath  = "{$directory}/{$resourceClass}.php";
@@ -211,8 +237,36 @@ class MakeResourceCommand extends Command
             File::makeDirectory($directory, 0755, true);
         }
 
-        $formFieldsStr   = implode("\n", $formFields);
-        $tableColumnsStr = implode("\n", $tableColumns);
+        $formFieldsStr      = implode("\n", $formFields);
+        $tableColumnsStr    = implode("\n", $tableColumns);
+        $infolistEntriesStr = implode("\n", $infolistEntries !== [] ? $infolistEntries : ["                TextEntry::make('title'),"]);
+
+        // Team-aware resources scope every read/write to the current team and
+        // stamp `team_id` on create, so the in-table modal endpoint stays
+        // tenant-safe. Adjust the column/relation to match your schema.
+        $teamHooks   = '';
+        $teamImports = '';
+
+        if ($teams) {
+            $teamImports = "\nuse Illuminate\Database\Eloquent\Builder;";
+            $teamHooks   = <<<PHP
+
+
+    public static function getEloquentQuery(): Builder
+    {
+        return {$modelName}::where('team_id', request()->user()->currentTeam->id);
+    }
+
+    public static function mutateFormDataBeforeSave(array \$data, string \$operation, ?\Illuminate\Database\Eloquent\Model \$record = null): array
+    {
+        if (\$operation === 'create') {
+            \$data['team_id'] = request()->user()->currentTeam->id;
+        }
+
+        return \$data;
+    }
+PHP;
+        }
 
         $template = <<<PHP
 <?php
@@ -233,6 +287,9 @@ use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Components\Toggle;
 use Happones\Kinetix\Forms\Components\Textarea;
 use Happones\Kinetix\Forms\Components\DateTimePicker;
+use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Infolists\Components\TextEntry;
+use Happones\Kinetix\Infolists\Components\IconEntry;{$teamImports}
 
 class {$resourceClass} extends Resource
 {
@@ -253,6 +310,16 @@ class {$resourceClass} extends Resource
 {$formFieldsStr}
             ]);
     }
+
+    // Read-only detail shown in the table's View modal. Remove this method to
+    // drop the View action.
+    public static function infolist(Infolist \$infolist): Infolist
+    {
+        return \$infolist
+            ->schema([
+{$infolistEntriesStr}
+            ]);
+    }{$teamHooks}
 }
 PHP;
 
@@ -270,7 +337,8 @@ PHP;
         string $pluralSlug,
         bool $simple,
         bool $softDeletes,
-        bool $teams = false
+        bool $teams = false,
+        bool $reorderable = false
     ): void {
         $directory = app_path('Http/Controllers/Kinetix');
         $filePath  = "{$directory}/{$modelName}Controller.php";
@@ -315,7 +383,17 @@ PHP;
         }
 
         if ($simple) {
-            // Simple controller: single index and crud updates
+            // Simple controller: a single index page. Create/edit/view/delete are
+            // hosted inside the table (Table::recordModals()) and run through
+            // Kinetix's own signed record endpoint — no per-action controller
+            // methods or routes needed.
+            $reorderableChain = $reorderable ? "\n            ->reorderable()" : '';
+            // The model + Request are only referenced by the soft-delete
+            // restore/forceDelete methods; omit the imports otherwise.
+            $modelImport   = $softDeletes ? "\nuse App\Models\\{$modelName};" : '';
+            $requestImport = $softDeletes ? "\nuse Illuminate\Http\Request;" : '';
+            $withTrashed   = $softDeletes ? "\n        \$query = \$query->withTrashed();" : '';
+
             $template = <<<PHP
 <?php
 
@@ -324,77 +402,39 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Kinetix;
 
 use App\Http\Controllers\Controller;
-use App\Kinetix\Resources\\{$resourceClass};
-use App\Models\\{$modelName};
+use App\Kinetix\Resources\\{$resourceClass};{$modelImport}
 use Happones\Kinetix\Actions\CreateAction;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
-use Happones\Kinetix\Forms\Form;
-use Happones\Kinetix\Tables\Table;
-use Illuminate\Http\Request;
+use Happones\Kinetix\Actions\ViewAction;
+use Happones\Kinetix\Tables\Table;{$requestImport}
 
 class {$modelName}Controller extends Controller
 {
-    public function index({$indexParams})
+    public function index()
     {
-        \$query = {$indexQuery};
-PHP;
-            if ($softDeletes) {
-                $template .= "\n        \$query = \$query->withTrashed();";
-            }
-            $template .= <<<PHP
+        // Reads/writes flow through the resource's scoped query, so team scoping
+        // (getEloquentQuery) applies to the modal endpoint too. Edits fetch a
+        // FRESH copy from the server by default; switch to the loaded row with
+        // ->recordModals({$resourceClass}::class, 'row') or the
+        // `kinetix.tables.record_source` config.
+        \$query = {$resourceClass}::getEloquentQuery();{$withTrashed}
 
-        // Create/Edit open the in-page modal via a dispatched browser event
-        // ('kinetix:{$pluralSlug}-create' / 'kinetix:{$pluralSlug}-edit'); the Edit
-        // event carries its row so the modal prefills. Delete confirms, then
-        // DELETEs. To customise, just listen for those events yourself — the
-        // actions only dispatch, they don't navigate.
         \$table = {$resourceClass}::table(Table::make(\$query))
+            ->recordModals({$resourceClass}::class){$reorderableChain}
             ->toolbarActions([
-                CreateAction::make()->dispatch('{$pluralSlug}-create'),
+                CreateAction::make()->modal('create'),
             ])
             ->recordActions([
-                EditAction::make()->dispatch('{$pluralSlug}-edit'),
-                DeleteAction::make()->inertiaVisit(
-                    fn (\$record) => route('{$routePrefix}.destroy', \$record),
-                    ['method' => 'delete', 'preserveScroll' => true],
-                ),
+                ViewAction::make()->modal('view'),
+                EditAction::make()->modal('edit'),
+                DeleteAction::make()->modal('delete'),
             ]);
-
-        \$form = {$resourceClass}::form(Form::make(new {$modelName}()));
 
         return inertia('Kinetix/{$pluralName}/Index', [
             'table' => \$table->toArray(),
-            'formBlueprint' => \$form->toArray(),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
         ]);
-    }
-
-    public function store(Request \$request)
-    {
-        \$form = {$resourceClass}::form(Form::make(new {$modelName}()));
-        \$form->validate(\$request->all());
-
-        {$createExpr};
-
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record created successfully.');
-    }
-
-    public function update(Request \$request, {$modelName} \$record)
-    {
-        \$form = {$resourceClass}::form(Form::make(\$record));
-        \$form->validate(\$request->all());
-
-        \$record->update(\$form->getState(\$request->all()));
-
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record updated successfully.');
-    }
-
-    public function destroy({$modelName} \$record)
-    {
-        \$record->delete();
-
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record deleted successfully.');
     }
 {$softDeletesMethods}
 }
@@ -519,142 +559,33 @@ PHP;
         }
 
         if ($simple) {
-            // Create single Index view with modals
+            // Single-page resource: the table hosts every modal. The page is just
+            // <KinetixTable :table> — create/edit/view/delete + reorder are driven
+            // by the serialized table (Table::recordModals()), so there is no
+            // modal markup or submit wiring to maintain here.
             $indexTemplate = <<<VUE
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { router } from '@inertiajs/vue3';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import KinetixForm from '@/components/kinetix/KinetixForm.vue';
-import type {
-  KinetixBreadcrumb,
-  KinetixTableData,
-  KinetixTableRecord,
-} from '@/types';
+import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
 
-const props = defineProps<{
+// `breadcrumbs` is auto-derived from the resource; feed it to your app layout's
+// <Breadcrumbs> (see https://happones.github.io/kinetix/breadcrumbs).
+defineProps<{
   table: KinetixTableData;
-  formBlueprint: any;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
-
-const isModalOpen = ref(false);
-const isEditing = ref(false);
-const activeRecordId = ref<number | string | null>(null);
-const activeForm = ref<any>({ ...props.formBlueprint });
-
-const openCreateModal = () => {
-  isEditing.value = false;
-  activeRecordId.value = null;
-  activeForm.value = { ...props.formBlueprint, data: {} };
-  isModalOpen.value = true;
-};
-
-const openEditModal = (record: KinetixTableRecord) => {
-  isEditing.value = true;
-  activeRecordId.value = record.id;
-  // Prefill from the row's values. For heavily formatted columns adjust the
-  // Resource table/form so the displayed values map back to the form fields.
-  activeForm.value = { ...props.formBlueprint, data: { ...record.values } };
-  isModalOpen.value = true;
-};
-
-const closeModal = () => {
-  isModalOpen.value = false;
-};
-
-// The table's Create/Edit actions dispatch these browser events; Edit carries
-// its row in `detail.record`. Listen here (or anywhere) for custom behaviour.
-const onCreateEvent = () => openCreateModal();
-const onEditEvent = (event: Event) => {
-  const record = (event as CustomEvent).detail?.record as
-    | KinetixTableRecord
-    | undefined;
-
-  if (record) {
-    openEditModal(record);
-  }
-};
-
-onMounted(() => {
-  window.addEventListener('kinetix:{$pluralSlug}-create', onCreateEvent);
-  window.addEventListener('kinetix:{$pluralSlug}-edit', onEditEvent);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('kinetix:{$pluralSlug}-create', onCreateEvent);
-  window.removeEventListener('kinetix:{$pluralSlug}-edit', onEditEvent);
-});
-
-const handleFormSubmit = (values: Record<string, any>) => {
-  const options = {
-    preserveScroll: true,
-    onSuccess: () => {
-      isModalOpen.value = false;
-    },
-  };
-
-  if (isEditing.value && activeRecordId.value) {
-    router.put(`/{$pluralSlug}/\${activeRecordId.value}`, values, options);
-  } else {
-    router.post('/{$pluralSlug}', values, options);
-  }
-};
 </script>
 
 <template>
   <div class="p-8 max-w-7xl mx-auto space-y-6">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{$pluralName} Directory</h1>
-      <p class="text-sm text-neutral-500">Manage database entries inline via the table's Create / Edit actions.</p>
+      <p class="text-sm text-neutral-500">Create, edit, view and reorder records — all inline from the table.</p>
     </div>
 
-    <!-- The table's Create (toolbar) and Edit (row) actions dispatch events
-         that open the modal below; Delete is handled server-side by the table. -->
+    <!-- The table drives everything: Create (toolbar), View/Edit/Delete (per row)
+         open modals hosted inside KinetixTable; drag handles reorder when enabled. -->
     <KinetixTable :table="table" />
-
-    <!-- CRUD Form Dialog Modal -->
-    <div
-      v-if="isModalOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity"
-      @click.self="closeModal"
-    >
-      <div class="w-full max-w-2xl bg-white dark:bg-neutral-900 border dark:border-neutral-800 rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div class="p-6 border-b dark:border-neutral-800 flex justify-between items-center">
-          <h3 class="font-semibold text-lg text-neutral-900 dark:text-white">
-            {{ isEditing ? 'Edit Entry Details' : 'Create New Entry' }}
-          </h3>
-          <button
-            @click="closeModal"
-            class="text-neutral-400 hover:text-neutral-500"
-          >
-            &times;
-          </button>
-        </div>
-
-        <div class="p-6 overflow-y-auto">
-          <KinetixForm :form="activeForm" @submit="handleFormSubmit">
-            <template #default>
-              <div class="flex justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  @click="isModalOpen = false"
-                  class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-                >
-                  {{ isEditing ? 'Save Changes' : 'Create Entry' }}
-                </button>
-              </div>
-            </template>
-          </KinetixForm>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 VUE;

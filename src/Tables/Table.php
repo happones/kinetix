@@ -6,11 +6,15 @@ namespace Happones\Kinetix\Tables;
 
 use Closure;
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\SummaryData;
 use Happones\Kinetix\Data\TableData;
 use Happones\Kinetix\Data\TablePaginationData;
 use Happones\Kinetix\Data\TableRowData;
 use Happones\Kinetix\Data\TableStateData;
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
 use Happones\Kinetix\Tables\Columns\ImageColumn;
@@ -109,6 +113,21 @@ class Table implements Arrayable, JsonSerializable
      * can never dump the whole database into the payload.
      */
     protected int $clientSideMax = 500;
+
+    /**
+     * Resource class backing in-table modal CRUD (create/edit/view), or null
+     * when the table doesn't host record modals. Set via {@see recordModals()}.
+     *
+     * @var class-string<\Happones\Kinetix\Resources\Resource>|null
+     */
+    protected ?string $recordModalsResource = null;
+
+    /**
+     * Where the edit modal reads its record data: 'server' (fetch a fresh copy)
+     * or 'row' (prefill from the already-loaded row). Null inherits the config
+     * default (`kinetix.tables.record_source`).
+     */
+    protected ?string $recordModalsSource = null;
 
     /**
      * Create a new table builder instance.
@@ -352,6 +371,26 @@ class Table implements Arrayable, JsonSerializable
     public function reorderable(string $column = 'sort_order'): static
     {
         $this->reorderColumn = $column;
+
+        return $this;
+    }
+
+    /**
+     * Host create/edit/view modals inside the table itself, driven by the given
+     * Resource's `form()` and `infolist()`. Paired with actions that call
+     * `->modal('create'|'edit'|'view'|'delete')`, this lets a page render just
+     * `<KinetixTable :table>` and get full modal CRUD — the frontend fetches a
+     * fresh form/infolist per record from a signed Kinetix endpoint and persists
+     * through it (guarded by the record token + the model's policy).
+     *
+     * @param class-string<\Happones\Kinetix\Resources\Resource> $resource
+     * @param string|null                                        $source   'server' (fetch a fresh record, default) or
+     *                                                                     'row' (prefill the edit form from the loaded row).
+     */
+    public function recordModals(string $resource, ?string $source = null): static
+    {
+        $this->recordModalsResource = $resource;
+        $this->recordModalsSource   = $source;
 
         return $this;
     }
@@ -624,6 +663,43 @@ class Table implements Arrayable, JsonSerializable
             reorderable: $this->reorderColumn !== null,
             savedViewsKey: $this->savedViewsKey,
             clientSide: $this->clientSide,
+            recordModals: $this->buildRecordModalsData(),
+        );
+    }
+
+    /**
+     * Build the in-table modal CRUD descriptor, or null when the table did not
+     * opt in via {@see recordModals()}. The signed token carries the model +
+     * resource so the record endpoint trusts them; the create form blueprint is
+     * shipped inline for an instant "New" modal (no round-trip).
+     */
+    protected function buildRecordModalsData(): ?RecordModalsData
+    {
+        $resource = $this->recordModalsResource;
+
+        if ($resource === null) {
+            return null;
+        }
+
+        $modelClass = $this->getModelClass();
+        $source     = $this->recordModalsSource
+            ?? (string) config('kinetix.tables.record_source', 'server');
+
+        /** @var Form $createForm */
+        $createForm  = $resource::form(Form::make(new $modelClass)->operation('create'))->fill();
+        $hasForm     = $createForm->getFields()                                               !== [];
+        $hasInfolist = $resource::infolist(Infolist::make(new $modelClass))->toData()->schema !== [];
+
+        return new RecordModalsData(
+            enabled: true,
+            token: Crypt::encrypt([
+                'model'    => $modelClass,
+                'resource' => $resource,
+            ]),
+            source: $source === 'row' ? 'row' : 'server',
+            hasForm: $hasForm,
+            hasInfolist: $hasInfolist,
+            createForm: $hasForm ? $createForm->toArray() : null,
         );
     }
 

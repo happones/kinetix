@@ -28,6 +28,8 @@ export interface KinetixAction {
     previewType?: string | null;
     shortcut?: string | null;
     isIconButton?: boolean;
+    /** Opens an in-table record modal instead of navigating/dispatching. */
+    modal?: 'create' | 'edit' | 'view' | 'delete' | null;
 }
 
 export interface KinetixNotification {
@@ -860,6 +862,24 @@ export interface KinetixTableData {
     savedViewsKey?: string | null;
     /** When true, all rows are shipped and a TanStack renderer handles interactions client-side. */
     clientSide?: boolean;
+    /** In-table modal CRUD wiring (simple resources). Null/absent = disabled. */
+    recordModals?: KinetixRecordModals | null;
+}
+
+/**
+ * Drives the in-table create/edit/view modals for a "simple" resource table.
+ * The `token` is a signed { model, resource } descriptor sent with every
+ * resolve/store/update/destroy request. See Table::recordModals() (PHP).
+ */
+export interface KinetixRecordModals {
+    enabled: boolean;
+    token: string;
+    /** 'server' fetches a fresh record; 'row' prefills the edit form from the loaded row. */
+    source: 'server' | 'row';
+    hasForm: boolean;
+    hasInfolist: boolean;
+    /** Blueprint form DTO for an instant create modal (no round-trip). */
+    createForm?: Record<string, any> | null;
 }
 
 /** A computed column summary (sum/average/count/range/custom). */

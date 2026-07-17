@@ -224,6 +224,9 @@ return [
     'saved'                  => 'Saved.',
     'save_failed'            => 'Could not save.',
     'action_failed'          => 'The action could not be completed.',
+    'record_created'         => 'Record created successfully.',
+    'record_updated'         => 'Record updated successfully.',
+    'record_deleted'         => 'Record deleted successfully.',
     'deleted'                => 'Deleted.',
     'delete_failed'          => 'Could not delete.',
 

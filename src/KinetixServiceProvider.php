@@ -103,6 +103,7 @@ use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Tables\RecordModalController;
 use Happones\Kinetix\Tags\TagController;
 use Happones\Kinetix\Tags\TagManager;
 use Happones\Kinetix\Tags\TagRegistry;
@@ -2060,6 +2061,14 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('table-repeater', [TableRepeaterController::class, 'store'])->name('kinetix.table-repeater.store');
                 Route::put('table-repeater', [TableRepeaterController::class, 'update'])->name('kinetix.table-repeater.update');
                 Route::delete('table-repeater', [TableRepeaterController::class, 'destroy'])->name('kinetix.table-repeater.destroy');
+
+                // Simple-resource in-table modal CRUD (Table::recordModals()).
+                // `resolve` returns a fresh form/infolist (XHR/JSON); the rest
+                // persist and redirect back so the index reloads with fresh data.
+                Route::post('record/resolve', [RecordModalController::class, 'resolve'])->name('kinetix.tables.record.resolve');
+                Route::post('record', [RecordModalController::class, 'store'])->name('kinetix.tables.record.store');
+                Route::put('record', [RecordModalController::class, 'update'])->name('kinetix.tables.record.update');
+                Route::delete('record', [RecordModalController::class, 'destroy'])->name('kinetix.tables.record.destroy');
             });
     }
 
