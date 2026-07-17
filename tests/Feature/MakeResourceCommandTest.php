@@ -76,6 +76,27 @@ class MakeResourceCommandTest extends TestCase
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
     }
 
+    public function test_full_resource_wires_row_edit_and_delete_actions(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
+
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+
+        // The index table gets per-row Edit (navigates to the edit page) and
+        // Delete (confirm → DELETE) actions.
+        $this->assertStringContainsString('use Happones\Kinetix\Actions\EditAction;', $controller);
+        $this->assertStringContainsString('use Happones\Kinetix\Actions\DeleteAction;', $controller);
+        $this->assertStringContainsString('->recordActions([', $controller);
+        $this->assertStringContainsString("route('posts.edit', \$record)", $controller);
+        $this->assertStringContainsString("route('posts.destroy', \$record)", $controller);
+        // Full-mode index stays parameterless (no ?edit query to read).
+        $this->assertStringContainsString('public function index()', $controller);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
     public function test_team_option_scopes_the_controller_to_the_current_team(): void
     {
         $this->artisan('kinetix:make-resource', ['name' => 'Post', '--team' => true])

@@ -414,6 +414,8 @@ namespace App\Http\Controllers\Kinetix;
 use App\Http\Controllers\Controller;
 use App\Kinetix\Resources\\{$resourceClass};
 use App\Models\\{$modelName};
+use Happones\Kinetix\Actions\DeleteAction;
+use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
@@ -429,7 +431,15 @@ PHP;
             }
             $template .= <<<PHP
 
-        \$table = {$resourceClass}::table(Table::make(\$query));
+        // Per-row Edit (opens the edit page) and Delete (confirm, then DELETE).
+        \$table = {$resourceClass}::table(Table::make(\$query))
+            ->recordActions([
+                EditAction::make()->url(fn (\$record) => route('{$routePrefix}.edit', \$record)),
+                DeleteAction::make()->inertiaVisit(
+                    fn (\$record) => route('{$routePrefix}.destroy', \$record),
+                    ['method' => 'delete', 'preserveScroll' => true],
+                ),
+            ]);
 
         return inertia('Kinetix/{$pluralName}/Index', [
             'table' => \$table->toArray(),

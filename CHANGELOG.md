@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.106.1] - 2026-07-17
+
+### Fixed
+
+- **`kinetix:make-resource` (full multi-page mode) now scaffolds per-row
+  Edit/Delete actions too.** Complements the v0.106.0 `--simple` fix: the
+  generated controller's index table gains an `EditAction` (navigates to the
+  edit page via `route('{prefix}.edit', $record)`) and a `DeleteAction`
+  (confirm → `DELETE route('{prefix}.destroy', $record)`). Previously the
+  full-mode table rendered no row actions at all. Regenerate to pick this up.
+
 ## [0.106.0] - 2026-07-17
 
 ### Fixed
