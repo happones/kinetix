@@ -154,7 +154,13 @@ const {
     cancel: onCancelAction,
 } = useActionConfirmation();
 
-const handleActionClick = (action: KinetixAction) => requestAction(action);
+// A per-row action carries its `record` so a `dispatchEvent` action's listener
+// (or an inertiaVisit/httpRequest body) receives it; toolbar/footer actions
+// pass none.
+const handleActionClick = (
+    action: KinetixAction,
+    record?: KinetixTableRecord,
+) => requestAction(action, record ? { record } : {});
 
 // --- Row selection + bulk actions --------------------------------------------
 const {
@@ -414,7 +420,9 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
                                                 ? action.label
                                                 : undefined
                                         "
-                                        @click.stop="handleActionClick(action)"
+                                        @click.stop="
+                                            handleActionClick(action, record)
+                                        "
                                     >
                                         <component
                                             :is="resolveIcon(action.icon)"

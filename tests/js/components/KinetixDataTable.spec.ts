@@ -101,4 +101,16 @@ describe('KinetixDataTable', () => {
         const wrapper = mountTable({ records: [] });
         expect(wrapper.text()).toContain('No records');
     });
+
+    it('renders toolbar (header) actions', () => {
+        // Regression: client-side mode previously dropped table.toolbarActions.
+        const wrapper = mountTable({
+            toolbarActions: [{ label: 'New item', icon: null, color: null }],
+        });
+
+        const btn = wrapper
+            .findAll('button')
+            .find((b) => b.text() === 'New item');
+        expect(btn?.exists()).toBe(true);
+    });
 });

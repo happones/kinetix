@@ -89,9 +89,23 @@ const recordActionClass = (action: {
         size: action.isIconButton ? 'icon-sm' : 'sm',
     });
 
-const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
-    useActionConfirmation();
-const handleActionClick = (action: KinetixAction) => requestAction(action);
+const {
+    pendingAction,
+    isConfirmOpen,
+    processing,
+    requestAction,
+    confirm,
+    cancel,
+} = useActionConfirmation();
+const handleActionClick = (action: KinetixAction, record?: KinetixTableRecord) =>
+    requestAction(action, record ? { record } : {});
+
+// Solid primary button for toolbar actions (mirrors the server-driven table).
+const primaryActionClass = (action: { color?: string | null }) =>
+    buttonVariants({
+        variant: action.color ? actionButtonVariant(action.color) : 'default',
+        size: 'sm',
+    });
 
 const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -150,6 +164,30 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                         class="pl-9 pr-4 py-2 text-sm rounded-lg w-full border border-border bg-muted/40 text-foreground transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     />
                 </div>
+
+                <!-- Toolbar (header) actions -->
+                <template
+                    v-for="(action, i) in table.toolbarActions"
+                    :key="`toolbar-${i}`"
+                >
+                    <KinetixActionDropdown
+                        v-if="action.type === 'group'"
+                        :group="action"
+                    />
+                    <button
+                        v-else
+                        type="button"
+                        :disabled="processing"
+                        :class="primaryActionClass(action)"
+                        @click="handleActionClick(action)"
+                    >
+                        <component
+                            :is="resolveIcon(action.icon)"
+                            v-if="action.icon"
+                        />
+                        {{ action.label }}
+                    </button>
+                </template>
 
                 <!-- Column visibility -->
                 <div v-if="table.columns.some((c) => c.isToggleable)">
@@ -279,6 +317,7 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                                     />
                                     <button
                                         v-else
+                                        :disabled="processing"
                                         :class="recordActionClass(action)"
                                         :title="
                                             action.isIconButton
@@ -290,7 +329,9 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                                                 ? action.label
                                                 : undefined
                                         "
-                                        @click.stop="handleActionClick(action)"
+                                        @click.stop="
+                                            handleActionClick(action, record)
+                                        "
                                     >
                                         <component
                                             :is="resolveIcon(action.icon)"

@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.107.0] - 2026-07-17
+
+### Fixed
+
+- **Client-side (TanStack) tables now render toolbar/header actions.**
+  `KinetixDataTable` dropped `table.toolbarActions` entirely — a `->clientSide()`
+  table showed no header action buttons. They now render (with the same
+  in-flight `:disabled` guard as the server-driven table). **(published)**
+
+### Changed
+
+- **Per-row actions carry their record into the action event.** When a record
+  action is clicked, the table passes the row to `executeAction` as extra data,
+  so a `dispatchEvent` action's `CustomEvent.detail.record` is the row (and an
+  `inertiaVisit`/`httpRequest` body includes it). `useActionConfirmation`'s
+  `requestAction(action, extraData)` threads it through the confirm flow.
+  **(published)**
+- **`make-resource --simple` scaffolds an event-driven modal CRUD.** Create/Edit
+  are now table actions that **dispatch** browser events (`kinetix:{slug}-create`
+  / `-edit`); the generated `Index.vue` listens and opens its in-page modal —
+  create empty, edit **prefilled from the clicked row** (instant, client-side).
+  Add your own listeners for custom behaviour instead. Delete stays a
+  confirm → server `DELETE`. (Replaces the v0.106.0 `?edit` partial-visit
+  approach.)
+
 ## [0.106.1] - 2026-07-17
 
 ### Fixed

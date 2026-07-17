@@ -52,19 +52,20 @@ class MakeResourceCommandTest extends TestCase
 
         $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
 
-        // Per-row Edit/Delete actions are wired: Edit re-renders with ?edit={id},
-        // Delete confirms then DELETEs — no dead code, no separate pages.
+        // Create/Edit dispatch browser events (open the in-page modal); Delete is
+        // a server DELETE. No dead code, no separate pages.
+        $this->assertStringContainsString('use Happones\Kinetix\Actions\CreateAction;', $controller);
         $this->assertStringContainsString('use Happones\Kinetix\Actions\EditAction;', $controller);
         $this->assertStringContainsString('use Happones\Kinetix\Actions\DeleteAction;', $controller);
-        $this->assertStringContainsString('->recordActions([', $controller);
-        $this->assertStringContainsString("route('posts.index', ['edit' => \$record->getKey()])", $controller);
+        $this->assertStringContainsString('->toolbarActions([', $controller);
+        $this->assertStringContainsString("CreateAction::make()->dispatch('posts-create')", $controller);
+        $this->assertStringContainsString("EditAction::make()->dispatch('posts-edit')", $controller);
         $this->assertStringContainsString("route('posts.destroy', \$record)", $controller);
-        $this->assertStringContainsString("'editRecord' => \$editRecord", $controller);
-        // index() takes a Request (to read ?edit) even without --team.
-        $this->assertStringContainsString('public function index(Request $request)', $controller);
 
         $index = File::get(resource_path('js/pages/Kinetix/Posts/Index.vue'));
-        $this->assertStringContainsString('editRecord', $index);
+        // The page listens for the dispatched events and opens the modal.
+        $this->assertStringContainsString("addEventListener('kinetix:posts-create'", $index);
+        $this->assertStringContainsString("addEventListener('kinetix:posts-edit'", $index);
         $this->assertStringContainsString('openEditModal', $index);
 
         // Simple mode does not scaffold separate Create/Edit pages.

@@ -128,10 +128,14 @@ export async function executeAction(
 export function useActionConfirmation() {
     const { t } = useI18n();
     const pendingAction = ref<KinetixAction | null>(null);
+    const pendingExtra = ref<Record<string, any>>({});
     const isConfirmOpen = ref(false);
     const processing = ref(false);
 
-    const run = async (action: KinetixAction): Promise<void> => {
+    const run = async (
+        action: KinetixAction,
+        extraData: Record<string, any> = {},
+    ): Promise<void> => {
         if (processing.value) {
             return;
         }
@@ -139,7 +143,7 @@ export function useActionConfirmation() {
         processing.value = true;
 
         try {
-            await executeAction(action);
+            await executeAction(action, extraData);
         } catch (e) {
             toast.error(
                 e instanceof Error && e.message
@@ -151,19 +155,25 @@ export function useActionConfirmation() {
         }
     };
 
-    const requestAction = (action: KinetixAction): void => {
+    // `extraData` is merged into an `inertiaVisit`/`httpRequest` body and into a
+    // `dispatchEvent`'s detail — e.g. a per-row action passes its `record`.
+    const requestAction = (
+        action: KinetixAction,
+        extraData: Record<string, any> = {},
+    ): void => {
         if (processing.value) {
             return;
         }
 
         if (action.requiresConfirmation) {
             pendingAction.value = action;
+            pendingExtra.value = extraData;
             isConfirmOpen.value = true;
 
             return;
         }
 
-        void run(action);
+        void run(action, extraData);
     };
 
     const confirm = async (): Promise<void> => {
@@ -173,12 +183,13 @@ export function useActionConfirmation() {
             return;
         }
 
-        await run(action);
+        await run(action, pendingExtra.value);
 
         // Close only after the action resolves, so the modal shows its pending
         // state and can't be dismissed (or re-confirmed) mid-flight.
         isConfirmOpen.value = false;
         pendingAction.value = null;
+        pendingExtra.value = {};
     };
 
     const cancel = (): void => {
@@ -188,6 +199,7 @@ export function useActionConfirmation() {
 
         isConfirmOpen.value = false;
         pendingAction.value = null;
+        pendingExtra.value = {};
     };
 
     return {
