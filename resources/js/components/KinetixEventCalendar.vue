@@ -1,33 +1,21 @@
 <script setup lang="ts">
-import {
-    CalendarDate,
-    CalendarDateTime,
-    getLocalTimeZone,
-    parseAbsolute,
-    today as zonedToday,
-    toZoned,
-} from '@internationalized/date';
-import type { ZonedDateTime } from '@internationalized/date';
-import { ChevronLeft, ChevronRight, X } from '@lucide/vue';
-import { computed, nextTick, onMounted, ref, shallowRef } from 'vue';
+import { getLocalTimeZone } from '@internationalized/date';
+import type { CalendarDate } from '@internationalized/date';
+import { ChevronLeft, ChevronRight } from '@lucide/vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useActionConfirmation } from '@/composables/useKinetixActions';
-import { resolveIcon } from '@/composables/useKinetixIcons';
-import {
-    actionButtonVariant,
-    buttonVariants,
-} from '@/composables/useShadcnVariants';
+import { useKinetixCalendarEventDetails } from '@/composables/useKinetixCalendarEventDetails';
+import { useKinetixCalendarGrids } from '@/composables/useKinetixCalendarGrids';
+import { useKinetixCalendarNavigation } from '@/composables/useKinetixCalendarNavigation';
+import { buttonVariants } from '@/composables/useShadcnVariants';
 import type {
-    KinetixAction,
     KinetixCalendarData,
-    KinetixCalendarEvent,
     KinetixCalendarEventDisplay,
     KinetixCalendarView,
     KinetixSheetSide,
 } from '@/types';
+import CalendarEventDetails from './Calendar/CalendarEventDetails.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
-import KinetixSheet from './KinetixSheet.vue';
-import { cn } from './primitives/cn';
 
 /**
  * An event calendar (scheduler): month/week/day views over events from any
@@ -39,6 +27,10 @@ import { cn } from './primitives/cn';
  * `views` opts into the switcher (default month-only, unchanged from before).
  * Clicking an event opens a built-in details modal/sheet (`eventDisplay`) —
  * set `showEventDetails="false"` to rely purely on `@event-click`.
+ *
+ * Grid geometry, navigation, and event-details state live in dedicated
+ * composables (`useKinetixCalendar*`); this component wires them to the view
+ * and owns the timezone-sensitive scroll-to-now behaviour.
  */
 const props = withDefaults(
     defineProps<{
@@ -84,7 +76,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    (e: 'event-click', event: KinetixCalendarEvent): void;
+    (e: 'event-click', event: KinetixCalendarData['events'][number]): void;
     (e: 'day-click', date: string): void;
     (e: 'slot-click', dateTime: string): void;
     (e: 'update:view', view: KinetixCalendarView): void;
@@ -98,287 +90,71 @@ const tz = computed(
 
 // Guards the modal's Teleport — no `document.body` during SSR.
 const isMounted = ref(false);
-onMounted(() => {
-    isMounted.value = true;
 
-    if (activeView.value === 'week' || activeView.value === 'day') {
-        nextTick(() => scrollToNow());
-    }
+const {
+    activeView,
+    anchor,
+    todayKey,
+    monthLabel,
+    weekdays,
+    prevAriaLabel,
+    nextAriaLabel,
+    setActiveView,
+    shiftAnchor,
+    goToToday,
+} = useKinetixCalendarNavigation({
+    weekStartsOn: () => props.weekStartsOn,
+    locale: () => locale.value,
+    tz: () => tz.value,
+    views: () => props.views,
+    initialView: props.view ?? props.views[0],
+    anchorDate: () => props.anchorDate,
+    onViewChange: (v) => emit('update:view', v),
 });
 
-const activeView = ref<KinetixCalendarView>(props.view ?? props.views[0]);
-
-function setView(v: KinetixCalendarView): void {
-    activeView.value = v;
-    emit('update:view', v);
-
-    if (v === 'week' || v === 'day') {
-        nextTick(() => scrollToNow());
-    }
-}
-
-// The anchor day driving every view's visible window; navigation shifts it by
-// the active view's granularity (month/week/day).
-function parseAnchorDate(value: string): CalendarDate | null {
-    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-
-    return match
-        ? new CalendarDate(Number(match[1]), Number(match[2]), Number(match[3]))
-        : null;
-}
-
-// shallowRef: CalendarDate is immutable (every add()/subtract() call returns a
-// new instance) and uses real private class fields, which Vue's deep ref()
-// unwrapping mangles into a structurally-similar-but-not-nominally-equal type.
-const anchor = shallowRef<CalendarDate>(
-    (props.anchorDate ? parseAnchorDate(props.anchorDate) : null) ??
-        zonedToday(tz.value),
-);
-
-const pad = (n: number) => String(n).padStart(2, '0');
-const dateKeyOf = (d: { year: number; month: number; day: number }): string =>
-    `${d.year}-${pad(d.month)}-${pad(d.day)}`;
-
-/** Parse an event's absolute ISO instant into the effective timezone. */
-const zonedStart = (e: KinetixCalendarEvent): ZonedDateTime =>
-    parseAbsolute(e.start, tz.value);
-const zonedEnd = (e: KinetixCalendarEvent): ZonedDateTime | null =>
-    e.end ? parseAbsolute(e.end, tz.value) : null;
-
-const todayKey = computed(() => dateKeyOf(zonedToday(tz.value)));
-
-/** Whether an event covers a given day (allDay/multi-day span, by date key). */
-function coversDay(e: KinetixCalendarEvent, key: string): boolean {
-    const startKey = dateKeyOf(zonedStart(e));
-    const end = zonedEnd(e);
-    const endKey = end ? dateKeyOf(end) : startKey;
-
-    return key >= startKey && key <= endKey;
-}
-
-function shiftAnchor(delta: number): void {
-    if (activeView.value === 'month') {
-        anchor.value = anchor.value.add({ months: delta });
-    } else if (activeView.value === 'week') {
-        anchor.value = anchor.value.add({ days: 7 * delta });
-    } else {
-        anchor.value = anchor.value.add({ days: delta });
-    }
-}
-
-function goToday(): void {
-    anchor.value = zonedToday(tz.value);
-
-    if (activeView.value === 'week' || activeView.value === 'day') {
-        nextTick(() => scrollToNow());
-    }
-}
-
-const monthLabel = computed(() =>
-    new Intl.DateTimeFormat(locale.value, {
-        month: 'long',
-        year: 'numeric',
-        timeZone: tz.value,
-    }).format(anchor.value.toDate(tz.value)),
-);
-
-const weekdays = computed(() => {
-    const fmt = new Intl.DateTimeFormat(locale.value, { weekday: 'short' });
-
-    // 2024-01-07 is a Sunday — build labels from the configured start day.
-    return Array.from({ length: 7 }, (_, i) =>
-        fmt.format(new Date(2024, 0, 7 + ((props.weekStartsOn + i) % 7))),
-    );
+const {
+    monthGrid,
+    hours,
+    gridContentHeight,
+    dayColumns,
+    nowIndicator,
+    formatHourLabel,
+    slotInstant,
+} = useKinetixCalendarGrids({
+    anchor: () => anchor.value,
+    activeView: () => activeView.value,
+    events: () => props.calendar.events,
+    tz: () => tz.value,
+    locale: () => locale.value,
+    weekStartsOn: () => props.weekStartsOn,
+    startHour: () => props.startHour,
+    endHour: () => props.endHour,
+    todayKey: () => todayKey.value,
 });
 
-const prevAriaLabel = computed(() =>
-    t(
-        activeView.value === 'month'
-            ? 'kinetix.calendar_prev'
-            : activeView.value === 'week'
-              ? 'kinetix.calendar_prev_week'
-              : 'kinetix.calendar_prev_day',
-    ),
-);
-const nextAriaLabel = computed(() =>
-    t(
-        activeView.value === 'month'
-            ? 'kinetix.calendar_next'
-            : activeView.value === 'week'
-              ? 'kinetix.calendar_next_week'
-              : 'kinetix.calendar_next_day',
-    ),
-);
-
-// ===== Month view =====
-
-interface MonthDay {
-    date: string;
-    day: number;
-    inMonth: boolean;
-    isToday: boolean;
-    events: KinetixCalendarEvent[];
-}
-
-const monthGrid = computed<MonthDay[]>(() => {
-    const first = new CalendarDate(anchor.value.year, anchor.value.month, 1);
-    const offset = (dayOfWeekOf(first) - props.weekStartsOn + 7) % 7;
-    const start = first.subtract({ days: offset });
-
-    return Array.from({ length: 42 }, (_, i) => {
-        const d = start.add({ days: i });
-        const key = dateKeyOf(d);
-
-        return {
-            date: key,
-            day: d.day,
-            inMonth: d.month === anchor.value.month,
-            isToday: key === todayKey.value,
-            events: props.calendar.events.filter((e) => coversDay(e, key)),
-        };
-    });
+const {
+    selectedEvent,
+    detailsOpen,
+    selectedEventActions,
+    eventRangeLabel,
+    openEvent,
+    closeDetails,
+    eventActionClass,
+    handleEventAction,
+    pendingAction,
+    isConfirmOpen,
+    onConfirmAction,
+    onCancelAction,
+} = useKinetixCalendarEventDetails({
+    locale: () => locale.value,
+    tz: () => tz.value,
+    showEventDetails: () => props.showEventDetails,
+    onEventClick: (event) => emit('event-click', event),
 });
 
-// Sunday-based (0-6) day-of-week, computed from the plain calendar date —
-// independent of any timezone (a CalendarDate has no time component).
-function dayOfWeekOf(d: CalendarDate): number {
-    return new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay();
-}
-
-// ===== Week / day view (hourly grid) =====
-
-const visibleDays = computed(() => {
-    if (activeView.value === 'day') {
-        return [anchor.value];
-    }
-
-    const offset = (dayOfWeekOf(anchor.value) - props.weekStartsOn + 7) % 7;
-    const start = anchor.value.subtract({ days: offset });
-
-    return Array.from({ length: 7 }, (_, i) => start.add({ days: i }));
-});
-
-const hours = computed(() =>
-    Array.from(
-        { length: props.endHour - props.startHour },
-        (_, i) => props.startHour + i,
-    ),
-);
-const totalMinutes = computed(() => (props.endHour - props.startHour) * 60);
-// Explicit content height (matching h-16 = 4rem per hour row) for each day
-// column: without it, the flex row's default `align-items: stretch` collapses
-// each column's containing-block height to the *visible* (scrolled) height,
-// so `top`/`height` percentages on absolutely-positioned events resolve
-// against the wrong reference and compress every event into the first screen.
-const gridContentHeight = computed(() => `${hours.value.length * 4}rem`);
-
-// Formatted via a fixed UTC reference — these are abstract "hour N of the
-// effective timezone" row labels, not tied to the *viewing browser's* own
-// system timezone (which can differ from `tz`, e.g. a shared team calendar).
-function formatHourLabel(hour: number): string {
-    return new Intl.DateTimeFormat(locale.value, {
-        hour: 'numeric',
-        timeZone: 'UTC',
-    }).format(new Date(Date.UTC(2024, 0, 1, hour)));
-}
-
-interface DayColumn {
-    key: string;
-    date: CalendarDate;
-    label: string;
-    isToday: boolean;
-    allDayEvents: KinetixCalendarEvent[];
-    timedEvents: Array<{
-        event: KinetixCalendarEvent;
-        topPct: number;
-        heightPct: number;
-    }>;
-}
-
-// `timeZone: 'UTC'` because the reference Date is built via Date.UTC() from
-// plain Y/M/D parts (no time-of-day) — formatting it in the *browser's* local
-// timezone could shift it to the adjacent day near midnight.
-const dayLabelFmt = computed(
-    () =>
-        new Intl.DateTimeFormat(locale.value, {
-            weekday: 'short',
-            day: 'numeric',
-            timeZone: 'UTC',
-        }),
-);
-
-const dayColumns = computed<DayColumn[]>(() =>
-    visibleDays.value.map((d) => {
-        const key = dateKeyOf(d);
-        const dayEvents = props.calendar.events.filter((e) =>
-            coversDay(e, key),
-        );
-        const allDayEvents = dayEvents.filter((e) => e.allDay);
-        const timedEvents = dayEvents
-            .filter((e) => !e.allDay)
-            .map((event) => {
-                const s = zonedStart(event);
-                const e = zonedEnd(event);
-                const sameDayStart = dateKeyOf(s) === key;
-                const startMin = sameDayStart
-                    ? s.hour * 60 + s.minute
-                    : props.startHour * 60;
-                const endMin = e
-                    ? dateKeyOf(e) === key
-                        ? e.hour * 60 + e.minute
-                        : (props.startHour + hours.value.length) * 60
-                    : startMin + 60;
-
-                const clampedStart = Math.max(startMin, props.startHour * 60);
-                const clampedEnd = Math.min(
-                    Math.max(endMin, clampedStart + 15),
-                    props.endHour * 60,
-                );
-
-                return {
-                    event,
-                    topPct:
-                        ((clampedStart - props.startHour * 60) /
-                            totalMinutes.value) *
-                        100,
-                    heightPct:
-                        ((clampedEnd - clampedStart) / totalMinutes.value) *
-                        100,
-                };
-            });
-
-        return {
-            key,
-            date: d,
-            label: dayLabelFmt.value.format(
-                new Date(Date.UTC(d.year, d.month - 1, d.day)),
-            ),
-            isToday: key === todayKey.value,
-            allDayEvents,
-            timedEvents,
-        };
-    }),
-);
-
-const nowIndicator = computed(() => {
-    const n = zonedToday(tz.value);
-    const key = dateKeyOf(n);
-    const nowZoned = parseAbsolute(new Date().toISOString(), tz.value);
-    const minutes = nowZoned.hour * 60 + nowZoned.minute;
-
-    if (minutes < props.startHour * 60 || minutes >= props.endHour * 60) {
-        return null;
-    }
-
-    return {
-        key,
-        topPct: ((minutes - props.startHour * 60) / totalMinutes.value) * 100,
-    };
-});
-
-// Scrollable hourly grid — scrolled programmatically so the current time
-// stays in view when switching into week/day (rather than defaulting to the
-// top of the visible hour range, which can be well before "now").
+// --- Scroll-to-now (owns the hourly grid element) ---------------------------
+// Scrolled programmatically so the current time stays in view when switching
+// into week/day, rather than defaulting to the top of the hour range.
 const hourlyGridRef = ref<HTMLElement | null>(null);
 const HOUR_ROW_PX = 64; // h-16 = 4rem = 64px, matches the hourly grid rows.
 
@@ -392,105 +168,40 @@ function scrollToNow(): void {
     const totalHeightPx = hours.value.length * HOUR_ROW_PX;
     const targetPx = (nowIndicator.value.topPct / 100) * totalHeightPx;
 
-    // Leave a third of the viewport's height above "now" for context, rather
-    // than pinning it to the very top edge.
+    // Leave a third of the viewport above "now" for context.
     el.scrollTop = Math.max(0, targetPx - el.clientHeight / 3);
 }
 
+const isTimeGridView = (view: KinetixCalendarView): boolean =>
+    view === 'week' || view === 'day';
+
+function setView(v: KinetixCalendarView): void {
+    setActiveView(v);
+
+    if (isTimeGridView(v)) {
+        nextTick(() => scrollToNow());
+    }
+}
+
+function goToday(): void {
+    goToToday();
+
+    if (isTimeGridView(activeView.value)) {
+        nextTick(() => scrollToNow());
+    }
+}
+
 function onSlotClick(date: CalendarDate, hour: number): void {
-    const cdt = new CalendarDateTime(date.year, date.month, date.day, hour, 0);
-    const instant = toZoned(cdt, tz.value).toDate();
-    emit('slot-click', instant.toISOString());
+    emit('slot-click', slotInstant(date, hour));
 }
 
-// ===== Event details (modal / sheet) =====
+onMounted(() => {
+    isMounted.value = true;
 
-const selectedEvent = ref<KinetixCalendarEvent | null>(null);
-const detailsOpen = ref(false);
-
-function openEvent(event: KinetixCalendarEvent): void {
-    emit('event-click', event);
-
-    if (props.showEventDetails) {
-        selectedEvent.value = event;
-        detailsOpen.value = true;
+    if (isTimeGridView(activeView.value)) {
+        nextTick(() => scrollToNow());
     }
-}
-
-function closeDetails(): void {
-    detailsOpen.value = false;
-}
-
-// Event actions (edit/delete/custom) — shared with Tables/Infolists/etc., so
-// `requiresConfirmation()` actions open the same KinetixConfirmModal and
-// everything else (inertiaVisit/httpRequest/dispatch/url) runs immediately.
-const {
-    pendingAction,
-    isConfirmOpen,
-    requestAction,
-    confirm: onConfirmAction,
-    cancel: onCancelAction,
-} = useActionConfirmation();
-
-function handleEventAction(action: KinetixAction): void {
-    requestAction(action);
-}
-
-const eventActionClass = (action: KinetixAction) =>
-    buttonVariants({
-        variant: action.color ? actionButtonVariant(action.color) : 'ghost',
-        size: action.isIconButton ? 'icon-sm' : 'sm',
-    });
-
-const dateFmt = computed(
-    () =>
-        new Intl.DateTimeFormat(locale.value, {
-            dateStyle: 'long',
-            timeZone: tz.value,
-        }),
-);
-const timeFmt = computed(
-    () =>
-        new Intl.DateTimeFormat(locale.value, {
-            timeStyle: 'short',
-            timeZone: tz.value,
-        }),
-);
-
-const eventRangeLabel = computed(() => {
-    const event = selectedEvent.value;
-
-    if (!event) {
-        return '';
-    }
-
-    const start = zonedStart(event);
-    const end = zonedEnd(event);
-    const startDate = dateFmt.value.format(start.toDate());
-
-    if (event.allDay) {
-        if (!end || dateKeyOf(end) === dateKeyOf(start)) {
-            return startDate;
-        }
-
-        return `${startDate} – ${dateFmt.value.format(end.toDate())}`;
-    }
-
-    const startTime = timeFmt.value.format(start.toDate());
-
-    if (!end) {
-        return `${startDate} · ${startTime}`;
-    }
-
-    return `${startDate} · ${startTime} – ${timeFmt.value.format(end.toDate())}`;
 });
-
-// Defensive fallback: `actions` is always present in real server payloads
-// (defaults to `[]`), but hand-built fixtures (tests, gallery specimens)
-// predating this field may omit it.
-const selectedEventActions = computed<KinetixAction[]>(
-    () => selectedEvent.value?.actions ?? [],
-);
 </script>
 
 <template>
@@ -756,173 +467,20 @@ const selectedEventActions = computed<KinetixAction[]>(
             </div>
         </div>
 
-        <!-- ===== Event details: modal ===== -->
-        <Teleport v-if="isMounted && eventDisplay === 'modal'" to="body">
-            <Transition
-                enter-active-class="transition-opacity duration-150"
-                enter-from-class="opacity-0"
-                leave-active-class="transition-opacity duration-150"
-                leave-to-class="opacity-0"
-            >
-                <div
-                    v-if="detailsOpen && selectedEvent"
-                    class="inset-0 p-4 fixed z-[100] flex items-center justify-center"
-                    role="dialog"
-                    aria-modal="true"
-                >
-                    <div
-                        class="inset-0 bg-black/50 backdrop-blur-sm absolute"
-                        @click="closeDetails"
-                    />
-
-                    <div
-                        class="max-w-sm rounded-xl shadow-2xl p-6 relative w-full border border-border bg-popover"
-                    >
-                        <button
-                            type="button"
-                            class="right-4 top-4 absolute text-muted-foreground transition-colors hover:text-foreground"
-                            :aria-label="t('kinetix.close')"
-                            @click="closeDetails"
-                        >
-                            <X class="size-4" />
-                        </button>
-
-                        <div class="gap-2 flex items-start">
-                            <span
-                                class="mt-1.5 size-2.5 shrink-0 rounded-full"
-                                :style="{
-                                    backgroundColor:
-                                        selectedEvent.color ?? '#3b82f6',
-                                }"
-                            />
-                            <div class="min-w-0">
-                                <h2
-                                    class="text-base font-semibold tracking-tight text-foreground"
-                                >
-                                    {{ selectedEvent.title }}
-                                </h2>
-                                <p class="mt-1 text-sm text-muted-foreground">
-                                    {{ eventRangeLabel }}
-                                </p>
-                                <p
-                                    v-if="selectedEvent.description"
-                                    class="mt-3 text-sm text-foreground"
-                                >
-                                    {{ selectedEvent.description }}
-                                </p>
-                                <a
-                                    v-if="selectedEvent.url"
-                                    :href="selectedEvent.url"
-                                    :class="
-                                        cn(
-                                            buttonVariants({ size: 'sm' }),
-                                            'mt-4',
-                                        )
-                                    "
-                                >
-                                    {{ t('kinetix.calendar_view_event') }}
-                                </a>
-
-                                <div
-                                    v-if="selectedEventActions.length"
-                                    class="gap-2 mt-4 flex flex-wrap items-center"
-                                >
-                                    <button
-                                        v-for="(
-                                            action, idx
-                                        ) in selectedEventActions"
-                                        :key="idx"
-                                        type="button"
-                                        :class="eventActionClass(action)"
-                                        :title="
-                                            action.isIconButton
-                                                ? action.label
-                                                : undefined
-                                        "
-                                        :aria-label="
-                                            action.isIconButton
-                                                ? action.label
-                                                : undefined
-                                        "
-                                        @click="handleEventAction(action)"
-                                    >
-                                        <component
-                                            :is="resolveIcon(action.icon)"
-                                            v-if="action.icon"
-                                        />
-                                        <span v-if="!action.isIconButton">{{
-                                            action.label
-                                        }}</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </Transition>
-        </Teleport>
-
-        <!-- ===== Event details: sheet ===== -->
-        <KinetixSheet
-            v-else
+        <!-- Event details (modal / sheet) -->
+        <CalendarEventDetails
+            :is-mounted="isMounted"
+            :event-display="eventDisplay"
+            :sheet-side="sheetSide"
             :open="detailsOpen"
-            :side="sheetSide"
-            :title="selectedEvent?.title"
+            :event="selectedEvent"
+            :range-label="eventRangeLabel"
+            :actions="selectedEventActions"
+            :action-class="eventActionClass"
             @update:open="detailsOpen = $event"
             @close="closeDetails"
-        >
-            <div v-if="selectedEvent" class="space-y-3">
-                <div class="gap-2 flex items-center">
-                    <span
-                        class="size-2.5 shrink-0 rounded-full"
-                        :style="{
-                            backgroundColor: selectedEvent.color ?? '#3b82f6',
-                        }"
-                    />
-                    <p class="text-sm text-muted-foreground">
-                        {{ eventRangeLabel }}
-                    </p>
-                </div>
-                <p
-                    v-if="selectedEvent.description"
-                    class="text-sm text-foreground"
-                >
-                    {{ selectedEvent.description }}
-                </p>
-                <a
-                    v-if="selectedEvent.url"
-                    :href="selectedEvent.url"
-                    :class="buttonVariants({ size: 'sm' })"
-                >
-                    {{ t('kinetix.calendar_view_event') }}
-                </a>
-
-                <div
-                    v-if="selectedEventActions.length"
-                    class="gap-2 flex flex-wrap items-center"
-                >
-                    <button
-                        v-for="(action, idx) in selectedEventActions"
-                        :key="idx"
-                        type="button"
-                        :class="eventActionClass(action)"
-                        :title="action.isIconButton ? action.label : undefined"
-                        :aria-label="
-                            action.isIconButton ? action.label : undefined
-                        "
-                        @click="handleEventAction(action)"
-                    >
-                        <component
-                            :is="resolveIcon(action.icon)"
-                            v-if="action.icon"
-                        />
-                        <span v-if="!action.isIconButton">{{
-                            action.label
-                        }}</span>
-                    </button>
-                </div>
-            </div>
-        </KinetixSheet>
+            @run-action="handleEventAction"
+        />
 
         <!-- Confirmation modal for event actions that require it -->
         <KinetixConfirmModal

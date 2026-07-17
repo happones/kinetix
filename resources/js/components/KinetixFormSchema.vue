@@ -1,39 +1,11 @@
 <script setup lang="ts">
 import { Plus, Trash2, ChevronUp, ChevronDown } from '@lucide/vue';
-import { SwitchRoot, SwitchThumb } from 'reka-ui';
 import { useI18n } from 'vue-i18n';
-import { inputClass, textareaClass } from '@/composables/useShadcnVariants';
-import KinetixAddressPicker from './KinetixAddressPicker.vue';
-import KinetixCheckbox from './KinetixCheckbox.vue';
-import KinetixCheckboxList from './KinetixCheckboxList.vue';
-import KinetixCombobox from './KinetixCombobox.vue';
-import KinetixCopyableInput from './KinetixCopyableInput.vue';
-import KinetixDatePicker from './KinetixDatePicker.vue';
-import KinetixDateRangePicker from './KinetixDateRangePicker.vue';
-import KinetixDateTimePicker from './KinetixDateTimePicker.vue';
-import KinetixFileUpload from './KinetixFileUpload.vue';
+import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
+import KinetixFormField from './Form/KinetixFormField.vue';
 import KinetixFormTabs from './KinetixFormTabs.vue';
 import KinetixFormWizard from './KinetixFormWizard.vue';
-import KinetixKeyValue from './KinetixKeyValue.vue';
 import KinetixLabel from './KinetixLabel.vue';
-import KinetixMediaLibrary from './KinetixMediaLibrary.vue';
-import KinetixMonthPicker from './KinetixMonthPicker.vue';
-import KinetixNumberField from './KinetixNumberField.vue';
-import KinetixPhoneInput from './KinetixPhoneInput.vue';
-import KinetixPinInput from './KinetixPinInput.vue';
-import KinetixRadioGroup from './KinetixRadioGroup.vue';
-import KinetixRating from './KinetixRating.vue';
-import KinetixRichEditor from './KinetixRichEditor.vue';
-import KinetixSelect from './KinetixSelect.vue';
-import KinetixSignaturePad from './KinetixSignaturePad.vue';
-import KinetixSlider from './KinetixSlider.vue';
-import KinetixSlugInput from './KinetixSlugInput.vue';
-import KinetixTableRepeater from './KinetixTableRepeater.vue';
-import KinetixTagsInput from './KinetixTagsInput.vue';
-import KinetixTimePicker from './KinetixTimePicker.vue';
-import KinetixWeekPicker from './KinetixWeekPicker.vue';
-import KinetixYearPicker from './KinetixYearPicker.vue';
-import { cn } from './primitives/cn';
 
 const props = defineProps<{
     schema: any[];
@@ -59,67 +31,12 @@ const getColumnSpan = (span: any) => {
     return undefined;
 };
 
-// --- Repeater helpers ---------------------------------------------------------
-// Build a blank item from the sub-schema's field defaults (recursing layouts).
-const buildBlankItem = (schema: any[]) => {
-    const item: Record<string, any> = {};
-
-    const walk = (nodes: any[]) => {
-        for (const node of nodes) {
-            if (Array.isArray(node.schema)) {
-                walk(node.schema);
-                continue;
-            }
-
-            if (node.name) {
-                item[node.name] = node.defaultValue ?? null;
-            }
-        }
-    };
-
-    walk(schema);
-
-    return item;
-};
-
-const repeaterItems = (name: string): Record<string, any>[] =>
-    Array.isArray(props.values[name]) ? props.values[name] : [];
-
-const updateRepeaterItem = (
-    name: string,
-    index: number,
-    fieldName: string,
-    value: any,
-) => {
-    const next = [...repeaterItems(name)];
-    next[index] = { ...next[index], [fieldName]: value };
-    emit('update:value', name, next);
-};
-
-const addRepeaterItem = (name: string, schema: any[]) => {
-    emit('update:value', name, [
-        ...repeaterItems(name),
-        buildBlankItem(schema),
-    ]);
-};
-
-const removeRepeaterItem = (name: string, index: number) => {
-    const next = [...repeaterItems(name)];
-    next.splice(index, 1);
-    emit('update:value', name, next);
-};
-
-const moveRepeaterItem = (name: string, index: number, direction: number) => {
-    const next = [...repeaterItems(name)];
-    const target = index + direction;
-
-    if (target < 0 || target >= next.length) {
-        return;
-    }
-
-    [next[index], next[target]] = [next[target], next[index]];
-    emit('update:value', name, next);
-};
+// Inline-repeater add/remove/reorder/update, keyed by field name.
+const { itemsOf, addItem, removeItem, moveItem, updateItem } =
+    useKinetixRepeater({
+        values: () => props.values,
+        emit: (name, value) => emit('update:value', name, value),
+    });
 </script>
 
 <template>
@@ -274,404 +191,10 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
 
             <!-- Field Container -->
             <div class="relative w-full">
-                <!-- TextInput -->
-                <KinetixCopyableInput
-                    v-if="
-                        comp.type === 'text-input' &&
-                        (comp.isCopyable || comp.isRevealable)
-                    "
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    :input-type="comp.inputType || 'text'"
-                    :placeholder="comp.placeholder"
-                    :disabled="comp.isDisabled"
-                    :copyable="comp.isCopyable"
-                    :revealable="comp.isRevealable"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <input
-                    v-else-if="comp.type === 'text-input'"
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    :type="comp.inputType || 'text'"
-                    :placeholder="comp.placeholder"
-                    :disabled="comp.isDisabled"
-                    :class="inputClass"
-                    @input="
-                        emit(
-                            'update:value',
-                            comp.name,
-                            ($event.target as HTMLInputElement).value,
-                        )
-                    "
-                />
-
-                <!-- Searchable Select → Combobox (Reka UI), local or remote -->
-                <KinetixCombobox
-                    v-else-if="comp.type === 'select' && comp.isSearchable"
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    :options="comp.options"
-                    :placeholder="comp.placeholder"
-                    :disabled="comp.isDisabled"
-                    :search-token="comp.searchToken"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Select (Reka UI) -->
-                <KinetixSelect
-                    v-else-if="comp.type === 'select'"
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    :options="comp.options"
-                    :placeholder="comp.placeholder"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Checkbox -->
-                <div
-                    v-else-if="comp.type === 'checkbox'"
-                    class="space-x-2 py-1 flex items-center"
-                >
-                    <KinetixCheckbox
-                        :id="comp.name"
-                        :checked="!!values[comp.name]"
-                        :disabled="comp.isDisabled"
-                        @change="emit('update:value', comp.name, $event)"
-                    />
-                </div>
-
-                <!-- Toggle Switch (Reka UI) -->
-                <div
-                    v-else-if="comp.type === 'toggle'"
-                    class="py-1 flex items-center"
-                >
-                    <SwitchRoot
-                        :model-value="!!values[comp.name]"
-                        :disabled="comp.isDisabled"
-                        class="peer w-8 shadow-xs inline-flex h-[1.15rem] shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80"
-                        @update:model-value="
-                            emit('update:value', comp.name, $event)
-                        "
-                    >
-                        <SwitchThumb
-                            class="size-4 data-[state=unchecked]:translate-x-0 pointer-events-none block rounded-full bg-background ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground"
-                        />
-                    </SwitchRoot>
-                </div>
-
-                <!-- Textarea -->
-                <textarea
-                    v-else-if="comp.type === 'textarea'"
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    :placeholder="comp.placeholder"
-                    :disabled="comp.isDisabled"
-                    v-bind="comp.extraInputAttributes"
-                    :class="textareaClass"
-                    @input="
-                        emit(
-                            'update:value',
-                            comp.name,
-                            ($event.target as HTMLTextAreaElement).value,
-                        )
-                    "
-                />
-
-                <!-- Date Picker (shadcn calendar by default, native when ->native()) -->
-                <KinetixDatePicker
-                    v-else-if="comp.type === 'date-picker' && comp.useCalendar"
-                    :value="values[comp.name]"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    :locale="comp.dateLocale"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-                <input
-                    v-else-if="comp.type === 'date-picker'"
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    type="date"
-                    :disabled="comp.isDisabled"
-                    :class="inputClass"
-                    @input="
-                        emit(
-                            'update:value',
-                            comp.name,
-                            ($event.target as HTMLInputElement).value,
-                        )
-                    "
-                />
-
-                <!-- DateTime Picker (shadcn by default, native when ->native()) -->
-                <KinetixDateTimePicker
-                    v-else-if="
-                        comp.type === 'datetime-picker' && comp.useCalendar
-                    "
-                    :value="values[comp.name]"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    :locale="comp.dateLocale"
-                    :minute-step="comp.minuteStep"
-                    :hour12="comp.hour12"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-                <input
-                    v-else-if="comp.type === 'datetime-picker'"
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    type="datetime-local"
-                    :disabled="comp.isDisabled"
-                    :class="inputClass"
-                    @input="
-                        emit(
-                            'update:value',
-                            comp.name,
-                            ($event.target as HTMLInputElement).value,
-                        )
-                    "
-                />
-
-                <!-- Time Picker (shadcn columns by default, native when ->native()) -->
-                <KinetixTimePicker
-                    v-else-if="comp.type === 'time-picker' && comp.useCalendar"
-                    :value="values[comp.name]"
-                    :disabled="comp.isDisabled"
-                    :minute-step="comp.minuteStep"
-                    :hour12="comp.hour12"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-                <input
-                    v-else-if="comp.type === 'time-picker'"
-                    :id="comp.name"
-                    :value="values[comp.name]"
-                    type="time"
-                    :disabled="comp.isDisabled"
-                    :class="inputClass"
-                    @input="
-                        emit(
-                            'update:value',
-                            comp.name,
-                            ($event.target as HTMLInputElement).value,
-                        )
-                    "
-                />
-
-                <!-- Month / Year / Week pickers (shadcn or native via ->native()) -->
-                <KinetixMonthPicker
-                    v-else-if="comp.type === 'month-picker'"
-                    :value="values[comp.name]"
-                    :native="!comp.useCalendar"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    :locale="comp.dateLocale"
-                    :min-value="comp.minValue"
-                    :max-value="comp.maxValue"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-                <KinetixYearPicker
-                    v-else-if="comp.type === 'year-picker'"
-                    :value="values[comp.name]"
-                    :native="!comp.useCalendar"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    :min-value="comp.minValue"
-                    :max-value="comp.maxValue"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-                <KinetixWeekPicker
-                    v-else-if="comp.type === 'week-picker'"
-                    :value="values[comp.name]"
-                    :native="!comp.useCalendar"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    :locale="comp.dateLocale"
-                    :week-starts-on="comp.weekStartsOn ?? 1"
-                    :min-value="comp.minValue"
-                    :max-value="comp.maxValue"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Phone (country selector + national number → E.164 string) -->
-                <KinetixPhoneInput
-                    v-else-if="comp.type === 'phone-input'"
-                    :value="values[comp.name]"
-                    :config="comp.phoneConfig"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Slug input (auto-generated from a source field) -->
-                <KinetixSlugInput
-                    v-else-if="comp.type === 'slug-input'"
-                    :value="values[comp.name]"
-                    :source="
-                        comp.slugConfig?.from
-                            ? values[comp.slugConfig.from]
-                            : null
-                    "
-                    :config="comp.slugConfig"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Signature pad (canvas → PNG data URL) -->
-                <KinetixSignaturePad
-                    v-else-if="comp.type === 'signature-pad'"
-                    :value="values[comp.name]"
-                    :config="comp.signatureConfig"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Slider (Reka Slider, single value) -->
-                <KinetixSlider
-                    v-else-if="comp.type === 'slider'"
-                    :value="values[comp.name]"
-                    :config="comp.numberConfig"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Rating (star rating, optional halves) -->
-                <KinetixRating
-                    v-else-if="comp.type === 'rating'"
-                    :value="values[comp.name]"
-                    :config="comp.ratingConfig"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- PIN / OTP input (Reka PinInput) -->
-                <KinetixPinInput
-                    v-else-if="comp.type === 'pin-input'"
-                    :value="values[comp.name]"
-                    :config="comp.pinConfig"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Number field (Reka NumberField with steppers + Intl formatting) -->
-                <KinetixNumberField
-                    v-else-if="comp.type === 'number-field'"
-                    :value="values[comp.name]"
-                    :config="comp.numberConfig"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Rich text / WYSIWYG (basic | tiptap | markdown) -->
-                <KinetixRichEditor
-                    v-else-if="comp.type === 'rich-editor'"
-                    :value="values[comp.name]"
-                    :editor="comp.editor"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Address (structured: lines, city, state, postal, country) -->
-                <KinetixAddressPicker
-                    v-else-if="comp.type === 'address-picker'"
-                    :value="values[comp.name]"
-                    :fields="comp.addressFields"
-                    :countries="comp.options"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Date range (shadcn range calendar or two native inputs) -->
-                <KinetixDateRangePicker
-                    v-else-if="comp.type === 'date-range-picker'"
-                    :value="values[comp.name]"
-                    :native="!comp.useCalendar"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    :locale="comp.dateLocale"
-                    :weekday-format="comp.weekdayFormat"
-                    :number-of-months="comp.numberOfMonths"
-                    :fixed-weeks="comp.fixedWeeks"
-                    :min-value="comp.minValue"
-                    :max-value="comp.maxValue"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Radio Group (Reka UI) -->
-                <KinetixRadioGroup
-                    v-else-if="comp.type === 'radio'"
-                    :value="values[comp.name]"
-                    :options="comp.options"
-                    :inline="comp.isInline"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Checkbox List -->
-                <KinetixCheckboxList
-                    v-else-if="comp.type === 'checkbox-list'"
-                    :value="values[comp.name]"
-                    :options="comp.options"
-                    :inline="comp.isInline"
-                    :disabled="comp.isDisabled"
-                    :searchable="comp.isSearchable"
-                    :search-token="comp.searchToken"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Color Picker -->
-                <div
-                    v-else-if="comp.type === 'color-picker'"
-                    class="gap-2 flex items-center"
-                >
-                    <input
-                        type="color"
-                        :value="values[comp.name] || '#000000'"
-                        :disabled="comp.isDisabled"
-                        class="h-9 w-12 p-1 shrink-0 cursor-pointer rounded-md border border-input bg-background disabled:cursor-not-allowed disabled:opacity-50"
-                        @input="
-                            emit(
-                                'update:value',
-                                comp.name,
-                                ($event.target as HTMLInputElement).value,
-                            )
-                        "
-                    />
-                    <input
-                        :id="comp.name"
-                        :value="values[comp.name]"
-                        type="text"
-                        :placeholder="comp.placeholder || '#000000'"
-                        :disabled="comp.isDisabled"
-                        :class="cn(inputClass, 'font-mono')"
-                        @input="
-                            emit(
-                                'update:value',
-                                comp.name,
-                                ($event.target as HTMLInputElement).value,
-                            )
-                        "
-                    />
-                </div>
-
-                <!-- Repeater -->
-                <KinetixTableRepeater
-                    v-else-if="comp.type === 'table-repeater'"
-                    :comp="comp"
-                    :model-value="values[comp.name] || []"
-                    :errors="errors"
-                    @update:model-value="
-                        (val) => emit('update:value', comp.name, val)
-                    "
-                />
-
-                <div v-else-if="comp.type === 'repeater'" class="space-y-3">
+                <!-- Inline repeater — recurses into the schema per item. -->
+                <div v-if="comp.type === 'repeater'" class="space-y-3">
                     <div
-                        v-for="(item, idx) in values[comp.name] || []"
+                        v-for="(item, idx) in itemsOf(comp.name)"
                         :key="idx"
                         class="rounded-lg p-4 relative border border-input bg-muted/40"
                     >
@@ -686,9 +209,7 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                                     type="button"
                                     class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30"
                                     :disabled="idx === 0"
-                                    @click="
-                                        moveRepeaterItem(comp.name, idx, -1)
-                                    "
+                                    @click="moveItem(comp.name, idx, -1)"
                                 >
                                     <ChevronUp class="h-4 w-4" />
                                 </button>
@@ -696,10 +217,9 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                                     type="button"
                                     class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30"
                                     :disabled="
-                                        idx ===
-                                        (values[comp.name] || []).length - 1
+                                        idx === itemsOf(comp.name).length - 1
                                     "
-                                    @click="moveRepeaterItem(comp.name, idx, 1)"
+                                    @click="moveItem(comp.name, idx, 1)"
                                 >
                                     <ChevronDown class="h-4 w-4" />
                                 </button>
@@ -708,10 +228,10 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                                     class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
                                     :disabled="
                                         !!comp.minItems &&
-                                        (values[comp.name] || []).length <=
+                                        itemsOf(comp.name).length <=
                                             comp.minItems
                                     "
-                                    @click="removeRepeaterItem(comp.name, idx)"
+                                    @click="removeItem(comp.name, idx)"
                                 >
                                     <Trash2 class="h-4 w-4" />
                                 </button>
@@ -725,12 +245,7 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                                 :errors="errors"
                                 @update:value="
                                     (name, val) =>
-                                        updateRepeaterItem(
-                                            comp.name,
-                                            idx,
-                                            name,
-                                            val,
-                                        )
+                                        updateItem(comp.name, idx, name, val)
                                 "
                             />
                         </div>
@@ -741,63 +256,22 @@ const moveRepeaterItem = (name: string, index: number, direction: number) => {
                         class="gap-1.5 px-3 py-1.5 text-xs font-medium inline-flex items-center rounded-md border border-dashed border-input text-muted-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
                         :disabled="
                             !!comp.maxItems &&
-                            (values[comp.name] || []).length >= comp.maxItems
+                            itemsOf(comp.name).length >= comp.maxItems
                         "
-                        @click="addRepeaterItem(comp.name, comp.schema)"
+                        @click="addItem(comp.name, comp.schema)"
                     >
                         <Plus class="h-3.5 w-3.5" />
                         {{ comp.addActionLabel || t('kinetix.add_item') }}
                     </button>
                 </div>
 
-                <!-- Tags Input -->
-                <KinetixTagsInput
-                    v-else-if="comp.type === 'tags-input'"
-                    :value="values[comp.name]"
-                    :disabled="comp.isDisabled"
-                    :placeholder="comp.placeholder"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Key-Value -->
-                <KinetixKeyValue
-                    v-else-if="comp.type === 'key-value'"
-                    :value="values[comp.name]"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- File Upload -->
-                <KinetixFileUpload
-                    v-else-if="comp.type === 'file-upload'"
-                    :value="values[comp.name]"
-                    :upload-token="comp.uploadToken"
-                    :is-multiple="comp.isMultiple"
-                    :accepted-file-types="comp.acceptedFileTypes"
-                    :max-size="comp.maxSize"
-                    :is-image="comp.isImage"
-                    :max-files="comp.maxFiles"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <KinetixMediaLibrary
-                    v-else-if="comp.type === 'media-library'"
-                    :value="values[comp.name]"
-                    :upload-token="comp.uploadToken"
-                    :accepted-file-types="comp.acceptedFileTypes"
-                    :is-image="comp.isImage"
-                    :max-files="comp.maxFiles"
-                    :reorderable="comp.isReorderable"
-                    :disabled="comp.isDisabled"
-                    @update:value="(v) => emit('update:value', comp.name, v)"
-                />
-
-                <!-- Hidden Field -->
-                <input
-                    v-else-if="comp.type === 'hidden'"
-                    :value="values[comp.name]"
-                    type="hidden"
+                <!-- Every other field type via the O(1) dispatcher map. -->
+                <KinetixFormField
+                    v-else
+                    :comp="comp"
+                    :values="values"
+                    :errors="errors"
+                    @update="(val) => emit('update:value', comp.name, val)"
                 />
             </div>
 

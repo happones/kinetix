@@ -42,8 +42,11 @@ const filtered = computed(() => {
         .filter((feature) => feature.abilities.length > 0);
 });
 
+// O(1) membership for the per-cell selected check across the whole grid.
+const selectedSet = computed<Set<string>>(() => new Set(props.modelValue));
+
 const isSelected = (permission: string): boolean =>
-    props.modelValue.includes(permission);
+    selectedSet.value.has(permission);
 
 function toggle(permission: string): void {
     const next = isSelected(permission)
@@ -62,8 +65,9 @@ function featureSelectedAll(feature: KinetixPermissionFeature): boolean {
 function toggleFeature(feature: KinetixPermissionFeature): void {
     const keys = feature.abilities.map((a) => a.permission);
     const all = featureSelectedAll(feature);
+    const keySet = new Set(keys);
 
-    const next = props.modelValue.filter((p) => !keys.includes(p));
+    const next = props.modelValue.filter((p) => !keySet.has(p));
     emit('update:modelValue', all ? next : [...next, ...keys]);
 }
 </script>

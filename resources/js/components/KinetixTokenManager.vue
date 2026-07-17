@@ -36,6 +36,11 @@ const isExpired = (token: KinetixToken): boolean =>
 
 const hasScopes = computed(() => Object.keys(scopes.value).length > 0);
 
+// O(1) membership for the per-scope checkbox state in the create form.
+const selectedScopeSet = computed<Set<string>>(
+    () => new Set(selectedScopes.value.map((s) => String(s))),
+);
+
 onMounted(load);
 
 function startCreate(): void {
@@ -179,7 +184,7 @@ function formatDate(value: string | null): string {
                     class="gap-2 text-sm flex items-center text-foreground"
                 >
                     <KinetixCheckbox
-                        :checked="selectedScopes.includes(String(name))"
+                        :checked="selectedScopeSet.has(String(name))"
                         @change="toggleScope(String(name), $event)"
                     />
                     <span

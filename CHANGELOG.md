@@ -13,6 +13,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.103.0] - 2026-07-16
+
+### Changed
+
+- **Internal refactor of the five largest components** into focused composables
+  and per-domain subcomponents — no public API or markup change, same entry
+  points and props. `KinetixTable` (1354→555), `KinetixEventCalendar` (940→498),
+  `KinetixFormSchema` (813→287), `KinetixWizard` (721→290) and
+  `KinetixIntegrationLogs` (588→136) now delegate to new files under
+  `components/{Table,Calendar,Form,Wizard,IntegrationLogs}/` and new
+  `useKinetix*` composables. The giant `v-if`/`v-else-if` field/filter/variant
+  chains are replaced by **component maps** (O(1) type dispatch), and table rows
+  gain `v-memo`. **(published)** — re-publish with
+  `php artisan vendor:publish --tag=kinetix-components --force` to pick up the
+  new subcomponents; existing published copies keep working unchanged.
+
+### Performance
+
+- **Charts are code-split.** `@unovis/vue` (a D3-sized dependency) is no longer
+  eager-imported by `KinetixChartWidget`; the chart surface moved to
+  `widgets/UnovisChartCanvas.vue`, async-loaded only when a chart with data
+  renders — widget pages without charts never ship it. **(published)**
+
+- **O(1) selection membership.** `KinetixRoleMatrix`, `KinetixPermissionMatrix`,
+  `KinetixCheckboxList`, `KinetixTokenManager` and `KinetixWebhookManager` now
+  test membership against a derived `Set` instead of an `array.includes()` scan
+  per rendered cell (previously O(cells × selected) on large matrices/lists).
+  **(published)**
+
+- **Threshold-gated list virtualization.** New `useKinetixVirtualRows` composable
+  (over `@tanstack/vue-virtual`) windows long lists; lists at or below the
+  threshold (40) render in full, so there is no change or overhead for the common
+  case. Applied to `KinetixComments` and `KinetixKanban` (per-column, via the new
+  `Kanban/KanbanColumn.vue`). `@tanstack/vue-virtual` is a new **optional** peer
+  dependency (`npm install @tanstack/vue-virtual`) — only loaded by components
+  that virtualize. **(published)**
+
 ## [0.102.0] - 2026-07-15
 
 ### Added

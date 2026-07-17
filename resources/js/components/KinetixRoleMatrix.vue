@@ -101,8 +101,13 @@ function openEdit(role: KinetixRole): void {
     formOpen.value = true;
 }
 
+// Draft permissions mirrored as a Set so the per-cell `has()` check is O(1).
+// The matrix calls it for every (feature × ability) cell on each render/toggle,
+// which was an O(cells × permissions) scan on the plain array.
+const draftSet = computed<Set<string>>(() => new Set(draftPermissions.value));
+
 const has = (permission: string | null): boolean =>
-    permission !== null && draftPermissions.value.includes(permission);
+    permission !== null && draftSet.value.has(permission);
 
 function toggle(permission: string | null): void {
     if (!permission) {
@@ -117,10 +122,11 @@ function toggle(permission: string | null): void {
 /** Toggle every ability a feature declares, on/off at once. */
 function toggleRow(feature: KinetixPermissionFeature): void {
     const names = feature.abilities.map((a) => a.permission);
-    const allOn = names.every((name) => draftPermissions.value.includes(name));
+    const allOn = names.every((name) => draftSet.value.has(name));
+    const nameSet = new Set(names);
 
     draftPermissions.value = allOn
-        ? draftPermissions.value.filter((name) => !names.includes(name))
+        ? draftPermissions.value.filter((name) => !nameSet.has(name))
         : [...new Set([...draftPermissions.value, ...names])];
 }
 

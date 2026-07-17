@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixWebhooks } from '@/composables/useKinetixWebhooks';
@@ -31,6 +31,11 @@ const {
 const editing = ref<KinetixWebhookEndpoint | null>(null);
 const openLogsFor = ref<string | number | null>(null);
 const logEntries = ref<KinetixWebhookLog[]>([]);
+
+// O(1) membership for the per-event checkbox state in the edit form.
+const editingEventSet = computed<Set<string>>(
+    () => new Set((editing.value?.events ?? []).map((e) => String(e))),
+);
 
 onMounted(load);
 
@@ -193,7 +198,7 @@ const logColor = (success: boolean): KinetixStatusColor =>
                     class="gap-2 text-sm flex items-center text-foreground"
                 >
                     <KinetixCheckbox
-                        :checked="editing.events.includes(String(name))"
+                        :checked="editingEventSet.has(String(name))"
                         @change="toggleEvent(String(name), $event)"
                     />
                     <span

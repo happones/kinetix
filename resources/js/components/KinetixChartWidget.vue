@@ -1,17 +1,5 @@
 <script setup lang="ts">
-import {
-    VisXYContainer,
-    VisSingleContainer,
-    VisArea,
-    VisLine,
-    VisGroupedBar,
-    VisStackedBar,
-    VisDonut,
-    VisAxis,
-    VisTooltip,
-    VisCrosshair,
-} from '@unovis/vue';
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { statusBadgeClass } from '@/composables/useStatusColor';
 import type { KinetixChartMetric, KinetixWidget } from '@/types';
@@ -22,6 +10,12 @@ import CardDescription from './primitives/CardDescription.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
 import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
+
+// The `@unovis` chart surface is code-split: only fetched when a chart with data
+// actually renders, so widget pages without charts never ship the D3-sized dep.
+const UnovisChartCanvas = defineAsyncComponent(
+    () => import('./widgets/UnovisChartCanvas.vue'),
+);
 
 const { t } = useI18n();
 
@@ -353,72 +347,30 @@ const pieTooltipTemplate = (d: any) => {
                     </div>
                 </div>
 
-                <!-- Circular Charts (Pie/Donut) -->
-                <div v-else-if="isCircular" class="relative h-[300px] w-full">
-                    <VisSingleContainer :data="pieData" height="300">
-                        <VisDonut
-                            :value="pieValueAccessor"
-                            :id="pieLabelAccessor"
-                            :arcWidth="arcWidthValue"
-                            :color="pieColorAccessor"
-                        />
-                        <VisTooltip :template="pieTooltipTemplate" />
-                    </VisSingleContainer>
-                    <div
-                        v-if="centerValue"
-                        class="inset-0 pointer-events-none absolute flex flex-col items-center justify-center"
-                    >
-                        <span class="text-2xl font-bold text-foreground">{{
-                            centerValue
-                        }}</span>
-                        <span
-                            v-if="centerCaption"
-                            class="text-xs text-muted-foreground"
-                            >{{ centerCaption }}</span
-                        >
-                    </div>
-                </div>
-
-                <!-- XY Charts (Line/Area/Bar) -->
-                <VisXYContainer v-else :data="chartData" height="300">
-                    <template
-                        v-if="chartType === 'line' || chartType === 'area'"
-                    >
-                        <VisArea
-                            v-if="chartType === 'area'"
-                            :x="xAccessor"
-                            :y="yAccessors"
-                            :color="areaColors"
-                        />
-                        <VisLine
-                            v-for="(_, index) in datasets"
-                            :key="index"
-                            :x="xAccessor"
-                            :y="yAccessors[index]"
-                            :color="colorAccessor(null, index)"
-                        />
-                    </template>
-                    <VisStackedBar
-                        v-if="chartType === 'bar' && stacked"
-                        :x="xAccessor"
-                        :y="yAccessors"
-                        :color="groupedBarColors"
-                    />
-                    <VisGroupedBar
-                        v-else-if="chartType === 'bar'"
-                        :x="xAccessor"
-                        :y="yAccessors"
-                        :color="groupedBarColors"
-                    />
-                    <VisAxis
-                        type="x"
-                        :tickValues="chartData.map((d) => d.x)"
-                        :tickFormat="(tickVal: number) => labels[tickVal] || ''"
-                    />
-                    <VisAxis type="y" />
-                    <VisCrosshair />
-                    <VisTooltip :template="tooltipTemplate" />
-                </VisXYContainer>
+                <!-- Pie/Donut + Line/Area/Bar via the code-split @unovis canvas. -->
+                <UnovisChartCanvas
+                    v-else
+                    :chart-type="chartType"
+                    :is-circular="isCircular"
+                    :chart-data="chartData"
+                    :pie-data="pieData"
+                    :datasets="datasets"
+                    :labels="labels"
+                    :stacked="stacked"
+                    :x-accessor="xAccessor"
+                    :y-accessors="yAccessors"
+                    :color-accessor="colorAccessor"
+                    :area-colors="areaColors"
+                    :grouped-bar-colors="groupedBarColors"
+                    :pie-value-accessor="pieValueAccessor"
+                    :pie-label-accessor="pieLabelAccessor"
+                    :pie-color-accessor="pieColorAccessor"
+                    :arc-width-value="arcWidthValue"
+                    :center-value="centerValue"
+                    :center-caption="centerCaption"
+                    :tooltip-template="tooltipTemplate"
+                    :pie-tooltip-template="pieTooltipTemplate"
+                />
             </template>
             <template v-else>
                 <KinetixEmptyState
@@ -451,32 +403,5 @@ const pieTooltipTemplate = (d: any) => {
 <style scoped>
 .kinetix-chart-card {
     width: 100%;
-}
-
-:deep(.vis-axis-grid) {
-    stroke: #e2e8f0;
-    stroke-opacity: 0.15;
-}
-.dark :deep(.vis-axis-grid) {
-    stroke: #1e293b;
-    stroke-opacity: 0.2;
-}
-:deep(.vis-axis-tick),
-:deep(.vis-axis-line) {
-    stroke: #cbd5e1;
-    stroke-opacity: 0.3;
-}
-.dark :deep(.vis-axis-tick),
-.dark :deep(.vis-axis-line) {
-    stroke: #334155;
-    stroke-opacity: 0.4;
-}
-:deep(.vis-axis-tick-label) {
-    fill: #64748b;
-    font-size: 10px;
-    font-family: inherit;
-}
-.dark :deep(.vis-axis-tick-label) {
-    fill: #94a3b8;
 }
 </style>

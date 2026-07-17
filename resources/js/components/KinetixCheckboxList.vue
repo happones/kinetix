@@ -140,10 +140,14 @@ watch(
     { immediate: true },
 );
 
-function isChecked(val: string): boolean {
-    const selectedList = props.value ?? [];
+// Membership as a Set of stringified values → O(1) per option instead of an
+// O(selected) scan on every rendered checkbox (this list can be long).
+const selectedSet = computed<Set<string>>(
+    () => new Set((props.value ?? []).map((v) => String(v))),
+);
 
-    return selectedList.some((v) => String(v) === val);
+function isChecked(val: string): boolean {
+    return selectedSet.value.has(val);
 }
 
 function toggleValue(val: string, checked: boolean): void {
