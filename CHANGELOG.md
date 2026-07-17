@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.104.0] - 2026-07-16
+
+### Security
+
+- **Role-management endpoints hardened against privilege escalation.** The
+  `{prefix}/permissions/roles` endpoints (gated by `roles.manage`) gain three
+  guardrails, all **bypassed for a super-admin**: (1) submitted permission keys
+  are **allowlisted** against the registry (unknown keys → `422`); (2) a manager
+  can only grant permissions **they themselves hold** (escalation → `403`); and
+  (3) roles in the new `permissions.protected_roles` config (default: the
+  super-admin role) can't be created/renamed/edited/deleted, while any change
+  that would revoke the actor's own `roles.manage` is rolled back inside a
+  transaction (`403`). **(published)**
+  - **Behavior change:** previously any `roles.manage` holder could grant *any*
+    registered permission. Give role administrators the seeded `admin` role (or a
+    super-admin) so they can manage the full catalog.
+  - New `permissions.protected_roles` config key (`null` protects just the
+    super-admin role). New shared `Permissions\SuperAdmin` class centralizes the
+    (team-aware) super-admin check used by the gate, the Inertia prop and the
+    controller.
+
+### Fixed
+
+- **Super-admins no longer see permission-gated UI as denied.** A super-admin
+  holds the *role*, not the individual permissions, so `useKinetixCan().can()`
+  returned `false` for everything and hid buttons/sections the server actually
+  authorized. The `kinetix_permissions` prop now carries `isSuperAdmin`, and
+  `can()` / `canAny()` / `canAll()` / `<KinetixCan>` honor it — mirroring the
+  server `Gate::before` bypass. `useKinetixCan` also exposes `isSuperAdmin` and
+  now checks membership via a `Set` (O(1) per gate). **(published)**
+
 ## [0.103.1] - 2026-07-16
 
 ### Fixed

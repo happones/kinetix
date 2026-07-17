@@ -203,6 +203,8 @@ export interface KinetixPermissionState {
     enabled: boolean;
     permissions: string[];
     roles: string[];
+    /** True when the user holds the super-admin role (server Gate::before bypass). */
+    isSuperAdmin?: boolean;
 }
 
 export interface KinetixPermissionAbility {

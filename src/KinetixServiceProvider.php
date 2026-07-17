@@ -81,6 +81,7 @@ use Happones\Kinetix\Pdf\PdfTemplateRegistry;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
+use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Presence\PresenceManager;
 use Happones\Kinetix\Queue\QueueController;
 use Happones\Kinetix\Queue\QueueMetrics;
@@ -613,55 +614,13 @@ class KinetixServiceProvider extends ServiceProvider
         // The built-in feature that guards the role-management endpoints/UI.
         app(PermissionRegistry::class)->feature('roles')->label('Roles & Permissions')->ability('manage', 'Manage roles');
 
-        // A super-admin role bypasses every gate check.
-        $superAdmin = (string) config('kinetix.permissions.super_admin_role', 'super-admin');
-
-        if ($superAdmin !== '') {
-            Gate::before(function ($user, string $ability) use ($superAdmin): ?bool {
-                return $this->isSuperAdmin($user, $superAdmin) ? true : null;
-            });
+        // A super-admin role bypasses every gate check (see Permissions\SuperAdmin,
+        // shared with the Inertia prop and the role-management controller).
+        if (SuperAdmin::role() !== '') {
+            Gate::before(fn ($user): ?bool => SuperAdmin::check($user) ? true : null);
         }
 
         $this->registerPermissionRoutes();
-    }
-
-    /**
-     * Whether the user holds the super-admin role — in the current team context
-     * or, when spatie team scoping is active, as a global assignment (team
-     * NULL, so a platform super-admin keeps access inside every team).
-     */
-    protected function isSuperAdmin(mixed $user, string $role): bool
-    {
-        if (! method_exists($user, 'hasRole')) {
-            return false;
-        }
-
-        if ($user->hasRole($role)) {
-            return true;
-        }
-
-        // With spatie teams on, hasRole() above was scoped to the current team;
-        // re-check with a NULL team id to honor a teamless assignment.
-        if (! $user instanceof Model || ! config('permission.teams', false) || ! class_exists(PermissionRegistrar::class)) {
-            return false;
-        }
-
-        $registrar = $this->app->make(PermissionRegistrar::class);
-        $current   = $registrar->getPermissionsTeamId();
-
-        if ($current === null) {
-            return false; // Already teamless — the first check covered it.
-        }
-
-        try {
-            $registrar->setPermissionsTeamId(null);
-            $user->unsetRelation('roles');
-
-            return $user->hasRole($role);
-        } finally {
-            $registrar->setPermissionsTeamId($current);
-            $user->unsetRelation('roles');
-        }
     }
 
     /**
@@ -1755,7 +1714,7 @@ class KinetixServiceProvider extends ServiceProvider
             $user = auth()->user();
 
             if (! config('kinetix.permissions.enabled', false) || $user === null) {
-                return ['enabled' => false, 'permissions' => [], 'roles' => []];
+                return ['enabled' => false, 'permissions' => [], 'roles' => [], 'isSuperAdmin' => false];
             }
 
             return [
@@ -1766,6 +1725,9 @@ class KinetixServiceProvider extends ServiceProvider
                 'roles' => method_exists($user, 'getRoleNames')
                     ? $user->getRoleNames()->values()->all()
                     : [],
+                // Mirror the server-side Gate::before bypass so the SPA doesn't
+                // hide UI from a super-admin (who holds the role, not the perms).
+                'isSuperAdmin' => SuperAdmin::check($user),
             ];
         });
 

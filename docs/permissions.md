@@ -206,6 +206,12 @@ Gate::before(function ($user, string $ability) {
 
 This bypasses all gate checks for any user carrying the `super-admin` role (or whichever role name is configured under `'super_admin_role'`).
 
+> **Frontend parity.** A super-admin holds the *role*, not the individual
+> permissions — so a naive `can()` would return `false` for everything and hide
+> UI the server actually authorizes. Kinetix ships an `isSuperAdmin` flag on the
+> `kinetix_permissions` Inertia prop, and `useKinetixCan().can()` / `<KinetixCan>`
+> honor it: a super-admin sees every gated element, mirroring the server bypass.
+
 ### Platform super-admin with teams
 
 When spatie team scoping is active (see §4), `hasRole()` becomes **team-scoped** —
@@ -439,6 +445,37 @@ It talks to the built-in endpoints registered under your Kinetix route prefix
 | `POST` | `{prefix}/permissions/roles` | Create a role |
 | `PUT` | `{prefix}/permissions/roles/{role}` | Rename / sync a role's permissions |
 | `DELETE` | `{prefix}/permissions/roles/{role}` | Delete a role |
+
+#### Guardrails against privilege escalation
+
+`roles.manage` lets a user administer roles, but the endpoints stop a manager
+from escalating past their own level (all three checks are **bypassed for a
+super-admin**):
+
+- **Allowlist** — submitted permission keys are validated against the registry
+  (`allPermissions()`), so an unknown or arbitrary key is rejected (`422`) before
+  it can reach `syncPermissions()`.
+- **Grant only what you hold** — a manager can only assign permissions they
+  themselves have; granting one they lack is refused (`403`). The seeded `admin`
+  role (all permissions) and any super-admin can therefore grant anything, while
+  a limited `roles.manage`-only user cannot escalate.
+- **Protected roles & self-lockout** — the roles in `permissions.protected_roles`
+  (default: just the super-admin role) can't be created, renamed to, edited or
+  deleted here; and any edit/delete that would revoke the actor's **own**
+  `roles.manage` is rolled back (`403`).
+
+```php
+// config/kinetix.php → permissions
+// null protects just the super_admin_role; or list explicit names:
+'protected_roles' => ['super-admin', 'owner'],
+```
+
+::: warning Behavior change (v0.104.0)
+Previously any `roles.manage` holder could grant **any** registered permission.
+The "grant only what you hold" guard now restricts that. Give your role
+administrators the seeded `admin` role (or super-admin) so they can manage the
+full catalog.
+:::
 
 Need a custom flow? Compose `KinetixPermissionMatrix` (the feature-grouped grid,
 `v-model` of permission keys) with `useKinetixRoles` (the CRUD composable).

@@ -72,7 +72,10 @@ class PermissionManagementTest extends TestCase
     private function actingAsManager(): PermUser
     {
         $user = PermUser::create(['name' => 'Manager']);
-        $user->givePermissionTo('roles.manage');
+        // A full role-admin holds every declared permission (so the grant guard
+        // lets them assign any of them) plus roles.manage. Limited managers are
+        // exercised separately.
+        $user->givePermissionTo(KinetixPermissions::all());
 
         return $user;
     }
@@ -135,6 +138,90 @@ class PermissionManagementTest extends TestCase
         $this->actingAs($user)
             ->getJson('/_kinetix/permissions/roles')
             ->assertForbidden();
+    }
+
+    public function test_unregistered_permissions_are_rejected(): void
+    {
+        $this->actingAs($this->actingAsManager())
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'bogus',
+                'permissions' => ['made.up.permission'],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('permissions.0');
+
+        $this->assertDatabaseMissing('roles', ['name' => 'bogus']);
+    }
+
+    public function test_a_manager_cannot_grant_permissions_they_do_not_hold(): void
+    {
+        // A registered permission the limited manager does NOT hold.
+        KinetixPermissions::feature('billing')->ability('manage');
+        Permission::findOrCreate('billing.manage', 'web');
+
+        $manager = PermUser::create(['name' => 'Limited']);
+        $manager->givePermissionTo(['roles.manage', 'posts.view']);
+
+        // Granting a held permission works…
+        $this->actingAs($manager)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'readers',
+                'permissions' => ['posts.view'],
+            ])
+            ->assertCreated();
+
+        // …but escalating to one they don't hold is refused.
+        $this->actingAs($manager)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'billers',
+                'permissions' => ['billing.manage'],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('roles', ['name' => 'billers']);
+    }
+
+    public function test_the_super_admin_role_is_protected(): void
+    {
+        $manager    = $this->actingAsManager();
+        $superAdmin = Role::findOrCreate('super-admin', 'web');
+
+        $this->actingAs($manager)
+            ->putJson("/_kinetix/permissions/roles/{$superAdmin->id}", ['name' => 'renamed'])
+            ->assertForbidden();
+
+        $this->actingAs($manager)
+            ->deleteJson("/_kinetix/permissions/roles/{$superAdmin->id}")
+            ->assertForbidden();
+
+        // Nor can it be re-created / hijacked through the store endpoint.
+        $this->actingAs($manager)
+            ->postJson('/_kinetix/permissions/roles', ['name' => 'super-admin', 'permissions' => []])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('roles', ['name' => 'super-admin']);
+    }
+
+    public function test_a_manager_cannot_strip_their_own_role_management_access(): void
+    {
+        // This manager's `roles.manage` comes solely from an assigned role.
+        $roleAdmin = Role::findOrCreate('role-admin', 'web');
+        $roleAdmin->syncPermissions(['roles.manage', 'posts.view']);
+
+        $manager = PermUser::create(['name' => 'RoleAdmin']);
+        $manager->assignRole('role-admin');
+
+        // Removing roles.manage from their only source is blocked and rolled back.
+        $this->actingAs($manager)
+            ->putJson("/_kinetix/permissions/roles/{$roleAdmin->id}", [
+                'permissions' => ['posts.view'],
+            ])
+            ->assertForbidden();
+
+        $this->assertContains(
+            'roles.manage',
+            $roleAdmin->fresh()->permissions->pluck('name')->all(),
+        );
     }
 
     public function test_seeder_creates_the_preset_roles(): void

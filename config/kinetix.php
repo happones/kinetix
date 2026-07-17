@@ -267,6 +267,11 @@ return [
         'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
         'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
 
+        // Role names that the management UI/endpoints refuse to create, rename
+        // to, edit or delete. `null` protects just the super-admin role above;
+        // set an explicit array to protect more (e.g. ['super-admin', 'owner']).
+        'protected_roles' => null,
+
         // Directory (+ namespace) auto-scanned for `Resource` subclasses whose
         // CRUD abilities are derived automatically — no per-resource
         // registration needed. Set `discover_path` to null to disable and

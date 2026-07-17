@@ -20,6 +20,7 @@ export function useKinetixCan() {
                 enabled: false,
                 permissions: [] as string[],
                 roles: [] as string[],
+                isSuperAdmin: false,
             },
     );
 
@@ -31,8 +32,21 @@ export function useKinetixCan() {
     );
     const enabled: ComputedRef<boolean> = computed(() => !!state.value.enabled);
 
+    // Mirror the server-side super-admin bypass: a super-admin holds the role,
+    // not the individual permissions, so without this every `can()` would be
+    // false and the SPA would hide UI the server actually authorizes.
+    const isSuperAdmin: ComputedRef<boolean> = computed(
+        () => !!state.value.isSuperAdmin,
+    );
+
+    // Membership as a Set → O(1) per check instead of an O(permissions) scan on
+    // every gate (a page can render many `<KinetixCan>` / `can()` checks).
+    const permissionSet: ComputedRef<Set<string>> = computed(
+        () => new Set(permissions.value),
+    );
+
     const can = (permission: string): boolean =>
-        permissions.value.includes(permission);
+        isSuperAdmin.value || permissionSet.value.has(permission);
 
     const canAny = (perms: string[]): boolean => perms.some((p) => can(p));
 
@@ -44,5 +58,14 @@ export function useKinetixCan() {
         return wanted.some((r) => roles.value.includes(r));
     };
 
-    return { can, canAny, canAll, hasRole, permissions, roles, enabled };
+    return {
+        can,
+        canAny,
+        canAll,
+        hasRole,
+        permissions,
+        roles,
+        enabled,
+        isSuperAdmin,
+    };
 }

@@ -32,6 +32,7 @@ Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, defaul
     'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
     'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
+    'protected_roles'  => null, // null = protect the super_admin_role; or ['super-admin', 'owner']
 ],
 ```
 
@@ -88,6 +89,29 @@ A super-admin assigned inside a team keeps the bypass only in that team.
 `kinetix:permissions:sync` must run **after migrations on every deploy** and in
 test setup (`beforeEach`/`setUp`) — an empty `permissions` table makes roles
 appear to work while carrying no permissions.
+
+### Role-endpoint guardrails (v0.104.0)
+
+The `{prefix}/permissions/roles` endpoints stop a `roles.manage` holder from
+escalating past their own level — **all bypassed for a super-admin**:
+
+1. **Allowlist** — `permissions.*` is validated against the registry, so unknown
+   keys are rejected (422).
+2. **Grant only what you hold** — a manager can only assign permissions they
+   themselves have (403 otherwise). Behavior change: previously any `roles.manage`
+   holder could grant anything. Give role admins the seeded `admin` role (or
+   super-admin) to manage the full catalog.
+3. **Protected roles & self-lockout** — roles in `permissions.protected_roles`
+   (default: the super-admin role) can't be created/renamed/edited/deleted here,
+   and any change that would revoke the actor's own `roles.manage` is rolled back
+   (403). This runs inside a DB transaction.
+
+### Super-admin parity on the frontend
+
+A super-admin holds the *role*, not the permissions. The `kinetix_permissions`
+prop carries an `isSuperAdmin` flag and `useKinetixCan().can()` / `<KinetixCan>`
+honor it, so a super-admin is **not** shown a permission-gated UI as denied.
+`useKinetixCan` also exposes `isSuperAdmin`.
 
 ---
 
