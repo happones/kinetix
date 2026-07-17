@@ -76,7 +76,7 @@ KinetixOnboarding::step('invite-team', 'Invite a teammate')
 
 ```vue
 <script setup lang="ts">
-import KinetixOnboardingChecklist from "@/components/KinetixOnboardingChecklist.vue";
+import KinetixOnboardingChecklist from "@/components/kinetix/KinetixOnboardingChecklist.vue";
 </script>
 
 <template>
@@ -124,7 +124,7 @@ targets, then mount `<KinetixTour>`:
 
 ```vue
 <script setup lang="ts">
-import KinetixTour from "@/components/KinetixTour.vue";
+import KinetixTour from "@/components/kinetix/KinetixTour.vue";
 
 const steps = [
   { target: "[data-tour=create]", title: "Create records", description: "Start here." },

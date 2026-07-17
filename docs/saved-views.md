@@ -20,7 +20,7 @@ Enable the feature, then call `->saveViews()` on any table:
 
 ```php
 'saved_views' => [
-    'enabled' => env('KINETIX_SAVED_VIEWS_ENABLED', true),
+    'enabled' => env('KINETIX_SAVED_VIEWS_ENABLED', false),
 ],
 ```
 

@@ -633,6 +633,12 @@ return [
     | it here, then call ->saveViews() on a Table to surface the views dropdown.
     |
     */
+    'tables' => [
+        // Locale used to format numeric column summaries (Sum/Average/Range).
+        // Null uses the app locale; e.g. 'de-DE' for European grouping.
+        'number_locale' => env('KINETIX_TABLES_NUMBER_LOCALE'),
+    ],
+
     'saved_views' => [
         'enabled' => env('KINETIX_SAVED_VIEWS_ENABLED', false),
     ],

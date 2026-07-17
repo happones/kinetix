@@ -50,7 +50,7 @@ Inertia response as `kinetix_presence`.
 
 ```vue
 <script setup lang="ts">
-import KinetixOnlineUsers from '@/components/KinetixOnlineUsers.vue';
+import KinetixOnlineUsers from '@/components/kinetix/KinetixOnlineUsers.vue';
 </script>
 
 <template>

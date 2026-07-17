@@ -13,7 +13,7 @@ header (e.g. next to a chart title) so the dashboard re-scopes on change.
 
 ```vue
 <script setup lang="ts">
-import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
+import KinetixPeriodFilter from '@/components/kinetix/KinetixPeriodFilter.vue';
 import { useKinetixPeriod } from '@/composables/useKinetixPeriod';
 
 // navigate: true pushes ?period=… to the server on change

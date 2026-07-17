@@ -52,7 +52,7 @@ Mount the drop-in manager on a security / account settings page:
 
 ```vue
 <script setup lang="ts">
-import KinetixSessions from "@/components/KinetixSessions.vue";
+import KinetixSessions from "@/components/kinetix/KinetixSessions.vue";
 </script>
 
 <template>

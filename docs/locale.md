@@ -21,7 +21,7 @@ language):
 
 ```php
 'locale' => [
-    'enabled' => env('KINETIX_LOCALE_ENABLED', true),
+    'enabled' => env('KINETIX_LOCALE_ENABLED', false),
 
     'locales' => [
         'en' => 'English',
@@ -73,7 +73,7 @@ Without it, the choice is still remembered for the current session.
 
 ```vue
 <script setup lang="ts">
-import KinetixLanguageSwitcher from '@/components/KinetixLanguageSwitcher.vue';
+import KinetixLanguageSwitcher from '@/components/kinetix/KinetixLanguageSwitcher.vue';
 </script>
 
 <template>

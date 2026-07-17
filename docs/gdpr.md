@@ -98,7 +98,7 @@ Mount the drop-in panel on a privacy / account settings page:
 
 ```vue
 <script setup lang="ts">
-import KinetixGdprPanel from "@/components/KinetixGdprPanel.vue";
+import KinetixGdprPanel from "@/components/kinetix/KinetixGdprPanel.vue";
 </script>
 
 <template>

@@ -61,7 +61,7 @@ and mirrored to `localStorage` for instant re-application.
 
 ```vue
 <script setup lang="ts">
-import KinetixAccessibilityPanel from "@/components/KinetixAccessibilityPanel.vue";
+import KinetixAccessibilityPanel from "@/components/kinetix/KinetixAccessibilityPanel.vue";
 </script>
 
 <template>
@@ -84,7 +84,7 @@ opens a popover with the same controls.
 
 ```vue
 <script setup lang="ts">
-import KinetixAccessibilityMenu from "@/components/KinetixAccessibilityMenu.vue";
+import KinetixAccessibilityMenu from "@/components/kinetix/KinetixAccessibilityMenu.vue";
 </script>
 
 <template>
@@ -109,7 +109,7 @@ wiring is needed.
 
 ```vue
 <script setup lang="ts">
-import KinetixModeToggle from "@/components/KinetixModeToggle.vue";
+import KinetixModeToggle from "@/components/kinetix/KinetixModeToggle.vue";
 </script>
 
 <template>

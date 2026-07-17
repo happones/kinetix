@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.107.1] - 2026-07-17
+
+### Fixed
+
+- **Confidential keyring migration is now publishable.** The
+  `create_kinetix_confidential_keys_table` migration shipped in the package but
+  was never registered under a publish tag, so `php artisan vendor:publish
+  --tag=kinetix-confidential-migrations` published nothing and the keyring table
+  could not be created through the documented flow. The tag is now registered
+  (mirroring the other feature migrations).
+
+### Added
+
+- `kinetix.tables.number_locale` config key — locale used to format numeric
+  column summaries (Sum/Average/Range). Defaults to the app locale.
+
+### Documentation
+
+- Doc-vs-code sweep across all feature guides: corrected the Confidential
+  install step to publish the migration first; fixed a nonexistent
+  `TextColumn::make(...)->numeric()` call and a stale "relationship sorting is
+  skipped" note in Tables; corrected the Reports Center install step to publish
+  its migrations; fixed `<KinetixInfolist :schema>` → `:infolist`; standardized
+  all component import paths to the published `@/components/kinetix/…` location;
+  aligned documented `enabled` defaults with the shipped (opt-in `false`)
+  config; and matched the Widgets CSS custom-property names
+  (`--grid-columns-*`) to the real component.
+
 ## [0.107.0] - 2026-07-17
 
 ### Fixed

@@ -80,7 +80,7 @@ example an "API" settings tab):
 
 ```vue
 <script setup lang="ts">
-import KinetixTokenManager from "@/components/KinetixTokenManager.vue";
+import KinetixTokenManager from "@/components/kinetix/KinetixTokenManager.vue";
 </script>
 
 <template>

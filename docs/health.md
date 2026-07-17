@@ -66,7 +66,7 @@ Gate::define('viewKinetixHealth', fn ($user) => $user->isAdmin());
 
 ```vue
 <script setup lang="ts">
-import KinetixHealthStatus from '@/components/KinetixHealthStatus.vue';
+import KinetixHealthStatus from '@/components/kinetix/KinetixHealthStatus.vue';
 </script>
 
 <template>

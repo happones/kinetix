@@ -10,7 +10,7 @@ bundled zone list to maintain.
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import KinetixTimezonePicker from '@/components/KinetixTimezonePicker.vue';
+import KinetixTimezonePicker from '@/components/kinetix/KinetixTimezonePicker.vue';
 
 const timezone = ref<string | null>('America/Mexico_City');
 </script>

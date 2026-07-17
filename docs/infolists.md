@@ -501,7 +501,7 @@ defineProps<{ infolist: any; actions: any[] }>();
 
 <template>
   <KinetixPageHeader heading="User details" :actions="actions" />
-  <KinetixInfolist :schema="infolist" />
+  <KinetixInfolist :infolist="infolist" />
 </template>
 ```
 

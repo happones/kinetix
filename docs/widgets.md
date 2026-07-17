@@ -234,9 +234,9 @@ To solve this, `KinetixWidgetsGrid.vue` converts column settings into inline CSS
 <div 
     class="kinetix-grid" 
     :style="{
-        '--columns-default': grid.columns.default || 12,
-        '--columns-md': grid.columns.md,
-        '--columns-lg': grid.columns.lg,
+        '--grid-columns-default': grid.columns.default || 12,
+        '--grid-columns-md': grid.columns.md,
+        '--grid-columns-lg': grid.columns.lg,
     }"
 >
     <!-- Child Widgets -->
@@ -249,19 +249,19 @@ Inside the `<style scoped>` tag of the grid, standard CSS media queries intercep
 ```css
 .kinetix-grid {
     display: grid;
-    grid-template-columns: repeat(var(--columns-default), minmax(0, 1fr));
+    grid-template-columns: repeat(var(--grid-columns-default), minmax(0, 1fr));
     gap: 1.5rem;
 }
 
 @media (min-width: 768px) {
     .kinetix-grid {
-        grid-template-columns: repeat(var(--columns-md, var(--columns-default)), minmax(0, 1fr));
+        grid-template-columns: repeat(var(--grid-columns-md, var(--grid-columns-default)), minmax(0, 1fr));
     }
 }
 
 @media (min-width: 1024px) {
     .kinetix-grid {
-        grid-template-columns: repeat(var(--columns-lg, var(--columns-md)), minmax(0, 1fr));
+        grid-template-columns: repeat(var(--grid-columns-lg, var(--grid-columns-md)), minmax(0, 1fr));
     }
 }
 ```

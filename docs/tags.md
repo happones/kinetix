@@ -49,7 +49,7 @@ Only allowlisted models using the trait can be tagged from the endpoints.
 
 ```vue
 <script setup lang="ts">
-import KinetixTags from '@/components/KinetixTags.vue';
+import KinetixTags from '@/components/kinetix/KinetixTags.vue';
 </script>
 
 <template>

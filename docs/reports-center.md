@@ -26,9 +26,13 @@ pick whichever fits, or use both.
 
 ## Installation
 
-No migration to publish manually — the two tables (`kinetix_report_schedules`,
-`kinetix_report_runs`) ship with the package's own migrations. Enable the
-feature in config:
+Publish and run the two migrations (`kinetix_report_schedules`,
+`kinetix_report_runs`), then enable the feature in config:
+
+```bash
+php artisan vendor:publish --tag=kinetix-reports-center-migrations
+php artisan migrate
+```
 
 ```php
 'reports_center' => [

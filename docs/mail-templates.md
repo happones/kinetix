@@ -34,7 +34,7 @@ Gate::define('viewKinetixMail', fn ($user) => $user->isAdmin());
 
 ```vue
 <script setup lang="ts">
-import KinetixMailTemplates from '@/components/KinetixMailTemplates.vue';
+import KinetixMailTemplates from '@/components/kinetix/KinetixMailTemplates.vue';
 </script>
 
 <template>

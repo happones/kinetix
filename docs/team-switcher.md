@@ -17,7 +17,7 @@ Enable it and point the config at the relations/routes your app uses:
 
 ```php
 'team_switcher' => [
-    'enabled' => env('KINETIX_TEAM_SWITCHER_ENABLED', true),
+    'enabled' => env('KINETIX_TEAM_SWITCHER_ENABLED', false),
 
     // Relations on the user model.
     'teams_relation'   => 'teams',        // → the user's teams
@@ -52,7 +52,7 @@ switcher visits it.
 
 ```vue
 <script setup lang="ts">
-import KinetixTeamSwitcher from '@/components/KinetixTeamSwitcher.vue';
+import KinetixTeamSwitcher from '@/components/kinetix/KinetixTeamSwitcher.vue';
 </script>
 
 <template>

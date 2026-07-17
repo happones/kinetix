@@ -37,9 +37,11 @@ every surface automatically.
 ],
 ```
 
-Migrate (creates `kinetix_confidential_keys`, the keyring — not your data):
+Publish and run the migration (creates `kinetix_confidential_keys`, the keyring
+— not your data):
 
 ```bash
+php artisan vendor:publish --tag=kinetix-confidential-migrations
 php artisan migrate
 ```
 

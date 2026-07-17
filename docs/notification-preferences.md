@@ -54,7 +54,7 @@ KinetixNotificationPreferences::types([
 
 ```vue
 <script setup lang="ts">
-import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
+import KinetixNotificationPreferences from '@/components/kinetix/KinetixNotificationPreferences.vue';
 </script>
 
 <template>

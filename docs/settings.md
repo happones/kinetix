@@ -21,8 +21,8 @@ Enable the module in `config/kinetix.php` (opt-in, default off):
 ```php
 'settings' => [
     'enabled'   => env('KINETIX_SETTINGS_ENABLED', false),
-    // Scope settings per team (null team = global).
-    'teams'     => env('KINETIX_SETTINGS_TEAMS', false),
+    // Scope settings per team. Null inherits the global `kinetix.teams` flag.
+    'teams'     => env('KINETIX_SETTINGS_TEAMS'),
     // Cache each scope's values; invalidated automatically on write.
     'cache'     => env('KINETIX_SETTINGS_CACHE', true),
     'cache_key' => 'kinetix.settings',

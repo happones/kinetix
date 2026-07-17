@@ -85,7 +85,7 @@ block from `settings/Profile.vue`, then mount:
 
 ```vue
 <script setup lang="ts">
-import KinetixGdprPanel from "@/components/KinetixGdprPanel.vue";
+import KinetixGdprPanel from "@/components/kinetix/KinetixGdprPanel.vue";
 </script>
 
 <template>

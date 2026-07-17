@@ -91,7 +91,7 @@ Mount the drop-in manager on a security / account settings page:
 
 ```vue
 <script setup lang="ts">
-import KinetixConnectedAccounts from "@/components/KinetixConnectedAccounts.vue";
+import KinetixConnectedAccounts from "@/components/kinetix/KinetixConnectedAccounts.vue";
 </script>
 
 <template>
@@ -117,7 +117,7 @@ and links to the right OAuth route:
 
 ```vue
 <script setup lang="ts">
-import KinetixSocialButton from "@/components/KinetixSocialButton.vue";
+import KinetixSocialButton from "@/components/kinetix/KinetixSocialButton.vue";
 </script>
 
 <template>

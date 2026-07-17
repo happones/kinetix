@@ -43,7 +43,7 @@ config is enabled:
 
 ```vue
 <script setup lang="ts">
-import KinetixCookieConsent from '@/components/KinetixCookieConsent.vue';
+import KinetixCookieConsent from '@/components/kinetix/KinetixCookieConsent.vue';
 </script>
 
 <template>

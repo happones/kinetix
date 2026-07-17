@@ -71,7 +71,7 @@ cleans up the temp file. Reports with no recipients are skipped.
 Enable the feature in config:
 
 ```php
-'reports' => ['enabled' => env('KINETIX_REPORTS_ENABLED', true)],
+'reports' => ['enabled' => env('KINETIX_REPORTS_ENABLED', false)],
 ```
 
 ::: tip Queue it

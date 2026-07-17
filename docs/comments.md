@@ -52,7 +52,7 @@ Mount `KinetixComments` with the model's morph type and id:
 
 ```vue
 <script setup lang="ts">
-import KinetixComments from "@/components/KinetixComments.vue";
+import KinetixComments from "@/components/kinetix/KinetixComments.vue";
 </script>
 
 <template>

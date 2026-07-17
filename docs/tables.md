@@ -513,7 +513,7 @@ use Happones\Kinetix\Tables\Columns\Summarizers\Sum;
 
 TextColumn::make('price')->summarize(Sum::make()->money('EUR'));
 
-TextColumn::make('rating')->numeric()->summarize([
+TextColumn::make('rating')->summarize([
     Average::make()->label('Avg')->numeric(decimalPlaces: 1),
     Range::make(),
 ]);
@@ -668,7 +668,7 @@ Fluent configuration still applies on top of the hooks (e.g. `PostsTable::make($
 Confirmed in the current `Table` query resolver:
 
 - **Searchable dot-notation is single-level.** A searchable column like `author.name` is split on the first `.` only and resolved with a single `whereHas('author', fn ($q) => $q->where('name', 'like', ...))`. Deeper paths (e.g. `author.team.name`) are not expanded into nested `whereHas` calls.
-- **Sorting on relationship/dotted columns is skipped.** Sort requests whose column name contains a `.` are ignored (no `orderBy` is applied) to avoid join validation errors. Only direct columns can be sorted.
+- **Relationship-column sorting is single-level.** A sortable `author.name` column sorts via a correlated subquery on the related table (`BelongsTo` / `HasOne`), with the sort key allowlisted against the defined columns. Deeper paths (`author.team.name`) and other relation types are not resolved — use a custom `->sortable(using: ...)` resolver for those.
 
 ---
 

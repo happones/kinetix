@@ -49,7 +49,7 @@ return Inertia::render('Calendar', ['calendar' => $calendar->toData()]);
 
 ```vue
 <script setup lang="ts">
-import KinetixEventCalendar from '@/components/KinetixEventCalendar.vue';
+import KinetixEventCalendar from '@/components/kinetix/KinetixEventCalendar.vue';
 
 defineProps<{ calendar: object }>();
 </script>

@@ -50,7 +50,7 @@ Mount the "What's new" trigger in your app header:
 
 ```vue
 <script setup lang="ts">
-import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
+import KinetixAnnouncements from '@/components/kinetix/KinetixAnnouncements.vue';
 </script>
 
 <template>

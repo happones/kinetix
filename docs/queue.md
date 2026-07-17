@@ -50,7 +50,7 @@ Gate::define('viewKinetixQueue', fn ($user) => $user->isAdmin());
 
 ```vue
 <script setup lang="ts">
-import KinetixQueueStats from '@/components/KinetixQueueStats.vue';
+import KinetixQueueStats from '@/components/kinetix/KinetixQueueStats.vue';
 </script>
 
 <template>

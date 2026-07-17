@@ -52,7 +52,7 @@ step's `key` (or the scoped default slot):
 
 ```vue
 <script setup lang="ts">
-import KinetixWizard from "@/components/KinetixWizard.vue";
+import KinetixWizard from "@/components/kinetix/KinetixWizard.vue";
 
 const steps = [
   { key: "plan", label: "Choose a plan", icon: "credit-card" },

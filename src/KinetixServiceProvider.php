@@ -462,6 +462,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'      => database_path('migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'),
             ], 'kinetix-reports-center-migrations');
 
+            // Publish the optional Confidential (local key manager) migration.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000022_create_kinetix_confidential_keys_table.php' => database_path('migrations/2026_01_01_000022_create_kinetix_confidential_keys_table.php'),
+            ], 'kinetix-confidential-migrations');
+
             // Publish public assets (sounds, etc.)
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),

@@ -70,7 +70,7 @@ Kanban::make(Deal::query())
 
 ```vue
 <script setup lang="ts">
-import KinetixKanban from '@/components/KinetixKanban.vue';
+import KinetixKanban from '@/components/kinetix/KinetixKanban.vue';
 
 defineProps<{ board: object }>();
 </script>
