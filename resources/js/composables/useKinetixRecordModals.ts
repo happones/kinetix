@@ -4,6 +4,7 @@ import { toast } from 'vue-sonner';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import type {
     KinetixAction,
+    KinetixInfolistData,
     KinetixRecordModals,
     KinetixTableRecord,
 } from '@/types';
@@ -40,8 +41,10 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
     const isLoading = ref(false);
     const processing = ref(false);
 
-    const activeForm = ref<Record<string, any> | null>(null);
-    const activeInfolist = ref<Record<string, any> | null>(null);
+    // Form DTOs are dynamic (schema/data/rules/operation, matching KinetixForm's
+    // prop); kept `any` like the rest of the form layer. Infolist is fully typed.
+    const activeForm = ref<any>(null);
+    const activeInfolist = ref<KinetixInfolistData | null>(null);
     const activeRecordId = ref<string | number | null>(null);
     const activeLabel = ref<string>('');
     const pendingDelete = ref<KinetixAction | null>(null);

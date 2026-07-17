@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.108.1] - 2026-07-17
+
+### Fixed
+
+- **`vue-tsc` type error in the record-modals wiring (published).** The
+  `useKinetixRecordModals` composable typed the active form/infolist state as
+  `Record<string, any>`, which did not satisfy the `KinetixForm` / `KinetixInfolist`
+  prop types (`TS2739`) when `KinetixTable` is type-checked. The form ref is now
+  `any` (matching the rest of the dynamic form layer) and the infolist ref is
+  typed `KinetixInfolistData`.
+
 ## [0.108.0] - 2026-07-17
 
 ### Added
