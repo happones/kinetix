@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  A modern UI toolkit for Laravel + Vue 3 + Inertia.js applications.<br>
-  Built for the Laravel starter kit stack — with fluent PHP APIs, real-time components, and full i18n support.
+  <b>The hybrid framework for Laravel + Vue 3 + Inertia.js.</b><br>
+  One package spanning backend and frontend — fluent PHP APIs that render polished, real-time shadcn/Vue components, with full i18n.
 </p>
 
 <p align="center">
@@ -23,11 +23,65 @@
 
 ## What is Kinetix?
 
-Kinetix is a **Vue 3 + Inertia.js UI toolkit for Laravel**. It brings a fluent, expressive PHP API for building rich frontend interactions — starting with a full-featured notification system — designed to feel at home alongside the official Laravel starter kits.
+Kinetix is **the hybrid framework for Laravel + Vue 3 + Inertia.js** — a single
+package that spans both sides of your app. You write fluent PHP (CRUD resources,
+tables, forms, billing, permissions, notifications, and much more) and get a
+polished, reactive shadcn-styled Vue UI, wired together over Inertia. 50+ opt-in
+modules.
 
-Think of it as the bridge between your Laravel backend and your Inertia/Vue frontend: write expressive PHP, get a polished, reactive UI automatically.
+It's **"hybrid"** because it lives in both worlds at once: backend builders,
+DTOs and query pipelines on the PHP side; real components on the Vue side — not a
+frontend-only UI kit, not a backend-only package. Think Filament's developer
+experience, built from the ground up for the **Inertia + Vue** stack.
 
-> Kinetix is inspired by patterns from the Laravel ecosystem. It is **not** a fork or clone of any existing package — it is built from the ground up for the Inertia + Vue stack.
+> **Complement, not replacement.** Kinetix is designed to sit *alongside* the
+> official Laravel starter kit — the starter kit owns auth, 2FA, appearance and
+> basic account management; Kinetix owns the application layer on top. It is
+> **not** a fork or clone of any existing package.
+
+Every module is **opt-in** (off by default, one config switch), and third-party
+packages are **optional** — each feature detects the package at runtime and
+falls back to a fully working built-in driver when it's absent.
+
+---
+
+## Features
+
+Each module ships with a dedicated `docs/<feature>.md` guide, translations
+(en/es/fr/pt) and tests. See [`ROADMAP.md`](ROADMAP.md) for the full module map.
+
+- **Data display** — [Resources](docs/resources.md) (CRUD scaffolding),
+  [Tables](docs/tables.md) (filters, sort incl. relationships, inline edit,
+  client-side/TanStack mode), [Infolists](docs/infolists.md),
+  [Relation Managers](docs/relation-managers.md), [Saved Views](docs/saved-views.md),
+  [Widgets](docs/widgets.md), [Kanban](docs/kanban.md), [Calendar](docs/calendar.md).
+- **Forms & input** — [Forms](docs/forms.md) (30+ fields, layouts, validation via
+  fluent rules / FormRequest / live Precognition), [Wizard](docs/wizard.md),
+  [Table Repeater](docs/table-repeater.md).
+- **Actions & navigation** — [Actions](docs/actions.md), [Spotlight](docs/spotlight.md)
+  (`Cmd+K`), [Keyboard Shortcuts](docs/keyboard-shortcuts.md),
+  [Breadcrumbs](docs/breadcrumbs.md), [Period Filter](docs/period-filter.md),
+  [Onboarding](docs/onboarding.md).
+- **Notifications & collaboration** — [Notifications](docs/notifications.md)
+  (local/database/broadcast), [Notification Preferences](docs/notification-preferences.md),
+  [Comments](docs/comments.md), [Tags](docs/tags.md),
+  [Announcements](docs/announcements.md), [Presence](docs/presence.md),
+  [Mail Templates](docs/mail-templates.md).
+- **Import / export / documents** — [Import & Export](docs/import-export.md),
+  [Reports](docs/reports.md), [Reports Center](docs/reports-center.md),
+  [PDF Templates](docs/pdf-templates.md), [Media Library](docs/media-library.md).
+- **SaaS platform** — [Billing](docs/billing.md), [Membership](docs/membership.md),
+  [Team Switcher](docs/team-switcher.md), [Permissions](docs/permissions.md),
+  [Feature Flags](docs/feature-flags.md), [Impersonation](docs/impersonation.md),
+  [Activity Log](docs/activity.md), [Webhooks](docs/webhooks.md),
+  [Developer Tokens](docs/tokens.md), [Connected Accounts](docs/connected-accounts.md),
+  [Integration Logs](docs/integration-logs.md), [Health](docs/health.md),
+  [Queue](docs/queue.md), [Sessions](docs/sessions.md).
+- **Security & compliance** — [GDPR](docs/gdpr.md),
+  [Confidential Fields](docs/confidential.md), [Accessibility](docs/accessibility.md),
+  [Cookie Consent](docs/cookie-consent.md).
+- **Configuration & localization** — [Settings](docs/settings.md),
+  [Locale](docs/locale.md), [Timezone Picker](docs/timezone-picker.md).
 
 ---
 
@@ -625,47 +679,45 @@ Full guide: [docs/billing.md](docs/billing.md).
 ```
 kinetix/
 ├── config/
-│   └── kinetix.php              # Published config
-├── docs/
-│   └── notifications.md         # Full notifications documentation
-├── public/
-│   └── notification.wav         # Default notification sound
+│   └── kinetix.php                 # Published config (one switch per module)
+├── docs/                           # One <feature>.md guide per module (50+)
+├── public/vendor/kinetix/          # Published audio/static assets
 ├── resources/
 │   ├── js/
-│   │   └── components/
-│   │       └── KinetixNotifications.vue
-│   └── lang/
-│       ├── en/kinetix.php
-│       ├── es/kinetix.php
-│       ├── fr/kinetix.php
-│       └── pt/kinetix.php
+│   │   ├── components/             # Kinetix* Vue components (+ Table/ sub-parts)
+│   │   ├── composables/            # useKinetix* composables
+│   │   └── types/                  # Generated/handwritten TS types
+│   ├── boost/skills/               # kinetix-<feature> Boost skills
+│   └── lang/{en,es,fr,pt}/kinetix.php
 └── src/
-    ├── Actions/
-    │   └── Action.php           # Fluent action builder
-    ├── Commands/
-    │   ├── MakeNotificationCommand.php
-    │   └── SendNotificationCommand.php
-    ├── Notifications/
-    │   ├── Notification.php          # Fluent notification builder
-    │   └── KinetixLaravelNotification.php  # Laravel notification bridge
-    └── KinetixServiceProvider.php
+    ├── KinetixServiceProvider.php  # Registers every enabled module
+    ├── Data/                       # Spatie Data DTOs serialized to the frontend
+    ├── Support/                    # Shared concerns/helpers
+    │
+    ├── Resources/  Tables/  Forms/  Wizards/  Infolists/  SavedViews/  Widgets/
+    ├── Actions/  Spotlight/  Onboarding/
+    ├── Notifications/  NotificationPreferences/  Comments/  Tags/
+    │   Announcements/  Presence/  Mail/
+    ├── Imports/  Exports/  Reports/  ReportsCenter/  Pdf/  Media/  Calendar/  Kanban/
+    ├── Billing/  Membership/  Teams/  Permissions/  Features/  Impersonation/
+    │   Activity/  Webhooks/  Tokens/  ConnectedAccounts/  Health/  Queue/  Sessions/
+    ├── Gdpr/  Confidential/  Accessibility/
+    └── Settings/  Locale/  Commands/  Api/
 ```
+
+> Only the modules you enable in `config/kinetix.php` register their routes,
+> components and migrations — the rest stay inert.
 
 ---
 
 ## Roadmap
 
-- [x] Notification system (local, database, broadcast)
-- [x] Fluent Action builder with dispatch events
-- [x] Real-time Echo integration (`useEchoNotification`)
-- [x] Full i18n support (en, es, fr, pt)
-- [x] Audio alerts with configurable path
-- [x] Form builder components
-- [x] Table / data grid components
-- [x] Infolist (read-only record views)
-- [x] Confirmation modals
-- [x] Page-level action bars
-- [ ] Multi-panel support
+Kinetix ships **50+ modules** today — resources, tables, forms, infolists,
+billing, permissions, notifications, webhooks, reports, and much more (see the
+[Features](#features) section above). The full module map, the optional-package
+strategy, and the candidate features next on the table (plan-gating, weekly
+business-hours, metered usage) live in [`ROADMAP.md`](ROADMAP.md); per-release
+detail is in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
@@ -679,7 +731,7 @@ composer test
 vendor/bin/phpunit
 ```
 
-Tests live in `tests/` (`Happones\Kinetix\Tests\` namespace) and cover the form/table/infolist/import/export builders plus the inline-edit security boundary.
+Tests live in `tests/` (`Happones\Kinetix\Tests\` namespace) — 670+ tests across the module builders (forms, tables, infolists, import/export, reports), the validation paths (fluent, FormRequest, Precognition), and the security boundaries (inline-edit, field authorization, signed tokens, confidential fields).
 
 ### Static analysis
 
@@ -703,7 +755,7 @@ npm run test:unit        # single run
 npm run test:unit:watch  # watch mode
 ```
 
-Specs live next to the components in `resources/js/components/__tests__/`. The `@` alias resolves to `resources/js` (see `vitest.config.ts`). Components that use `vue-i18n` should be mounted with an i18n instance via `global.plugins`.
+Specs live in `tests/js/` (430+ specs for components and composables). The `@` alias resolves to `resources/js` (see `vitest.config.ts`). Components that use `vue-i18n` should be mounted with an i18n instance via `global.plugins`.
 
 ---
 

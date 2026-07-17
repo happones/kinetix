@@ -2,8 +2,8 @@
 layout: home
 
 hero:
-  text: "The UI toolkit for Laravel + Vue + Inertia"
-  tagline: "Filament-style fluent PHP APIs, real-time components and full i18n — built for the Laravel starter-kit stack (Vue 3 · Inertia · shadcn-vue)."
+  text: "The hybrid framework for Laravel + Vue + Inertia"
+  tagline: "One package spanning backend and frontend — Filament-style fluent PHP APIs that render polished, real-time shadcn/Vue components, with full i18n."
   image:
     light: /logo.png
     dark: /logo_w.png

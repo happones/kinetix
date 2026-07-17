@@ -1,6 +1,6 @@
 {
     "name": "happones/kinetix",
-    "description": "A modern Vue 3 and Inertia.js dashboard and admin toolkit for Laravel applications.",
+    "description": "The hybrid framework for Laravel + Vue 3 + Inertia.js — fluent PHP APIs that render a polished shadcn/Vue UI, spanning backend and frontend.",
     "type": "library",
     "license": "MIT",
     "authors": [
