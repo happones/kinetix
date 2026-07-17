@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.104.1] - 2026-07-16
+
+### Performance
+
+- **`SuperAdmin::check` is memoized** per user × permissions-team-id, so the
+  `Gate::before` super-admin bypass no longer reloads the user's roles on every
+  authorization check when team scoping is on (a `WeakMap`, so it's request- and
+  Octane-safe).
+- **The `discoverResources` filesystem scan is cached** — the permission registry
+  scans each configured directory once instead of on every `features()` call.
+- **`KinetixRoleMatrix` precomputes** the feature → ability → permission map, so
+  each grid cell is an O(1) lookup instead of a `.find()` over the feature's
+  abilities. **(published)**
+- **`kinetix:permissions:sync` fetches existing permissions in one query**
+  (`whereIn`) instead of an `exists()` check per permission.
+
+### Changed
+
+- **New `useKinetixRoleEditor` composable** de-duplicates the save/delete
+  orchestration (busy flags, success/error toasts, refetch) that
+  `KinetixRoleManager` and `KinetixRoleMatrix` previously each re-implemented.
+  **(published)**
+- **`KinetixRoleManager` now shows each role's member count** — `usersCount` was
+  already fetched from the endpoint but only displayed by `KinetixRoleMatrix`.
+  **(published)**
+
 ## [0.104.0] - 2026-07-16
 
 ### Security

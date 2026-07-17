@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { toast } from 'vue-sonner';
-import { useKinetixRoles } from '@/composables/useKinetixRoles';
+import { useKinetixRoleEditor } from '@/composables/useKinetixRoleEditor';
 import { buttonVariants } from '@/composables/useShadcnVariants';
 import type { KinetixRole } from '@/types';
 import KinetixRoleForm from './KinetixRoleForm.vue';
@@ -12,15 +11,14 @@ import KinetixRoleForm from './KinetixRoleForm.vue';
  * them against Kinetix's permission endpoints. Place behind the `roles.manage`
  * permission (e.g. wrap with <KinetixCan permission="roles.manage">).
  */
-const { features, roles, loading, load, save, remove } = useKinetixRoles();
+const { features, roles, loading, saveRole, removeRole } =
+    useKinetixRoleEditor();
 const { t } = useI18n();
 
 const editing = ref<KinetixRole | null>(null);
 const confirmKey = ref<string | number | null>(null);
 
 const rowKey = (role: KinetixRole): string | number => role.id ?? role.name;
-
-onMounted(load);
 
 function create(): void {
     editing.value = { id: null, name: '', permissions: [] };
@@ -31,24 +29,14 @@ function edit(role: KinetixRole): void {
 }
 
 async function onSave(role: KinetixRole): Promise<void> {
-    try {
-        await save(role);
+    if (await saveRole(role)) {
         editing.value = null;
-        await load();
-        toast.success(t('kinetix.saved'));
-    } catch {
-        toast.error(t('kinetix.save_failed'));
     }
 }
 
 async function onDelete(role: KinetixRole): Promise<void> {
-    try {
-        await remove(role);
+    if (await removeRole(role)) {
         confirmKey.value = null;
-        await load();
-        toast.success(t('kinetix.deleted'));
-    } catch {
-        toast.error(t('kinetix.delete_failed'));
     }
 }
 </script>
@@ -94,13 +82,30 @@ async function onDelete(role: KinetixRole): Promise<void> {
                 :key="rowKey(role)"
                 class="gap-2 p-3 flex items-center justify-between"
             >
-                <div>
+                <div class="min-w-0">
                     <span class="text-sm font-medium text-foreground">{{
                         role.name
                     }}</span>
-                    <span class="ml-2 text-xs text-muted-foreground">{{
-                        role.permissions.length
-                    }}</span>
+                    <span
+                        class="gap-1.5 mt-0.5 text-xs flex flex-wrap text-muted-foreground"
+                    >
+                        <span>{{
+                            t('kinetix.role_permissions_count', {
+                                count: role.permissions.length,
+                            })
+                        }}</span>
+                        <span
+                            v-if="
+                                role.usersCount !== null &&
+                                role.usersCount !== undefined
+                            "
+                            >· {{
+                                t('kinetix.role_members', {
+                                    count: role.usersCount,
+                                })
+                            }}</span
+                        >
+                    </span>
                 </div>
 
                 <div class="gap-2 flex items-center">

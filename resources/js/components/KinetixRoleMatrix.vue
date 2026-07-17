@@ -9,10 +9,9 @@ import {
     DialogRoot,
     DialogTitle,
 } from 'reka-ui';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { toast } from 'vue-sonner';
-import { useKinetixRoles } from '@/composables/useKinetixRoles';
+import { useKinetixRoleEditor } from '@/composables/useKinetixRoleEditor';
 import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
 import type { KinetixPermissionFeature, KinetixRole } from '@/types';
 import KinetixLabel from './KinetixLabel.vue';
@@ -33,7 +32,8 @@ import { cn } from './primitives/cn';
  */
 
 const { t } = useI18n();
-const { features, roles, loading, load, save, remove } = useKinetixRoles();
+const { features, roles, loading, saving, deleting, saveRole, removeRole } =
+    useKinetixRoleEditor();
 
 /** Canonical CRUD columns first; any custom abilities append after. */
 const CANONICAL_ORDER = [
@@ -72,12 +72,30 @@ const abilityColumns = computed<{ key: string; label: string }[]>(() => {
         .map(([key, label]) => ({ key, label }));
 });
 
+// feature name → ability key → permission string, built once so the matrix's
+// per-cell lookup is O(1) instead of a `.find()` over each feature's abilities.
+const permissionIndex = computed<Map<string, Map<string, string>>>(() => {
+    const index = new Map<string, Map<string, string>>();
+
+    for (const feature of features.value) {
+        const abilities = new Map<string, string>();
+
+        for (const ability of feature.abilities) {
+            abilities.set(ability.key, ability.permission);
+        }
+
+        index.set(feature.name, abilities);
+    }
+
+    return index;
+});
+
 /** feature name → ability key → permission string (null when not declared). */
 const permissionFor = (
     feature: KinetixPermissionFeature,
     abilityKey: string,
 ): string | null =>
-    feature.abilities.find((a) => a.key === abilityKey)?.permission ?? null;
+    permissionIndex.value.get(feature.name)?.get(abilityKey) ?? null;
 
 // --- Editor modal ---------------------------------------------------------
 
@@ -85,7 +103,6 @@ const formOpen = ref(false);
 const editing = ref<KinetixRole | null>(null);
 const draftName = ref('');
 const draftPermissions = ref<string[]>([]);
-const saving = ref(false);
 
 function openCreate(): void {
     editing.value = null;
@@ -135,49 +152,30 @@ async function submit(): Promise<void> {
         return;
     }
 
-    saving.value = true;
+    const ok = await saveRole({
+        id: editing.value?.id ?? null,
+        name: draftName.value.trim(),
+        permissions: draftPermissions.value,
+    });
 
-    try {
-        await save({
-            id: editing.value?.id ?? null,
-            name: draftName.value.trim(),
-            permissions: draftPermissions.value,
-        });
-        toast.success(t('kinetix.saved'));
+    if (ok) {
         formOpen.value = false;
-        await load();
-    } catch {
-        toast.error(t('kinetix.save_failed'));
-    } finally {
-        saving.value = false;
     }
 }
 
 // --- Delete confirmation ---------------------------------------------------
 
 const deleteTarget = ref<KinetixRole | null>(null);
-const deleting = ref(false);
 
 async function confirmDelete(): Promise<void> {
     if (!deleteTarget.value) {
         return;
     }
 
-    deleting.value = true;
-
-    try {
-        await remove(deleteTarget.value);
-        toast.success(t('kinetix.deleted'));
+    if (await removeRole(deleteTarget.value)) {
         deleteTarget.value = null;
-        await load();
-    } catch {
-        toast.error(t('kinetix.delete_failed'));
-    } finally {
-        deleting.value = false;
     }
 }
-
-onMounted(load);
 </script>
 
 <template>

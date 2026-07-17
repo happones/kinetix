@@ -50,6 +50,15 @@ class PermissionRegistry
     protected array $resolved = [];
 
     /**
+     * Discover paths already scanned (`"dir|namespace"` keys), so repeat
+     * `features()` calls don't re-hit the filesystem. A newly added path via
+     * `discoverResources()` is scanned once on the next resolve.
+     *
+     * @var array<string, true>
+     */
+    protected array $scannedPaths = [];
+
+    /**
      * Declare (or fetch) a feature by name.
      */
     public function feature(string $name): Feature
@@ -119,7 +128,14 @@ class PermissionRegistry
         $this->resources = [];
 
         foreach ($this->discoverPaths as [$directory, $namespace]) {
-            $pending = [...$pending, ...$this->scanForSubclasses($directory, $namespace, Resource::class)];
+            $key = $directory.'|'.$namespace;
+
+            if (isset($this->scannedPaths[$key])) {
+                continue;
+            }
+
+            $this->scannedPaths[$key] = true;
+            $pending                  = [...$pending, ...$this->scanForSubclasses($directory, $namespace, Resource::class)];
         }
 
         foreach (array_unique($pending) as $resourceClass) {

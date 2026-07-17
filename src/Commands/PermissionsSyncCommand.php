@@ -34,16 +34,24 @@ class PermissionsSyncCommand extends Command
             return self::SUCCESS;
         }
 
+        // Fetch existing names in one query instead of an exists() per permission.
+        $existing = array_flip(
+            $permissionClass::where('guard_name', $guard)
+                ->whereIn('name', $declared)
+                ->pluck('name')
+                ->all()
+        );
+
         $created = 0;
 
         foreach ($declared as $name) {
-            $existed = $permissionClass::where('name', $name)->where('guard_name', $guard)->exists();
-            $permissionClass::findOrCreate($name, $guard);
-
-            if (! $existed) {
-                $created++;
-                $this->line("  <fg=green>+</> {$name}");
+            if (isset($existing[$name])) {
+                continue;
             }
+
+            $permissionClass::findOrCreate($name, $guard);
+            $created++;
+            $this->line("  <fg=green>+</> {$name}");
         }
 
         $this->info("Synced {$created} new permission(s) of ".count($declared).' declared.');
