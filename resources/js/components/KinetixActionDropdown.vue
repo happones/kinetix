@@ -21,7 +21,7 @@ defineProps<{
 }>();
 
 const { t } = useI18n();
-const { pendingAction, isConfirmOpen, requestAction, confirm, cancel } =
+const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
     useActionConfirmation();
 
 const isOpen = ref(false);
@@ -86,6 +86,7 @@ const onItemClick = (action: KinetixAction) => {
             :color="pendingAction?.color"
             :submit-label="pendingAction?.modalSubmitActionLabel"
             :cancel-label="pendingAction?.modalCancelActionLabel"
+            :processing="processing"
             @confirm="confirm"
             @cancel="cancel"
         />

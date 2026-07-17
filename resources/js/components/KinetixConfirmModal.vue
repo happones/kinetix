@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertTriangle, X } from '@lucide/vue';
+import { AlertTriangle, Loader2, X } from '@lucide/vue';
 import { onBeforeUnmount, watch, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -16,6 +16,10 @@ const props = withDefaults(
         color?: string | null;
         submitLabel?: string | null;
         cancelLabel?: string | null;
+        /** When true, the confirm action is running: buttons disable, a spinner
+         *  shows, and the modal can't be dismissed or re-confirmed until it clears
+         *  (the parent closes it once its async handler resolves). */
+        processing?: boolean;
     }>(),
     {
         heading: null,
@@ -24,6 +28,7 @@ const props = withDefaults(
         color: 'danger',
         submitLabel: null,
         cancelLabel: null,
+        processing: false,
     },
 );
 
@@ -41,12 +46,21 @@ onMounted(() => {
 });
 
 const cancel = () => {
+    if (props.processing) {
+        return; // can't dismiss while the action is running
+    }
+
     emit('update:open', false);
     emit('cancel');
 };
 
 const confirm = () => {
-    emit('update:open', false);
+    if (props.processing) {
+        return; // guard a double confirm
+    }
+
+    // Do NOT self-close: the parent keeps the modal open (showing the pending
+    // state) and closes it once its async handler resolves.
     emit('confirm');
 };
 
@@ -149,6 +163,7 @@ const getIconWrapperClass = (color?: string | null) => statusSoftClass(color);
                         <div class="mt-6 gap-3 flex justify-end">
                             <button
                                 type="button"
+                                :disabled="processing"
                                 class="gap-2 text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs h-9 px-4 py-2 has-[>svg]:px-3 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                                 @click="cancel"
                             >
@@ -156,10 +171,15 @@ const getIconWrapperClass = (color?: string | null) => statusSoftClass(color);
                             </button>
                             <button
                                 type="button"
+                                :disabled="processing"
                                 class="gap-2 text-sm font-medium [&_svg:not([class*='size-'])]:size-4 h-9 px-4 py-2 has-[>svg]:px-3 inline-flex shrink-0 items-center justify-center rounded-md whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                                 :class="getConfirmButtonClass(color)"
                                 @click="confirm"
                             >
+                                <Loader2
+                                    v-if="processing"
+                                    class="size-4 animate-spin"
+                                />
                                 {{ submitLabel ?? t('kinetix.confirm') }}
                             </button>
                         </div>

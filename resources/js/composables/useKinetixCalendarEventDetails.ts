@@ -28,6 +28,7 @@ export interface UseKinetixCalendarEventDetails {
     // Passed straight through from the shared action-confirmation flow.
     pendingAction: Ref<KinetixAction | null>;
     isConfirmOpen: Ref<boolean>;
+    processing: Ref<boolean>;
     onConfirmAction: () => void;
     onCancelAction: () => void;
 }
@@ -59,6 +60,7 @@ export function useKinetixCalendarEventDetails(
     const {
         pendingAction,
         isConfirmOpen,
+        processing,
         requestAction,
         confirm: onConfirmAction,
         cancel: onCancelAction,
@@ -133,6 +135,7 @@ export function useKinetixCalendarEventDetails(
         handleEventAction,
         pendingAction,
         isConfirmOpen,
+        processing,
         onConfirmAction,
         onCancelAction,
     };

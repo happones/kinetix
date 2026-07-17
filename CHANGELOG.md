@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.105.0] - 2026-07-16
+
+### Fixed
+
+- **Actions can no longer be double-submitted, and confirmations wait for the
+  response.** `executeAction` is now async (awaiting the background HTTP request
+  and the Inertia visit), and `useActionConfirmation` tracks a `processing`
+  state: while an action is in flight repeat clicks are ignored, action buttons
+  disable, and the confirmation modal stays open — disabled, with a spinner —
+  until the request resolves, instead of firing and closing instantly. Applies to
+  record / toolbar / footer / bulk table actions, the action dropdown, page
+  header, infolist and calendar-event actions. **(published)**
+- **Failed background actions surface the server's error message** (i18n) rather
+  than a hardcoded English string. New `action_failed` translation key across all
+  locales.
+
+### Security
+
+- **New-tab actions open with `noopener,noreferrer`.** `window.open(...)` no longer
+  lets the opened page reach back through `window.opener` (reverse tabnabbing).
+  **(published)**
+
+### Changed
+
+- **`KinetixConfirmModal` gains a `processing` prop** and no longer self-closes on
+  confirm — the parent closes it once its (possibly async) handler resolves, so the
+  modal can show a pending state. All in-package usages are updated; if you render
+  `<KinetixConfirmModal>` directly, close it from your `@confirm` handler (or bind
+  `v-model:open`). **(published)**
+
 ## [0.104.1] - 2026-07-16
 
 ### Performance

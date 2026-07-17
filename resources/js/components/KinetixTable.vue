@@ -148,6 +148,7 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
 const {
     pendingAction,
     isConfirmOpen,
+    processing: actionProcessing,
     requestAction,
     confirm: onConfirmAction,
     cancel: onCancelAction,
@@ -165,6 +166,7 @@ const {
     clearSelection,
     bulkPending,
     isBulkConfirmOpen,
+    bulkProcessing,
     requestBulkAction,
     onBulkConfirm,
     onBulkCancel,
@@ -275,6 +277,7 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
             v-if="table.bulkActions.length > 0 && selectionCount > 0"
             :bulk-actions="table.bulkActions"
             :selection-count="selectionCount"
+            :processing="bulkProcessing"
             @run-action="requestBulkAction"
             @clear="clearSelection"
         />
@@ -399,6 +402,7 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
                                     />
                                     <button
                                         v-else
+                                        :disabled="actionProcessing"
                                         :class="recordActionClass(action)"
                                         :title="
                                             action.isIconButton
@@ -469,6 +473,7 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
                 <button
                     v-else
                     type="button"
+                    :disabled="actionProcessing"
                     :class="
                         buttonVariants({
                             variant: action.color
@@ -506,6 +511,7 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
             :color="pendingAction?.color"
             :submit-label="pendingAction?.modalSubmitActionLabel"
             :cancel-label="pendingAction?.modalCancelActionLabel"
+            :processing="actionProcessing"
             @confirm="onConfirmAction"
             @cancel="onCancelAction"
         />
@@ -519,6 +525,7 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
             :color="bulkPending?.color"
             :submit-label="bulkPending?.modalSubmitActionLabel"
             :cancel-label="bulkPending?.modalCancelActionLabel"
+            :processing="bulkProcessing"
             @confirm="onBulkConfirm"
             @cancel="onBulkCancel"
         />

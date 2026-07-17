@@ -197,6 +197,7 @@ return [
     'confirm_delete'                   => '削除しますか？',
     'saved'                            => '保存しました。',
     'save_failed'                      => '保存できませんでした。',
+    'action_failed'                    => '操作を完了できませんでした。',
     'deleted'                          => '削除しました。',
     'delete_failed'                    => '削除できませんでした。',
     'members_title'                    => 'メンバー',

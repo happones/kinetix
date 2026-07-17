@@ -89,7 +89,7 @@ const recordActionClass = (action: {
         size: action.isIconButton ? 'icon-sm' : 'sm',
     });
 
-const { pendingAction, isConfirmOpen, requestAction, confirm, cancel } =
+const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
     useActionConfirmation();
 const handleActionClick = (action: KinetixAction) => requestAction(action);
 
@@ -338,6 +338,7 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
             :color="pendingAction?.color"
             :submit-label="pendingAction?.modalSubmitActionLabel"
             :cancel-label="pendingAction?.modalCancelActionLabel"
+            :processing="processing"
             @confirm="confirm"
             @cancel="cancel"
         />

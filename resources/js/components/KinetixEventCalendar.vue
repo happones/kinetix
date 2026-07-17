@@ -143,6 +143,7 @@ const {
     handleEventAction,
     pendingAction,
     isConfirmOpen,
+    processing,
     onConfirmAction,
     onCancelAction,
 } = useKinetixCalendarEventDetails({
@@ -491,6 +492,7 @@ onMounted(() => {
             :color="pendingAction?.color"
             :submit-label="pendingAction?.modalSubmitActionLabel"
             :cancel-label="pendingAction?.modalCancelActionLabel"
+            :processing="processing"
             @confirm="onConfirmAction"
             @cancel="onCancelAction"
         />

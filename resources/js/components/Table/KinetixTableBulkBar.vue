@@ -10,6 +10,8 @@ import type { KinetixAction } from '@/types';
 defineProps<{
     bulkActions: KinetixAction[];
     selectionCount: number;
+    /** True while a bulk action is running — disables the buttons. */
+    processing?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -38,6 +40,7 @@ const actionClass = (action: { color?: string | null }): string =>
                 v-for="(action, i) in bulkActions"
                 :key="i"
                 type="button"
+                :disabled="processing"
                 :class="actionClass(action)"
                 @click="emit('run-action', action)"
             >

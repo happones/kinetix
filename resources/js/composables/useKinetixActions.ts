@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import type { KinetixAction } from '@/types';
@@ -8,12 +9,17 @@ import type { KinetixAction } from '@/types';
  * Execute a Kinetix action's behaviour: fire a browser event, perform an
  * Inertia visit, fire a background HTTP request, open a new tab, or navigate.
  *
- * Shared by tables, page action bars, and any component that renders actions.
+ * Awaitable: the `httpRequest` and `inertiaVisit` branches resolve when the
+ * request finishes, so callers can show a pending state and block double
+ * submits. A failed background request **rejects** (the caller decides how to
+ * surface it) — the only toast fired here is the action's configured success
+ * message. Shared by tables, page action bars, and any component that renders
+ * actions.
  */
-export function executeAction(
+export async function executeAction(
     action: KinetixAction,
     extraData: Record<string, any> = {},
-): void {
+): Promise<void> {
     if (action.dispatchEvent) {
         window.dispatchEvent(
             new CustomEvent(`kinetix:${action.dispatchEvent}`, {
@@ -25,30 +31,35 @@ export function executeAction(
 
     if (action.inertiaVisit && action.url) {
         const { method = 'get', ...visitOptions } = action.inertiaVisit;
-        router.visit(action.url, {
-            method: method as any,
-            data: extraData,
-            ...visitOptions,
+
+        // Resolve when Inertia finishes so the caller's pending state spans the
+        // visit (guarding a double click before navigation completes).
+        await new Promise<void>((resolve) => {
+            router.visit(action.url as string, {
+                method: method as any,
+                data: extraData,
+                ...visitOptions,
+                onFinish: () => resolve(),
+            });
         });
 
         return;
     }
 
-    // Background HTTP request (plain XHR, no Inertia) — e.g. ExportAction. The
-    // endpoint may return JSON; show a toast instead of navigating.
+    // Background HTTP request (plain XHR, no Inertia) — e.g. ExportAction. Awaited
+    // so the caller knows when it's done; rejects on a non-2xx (kinetixFetch
+    // surfaces the server's message).
     if (action.httpRequest && action.url) {
         const { method = 'post', toast: toastMessage } = action.httpRequest;
 
-        kinetixFetch(action.url, {
+        await kinetixFetch(action.url, {
             method: String(method),
             body: extraData ?? {},
-        })
-            .then(() => {
-                if (toastMessage) {
-                    toast.success(toastMessage as string);
-                }
-            })
-            .catch(() => toast.error('Request failed.'));
+        });
+
+        if (toastMessage) {
+            toast.success(toastMessage as string);
+        }
 
         return;
     }
@@ -86,7 +97,8 @@ export function executeAction(
     }
 
     if (action.shouldOpenInNewTab) {
-        window.open(action.url, '_blank');
+        // noopener,noreferrer: the opened page can't reach back via window.opener.
+        window.open(action.url, '_blank', 'noopener,noreferrer');
 
         return;
     }
@@ -108,14 +120,42 @@ export function executeAction(
  * Reactive confirmation gate for actions. Actions flagged with
  * `requiresConfirmation` open a modal; everything else runs immediately.
  *
- * Returns the modal state plus `requestAction` (entry point on click),
- * `confirm`, and `cancel` handlers to wire into `KinetixConfirmModal`.
+ * Guards against double execution: while an action is in flight `processing` is
+ * true, repeat clicks are ignored, and the confirm modal stays open (disabled)
+ * until the request resolves. Returns the modal state plus `requestAction` (the
+ * click entry point), `confirm`, `cancel`, and `processing`.
  */
 export function useActionConfirmation() {
+    const { t } = useI18n();
     const pendingAction = ref<KinetixAction | null>(null);
     const isConfirmOpen = ref(false);
+    const processing = ref(false);
+
+    const run = async (action: KinetixAction): Promise<void> => {
+        if (processing.value) {
+            return;
+        }
+
+        processing.value = true;
+
+        try {
+            await executeAction(action);
+        } catch (e) {
+            toast.error(
+                e instanceof Error && e.message
+                    ? e.message
+                    : t('kinetix.action_failed'),
+            );
+        } finally {
+            processing.value = false;
+        }
+    };
 
     const requestAction = (action: KinetixAction): void => {
+        if (processing.value) {
+            return;
+        }
+
         if (action.requiresConfirmation) {
             pendingAction.value = action;
             isConfirmOpen.value = true;
@@ -123,20 +163,39 @@ export function useActionConfirmation() {
             return;
         }
 
-        executeAction(action);
+        void run(action);
     };
 
-    const confirm = (): void => {
-        if (pendingAction.value) {
-            executeAction(pendingAction.value);
+    const confirm = async (): Promise<void> => {
+        const action = pendingAction.value;
+
+        if (processing.value || !action) {
+            return;
         }
 
+        await run(action);
+
+        // Close only after the action resolves, so the modal shows its pending
+        // state and can't be dismissed (or re-confirmed) mid-flight.
+        isConfirmOpen.value = false;
         pendingAction.value = null;
     };
 
     const cancel = (): void => {
+        if (processing.value) {
+            return;
+        }
+
+        isConfirmOpen.value = false;
         pendingAction.value = null;
     };
 
-    return { pendingAction, isConfirmOpen, requestAction, confirm, cancel };
+    return {
+        pendingAction,
+        isConfirmOpen,
+        processing,
+        requestAction,
+        confirm,
+        cancel,
+    };
 }

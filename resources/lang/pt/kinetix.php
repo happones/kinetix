@@ -223,6 +223,7 @@ return [
     'confirm_delete'         => 'Excluir?',
     'saved'                  => 'Salvo.',
     'save_failed'            => 'Não foi possível salvar.',
+    'action_failed'          => 'Não foi possível concluir a ação.',
     'deleted'                => 'Excluído.',
     'delete_failed'          => 'Não foi possível excluir.',
 

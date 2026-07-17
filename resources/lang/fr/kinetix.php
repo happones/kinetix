@@ -223,6 +223,7 @@ return [
     'confirm_delete'         => 'Supprimer ?',
     'saved'                  => 'Enregistré.',
     'save_failed'            => 'Échec de l’enregistrement.',
+    'action_failed'          => 'L’action n’a pas pu être effectuée.',
     'deleted'                => 'Supprimé.',
     'delete_failed'          => 'Échec de la suppression.',
 

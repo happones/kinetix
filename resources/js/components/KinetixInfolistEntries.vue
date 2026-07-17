@@ -30,7 +30,7 @@ const { t } = useI18n();
 
 // Section header actions. Each recursive instance handles the actions of the
 // sections it renders, with its own confirmation modal (only one opens at a time).
-const { pendingAction, isConfirmOpen, requestAction, confirm, cancel } =
+const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
     useActionConfirmation();
 
 const sectionActionClass = (action: KinetixAction) =>
@@ -401,6 +401,7 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
         :color="pendingAction?.color"
         :submit-label="pendingAction?.modalSubmitActionLabel"
         :cancel-label="pendingAction?.modalCancelActionLabel"
+        :processing="processing"
         @confirm="confirm"
         @cancel="cancel"
     />

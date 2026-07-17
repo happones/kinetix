@@ -26,7 +26,7 @@ const props = withDefaults(
     },
 );
 
-const { pendingAction, isConfirmOpen, requestAction, confirm, cancel } =
+const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
     useActionConfirmation();
 
 // Register keyboard shortcuts declared on header actions (auto-cleaned on unmount).
@@ -121,6 +121,7 @@ const actionClass = (action: KinetixAction) =>
             :color="pendingAction?.color"
             :submit-label="pendingAction?.modalSubmitActionLabel"
             :cancel-label="pendingAction?.modalCancelActionLabel"
+            :processing="processing"
             @confirm="confirm"
             @cancel="cancel"
         />

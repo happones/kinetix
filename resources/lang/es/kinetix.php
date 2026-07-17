@@ -223,6 +223,7 @@ return [
     'confirm_delete'         => '¿Eliminar?',
     'saved'                  => 'Guardado.',
     'save_failed'            => 'No se pudo guardar.',
+    'action_failed'          => 'No se pudo completar la acción.',
     'deleted'                => 'Eliminado.',
     'delete_failed'          => 'No se pudo eliminar.',
 

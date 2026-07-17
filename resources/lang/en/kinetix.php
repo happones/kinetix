@@ -223,6 +223,7 @@ return [
     'confirm_delete'         => 'Delete?',
     'saved'                  => 'Saved.',
     'save_failed'            => 'Could not save.',
+    'action_failed'          => 'The action could not be completed.',
     'deleted'                => 'Deleted.',
     'delete_failed'          => 'Could not delete.',
 

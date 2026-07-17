@@ -197,6 +197,7 @@ return [
     'confirm_delete'                   => 'Удалить?',
     'saved'                            => 'Сохранено.',
     'save_failed'                      => 'Не удалось сохранить.',
+    'action_failed'                    => 'Не удалось выполнить действие.',
     'deleted'                          => 'Удалено.',
     'delete_failed'                    => 'Не удалось удалить.',
     'members_title'                    => 'Участники',

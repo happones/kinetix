@@ -197,6 +197,7 @@ return [
     'confirm_delete'                   => '确定删除？',
     'saved'                            => '已保存。',
     'save_failed'                      => '无法保存。',
+    'action_failed'                    => '无法完成该操作。',
     'deleted'                          => '已删除。',
     'delete_failed'                    => '无法删除。',
     'members_title'                    => '成员',

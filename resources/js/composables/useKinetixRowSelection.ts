@@ -1,4 +1,6 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import { executeAction } from '@/composables/useKinetixActions';
 import type { KinetixAction, KinetixTableRecord } from '@/types';
 
@@ -20,6 +22,7 @@ export interface UseKinetixRowSelection {
     clearSelection: () => void;
     bulkPending: Ref<KinetixAction | null>;
     isBulkConfirmOpen: Ref<boolean>;
+    bulkProcessing: Ref<boolean>;
     requestBulkAction: (action: KinetixAction) => void;
     onBulkConfirm: () => void;
     onBulkCancel: () => void;
@@ -28,6 +31,7 @@ export interface UseKinetixRowSelection {
 export function useKinetixRowSelection(
     records: () => KinetixTableRecord[],
 ): UseKinetixRowSelection {
+    const { t } = useI18n();
     const selectedIds = ref<Set<string | number>>(new Set());
     const selectionCount = computed<number>(() => selectedIds.value.size);
 
@@ -69,13 +73,34 @@ export function useKinetixRowSelection(
     // Bulk actions dispatch the selected ids; destructive ones gate on a modal.
     const bulkPending = ref<KinetixAction | null>(null);
     const isBulkConfirmOpen = ref(false);
+    const bulkProcessing = ref(false);
 
-    const runBulkAction = (action: KinetixAction): void => {
-        executeAction(action, { ids: Array.from(selectedIds.value) });
-        clearSelection();
+    const runBulkAction = async (action: KinetixAction): Promise<void> => {
+        if (bulkProcessing.value) {
+            return;
+        }
+
+        bulkProcessing.value = true;
+
+        try {
+            await executeAction(action, { ids: Array.from(selectedIds.value) });
+            clearSelection();
+        } catch (e) {
+            toast.error(
+                e instanceof Error && e.message
+                    ? e.message
+                    : t('kinetix.action_failed'),
+            );
+        } finally {
+            bulkProcessing.value = false;
+        }
     };
 
     const requestBulkAction = (action: KinetixAction): void => {
+        if (bulkProcessing.value) {
+            return;
+        }
+
         if (action.requiresConfirmation) {
             bulkPending.value = action;
             isBulkConfirmOpen.value = true;
@@ -83,18 +108,29 @@ export function useKinetixRowSelection(
             return;
         }
 
-        runBulkAction(action);
+        void runBulkAction(action);
     };
 
-    const onBulkConfirm = (): void => {
-        if (bulkPending.value) {
-            runBulkAction(bulkPending.value);
+    const onBulkConfirm = async (): Promise<void> => {
+        const action = bulkPending.value;
+
+        if (bulkProcessing.value || !action) {
+            return;
         }
 
+        await runBulkAction(action);
+
+        // Close only after the request resolves (modal shows its pending state).
+        isBulkConfirmOpen.value = false;
         bulkPending.value = null;
     };
 
     const onBulkCancel = (): void => {
+        if (bulkProcessing.value) {
+            return;
+        }
+
+        isBulkConfirmOpen.value = false;
         bulkPending.value = null;
     };
 
@@ -108,6 +144,7 @@ export function useKinetixRowSelection(
         clearSelection,
         bulkPending,
         isBulkConfirmOpen,
+        bulkProcessing,
         requestBulkAction,
         onBulkConfirm,
         onBulkCancel,
