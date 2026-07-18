@@ -15,11 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **Starter-kit wide-table fix.** Documented the exact one-line `min-w-0` patch
-  for the Laravel Vue starter kit's content wrappers (`SidebarInset.vue` for the
-  sidebar layout, `AppContent.vue` for the header layout) — the ancestor flex
-  items that otherwise let a wide table overflow the viewport. See
-  `docs/starter-kit.md` (linked from `docs/tables.md`).
+- **Starter-kit wide-table fix.** Documented how to stop a wide table overflowing
+  the viewport in the Laravel Vue starter kit: a single global CSS rule
+  (`[data-slot='sidebar-inset'] { min-width: 0 }`, the most general option since
+  `data-slot` is a stable shadcn contract), plus per-component patches
+  (`SidebarInset.vue` / `AppContent.vue`) and the generic per-page `min-w-0`
+  wrapper. See `docs/starter-kit.md` (linked from `docs/tables.md`).
 
 ## [0.111.1] - 2026-07-17
 

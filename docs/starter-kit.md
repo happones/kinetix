@@ -59,30 +59,49 @@ card.
 
 Kinetix already does its part — the table card carries `min-w-0 max-w-full` and
 the scaffolded pages wrap in `… min-w-0 …`. The missing link is on the starter
-kit's **content flex items**, which ship without `min-w-0`. Add it once and every
-page (not just Kinetix) scrolls correctly:
+kit's **content flex item**, which ships without `min-w-0`.
 
-**1. `resources/js/components/ui/sidebar/SidebarInset.vue`** (the `sidebar` layout's `<main>`):
+### Option A — one global CSS rule (most general, recommended)
 
-```diff
-  :class="cn(
--     'bg-background relative flex w-full flex-1 flex-col',
-+     'bg-background relative flex w-full min-w-0 flex-1 flex-col',
-      'md:peer-data-[variant=inset]:m-2 …',
-      props.class,
-  )"
+shadcn-vue's `SidebarInset` always renders `<main data-slot="sidebar-inset">`, and
+`data-slot` is a **stable contract**. So a single rule fixes *every* sidebar
+layout — the starter kit's `AppSidebarLayout`, any shadcn "sidebar" block you
+paste in, your own variants — without touching a single component:
+
+```css
+/* resources/css/app.css */
+[data-slot='sidebar-inset'] {
+    min-width: 0;
+}
 ```
 
-**2. `resources/js/components/AppContent.vue`** (the `header` layout's `<main>`):
+`SidebarInset` is `flex flex-col`, so its inner content column and the Kinetix
+card stretch to that now-shrinkable `<main>` and the table's own
+`overflow-x-auto` scrollbar takes over. Nothing else to change.
 
-```diff
-- <main class="mx-auto flex h-full w-full max-w-7xl flex-1 flex-col gap-4 rounded-xl" …>
-+ <main class="mx-auto flex h-full w-full min-w-0 max-w-7xl flex-1 flex-col gap-4 rounded-xl" …>
+### Option B — patch the layout components
+
+If you prefer explicit classes over a global rule, add `min-w-0` to the content
+wrappers directly:
+
+- **`resources/js/components/ui/sidebar/SidebarInset.vue`** (sidebar layouts):
+  `'bg-background relative flex w-full flex-1 flex-col'` → add `min-w-0`.
+- **`resources/js/components/AppContent.vue`** (the `header` layout's `<main>`):
+  `mx-auto flex h-full w-full max-w-7xl …` → add `min-w-0`.
+
+### Any other layout
+
+For a custom page that is **not** a shadcn sidebar (no `data-slot`), just give the
+flex column that holds the table `min-w-0`:
+
+```vue
+<div class="flex min-w-0 flex-1 flex-col gap-4 p-4">
+    <KinetixTable :table="table" />
+</div>
 ```
 
-That's it — one token per content wrapper. (The `overflow-x-hidden` the sidebar
-layout already passes only *clips* at the page level; `min-w-0` is what lets the
-column shrink so the table's own `overflow-x-auto` scrollbar does the work.)
+> The `overflow-x-hidden` some layouts pass only *clips* at the page level;
+> `min-w-0` is what lets the column shrink so the table scrolls locally.
 
 ## GDPR / account-deletion overlap
 
