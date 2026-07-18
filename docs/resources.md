@@ -323,16 +323,18 @@ defineProps<{ table: KinetixTableData }>();
 </template>
 ```
 
-Everything is driven by the serialized `table`. In the controller you opt the
-table into modal CRUD with `->recordModals(Resource::class)` and mark actions
-with `->modal(...)`:
+Everything is driven by the serialized `table`, and the modal wiring lives on the
+**resource's `table()`** (single source of truth) — you opt in with
+`->recordModals(static::class)` and mark actions with `->modal(...)`:
 
 ```php
-public function index()
+// app/Kinetix/Resources/ClientResource.php
+public static function table(Table $table): Table
 {
-    $table = ClientResource::table(Table::make(ClientResource::getEloquentQuery()))
-        ->recordModals(ClientResource::class)   // host the modals in the table
-        ->reorderable()                         // optional: drag-to-reorder
+    return $table
+        ->columns([...])
+        ->recordModals(static::class)   // host the modals in the table
+        ->reorderable()                 // optional: drag-to-reorder
         ->toolbarActions([
             CreateAction::make()->modal('create'),
         ])
@@ -341,8 +343,17 @@ public function index()
             EditAction::make()->modal('edit'),
             DeleteAction::make()->modal('delete'),
         ]);
+}
+```
 
-    return inertia('Kinetix/Clients/Index', ['table' => $table->toArray()]);
+The controller is then just a thin index page:
+
+```php
+public function index()
+{
+    return inertia('Kinetix/Clients/Index', [
+        'table' => ClientResource::table(Table::make(ClientResource::getEloquentQuery()))->toArray(),
+    ]);
 }
 ```
 
@@ -395,6 +406,10 @@ php artisan kinetix:make-resource Article --generate
 namespace App\Kinetix\Resources;
 
 use App\Models\Article;
+use Happones\Kinetix\Actions\CreateAction;
+use Happones\Kinetix\Actions\DeleteAction;
+use Happones\Kinetix\Actions\EditAction;
+use Happones\Kinetix\Actions\ViewAction;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tables\Columns\TextColumn;
@@ -402,7 +417,9 @@ use Happones\Kinetix\Tables\Columns\ToggleColumn;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Components\Toggle;
-use Happones\Kinetix\Forms\Components\Textarea;
+use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Infolists\Components\TextEntry;
+use Happones\Kinetix\Infolists\Components\IconEntry;
 
 class ArticleResource extends Resource
 {
@@ -415,6 +432,16 @@ class ArticleResource extends Resource
                 TextColumn::make('title')->searchable()->sortable(),
                 TextColumn::make('slug')->sortable(),
                 ToggleColumn::make('is_published')->label('Published'),
+            ])
+            // Actions live here (single source of truth). ->route() resolves the
+            // named route per record and auto-hides if it isn't registered.
+            ->recordActions([
+                ViewAction::make()->route('articles.show'),
+                EditAction::make()->route('articles.edit'),
+                DeleteAction::make()->route('articles.destroy', method: 'delete'),
+            ])
+            ->toolbarActions([
+                CreateAction::make()->route('articles.create'),
             ]);
     }
 
@@ -427,17 +454,35 @@ class ArticleResource extends Resource
                 Toggle::make('is_published')->default(false),
             ]);
     }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                TextEntry::make('title'),
+                TextEntry::make('slug'),
+                IconEntry::make('is_published')->boolean(),
+            ]);
+    }
 }
 ```
 
 ### 2. The Scaffolded Controller (`app/Http/Controllers/Kinetix/ArticleController.php`)
+
+Thin: the index just renders the resource's table; create/edit/show render
+pages; store/update redirect via the resource's configurable helpers.
+
 ```php
 namespace App\Http\Controllers\Kinetix;
 
 use App\Http\Controllers\Controller;
 use App\Kinetix\Resources\ArticleResource;
 use App\Models\Article;
+use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Actions\DeleteAction;
+use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
 
@@ -445,10 +490,8 @@ class ArticleController extends Controller
 {
     public function index()
     {
-        $table = ArticleResource::table(Table::make(Article::query()));
-
         return inertia('Kinetix/Articles/Index', [
-            'table' => $table->toArray(),
+            'table' => ArticleResource::table(Table::make(ArticleResource::getEloquentQuery()))->toArray(),
         ]);
     }
 
@@ -456,9 +499,7 @@ class ArticleController extends Controller
     {
         $form = ArticleResource::form(Form::make(new Article()))->fill();
 
-        return inertia('Kinetix/Articles/Create', [
-            'form' => $form->toArray(),
-        ]);
+        return inertia('Kinetix/Articles/Create', ['form' => $form->toArray()]);
     }
 
     public function store(Request $request)
@@ -466,9 +507,21 @@ class ArticleController extends Controller
         $form = ArticleResource::form(Form::make(new Article()));
         $form->validate($request->all());
 
-        Article::create($form->getState($request->all()));
+        $record = Article::create($form->getState($request->all()));
 
-        return redirect()->route('articles.index')->with('message', 'Record created successfully.');
+        return redirect(ArticleResource::getRedirectUrlAfterCreate($record))
+            ->with('message', 'Record created successfully.');
+    }
+
+    public function show(Article $record)
+    {
+        return inertia('Kinetix/Articles/Show', [
+            'infolist' => ArticleResource::infolist(Infolist::make($record))->toArray(),
+            'actions' => Action::toArrayMany([
+                EditAction::make()->route('articles.edit'),
+                DeleteAction::make()->route('articles.destroy', method: 'delete'),
+            ], $record),
+        ]);
     }
 
     public function edit(Article $record)
@@ -488,7 +541,8 @@ class ArticleController extends Controller
 
         $record->update($form->getState($request->all()));
 
-        return redirect()->route('articles.index')->with('message', 'Record updated successfully.');
+        return redirect(ArticleResource::getRedirectUrlAfterSave($record))
+            ->with('message', 'Record updated successfully.');
     }
 
     public function destroy(Article $record)
@@ -501,9 +555,12 @@ class ArticleController extends Controller
 ```
 
 ### 3. The Scaffolded Listing page (`resources/js/pages/Kinetix/Articles/Index.vue`)
+
+Just the table — the New button and the row View/Edit/Delete actions all come
+from the resource's `table()` (they self-hide until their routes are registered):
+
 ```vue
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixTableData } from '@/types';
 
@@ -514,18 +571,9 @@ defineProps<{
 
 <template>
   <div class="p-8 max-w-7xl mx-auto space-y-6">
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Articles Directory</h1>
-        <p class="text-sm text-neutral-500">Manage database list records.</p>
-      </div>
-
-      <button
-        @click="router.get('/articles/create')"
-        class="inline-flex items-center justify-center rounded-lg text-sm font-semibold h-9 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-colors"
-      >
-        New Entry
-      </button>
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Articles Directory</h1>
+      <p class="text-sm text-neutral-500">Manage database list records.</p>
     </div>
 
     <KinetixTable :table="table" />

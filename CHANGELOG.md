@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.110.0] - 2026-07-17
+
+### Added
+
+- **`Action::route(string $name, array $params = [], string $method = 'get')`** —
+  the intuitive way to wire CRUD actions to named routes. It resolves the URL by
+  convention (per-record when the route has a record parameter, e.g.
+  `posts.edit`; once for a record-less route, e.g. `posts.create`), fills the
+  `{current_team}` segment, and — crucially — **auto-hides the action when the
+  route isn't registered** (`Route::has`), so an unwired action never renders as
+  a dead button. A non-`get` method (e.g. `'delete'`) performs an Inertia visit.
+
+### Changed
+
+- **Generated resources now declare their table actions on the resource
+  (published).** `kinetix:make-resource` writes View/Edit/Delete/Create (and
+  `recordModals`/`reorderable` for `--simple`) into the resource's `table()`
+  instead of the controller — a single, discoverable source of truth. Controllers
+  are thin (`Resource::table(Table::make(...))->toArray()`). Full-mode actions use
+  the new `->route()` (self-hiding); simple-mode use `->modal()`. The full-mode
+  `Index.vue` no longer hard-codes a "New" button — it comes from the table's
+  `CreateAction`, which self-hides until `posts.create` is registered.
+
+  This fixes the confusing "buttons render but do nothing / aren't in the table
+  config" behaviour: actions are visible in the resource and only appear once
+  their routes exist.
+
 ## [0.109.0] - 2026-07-17
 
 ### Added

@@ -60,27 +60,23 @@ class MakeResourceCommandTest extends TestCase
 
         $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
 
-        // Kinetix-owned modal CRUD: the table opts in via recordModals() and the
-        // create/view/edit/delete actions open in-table modals. No per-action
-        // controller methods / routes.
-        $this->assertStringContainsString('use Happones\Kinetix\Actions\CreateAction;', $controller);
-        $this->assertStringContainsString('use Happones\Kinetix\Actions\ViewAction;', $controller);
-        $this->assertStringContainsString('use Happones\Kinetix\Actions\EditAction;', $controller);
-        $this->assertStringContainsString('use Happones\Kinetix\Actions\DeleteAction;', $controller);
-        $this->assertStringContainsString('->recordModals(PostResource::class)', $controller);
+        // The controller is a thin, index-only page: it just renders the
+        // resource's table over the scoped query. No action wiring, no
+        // store/update/destroy (CRUD is Kinetix-owned via the modals).
         $this->assertStringContainsString('PostResource::getEloquentQuery()', $controller);
-        $this->assertStringContainsString("CreateAction::make()->modal('create')", $controller);
-        $this->assertStringContainsString("ViewAction::make()->modal('view')", $controller);
-        $this->assertStringContainsString("EditAction::make()->modal('edit')", $controller);
-        $this->assertStringContainsString("DeleteAction::make()->modal('delete')", $controller);
-
-        // The simple controller is index-only (no store/update/destroy methods).
+        $this->assertStringContainsString('PostResource::table(Table::make($query))->toArray()', $controller);
         $this->assertStringNotContainsString('public function store(', $controller);
         $this->assertStringNotContainsString('public function update(', $controller);
         $this->assertStringNotContainsString('public function destroy(', $controller);
 
-        // The Resource ships an infolist() so the View modal has content.
+        // Actions + modals live on the RESOURCE's table() (single source of truth).
         $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString('->recordModals(static::class)', $resource);
+        $this->assertStringContainsString("CreateAction::make()->modal('create')", $resource);
+        $this->assertStringContainsString("ViewAction::make()->modal('view')", $resource);
+        $this->assertStringContainsString("EditAction::make()->modal('edit')", $resource);
+        $this->assertStringContainsString("DeleteAction::make()->modal('delete')", $resource);
+        // The Resource ships an infolist() so the View modal has content.
         $this->assertStringContainsString('public static function infolist(Infolist $infolist): Infolist', $resource);
 
         // The generated PHP must be syntactically valid.
@@ -113,8 +109,9 @@ class MakeResourceCommandTest extends TestCase
         $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true, '--reorderable' => true])
             ->assertSuccessful();
 
-        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
-        $this->assertStringContainsString('->reorderable()', $controller);
+        // Reorder is a table config, so it lives on the resource's table().
+        $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString('->reorderable()', $resource);
 
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
         File::deleteDirectory(app_path('Kinetix'));
@@ -164,21 +161,27 @@ class MakeResourceCommandTest extends TestCase
         File::delete($controllerPath);
     }
 
-    public function test_full_resource_wires_row_edit_and_delete_actions(): void
+    public function test_full_resource_wires_row_actions_via_route_on_the_resource(): void
     {
         $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
 
-        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        // Row/toolbar actions are declared on the resource's table() using
+        // Action::route() (self-hiding when a route isn't registered).
+        $resourcePath = app_path('Kinetix/Resources/PostResource.php');
+        $resource     = File::get($resourcePath);
+        $this->assertStringContainsString("ViewAction::make()->route('posts.show')", $resource);
+        $this->assertStringContainsString("EditAction::make()->route('posts.edit')", $resource);
+        $this->assertStringContainsString("DeleteAction::make()->route('posts.destroy', method: 'delete')", $resource);
+        $this->assertStringContainsString("CreateAction::make()->route('posts.create')", $resource);
 
-        // The index table gets per-row Edit (navigates to the edit page) and
-        // Delete (confirm → DELETE) actions.
-        $this->assertStringContainsString('use Happones\Kinetix\Actions\EditAction;', $controller);
-        $this->assertStringContainsString('use Happones\Kinetix\Actions\DeleteAction;', $controller);
-        $this->assertStringContainsString('->recordActions([', $controller);
-        $this->assertStringContainsString("route('posts.edit', \$record)", $controller);
-        $this->assertStringContainsString("route('posts.destroy', \$record)", $controller);
-        // Full-mode index stays parameterless (no ?edit query to read).
+        exec('php -l '.escapeshellarg($resourcePath).' 2>&1', $out, $code);
+        $this->assertSame(0, $code, "Generated full resource has a syntax error:\n".implode("\n", $out));
+
+        // The controller index() just renders the table; no action wiring.
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
         $this->assertStringContainsString('public function index()', $controller);
+        $this->assertStringContainsString('PostResource::table(Table::make($query))->toArray()', $controller);
+        $this->assertStringNotContainsString('->recordActions([', $controller);
 
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
         File::deleteDirectory(app_path('Kinetix'));
@@ -192,12 +195,14 @@ class MakeResourceCommandTest extends TestCase
         $controllerPath = app_path('Http/Controllers/Kinetix/PostController.php');
         $controller     = File::get($controllerPath);
 
-        // A read-only show() renders the infolist + header actions, and the table
-        // gains a per-row View action linking to it.
-        $this->assertStringContainsString('use Happones\Kinetix\Actions\ViewAction;', $controller);
+        // A read-only show() renders the infolist + header actions (via route()).
         $this->assertStringContainsString('use Happones\Kinetix\Infolists\Infolist;', $controller);
         $this->assertStringContainsString('public function show(Post $record)', $controller);
-        $this->assertStringContainsString("route('posts.show', \$record)", $controller);
+        $this->assertStringContainsString("EditAction::make()->route('posts.edit')", $controller);
+
+        // The per-row View action (→ show) lives on the resource table().
+        $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString("ViewAction::make()->route('posts.show')", $resource);
 
         // Post-save destination is delegated to the resource (configurable).
         $this->assertStringContainsString('PostResource::getRedirectUrlAfterCreate($record)', $controller);

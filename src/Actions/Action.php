@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Actions;
 use Happones\Kinetix\Data\ActionData;
 use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 
 class Action
@@ -382,6 +383,48 @@ class Action
         $this->inertiaVisit = array_merge(['method' => 'get'], $options);
 
         return $this;
+    }
+
+    /**
+     * Point the action at a named route — the intuitive way to wire CRUD actions.
+     *
+     * The URL is resolved by convention: if the route expects a record parameter
+     * (e.g. `posts.edit` → `/posts/{post}`) it is built per row from the record;
+     * otherwise it resolves once (e.g. a `posts.create` toolbar button). The
+     * `{current_team}` segment is auto-filled like every other action URL.
+     *
+     * Crucially, the action **auto-hides when the route is not registered**
+     * (`Route::has()`), so an unwired action never renders as a dead button.
+     *
+     * `$method` `'get'` navigates; any other verb (e.g. `'delete'`) performs an
+     * Inertia visit with that method (for destroy/restore endpoints).
+     *
+     * @param array<int|string, mixed> $parameters extra route params merged before the record
+     */
+    public function route(string $name, array $parameters = [], string $method = 'get'): static
+    {
+        $route = Route::has($name) ? Route::getRoutes()->getByName($name) : null;
+
+        if ($route === null) {
+            // Unwired route → never show a button that leads nowhere.
+            return $this->visible(false);
+        }
+
+        // Does the route expect a record (a param other than the team segment)?
+        $expectsRecord = collect($route->parameterNames())
+            ->reject(fn (string $param): bool => in_array($param, ['current_team', 'team'], true))
+            ->isNotEmpty();
+
+        // A 1-required-param closure lets Action::toData() skip the record-less
+        // "template" pass without throwing; a 0-param closure resolves once
+        // (both evaluate after the team URL defaults are applied).
+        $url = $expectsRecord
+            ? fn (Model $record) => route($name, array_merge($parameters, [$record]))
+            : fn () => route($name, $parameters);
+
+        return strtolower($method) === 'get'
+            ? $this->url($url)
+            : $this->inertiaVisit($url, ['method' => strtolower($method), 'preserveScroll' => true]);
     }
 
     /**

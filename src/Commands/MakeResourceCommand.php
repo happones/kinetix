@@ -63,10 +63,10 @@ class MakeResourceCommand extends Command
         [$formFields, $tableColumns, $infolistEntries] = $this->getSchemaDefinitions($modelClass, $generate, $softDeletes);
 
         // 1. Create PHP Resource Class
-        $this->createResourceClass($modelName, $resourceClass, $formFields, $tableColumns, $infolistEntries, $teams);
+        $this->createResourceClass($modelName, $resourceClass, $formFields, $tableColumns, $infolistEntries, $teams, $simple, $reorderable, $pluralSlug);
 
         // 2. Create Resource Controller
-        $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes, $teams, $reorderable);
+        $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes, $teams);
 
         // 3. Create Vue frontend pages
         $this->createVuePages($modelName, $pluralName, $pluralSlug, $simple, $softDeletes, $formFields, $tableColumns);
@@ -228,8 +228,17 @@ class MakeResourceCommand extends Command
     /**
      * Generate Kinetix Resource PHP config class.
      */
-    protected function createResourceClass(string $modelName, string $resourceClass, array $formFields, array $tableColumns, array $infolistEntries = [], bool $teams = false): void
-    {
+    protected function createResourceClass(
+        string $modelName,
+        string $resourceClass,
+        array $formFields,
+        array $tableColumns,
+        array $infolistEntries = [],
+        bool $teams = false,
+        bool $simple = false,
+        bool $reorderable = false,
+        string $pluralSlug = ''
+    ): void {
         $directory = app_path('Kinetix/Resources');
         $filePath  = "{$directory}/{$resourceClass}.php";
 
@@ -240,6 +249,39 @@ class MakeResourceCommand extends Command
         $formFieldsStr      = implode("\n", $formFields);
         $tableColumnsStr    = implode("\n", $tableColumns);
         $infolistEntriesStr = implode("\n", $infolistEntries !== [] ? $infolistEntries : ["                TextEntry::make('title'),"]);
+
+        // Actions live on the table config (single source of truth). Simple mode
+        // opens in-table modals; full mode navigates to the scaffolded pages via
+        // Action::route() — which auto-hides a button when its route isn't
+        // registered, so nothing renders as a dead link.
+        $reorderableChain = $reorderable ? "\n            ->reorderable()" : '';
+
+        if ($simple) {
+            $tableActions = <<<PHP
+
+            ->recordModals(static::class){$reorderableChain}
+            ->toolbarActions([
+                CreateAction::make()->modal('create'),
+            ])
+            ->recordActions([
+                ViewAction::make()->modal('view'),
+                EditAction::make()->modal('edit'),
+                DeleteAction::make()->modal('delete'),
+            ]);
+PHP;
+        } else {
+            $tableActions = <<<PHP
+{$reorderableChain}
+            ->recordActions([
+                ViewAction::make()->route('{$pluralSlug}.show'),
+                EditAction::make()->route('{$pluralSlug}.edit'),
+                DeleteAction::make()->route('{$pluralSlug}.destroy', method: 'delete'),
+            ])
+            ->toolbarActions([
+                CreateAction::make()->route('{$pluralSlug}.create'),
+            ]);
+PHP;
+        }
 
         // Team-aware resources scope every read/write to the current team and
         // stamp `team_id` on create, so the in-table modal endpoint stays
@@ -276,6 +318,10 @@ declare(strict_types=1);
 namespace App\Kinetix\Resources;
 
 use App\Models\\{$modelName};
+use Happones\Kinetix\Actions\CreateAction;
+use Happones\Kinetix\Actions\DeleteAction;
+use Happones\Kinetix\Actions\EditAction;
+use Happones\Kinetix\Actions\ViewAction;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tables\Columns\TextColumn;
@@ -300,7 +346,7 @@ class {$resourceClass} extends Resource
         return \$table
             ->columns([
 {$tableColumnsStr}
-            ]);
+            ]){$tableActions}
     }
 
     public static function form(Form \$form): Form
@@ -337,8 +383,7 @@ PHP;
         string $pluralSlug,
         bool $simple,
         bool $softDeletes,
-        bool $teams = false,
-        bool $reorderable = false
+        bool $teams = false
     ): void {
         $directory = app_path('Http/Controllers/Kinetix');
         $filePath  = "{$directory}/{$modelName}Controller.php";
@@ -383,11 +428,9 @@ PHP;
         }
 
         if ($simple) {
-            // Simple controller: a single index page. Create/edit/view/delete are
-            // hosted inside the table (Table::recordModals()) and run through
-            // Kinetix's own signed record endpoint — no per-action controller
-            // methods or routes needed.
-            $reorderableChain = $reorderable ? "\n            ->reorderable()" : '';
+            // Simple controller: a single index page. Columns, in-table modals
+            // (create/edit/view/delete) and reorder are all declared on the
+            // resource's table() — the controller just supplies the scoped query.
             // The model + Request are only referenced by the soft-delete
             // restore/forceDelete methods; omit the imports otherwise.
             $modelImport   = $softDeletes ? "\nuse App\Models\\{$modelName};" : '';
@@ -403,36 +446,21 @@ namespace App\Http\Controllers\Kinetix;
 
 use App\Http\Controllers\Controller;
 use App\Kinetix\Resources\\{$resourceClass};{$modelImport}
-use Happones\Kinetix\Actions\CreateAction;
-use Happones\Kinetix\Actions\DeleteAction;
-use Happones\Kinetix\Actions\EditAction;
-use Happones\Kinetix\Actions\ViewAction;
 use Happones\Kinetix\Tables\Table;{$requestImport}
 
 class {$modelName}Controller extends Controller
 {
     public function index()
     {
-        // Reads/writes flow through the resource's scoped query, so team scoping
-        // (getEloquentQuery) applies to the modal endpoint too. Edits fetch a
-        // FRESH copy from the server by default; switch to the loaded row with
-        // ->recordModals({$resourceClass}::class, 'row') or the
+        // getEloquentQuery() scopes reads (and the modal endpoint's writes) —
+        // e.g. to the current team. Edits fetch a FRESH copy from the server by
+        // default; switch to the loaded row with
+        // ->recordModals({$resourceClass}::class, 'row') on the resource, or the
         // `kinetix.tables.record_source` config.
         \$query = {$resourceClass}::getEloquentQuery();{$withTrashed}
 
-        \$table = {$resourceClass}::table(Table::make(\$query))
-            ->recordModals({$resourceClass}::class){$reorderableChain}
-            ->toolbarActions([
-                CreateAction::make()->modal('create'),
-            ])
-            ->recordActions([
-                ViewAction::make()->modal('view'),
-                EditAction::make()->modal('edit'),
-                DeleteAction::make()->modal('delete'),
-            ]);
-
         return inertia('Kinetix/{$pluralName}/Index', [
-            'table' => \$table->toArray(),
+            'table' => {$resourceClass}::table(Table::make(\$query))->toArray(),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
@@ -454,7 +482,6 @@ use App\Models\\{$modelName};
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
-use Happones\Kinetix\Actions\ViewAction;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Tables\Table;
@@ -471,19 +498,10 @@ PHP;
             }
             $template .= <<<PHP
 
-        // Per-row View (detail page), Edit (edit page) and Delete (confirm → DELETE).
-        \$table = {$resourceClass}::table(Table::make(\$query))
-            ->recordActions([
-                ViewAction::make()->url(fn (\$record) => route('{$routePrefix}.show', \$record)),
-                EditAction::make()->url(fn (\$record) => route('{$routePrefix}.edit', \$record)),
-                DeleteAction::make()->inertiaVisit(
-                    fn (\$record) => route('{$routePrefix}.destroy', \$record),
-                    ['method' => 'delete', 'preserveScroll' => true],
-                ),
-            ]);
-
+        // Columns + row/toolbar actions (View / Edit / Delete / Create) are
+        // declared on the resource's table(); here we just render the query.
         return inertia('Kinetix/{$pluralName}/Index', [
-            'table' => \$table->toArray(),
+            'table' => {$resourceClass}::table(Table::make(\$query))->toArray(),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
@@ -518,11 +536,9 @@ PHP;
         return inertia('Kinetix/{$pluralName}/Show', [
             'infolist' => {$resourceClass}::infolist(Infolist::make(\$record))->toArray(),
             'actions' => Action::toArrayMany([
-                EditAction::make()->url(fn () => route('{$routePrefix}.edit', \$record)),
-                DeleteAction::make()->inertiaVisit(
-                    route('{$routePrefix}.destroy', \$record),
-                    ['method' => 'delete'],
-                ),
+                // route() resolves per record and auto-hides if the route is absent.
+                EditAction::make()->route('{$routePrefix}.edit'),
+                DeleteAction::make()->route('{$routePrefix}.destroy', method: 'delete'),
             ], \$record),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('show', \$record),
         ]);
@@ -623,7 +639,6 @@ VUE;
             // Create distinct multi-page views
             $indexTemplate = <<<VUE
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
 
@@ -637,21 +652,13 @@ defineProps<{
 
 <template>
   <div class="p-8 max-w-7xl mx-auto space-y-6">
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{$pluralName} Directory</h1>
-        <p class="text-sm text-neutral-500">Manage database list records.</p>
-      </div>
-
-      <button
-        @click="router.get('/{$pluralSlug}/create')"
-        class="inline-flex items-center justify-center rounded-lg text-sm font-semibold h-9 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white shadow transition-colors"
-      >
-        New Entry
-      </button>
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{$pluralName} Directory</h1>
+      <p class="text-sm text-neutral-500">Manage database list records.</p>
     </div>
 
-    <!-- Render Kinetix Table -->
+    <!-- The New button + row View/Edit/Delete come from the resource table()
+         actions (self-hiding when a route isn't registered). -->
     <KinetixTable :table="table" />
   </div>
 </template>

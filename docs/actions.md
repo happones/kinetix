@@ -26,6 +26,7 @@ Action::make('edit')
 | `->label(string)` | Button text |
 | `->icon(string, string $position = 'before')` | Lucide icon name |
 | `->url(string\|Closure, bool $newTab = false)` | Navigate on click; closure receives the record |
+| `->route(string $name, array $params = [], string $method = 'get')` | Point at a **named route** — the intuitive CRUD wiring (see below) |
 | `->inertiaVisit(string $url, array $options = [])` | SPA visit via `router.visit()` (supports `method`) |
 | `->dispatch(string $event, array $data = [])` | Fire a `kinetix:{event}` browser event |
 | `->button()` / `->link()` | Render style |
@@ -53,6 +54,39 @@ CreateAction::make()->color('success'), // opt-in green (primary by default)
 ```
 
 > **shadcn guidance:** by default Kinetix keeps secondary actions neutral (`outline`/`ghost`) and only `delete` red — distinguishing actions by **icon**, which is the idiomatic shadcn approach. Reach for the colored palette above only if you specifically want the classic colored-button look; it stays token-based either way.
+
+### `->route()` — named-route wiring (recommended for CRUD)
+
+Instead of hand-writing a `->url(fn ($r) => route(...))` closure, point an action at a
+**named route**. Kinetix resolves it by convention and — crucially — **auto-hides the
+action when the route isn't registered** (`Route::has`), so you never ship a button that
+leads nowhere:
+
+```php
+use Happones\Kinetix\Actions\{ViewAction, EditAction, DeleteAction, CreateAction};
+
+$table
+    ->recordActions([
+        ViewAction::make()->route('posts.show'),                       // → /posts/{post}
+        EditAction::make()->route('posts.edit'),                       // → /posts/{post}/edit
+        DeleteAction::make()->route('posts.destroy', method: 'delete'),// Inertia DELETE
+    ])
+    ->toolbarActions([
+        CreateAction::make()->route('posts.create'),                   // → /posts/create
+    ]);
+```
+
+- **Per-record vs static** is detected automatically: a route with a record parameter
+  (e.g. `posts.edit` → `/posts/{post}`) is resolved per row from the record; a route
+  without one (e.g. `posts.create`) resolves once for a toolbar button.
+- The `{current_team}` segment is auto-filled, exactly like `->url()`.
+- `$method` `'get'` navigates; any other verb performs an `->inertiaVisit()` with that
+  method (for destroy/restore endpoints).
+- If the route isn't registered, the action is dropped from the payload — no dead button.
+
+This is what `kinetix:make-resource` writes into the generated **resource's `table()`**,
+so all actions live in one place and only appear once you register the routes
+(`Route::resource(...)`).
 
 ---
 
