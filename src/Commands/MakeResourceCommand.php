@@ -451,9 +451,12 @@ namespace App\Http\Controllers\Kinetix;
 use App\Http\Controllers\Controller;
 use App\Kinetix\Resources\\{$resourceClass};
 use App\Models\\{$modelName};
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
+use Happones\Kinetix\Actions\ViewAction;
 use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
 
@@ -468,9 +471,10 @@ PHP;
             }
             $template .= <<<PHP
 
-        // Per-row Edit (opens the edit page) and Delete (confirm, then DELETE).
+        // Per-row View (detail page), Edit (edit page) and Delete (confirm → DELETE).
         \$table = {$resourceClass}::table(Table::make(\$query))
             ->recordActions([
+                ViewAction::make()->url(fn (\$record) => route('{$routePrefix}.show', \$record)),
                 EditAction::make()->url(fn (\$record) => route('{$routePrefix}.edit', \$record)),
                 DeleteAction::make()->inertiaVisit(
                     fn (\$record) => route('{$routePrefix}.destroy', \$record),
@@ -499,9 +503,29 @@ PHP;
         \$form = {$resourceClass}::form(Form::make(new {$modelName}()));
         \$form->validate(\$request->all());
 
-        {$createExpr};
+        \$record = {$createExpr};
 
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record created successfully.');
+        // Destination configurable on the resource — getRedirectUrlAfterCreate()
+        // (defaults to the index).
+        return redirect({$resourceClass}::getRedirectUrlAfterCreate(\$record))
+            ->with('message', 'Record created successfully.');
+    }
+
+    public function show({$modelName} \$record)
+    {
+        // Read-only detail: the resource's infolist() plus Edit/Delete actions
+        // rendered in the page header (KinetixPageHeader) for quick redirects.
+        return inertia('Kinetix/{$pluralName}/Show', [
+            'infolist' => {$resourceClass}::infolist(Infolist::make(\$record))->toArray(),
+            'actions' => Action::toArrayMany([
+                EditAction::make()->url(fn () => route('{$routePrefix}.edit', \$record)),
+                DeleteAction::make()->inertiaVisit(
+                    route('{$routePrefix}.destroy', \$record),
+                    ['method' => 'delete'],
+                ),
+            ], \$record),
+            'breadcrumbs' => {$resourceClass}::breadcrumbs('show', \$record),
+        ]);
     }
 
     public function edit({$modelName} \$record)
@@ -522,7 +546,10 @@ PHP;
 
         \$record->update(\$form->getState(\$request->all()));
 
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record updated successfully.');
+        // Destination configurable on the resource — getRedirectUrlAfterSave()
+        // (defaults to staying on the edit page).
+        return redirect({$resourceClass}::getRedirectUrlAfterSave(\$record))
+            ->with('message', 'Record updated successfully.');
     }
 
     public function destroy({$modelName} \$record)
@@ -733,10 +760,38 @@ const handleSubmit = (values: Record<string, any>) => {
 </template>
 VUE;
 
+            $showTemplate = <<<VUE
+<script setup lang="ts">
+import KinetixInfolist from '@/components/kinetix/KinetixInfolist.vue';
+import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
+import type {
+  KinetixAction,
+  KinetixBreadcrumb,
+  KinetixInfolistData,
+} from '@/types';
+
+// `actions` (Edit / Delete) render top-right in the header for quick redirects;
+// `infolist` is the resource's read-only detail schema.
+defineProps<{
+  infolist: KinetixInfolistData;
+  actions: KinetixAction[];
+  breadcrumbs?: KinetixBreadcrumb[];
+}>();
+</script>
+
+<template>
+  <div class="p-8 max-w-5xl mx-auto space-y-6">
+    <KinetixPageHeader heading="{$modelName} details" :actions="actions" />
+    <KinetixInfolist :infolist="infolist" />
+  </div>
+</template>
+VUE;
+
             File::put("{$directory}/Index.vue", $indexTemplate);
             File::put("{$directory}/Create.vue", $createTemplate);
             File::put("{$directory}/Edit.vue", $editTemplate);
-            $this->line("Created Vue Pages: Index, Create, Edit in [resources/js/pages/Kinetix/{$pluralName}/]");
+            File::put("{$directory}/Show.vue", $showTemplate);
+            $this->line("Created Vue Pages: Index, Create, Edit, Show in [resources/js/pages/Kinetix/{$pluralName}/]");
         }
     }
 }

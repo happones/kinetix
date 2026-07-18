@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.109.0] - 2026-07-17
+
+### Added
+
+- **Full resources now scaffold a `show` page (published).** `kinetix:make-resource`
+  (multi-page mode) generates a `show()` controller method, a per-row `ViewAction`
+  on the index table, and a `Show.vue` that pairs the resource's `infolist()` with
+  a `KinetixPageHeader` carrying Edit / Delete actions (top-right) for quick
+  redirects. The resource is scaffolded with an `infolist()` for this.
+- **Configurable post-save redirect (published).** New resource hooks
+  `Resource::getRedirectUrlAfterCreate(Model)` (default: index) and
+  `getRedirectUrlAfterSave(Model)` (default: **stay on the edit page**) decide
+  where full-page create/update land. Override with
+  `static::resolveHref('index' | 'edit' | 'show', $record)`. Generated `store()`
+  captures the created record so it can redirect to it.
+
+### Changed
+
+- **Simple-resource create/edit/view modals are teleported to `<body>` (published).**
+  `KinetixTable` now renders its record modals through `<Teleport to="body">`
+  (SSR-guarded), so the overlay is never clipped or mis-stacked by the table's
+  own container — matching `KinetixConfirmModal`.
+
 ## [0.108.1] - 2026-07-17
 
 ### Fixed

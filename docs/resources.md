@@ -256,20 +256,52 @@ php artisan kinetix:make-relation-manager CommentsRelationManager --relationship
 ## 4. Multi-Page vs. Simple Layouts
 
 ### 1. Multi-Page Resource (Default)
-Generates separate views for listing, creating, and editing records. Recommended for large models with many fields.
+Generates separate views for listing, creating, editing and viewing records.
+Recommended for large models with many fields. The index table gets per-row
+**View / Edit / Delete** actions, and the **Show** page pairs the resource's
+`infolist()` with a header carrying **Edit / Delete** actions (top-right) for
+quick redirects.
 
 #### Generated Directory File Tree
 ```
 ├── app/
 │   ├── Http/Controllers/Kinetix/
-│   │   └── ProductController.php       <-- Resource routes mapping
+│   │   └── ProductController.php       <-- index/create/store/show/edit/update/destroy
 │   └── Kinetix/Resources/
-│       └── ProductResource.php         <-- Central schema configuration
+│       └── ProductResource.php         <-- table() + form() + infolist()
 └── resources/js/pages/Kinetix/Products/
     ├── Index.vue                       <-- Listing Grid Table
     ├── Create.vue                      <-- Form container for creation
-    └── Edit.vue                        <-- Form container for updates
+    ├── Edit.vue                        <-- Form container for updates
+    └── Show.vue                        <-- Read-only infolist + header actions
 ```
+
+#### Post-save redirect (configurable)
+
+Where the user lands after create/save is delegated to the resource, so you can
+change it without touching the controller:
+
+```php
+use Illuminate\Database\Eloquent\Model;
+
+class ProductResource extends Resource
+{
+    // After creating (default: the index).
+    public static function getRedirectUrlAfterCreate(Model $record): string
+    {
+        return static::resolveHref('edit', $record); // go straight to editing
+    }
+
+    // After saving an edit (default: stay on the edit page).
+    public static function getRedirectUrlAfterSave(Model $record): string
+    {
+        return static::resolveHref('index'); // go back to the list instead
+    }
+}
+```
+
+`resolveHref('index' | 'edit' | 'show', $record)` builds the URL (team params
+auto-filled). Delete always returns to the index.
 
 ### 2. Simple Resource (`--simple`)
 Generates a **single index page** whose table hosts every interaction: create
@@ -652,10 +684,15 @@ Route::prefix('{current_team}')->group(function () {
 
 ## 7. View / Show page (read-only detail)
 
-The generator scaffolds **index / create / edit** controller methods and pages —
-it does **not** scaffold a `show` page, because not every resource needs one. The
-building blocks ship with Kinetix; wire them up when you want a read-only detail
-view:
+**Full (multi-page) resources scaffold a `show` page automatically** — a `show()`
+controller method, a per-row `ViewAction`, and a `Show.vue` pairing the
+resource's `infolist()` with a header (`KinetixPageHeader`) that carries Edit /
+Delete actions. Remove the `infolist()` method (and the `ViewAction`) to drop it.
+**Simple (`--simple`) resources** render the same infolist in the in-table **View
+modal** instead.
+
+The section below is the **manual recipe** for a custom show page (e.g. adding
+relation managers, tabs, or a bespoke layout):
 
 1. **Define the schema** on the resource via the `infolist()` hook (see §2) — the
    read-only twin of `form()`.

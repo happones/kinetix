@@ -107,6 +107,26 @@ abstract class Resource
     }
 
     /**
+     * URL to redirect to after a record is created (full-page resources).
+     * Defaults to the listing; override to keep the user on the record, e.g.
+     * `return static::resolveHref('edit', $record);` (edit) or `'show'` (view).
+     */
+    public static function getRedirectUrlAfterCreate(Model $record): string
+    {
+        return static::resolveHref('index');
+    }
+
+    /**
+     * URL to redirect to after a record is saved from the edit page (full-page
+     * resources). Defaults to staying on the edit page; override to return
+     * `static::resolveHref('index')` (list) or `'show'` (detail).
+     */
+    public static function getRedirectUrlAfterSave(Model $record): string
+    {
+        return static::resolveHref('edit', $record);
+    }
+
+    /**
      * The relation manager classes shown on the resource's edit/view page.
      *
      * @return array<int, class-string<RelationManager>>

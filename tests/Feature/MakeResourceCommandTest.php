@@ -31,13 +31,21 @@ class MakeResourceCommandTest extends TestCase
 
         $createPath = resource_path('js/pages/Kinetix/Posts/Create.vue');
         $editPath   = resource_path('js/pages/Kinetix/Posts/Edit.vue');
+        $showPath   = resource_path('js/pages/Kinetix/Posts/Show.vue');
 
         $this->assertFileExists($createPath);
         $this->assertFileExists($editPath);
+        $this->assertFileExists($showPath);
 
         // Regression: $modelName was undefined in createVuePages → blank model name.
         $this->assertStringContainsString('Create Post', File::get($createPath));
         $this->assertStringContainsString('Edit Post', File::get($editPath));
+
+        // The Show page pairs a page header (Edit/Delete actions) with the infolist.
+        $show = File::get($showPath);
+        $this->assertStringContainsString('KinetixPageHeader', $show);
+        $this->assertStringContainsString('KinetixInfolist', $show);
+        $this->assertStringContainsString(':actions="actions"', $show);
 
         // Clean up generated artifacts.
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
@@ -175,6 +183,34 @@ class MakeResourceCommandTest extends TestCase
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
         File::deleteDirectory(app_path('Kinetix'));
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_full_resource_scaffolds_show_page_and_configurable_redirects(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
+
+        $controllerPath = app_path('Http/Controllers/Kinetix/PostController.php');
+        $controller     = File::get($controllerPath);
+
+        // A read-only show() renders the infolist + header actions, and the table
+        // gains a per-row View action linking to it.
+        $this->assertStringContainsString('use Happones\Kinetix\Actions\ViewAction;', $controller);
+        $this->assertStringContainsString('use Happones\Kinetix\Infolists\Infolist;', $controller);
+        $this->assertStringContainsString('public function show(Post $record)', $controller);
+        $this->assertStringContainsString("route('posts.show', \$record)", $controller);
+
+        // Post-save destination is delegated to the resource (configurable).
+        $this->assertStringContainsString('PostResource::getRedirectUrlAfterCreate($record)', $controller);
+        $this->assertStringContainsString('PostResource::getRedirectUrlAfterSave($record)', $controller);
+        // The created record is captured so create can redirect to it.
+        $this->assertStringContainsString('$record = Post::create(', $controller);
+
+        exec('php -l '.escapeshellarg($controllerPath).' 2>&1', $out, $code);
+        $this->assertSame(0, $code, "Generated full controller has a syntax error:\n".implode("\n", $out));
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete($controllerPath);
     }
 
     public function test_team_option_scopes_the_controller_to_the_current_team(): void

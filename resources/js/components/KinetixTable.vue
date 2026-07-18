@@ -273,7 +273,13 @@ const parsePollInterval = (poll: string | null | undefined): number => {
 
 const pollInterval = parsePollInterval(props.table.poll);
 const poll = usePoll(pollInterval || 60000, {}, { autoStart: false });
+
+// Guards <Teleport to="body"> so record modals only mount client-side (SSR-safe),
+// matching KinetixConfirmModal.
+const isMounted = ref(false);
 onMounted(() => {
+    isMounted.value = true;
+
     if (pollInterval > 0) {
         poll.start();
     }
@@ -572,126 +578,129 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
             @cancel="onBulkCancel"
         />
 
-        <!-- Simple-resource create/edit modal (Table::recordModals()). The form
-             is fetched fresh from the server for edits by default; create opens
-             instantly from the shipped blueprint. -->
-        <div
-            v-if="isRecordFormOpen"
-            class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
-            @click.self="closeRecordForm"
-        >
+        <!-- Simple-resource create/edit + view modals, teleported to <body> so
+             the overlay is never clipped by the table's own stacking context.
+             The form is fetched fresh from the server for edits by default;
+             create opens instantly from the shipped blueprint. -->
+        <Teleport v-if="isMounted" to="body">
             <div
-                class="max-w-2xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
+                v-if="isRecordFormOpen"
+                class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
+                @click.self="closeRecordForm"
             >
                 <div
-                    class="p-6 flex items-center justify-between border-b border-border"
+                    class="max-w-2xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
                 >
-                    <h3 class="font-semibold text-lg">
-                        {{
-                            recordLabel ||
-                            (isRecordEditing
-                                ? t('kinetix.edit')
-                                : t('kinetix.create'))
-                        }}
-                    </h3>
-                    <button
-                        type="button"
-                        class="text-muted-foreground hover:text-foreground"
-                        :aria-label="t('kinetix.close')"
-                        @click="closeRecordForm"
+                    <div
+                        class="p-6 flex items-center justify-between border-b border-border"
                     >
-                        &times;
-                    </button>
-                </div>
-
-                <div class="p-6 overflow-y-auto">
-                    <div v-if="isRecordLoading" class="space-y-4">
-                        <div
-                            class="h-9 animate-pulse rounded-md bg-muted"
-                        ></div>
-                        <div
-                            class="h-9 animate-pulse rounded-md bg-muted"
-                        ></div>
-                        <div
-                            class="h-9 animate-pulse w-2/3 rounded-md bg-muted"
-                        ></div>
+                        <h3 class="font-semibold text-lg">
+                            {{
+                                recordLabel ||
+                                (isRecordEditing
+                                    ? t('kinetix.edit')
+                                    : t('kinetix.create'))
+                            }}
+                        </h3>
+                        <button
+                            type="button"
+                            class="text-muted-foreground hover:text-foreground"
+                            :aria-label="t('kinetix.close')"
+                            @click="closeRecordForm"
+                        >
+                            &times;
+                        </button>
                     </div>
 
-                    <KinetixForm
-                        v-else-if="recordForm"
-                        :form="recordForm"
-                        @submit="submitRecordForm"
-                    >
-                        <template #default>
-                            <div class="gap-3 mt-6 flex justify-end">
-                                <button
-                                    type="button"
-                                    :class="
-                                        buttonVariants({
-                                            variant: 'outline',
-                                            size: 'sm',
-                                        })
-                                    "
-                                    :disabled="recordProcessing"
-                                    @click="closeRecordForm"
-                                >
-                                    {{ t('kinetix.cancel') }}
-                                </button>
-                                <button
-                                    type="submit"
-                                    :class="buttonVariants({ size: 'sm' })"
-                                    :disabled="recordProcessing"
-                                >
-                                    {{ t('kinetix.save') }}
-                                </button>
-                            </div>
-                        </template>
-                    </KinetixForm>
+                    <div class="p-6 overflow-y-auto">
+                        <div v-if="isRecordLoading" class="space-y-4">
+                            <div
+                                class="h-9 animate-pulse rounded-md bg-muted"
+                            ></div>
+                            <div
+                                class="h-9 animate-pulse rounded-md bg-muted"
+                            ></div>
+                            <div
+                                class="h-9 animate-pulse w-2/3 rounded-md bg-muted"
+                            ></div>
+                        </div>
+
+                        <KinetixForm
+                            v-else-if="recordForm"
+                            :form="recordForm"
+                            @submit="submitRecordForm"
+                        >
+                            <template #default>
+                                <div class="gap-3 mt-6 flex justify-end">
+                                    <button
+                                        type="button"
+                                        :class="
+                                            buttonVariants({
+                                                variant: 'outline',
+                                                size: 'sm',
+                                            })
+                                        "
+                                        :disabled="recordProcessing"
+                                        @click="closeRecordForm"
+                                    >
+                                        {{ t('kinetix.cancel') }}
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        :class="buttonVariants({ size: 'sm' })"
+                                        :disabled="recordProcessing"
+                                    >
+                                        {{ t('kinetix.save') }}
+                                    </button>
+                                </div>
+                            </template>
+                        </KinetixForm>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Simple-resource view modal (read-only infolist, server-resolved). -->
-        <div
-            v-if="isRecordInfolistOpen"
-            class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
-            @click.self="closeRecordInfolist"
-        >
+            <!-- Simple-resource view modal (read-only infolist, server-resolved). -->
             <div
-                class="max-w-3xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
+                v-if="isRecordInfolistOpen"
+                class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
+                @click.self="closeRecordInfolist"
             >
                 <div
-                    class="p-6 flex items-center justify-between border-b border-border"
+                    class="max-w-3xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
                 >
-                    <h3 class="font-semibold text-lg">
-                        {{ recordLabel || t('kinetix.view') }}
-                    </h3>
-                    <button
-                        type="button"
-                        class="text-muted-foreground hover:text-foreground"
-                        :aria-label="t('kinetix.close')"
-                        @click="closeRecordInfolist"
+                    <div
+                        class="p-6 flex items-center justify-between border-b border-border"
                     >
-                        &times;
-                    </button>
-                </div>
-
-                <div class="p-6 overflow-y-auto">
-                    <div v-if="isRecordLoading" class="space-y-4">
-                        <div
-                            class="h-6 animate-pulse w-1/3 rounded-md bg-muted"
-                        ></div>
-                        <div
-                            class="h-24 animate-pulse rounded-md bg-muted"
-                        ></div>
+                        <h3 class="font-semibold text-lg">
+                            {{ recordLabel || t('kinetix.view') }}
+                        </h3>
+                        <button
+                            type="button"
+                            class="text-muted-foreground hover:text-foreground"
+                            :aria-label="t('kinetix.close')"
+                            @click="closeRecordInfolist"
+                        >
+                            &times;
+                        </button>
                     </div>
-                    <KinetixInfolist
-                        v-else-if="recordInfolist"
-                        :infolist="recordInfolist"
-                    />
+
+                    <div class="p-6 overflow-y-auto">
+                        <div v-if="isRecordLoading" class="space-y-4">
+                            <div
+                                class="h-6 animate-pulse w-1/3 rounded-md bg-muted"
+                            ></div>
+                            <div
+                                class="h-24 animate-pulse rounded-md bg-muted"
+                            ></div>
+                        </div>
+                        <KinetixInfolist
+                            v-else-if="recordInfolist"
+                            :infolist="recordInfolist"
+                        />
+                    </div>
                 </div>
             </div>
-        </div>
+        </Teleport>
 
         <!-- Simple-resource delete confirmation. -->
         <KinetixConfirmModal
