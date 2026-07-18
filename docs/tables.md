@@ -115,6 +115,10 @@ missing it):
     <KinetixTable :table="postsTable" />
 </div>
 ```
+
+**Laravel starter kit?** Its `SidebarInset.vue` / `AppContent.vue` content wrappers
+ship without `min-w-0` — see the exact one-line patch for each in
+[Starter kit → Wide tables & the `min-w-0` layout fix](/starter-kit#wide-tables-the-min-w-0-layout-fix).
 :::
 
 ---

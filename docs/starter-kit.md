@@ -49,6 +49,41 @@ natural place to compose both worlds.
 Because both use shadcn-vue tokens, the Kinetix panels inherit your theme with no
 extra styling.
 
+## Wide tables & the `min-w-0` layout fix
+
+The starter kit's content area is a **flex** column, and a flex item defaults to
+`min-width: auto` — it refuses to shrink below its content. A wide
+[Kinetix table](/tables) (many columns) therefore grows that column and pushes
+the whole page, overflowing the viewport, instead of scrolling inside its own
+card.
+
+Kinetix already does its part — the table card carries `min-w-0 max-w-full` and
+the scaffolded pages wrap in `… min-w-0 …`. The missing link is on the starter
+kit's **content flex items**, which ship without `min-w-0`. Add it once and every
+page (not just Kinetix) scrolls correctly:
+
+**1. `resources/js/components/ui/sidebar/SidebarInset.vue`** (the `sidebar` layout's `<main>`):
+
+```diff
+  :class="cn(
+-     'bg-background relative flex w-full flex-1 flex-col',
++     'bg-background relative flex w-full min-w-0 flex-1 flex-col',
+      'md:peer-data-[variant=inset]:m-2 …',
+      props.class,
+  )"
+```
+
+**2. `resources/js/components/AppContent.vue`** (the `header` layout's `<main>`):
+
+```diff
+- <main class="mx-auto flex h-full w-full max-w-7xl flex-1 flex-col gap-4 rounded-xl" …>
++ <main class="mx-auto flex h-full w-full min-w-0 max-w-7xl flex-1 flex-col gap-4 rounded-xl" …>
+```
+
+That's it — one token per content wrapper. (The `overflow-x-hidden` the sidebar
+layout already passes only *clips* at the page level; `min-w-0` is what lets the
+column shrink so the table's own `overflow-x-auto` scrollbar does the work.)
+
 ## GDPR / account-deletion overlap
 
 This is the one genuine overlap. The starter kit ships a simple **Delete
