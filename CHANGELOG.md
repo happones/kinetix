@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.111.0] - 2026-07-17
+
+### Changed
+
+- **Scaffold polish (published).** `kinetix:make-resource` now:
+  - Wraps every generated page (Index, Create, Edit) in a consistent
+    `flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4` container
+    so pages fill the layout cleanly.
+  - **Groups row actions into a shadcn-style "⋯" dropdown** by default
+    (`ActionGroup::make([...])`) for both simple and full resources.
+
+### Fixed
+
+- **`ActionGroup` no longer renders an empty dropdown.** When every child action
+  is hidden/unauthorized for a record, the group is dropped from that row's
+  payload instead of showing an empty "⋯" button.
+
 ## [0.110.0] - 2026-07-17
 
 ### Added

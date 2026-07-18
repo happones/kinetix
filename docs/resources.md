@@ -319,7 +319,9 @@ defineProps<{ table: KinetixTableData }>();
 </script>
 
 <template>
-  <KinetixTable :table="table" />
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+    <KinetixTable :table="table" />
+  </div>
 </template>
 ```
 
@@ -339,9 +341,12 @@ public static function table(Table $table): Table
             CreateAction::make()->modal('create'),
         ])
         ->recordActions([
-            ViewAction::make()->modal('view'),   // read-only infolist modal
-            EditAction::make()->modal('edit'),
-            DeleteAction::make()->modal('delete'),
+            // Grouped into a shadcn-style "⋯" dropdown (the scaffold default).
+            ActionGroup::make([
+                ViewAction::make()->modal('view'),   // read-only infolist modal
+                EditAction::make()->modal('edit'),
+                DeleteAction::make()->modal('delete'),
+            ]),
         ]);
 }
 ```
@@ -406,6 +411,7 @@ php artisan kinetix:make-resource Article --generate
 namespace App\Kinetix\Resources;
 
 use App\Models\Article;
+use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Actions\CreateAction;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
@@ -433,12 +439,15 @@ class ArticleResource extends Resource
                 TextColumn::make('slug')->sortable(),
                 ToggleColumn::make('is_published')->label('Published'),
             ])
-            // Actions live here (single source of truth). ->route() resolves the
-            // named route per record and auto-hides if it isn't registered.
+            // Actions live here (single source of truth), grouped into a
+            // shadcn-style "⋯" dropdown. ->route() resolves the named route per
+            // record and auto-hides if it isn't registered.
             ->recordActions([
-                ViewAction::make()->route('articles.show'),
-                EditAction::make()->route('articles.edit'),
-                DeleteAction::make()->route('articles.destroy', method: 'delete'),
+                ActionGroup::make([
+                    ViewAction::make()->route('articles.show'),
+                    EditAction::make()->route('articles.edit'),
+                    DeleteAction::make()->route('articles.destroy', method: 'delete'),
+                ]),
             ])
             ->toolbarActions([
                 CreateAction::make()->route('articles.create'),
@@ -570,12 +579,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="p-8 max-w-7xl mx-auto space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Articles Directory</h1>
-      <p class="text-sm text-neutral-500">Manage database list records.</p>
-    </div>
-
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <KinetixTable :table="table" />
   </div>
 </template>
@@ -599,7 +603,7 @@ const handleSubmit = (values: Record<string, any>) => {
 </script>
 
 <template>
-  <div class="p-8 max-w-3xl mx-auto space-y-6">
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Create Article</h1>
       <p class="text-sm text-neutral-500">Add a new record to the database.</p>
@@ -650,7 +654,7 @@ const handleSubmit = (values: Record<string, any>) => {
 </script>
 
 <template>
-  <div class="p-8 max-w-3xl mx-auto space-y-6">
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Edit Article</h1>
       <p class="text-sm text-neutral-500">Modify the active record details.</p>

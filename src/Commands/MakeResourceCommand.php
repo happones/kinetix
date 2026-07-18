@@ -256,6 +256,8 @@ class MakeResourceCommand extends Command
         // registered, so nothing renders as a dead link.
         $reorderableChain = $reorderable ? "\n            ->reorderable()" : '';
 
+        // Row actions are grouped into a shadcn-style "⋯" dropdown by default;
+        // the empty group auto-hides when every child is unauthorized/unrouted.
         if ($simple) {
             $tableActions = <<<PHP
 
@@ -264,18 +266,22 @@ class MakeResourceCommand extends Command
                 CreateAction::make()->modal('create'),
             ])
             ->recordActions([
-                ViewAction::make()->modal('view'),
-                EditAction::make()->modal('edit'),
-                DeleteAction::make()->modal('delete'),
+                ActionGroup::make([
+                    ViewAction::make()->modal('view'),
+                    EditAction::make()->modal('edit'),
+                    DeleteAction::make()->modal('delete'),
+                ]),
             ]);
 PHP;
         } else {
             $tableActions = <<<PHP
 {$reorderableChain}
             ->recordActions([
-                ViewAction::make()->route('{$pluralSlug}.show'),
-                EditAction::make()->route('{$pluralSlug}.edit'),
-                DeleteAction::make()->route('{$pluralSlug}.destroy', method: 'delete'),
+                ActionGroup::make([
+                    ViewAction::make()->route('{$pluralSlug}.show'),
+                    EditAction::make()->route('{$pluralSlug}.edit'),
+                    DeleteAction::make()->route('{$pluralSlug}.destroy', method: 'delete'),
+                ]),
             ])
             ->toolbarActions([
                 CreateAction::make()->route('{$pluralSlug}.create'),
@@ -318,6 +324,7 @@ declare(strict_types=1);
 namespace App\Kinetix\Resources;
 
 use App\Models\\{$modelName};
+use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Actions\CreateAction;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
@@ -606,7 +613,7 @@ PHP;
             // <KinetixTable :table> — create/edit/view/delete + reorder are driven
             // by the serialized table (Table::recordModals()), so there is no
             // modal markup or submit wiring to maintain here.
-            $indexTemplate = <<<VUE
+            $indexTemplate = <<<'VUE'
 <script setup lang="ts">
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
@@ -620,14 +627,9 @@ defineProps<{
 </script>
 
 <template>
-  <div class="p-8 max-w-7xl mx-auto space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{$pluralName} Directory</h1>
-      <p class="text-sm text-neutral-500">Create, edit, view and reorder records — all inline from the table.</p>
-    </div>
-
-    <!-- The table drives everything: Create (toolbar), View/Edit/Delete (per row)
-         open modals hosted inside KinetixTable; drag handles reorder when enabled. -->
+  <!-- The table drives everything: Create (toolbar), View/Edit/Delete (per row)
+       open modals hosted inside KinetixTable; drag handles reorder when enabled. -->
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <KinetixTable :table="table" />
   </div>
 </template>
@@ -637,7 +639,7 @@ VUE;
             $this->line("Created Vue Page: [resources/js/pages/Kinetix/{$pluralName}/Index.vue] (Simple mode)");
         } else {
             // Create distinct multi-page views
-            $indexTemplate = <<<VUE
+            $indexTemplate = <<<'VUE'
 <script setup lang="ts">
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
@@ -651,14 +653,9 @@ defineProps<{
 </script>
 
 <template>
-  <div class="p-8 max-w-7xl mx-auto space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">{$pluralName} Directory</h1>
-      <p class="text-sm text-neutral-500">Manage database list records.</p>
-    </div>
-
-    <!-- The New button + row View/Edit/Delete come from the resource table()
-         actions (self-hiding when a route isn't registered). -->
+  <!-- The New button + row View/Edit/Delete come from the resource table()
+       actions (self-hiding when a route isn't registered). -->
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <KinetixTable :table="table" />
   </div>
 </template>
@@ -683,7 +680,7 @@ const handleSubmit = (values: Record<string, any>) => {
 </script>
 
 <template>
-  <div class="p-8 max-w-3xl mx-auto space-y-6">
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Create {$modelName}</h1>
       <p class="text-sm text-neutral-500">Add a new record to the database.</p>
@@ -735,7 +732,7 @@ const handleSubmit = (values: Record<string, any>) => {
 </script>
 
 <template>
-  <div class="p-8 max-w-3xl mx-auto space-y-6">
+  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Edit {$modelName}</h1>
       <p class="text-sm text-neutral-500">Modify the active record details.</p>

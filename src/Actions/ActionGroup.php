@@ -112,6 +112,13 @@ class ActionGroup
             }
         }
 
+        // Don't render an empty dropdown when every child is hidden/unauthorized
+        // (only meaningful with a record — the record-less template pass keeps the
+        // group so per-row serialization can still populate it).
+        if ($record !== null && $childData === []) {
+            return null;
+        }
+
         return new ActionData(
             name: $this->label !== null ? (string) str($this->label)->slug() : 'action-group',
             label: $this->label ?? '',

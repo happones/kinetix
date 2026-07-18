@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
@@ -85,5 +86,30 @@ class ActionRouteTest extends TestCase
 
         $this->assertNotNull($data);
         $this->assertNull($data->url);
+    }
+
+    public function test_action_group_hides_when_every_child_hides(): void
+    {
+        // A grouped set of unrouted actions collapses to nothing (no empty ⋯ menu).
+        $group = ActionGroup::make([
+            Action::make('a')->route('nonexistent.one'),
+            Action::make('b')->route('nonexistent.two'),
+        ]);
+
+        $this->assertNull($group->toData($this->record()));
+    }
+
+    public function test_action_group_keeps_the_surviving_children(): void
+    {
+        $group = ActionGroup::make([
+            Action::make('edit')->route('widgets.edit'),
+            Action::make('gone')->route('nonexistent.route'),
+        ]);
+
+        $data = $group->toData($this->record());
+
+        $this->assertNotNull($data);
+        $this->assertSame('group', $data->type);
+        $this->assertCount(1, $data->actions);
     }
 }

@@ -69,9 +69,11 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringNotContainsString('public function update(', $controller);
         $this->assertStringNotContainsString('public function destroy(', $controller);
 
-        // Actions + modals live on the RESOURCE's table() (single source of truth).
+        // Actions + modals live on the RESOURCE's table() (single source of truth),
+        // and the row actions are grouped into a shadcn-style dropdown.
         $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
         $this->assertStringContainsString('->recordModals(static::class)', $resource);
+        $this->assertStringContainsString('ActionGroup::make([', $resource);
         $this->assertStringContainsString("CreateAction::make()->modal('create')", $resource);
         $this->assertStringContainsString("ViewAction::make()->modal('view')", $resource);
         $this->assertStringContainsString("EditAction::make()->modal('edit')", $resource);
@@ -88,9 +90,11 @@ class MakeResourceCommandTest extends TestCase
             $this->assertSame(0, $code, "Generated file has a syntax error: {$php}\n".implode("\n", $out));
         }
 
-        // The page is just <KinetixTable :table> — no modal markup / submit wiring.
+        // The page is just <KinetixTable :table> inside the standard wrapper —
+        // no modal markup / submit wiring.
         $index = File::get(resource_path('js/pages/Kinetix/Posts/Index.vue'));
         $this->assertStringContainsString('<KinetixTable :table="table" />', $index);
+        $this->assertStringContainsString('flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4', $index);
         $this->assertStringNotContainsString('addEventListener', $index);
         $this->assertStringNotContainsString('openEditModal', $index);
         $this->assertStringNotContainsString('formBlueprint', $index);
@@ -169,6 +173,7 @@ class MakeResourceCommandTest extends TestCase
         // Action::route() (self-hiding when a route isn't registered).
         $resourcePath = app_path('Kinetix/Resources/PostResource.php');
         $resource     = File::get($resourcePath);
+        $this->assertStringContainsString('ActionGroup::make([', $resource);
         $this->assertStringContainsString("ViewAction::make()->route('posts.show')", $resource);
         $this->assertStringContainsString("EditAction::make()->route('posts.edit')", $resource);
         $this->assertStringContainsString("DeleteAction::make()->route('posts.destroy', method: 'delete')", $resource);
