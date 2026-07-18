@@ -319,7 +319,7 @@ defineProps<{ table: KinetixTableData }>();
 </script>
 
 <template>
-  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+  <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <KinetixTable :table="table" />
   </div>
 </template>
@@ -579,7 +579,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+  <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <KinetixTable :table="table" />
   </div>
 </template>
@@ -603,7 +603,7 @@ const handleSubmit = (values: Record<string, any>) => {
 </script>
 
 <template>
-  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+  <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Create Article</h1>
       <p class="text-sm text-neutral-500">Add a new record to the database.</p>
@@ -654,7 +654,7 @@ const handleSubmit = (values: Record<string, any>) => {
 </script>
 
 <template>
-  <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+  <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
     <div>
       <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Edit Article</h1>
       <p class="text-sm text-neutral-500">Modify the active record details.</p>

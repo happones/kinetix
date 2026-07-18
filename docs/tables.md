@@ -96,6 +96,27 @@ defineProps<{
 </template>
 ```
 
+::: warning Wide tables & `min-w-0`
+`KinetixTable` scrolls a too-wide table **inside its own card** (an
+`overflow-x-auto` container), and the card carries `min-w-0 max-w-full` so it can
+shrink to the available width. But a **flex** ancestor won't let it: a flex item
+defaults to `min-width: auto` and refuses to shrink below its content, so a wide
+table makes the whole column grow and the page overflows the viewport instead of
+scrolling locally.
+
+The fix is `min-w-0` on the flex chain between your layout and the table. The
+scaffolded page already applies it (`flex … min-w-0 …`); if you render
+`<KinetixTable>` inside your own layout, add `min-w-0` to the flex content
+column (a common starter-kit gotcha where the `<main>`/content flex item is
+missing it):
+
+```vue
+<div class="flex min-w-0 flex-1 flex-col">
+    <KinetixTable :table="postsTable" />
+</div>
+```
+:::
+
 ---
 
 ## Rendering Modes: Server-driven vs Client-side

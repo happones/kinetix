@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.111.1] - 2026-07-17
+
+### Fixed
+
+- **Wide tables no longer overflow the viewport in flex layouts (published).** A
+  flex item defaults to `min-width: auto` and won't shrink below its content, so
+  a many-column table grew its column and pushed the page instead of scrolling
+  inside its card. `KinetixTable`'s card now carries `min-w-0 max-w-full`, and the
+  scaffolded page wrapper adds `min-w-0`, so a too-wide table scrolls locally
+  (`overflow-x-auto`) as intended. Docs note the same `min-w-0` requirement for
+  custom layouts (a common starter-kit gotcha).
+
 ## [0.111.0] - 2026-07-17
 
 ### Changed

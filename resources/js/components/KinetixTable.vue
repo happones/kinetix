@@ -302,7 +302,7 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
     <div
         v-else
         data-slot="card"
-        class="kinetix-table-wrapper backdrop-blur-sm rounded-xl shadow-sm flex flex-col overflow-hidden border border-border bg-card text-card-foreground"
+        class="kinetix-table-wrapper backdrop-blur-sm rounded-xl shadow-sm min-w-0 flex max-w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
     >
         <KinetixTableToolbar
             v-model:search-query="searchQuery"
