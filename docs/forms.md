@@ -249,7 +249,7 @@ Wizard::make()
 Fields reside in the `Happones\Kinetix\Forms\Components` namespace. They all inherit from the base `Field` class, providing rich configuration options:
 
 ### Shared Field Methods
-- `label(string|Closure $label)`: Customizes field title. If omitted, Kinetix translates the column name into a TitleCase Headline.
+- `label(string|Closure $label)`: Customizes field title. If omitted, Kinetix translates the column name into a TitleCase Headline. Wrap an explicit label in `__()` to keep it translatable — `->label(__('posts.fields.title'))` (see [Localizing labels](/locale#translating-labels-you-declare-in-php-schemas)).
 - `default(mixed $value|Closure $value)`: Set initial fallback state.
 - `disabled(bool|Closure $condition = true)`: Prevent input mutations.
 - `placeholder(string|Closure $placeholder)`: Visual watermark.

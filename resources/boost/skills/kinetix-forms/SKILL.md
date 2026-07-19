@@ -24,6 +24,14 @@ Activate this skill when:
 
 For full details, reference the [Kinetix Forms Documentation](file:///home/happones/Plugins/Php/kinetix/docs/forms.md).
 
+## Localizing labels
+
+Any display string you set is **your app's copy** — wrap it in Laravel's `__()` so
+it's translatable: `->label()`, `->placeholder()`, `->helperText()`, section/tab
+headings, and `Select`/radio **option labels**
+(`TextInput::make('email')->label(__('posts.fields.email'))`). Fields with no
+explicit `->label()` are auto-humanized. See the **kinetix-locale** skill.
+
 ## Usage Guide
 
 ### 1. Form Schema Definition

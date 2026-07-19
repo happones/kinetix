@@ -165,7 +165,7 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
 
 ### Shared Column Methods
 - `make(string $name)`: Instantiates a column. The name can use dot-notation for relationship fields (e.g. `user.profile.phone`).
-- `label(string $label)`: Customizes the display label in the header.
+- `label(string $label)`: Customizes the display label in the header. Wrap it in `__()` to keep it translatable — `->label(__('posts.fields.title'))` (see [Localizing labels](/locale#translating-labels-you-declare-in-php-schemas)). Omit it and Kinetix auto-humanizes the column name.
 - `searchable(bool $condition = true)`: Enables search queries against this column.
 - `sortable(bool $condition = true, ?Closure $using = null)`: Enables active header sorting. The sort key is **allowlisted** against the defined sortable columns, so an arbitrary query-string value can never reach the query. Three modes:
   - Plain column (`TextColumn::make('name')->sortable()`) → `ORDER BY name`.

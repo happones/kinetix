@@ -1,6 +1,6 @@
 ---
 name: kinetix-locale
-description: "A self-service language switcher for Inertia apps. List supported locales and mount <KinetixLanguageSwitcher>; the choice persists in session + on the user and applies via App::setLocale(). Activates when adding a language/locale switcher or i18n switching UI."
+description: "A self-service language switcher for Inertia apps, plus how to make Kinetix schemas translatable. List supported locales and mount <KinetixLanguageSwitcher>; the choice persists in session + on the user and applies via App::setLocale(). Activates when adding a language/locale switcher or i18n switching UI, or when localizing labels/headings/placeholders set on Kinetix Tables, Forms, Actions, Infolists or Resources."
 license: MIT
 metadata:
   author: happones
@@ -13,6 +13,42 @@ metadata:
 Activate this skill when:
 - Adding a language / locale switcher to the header (or login screen).
 - Persisting a user's preferred language and applying it per request.
+- **Localizing the labels/headings you set on Kinetix schemas** (Tables, Forms,
+  Actions, Infolists, Resources) — see below.
+
+## Localizing labels declared in PHP (IMPORTANT)
+
+Kinetix ships its own UI strings already localized (7 locales). But **any display
+string YOU set on a builder is your app's copy** — wrap it in Laravel's `__()`
+helper so it is translatable. Never pass a raw literal.
+
+```php
+// ✅ localizable — resolves against your lang files
+TextColumn::make('title')->label(__('posts.fields.title'));
+TextInput::make('email')->label(__('posts.fields.email'))->placeholder(__('posts.placeholders.email'));
+$table->heading(__('posts.table.heading'))->description(__('posts.table.description'));
+EditAction::make()->label(__('common.edit'));
+SelectFilter::make('status')->options([
+    'draft'     => __('posts.status.draft'),
+    'published' => __('posts.status.published'),
+]);
+Section::make(__('posts.sections.meta'));
+TextEntry::make('title')->label(__('posts.fields.title'));
+
+// ❌ hardcoded — never translates
+TextInput::make('email')->label('Email address');
+```
+
+Applies to every display-string setter: `Table::heading()/description()`,
+`Column::label()`, form `->label()/->placeholder()/->helperText()`,
+`Action::label()/modalHeading()/modalDescription()`, filter/select **option
+labels**, `Section`/`Tab` headings, infolist `Entry::label()`, and
+`Resource::$navigationLabel`. Put the keys in your own `lang/{locale}/*.php` files
+(one per supported locale) — this is standard Laravel i18n; Kinetix just renders
+whatever the string resolves to at request time.
+
+Attribute-derived labels (`TextColumn::make('title')` with **no** `->label()`) are
+auto-humanized, so only wrap strings you actually type.
 
 ## Documentation
 

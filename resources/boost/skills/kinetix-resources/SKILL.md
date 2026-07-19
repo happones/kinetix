@@ -23,6 +23,15 @@ For component details, reference:
 - [Kinetix Tables Reference](file:///home/happones/Plugins/Php/kinetix/docs/tables.md)
 - [Kinetix Forms Reference](file:///home/happones/Plugins/Php/kinetix/docs/forms.md)
 
+## Localizing labels
+
+Every human-facing string across the resource's `table()`/`form()`/`infolist()`
+is **your app's copy** — wrap it in Laravel's `__()` so it's translatable
+(`->label(__('posts.fields.title'))`, `->heading(__('posts.table.heading'))`). For
+the sidebar entry, override `getNavigationLabel()` to return `__('posts.nav')`
+(you can't call `__()` in the `$navigationLabel` property default). Attribute-derived
+column/field labels need no wrapping. See the **kinetix-locale** skill.
+
 ---
 
 ## CRUD Architecture Pattern

@@ -124,3 +124,55 @@ KinetixLocale::set('es');        // persist + apply for the current user
 KinetixLocale::current();        // 'es'
 KinetixLocale::options();        // [['code' => 'en', 'label' => 'English'], ...]
 ```
+
+---
+
+## Translating labels you declare in PHP (schemas)
+
+Switching the locale only changes what a **translatable** string resolves to. Kinetix
+ships its *own* UI strings already localized (7 locales), but **every display string
+YOU set on a Table, Form, Action, Infolist or Resource is your app's copy** — so it
+must go through Laravel's [`__()`](https://laravel.com/docs/localization) helper. A
+raw literal is never translated, no matter which locale is active.
+
+```php
+// ❌ hardcoded — always English
+TextInput::make('email')->label('Email address');
+$table->heading('Blog posts');
+
+// ✅ translatable — resolves against your lang files at request time
+TextInput::make('email')->label(__('posts.fields.email'))->placeholder(__('posts.placeholders.email'));
+$table->heading(__('posts.table.heading'))->description(__('posts.table.description'));
+
+EditAction::make()->label(__('common.edit'));
+
+SelectFilter::make('status')->options([
+    'draft'     => __('posts.status.draft'),      // option labels are copy too
+    'published' => __('posts.status.published'),
+]);
+
+Section::make(__('posts.sections.meta'));         // form/infolist headings
+TextEntry::make('title')->label(__('posts.fields.title'));
+```
+
+This applies to every display-string setter: `Table::heading()` / `description()`,
+column `->label()`, form `->label()` / `->placeholder()` / `->helperText()`,
+`Action::label()` / `modalHeading()` / `modalDescription()`, filter & select
+**option labels**, `Section` / `Tab` headings, and infolist `Entry::label()`.
+
+For a resource's sidebar entry, override `getNavigationLabel()` (you can't call
+`__()` in the `$navigationLabel` property default):
+
+```php
+public static function getNavigationLabel(): string
+{
+    return __('posts.navigation');
+}
+```
+
+Put the keys in your own `lang/{locale}/posts.php` files (one per supported locale) —
+this is standard Laravel i18n; Kinetix simply renders whatever the string resolves to.
+
+> **No `->label()` = no wrapping needed.** A column/field/entry declared as
+> `TextColumn::make('published_at')` (no explicit label) is auto-humanized to
+> "Published at". Only wrap the strings you actually type.

@@ -22,6 +22,13 @@ Activate this skill when:
 
 For full details, reference the [Kinetix Infolists Documentation](file:///home/happones/Plugins/Php/kinetix/docs/infolists.md).
 
+## Localizing labels
+
+Any display string you set is **your app's copy** — wrap it in Laravel's `__()` so
+it's translatable: entry `->label()`, section/tab headings, `->placeholder()`
+(`TextEntry::make('title')->label(__('posts.fields.title'))`). Entries with no
+explicit `->label()` are auto-humanized. See the **kinetix-locale** skill.
+
 ## Usage Guide
 
 ### 1. Infolist Schema Definition

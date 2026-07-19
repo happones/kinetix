@@ -27,6 +27,15 @@ Activate this skill when:
 
 For full details, reference the [Kinetix Tables Documentation](file:///home/happones/Plugins/Php/kinetix/docs/tables.md).
 
+## Localizing labels
+
+Any display string you set is **your app's copy** — wrap it in Laravel's `__()` so
+it's translatable: `$table->heading(__('posts.table.heading'))`,
+`TextColumn::make('title')->label(__('posts.fields.title'))`, and filter/select
+**option labels** (`->options(['draft' => __('posts.status.draft')])`). Columns with
+no explicit `->label()` are auto-humanized (no wrapping needed). See the
+**kinetix-locale** skill.
+
 ## Usage Guide
 
 ### 1. Backend Schema Definition

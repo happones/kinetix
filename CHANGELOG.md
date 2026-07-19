@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **Localizing schema labels.** Documented that any display string a developer
+  sets on a Kinetix builder in PHP (`->label()`, `->heading()`, `->placeholder()`,
+  action labels, select/filter option labels, section/tab headings,
+  `getNavigationLabel()`, …) must go through Laravel's `__()` helper to be
+  translatable — with examples. Added to `docs/locale.md`, the `kinetix-locale`
+  boost skill, the umbrella `kinetix-development` skill, and the tables/forms/
+  resources/infolists boost skills so AI-assisted code is localizable by default.
+
 - **Starter-kit wide-table fix.** Documented how to stop a wide table overflowing
   the viewport in the Laravel Vue starter kit: a single global CSS rule
   (`[data-slot='sidebar-inset'] { min-width: 0 }`, the most general option since
