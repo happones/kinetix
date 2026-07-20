@@ -179,19 +179,29 @@ class PermissionController
      * A manager may only grant permissions they themselves hold; a super-admin
      * (Gate::before bypass) may grant anything.
      *
+     * "Hold" is evaluated through the **Gate**, not by reading Spatie's stored
+     * rows — because all enforcement flows through the Gate. A permission counts
+     * as held when the Gate grants it, whether that comes from a stored
+     * role/permission OR from a `Gate::before` bypass (e.g. a team **owner** whose
+     * rights are granted dynamically by the host app via `$user->ownsTeam(...)`).
+     * Reading `getAllPermissions()` alone would 403 such an owner, since their
+     * permissions never exist as `model_has_permissions`/`role_has_permissions`
+     * rows.
+     *
      * @param array<int, string> $permissions
      */
     protected function assertCanGrant(mixed $user, array $permissions): void
     {
-        if ($permissions === [] || SuperAdmin::check($user)) {
+        if ($permissions === [] || $user === null || SuperAdmin::check($user)) {
             return;
         }
 
-        $held = method_exists($user, 'getAllPermissions')
-            ? $user->getAllPermissions()->pluck('name')->all()
-            : [];
+        $gate = Gate::forUser($user);
 
-        $disallowed = array_values(array_diff($permissions, $held));
+        $disallowed = array_values(array_filter(
+            $permissions,
+            static fn (string $permission): bool => $gate->denies($permission),
+        ));
 
         if ($disallowed !== []) {
             abort(403, 'You cannot grant permissions you do not hold: '.implode(', ', $disallowed));

@@ -13,7 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.111.2] - 2026-07-19
+## [0.111.3] - 2026-07-20
+
+### Fixed
+
+- **Role management no longer 403s a team owner whose permissions come from
+  `Gate::before` (published).** The anti-escalation guard `assertCanGrant()` only
+  inspected Spatie's **stored** rows (`getAllPermissions()`), so a team owner
+  granted abilities dynamically via a host `Gate::before` (e.g.
+  `$user->ownsTeam($team)`) — with no `model_has_permissions`/`role_has_permissions`
+  rows — was wrongly refused ("You cannot grant permissions you do not hold")
+  even though the Gate authorizes them. The guard now resolves "held" through the
+  **Gate** (`Gate::forUser($user)->allows($permission)`), unifying with how all
+  Kinetix enforcement already works (stored perms + any `Gate::before` bypass).
+- **Frontend `can()` map now reflects `Gate::before` grants (published).** The
+  `kinetix_permissions` Inertia prop built the SPA capability map purely from
+  stored rows, so the same owner saw an **empty** map and the UI hid every
+  permission-gated control the server would allow. The shared `permissions` now
+  also includes any registered ability the Gate grants for the user (owner /
+  super-admin / any host dynamic grant), matching server-side authorization. Prop
+  shape is unchanged (no frontend change needed).
 
 ### Documentation
 

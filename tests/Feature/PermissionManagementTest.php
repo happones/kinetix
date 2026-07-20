@@ -10,6 +10,8 @@ use Happones\Kinetix\Tests\Concerns\CreatesPermissionTables;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
@@ -179,6 +181,54 @@ class PermissionManagementTest extends TestCase
             ->assertForbidden();
 
         $this->assertDatabaseMissing('roles', ['name' => 'billers']);
+    }
+
+    public function test_owner_whose_permissions_come_from_gate_before_can_grant_them(): void
+    {
+        // Regression: a team owner is granted every ability dynamically by the
+        // host app via Gate::before ($user->ownsTeam(...)), with NO Spatie rows.
+        // The anti-escalation guard consults the Gate, not stored rows, so the
+        // owner is not wrongly 403'd ("cannot grant permissions you do not hold").
+        $owner = PermUser::create(['name' => 'Owner']);
+        Gate::before(static fn ($user, string $ability): ?bool => (int) $user->getKey() === (int) $owner->getKey() ? true : null);
+
+        // The owner holds zero model_has_permissions / role_has_permissions rows.
+        $this->assertTrue($owner->getAllPermissions()->isEmpty());
+
+        $this->actingAs($owner)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'editor',
+                'permissions' => ['posts.view', 'posts.update'],
+            ])
+            ->assertCreated();
+
+        $role = Role::where('name', 'editor')->firstOrFail();
+        $this->assertEqualsCanonicalizing(['posts.view', 'posts.update'], $role->permissions->pluck('name')->all());
+
+        // And updating (which also runs the self-lockout guard) works too.
+        $this->actingAs($owner)
+            ->putJson("/_kinetix/permissions/roles/{$role->id}", ['permissions' => ['posts.view']])
+            ->assertOk();
+    }
+
+    public function test_gate_before_owner_capabilities_are_shared_to_the_frontend(): void
+    {
+        // Regression (frontend parity): the `kinetix_permissions` Inertia prop
+        // that builds the SPA's can() map must reflect Gate-granted abilities, not
+        // just stored rows — otherwise a Gate::before owner sees an empty map and
+        // the UI hides everything the server would authorize.
+        $owner = PermUser::create(['name' => 'Owner']);
+        Gate::before(static fn ($user, string $ability): ?bool => (int) $user->getKey() === (int) $owner->getKey() ? true : null);
+
+        $this->actingAs($owner);
+
+        /** @var callable $shared */
+        $shared = Inertia::getShared('kinetix_permissions');
+        $data   = value($shared);
+
+        $this->assertTrue($data['enabled']);
+        $this->assertContains('posts.view', $data['permissions']);
+        $this->assertContains('roles.manage', $data['permissions']);
     }
 
     public function test_the_super_admin_role_is_protected(): void

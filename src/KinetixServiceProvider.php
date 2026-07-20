@@ -1723,12 +1723,27 @@ class KinetixServiceProvider extends ServiceProvider
                 return ['enabled' => false, 'permissions' => [], 'roles' => [], 'isSuperAdmin' => false];
             }
 
+            // Start from the user's stored permission names…
+            $permissions = method_exists($user, 'getAllPermissions')
+                ? $user->getAllPermissions()->pluck('name')->all()
+                : [];
+
+            // …then add any registered permission the Gate grants dynamically —
+            // via a `Gate::before` bypass (a super-admin, or a team **owner**
+            // whose rights come from `$user->ownsTeam(...)`) — which has no stored
+            // row. Without this the SPA's can() map is empty for such users and
+            // the UI hides features the server would actually authorize.
+            $gate = Gate::forUser($user);
+            foreach (app(PermissionRegistry::class)->allPermissions() as $ability) {
+                if ($gate->allows($ability)) {
+                    $permissions[] = $ability;
+                }
+            }
+
             return [
                 'enabled'     => true,
-                'permissions' => method_exists($user, 'getAllPermissions')
-                    ? $user->getAllPermissions()->pluck('name')->values()->all()
-                    : [],
-                'roles' => method_exists($user, 'getRoleNames')
+                'permissions' => array_values(array_unique($permissions)),
+                'roles'       => method_exists($user, 'getRoleNames')
                     ? $user->getRoleNames()->values()->all()
                     : [],
                 // Mirror the server-side Gate::before bypass so the SPA doesn't
