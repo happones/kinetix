@@ -489,4 +489,12 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 
 ### Download endpoint & security
 
-`GET {prefix}/exports/download?token=…` (named `kinetix.exports.download`) streams the file. The token is an encrypted payload of the stored path + download name, constrained to the `kinetix-exports` directory; the route sits behind the configured `web`+`auth` middleware. It is registered **without** the team prefix so the URL can be generated from a queued job.
+`GET {prefix}/exports/download?token=…` (named `kinetix.exports.download`) streams the file. The token is an encrypted payload of the stored path + download name, constrained to the `kinetix-exports` directory; the route sits behind the configured `web`+`auth` middleware.
+
+> **Teams.** The export endpoints (`exports/start` and `exports/download`) are
+> the one Kinetix group registered **without** the `{current_team}` prefix:
+> both URLs are built server-side and token-signed, and the download link is
+> generated inside a queued job, which has no team route context. Team scoping
+> of the exported **data** belongs in the exporter's own `query()` (see the
+> importer's multi-tenancy section — the same "carry the context into the
+> queue" rule applies).

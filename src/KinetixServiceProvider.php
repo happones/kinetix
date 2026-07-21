@@ -1893,6 +1893,12 @@ class KinetixServiceProvider extends ServiceProvider
 
         if (config('kinetix.teams', false)) {
             $prefix = '{current_team}/'.$prefix;
+
+            // Same bridge as every other team-prefixed group: policy checks on
+            // these endpoints must see spatie's team-scoped roles/permissions.
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
         }
 
         Route::middleware($middleware)
@@ -1942,6 +1948,12 @@ class KinetixServiceProvider extends ServiceProvider
 
         if (config('kinetix.teams', false)) {
             $prefix = '{current_team}/'.$prefix;
+
+            // Same bridge as every other team-prefixed group: policy checks on
+            // these endpoints must see spatie's team-scoped roles/permissions.
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
         }
 
         Route::middleware($middleware)
@@ -2097,6 +2109,12 @@ class KinetixServiceProvider extends ServiceProvider
 
         if (config('kinetix.teams', false)) {
             $prefix = '{current_team}/'.$prefix;
+
+            // Same bridge as every other team-prefixed group: policy checks on
+            // these endpoints must see spatie's team-scoped roles/permissions.
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
         }
 
         Route::middleware($middleware)
@@ -2126,6 +2144,12 @@ class KinetixServiceProvider extends ServiceProvider
 
         if (config('kinetix.teams', false)) {
             $prefix = '{current_team}/'.$prefix;
+
+            // Same bridge as every other team-prefixed group: policy checks on
+            // these endpoints must see spatie's team-scoped roles/permissions.
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
         }
 
         Route::middleware($middleware)
@@ -2168,6 +2192,14 @@ class KinetixServiceProvider extends ServiceProvider
      * Registered without the team prefix so the signed download URL can be built
      * from a queued job that has no team route context. Access is guarded by the
      * signed token plus the configured middleware.
+     */
+    /**
+     * Register the export endpoints. Deliberately NOT nested under the
+     * `{current_team}` segment: both URLs are built server-side and
+     * token-signed (`ExportAction` signs the exporter; the download link is
+     * generated inside queued jobs, which have no team route context), so a
+     * team-prefixed download URL could never be constructed reliably. Team
+     * scoping of the exported data belongs to the exporter's own query.
      */
     protected function registerExportRoutes(): void
     {

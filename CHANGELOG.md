@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.112.1] - 2026-07-21
+
+### Fixed
+
+- **Team-scoped permission context on tables / imports / uploads /
+  notifications endpoints.** With `kinetix.teams` on, these four route groups
+  were nested under `{current_team}` but did not carry the
+  `kinetix.permissions.team` bridge middleware (unlike the other 27 Kinetix
+  groups), so policy checks on them — e.g. the simple-resource record-modal
+  endpoint's `view`/`create`/`update`/`delete` authorization — evaluated
+  without spatie's team context and denied users whose roles are team-scoped.
+  All team-prefixed groups now attach the bridge.
+
+### Documentation
+
+- Teams audit notes: export endpoints are the documented exception (registered
+  without the `{current_team}` prefix because their URLs are token-signed and
+  the download link is built inside queued jobs); billing keeps its own
+  per-module team flag (`kinetix.billing.teams`) and `{team}` parameter, and is
+  the only module honoring `kinetix.tenancy.subdomain`.
+
 ## [0.112.0] - 2026-07-21
 
 ### Added

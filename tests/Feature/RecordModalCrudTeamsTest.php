@@ -18,6 +18,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\PermissionServiceProvider;
 
 class RecordModalTeam extends Model
 {
@@ -97,11 +98,24 @@ class RecordModalCrudTeamsTest extends TestCase
     private RecordModalTeam $teamB;
 
     /**
+     * @param  Application              $app
+     * @return array<int, class-string>
+     */
+    protected function getPackageProviders($app): array
+    {
+        // Team-prefixed groups carry the `kinetix.permissions.team` middleware,
+        // which resolves spatie's PermissionRegistrar — its provider must boot.
+        return [...parent::getPackageProviders($app), PermissionServiceProvider::class];
+    }
+
+    /**
      * @param Application $app
      */
     protected function defineEnvironment($app): void
     {
         parent::defineEnvironment($app);
+
+        $app['config']->set('cache.default', 'array');
 
         // Registers the record endpoints under the `{current_team}` segment.
         $app['config']->set('kinetix.teams', true);

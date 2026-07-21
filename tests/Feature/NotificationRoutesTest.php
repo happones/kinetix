@@ -7,10 +7,12 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\KinetixServiceProvider;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Spatie\Permission\PermissionServiceProvider;
 
 class NotifiableUser extends Authenticatable
 {
@@ -25,6 +27,28 @@ class NotifiableUser extends Authenticatable
 
 class NotificationRoutesTest extends TestCase
 {
+    /**
+     * @param  Application              $app
+     * @return array<int, class-string>
+     */
+    protected function getPackageProviders($app): array
+    {
+        // The teams-enabled test re-registers the routes, which then carry the
+        // `kinetix.permissions.team` middleware — it resolves spatie's
+        // PermissionRegistrar, so its provider must be booted.
+        return [...parent::getPackageProviders($app), PermissionServiceProvider::class];
+    }
+
+    /**
+     * @param Application $app
+     */
+    protected function defineEnvironment($app): void
+    {
+        parent::defineEnvironment($app);
+
+        $app['config']->set('cache.default', 'array');
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
