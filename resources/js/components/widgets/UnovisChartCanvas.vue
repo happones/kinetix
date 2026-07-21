@@ -62,11 +62,9 @@ defineProps<{
             <span class="text-2xl font-bold text-foreground">{{
                 centerValue
             }}</span>
-            <span
-                v-if="centerCaption"
-                class="text-xs text-muted-foreground"
-                >{{ centerCaption }}</span
-            >
+            <span v-if="centerCaption" class="text-xs text-muted-foreground">{{
+                centerCaption
+            }}</span>
         </div>
     </div>
 

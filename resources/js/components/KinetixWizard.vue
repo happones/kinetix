@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, useSlots, watch, type Component } from 'vue';
+import { computed, ref, useSlots, watch } from 'vue';
+import type { Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixWizard } from '@/composables/useKinetixWizard';
 import { useKinetixWizardStatus } from '@/composables/useKinetixWizardStatus';

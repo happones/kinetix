@@ -97,8 +97,10 @@ const {
     confirm,
     cancel,
 } = useActionConfirmation();
-const handleActionClick = (action: KinetixAction, record?: KinetixTableRecord) =>
-    requestAction(action, record ? { record } : {});
+const handleActionClick = (
+    action: KinetixAction,
+    record?: KinetixTableRecord,
+) => requestAction(action, record ? { record } : {});
 
 // Solid primary button for toolbar actions (mirrors the server-driven table).
 const primaryActionClass = (action: { color?: string | null }) =>

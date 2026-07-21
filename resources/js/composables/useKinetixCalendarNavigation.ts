@@ -1,9 +1,10 @@
 import { today as zonedToday } from '@internationalized/date';
 import type { CalendarDate } from '@internationalized/date';
-import { computed, shallowRef, type ComputedRef, type ShallowRef } from 'vue';
+import { computed, shallowRef } from 'vue';
+import type { ComputedRef, ShallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixCalendarView } from '@/types';
 import { dateKeyOf, parseAnchorDate } from '@/composables/kinetixCalendarDates';
+import type { KinetixCalendarView } from '@/types';
 
 export interface UseKinetixCalendarNavigationOptions {
     weekStartsOn: () => number;

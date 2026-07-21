@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import KinetixRangeCalendar from '../../KinetixRangeCalendar.vue';
 import type { KinetixTableFilter } from '@/types';
+import KinetixRangeCalendar from '../../KinetixRangeCalendar.vue';
 
 type DateRangeValue = { from?: string | null; to?: string | null } | null;
 
@@ -29,7 +29,7 @@ const bound = (part: 'from' | 'to'): string =>
     <!-- shadcn calendar range -->
     <KinetixRangeCalendar
         v-if="filter.useCalendar"
-        :value="(value as DateRangeValue)"
+        :value="value as DateRangeValue"
         :number-of-months="filter.numberOfMonths"
         :locale="filter.locale"
         :weekday-format="filter.weekdayFormat"

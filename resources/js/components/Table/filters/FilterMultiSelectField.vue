@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import KinetixCheckboxList from '../../KinetixCheckboxList.vue';
 import type { KinetixTableFilter } from '@/types';
+import KinetixCheckboxList from '../../KinetixCheckboxList.vue';
 
 defineProps<{
     filter: KinetixTableFilter;

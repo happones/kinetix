@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { KinetixTableFilter } from '@/types';
 import KinetixDatePicker from '../../KinetixDatePicker.vue';
 import KinetixDateTimePicker from '../../KinetixDateTimePicker.vue';
-import type { KinetixTableFilter } from '@/types';
 
 const props = defineProps<{
     filter: KinetixTableFilter;

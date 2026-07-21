@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue';
+import { computed } from 'vue';
+import type { Component } from 'vue';
+import type { KinetixTableFilter } from '@/types';
 import FilterAddressField from './filters/FilterAddressField.vue';
 import FilterCheckboxField from './filters/FilterCheckboxField.vue';
 import FilterDateField from './filters/FilterDateField.vue';
@@ -8,7 +10,6 @@ import FilterMultiSelectField from './filters/FilterMultiSelectField.vue';
 import FilterNumberRangeField from './filters/FilterNumberRangeField.vue';
 import FilterPeriodField from './filters/FilterPeriodField.vue';
 import FilterSelectField from './filters/FilterSelectField.vue';
-import type { KinetixTableFilter } from '@/types';
 
 const props = defineProps<{
     filter: KinetixTableFilter;

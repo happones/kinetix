@@ -21,8 +21,14 @@ defineProps<{
 }>();
 
 const { t } = useI18n();
-const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
-    useActionConfirmation();
+const {
+    pendingAction,
+    isConfirmOpen,
+    processing,
+    requestAction,
+    confirm,
+    cancel,
+} = useActionConfirmation();
 
 const isOpen = ref(false);
 

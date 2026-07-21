@@ -42,6 +42,7 @@ watch(
         }
 
         const firstBad = props.tabs.findIndex((_, i) => tabHasError(i));
+
         if (firstBad !== -1) {
             active.value = String(firstBad);
         }

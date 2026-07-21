@@ -4,6 +4,13 @@ import prettier from 'eslint-config-prettier/flat';
 import importPlugin from 'eslint-plugin-import';
 import vue from 'eslint-plugin-vue';
 
+// NOTE: defineConfigWithVueTs scans the whole repo for .vue files at config
+// load, and its fast-glob call converts our `ignores` below to absolute
+// patterns — which do NOT prune directory traversal. If a circular symlink
+// exists under vendor/ (testbench's laravel/vendor -> project vendor), every
+// eslint run dies with ELOOP before linting a single file. The lint npm
+// scripts remove that symlink defensively; see package.json.
+
 const controlStatements = [
     'if',
     'return',
@@ -77,9 +84,10 @@ export default defineConfigWithVueTs(
     },
     {
         ignores: [
-            'vendor',
-            'node_modules',
-            'public',
+            'vendor/**',
+            'node_modules/**',
+            'public/**',
+            'storage/**',
         ],
     },
     prettier, // Turn off all rules that might conflict with Prettier

@@ -165,12 +165,12 @@ function toggleValue(val: string, checked: boolean): void {
 </script>
 
 <template>
-    <div class="flex flex-col gap-2">
+    <div class="gap-2 flex flex-col">
         <!-- Search Input -->
         <div v-if="searchable" class="relative">
             <input
                 type="text"
-                class="h-8 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:bg-input/30"
+                class="h-8 px-3 py-1 text-xs shadow-xs w-full rounded-md border border-input bg-transparent focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none dark:bg-input/30"
                 placeholder="Search..."
                 :value="searchQuery"
                 :disabled="disabled"
@@ -178,7 +178,7 @@ function toggleValue(val: string, checked: boolean): void {
             />
             <span
                 v-if="loading"
-                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground animate-pulse"
+                class="right-2.5 animate-pulse absolute top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground"
             >
                 Loading...
             </span>
@@ -190,7 +190,7 @@ function toggleValue(val: string, checked: boolean): void {
             :class="
                 inline
                     ? 'gap-4 flex-wrap items-center'
-                    : 'flex-col max-h-44 pr-1 overflow-y-auto'
+                    : 'max-h-44 pr-1 flex-col overflow-y-auto'
             "
         >
             <label

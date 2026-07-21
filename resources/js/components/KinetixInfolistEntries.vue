@@ -30,8 +30,14 @@ const { t } = useI18n();
 
 // Section header actions. Each recursive instance handles the actions of the
 // sections it renders, with its own confirmation modal (only one opens at a time).
-const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
-    useActionConfirmation();
+const {
+    pendingAction,
+    isConfirmOpen,
+    processing,
+    requestAction,
+    confirm,
+    cancel,
+} = useActionConfirmation();
 
 const sectionActionClass = (action: KinetixAction) =>
     buttonVariants({ variant: actionButtonVariant(action.color), size: 'sm' });

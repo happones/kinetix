@@ -99,7 +99,8 @@ async function onDelete(role: KinetixRole): Promise<void> {
                                 role.usersCount !== null &&
                                 role.usersCount !== undefined
                             "
-                            >· {{
+                            >·
+                            {{
                                 t('kinetix.role_members', {
                                     count: role.usersCount,
                                 })

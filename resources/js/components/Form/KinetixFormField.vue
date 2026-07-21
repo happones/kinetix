@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue';
+import { computed } from 'vue';
+import type { Component } from 'vue';
 import KinetixAddressPicker from '../KinetixAddressPicker.vue';
 import KinetixCheckboxList from '../KinetixCheckboxList.vue';
 import KinetixDateRangePicker from '../KinetixDateRangePicker.vue';

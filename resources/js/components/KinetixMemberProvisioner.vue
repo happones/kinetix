@@ -26,9 +26,7 @@ const role = ref(props.assignableRoles[0] ?? '');
 
 /** Headline-case a role slug for display (`support-agent` → `Support Agent`). */
 const roleLabel = (name: string): string =>
-    name
-        .replace(/[-_]+/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
+    name.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 /** KinetixSelect expects a `{ value: label }` record. */
 const roleOptions = computed<Record<string, string>>(() =>

@@ -26,8 +26,14 @@ const props = withDefaults(
     },
 );
 
-const { pendingAction, isConfirmOpen, processing, requestAction, confirm, cancel } =
-    useActionConfirmation();
+const {
+    pendingAction,
+    isConfirmOpen,
+    processing,
+    requestAction,
+    confirm,
+    cancel,
+} = useActionConfirmation();
 
 // Register keyboard shortcuts declared on header actions (auto-cleaned on unmount).
 const { register } = useKinetixHotkeys();

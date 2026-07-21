@@ -89,6 +89,7 @@ watch(
     serverErrors,
     (bag) => {
         const keys = Object.keys(bag);
+
         if (keys.length === 0) {
             return;
         }
@@ -101,10 +102,12 @@ watch(
 
 const onUpdateValue = (name: string, value: any) => {
     formValues.value[name] = value;
+
     // Hide any stale submit error for this field while it's being edited.
     if (serverErrors.value[name] && !dismissed.value[name]) {
         dismissed.value = { ...dismissed.value, [name]: true };
     }
+
     precognition?.validate(name);
 };
 

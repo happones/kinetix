@@ -18,7 +18,7 @@ const props = withDefaults(
         role="alert"
         :class="
             cn(
-                'relative w-full rounded-lg border px-4 py-3 text-sm [&>svg]:text-current [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4',
+                'rounded-lg px-4 py-3 text-sm [&>svg]:left-4 [&>svg]:top-4 relative w-full border [&>svg]:absolute [&>svg]:text-current [&>svg+div]:translate-y-[-3px]',
                 props.variant === 'destructive' &&
                     'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive/80',
                 props.class,

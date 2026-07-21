@@ -5,15 +5,16 @@ import {
     today as zonedToday,
     toZoned,
 } from '@internationalized/date';
-import { computed, type ComputedRef } from 'vue';
-import type { KinetixCalendarEvent, KinetixCalendarView } from '@/types';
+import { computed } from 'vue';
+import type { ComputedRef } from 'vue';
 import {
     dateKeyOf,
     dayOfWeekOf,
     eventsCoveringDay,
     prepareEvents,
-    type PreparedEvent,
 } from '@/composables/kinetixCalendarDates';
+import type { PreparedEvent } from '@/composables/kinetixCalendarDates';
+import type { KinetixCalendarEvent, KinetixCalendarView } from '@/types';
 
 export interface MonthDay {
     date: string;

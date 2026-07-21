@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import KinetixCheckbox from '../../KinetixCheckbox.vue';
 import type { KinetixTableFilter } from '@/types';
+import KinetixCheckbox from '../../KinetixCheckbox.vue';
 
-const props = defineProps<{
+defineProps<{
     filter: KinetixTableFilter;
     value: unknown;
 }>();

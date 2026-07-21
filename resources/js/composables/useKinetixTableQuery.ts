@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/vue3';
-import { onBeforeUnmount, type Ref } from 'vue';
+import { onBeforeUnmount } from 'vue';
+import type { Ref } from 'vue';
 import type { KinetixTableData } from '@/types';
 
 /**

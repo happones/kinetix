@@ -1,13 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
-import {
-    computed,
-    onMounted,
-    ref,
-    watch,
-    type ComputedRef,
-    type Ref,
-    type WritableComputedRef,
-} from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import type { ComputedRef, Ref, WritableComputedRef } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixApiLog,

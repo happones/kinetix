@@ -1,4 +1,5 @@
-import { ref, type Ref } from 'vue';
+import { ref } from 'vue';
+import type { Ref } from 'vue';
 import { xsrfToken } from '@/composables/useKinetixHttp';
 
 /**
@@ -84,6 +85,7 @@ export function useKinetixPrecognition(
         }
 
         const token = xsrfToken();
+
         if (token) {
             headers['X-XSRF-TOKEN'] = token;
         }
@@ -141,6 +143,7 @@ export function useKinetixPrecognition(
 
     const validate = (name: string): void => {
         const existing = timers.get(name);
+
         if (existing) {
             clearTimeout(existing);
         }

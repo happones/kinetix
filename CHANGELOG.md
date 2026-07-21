@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ESLint runs again.** `defineConfigWithVueTs` scans the repo for `.vue`
+  files at config load; its fast-glob call converts the config's `ignores` to
+  absolute patterns, which don't prune traversal — so it followed testbench's
+  circular `vendor/orchestra/testbench-core/laravel/vendor` symlink and every
+  eslint invocation crashed with ELOOP before linting anything. The lint npm
+  scripts now remove that symlink defensively (`prelint`/`prelint:check` —
+  testbench works without it; the full PHP suite passes), the `ignores`
+  patterns use explicit `/**` globs, and the ~47 style errors that accumulated
+  while the linter was broken are fixed (import order, top-level type imports,
+  padding lines, two unused symbols).
+
 ## [0.112.1] - 2026-07-21
 
 ### Fixed

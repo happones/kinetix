@@ -7,7 +7,9 @@ defineProps<{ class?: string }>();
 <template>
     <h5
         data-slot="alert-title"
-        :class="cn('mb-1 font-medium leading-none tracking-tight', $props.class)"
+        :class="
+            cn('mb-1 font-medium tracking-tight leading-none', $props.class)
+        "
     >
         <slot />
     </h5>

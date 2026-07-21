@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import type { KinetixTableFilter } from '@/types';
 import KinetixMonthPicker from '../../KinetixMonthPicker.vue';
 import KinetixWeekPicker from '../../KinetixWeekPicker.vue';
 import KinetixYearPicker from '../../KinetixYearPicker.vue';
-import type { KinetixTableFilter } from '@/types';
 
 defineProps<{
     filter: KinetixTableFilter;

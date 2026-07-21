@@ -4,7 +4,9 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "prelint": "rm -f vendor/orchestra/testbench-core/laravel/vendor",
         "lint": "eslint resources/js eslint.config.js --fix",
+        "prelint:check": "rm -f vendor/orchestra/testbench-core/laravel/vendor",
         "lint:check": "eslint resources/js eslint.config.js",
         "format": "prettier --write resources/js gallery tests/js",
         "format:check": "prettier --check resources/js gallery tests/js",

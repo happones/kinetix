@@ -51,7 +51,11 @@ const hasActions = computed(() => {
         return false;
     }
 
-    return props.subscription.active || props.subscription.onTrial || props.subscription.onGracePeriod;
+    return (
+        props.subscription.active ||
+        props.subscription.onTrial ||
+        props.subscription.onGracePeriod
+    );
 });
 </script>
 
@@ -92,7 +96,9 @@ const hasActions = computed(() => {
                     v-if="subscription.onTrial && formattedTrialEndsAt"
                     class="p-3 text-xs border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 font-medium rounded-md border"
                 >
-                    <template v-if="subscription.onGenericTrial && trialPlanName">
+                    <template
+                        v-if="subscription.onGenericTrial && trialPlanName"
+                    >
                         {{
                             t('kinetix.billing_trial_active_plan', {
                                 plan: trialPlanName,

@@ -9,10 +9,17 @@ const { t } = useI18n();
 </script>
 
 <template>
-    <Alert class="flex items-start gap-2 [&>svg]:static [&>svg]:translate-y-0 [&>svg+div]:translate-y-0">
-        <component :is="resolveIcon('info')" class="size-4 shrink-0 text-blue-500" />
+    <Alert
+        class="gap-2 [&>svg]:translate-y-0 [&>svg+div]:translate-y-0 flex items-start [&>svg]:static"
+    >
+        <component
+            :is="resolveIcon('info')"
+            class="size-4 text-blue-500 shrink-0"
+        />
         <div>
-            <AlertTitle>{{ t('kinetix.billing_trial_notice_title') }}</AlertTitle>
+            <AlertTitle>{{
+                t('kinetix.billing_trial_notice_title')
+            }}</AlertTitle>
             <AlertDescription>{{
                 t('kinetix.billing_trial_notice_description')
             }}</AlertDescription>

@@ -1,4 +1,5 @@
-import { computed, ref, watch, type ComputedRef } from 'vue';
+import { computed, ref, watch } from 'vue';
+import type { ComputedRef } from 'vue';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import type { KinetixTableRecord } from '@/types';
 

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { RefreshCw } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
 import type {
     IntegrationLogResult,
     IntegrationLogTab,
 } from '@/composables/useKinetixIntegrationLogs';
+import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
 import { cn } from '../primitives/cn';
 
 defineProps<{

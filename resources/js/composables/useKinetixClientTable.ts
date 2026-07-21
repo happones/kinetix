@@ -4,10 +4,10 @@ import {
     getPaginationRowModel,
     getSortedRowModel,
     useVueTable,
-    type ColumnDef,
-    type SortingState,
 } from '@tanstack/vue-table';
-import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import type { ColumnDef, SortingState } from '@tanstack/vue-table';
+import { computed, ref } from 'vue';
+import type { ComputedRef, Ref } from 'vue';
 import type { KinetixTableColumn, KinetixTableRecord } from '@/types';
 
 /**

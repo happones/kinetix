@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, type ComponentPublicInstance } from 'vue';
+import { computed, ref } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
 import type { KinetixKanbanCard } from '@/types';
@@ -55,9 +56,7 @@ const cardRows = computed<CardRow[]>(() =>
           })),
 );
 
-const measureRow = (
-    el: Element | ComponentPublicInstance | null,
-): void => {
+const measureRow = (el: Element | ComponentPublicInstance | null): void => {
     if (virtual.enabled.value && el instanceof Element) {
         virtual.measureElement(el);
     }

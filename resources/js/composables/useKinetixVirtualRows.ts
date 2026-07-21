@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/vue-virtual';
-import { computed, type ComputedRef, type Ref } from 'vue';
+import { computed } from 'vue';
+import type { ComputedRef } from 'vue';
 
 export interface UseKinetixVirtualRowsOptions {
     /** Reactive getter for the total number of rows. */

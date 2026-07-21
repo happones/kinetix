@@ -1,4 +1,5 @@
-import { computed, ref, type ComputedRef, type Ref } from 'vue';
+import { computed, ref } from 'vue';
+import type { ComputedRef, Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { executeAction } from '@/composables/useKinetixActions';
