@@ -30,6 +30,7 @@ use Happones\Kinetix\Commands\MakeNotificationCommand;
 use Happones\Kinetix\Commands\MakeRelationManagerCommand;
 use Happones\Kinetix\Commands\MakeReportCommand;
 use Happones\Kinetix\Commands\MakeResourceCommand;
+use Happones\Kinetix\Commands\MakeRolesPageCommand;
 use Happones\Kinetix\Commands\MakeSettingsPageCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
@@ -313,6 +314,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeNotificationCommand::class,
                 SendNotificationCommand::class,
                 MakeResourceCommand::class,
+                MakeRolesPageCommand::class,
                 MakeActionCommand::class,
                 MakeTableCommand::class,
                 MakeFormCommand::class,

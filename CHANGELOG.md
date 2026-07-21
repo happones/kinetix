@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.113.0] - 2026-07-21
+
+### Added
+
+- **`KinetixRolesOverview` (published)** — an at-a-glance roles & permissions
+  audit view modeled after the "permission matrix" pattern: role cards (member
+  counts + the modules each role touches) plus a READ-ONLY matrix with one row
+  per module and one column per role. Cells show a check (all abilities), a
+  `granted/total` badge (partial) or an em-dash (none); the header row and
+  module column stay sticky. Create/edit reuse the same editor modal as
+  `KinetixRoleMatrix` (a card's pencil or a role's column header opens it).
+- **`kinetix:make-roles-page`** — scaffolds
+  `resources/js/pages/Kinetix/Roles/Index.vue` mounting the overview behind
+  `roles.manage` (with a denied fallback) and prints the (team-aware) route to
+  register. `--force` overwrites.
+- New translatable strings (`permission_matrix`, `role_matrix_full`,
+  `role_matrix_partial`, `role_matrix_none`, `role_more_features`) in all seven
+  locales.
+
+### Changed
+
+- **Sticky role-matrix editor (published).** The `KinetixRoleMatrix` editor
+  modal now scrolls the matrix inside its own container with a sticky header
+  row AND a sticky module column, so the ability being granted and its module
+  stay visible on long catalogs; the name field and Save/Cancel footer no
+  longer scroll away. The module row-toggle is a real button
+  (keyboard/screen-reader accessible) and each cell carries `aria-pressed` +
+  an `aria-label`. The editor dialog and delete confirmation are extracted to
+  reusable `Roles/KinetixRoleEditorModal.vue` / `Roles/KinetixRoleDeleteDialog.vue`
+  (shared with the new overview) — re-publish components to pick this up.
+
 ### Fixed
 
 - **ESLint runs again.** `defineConfigWithVueTs` scans the repo for `.vue`

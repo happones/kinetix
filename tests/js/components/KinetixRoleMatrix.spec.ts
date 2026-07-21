@@ -120,9 +120,10 @@ describe('KinetixRoleMatrix', () => {
         await w.vm.$nextTick();
 
         // Toggle the full "Orders" row on (refund was off → adds every ability).
-        const orders = [...document.body.querySelectorAll('tbody td')].find(
-            (td) => td.textContent?.trim() === 'Orders',
-        ) as HTMLElement;
+        // The module name is a real <button> now (keyboard/AT accessible).
+        const orders = [
+            ...document.body.querySelectorAll('tbody td button'),
+        ].find((btn) => btn.textContent?.trim() === 'Orders') as HTMLElement;
         orders.click();
         await w.vm.$nextTick();
 

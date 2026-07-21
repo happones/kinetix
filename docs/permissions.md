@@ -424,7 +424,9 @@ cards** (with live member counts) and edits each role in a modal whose table has
 one row per feature and one column per ability — canonical CRUD columns first
 (`viewAny → forceDelete`), custom abilities appended, and an em-dash where a
 feature doesn't declare that ability. Clicking a module name toggles its whole
-row. Same endpoints, gating and team rules as `KinetixRoleManager`:
+row, and the **header row and module column stay sticky** while the catalog
+scrolls, so you always see which ability and module you are granting. Same
+endpoints, gating and team rules as `KinetixRoleManager`:
 
 ```vue
 <KinetixCan permission="roles.manage">
@@ -434,6 +436,43 @@ row. Same endpoints, gating and team rules as `KinetixRoleManager`:
 
 <Screenshot name="role-matrix" alt="Role cards with member counts" />
 <Screenshot name="role-matrix-editor" alt="Role editor — module × ability matrix" />
+
+### `KinetixRolesOverview` — audit everything at a glance
+
+Want to see **who can do what without opening each role**?
+`<KinetixRolesOverview>` pairs the role cards (member counts + the modules each
+role touches) with a **read-only permission matrix**: one row per module, one
+column per role. Each cell shows a check (every ability granted), a
+`granted/total` badge (partial) or an em-dash (none) — with sticky header row
+and module column for large catalogs. The Create button, a card's pencil, or a
+role's column header open the same editor modal `KinetixRoleMatrix` uses:
+
+```vue
+<KinetixCan permission="roles.manage">
+  <KinetixRolesOverview />
+</KinetixCan>
+```
+
+#### Ready-made page (`kinetix:make-roles-page`)
+
+Scaffold a full page with those features already wired:
+
+```bash
+php artisan kinetix:make-roles-page   # --force to overwrite
+```
+
+It writes `resources/js/pages/Kinetix/Roles/Index.vue` (the overview behind
+`roles.manage`, with a denied fallback) — register just its route; there is no
+controller because the component talks to Kinetix's own endpoints:
+
+```php
+Route::get('roles', fn () => inertia('Kinetix/Roles/Index'))->name('roles.index');
+
+// Teams on? Nest it under the {current_team} segment like your other routes:
+Route::prefix('{current_team}')->group(function () {
+    Route::get('roles', fn () => inertia('Kinetix/Roles/Index'))->name('roles.index');
+});
+```
 
 It talks to the built-in endpoints registered under your Kinetix route prefix
 (team-aware), all gated by `roles.manage` (super-admin bypasses):
