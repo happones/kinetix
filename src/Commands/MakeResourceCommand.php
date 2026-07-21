@@ -517,8 +517,12 @@ PHP;
     {
         \$form = {$resourceClass}::form(Form::make(new {$modelName}()))->fill();
 
+        // URLs are resolved server-side (getUrl() fills the `{current_team}`
+        // segment and route keys), so the page never rebuilds routes itself.
         return inertia('Kinetix/{$pluralName}/Create', [
             'form' => \$form->toArray(),
+            'storeUrl' => {$resourceClass}::getUrl('store'),
+            'cancelUrl' => {$resourceClass}::getUrl('index'),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('create'),
         ]);
     }
@@ -557,7 +561,8 @@ PHP;
 
         return inertia('Kinetix/{$pluralName}/Edit', [
             'form' => \$form->toArray(),
-            'recordId' => \$record->getKey(),
+            'updateUrl' => {$resourceClass}::getUrl('update', \$record),
+            'cancelUrl' => {$resourceClass}::getUrl('index'),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('edit', \$record),
         ]);
     }
@@ -667,15 +672,23 @@ import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
 import type { KinetixBreadcrumb } from '@/types';
 
-defineProps<{
+// `storeUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
+// team-scoped routes ({current_team}) work with no client-side team handling.
+const props = defineProps<{
   form: any;
+  storeUrl: string;
+  cancelUrl: string;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
 const handleSubmit = (values: Record<string, any>) => {
-  router.post('/{$pluralSlug}', values, {
+  router.post(props.storeUrl, values, {
     preserveScroll: true,
   });
+};
+
+const handleCancel = () => {
+  router.get(props.cancelUrl);
 };
 </script>
 
@@ -692,7 +705,7 @@ const handleSubmit = (values: Record<string, any>) => {
           <div class="flex justify-end gap-3 mt-6">
             <button
               type="button"
-              @click="router.get('/{$pluralSlug}')"
+              @click="handleCancel"
               class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
               Cancel
@@ -718,16 +731,23 @@ import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
 import type { KinetixBreadcrumb } from '@/types';
 
+// `updateUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
+// team-scoped routes ({current_team}) work with no client-side team handling.
 const props = defineProps<{
   form: any;
-  recordId: number;
+  updateUrl: string;
+  cancelUrl: string;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
 const handleSubmit = (values: Record<string, any>) => {
-  router.put(`/{$pluralSlug}/\${props.recordId}`, values, {
+  router.put(props.updateUrl, values, {
     preserveScroll: true,
   });
+};
+
+const handleCancel = () => {
+  router.get(props.cancelUrl);
 };
 </script>
 
@@ -744,7 +764,7 @@ const handleSubmit = (values: Record<string, any>) => {
           <div class="flex justify-end gap-3 mt-6">
             <button
               type="button"
-              @click="router.get('/{$pluralSlug}')"
+              @click="handleCancel"
               class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
               Cancel

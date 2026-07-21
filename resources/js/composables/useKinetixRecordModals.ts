@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
@@ -34,6 +34,8 @@ interface RecordModalOptions {
  * All state is plain refs (no watchers/bindings) so nothing leaks.
  */
 export function useKinetixRecordModals(options: RecordModalOptions) {
+    const page = usePage();
+
     const isFormOpen = ref(false);
     const isInfolistOpen = ref(false);
     const isDeleteOpen = ref(false);
@@ -67,6 +69,24 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         });
     };
 
+    /**
+     * Drop validation errors left over from a previous modal submit. KinetixForm
+     * renders `page.props.errors`, which Inertia only replaces on the next
+     * visit — without this, a cancelled-then-reopened modal would show the old
+     * error bag on a pristine form.
+     */
+    const clearStaleErrors = () => {
+        const errors = page.props.errors as Record<string, string> | undefined;
+
+        if (!errors) {
+            return;
+        }
+
+        for (const key of Object.keys(errors)) {
+            delete errors[key];
+        }
+    };
+
     const openCreate = (action?: KinetixAction) => {
         const blueprint = options.config()?.createForm;
 
@@ -74,6 +94,7 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
             return;
         }
 
+        clearStaleErrors();
         isEditing.value = false;
         activeRecordId.value = null;
         activeLabel.value = action?.label ?? '';
@@ -89,6 +110,7 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         record: KinetixTableRecord,
         action?: KinetixAction,
     ) => {
+        clearStaleErrors();
         isEditing.value = true;
         activeRecordId.value = record.id;
         activeLabel.value = action?.label ?? '';
@@ -218,16 +240,23 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         pendingDelete.value = null;
     };
 
+    /**
+     * Cancel/close the form modal: hides it and drops the form DTO so nothing
+     * stale flashes on the next open (each open rebuilds it from the blueprint
+     * or a fresh server fetch).
+     */
     const closeForm = () => {
         if (processing.value) {
             return;
         }
 
         isFormOpen.value = false;
+        activeForm.value = null;
     };
 
     const closeInfolist = () => {
         isInfolistOpen.value = false;
+        activeInfolist.value = null;
     };
 
     /**

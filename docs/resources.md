@@ -303,6 +303,23 @@ class ProductResource extends Resource
 `resolveHref('index' | 'edit' | 'show', $record)` builds the URL (team params
 auto-filled). Delete always returns to the index.
 
+#### Operation URLs (`Resource::getUrl()`)
+
+The same resolver is public as `getUrl(operation, ?record)`, and it is how the
+generated controller hands ready-made URLs to the Vue pages (`storeUrl`,
+`updateUrl`, `cancelUrl`). It fills the record's route key **and the
+`{current_team}` segment** when the route expects one, so the pages work
+unchanged in team-scoped apps — no client-side team handling needed:
+
+```php
+ProductResource::getUrl('index');            // /products (or /acme/products)
+ProductResource::getUrl('store');            // POST target for create
+ProductResource::getUrl('update', $record);  // PUT target for edit
+```
+
+When the named route isn't registered, `getUrl()` falls back to the current URL
+(same behavior as breadcrumbs).
+
 ### 2. Simple Resource (`--simple`)
 Generates a **single index page** whose table hosts every interaction: create
 (toolbar), and per-row view, edit and delete — all as modals inside
@@ -385,6 +402,18 @@ per table:
 **View modal.** The View action renders the resource's `infolist()` (server-
 resolved, read-only). `--generate` scaffolds an `infolist()` for you; remove the
 method (or the `ViewAction`) to drop the View button.
+
+**Cancel / close.** The form modal's Cancel button (and the backdrop / × button)
+closes the modal and discards its state; the next open rebuilds the form from
+the blueprint (create) or a fresh server fetch (edit), and any validation errors
+left over from a previous submit are cleared — a reopened modal always starts
+pristine. Closing is blocked while a submit is in flight.
+
+**Teams.** Nothing extra is needed: the record endpoint is registered under the
+`{current_team}` segment when `kinetix.teams` is on, the frontend reads the
+team-scoped prefix from the shared `kinetix_config.route_prefix` prop, and the
+`--team` scaffold scopes the resource's `getEloquentQuery()` /
+`mutateFormDataBeforeSave()` so lookups and writes stay inside the current team.
 
 #### Generated Directory File Tree
 ```
@@ -508,7 +537,13 @@ class ArticleController extends Controller
     {
         $form = ArticleResource::form(Form::make(new Article()))->fill();
 
-        return inertia('Kinetix/Articles/Create', ['form' => $form->toArray()]);
+        // URLs are resolved server-side (getUrl() fills `{current_team}` and
+        // route keys), so the page never rebuilds routes itself.
+        return inertia('Kinetix/Articles/Create', [
+            'form' => $form->toArray(),
+            'storeUrl' => ArticleResource::getUrl('store'),
+            'cancelUrl' => ArticleResource::getUrl('index'),
+        ]);
     }
 
     public function store(Request $request)
@@ -539,7 +574,8 @@ class ArticleController extends Controller
 
         return inertia('Kinetix/Articles/Edit', [
             'form' => $form->toArray(),
-            'recordId' => $record->getKey(),
+            'updateUrl' => ArticleResource::getUrl('update', $record),
+            'cancelUrl' => ArticleResource::getUrl('index'),
         ]);
     }
 
@@ -591,14 +627,22 @@ defineProps<{
 import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
 
-defineProps<{
+// `storeUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
+// team-scoped routes ({current_team}) work with no client-side team handling.
+const props = defineProps<{
   form: any;
+  storeUrl: string;
+  cancelUrl: string;
 }>();
 
 const handleSubmit = (values: Record<string, any>) => {
-  router.post('/articles', values, {
+  router.post(props.storeUrl, values, {
     preserveScroll: true,
   });
+};
+
+const handleCancel = () => {
+  router.get(props.cancelUrl);
 };
 </script>
 
@@ -615,7 +659,7 @@ const handleSubmit = (values: Record<string, any>) => {
           <div class="flex justify-end gap-3 mt-6">
             <button
               type="button"
-              @click="router.get('/articles')"
+              @click="handleCancel"
               class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
               Cancel
@@ -641,15 +685,22 @@ const handleSubmit = (values: Record<string, any>) => {
 import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
 
+// `updateUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
+// team-scoped routes ({current_team}) work with no client-side team handling.
 const props = defineProps<{
   form: any;
-  recordId: number;
+  updateUrl: string;
+  cancelUrl: string;
 }>();
 
 const handleSubmit = (values: Record<string, any>) => {
-  router.put(`/articles/${props.recordId}`, values, {
+  router.put(props.updateUrl, values, {
     preserveScroll: true,
   });
+};
+
+const handleCancel = () => {
+  router.get(props.cancelUrl);
 };
 </script>
 
@@ -666,7 +717,7 @@ const handleSubmit = (values: Record<string, any>) => {
           <div class="flex justify-end gap-3 mt-6">
             <button
               type="button"
-              @click="router.get('/articles')"
+              @click="handleCancel"
               class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
               Cancel
@@ -731,6 +782,11 @@ Route::prefix('{current_team}')->group(function () {
     Route::delete('articles/{id}/force-delete', [ArticleController::class, 'forceDelete'])->name('articles.force-delete');
 });
 ```
+
+No frontend change is needed for the team segment: the generated pages submit
+and cancel through server-resolved props (`storeUrl` / `updateUrl` /
+`cancelUrl`, built with `Resource::getUrl()`), and row/toolbar actions declared
+with `->route()` auto-fill `current_team` per record.
 
 ---
 

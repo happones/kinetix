@@ -255,6 +255,66 @@ class MakeResourceCommandTest extends TestCase
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
     }
 
+    public function test_full_resource_pages_submit_via_server_resolved_urls(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
+
+        // The controller resolves every URL the pages need (Resource::getUrl()
+        // fills the `{current_team}` segment and the record's route key).
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        $this->assertStringContainsString("'storeUrl' => PostResource::getUrl('store')", $controller);
+        $this->assertStringContainsString("'updateUrl' => PostResource::getUrl('update', \$record)", $controller);
+        $this->assertStringContainsString("'cancelUrl' => PostResource::getUrl('index')", $controller);
+
+        $create = File::get(resource_path('js/pages/Kinetix/Posts/Create.vue'));
+        $edit   = File::get(resource_path('js/pages/Kinetix/Posts/Edit.vue'));
+
+        $this->assertStringContainsString('router.post(props.storeUrl', $create);
+        $this->assertStringContainsString('router.put(props.updateUrl', $edit);
+
+        // Both pages cancel through the server-resolved index URL, and neither
+        // hardcodes a '/posts' URL that would break under a team prefix.
+        foreach ([$create, $edit] as $pageSource) {
+            $this->assertStringContainsString('@click="handleCancel"', $pageSource);
+            $this->assertStringContainsString('router.get(props.cancelUrl)', $pageSource);
+            $this->assertStringNotContainsString("'/posts'", $pageSource);
+            $this->assertStringNotContainsString('`/posts/', $pageSource);
+        }
+
+        // updateUrl replaces the old recordId prop entirely.
+        $this->assertStringNotContainsString('recordId', $edit);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_team_resource_pages_match_the_non_team_pages(): void
+    {
+        // Pages are team-agnostic by design: the server resolves the URLs, so
+        // the same Vue output must be generated with and without --team.
+        $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
+        $create = File::get(resource_path('js/pages/Kinetix/Posts/Create.vue'));
+        $edit   = File::get(resource_path('js/pages/Kinetix/Posts/Edit.vue'));
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--team' => true])->assertSuccessful();
+
+        $this->assertSame($create, File::get(resource_path('js/pages/Kinetix/Posts/Create.vue')));
+        $this->assertSame($edit, File::get(resource_path('js/pages/Kinetix/Posts/Edit.vue')));
+
+        // The team controller still resolves URLs through the resource.
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        $this->assertStringContainsString("PostResource::getUrl('store')", $controller);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
     public function test_generated_controller_passes_resource_breadcrumbs(): void
     {
         $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();

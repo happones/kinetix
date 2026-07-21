@@ -280,6 +280,18 @@ abstract class Resource
     }
 
     /**
+     * Public URL for a resource operation ('index' | 'create' | 'store' |
+     * 'show' | 'edit' | 'update' | 'destroy'), auto-filling the record's route
+     * key and the `{current_team}` segment when the route expects them. Use it
+     * from controllers to hand ready-made URLs to the Vue pages, so the
+     * frontend never rebuilds (team-scoped) routes itself.
+     */
+    public static function getUrl(string $operation, ?Model $record = null): string
+    {
+        return static::resolveHref($operation, $record);
+    }
+
+    /**
      * Resolve a route href for an operation, auto-filling required params (the
      * record + a `current_team` when the route expects one). Falls back to the
      * current URL when the route can't be built.
