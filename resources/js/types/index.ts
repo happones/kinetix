@@ -65,6 +65,8 @@ export interface KinetixSharedProps {
     kinetix_impersonation?: KinetixImpersonationState;
     /** Resolved feature flags for the current scope (name → on/off). */
     kinetix_features?: Record<string, boolean>;
+    /** The billable's current plan (+ features JSON), for useKinetixPlan / <KinetixPlanFeature>. */
+    kinetix_billing?: KinetixBillingState;
     /** Supported locales + the active one, for the language switcher. */
     kinetix_locale?: KinetixLocaleState;
     /** The user's teams + switch URLs, for the team switcher. */
@@ -83,6 +85,17 @@ export interface KinetixSharedProps {
     kinetix_confidential?: KinetixConfidentialConfig;
     auth?: { user?: { id: number | string } | null };
     [key: string]: unknown;
+}
+
+/** The billable's current plan shared via Inertia (`kinetix_billing`). */
+export interface KinetixBillingState {
+    enabled: boolean;
+    plan: {
+        slug: string;
+        name: string;
+        /** The plan's nested features JSON (usage limits + capability flags). */
+        features: Record<string, unknown>;
+    } | null;
 }
 
 /** Cookie consent bar config shared via Inertia. */

@@ -57,6 +57,18 @@ class PlanTest extends TestCase
         $this->assertFalse($plan->hasReachedLimit('usage.missing', 9999));
     }
 
+    public function test_remaining_limit_floors_at_zero_and_null_means_unlimited(): void
+    {
+        $plan = $this->plan(['usage' => ['projects' => 3, 'members' => null]]);
+
+        $this->assertSame(3, $plan->remainingLimit('usage.projects', 0));
+        $this->assertSame(1, $plan->remainingLimit('usage.projects', 2));
+        $this->assertSame(0, $plan->remainingLimit('usage.projects', 3));
+        $this->assertSame(0, $plan->remainingLimit('usage.projects', 99));
+        $this->assertNull($plan->remainingLimit('usage.members', 9999));
+        $this->assertNull($plan->remainingLimit('usage.missing', 9999));
+    }
+
     public function test_pricing_helpers(): void
     {
         $plan = $this->plan();

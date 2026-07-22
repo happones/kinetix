@@ -234,6 +234,7 @@ The slug is generated from the name automatically. Feature-gating helpers:
 | `featureValue('usage.projects')` | Raw value at the dot-path |
 | `canUseFeature('capabilities.api')` | `bool` as-is · array → non-empty · else truthy |
 | `hasReachedLimit('usage.projects', $count)` | `null` limit = unlimited |
+| `remainingLimit('usage.projects', $count)` | Units left (floored at 0); `null` = unlimited |
 | `priceFor('monthly'\|'yearly')` | Float price for the cycle |
 | `stripePriceId('monthly'\|'yearly')` | Stripe price id for the cycle |
 | `isFree()` | `true` when `is_free` column is `true` or `monthly_price <= 0` |
@@ -241,11 +242,12 @@ The slug is generated from the name automatically. Feature-gating helpers:
 ### Feature gating from the billable
 
 ```php
-$user->currentPlan();                          // ?Plan (from the active subscription's price)
-$user->onPlan('pro');                           // bool
-$user->canUseFeature('capabilities.api');       // bool
-$user->planFeature('usage.projects', 0);        // raw value or default
-$user->hasReachedPlanLimit('usage.projects', 5);// bool
+$user->currentPlan();                             // ?Plan (from the active subscription's price)
+$user->onPlan('pro');                              // bool
+$user->canUseFeature('capabilities.api');          // bool
+$user->planFeature('usage.projects', 0);           // raw value or default
+$user->hasReachedPlanLimit('usage.projects', 5);   // bool
+$user->remainingPlanLimit('usage.projects', 5);    // ?int — units left; null = unlimited
 ```
 
 Gate a route on a feature with the `plan.feature` middleware:
@@ -253,6 +255,78 @@ Gate a route on a feature with the `plan.feature` middleware:
 ```php
 Route::post('/api/tokens', ...)->middleware('plan.feature:capabilities.api');
 ```
+
+Enforce a usage limit before a write (there is no generic middleware for counts
+— only your app knows what to count):
+
+```php
+public function store(Request $request)
+{
+    $team = $request->user()->currentTeam;
+
+    abort_if(
+        $team->hasReachedPlanLimit('usage.products', $team->products()->count()),
+        403,
+        'Your plan limit for products has been reached.',
+    );
+
+    // ...create the product.
+}
+```
+
+### Gate the UI by plan (frontend)
+
+When `kinetix.billing.enabled` is on, Kinetix shares the billable's **current
+plan** (slug/name + the features JSON) as the `kinetix_billing` Inertia prop —
+so menus, buttons and CTAs gate on the same dot-paths the server enforces, with
+no controller wiring. `useKinetixPlan()` mirrors every backend helper:
+
+```vue
+<script setup lang="ts">
+import { useKinetixPlan } from '@/composables/useKinetixPlan';
+
+const { plan, onPlan, canUseFeature, featureValue, hasReachedLimit, remaining } =
+    useKinetixPlan();
+
+canUseFeature('capabilities.api');           // show the API menu item?
+hasReachedLimit('usage.products', count);    // disable "Add product"?
+remaining('usage.products', count);          // "3 left on your plan" (null = unlimited)
+featureValue('usage.products');              // raw value
+onPlan('pro');                               // plan check
+</script>
+```
+
+Or declaratively with `<KinetixPlanFeature>` — the billing twin of
+`<KinetixCan>`, with a capability mode and a usage-limit mode:
+
+```vue
+<!-- Capability: show a menu item only when the plan grants it -->
+<KinetixPlanFeature feature="capabilities.api">
+  <SidebarItem href="/api-tokens">API tokens</SidebarItem>
+  <template #denied>
+    <UpgradeBadge>Pro</UpgradeBadge>
+  </template>
+</KinetixPlanFeature>
+
+<!-- Usage limit: CTA while under the limit, upgrade hint at the limit.
+     `remaining` is exposed to both slots (null = unlimited). -->
+<KinetixPlanFeature limit="usage.products" :count="products.length">
+  <template #default="{ remaining }">
+    <Button @click="createProduct">Add product</Button>
+    <span v-if="remaining !== null" class="text-xs text-muted-foreground">
+      {{ remaining }} left on your plan
+    </span>
+  </template>
+  <template #denied>
+    <Button as="a" href="/billing">Upgrade to add more products</Button>
+  </template>
+</KinetixPlanFeature>
+```
+
+> **Display gating only.** The shared plan lets the SPA hide/disable UI, but the
+> server must still enforce every feature and limit on the write path
+> (`plan.feature` middleware, `hasReachedPlanLimit()` checks) — page props are
+> user-visible data, never authorization.
 
 ---
 

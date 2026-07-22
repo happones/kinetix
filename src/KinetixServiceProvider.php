@@ -12,6 +12,7 @@ use Happones\Kinetix\Announcements\AnnouncementController;
 use Happones\Kinetix\Announcements\AnnouncementManager;
 use Happones\Kinetix\Api\ApiLogController;
 use Happones\Kinetix\Api\Middleware\LogApiRequest;
+use Happones\Kinetix\Billing\BillingManager;
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
@@ -1751,6 +1752,32 @@ class KinetixServiceProvider extends ServiceProvider
                 // Mirror the server-side Gate::before bypass so the SPA doesn't
                 // hide UI from a super-admin (who holds the role, not the perms).
                 'isSuperAdmin' => SuperAdmin::check($user),
+            ];
+        });
+
+        // The billable's current plan (slug/name + the features JSON), so the
+        // SPA can gate menus/buttons by plan capability or usage limit via
+        // useKinetixPlan() / <KinetixPlanFeature> without any controller code.
+        Inertia::share('kinetix_billing', function () {
+            if (! config('kinetix.billing.enabled', false) || ! auth()->check()) {
+                return ['enabled' => false, 'plan' => null];
+            }
+
+            try {
+                $plan = BillingManager::resolve()->currentPlan();
+            } catch (\Throwable) {
+                // No billable resolvable for this request — share "no plan"
+                // rather than breaking every page load.
+                $plan = null;
+            }
+
+            return [
+                'enabled' => true,
+                'plan'    => $plan === null ? null : [
+                    'slug'     => $plan->slug,
+                    'name'     => $plan->name,
+                    'features' => (array) ($plan->features ?? []),
+                ],
             ];
         });
 

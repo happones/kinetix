@@ -88,4 +88,14 @@ trait HasPlan
     {
         return (bool) $this->currentPlan()?->hasReachedLimit($path, $count);
     }
+
+    /**
+     * Units left before the plan limit at $path is reached (floored at zero).
+     * Null means unlimited — including when no plan resolves at all, so a
+     * billing-less environment never blocks the host app.
+     */
+    public function remainingPlanLimit(string $path, int $count): ?int
+    {
+        return $this->currentPlan()?->remainingLimit($path, $count);
+    }
 }

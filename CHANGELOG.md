@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.114.0] - 2026-07-22
+
+### Added
+
+- **Plan-gating suite for the frontend (published).** The billable's current
+  plan (slug/name + features JSON) is now shared as the `kinetix_billing`
+  Inertia prop when billing is enabled, and two new primitives consume it:
+  `useKinetixPlan()` (`plan` / `onPlan` / `featureValue` / `canUseFeature` /
+  `hasReachedLimit` / `remaining` — same dot-path semantics as the backend) and
+  `<KinetixPlanFeature>` (the billing twin of `<KinetixCan>`: a capability mode
+  `feature="capabilities.api"` and a usage-limit mode
+  `limit="usage.products" :count="n"`, both with a `#denied` slot and a
+  `remaining` slot prop). Display gating only — the server still enforces via
+  `plan.feature` middleware / `HasPlan` checks.
+- **`Plan::remainingLimit()` / `HasPlan::remainingPlanLimit()`** — units left
+  before a usage limit is reached (floored at zero; `null` = unlimited),
+  rounding out `featureValue` / `canUseFeature` / `hasReachedLimit`.
+
+### Documentation
+
+- billing.md: documented the remaining-limit helpers, a server-side
+  enforce-before-write example for usage limits, and a new "Gate the UI by
+  plan (frontend)" section (shared prop, composable, declarative component,
+  and the display-gating-only warning).
+
 ## [0.113.0] - 2026-07-21
 
 ### Added

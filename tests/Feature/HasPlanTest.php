@@ -125,6 +125,30 @@ class HasPlanTest extends TestCase
         $this->assertFalse($user->hasReachedPlanLimit('usage.seats', 1));
     }
 
+    public function test_remaining_plan_limit_counts_down_and_null_means_unlimited(): void
+    {
+        Plan::create([
+            'name'                    => 'Pro',
+            'monthly_price'           => 29,
+            'stripe_monthly_price_id' => 'price_pro_m',
+            'features'                => ['usage' => ['products' => 10, 'members' => null]],
+        ]);
+
+        $user                   = BillableUser::create(['name' => 'Jane']);
+        $user->fakeSubscription = new FakeSubscription('price_pro_m');
+
+        $this->assertSame(10, $user->remainingPlanLimit('usage.products', 0));
+        $this->assertSame(2, $user->remainingPlanLimit('usage.products', 8));
+        $this->assertSame(0, $user->remainingPlanLimit('usage.products', 25));
+        // Null limit — and a missing path — mean unlimited.
+        $this->assertNull($user->remainingPlanLimit('usage.members', 500));
+        $this->assertNull($user->remainingPlanLimit('usage.missing', 500));
+
+        // Without any plan (no subscription, no free plan) nothing is limited.
+        $free = BillableUser::create(['name' => 'No plan']);
+        $this->assertNull($free->remainingPlanLimit('usage.products', 99));
+    }
+
     public function test_current_plan_matches_yearly_price_id(): void
     {
         $plan = Plan::create([

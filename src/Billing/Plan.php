@@ -132,6 +132,22 @@ class Plan extends Model
         return $count >= (int) $limit;
     }
 
+    /**
+     * How many units are left before the limit at $path is reached, floored at
+     * zero. Returns null when the plan has no limit there (unlimited) — so
+     * `remainingLimit(...) === null` means "never show a counter".
+     */
+    public function remainingLimit(string $path, int $count): ?int
+    {
+        $limit = data_get($this->features, $path);
+
+        if ($limit === null) {
+            return null;
+        }
+
+        return max(0, (int) $limit - $count);
+    }
+
     public function priceFor(string $cycle = 'monthly'): ?float
     {
         $value = $cycle === 'yearly' ? $this->yearly_price : $this->monthly_price;
