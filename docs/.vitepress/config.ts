@@ -97,6 +97,7 @@ export default withMermaid(
           { text: "Spotlight", link: "/spotlight" },
           { text: "Keyboard Shortcuts", link: "/keyboard-shortcuts" },
           { text: "Onboarding", link: "/onboarding" },
+          { text: "Help Center", link: "/help-center" },
           { text: "Accessibility", link: "/accessibility" },
           { text: "Language Switcher", link: "/locale" },
           { text: "Team Switcher", link: "/team-switcher" },

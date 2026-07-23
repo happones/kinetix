@@ -87,6 +87,33 @@ export interface KinetixSharedProps {
     [key: string]: unknown;
 }
 
+/** A Help Center article summary (index cards / list). */
+export interface KinetixHelpArticleSummary {
+    slug: string;
+    title: string;
+    group: string | null;
+    icon: string | null;
+    excerpt: string;
+}
+
+/** A rendered Help Center article with its prev/next neighbors. */
+export interface KinetixHelpArticleDetail {
+    slug: string;
+    title: string;
+    group: string | null;
+    html: string;
+    prev: { slug: string; title: string } | null;
+    next: { slug: string; title: string } | null;
+}
+
+/** A Help Center search hit. */
+export interface KinetixHelpSearchResult {
+    slug: string;
+    title: string;
+    group: string | null;
+    excerpt: string;
+}
+
 /** The billable's current plan shared via Inertia (`kinetix_billing`). */
 export interface KinetixBillingState {
     enabled: boolean;

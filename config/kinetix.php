@@ -615,6 +615,72 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Help Center (optional)
+    |--------------------------------------------------------------------------
+    |
+    | In-app help pages rendered from markdown articles in `path` (front matter:
+    | title / permission / icon / order / group; locale variants via
+    | `{slug}.{locale}.md`). Articles — and `<!-- kinetix:can ability -->`
+    | blocks inside them — are hidden from users the Gate denies. Screenshots
+    | are captured with `php artisan kinetix:help-screenshots` (requires
+    | Playwright in the host app) and stored on `screenshots.disk`
+    | (null = inherit kinetix.filesystem.disk).
+    |
+    */
+    'help' => [
+        'enabled' => env('KINETIX_HELP_ENABLED', false),
+
+        // Markdown articles directory (host-owned, git-versioned).
+        'path' => env('KINETIX_HELP_PATH'),
+
+        // The host's named article route Spotlight links resolve through.
+        'show_route' => 'help.show',
+
+        // Cache the discovery metadata (never the rendered, permission-gated
+        // HTML). Invalidated automatically when any article file changes.
+        'cache' => [
+            'enabled' => env('KINETIX_HELP_CACHE', false),
+            'ttl'     => env('KINETIX_HELP_CACHE_TTL', 3600),
+        ],
+
+        'screenshots' => [
+            // null = inherit kinetix.filesystem.disk.
+            'disk' => env('KINETIX_HELP_SCREENSHOT_DISK'),
+
+            // Key prefix on the disk.
+            'path_prefix' => 'help/screenshots',
+
+            // Pages to capture: name => path (or ['path' => ..., 'full_page' => bool, 'delay' => ms]).
+            'pages' => [
+                // 'dashboard' => '/dashboard',
+            ],
+
+            'base_url' => env('KINETIX_HELP_SCREENSHOT_BASE_URL'),
+            'viewport' => ['width' => 1440, 'height' => 900],
+
+            // Settle delay after load, in ms (websockets keep networkidle busy).
+            'delay' => 700,
+
+            // Screenshot user credentials (use a dedicated, 2FA-free account).
+            'credentials' => [
+                'email'    => env('KINETIX_SCREENSHOT_EMAIL', ''),
+                'password' => env('KINETIX_SCREENSHOT_PASSWORD', ''),
+            ],
+
+            // Login flow selectors — adjust to your app's login form.
+            'selectors' => [
+                'email'         => '#email',
+                'password'      => '#password',
+                'submit'        => 'button[type=submit]',
+                'logged_in_url' => '**/dashboard',
+            ],
+
+            'node_binary' => env('KINETIX_HELP_NODE_BINARY', 'node'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Notification Preferences (optional)
     |--------------------------------------------------------------------------
     |

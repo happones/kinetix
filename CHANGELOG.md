@@ -13,6 +13,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.115.0] - 2026-07-23
+
+### Added
+
+- **Help Center module** — an in-app user manual rendered from markdown files
+  the host app owns (`kinetix.help.path`, default `resources/help`), ported
+  from an app-specific implementation and made universal:
+  - **Authoring**: one `.md` per article; flat front matter
+    (`title`/`group`/`icon`/`order`/`permission`); locale variants via
+    `{slug}.{locale}.md` with regional fallback (`pt_BR` → `pt` → base).
+  - **Permission-aware**: `permission:` hides an article server-side (index,
+    search AND a 404 on direct access — existence never leaks), and
+    `<!-- kinetix:can ability -->…<!-- /kinetix:can -->` strips blocks inside
+    an article for users the Gate denies. Rendering is hardened
+    (`html_input=strip`, `allow_unsafe_links=false`); rendered HTML is never
+    cached (metadata-only cache, `kinetix.help.cache`).
+  - **Screenshots via Playwright** (documented host dependency):
+    `php artisan kinetix:help-screenshots` drives the publishable runner
+    (`--tag=kinetix-help-screenshots`) against the running app — configurable
+    login selectors/viewport/pages, `{team}` placeholder, credentials via env —
+    and uploads the PNGs to a **configurable disk** (local default, S3, any
+    Laravel disk; private disks work because images always stream through the
+    authenticated endpoint, with a committed-to-repo local fallback).
+  - **Frontend (published)**: `<KinetixHelpCenter>` (grouped cards or list
+    view with a toggle, debounced server-side search over titles and bodies)
+    and `<KinetixHelpArticle>` (sanitized HTML, "on this page" TOC with scroll
+    tracking, prev/next, Inertia-routed internal links), plus
+    `useKinetixHelp()` / `useKinetixHelpToc()`.
+  - **Spotlight**: help articles surface in the global command palette
+    (permission-filtered) when both modules are enabled.
+  - **Scaffold**: `kinetix:make-help-page` writes the two host pages, seeds a
+    sample article and prints team-aware routes.
+  - Eleven new translatable strings across all seven locales;
+    `docs/help-center.md` covers authoring, permissions, storage drivers and
+    Playwright troubleshooting.
+
 ## [0.114.0] - 2026-07-22
 
 ### Added

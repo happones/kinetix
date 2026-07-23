@@ -20,11 +20,13 @@ use Happones\Kinetix\Commands\ApiLogsPruneCommand;
 use Happones\Kinetix\Commands\ConfidentialEncryptExistingCommand;
 use Happones\Kinetix\Commands\ConfidentialRotateKeyCommand;
 use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
+use Happones\Kinetix\Commands\HelpScreenshotsCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
 use Happones\Kinetix\Commands\MakeBillingCommand;
 use Happones\Kinetix\Commands\MakeExporterCommand;
 use Happones\Kinetix\Commands\MakeFormCommand;
+use Happones\Kinetix\Commands\MakeHelpPageCommand;
 use Happones\Kinetix\Commands\MakeImporterCommand;
 use Happones\Kinetix\Commands\MakeInfolistCommand;
 use Happones\Kinetix\Commands\MakeNotificationCommand;
@@ -62,6 +64,8 @@ use Happones\Kinetix\Gdpr\GdprManager;
 use Happones\Kinetix\Gdpr\GdprRegistry;
 use Happones\Kinetix\Health\HealthController;
 use Happones\Kinetix\Health\HealthMetrics;
+use Happones\Kinetix\Help\HelpController;
+use Happones\Kinetix\Help\HelpSpotlightSource;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
@@ -316,6 +320,8 @@ class KinetixServiceProvider extends ServiceProvider
                 SendNotificationCommand::class,
                 MakeResourceCommand::class,
                 MakeRolesPageCommand::class,
+                MakeHelpPageCommand::class,
+                HelpScreenshotsCommand::class,
                 MakeActionCommand::class,
                 MakeTableCommand::class,
                 MakeFormCommand::class,
@@ -343,6 +349,13 @@ class KinetixServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/kinetix.php' => config_path('kinetix.php'),
             ], 'kinetix-config');
+
+            // Publish the Help Center screenshot runner into the host so its
+            // ESM `import 'playwright'` resolves against the HOST node_modules
+            // (a vendor copy breaks under symlinked path repositories).
+            $this->publishes([
+                __DIR__.'/../scripts/help-screenshots.mjs' => base_path('scripts/kinetix-help-screenshots.mjs'),
+            ], 'kinetix-help-screenshots');
 
             // Publish components
             $this->publishes([
@@ -556,6 +569,7 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Announcements module ("what's new" feed)
         $this->registerAnnouncements();
+        $this->registerHelp();
 
         // Register the optional Locale module (language switcher)
         $this->registerLocale();
@@ -866,6 +880,57 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerFeatures(): void
     {
         $this->app['router']->aliasMiddleware('kinetix.feature', EnsureFeature::class);
+    }
+
+    /**
+     * Wire the optional Help Center module: JSON endpoints for the article
+     * list, rendered articles, search and screenshot streaming (team-aware),
+     * plus the Spotlight source when both modules are on.
+     */
+    protected function registerHelp(): void
+    {
+        if (! config('kinetix.help.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/help")
+            ->group(function () {
+                Route::get('/', [HelpController::class, 'index'])
+                    ->name('kinetix.help.index');
+
+                Route::get('search', [HelpController::class, 'search'])
+                    ->name('kinetix.help.search');
+
+                Route::get('article/{slug}', [HelpController::class, 'show'])
+                    ->where('slug', '[\w\-.]+')
+                    ->name('kinetix.help.show');
+
+                Route::get('screenshots/{file}', [HelpController::class, 'screenshot'])
+                    ->where('file', '[\w\-.]+')
+                    ->name('kinetix.help.screenshot');
+            });
+
+        // Help articles in the global command palette (permission-filtered).
+        if (config('kinetix.spotlight.enabled', false)) {
+            $this->callAfterResolving(
+                SpotlightRegistry::class,
+                static fn (SpotlightRegistry $registry) => $registry->register([
+                    app(HelpSpotlightSource::class),
+                ]),
+            );
+        }
     }
 
     /**
