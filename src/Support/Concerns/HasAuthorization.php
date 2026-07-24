@@ -24,6 +24,8 @@ trait HasAuthorization
 
     protected mixed $authorizeArguments = null;
 
+    protected ?string $canAbility = null;
+
     public function visible(bool|Closure $condition = true): static
     {
         $this->isVisible = $condition;
@@ -52,6 +54,31 @@ trait HasAuthorization
         $this->authorizeArguments = $arguments;
 
         return $this;
+    }
+
+    /**
+     * Gate the item on a PERMISSION key from the Kinetix registry (e.g.
+     * `employees.viewSalary`), checked against the authenticated user with no
+     * subject at serialization time. Unlike {@see authorize()} — which defers
+     * record-bound policy abilities when no record is available — `can()`
+     * never defers: a denied form field, infolist entry or table column is
+     * stripped from schemas, validation rules, state AND row payloads, so the
+     * gated data never leaves the server.
+     */
+    public function can(string $ability): static
+    {
+        $this->canAbility = $ability;
+
+        return $this;
+    }
+
+    protected function passesCan(): bool
+    {
+        if ($this->canAbility === null) {
+            return true;
+        }
+
+        return Gate::forUser(auth()->user())->allows($this->canAbility);
     }
 
     protected function passesVisibility(?Model $record = null): bool
@@ -107,6 +134,8 @@ trait HasAuthorization
      */
     public function shouldRender(?Model $record = null): bool
     {
-        return $this->passesVisibility($record) && $this->passesAuthorization($record);
+        return $this->passesVisibility($record)
+            && $this->passesCan()
+            && $this->passesAuthorization($record);
     }
 }

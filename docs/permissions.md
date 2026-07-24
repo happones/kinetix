@@ -139,6 +139,58 @@ class AppServiceProvider extends ServiceProvider
 }
 ```
 
+### C. Mapping real-world permission shapes
+
+Most catalogs mix three shapes. Each is one line to declare, and the role
+editor renders each the right way — canonical abilities as fixed matrix
+columns, everything else inside its module's row:
+
+```php
+// 1. Classic CRUD module → the matrix columns (View list / View / Create / Edit / Delete).
+KinetixPermissions::feature('products')->crud();
+
+// 2. Access-only module (dashboards, report sections — no per-record CRUD):
+//    a single `reports.access` ability, rendered as the matrix's FIRST column.
+KinetixPermissions::feature('reports')->access();
+
+// 3. Custom abilities INSIDE a module (field-level or action-level):
+//    never a column — they render with their full label in the module's
+//    expandable row (the `n/m` chip next to the module name).
+KinetixPermissions::feature('employees')->group('HR')->crud()
+    ->ability('viewSalary', __('perms.view_salary'))
+    ->ability('export', __('perms.export_payroll'));
+```
+
+The header vocabulary is FIXED (`access` + the CRUD lifecycle): no matter how
+many modules or custom abilities you declare, columns never multiply.
+`->group('HR')` optionally clusters modules into titled sections in both role
+UIs.
+
+#### Enforcing a field-level permission (`->can()`)
+
+Declaring `employees.viewSalary` gates nothing by itself — attach it to the
+schema components that expose the field. `->can()` is evaluated **server-side
+at serialization**: a denied field is stripped from the form schema, its
+validation rules, the submitted state (a smuggled value never reaches the
+model), the infolist, and the table's columns *and row payloads* — the salary
+never leaves the server:
+
+```php
+// Form (create/edit)
+TextInput::make('salary')->can('employees.viewSalary'),
+
+// Infolist (show)
+TextEntry::make('salary')->can('employees.viewSalary'),
+
+// Table (index — header, cells, sorting and inline edits all gated)
+TextColumn::make('salary')->can('employees.viewSalary'),
+```
+
+> `->can()` differs from `->authorize()`: `authorize()` evaluates a
+> record-bound *policy* ability (and defers when no record is available yet),
+> while `can()` checks a *permission key* against the authenticated user with
+> no subject and never defers. For field-level permissions, use `can()`.
+
 ---
 
 ## 2. Syncing Permissions
@@ -444,12 +496,14 @@ built-in `roles.manage` ability:
 
 Prefer a compact, spreadsheet-style editor? `<KinetixRoleMatrix>` shows **role
 cards** (with live member counts) and edits each role in a modal whose table has
-one row per feature and one column per ability — canonical CRUD columns first
-(`viewAny → forceDelete`), custom abilities appended, and an em-dash where a
-feature doesn't declare that ability. Clicking a module name toggles its whole
-row, and the **header row and module column stay sticky** while the catalog
-scrolls, so you always see which ability and module you are granting. Same
-endpoints, gating and team rules as `KinetixRoleManager`:
+one row per feature and one column per **canonical** ability (`access`, then
+`viewAny → forceDelete`) — the header vocabulary is fixed and never grows. An
+em-dash marks abilities a feature doesn't declare; **custom abilities** render
+inside their module's expandable row (the `n/m` chip) with their full labels;
+`Feature::group()` clusters modules into titled sections. Clicking a module
+name toggles its whole row (customs included), and the **header row and module
+column stay sticky** while the catalog scrolls. Same endpoints, gating and team
+rules as `KinetixRoleManager`:
 
 ```vue
 <KinetixCan permission="roles.manage">

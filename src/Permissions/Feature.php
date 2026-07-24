@@ -13,6 +13,8 @@ class Feature
 {
     protected ?string $label = null;
 
+    protected ?string $group = null;
+
     /**
      * Ability key => human label.
      *
@@ -30,6 +32,17 @@ class Feature
     }
 
     /**
+     * Group related features into a titled section in the role-management UIs
+     * (e.g. 'HR', 'Sales'). Optional — ungrouped features list last.
+     */
+    public function group(string $group): static
+    {
+        $this->group = $group;
+
+        return $this;
+    }
+
+    /**
      * Apply the standard CRUD ability preset.
      */
     public function crud(): static
@@ -41,6 +54,16 @@ class Feature
             'update'  => 'Update',
             'delete'  => 'Delete',
         ]);
+    }
+
+    /**
+     * Access-only preset for modules with no per-record CRUD (dashboards,
+     * report sections, …): a single `{feature}.access` ability — "can enter
+     * the module or not". Renders as the matrix's first canonical column.
+     */
+    public function access(): static
+    {
+        return $this->ability('access', 'Access');
     }
 
     /**
@@ -82,6 +105,11 @@ class Feature
     public function getLabel(): string
     {
         return $this->label ?? (string) str($this->name)->headline();
+    }
+
+    public function getGroup(): ?string
+    {
+        return $this->group;
     }
 
     /**

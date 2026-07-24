@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.116.0] - 2026-07-24
+
+### Added
+
+- **Permission shapes beyond CRUD, end to end.** The catalog and the role
+  editor now map the three real-world shapes without ever growing the matrix
+  header:
+  - `Feature::access()` — access-only modules (dashboards, report sections):
+    a single `{feature}.access` ability rendered as the matrix's first
+    canonical column.
+  - **Custom in-module abilities** (e.g. `employees.viewSalary`) are never
+    columns: they render inside their module's expandable row (an `n/m` chip
+    next to the module name) with their full labels — the header vocabulary is
+    fixed (`access` + the CRUD lifecycle) no matter how large the catalog gets.
+  - `Feature::group('HR')` — optional titled sections in the editor matrix and
+    the roles overview (`PermissionFeatureData` now ships `group`).
+- **`->can('feature.ability')` server-side field gating (published trait).**
+  Attachable to form fields, infolist entries, table columns and actions:
+  evaluated at serialization against the authenticated user (never deferred,
+  unlike record-bound `authorize()`). A denied component is stripped from the
+  form schema, its validation rules AND submitted state (smuggled values never
+  reach the model), the infolist, and the table's headers, row payloads,
+  sorting and inline-edit allowlist — gated data never leaves the server.
+  Completes the field-level story: declare `->ability('viewSalary', …)`,
+  assign it in the matrix, enforce with one method on the schema.
+- New `access` / `role_custom_abilities` strings in all seven locales.
+
+### Documentation
+
+- permissions.md: "Mapping real-world permission shapes" (CRUD / access-only /
+  custom + field-level `->can()` with the can-vs-authorize distinction) and an
+  updated role-matrix description.
+
 ## [0.115.1] - 2026-07-24
 
 ### Security

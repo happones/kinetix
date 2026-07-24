@@ -36,6 +36,7 @@ const i18n = createI18n({
                 role_permissions_count: '{count} permissions',
                 role_matrix_hint: 'Toggle permissions per module.',
                 role_matrix_module: 'Module',
+                access: 'Access',
                 view_any: 'View all',
                 view: 'View',
                 create: 'Create',
@@ -84,6 +85,9 @@ const bodyText = () => document.body.textContent ?? '';
 
 describe('KinetixRoleMatrix', () => {
     beforeEach(() => {
+        // Teleported dialogs from a failed test would otherwise leak into the
+        // next test's document-level queries.
+        document.body.innerHTML = '';
         features.value = CATALOG;
         roles.value = [
             {
@@ -104,7 +108,7 @@ describe('KinetixRoleMatrix', () => {
         expect(w.text()).toContain('2 permissions');
     });
 
-    it('builds the ability columns as a canonical union with customs appended', async () => {
+    it('columns are canonical-only; custom abilities live in an expandable row', async () => {
         const w = mountMatrix();
         await w.get('[title="Edit"]').trigger('click');
         await w.vm.$nextTick();
@@ -112,11 +116,79 @@ describe('KinetixRoleMatrix', () => {
         const headers = [...document.body.querySelectorAll('th')].map((th) =>
             th.textContent?.trim(),
         );
-        // Module column, then view/create (canonical order), then the custom refund.
-        expect(headers).toEqual(['Module', 'View', 'Create', 'Refund']);
+        // Canonical keys only — the custom `refund` never becomes a column.
+        expect(headers).toEqual(['Module', 'View', 'Create']);
 
         // Undeclared abilities render as an em-dash placeholder.
         expect(bodyText()).toContain('—');
+
+        // Orders carries one custom ability → a 0/1 chip; expanding reveals
+        // the full-label checkbox and toggling it updates the count.
+        const chip = [
+            ...document.body.querySelectorAll('[aria-expanded]'),
+        ].find((el) => el.textContent?.includes('0/1')) as HTMLElement;
+        expect(chip).toBeTruthy();
+        chip.click();
+        await w.vm.$nextTick();
+
+        expect(bodyText()).toContain('Refund');
+        expect(bodyText()).toContain('orders.refund');
+
+        const custom = [
+            ...document.body.querySelectorAll('tr td label'),
+        ].find((label) => label.textContent?.includes('Refund')) as HTMLElement;
+        // reka's CheckboxRoot renders a role=checkbox button.
+        custom.querySelector<HTMLElement>('[role="checkbox"]')?.click();
+        await w.vm.$nextTick();
+
+        expect(chip.textContent).toContain('1/1');
+        w.unmount();
+    });
+
+    it('renders access-only modules under a leading Access column', async () => {
+        features.value = [
+            {
+                name: 'reports',
+                label: 'Reports',
+                abilities: [
+                    {
+                        key: 'access',
+                        label: 'Access',
+                        permission: 'reports.access',
+                    },
+                ],
+            },
+            ...CATALOG,
+        ];
+
+        const w = mountMatrix();
+        await w.get('[title="Edit"]').trigger('click');
+        await w.vm.$nextTick();
+
+        const headers = [...document.body.querySelectorAll('th')].map((th) =>
+            th.textContent?.trim(),
+        );
+        expect(headers).toEqual(['Module', 'Access', 'View', 'Create']);
+        w.unmount();
+    });
+
+    it('groups features into titled sections when a group is declared', async () => {
+        features.value = [
+            { ...CATALOG[0], group: 'HR' },
+            { ...CATALOG[1], group: null },
+        ];
+
+        const w = mountMatrix();
+        await w.get('[title="Edit"]').trigger('click');
+        await w.vm.$nextTick();
+
+        expect(bodyText()).toContain('HR');
+        // The grouped section renders before the ungrouped remainder.
+        const rows = [...document.body.querySelectorAll('tbody tr')].map(
+            (tr) => tr.textContent ?? '',
+        );
+        expect(rows[0]).toContain('HR');
+        expect(rows[1]).toContain('Users');
         w.unmount();
     });
 
@@ -151,15 +223,8 @@ describe('KinetixRoleMatrix', () => {
         const headers = [...document.body.querySelectorAll('th')].map((th) =>
             th.textContent?.trim(),
         );
-        // Generic translations for canonical keys; custom `refund` keeps its label.
-        expect(headers).toEqual([
-            'Module',
-            'View all',
-            'View',
-            'Create',
-            'Edit',
-            'Refund',
-        ]);
+        // Generic translations for canonical keys; customs are never columns.
+        expect(headers).toEqual(['Module', 'View all', 'View', 'Create', 'Edit']);
         expect(headers).not.toContain('Change member role');
         expect(headers).not.toContain('View members');
         w.unmount();

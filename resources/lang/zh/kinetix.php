@@ -200,6 +200,8 @@ return [
     'role_more_features'               => '还有 {count} 个',
     'role_global'                      => '全局',
     'role_global_hint'                 => '该角色适用于所有团队；只有超级管理员可以修改。',
+    'access'                           => '访问',
+    'role_custom_abilities'            => '自定义权限',
     'help_center'                      => '帮助中心',
     'help_search_placeholder'          => '搜索手册…',
     'help_no_results'                  => '没有与“{query}”匹配的文章。',

@@ -226,6 +226,8 @@ return [
     'role_more_features'      => '+{count} mais',
     'role_global'             => 'Global',
     'role_global_hint'        => 'Esta função aplica-se a todas as equipes; somente um superadministrador pode modificá-la.',
+    'access'                  => 'Acesso',
+    'role_custom_abilities'   => 'Permissões personalizadas',
     'help_center'             => 'Central de ajuda',
     'help_search_placeholder' => 'Pesquisar no manual…',
     'help_no_results'         => 'Nenhum artigo corresponde a “{query}”.',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, X } from '@lucide/vue';
+import { Check, ChevronRight, X } from '@lucide/vue';
 import {
     DialogClose,
     DialogContent,
@@ -13,6 +13,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
 import type { KinetixPermissionFeature, KinetixRole } from '@/types';
+import KinetixCheckbox from '../KinetixCheckbox.vue';
 import KinetixLabel from '../KinetixLabel.vue';
 
 /**
@@ -41,8 +42,15 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-/** Canonical CRUD columns first; any custom abilities append after. */
+/**
+ * Canonical ability columns, in order. `access` (access-only modules) leads,
+ * then the CRUD lifecycle. ONLY these ever become columns: the header row has
+ * a fixed vocabulary and never grows, no matter how many modules or custom
+ * abilities the catalog declares. Everything non-canonical renders inside its
+ * own row (expandable, full labels) instead.
+ */
 const CANONICAL_ORDER = [
+    'access',
     'viewAny',
     'view',
     'create',
@@ -57,9 +65,10 @@ const CANONICAL_ORDER = [
  * Column headers for the canonical keys. The columns are SHARED across every
  * feature, so a feature's own ability label (e.g. members' "Change member
  * role" for `update`) must never become the header — canonical keys always
- * render the generic translation; only custom abilities keep their label.
+ * render the generic translation.
  */
 const CANONICAL_LABELS: Record<string, string> = {
+    access: 'kinetix.access',
     viewAny: 'kinetix.view_any',
     view: 'kinetix.view',
     create: 'kinetix.create',
@@ -70,34 +79,72 @@ const CANONICAL_LABELS: Record<string, string> = {
     forceDelete: 'kinetix.force_delete',
 };
 
-/** Distinct ability columns across the catalog, canonically ordered. */
+const CANONICAL_SET = new Set(CANONICAL_ORDER);
+
+/** The canonical columns present anywhere in the catalog, in order. */
 const abilityColumns = computed<{ key: string; label: string }[]>(() => {
-    const seen = new Map<string, string>();
+    const present = new Set<string>();
 
     for (const feature of props.features) {
         for (const ability of feature.abilities) {
-            if (!seen.has(ability.key)) {
-                const translation = CANONICAL_LABELS[ability.key];
-                seen.set(
-                    ability.key,
-                    translation ? t(translation) : ability.label,
-                );
+            if (CANONICAL_SET.has(ability.key)) {
+                present.add(ability.key);
             }
         }
     }
 
-    return [...seen.entries()]
-        .sort(([a], [b]) => {
-            const ai = CANONICAL_ORDER.indexOf(a);
-            const bi = CANONICAL_ORDER.indexOf(b);
-
-            return (
-                (ai === -1 ? CANONICAL_ORDER.length : ai) -
-                (bi === -1 ? CANONICAL_ORDER.length : bi)
-            );
-        })
-        .map(([key, label]) => ({ key, label }));
+    return CANONICAL_ORDER.filter((key) => present.has(key)).map((key) => ({
+        key,
+        label: t(CANONICAL_LABELS[key]),
+    }));
 });
+
+/** A feature's non-canonical abilities (rendered inside its row, full labels). */
+const customAbilities = (
+    feature: KinetixPermissionFeature,
+): KinetixPermissionFeature['abilities'] =>
+    feature.abilities.filter((ability) => !CANONICAL_SET.has(ability.key));
+
+/** How many of a feature's custom abilities the draft currently grants. */
+const customGrantedCount = (feature: KinetixPermissionFeature): number =>
+    customAbilities(feature).filter((ability) => has(ability.permission))
+        .length;
+
+// --- Expandable custom-ability rows -----------------------------------------
+
+const expanded = ref<Set<string>>(new Set());
+
+function toggleExpanded(featureName: string): void {
+    const next = new Set(expanded.value);
+
+    if (next.has(featureName)) {
+        next.delete(featureName);
+    } else {
+        next.add(featureName);
+    }
+
+    expanded.value = next;
+}
+
+// --- Grouped rows (Feature::group('HR') → titled sections) -------------------
+
+const groupedFeatures = computed(() => {
+    const map = new Map<string | null, KinetixPermissionFeature[]>();
+
+    for (const feature of props.features) {
+        const key = feature.group ?? null;
+        map.set(key, [...(map.get(key) ?? []), feature]);
+    }
+
+    // Named groups first (declaration order), ungrouped last.
+    return [...map.entries()]
+        .sort(([a], [b]) => Number(a === null) - Number(b === null))
+        .map(([group, features]) => ({ group, features }));
+});
+
+const hasGroups = computed(() =>
+    props.features.some((feature) => feature.group),
+);
 
 // feature name → ability key → permission string, built once so the matrix's
 // per-cell lookup is O(1) instead of a `.find()` over each feature's abilities.
@@ -264,76 +311,187 @@ function submit(): void {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr
-                                    v-for="feature in features"
-                                    :key="feature.name"
-                                    class="group border-b border-border last:border-0"
+                                <template
+                                    v-for="section in groupedFeatures"
+                                    :key="section.group ?? '__ungrouped'"
                                 >
-                                    <td
-                                        class="p-0 left-0 sticky z-10 bg-card group-hover:bg-muted"
+                                    <!-- Section divider (Feature::group('HR')) -->
+                                    <tr v-if="hasGroups && section.group">
+                                        <td
+                                            :colspan="abilityColumns.length + 1"
+                                            class="px-3 py-1.5 text-xs font-semibold tracking-wide border-b border-border bg-muted/50 text-muted-foreground uppercase"
+                                        >
+                                            {{ section.group }}
+                                        </td>
+                                    </tr>
+
+                                    <template
+                                        v-for="feature in section.features"
+                                        :key="feature.name"
                                     >
-                                        <button
-                                            type="button"
-                                            class="px-3 py-2 font-medium text-sm w-full cursor-pointer text-left text-foreground select-none"
-                                            :title="
-                                                t('kinetix.role_matrix_hint')
-                                            "
-                                            @click="toggleRow(feature)"
+                                        <tr
+                                            class="group border-b border-border last:border-0"
                                         >
-                                            {{ feature.label }}
-                                        </button>
-                                    </td>
-                                    <td
-                                        v-for="column in abilityColumns"
-                                        :key="column.key"
-                                        class="px-2 py-2 text-center group-hover:bg-muted/50"
-                                    >
-                                        <button
-                                            v-if="
-                                                permissionFor(
-                                                    feature,
-                                                    column.key,
-                                                )
-                                            "
-                                            type="button"
-                                            class="size-6 inline-flex items-center justify-center rounded-md border transition-colors"
-                                            :class="
-                                                has(
-                                                    permissionFor(
-                                                        feature,
-                                                        column.key,
-                                                    ),
-                                                )
-                                                    ? 'border-primary bg-primary text-primary-foreground'
-                                                    : 'border-border text-transparent hover:border-primary/50'
-                                            "
-                                            :aria-pressed="
-                                                has(
-                                                    permissionFor(
-                                                        feature,
-                                                        column.key,
-                                                    ),
-                                                )
-                                            "
-                                            :aria-label="`${feature.label}: ${column.label}`"
-                                            @click="
-                                                toggle(
-                                                    permissionFor(
-                                                        feature,
-                                                        column.key,
-                                                    ),
-                                                )
-                                            "
+                                            <td
+                                                class="p-0 left-0 sticky z-10 bg-card group-hover:bg-muted"
+                                            >
+                                                <span class="flex items-center">
+                                                    <button
+                                                        type="button"
+                                                        class="px-3 py-2 font-medium text-sm min-w-0 flex-1 cursor-pointer text-left text-foreground select-none"
+                                                        :title="
+                                                            t(
+                                                                'kinetix.role_matrix_hint',
+                                                            )
+                                                        "
+                                                        @click="
+                                                            toggleRow(feature)
+                                                        "
+                                                    >
+                                                        {{ feature.label }}
+                                                    </button>
+                                                    <!-- Custom abilities live INSIDE the row (full
+                                                         labels), never as shared columns. -->
+                                                    <button
+                                                        v-if="
+                                                            customAbilities(
+                                                                feature,
+                                                            ).length > 0
+                                                        "
+                                                        type="button"
+                                                        class="gap-0.5 mr-2 px-1.5 py-0.5 rounded font-medium inline-flex shrink-0 items-center bg-secondary text-[11px] text-secondary-foreground transition-colors hover:bg-secondary/80"
+                                                        :aria-expanded="
+                                                            expanded.has(
+                                                                feature.name,
+                                                            )
+                                                        "
+                                                        :aria-label="`${feature.label}: ${t('kinetix.role_custom_abilities')}`"
+                                                        @click="
+                                                            toggleExpanded(
+                                                                feature.name,
+                                                            )
+                                                        "
+                                                    >
+                                                        <ChevronRight
+                                                            class="size-3 transition-transform"
+                                                            :class="
+                                                                expanded.has(
+                                                                    feature.name,
+                                                                ) && 'rotate-90'
+                                                            "
+                                                        />
+                                                        {{
+                                                            customGrantedCount(
+                                                                feature,
+                                                            )
+                                                        }}/{{
+                                                            customAbilities(
+                                                                feature,
+                                                            ).length
+                                                        }}
+                                                    </button>
+                                                </span>
+                                            </td>
+                                            <td
+                                                v-for="column in abilityColumns"
+                                                :key="column.key"
+                                                class="px-2 py-2 text-center group-hover:bg-muted/50"
+                                            >
+                                                <button
+                                                    v-if="
+                                                        permissionFor(
+                                                            feature,
+                                                            column.key,
+                                                        )
+                                                    "
+                                                    type="button"
+                                                    class="size-6 inline-flex items-center justify-center rounded-md border transition-colors"
+                                                    :class="
+                                                        has(
+                                                            permissionFor(
+                                                                feature,
+                                                                column.key,
+                                                            ),
+                                                        )
+                                                            ? 'border-primary bg-primary text-primary-foreground'
+                                                            : 'border-border text-transparent hover:border-primary/50'
+                                                    "
+                                                    :aria-pressed="
+                                                        has(
+                                                            permissionFor(
+                                                                feature,
+                                                                column.key,
+                                                            ),
+                                                        )
+                                                    "
+                                                    :aria-label="`${feature.label}: ${column.label}`"
+                                                    @click="
+                                                        toggle(
+                                                            permissionFor(
+                                                                feature,
+                                                                column.key,
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    <Check class="size-3.5" />
+                                                </button>
+                                                <span
+                                                    v-else
+                                                    class="text-muted-foreground/40"
+                                                    >—</span
+                                                >
+                                            </td>
+                                        </tr>
+
+                                        <!-- Expanded: the module's custom abilities with full labels -->
+                                        <tr
+                                            v-if="expanded.has(feature.name)"
+                                            class="border-b border-border last:border-0"
                                         >
-                                            <Check class="size-3.5" />
-                                        </button>
-                                        <span
-                                            v-else
-                                            class="text-muted-foreground/40"
-                                            >—</span
-                                        >
-                                    </td>
-                                </tr>
+                                            <td
+                                                :colspan="
+                                                    abilityColumns.length + 1
+                                                "
+                                                class="px-4 py-2.5 bg-muted/30"
+                                            >
+                                                <div
+                                                    class="gap-x-6 gap-y-2 flex flex-wrap"
+                                                >
+                                                    <label
+                                                        v-for="ability in customAbilities(
+                                                            feature,
+                                                        )"
+                                                        :key="
+                                                            ability.permission
+                                                        "
+                                                        class="gap-2 text-sm flex cursor-pointer items-center text-foreground"
+                                                    >
+                                                        <KinetixCheckbox
+                                                            :model-value="
+                                                                has(
+                                                                    ability.permission,
+                                                                )
+                                                            "
+                                                            @update:model-value="
+                                                                toggle(
+                                                                    ability.permission,
+                                                                )
+                                                            "
+                                                        />
+                                                        {{ ability.label }}
+                                                        <span
+                                                            class="font-mono text-xs text-muted-foreground"
+                                                            >{{
+                                                                ability.permission
+                                                            }}</span
+                                                        >
+                                                    </label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </template>
                             </tbody>
                         </table>
                     </div>

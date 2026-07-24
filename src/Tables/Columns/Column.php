@@ -6,12 +6,15 @@ namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
 use Happones\Kinetix\Data\ColumnData;
+use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class Column
 {
+    use HasAuthorization;
+
     protected string $name;
 
     protected string $label;

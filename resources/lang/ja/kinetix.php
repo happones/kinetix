@@ -200,6 +200,8 @@ return [
     'role_more_features'               => '他 {count} 件',
     'role_global'                      => '全体',
     'role_global_hint'                 => 'このロールはすべてのチームに適用されます。変更できるのはスーパー管理者のみです。',
+    'access'                           => 'アクセス',
+    'role_custom_abilities'            => 'カスタム権限',
     'help_center'                      => 'ヘルプセンター',
     'help_search_placeholder'          => 'マニュアルを検索…',
     'help_no_results'                  => '「{query}」に一致する記事はありません。',

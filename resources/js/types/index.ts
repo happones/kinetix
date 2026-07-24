@@ -260,6 +260,8 @@ export interface KinetixPermissionFeature {
     name: string;
     label: string;
     abilities: KinetixPermissionAbility[];
+    /** Optional section title for the role-management UIs. */
+    group?: string | null;
 }
 
 export interface KinetixRole {

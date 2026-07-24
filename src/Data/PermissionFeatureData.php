@@ -18,6 +18,8 @@ class PermissionFeatureData extends Data
         public string $name,
         public string $label,
         public array $abilities,
+        /** Optional section title for the role-management UIs. */
+        public ?string $group = null,
     ) {}
 
     public static function fromFeature(Feature $feature): self
@@ -32,6 +34,6 @@ class PermissionFeatureData extends Data
             ];
         }
 
-        return new self($feature->name, $feature->getLabel(), $abilities);
+        return new self($feature->name, $feature->getLabel(), $abilities, $feature->getGroup());
     }
 }

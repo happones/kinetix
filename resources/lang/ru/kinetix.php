@@ -200,6 +200,8 @@ return [
     'role_more_features'               => 'ещё {count}',
     'role_global'                      => 'Глобальная',
     'role_global_hint'                 => 'Эта роль действует во всех командах; изменить её может только суперадминистратор.',
+    'access'                           => 'Доступ',
+    'role_custom_abilities'            => 'Настраиваемые разрешения',
     'help_center'                      => 'Центр помощи',
     'help_search_placeholder'          => 'Поиск по руководству…',
     'help_no_results'                  => 'Нет статей по запросу «{query}».',

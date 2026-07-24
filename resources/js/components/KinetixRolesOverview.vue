@@ -91,6 +91,26 @@ const matrixRows = computed(() =>
     })),
 );
 
+// --- Grouped sections (Feature::group('HR')) ---------------------------------
+
+const groupedMatrixRows = computed(() => {
+    const map = new Map<string | null, typeof matrixRows.value>();
+
+    for (const row of matrixRows.value) {
+        const key = row.feature.group ?? null;
+        map.set(key, [...(map.get(key) ?? []), row]);
+    }
+
+    // Named groups first (declaration order), ungrouped last.
+    return [...map.entries()]
+        .sort(([a], [b]) => Number(a === null) - Number(b === null))
+        .map(([group, rows]) => ({ group, rows }));
+});
+
+const hasGroups = computed(() =>
+    features.value.some((feature) => feature.group),
+);
+
 /** Labels of the modules a role has at least one ability on. */
 function grantedFeatureLabels(role: KinetixRole): string[] {
     const permissions = permissionSets.value.get(roleKey(role));
@@ -317,48 +337,68 @@ async function confirmDelete(): Promise<void> {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr
-                                v-for="row in matrixRows"
-                                :key="row.feature.name"
-                                class="group border-b border-border last:border-0"
+                            <template
+                                v-for="section in groupedMatrixRows"
+                                :key="section.group ?? '__ungrouped'"
                             >
-                                <td
-                                    class="px-4 py-2.5 font-medium left-0 sticky z-10 bg-card text-foreground group-hover:bg-muted"
+                                <tr v-if="hasGroups && section.group">
+                                    <td
+                                        :colspan="roles.length + 1"
+                                        class="px-4 py-1.5 text-xs font-semibold tracking-wide border-b border-border bg-muted/50 text-muted-foreground uppercase"
+                                    >
+                                        {{ section.group }}
+                                    </td>
+                                </tr>
+                                <tr
+                                    v-for="row in section.rows"
+                                    :key="row.feature.name"
+                                    class="group border-b border-border last:border-0"
                                 >
-                                    {{ row.feature.label }}
-                                </td>
-                                <td
-                                    v-for="(cell, index) in row.cells"
-                                    :key="String(roleKey(roles[index]))"
-                                    class="px-3 py-2.5 text-center group-hover:bg-muted/50"
-                                >
-                                    <span
-                                        v-if="cell.state === 'full'"
-                                        class="size-5 rounded inline-flex items-center justify-center bg-primary/10 text-primary"
-                                        :title="t('kinetix.role_matrix_full')"
+                                    <td
+                                        class="px-4 py-2.5 font-medium left-0 sticky z-10 bg-card text-foreground group-hover:bg-muted"
                                     >
-                                        <Check class="size-3.5" />
-                                    </span>
-                                    <span
-                                        v-else-if="cell.state === 'partial'"
-                                        class="px-1.5 py-0.5 font-medium rounded bg-secondary text-[11px] text-secondary-foreground"
-                                        :title="
-                                            t('kinetix.role_matrix_partial', {
-                                                granted: cell.granted,
-                                                total: cell.total,
-                                            })
-                                        "
+                                        {{ row.feature.label }}
+                                    </td>
+                                    <td
+                                        v-for="(cell, index) in row.cells"
+                                        :key="String(roleKey(roles[index]))"
+                                        class="px-3 py-2.5 text-center group-hover:bg-muted/50"
                                     >
-                                        {{ cell.granted }}/{{ cell.total }}
-                                    </span>
-                                    <span
-                                        v-else
-                                        class="text-muted-foreground/40"
-                                        :title="t('kinetix.role_matrix_none')"
-                                        >—</span
-                                    >
-                                </td>
-                            </tr>
+                                        <span
+                                            v-if="cell.state === 'full'"
+                                            class="size-5 rounded inline-flex items-center justify-center bg-primary/10 text-primary"
+                                            :title="
+                                                t('kinetix.role_matrix_full')
+                                            "
+                                        >
+                                            <Check class="size-3.5" />
+                                        </span>
+                                        <span
+                                            v-else-if="cell.state === 'partial'"
+                                            class="px-1.5 py-0.5 font-medium rounded bg-secondary text-[11px] text-secondary-foreground"
+                                            :title="
+                                                t(
+                                                    'kinetix.role_matrix_partial',
+                                                    {
+                                                        granted: cell.granted,
+                                                        total: cell.total,
+                                                    },
+                                                )
+                                            "
+                                        >
+                                            {{ cell.granted }}/{{ cell.total }}
+                                        </span>
+                                        <span
+                                            v-else
+                                            class="text-muted-foreground/40"
+                                            :title="
+                                                t('kinetix.role_matrix_none')
+                                            "
+                                            >—</span
+                                        >
+                                    </td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>

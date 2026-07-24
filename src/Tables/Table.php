@@ -566,6 +566,16 @@ class Table implements Arrayable, JsonSerializable
      */
     public function toData(): TableData
     {
+        // Drop columns the current user may not see (visible()/hidden()/can())
+        // BEFORE anything downstream runs: headers, row values, summaries,
+        // search/sort application and the signed editable-columns list all read
+        // $this->columns, so a gated column's data never reaches the payload —
+        // and can't be probed through sorting or inline edits either.
+        $this->columns = array_values(array_filter(
+            $this->columns,
+            static fn (Column $column): bool => $column->shouldRender(),
+        ));
+
         // Filters may resolve relationship options against the table's model.
         foreach ($this->filters as $filter) {
             $filter->forModel($this->getModelClass());
