@@ -13,6 +13,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.115.1] - 2026-07-24
+
+### Security
+
+- **Role management is now tenant-isolated under spatie team scoping.** The
+  endpoints previously queried roles with no team or guard filter:
+  - the listing returned **every team's roles** (names, permissions, member
+    counts — a cross-tenant information leak);
+  - `update`/`destroy` resolved any role by id, so a team-A `roles.manage`
+    holder could modify or delete **team B's roles**;
+  - `store` used `findOrCreate`, so "creating" a role whose name already
+    existed — including a GLOBAL seeded role like `admin` — silently re-synced
+    that role's permissions (cross-team sabotage/escalation vector).
+
+  All queries are now scoped to the configured guard plus the current team and
+  global (team-NULL) roles; foreign roles 404 (existence never leaks); global
+  roles are modifiable only by a super-admin (they apply to every team); and
+  creating or renaming to an existing in-scope name is a 422 validation error,
+  never a silent takeover. `RoleData` now exposes `isGlobal`, and the role UIs
+  badge global roles and hide/disable their edit controls for non-super-admins.
+- **Permission team context follows the URL's team.** `SetPermissionsTeam` now
+  resolves the active team through the canonical `KinetixTeams::currentTeamKey()`
+  resolver — the `{current_team}` route segment translated via the user's teams
+  relation (membership check included: a foreign segment 404s) — instead of
+  only the user's sticky `current_team_id` column, keeping the authorization
+  context consistent with the data each request serves.
+
+### Changed
+
+- **`kinetix_permissions` share is cheaper per request.** The dynamic-grant
+  Gate sweep (which surfaces `Gate::before` grants like team owners) is skipped
+  entirely for super-admins (`useKinetixCan` short-circuits on the flag) and
+  skips abilities already present as stored rows.
+
+### Documentation
+
+- permissions.md: new "Production: caching & deploys" section (immediate cache
+  invalidation on edits, shared cache store for multi-server, deploy checklist,
+  per-request cost, Octane notes) and a "Team-scoped vs global roles" matrix
+  documenting the hybrid model and who may modify what.
+
+### Fixed
+
+- **Permission-matrix column headers no longer leak feature-specific labels
+  (published).** The role editor matrix shares its ability columns across
+  every feature, but each column's header came from the FIRST feature that
+  declared the key — so a feature with customized labels (e.g. members'
+  "Change member role" for `update`) renamed the shared column above every
+  other row. Canonical CRUD keys (`viewAny` → `forceDelete`) now always render
+  generic translated headers ("View all", "Edit", …); only custom abilities
+  keep their own label. Adds `view_any` / `delete_any` strings to all seven
+  locales.
+
 ## [0.115.0] - 2026-07-23
 
 ### Added

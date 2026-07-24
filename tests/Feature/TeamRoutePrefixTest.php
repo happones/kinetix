@@ -6,29 +6,41 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\PermissionServiceProvider;
 
 class PrefixTeam extends Model
 {
+    protected $table = 'prefix_teams';
+
     public $timestamps = false;
 
     protected $guarded = [];
+
+    /** The host routes teams by slug. */
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 }
 
 class PrefixUser extends Authenticatable
 {
+    protected $table = 'prefix_users';
+
     public $timestamps = false;
 
     protected $guarded = [];
 
-    /** Mimics the starter kit's active-team accessor. */
-    public function getCurrentTeamAttribute(): PrefixTeam
+    public function teams(): BelongsToMany
     {
-        return new PrefixTeam(['id' => 42]);
+        return $this->belongsToMany(PrefixTeam::class, 'prefix_team_members', 'user_id', 'team_id');
     }
 }
 
@@ -100,17 +112,66 @@ class TeamRoutePrefixTest extends TestCase
         }
     }
 
-    public function test_requests_to_kinetix_endpoints_set_the_spatie_team_context(): void
+    public function test_requests_to_kinetix_endpoints_set_the_spatie_team_context_from_the_url(): void
     {
-        $this->actingAs(new PrefixUser);
+        $user = $this->memberOfAcme();
+
+        $this->actingAs($user);
 
         // An invalid token 400s in the controller, but the middleware has
-        // already bridged the user's current team into spatie's registrar.
+        // already resolved the URL's team segment (via the user's membership)
+        // into spatie's registrar.
         $this->postJson(
             route('kinetix.tables.record.resolve', ['current_team' => 'acme']),
             ['token' => 'not-a-valid-token'],
         )->assertStatus(400);
 
-        $this->assertSame(42, app(PermissionRegistrar::class)->getPermissionsTeamId());
+        $this->assertSame(
+            PrefixTeam::where('slug', 'acme')->first()->getKey(),
+            app(PermissionRegistrar::class)->getPermissionsTeamId(),
+        );
+    }
+
+    public function test_a_team_segment_the_user_does_not_belong_to_is_rejected(): void
+    {
+        $this->actingAs($this->memberOfAcme());
+        PrefixTeam::create(['name' => 'Other', 'slug' => 'other']);
+
+        // Membership doubles as the guard: a foreign team segment 404s before
+        // any permission context is set.
+        $this->postJson(
+            route('kinetix.tables.record.resolve', ['current_team' => 'other']),
+            ['token' => 'not-a-valid-token'],
+        )->assertNotFound();
+    }
+
+    /**
+     * A user who belongs to the `acme` team (tables created on demand).
+     */
+    private function memberOfAcme(): PrefixUser
+    {
+        if (! Schema::hasTable('prefix_teams')) {
+            Schema::create('prefix_teams', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('name');
+                $table->string('slug')->unique();
+            });
+
+            Schema::create('prefix_users', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('name')->nullable();
+            });
+
+            Schema::create('prefix_team_members', function (Blueprint $table) {
+                $table->unsignedInteger('user_id');
+                $table->unsignedInteger('team_id');
+            });
+        }
+
+        $team = PrefixTeam::create(['name' => 'Acme', 'slug' => 'acme']);
+        $user = PrefixUser::create(['name' => 'Member']);
+        $user->teams()->attach($team->getKey());
+
+        return $user;
     }
 }

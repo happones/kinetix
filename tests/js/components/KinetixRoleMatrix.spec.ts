@@ -36,6 +36,12 @@ const i18n = createI18n({
                 role_permissions_count: '{count} permissions',
                 role_matrix_hint: 'Toggle permissions per module.',
                 role_matrix_module: 'Module',
+                view_any: 'View all',
+                view: 'View',
+                create: 'Create',
+                delete_any: 'Delete multiple',
+                restore: 'Restore',
+                force_delete: 'Delete permanently',
                 edit: 'Edit',
                 delete: 'Delete',
                 cancel: 'Cancel',
@@ -111,6 +117,51 @@ describe('KinetixRoleMatrix', () => {
 
         // Undeclared abilities render as an em-dash placeholder.
         expect(bodyText()).toContain('—');
+        w.unmount();
+    });
+
+    it('canonical column headers stay generic even when a feature customizes its labels', async () => {
+        // Regression: `members` is evaluated first and carries custom labels
+        // for canonical keys — those must NOT become the shared column
+        // headers above every other feature's row.
+        features.value = [
+            {
+                name: 'members',
+                label: 'Members',
+                abilities: [
+                    {
+                        key: 'viewAny',
+                        label: 'View members',
+                        permission: 'members.viewAny',
+                    },
+                    {
+                        key: 'update',
+                        label: 'Change member role',
+                        permission: 'members.update',
+                    },
+                ],
+            },
+            ...CATALOG,
+        ];
+
+        const w = mountMatrix();
+        await w.get('[title="Edit"]').trigger('click');
+        await w.vm.$nextTick();
+
+        const headers = [...document.body.querySelectorAll('th')].map((th) =>
+            th.textContent?.trim(),
+        );
+        // Generic translations for canonical keys; custom `refund` keeps its label.
+        expect(headers).toEqual([
+            'Module',
+            'View all',
+            'View',
+            'Create',
+            'Edit',
+            'Refund',
+        ]);
+        expect(headers).not.toContain('Change member role');
+        expect(headers).not.toContain('View members');
         w.unmount();
     });
 

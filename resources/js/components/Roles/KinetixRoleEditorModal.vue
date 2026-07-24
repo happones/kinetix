@@ -53,6 +53,23 @@ const CANONICAL_ORDER = [
     'forceDelete',
 ];
 
+/**
+ * Column headers for the canonical keys. The columns are SHARED across every
+ * feature, so a feature's own ability label (e.g. members' "Change member
+ * role" for `update`) must never become the header — canonical keys always
+ * render the generic translation; only custom abilities keep their label.
+ */
+const CANONICAL_LABELS: Record<string, string> = {
+    viewAny: 'kinetix.view_any',
+    view: 'kinetix.view',
+    create: 'kinetix.create',
+    update: 'kinetix.edit',
+    delete: 'kinetix.delete',
+    deleteAny: 'kinetix.delete_any',
+    restore: 'kinetix.restore',
+    forceDelete: 'kinetix.force_delete',
+};
+
 /** Distinct ability columns across the catalog, canonically ordered. */
 const abilityColumns = computed<{ key: string; label: string }[]>(() => {
     const seen = new Map<string, string>();
@@ -60,7 +77,11 @@ const abilityColumns = computed<{ key: string; label: string }[]>(() => {
     for (const feature of props.features) {
         for (const ability of feature.abilities) {
             if (!seen.has(ability.key)) {
-                seen.set(ability.key, ability.label);
+                const translation = CANONICAL_LABELS[ability.key];
+                seen.set(
+                    ability.key,
+                    translation ? t(translation) : ability.label,
+                );
             }
         }
     }

@@ -267,6 +267,8 @@ export interface KinetixRole {
     name: string;
     permissions: string[];
     usersCount?: number | null;
+    /** With spatie teams active: a team-NULL role visible in every team (super-admin-only to modify). */
+    isGlobal?: boolean;
 }
 
 /** Impersonation state shared from the server (for the banner). */

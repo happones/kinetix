@@ -332,6 +332,29 @@ per team.
 > only needed if you want the excluded method to stay callable under a new name —
 > it does not by itself resolve the collision.
 
+::: tip URL-driven team context
+`SetPermissionsTeam` resolves the active team from the **`{current_team}` route
+segment** (translated to a primary key through the user's teams relation — which
+doubles as a membership check: a segment the user doesn't belong to 404s),
+falling back to the user's `currentTeam` when the route carries no segment. The
+permission context always matches the team whose data the request serves.
+:::
+
+### Team-scoped vs global roles
+
+Under the hybrid teams schema a role's `team_id` is nullable:
+
+| | Created by | Visible in | Modifiable by |
+|---|---|---|---|
+| **Team role** (`team_id` set) | The role-management UI inside a team (the current team id is stamped automatically) | Its own team only | That team's `roles.manage` holders |
+| **Global role** (`team_id` NULL) | Seeders / console (no team context) — e.g. `KinetixRolesSeeder`'s `admin`/`editor`/`viewer` | Every team (marked with a *Global* badge in the UI) | **Super-admin only** — editing one would change privileges in every team |
+
+The management endpoints are fully tenant-isolated: another team's roles never
+appear in the listing, and updating/deleting them by id is a 404 (their
+existence is not leaked). Creating — or renaming to — a name that already
+exists in scope (same team or global) is a validation error, never a silent
+takeover of that role's permissions.
+
 ---
 
 ## 5. Frontend Authorization (Vue / Inertia)
@@ -531,3 +554,37 @@ Need a custom flow? Compose `KinetixPermissionMatrix` (the feature-grouped grid,
 php artisan kinetix:permissions:sync   # materialize permissions first
 php artisan db:seed --class="Happones\\Kinetix\\Permissions\\KinetixRolesSeeder"
 ```
+
+---
+
+## 7. Production: caching & deploys
+
+**Edits apply immediately.** spatie caches the permission catalog (permissions +
+their role attachments); every mutation the role-management UI performs —
+`syncPermissions()`, renames, deletes — flushes that cache automatically, so a
+change made in production is enforced on the very next request. No manual
+`permission:cache-reset` is needed after using the UI.
+
+What to get right for that to hold at scale:
+
+- **Use a shared cache store on multi-server setups.** spatie's cache lives in
+  `config/permission.php → cache.store` (your default store unless overridden).
+  With per-server stores (`file`, `array`) a role edited on one node stays stale
+  on the others until the TTL (default 24h) expires — point it at Redis or
+  Memcached instead.
+- **The registry is code, not state.** Feature declarations run at boot from
+  your service provider, so `config:cache` / `route:cache` / Octane are all
+  safe; nothing about the catalog is read from the database at request time
+  except spatie's (cached) permission rows.
+- **Deploy checklist**: run `php artisan kinetix:permissions:sync` (idempotent —
+  one query to diff, inserts only what's new, flushes spatie's cache once at
+  the end) whenever a deploy adds or removes registry declarations; add
+  `--prune` if you want obsolete keys removed.
+- **Per-request cost.** Kinetix's own layer adds no queries beyond spatie's:
+  the `kinetix_permissions` prop is computed once per request from the user's
+  (request-cached) relations, skips the dynamic-grant Gate sweep entirely for
+  super-admins, and only Gate-checks registered abilities the user doesn't
+  already hold as stored rows.
+- **Octane / long-running workers.** The super-admin check memoizes per user
+  object via a `WeakMap`, so it never leaks across requests; if a worker
+  mutates a user's super-admin role mid-process, call `SuperAdmin::flush()`.

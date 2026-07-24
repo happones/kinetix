@@ -19,6 +19,8 @@ class RoleData extends Data
         public string $name,
         public array $permissions,
         public ?int $usersCount = null,
+        /** With spatie teams active: a team-NULL role visible in every team. */
+        public bool $isGlobal = false,
     ) {}
 
     /**
@@ -28,11 +30,16 @@ class RoleData extends Data
     {
         $usersCount = $role->getAttribute('users_count');
 
+        $teamsKey = (string) (config('permission.column_names.team_foreign_key') ?? 'team_id');
+        $isGlobal = (bool) config('permission.teams', false)
+            && $role->getAttribute($teamsKey) === null;
+
         return new self(
             $role->getKey(),
             $role->name,
             $role->permissions->pluck('name')->values()->all(),
             $usersCount !== null ? (int) $usersCount : null,
+            $isGlobal,
         );
     }
 }

@@ -1791,20 +1791,29 @@ class KinetixServiceProvider extends ServiceProvider
                 return ['enabled' => false, 'permissions' => [], 'roles' => [], 'isSuperAdmin' => false];
             }
 
+            $isSuperAdmin = SuperAdmin::check($user);
+
             // Start from the user's stored permission names…
             $permissions = method_exists($user, 'getAllPermissions')
                 ? $user->getAllPermissions()->pluck('name')->all()
                 : [];
 
             // …then add any registered permission the Gate grants dynamically —
-            // via a `Gate::before` bypass (a super-admin, or a team **owner**
-            // whose rights come from `$user->ownsTeam(...)`) — which has no stored
-            // row. Without this the SPA's can() map is empty for such users and
-            // the UI hides features the server would actually authorize.
-            $gate = Gate::forUser($user);
-            foreach (app(PermissionRegistry::class)->allPermissions() as $ability) {
-                if ($gate->allows($ability)) {
-                    $permissions[] = $ability;
+            // via a `Gate::before` bypass (e.g. a team **owner** whose rights
+            // come from `$user->ownsTeam(...)`) — which has no stored row.
+            // Without this the SPA's can() map is empty for such users and the
+            // UI hides features the server would actually authorize. Skipped
+            // for super-admins (useKinetixCan short-circuits on the flag) and
+            // for abilities already stored, so this per-request loop only pays
+            // for the genuinely dynamic grants.
+            if (! $isSuperAdmin) {
+                $stored = array_flip($permissions);
+                $gate   = Gate::forUser($user);
+
+                foreach (app(PermissionRegistry::class)->allPermissions() as $ability) {
+                    if (! isset($stored[$ability]) && $gate->allows($ability)) {
+                        $permissions[] = $ability;
+                    }
                 }
             }
 
@@ -1816,7 +1825,7 @@ class KinetixServiceProvider extends ServiceProvider
                     : [],
                 // Mirror the server-side Gate::before bypass so the SPA doesn't
                 // hide UI from a super-admin (who holds the role, not the perms).
-                'isSuperAdmin' => SuperAdmin::check($user),
+                'isSuperAdmin' => $isSuperAdmin,
             ];
         });
 

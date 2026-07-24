@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Pencil, Plus, ShieldCheck, Trash2 } from '@lucide/vue';
+import { Globe, Pencil, Plus, ShieldCheck, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useKinetixCan } from '@/composables/useKinetixCan';
 import { useKinetixRoleEditor } from '@/composables/useKinetixRoleEditor';
 import { buttonVariants } from '@/composables/useShadcnVariants';
 import type { KinetixRole } from '@/types';
@@ -27,6 +28,12 @@ import KinetixRoleEditorModal from './Roles/KinetixRoleEditorModal.vue';
 const { t } = useI18n();
 const { features, roles, loading, saving, deleting, saveRole, removeRole } =
     useKinetixRoleEditor();
+const { isSuperAdmin } = useKinetixCan();
+
+// Global (team-NULL) roles apply to every team — the server only lets a
+// super-admin modify them, so mirror that in the UI.
+const canModify = (role: KinetixRole): boolean =>
+    !role.isGlobal || isSuperAdmin.value;
 
 // --- Editor modal ---------------------------------------------------------
 
@@ -100,6 +107,14 @@ async function confirmDelete(): Promise<void> {
                         <p class="font-semibold truncate text-foreground">
                             {{ role.name }}
                         </p>
+                        <span
+                            v-if="role.isGlobal"
+                            class="gap-1 px-1.5 py-0.5 font-medium rounded inline-flex shrink-0 items-center bg-secondary text-[11px] text-secondary-foreground"
+                            :title="t('kinetix.role_global_hint')"
+                        >
+                            <Globe class="size-3" />
+                            {{ t('kinetix.role_global') }}
+                        </span>
                     </div>
                     <span
                         v-if="
@@ -123,6 +138,7 @@ async function confirmDelete(): Promise<void> {
                     }}
                 </p>
                 <div
+                    v-if="canModify(role)"
                     class="gap-1 pt-2 mt-auto flex justify-end border-t border-border"
                 >
                     <button
