@@ -6,6 +6,8 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Support\ComposerHook;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 
 class UpgradeCommandTest extends TestCase
@@ -42,6 +44,28 @@ class UpgradeCommandTest extends TestCase
         $published = File::get(resource_path('js/components/kinetix/KinetixToaster.vue'));
         $this->assertNotSame('STALE LOCAL COPY', $published);
         $this->assertStringContainsString('<script', $published);
+    }
+
+    public function test_vue_i18n_generate_receives_the_configured_options(): void
+    {
+        // Regression: multi-locale apps compile per-locale files, but the
+        // upgrade hook ran a bare `vue-i18n:generate` — regenerating the
+        // single-file bundle they don't import and leaving the imported files
+        // stale (raw kinetix.* keys in the UI after every composer update).
+        config(['kinetix.translations.vue_i18n_options' => ['--multi-locales' => true]]);
+
+        $captured = null;
+        Artisan::command('vue-i18n:generate {--multi-locales}', function () use (&$captured): void {
+            /** @var Command $this */
+            $captured = $this->option('multi-locales');
+        });
+
+        File::ensureDirectoryExists(lang_path('en'));
+        File::put(lang_path('en/kinetix.php'), "<?php return [];\n");
+
+        $this->artisan('kinetix:upgrade')->assertSuccessful();
+
+        $this->assertTrue($captured);
     }
 
     public function test_composer_hook_is_registered_once_and_idempotently(): void

@@ -66,6 +66,30 @@ the published files. If you *do* maintain local edits, remove the hook from
 composer.json and re-publish manually with `--force`, reviewing the
 [changelog](https://github.com/happones/kinetix/blob/main/CHANGELOG.md) entries
 marked **(published)**.
+
+**Keep your formatters off them too.** The Laravel Vue starter kit's scripts
+(`prettier --write resources/`, repo-wide eslint) sweep the published paths, so
+a plain `npm run format` reformats the vendor-managed copies — and the next
+upgrade overwrites them again, churning your diff on every composer update.
+`kinetix:install` appends the publish paths to `.prettierignore` automatically;
+if eslint lints `resources/`, mirror them in your flat config:
+
+```js
+// eslint.config.js
+{
+  ignores: [
+    'resources/js/components/kinetix/**',
+    'resources/js/composables/useKinetix*',
+    'resources/js/composables/kinetix*',
+    'resources/js/stores/notifications.ts',
+    'resources/js/types/index.ts',
+    'resources/js/vue-i18n-locales*',
+  ],
+}
+```
+
+Installed Kinetix before this guard existed? Re-run `php artisan kinetix:install`
+(idempotent) or add the block by hand.
 :::
 
 ## 3. Compile translations for Vue
@@ -85,6 +109,20 @@ php artisan vue-i18n:generate
 > `kinetix` namespace strings end up where your Vue i18n setup loads them.
 
 Run this again whenever you publish translations or add a locale.
+
+**Compiling with flags?** `kinetix:upgrade` re-runs `vue-i18n:generate` after
+every translation re-publish — with the options from
+`kinetix.translations.vue_i18n_options`. If your app compiles per-locale files,
+mirror the flag there or upgrades will regenerate the single-file bundle you
+don't import and leave the files you *do* import stale (raw `kinetix.*` keys in
+the UI):
+
+```php
+// config/kinetix.php
+'translations' => [
+    'vue_i18n_options' => ['--multi-locales' => true],
+],
+```
 
 ## 4. Run the installer
 

@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.116.1] - 2026-07-25
+
+### Fixed
+
+- **`kinetix:upgrade` now recompiles the vue-i18n bundle the app actually
+  imports.** The hook ran a bare `vue-i18n:generate`, so apps that compile
+  per-locale files (`--multi-locales`) got the single-file bundle they don't
+  import regenerated (an orphan artifact) while their imported files went
+  stale — raw `kinetix.*` keys appearing in the UI after every composer
+  update. The call now forwards `kinetix.translations.vue_i18n_options`;
+  multi-locale apps set `['--multi-locales' => true]` there (documented in
+  installation.md).
+- **Published copies are protected from the host's formatters.**
+  `kinetix:install` now appends the vendor-managed publish paths to
+  `.prettierignore` (idempotent, preserves existing entries) and prints the
+  eslint flat-config `ignores` equivalent — the Laravel Vue starter kit's
+  default `prettier --write resources/` reformatted the published files, which
+  the upgrade hook then overwrote, churning the diff on every `format`/update
+  cycle. Existing installs: re-run `kinetix:install` or add the block by hand
+  (see installation.md).
+
 ## [0.116.0] - 2026-07-24
 
 ### Added

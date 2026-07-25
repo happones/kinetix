@@ -148,6 +148,40 @@ JS);
         $this->assertSame(1, substr_count($app, 'withApp(app, { page })'));
     }
 
+    public function test_it_protects_published_paths_from_prettier(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->runInstaller();
+
+        $ignore = File::get($this->base.'/.prettierignore');
+
+        // The starter kit's `prettier --write resources/` would otherwise
+        // reformat the vendor-managed publishes and drift on every upgrade.
+        $this->assertStringContainsString('resources/js/components/kinetix/', $ignore);
+        $this->assertStringContainsString('resources/js/composables/useKinetix*.ts', $ignore);
+        $this->assertStringContainsString('resources/js/composables/kinetix*.ts', $ignore);
+        $this->assertStringContainsString('resources/js/stores/notifications.ts', $ignore);
+        $this->assertStringContainsString('resources/js/types/index.ts', $ignore);
+        $this->assertStringContainsString('resources/js/vue-i18n-locales*', $ignore);
+    }
+
+    public function test_prettierignore_additions_preserve_existing_entries_and_are_idempotent(): void
+    {
+        File::put($this->base.'/.prettierignore', "dist/\nresources/js/types/index.ts\n");
+        $this->seedEntryFile('ts');
+
+        $this->runInstaller();
+        $first = File::get($this->base.'/.prettierignore');
+
+        // Host entries kept; the already-present path is not duplicated.
+        $this->assertStringContainsString("dist/\n", $first);
+        $this->assertSame(1, substr_count($first, 'resources/js/types/index.ts'));
+
+        // Re-running the installer changes nothing.
+        $this->runInstaller();
+        $this->assertSame($first, File::get($this->base.'/.prettierignore'));
+    }
+
     public function test_provider_is_not_scaffolded_without_the_flag(): void
     {
         $this->seedEntryFile('ts');

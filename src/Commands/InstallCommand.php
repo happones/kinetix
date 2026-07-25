@@ -232,6 +232,7 @@ JS;
         }
 
         $this->registerUpgradeHook();
+        $this->protectPublishedPathsFromFormatters();
 
         if ($this->option('provider')) {
             $this->scaffoldProvider();
@@ -356,6 +357,45 @@ JS;
         if ($added) {
             $this->info('Registered `@php artisan kinetix:upgrade` in composer.json (post-autoload-dump) — published components/translations now refresh on composer update.');
         }
+    }
+
+    /**
+     * Keep the host's formatters off the vendor-managed publishes. The Laravel
+     * Vue starter kit ships `prettier --write resources/` and repo-wide
+     * eslint, which reformat the published copies — and `kinetix:upgrade`
+     * overwrites them again on the next composer update, so a default install
+     * drifts on every `format` run. Appends the publish targets to
+     * `.prettierignore` (idempotent) and prints the eslint flat-config
+     * equivalent (that file can't be edited safely by a script).
+     */
+    protected function protectPublishedPathsFromFormatters(): void
+    {
+        $entries = [
+            'resources/js/components/kinetix/',
+            'resources/js/composables/useKinetix*.ts',
+            'resources/js/composables/kinetix*.ts',
+            'resources/js/stores/notifications.ts',
+            'resources/js/types/index.ts',
+            'resources/js/vue-i18n-locales*',
+        ];
+
+        $path     = base_path('.prettierignore');
+        $existing = File::exists($path) ? (string) File::get($path) : '';
+        $lines    = array_map('trim', preg_split('/\R/', $existing) ?: []);
+        $missing  = array_values(array_diff($entries, $lines));
+
+        if ($missing === []) {
+            return;
+        }
+
+        $block = ($existing === '' ? '' : rtrim($existing, "\n")."\n\n")
+            ."# Kinetix publishes are vendor-managed (kinetix:upgrade overwrites them)\n"
+            .implode("\n", $missing)."\n";
+
+        File::put($path, $block);
+        $this->info('Added the Kinetix publish paths to .prettierignore (vendor-managed files stay formatter-free).');
+        $this->comment('If eslint lints resources/, mirror them in your eslint config:');
+        $this->line("  { ignores: ['resources/js/components/kinetix/**', 'resources/js/composables/useKinetix*', 'resources/js/composables/kinetix*', 'resources/js/stores/notifications.ts', 'resources/js/types/index.ts', 'resources/js/vue-i18n-locales*'] }");
     }
 
     /**

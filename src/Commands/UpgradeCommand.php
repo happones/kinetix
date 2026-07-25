@@ -43,7 +43,12 @@ class UpgradeCommand extends Command
             $refreshed[] = 'translations';
 
             if (array_key_exists('vue-i18n:generate', Artisan::all())) {
-                $this->callSilently('vue-i18n:generate');
+                // Forward the host's compile flags (e.g. --multi-locales) so
+                // the regenerated bundle is the one the app actually imports.
+                $this->callSilently(
+                    'vue-i18n:generate',
+                    (array) config('kinetix.translations.vue_i18n_options', []),
+                );
                 $refreshed[] = 'vue-i18n bundle';
             }
         }

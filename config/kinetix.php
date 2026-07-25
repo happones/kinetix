@@ -78,6 +78,15 @@ return [
     */
     'translations' => [
         'locales' => env('KINETIX_TRANSLATION_LOCALES'),
+
+        // Options forwarded to `vue-i18n:generate` when `kinetix:upgrade`
+        // recompiles the bundle after re-publishing translations. An app that
+        // compiles per-locale files MUST mirror its flags here — otherwise
+        // upgrades regenerate the single-file bundle it doesn't import and
+        // leave the files it DOES import stale (raw kinetix.* keys in the UI).
+        'vue_i18n_options' => [
+            // '--multi-locales' => true,
+        ],
     ],
 
     /*
