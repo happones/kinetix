@@ -20,6 +20,7 @@ class InstallCommand extends Command
         {--charts : Also install chart/widget dependencies (@unovis/vue, @unovis/ts)}
         {--tanstack : Also install client-side table + list virtualization deps (@tanstack/vue-table, @tanstack/vue-virtual)}
         {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}
+        {--tours : Also install the product-tour renderer (driver.js)}
         {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}';
 
     /**
@@ -82,6 +83,11 @@ class InstallCommand extends Command
 
         if ($this->option('broadcasting')) {
             $dependencies['@laravel/echo-vue'] = '^2.3.0';
+        }
+
+        // Product tours renderer (<KinetixTours /> lazy-imports it).
+        if ($this->option('tours')) {
+            $dependencies['driver.js'] = '^1.3.0';
         }
 
         $added = [];

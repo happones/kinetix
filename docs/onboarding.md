@@ -119,6 +119,13 @@ The default slot holds the call-to-action(s). `icon` is any
 
 ## 3. Product tour
 
+> **Prefer the [Product Tours module](/tours)** for anything beyond a single
+> hand-mounted tour: backend-declared per-module tours with permission
+> filtering, page auto-matching, driver.js rendering (spotlight overlay,
+> auto-scroll, collision-aware popovers) and a `local`/`database` seen-state
+> driver. The composable below stays for the lightweight, dependency-free
+> case.
+
 A dependency-free guided tour that spotlights elements by CSS selector. Tag the
 targets, then mount `<KinetixTour>`:
 

@@ -67,6 +67,8 @@ export interface KinetixSharedProps {
     kinetix_features?: Record<string, boolean>;
     /** The billable's current plan (+ features JSON), for useKinetixPlan / <KinetixPlanFeature>. */
     kinetix_billing?: KinetixBillingState;
+    /** Authorized product tours + seen ids, for <KinetixTours /> and the tours store. */
+    kinetix_tours?: KinetixToursState;
     /** Supported locales + the active one, for the language switcher. */
     kinetix_locale?: KinetixLocaleState;
     /** The user's teams + switch URLs, for the team switcher. */
@@ -112,6 +114,36 @@ export interface KinetixHelpSearchResult {
     title: string;
     group: string | null;
     excerpt: string;
+}
+
+/** One product-tour step (selector + popover content). */
+export interface KinetixTourStepData {
+    selector: string;
+    title: string | null;
+    description: string | null;
+    side: string | null;
+    align: string | null;
+}
+
+/** A declared product tour, matched by Inertia page component or URL pattern. */
+export interface KinetixTourData {
+    id: string;
+    /** Inertia component pattern (`*` wildcards), e.g. `Kinetix/Posts/Index`. */
+    page: string | null;
+    /** URL path pattern (`*` wildcards), e.g. `/posts*`. */
+    url: string | null;
+    /** Auto-start on the first matching visit (vs manual-only). */
+    auto: boolean;
+    steps: KinetixTourStepData[];
+}
+
+/** The `kinetix_tours` Inertia share. */
+export interface KinetixToursState {
+    enabled: boolean;
+    driver: 'local' | 'database';
+    tours: KinetixTourData[];
+    /** Seen tour ids (database driver; the local driver reads localStorage). */
+    seen: string[];
 }
 
 /** The billable's current plan shared via Inertia (`kinetix_billing`). */

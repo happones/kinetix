@@ -13,6 +13,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.117.0] - 2026-07-25
+
+### Added
+
+- **Product Tours module** — backend-declared, permission-aware guided tours
+  rendered by driver.js with a shadcn theme:
+  - **Declare per module**: `KinetixTours::tour('posts')->page('Kinetix/Posts/Index')
+    ->permission('posts.viewAny')->steps([TourStep::make('[data-tour=create]')
+    ->title(__('…'))])` from any service provider. Tours travel on the
+    `kinetix_tours` Inertia share, permission-filtered server-side (a denied
+    user never receives the steps), with `page`/`url` wildcard matching and
+    `auto(false)` for manual-only tours.
+  - **One global host**: `<KinetixTours />` mounted in the layout auto-starts
+    the unseen matching tour on every Inertia navigation. driver.js (~5 kB,
+    MIT, the most popular actively-maintained tour engine) is an opt-in host
+    dependency (`kinetix:install --tours`), lazy-imported so apps without it
+    ship nothing extra; the published `kinetix.css` themes its popover,
+    buttons, progress and arrows to the shadcn tokens (light + dark).
+  - **Seen-state drivers**: `local` (browser localStorage, default, zero
+    backend) or `database` (per-user `kinetix_tour_state` table + team-aware
+    idempotent seen/reset endpoints — survives devices; publish
+    `kinetix-tours-migrations`). Both finishing and dismissing count as seen.
+  - **Pinia store** (`useKinetixToursStore`) for manual control: `start(id)`
+    (replay buttons, help menus — ignores seen state), `hasSeen`/`markSeen`/
+    `reset`, reactive share state.
+  - Four `tour_*` strings in all seven locales; `docs/tours.md`; the legacy
+    dependency-free `useKinetixTour`/`<KinetixTour>` stays for the lightweight
+    hand-mounted case (onboarding docs point at the new module).
+
 ## [0.116.1] - 2026-07-25
 
 ### Fixed

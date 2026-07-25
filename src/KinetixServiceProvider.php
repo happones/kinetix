@@ -116,6 +116,9 @@ use Happones\Kinetix\Tags\TagRegistry;
 use Happones\Kinetix\Teams\TeamSwitcherManager;
 use Happones\Kinetix\Tokens\TokenController;
 use Happones\Kinetix\Tokens\TokenScopeRegistry;
+use Happones\Kinetix\Tours\TourController;
+use Happones\Kinetix\Tours\TourRegistry;
+use Happones\Kinetix\Tours\TourState;
 use Happones\Kinetix\Webhooks\LogSpatieWebhookCall;
 use Happones\Kinetix\Webhooks\WebhookController;
 use Happones\Kinetix\Webhooks\WebhookDispatcher;
@@ -213,6 +216,10 @@ class KinetixServiceProvider extends ServiceProvider
         // The onboarding step registry + checklist manager.
         $this->app->singleton(OnboardingStepRegistry::class);
         $this->app->singleton(OnboardingManager::class);
+
+        // The product-tour catalog (declared per module, shared to the
+        // global <KinetixTours /> host).
+        $this->app->singleton(TourRegistry::class);
 
         // The wizard completion manager (backs the gating middleware).
         $this->app->singleton(WizardManager::class);
@@ -391,6 +398,10 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000002_create_kinetix_settings_table.php' => database_path('migrations/2026_01_01_000002_create_kinetix_settings_table.php'),
             ], 'kinetix-settings-migrations');
 
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000023_create_kinetix_tour_state_table.php' => database_path('migrations/2026_01_01_000023_create_kinetix_tour_state_table.php'),
+            ], 'kinetix-tours-migrations');
+
             // Publish the optional Activity module's migration.
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000003_create_kinetix_activity_table.php' => database_path('migrations/2026_01_01_000003_create_kinetix_activity_table.php'),
@@ -539,6 +550,7 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Onboarding module (first-run checklist)
         $this->registerOnboarding();
+        $this->registerTours();
 
         // Register the optional Wizards module (gating middleware + completion)
         $this->registerWizards();
@@ -880,6 +892,46 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerFeatures(): void
     {
         $this->app['router']->aliasMiddleware('kinetix.feature', EnsureFeature::class);
+    }
+
+    /**
+     * Wire the optional Product Tours module: the seen/reset endpoints exist
+     * only for the `database` driver (the `local` driver never calls home) —
+     * tour DECLARATIONS need no routes, they travel on the `kinetix_tours`
+     * Inertia share.
+     */
+    protected function registerTours(): void
+    {
+        if (! config('kinetix.tours.enabled', false)) {
+            return;
+        }
+
+        if (config('kinetix.tours.driver', 'local') !== 'database') {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/tours")
+            ->group(function () {
+                Route::post('{tour}/seen', [TourController::class, 'seen'])
+                    ->where('tour', '[\w\-.]+')
+                    ->name('kinetix.tours.seen');
+
+                Route::delete('{tour}/seen', [TourController::class, 'reset'])
+                    ->where('tour', '[\w\-.]+')
+                    ->name('kinetix.tours.reset');
+            });
     }
 
     /**
@@ -1826,6 +1878,35 @@ class KinetixServiceProvider extends ServiceProvider
                 // Mirror the server-side Gate::before bypass so the SPA doesn't
                 // hide UI from a super-admin (who holds the role, not the perms).
                 'isSuperAdmin' => $isSuperAdmin,
+            ];
+        });
+
+        // The authorized product tours + the user's seen ids (database driver),
+        // for the global <KinetixTours /> host and the tours pinia store.
+        Inertia::share('kinetix_tours', function () {
+            if (! config('kinetix.tours.enabled', false) || ! auth()->check()) {
+                return ['enabled' => false, 'driver' => 'local', 'tours' => [], 'seen' => []];
+            }
+
+            $driver = (string) config('kinetix.tours.driver', 'local');
+            $user   = auth()->user();
+
+            $seen = [];
+
+            if ($driver === 'database') {
+                $seen = TourState::query()
+                    ->where('user_id', $user->getAuthIdentifier())
+                    ->whereNotNull('seen_at')
+                    ->pluck('tour_id')
+                    ->values()
+                    ->all();
+            }
+
+            return [
+                'enabled' => true,
+                'driver'  => $driver,
+                'tours'   => app(TourRegistry::class)->authorizedFor($user),
+                'seen'    => $seen,
             ];
         });
 

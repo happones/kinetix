@@ -547,6 +547,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Product Tours (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Guided, spotlight-style tours rendered by driver.js (installed in the
+    | host: `kinetix:install --tours`) with Kinetix's shadcn theme. Declare
+    | tours per module with KinetixTours::tour(...) in a service provider and
+    | mount one global <KinetixTours /> in your layout — it auto-starts the
+    | unseen tour matching the current page. `driver` picks where "seen" is
+    | remembered: the browser (local) or per-user in the database (survives
+    | devices; publish kinetix-tours-migrations first).
+    |
+    */
+    'tours' => [
+        'enabled' => env('KINETIX_TOURS_ENABLED', false),
+
+        // 'local' (localStorage) or 'database' (per-user, seen/reset endpoints).
+        'driver' => env('KINETIX_TOURS_DRIVER', 'local'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Connected Accounts / Social auth (optional)
     |--------------------------------------------------------------------------
     |
