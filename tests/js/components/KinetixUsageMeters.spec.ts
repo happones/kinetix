@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 import KinetixUsageMeters from '@/components/KinetixUsageMeters.vue';
-import type { KinetixUsageMetricData } from '@/types';
+import type { KinetixUsageMetricData } from '@/types/kinetix';
 
 const i18n = createI18n({
     legacy: false,

@@ -5,7 +5,7 @@ import type {
     KinetixPermissionFeature,
     KinetixRole,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 
 /**
  * CRUD for the role-management UI, talking to Kinetix's permission endpoints.

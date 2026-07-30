@@ -13,7 +13,7 @@ import {
     statusBadgeClass as getBadgeColorClass,
     statusTextClass,
 } from '@/composables/useStatusColor';
-import type { KinetixAction, KinetixInfolistEntry } from '@/types';
+import type { KinetixAction, KinetixInfolistEntry } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 

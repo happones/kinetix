@@ -431,6 +431,81 @@ php artisan kinetix:routes --json       # machine-readable
 It also surfaces collisions: a route of yours that happens to live under the
 same prefix shows up in the list.
 
+## Diagnostics — `kinetix:doctor`
+
+Most Kinetix misconfigurations fail **silently**: team scoping half-enabled, an
+`attach_member` that was never set, roles seeded without team context, two i18n
+bundles where Vite compiles the stale one, published files carrying local edits
+that the next `composer install` discards. One command reports all of them:
+
+```bash
+php artisan kinetix:doctor          # exits 1 when there is at least one error
+php artisan kinetix:doctor --json   # machine-readable, full lists
+```
+
+```
+  Kinetix doctor
+
+  ✓ Routing       endpoints mounted under {current_team}/_kinetix/…
+  ✓ Modules       permissions, membership, settings
+  ✗ Permissions   kinetix team scoping is on but permission.teams is false
+  ! Roles         3 teamless (global) role(s)
+                  admin
+                  editor
+                  viewer
+  ✗ Membership    team scoping is on but attach_member is null
+  ! i18n          two bundles present — one of them is never refreshed
+  ! Publishes     3 published file(s) have local edits
+
+  2 error(s), 4 warning(s).
+```
+
+Because it exits non-zero on errors it works as a deploy gate (`php artisan
+kinetix:doctor && php artisan migrate --force`). Warnings never fail the command.
+
+::: warning Two Vue i18n bundles
+`vue-i18n:generate` defaults to `--format=ts` while the generator's published
+config points `jsFile` at a `.js` path, so both files can end up in
+`resources/js/`. **Vite resolves `.js` before `.ts`**, which means the bundle
+that actually compiles is the one nothing refreshes — new translation keys land
+in the `.ts` and never reach the UI. Delete the stale file and mirror your flags
+in `kinetix.translations.vue_i18n_options`; `kinetix:doctor` and
+`kinetix:upgrade` both flag the situation.
+:::
+
+### Published files are vendor-managed
+
+`kinetix:upgrade` re-publishes with `--force`, so an edit inside
+`resources/js/components/kinetix/…` disappears on the next `composer install`.
+It now **names** the files whose local edits it overwrote instead of discarding
+them quietly:
+
+```
+3 published file(s) had local edits and were overwritten:
+  ~ resources/js/components/kinetix/KinetixMemberList.vue
+  ~ resources/js/composables/useKinetixBilling.ts
+```
+
+To keep a change, move it into a wrapper component, a slot, or config.
+
+::: info TypeScript declarations live in `types/kinetix.ts` (v0.119.0)
+Kinetix publishes its declarations to **`resources/js/types/kinetix.ts`**:
+
+```ts
+import type { KinetixTableData } from '@/types/kinetix';
+```
+
+Earlier versions published `resources/js/types/index.ts` — which in the Laravel
+starter kits is *your* barrel (`export * from './auth'`, `'./teams'`, …).
+Overwriting it stripped those re-exports, and because `@/types` still resolved,
+TypeScript degraded to `any` instead of erroring: whole component prop contracts
+silently stopped being checked.
+
+**Upgrading:** restore your own barrel in `types/index.ts` and point Kinetix
+imports at `@/types/kinetix` (`kinetix:upgrade` prints this reminder while a
+Kinetix-authored `index.ts` is still present).
+:::
+
 ## Next steps
 
 - [**Resources**](/resources) — scaffold a full CRUD with one command.

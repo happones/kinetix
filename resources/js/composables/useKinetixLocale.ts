@@ -2,7 +2,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixLocaleOption, KinetixSharedProps } from '@/types';
+import type { KinetixLocaleOption, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Self-service language switcher: read the supported locales + the active one

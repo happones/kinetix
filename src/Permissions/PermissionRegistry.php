@@ -59,10 +59,22 @@ class PermissionRegistry
     protected array $scannedPaths = [];
 
     /**
+     * `array_flip()` of `allPermissions()`, for O(1) `has()` lookups on the hot
+     * path (the owner bypass runs it on every Gate check). Invalidated whenever
+     * a feature is touched — `feature()` is the entry point for every
+     * declaration, including abilities added to an existing feature.
+     *
+     * @var array<string, int>|null
+     */
+    protected ?array $permissionLookup = null;
+
+    /**
      * Declare (or fetch) a feature by name.
      */
     public function feature(string $name): Feature
     {
+        $this->permissionLookup = null;
+
         return $this->features[$name] ??= new Feature($name);
     }
 
@@ -75,7 +87,8 @@ class PermissionRegistry
     public function resource(string $resourceClass): static
     {
         if (! in_array($resourceClass, $this->resources, true)) {
-            $this->resources[] = $resourceClass;
+            $this->resources[]      = $resourceClass;
+            $this->permissionLookup = null;
         }
 
         return $this;
@@ -89,7 +102,8 @@ class PermissionRegistry
      */
     public function discoverResources(string $directory, string $namespace): static
     {
-        $this->discoverPaths[] = [$directory, rtrim($namespace, '\\')];
+        $this->discoverPaths[]  = [$directory, rtrim($namespace, '\\')];
+        $this->permissionLookup = null;
 
         return $this;
     }
@@ -120,6 +134,31 @@ class PermissionRegistry
         }
 
         return array_values(array_unique($keys));
+    }
+
+    /**
+     * Whether an ability is one of the registered permission keys.
+     *
+     * Used to tell a *feature ability* (`posts.update`) apart from a **policy**
+     * ability (`update` with a record) so the owner bypass can grant the former
+     * without short-circuiting the latter.
+     */
+    public function has(string $ability): bool
+    {
+        $this->permissionLookup ??= array_flip($this->allPermissions());
+
+        return isset($this->permissionLookup[$ability]);
+    }
+
+    /**
+     * Drop the memoized lookup — features may still be declared after the first
+     * `has()` call (deferred providers, tests).
+     */
+    public function flushLookup(): static
+    {
+        $this->permissionLookup = null;
+
+        return $this;
     }
 
     protected function resolveResources(): void

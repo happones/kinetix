@@ -5,7 +5,7 @@ import type {
     KinetixConnectedAccount,
     KinetixConnectedProvider,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 
 /**
  * Self-service connected accounts: list the user's linked OAuth providers,

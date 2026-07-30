@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import { buttonVariants } from '@/composables/useShadcnVariants';
 import { brandFor } from '@/icons/brands';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * A single-provider social-auth button. Renders the provider's brand icon + a

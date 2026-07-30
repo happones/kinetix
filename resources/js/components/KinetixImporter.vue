@@ -5,7 +5,7 @@ import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
-import type { KinetixImportPreview } from '@/types';
+import type { KinetixImportPreview } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixSelect from './KinetixSelect.vue';
 

@@ -4,7 +4,7 @@ import { nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixStripe } from '@/composables/useKinetixStripe';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixPaymentMethod } from '@/types';
+import type { KinetixPaymentMethod } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';

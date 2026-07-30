@@ -4,7 +4,7 @@ import { computed, shallowRef } from 'vue';
 import type { ComputedRef, ShallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dateKeyOf, parseAnchorDate } from '@/composables/kinetixCalendarDates';
-import type { KinetixCalendarView } from '@/types';
+import type { KinetixCalendarView } from '@/types/kinetix';
 
 export interface UseKinetixCalendarNavigationOptions {
     weekStartsOn: () => number;

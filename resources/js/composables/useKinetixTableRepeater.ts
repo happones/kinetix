@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Autosave persistence for <KinetixTableRepeater> rows. Each call posts the

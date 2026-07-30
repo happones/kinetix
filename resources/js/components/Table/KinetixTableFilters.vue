@@ -9,7 +9,7 @@ import {
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixTableFilter } from '@/types';
+import type { KinetixTableFilter } from '@/types/kinetix';
 import KinetixTableFilterField from './KinetixTableFilterField.vue';
 
 const props = defineProps<{

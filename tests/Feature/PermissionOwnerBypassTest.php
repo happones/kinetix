@@ -177,6 +177,34 @@ class PermissionOwnerBypassTest extends TestCase
         $this->assertFalse(Gate::forUser($member)->allows('posts.create'));
     }
 
+    public function test_the_bypass_does_not_short_circuit_model_policies(): void
+    {
+        // A blanket `Gate::before` returning true would also pass policy checks
+        // for records the owner has nothing to do with — a cross-tenant hole.
+        // Only the registry's feature abilities are granted.
+        Gate::define('update', static fn ($user, mixed $record = null): bool => false);
+
+        [$owner, , $team] = $this->makeTeam();
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($team->getKey());
+
+        $this->assertTrue(Gate::forUser($owner)->allows('posts.update'));   // registered ability
+        $this->assertFalse(Gate::forUser($owner)->allows('update'));        // policy ability
+    }
+
+    public function test_unregistered_abilities_fall_through_to_the_gate(): void
+    {
+        Gate::define('posts.publish', static fn ($user): bool => false);
+
+        [$owner, , $team] = $this->makeTeam();
+
+        app(PermissionRegistrar::class)->setPermissionsTeamId($team->getKey());
+
+        // `publish` was never declared on the feature, so the owner bypass must
+        // not invent it — the app's own gate decides.
+        $this->assertFalse(Gate::forUser($owner)->allows('posts.publish'));
+    }
+
     public function test_it_stays_off_by_default(): void
     {
         config()->set('kinetix.permissions.owner_bypass', null);

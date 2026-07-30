@@ -397,7 +397,7 @@ After publishing the components (`php artisan vendor:publish --tag=kinetix-compo
 ```vue
 <script setup lang="ts">
 import KinetixInfolist from '@/components/kinetix/KinetixInfolist.vue';
-import type { KinetixInfolistData } from '@/types';
+import type { KinetixInfolistData } from '@/types/kinetix';
 
 defineProps<{ infolist: KinetixInfolistData }>();
 </script>
@@ -511,4 +511,4 @@ The `Tabs`/`Section` layouts render as a tabbed card with sections inside; `Edit
 
 ## 9. TypeScript Types
 
-Serialized infolists map to generated TypeScript interfaces (`KinetixInfolistData`, `KinetixInfolistEntry`) in `resources/js/types/index.ts`, kept in sync via Spatie's Laravel TypeScript Transformer.
+Serialized infolists map to generated TypeScript interfaces (`KinetixInfolistData`, `KinetixInfolistEntry`) in `resources/js/types/kinetix.ts`, kept in sync via Spatie's Laravel TypeScript Transformer.

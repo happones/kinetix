@@ -10,7 +10,7 @@ import {
 } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
 import { useNotificationsStore } from '@/stores/notifications';
-import type { KinetixNotification } from '@/types';
+import type { KinetixNotification } from '@/types/kinetix';
 
 defineProps<{
     notif: KinetixNotification;

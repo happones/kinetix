@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixComment, KinetixSharedProps } from '@/types';
+import type { KinetixComment, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Self-service comments for a commentable model. The server returns the full

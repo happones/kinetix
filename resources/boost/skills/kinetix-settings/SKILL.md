@@ -100,7 +100,7 @@ The controller renders `config('kinetix.settings.view')` (default
 ```vue
 <script setup lang="ts">
 import KinetixSettingsForm from '@/components/kinetix/KinetixSettingsForm.vue'
-import type { KinetixSettingsPageData } from '@/types'
+import type { KinetixSettingsPageData } from '@/types/kinetix'
 
 defineProps<{ active: KinetixSettingsPageData }>()
 </script>

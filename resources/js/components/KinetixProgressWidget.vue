@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { statusFillClass, statusTextClass } from '@/composables/useStatusColor';
-import type { KinetixProgressData, KinetixWidget } from '@/types';
+import type { KinetixProgressData, KinetixWidget } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';

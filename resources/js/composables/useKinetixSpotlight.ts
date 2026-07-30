@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps, KinetixSpotlightGroup } from '@/types';
+import type {
+    KinetixSharedProps,
+    KinetixSpotlightGroup,
+} from '@/types/kinetix';
 
 /**
  * Queries the spotlight endpoint. Results are already authorization-filtered

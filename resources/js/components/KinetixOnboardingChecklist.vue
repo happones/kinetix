@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixOnboarding } from '@/composables/useKinetixOnboarding';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixOnboardingStep } from '@/types';
+import type { KinetixOnboardingStep } from '@/types/kinetix';
 
 /**
  * Drop-in first-run setup checklist: shows declared steps with completion state,

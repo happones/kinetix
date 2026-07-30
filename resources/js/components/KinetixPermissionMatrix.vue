@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { inputClass } from '@/composables/useShadcnVariants';
-import type { KinetixPermissionFeature } from '@/types';
+import type { KinetixPermissionFeature } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 
 /**

@@ -9,7 +9,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useKinetixAccessibility } from '@/composables/useKinetixAccessibility';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixAccessibility } from '@/types';
+import type { KinetixAccessibility } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixLabel from './KinetixLabel.vue';
 import { cn } from './primitives/cn';

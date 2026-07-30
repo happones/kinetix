@@ -89,7 +89,7 @@ Include `<KinetixTable />` in your template and bind the table data structure:
 ```vue
 <script setup lang="ts">
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import type { KinetixTableData } from '@/types';
+import type { KinetixTableData } from '@/types/kinetix';
 
 defineProps<{
     productsTable: KinetixTableData;

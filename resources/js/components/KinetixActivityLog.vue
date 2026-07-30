@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixActivity } from '@/composables/useKinetixActivity';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixActivityEntry } from '@/types';
+import type { KinetixActivityEntry } from '@/types/kinetix';
 
 /**
  * A team-scoped activity timeline. Drop it in globally, or scope it to one record

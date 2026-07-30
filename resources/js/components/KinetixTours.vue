@@ -3,7 +3,7 @@ import { usePage } from '@inertiajs/vue3';
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixToursStore } from '@/stores/tours';
-import type { KinetixTourData } from '@/types';
+import type { KinetixTourData } from '@/types/kinetix';
 
 /**
  * The global product-tour host. Mount ONE instance in your app layout:

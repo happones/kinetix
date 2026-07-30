@@ -6,7 +6,7 @@ import { useKinetixMembers } from '@/composables/useKinetixMembers';
 import { buttonVariants } from '@/composables/useShadcnVariants';
 import { statusBadgeClass } from '@/composables/useStatusColor';
 import type { KinetixStatusColor } from '@/composables/useStatusColor';
-import type { KinetixMemberProvision } from '@/types';
+import type { KinetixMemberProvision } from '@/types/kinetix';
 import KinetixMemberProvisioner from './KinetixMemberProvisioner.vue';
 import KinetixSelect from './KinetixSelect.vue';
 

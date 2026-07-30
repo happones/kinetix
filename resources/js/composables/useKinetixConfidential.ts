@@ -1,7 +1,10 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, onUnmounted, ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixConfidentialConfig, KinetixSharedProps } from '@/types';
+import type {
+    KinetixConfidentialConfig,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 /** Shared across every call so a masked-cell lock icon and the header widget open the same dialog. */
 const dialogOpen = ref(false);

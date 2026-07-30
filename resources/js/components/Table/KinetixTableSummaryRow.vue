@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import type { KinetixSummary, KinetixTableColumn } from '@/types';
+import type { KinetixSummary, KinetixTableColumn } from '@/types/kinetix';
 
 defineProps<{
     columnsToRender: KinetixTableColumn[];

@@ -621,7 +621,7 @@ PHP;
             $indexTemplate = <<<'VUE'
 <script setup lang="ts">
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
+import type { KinetixBreadcrumb, KinetixTableData } from '@/types/kinetix';
 
 // `breadcrumbs` is auto-derived from the resource; feed it to your app layout's
 // <Breadcrumbs> (see https://happones.github.io/kinetix/breadcrumbs).
@@ -647,7 +647,7 @@ VUE;
             $indexTemplate = <<<'VUE'
 <script setup lang="ts">
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import type { KinetixBreadcrumb, KinetixTableData } from '@/types';
+import type { KinetixBreadcrumb, KinetixTableData } from '@/types/kinetix';
 
 // `breadcrumbs` is auto-derived from the resource; feed it to your app layout's
 // <Breadcrumbs> (see https://happones.github.io/kinetix/breadcrumbs).
@@ -670,7 +670,7 @@ VUE;
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
-import type { KinetixBreadcrumb } from '@/types';
+import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 // `storeUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
 // team-scoped routes ({current_team}) work with no client-side team handling.
@@ -729,7 +729,7 @@ VUE;
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
-import type { KinetixBreadcrumb } from '@/types';
+import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 // `updateUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
 // team-scoped routes ({current_team}) work with no client-side team handling.
@@ -792,7 +792,7 @@ import type {
   KinetixAction,
   KinetixBreadcrumb,
   KinetixInfolistData,
-} from '@/types';
+} from '@/types/kinetix';
 
 // `actions` (Edit / Delete) render top-right in the header for quick redirects;
 // `infolist` is the resource's read-only detail schema.

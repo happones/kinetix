@@ -4,7 +4,7 @@ import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixNotificationPreferences,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 
 /**
  * Self-service notification preferences: load the type × channel matrix and

@@ -2,7 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 
 const props = withDefaults(

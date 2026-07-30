@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { KinetixTableFilter } from '@/types';
+import type { KinetixTableFilter } from '@/types/kinetix';
 import KinetixRangeCalendar from '../../KinetixRangeCalendar.vue';
 
 type DateRangeValue = { from?: string | null; to?: string | null } | null;

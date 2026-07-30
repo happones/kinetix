@@ -16,7 +16,7 @@ import {
 } from 'reka-ui';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixTimezoneDisplay } from '@/types';
+import type { KinetixTimezoneDisplay } from '@/types/kinetix';
 
 /**
  * A searchable timezone combobox (built on the same Reka Combobox primitives

@@ -7,7 +7,7 @@ import {
     actionButtonVariant,
     buttonVariants,
 } from '@/composables/useShadcnVariants';
-import type { KinetixAction, KinetixTableData } from '@/types';
+import type { KinetixAction, KinetixTableData } from '@/types/kinetix';
 import KinetixActionDropdown from '../KinetixActionDropdown.vue';
 import KinetixSavedViews from '../KinetixSavedViews.vue';
 import KinetixTableColumnToggle from './KinetixTableColumnToggle.vue';

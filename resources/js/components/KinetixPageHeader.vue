@@ -8,7 +8,7 @@ import {
     actionButtonVariant,
     buttonVariants,
 } from '@/composables/useShadcnVariants';
-import type { KinetixAction } from '@/types';
+import type { KinetixAction } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import { cn } from './primitives/cn';

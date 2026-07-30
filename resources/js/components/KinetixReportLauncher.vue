@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixReportTypes } from '@/composables/useKinetixReportTypes';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { ReportTypeData } from '@/types';
+import type { ReportTypeData } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';

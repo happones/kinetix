@@ -323,22 +323,27 @@ one config line:
 With `true`, Kinetix resolves the team the request is scoped to (the
 `{current_team}` segment via `SetPermissionsTeam`, falling back to the user's
 `currentTeam`) and calls the host's `ownsTeam()` — the starter-kit / Jetstream
-`HasTeams` convention. Need a different rule? Pass a callback that receives the
-user and the resolved team:
+`HasTeams` convention. Need a different rule? Pass a callback receiving the user
+and the resolved team — as a **callable array** or an invokable class-string, not
+a closure:
 
 ```php
-'owner_bypass' => fn ($user, $team) => $team !== null && $team->user_id === $user->id,
+'owner_bypass' => [\App\Kinetix\OwnerBypass::class, 'check'],   // check($user, $team): bool
+'owner_bypass' => \App\Kinetix\OwnerBypass::class,              // __invoke($user, $team): bool
 ```
 
-::: warning Closures break `config:cache`
-A closure in a config file makes `php artisan config:cache` fail ("Your
-configuration files are not serializable"). Every Kinetix option documented as a
-callback therefore also accepts the **class-string of an invokable class**, which
-caches fine:
+::: danger A closure here makes the app undeployable
+A `Closure` in a config file breaks `php artisan config:cache`:
 
-```php
-'owner_bypass' => \App\Kinetix\OwnerBypass::class,   // an __invoke($user, $team): bool
 ```
+Your configuration files could not be serialized because the value at
+"kinetix.permissions.owner_bypass" is non-serializable.
+```
+
+Both serializable forms above are resolved through the container (an instance
+method gets a container-resolved instance, so constructor injection works). The
+same applies to Membership's `attach_member`, `detach_member` and
+`assignable_roles`.
 :::
 
 The verdict is memoized per user × team (`Gate::before` fires on *every* check),
@@ -346,14 +351,33 @@ and it is picked up by the frontend automatically: the `kinetix_permissions`
 prop includes registered abilities the Gate grants dynamically, so an owner's UI
 matches what the server authorizes without them holding a single permission row.
 
-If you prefer to own the bypass yourself, leave `owner_bypass` at `null` and
-register it in your provider — Kinetix's role-management guardrails evaluate
-"permissions you hold" through the **Gate**, so a `Gate::before`-granted owner
-can still manage roles:
+::: warning A naive owner `Gate::before` is a cross-tenant hole
+This is the trap to know about if you write the bypass yourself:
 
 ```php
+// ❌ grants EVERY ability, including model policies
 Gate::before(fn ($user) => $user->ownsTeam(currentTeam()) ? true : null);
 ```
+
+`Gate::before` runs ahead of **all** authorization, policies included. So
+`Gate::authorize('update', $postFromAnotherTeam)` also returns true, and the
+owner of team A can edit team B's records — the tenancy boundary is gone.
+
+Kinetix's `owner_bypass` only grants abilities **registered in the
+`PermissionRegistry`** (`posts.update`, `reports.access`, …). Policy abilities
+(`update`, `delete` with a record) fall through and your policy still decides. If
+you roll your own, scope it the same way:
+
+```php
+Gate::before(function ($user, string $ability) {
+    if (! app(\Happones\Kinetix\Permissions\PermissionRegistry::class)->has($ability)) {
+        return null;   // let policies run
+    }
+
+    return $user->ownsTeam(currentTeam()) ? true : null;
+});
+```
+:::
 
 ---
 

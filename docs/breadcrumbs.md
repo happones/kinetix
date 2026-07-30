@@ -29,7 +29,7 @@ return inertia('Kinetix/Products/Edit', [
 The generated Vue pages already declare the typed prop:
 
 ```ts
-import type { KinetixBreadcrumb } from '@/types';
+import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 defineProps<{
     table: KinetixTableData;
@@ -78,7 +78,7 @@ trail to it:
 ```vue
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { KinetixBreadcrumb } from '@/types';
+import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 const props = defineProps<{
     table: KinetixTableData;

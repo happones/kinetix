@@ -4,7 +4,7 @@ import type {
     KinetixSharedProps,
     KinetixTeamOption,
     KinetixTeamsState,
-} from '@/types';
+} from '@/types/kinetix';
 
 /**
  * Team switcher: read the user's teams + current team from the shared

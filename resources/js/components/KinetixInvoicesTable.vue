@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Download } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixInvoice } from '@/types';
+import type { KinetixInvoice } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardHeader from './primitives/CardHeader.vue';

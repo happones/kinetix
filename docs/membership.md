@@ -109,15 +109,67 @@ Kinetix: membership team scoping is on but `kinetix.membership.attach_member`
 is null — activated members will NOT be linked to any team.
 ```
 
-Fix it in one line (see [step 3](#_6-adapting-the-starter-kit)):
+Point it at a **callable array** — see [step 3](#_6-adapting-the-starter-kit) and
+the callback forms below:
 
 ```php
-'attach_member' => fn ($user, $provision) =>
-    $provision->team_id
-        ? Team::find($provision->team_id)?->users()->attach($user->id)
-        : null,
+'attach_member' => [\App\Kinetix\SyncProvisionedMember::class, 'attach'],
 ```
 :::
+
+## 2.1 Callback options (`config:cache`-safe)
+
+Four options here take a callback: `attach_member`, `detach_member`,
+`assignable_roles`, and (in Permissions) `owner_bypass`. **Never write them as a
+closure.** A closure in a config file makes the config uncacheable, so the app
+cannot be deployed with `config:cache`:
+
+```
+Your configuration files could not be serialized because the value at
+"kinetix.membership.attach_member" is non-serializable.
+```
+
+Kinetix accepts two serializable forms instead, both resolved through the
+container (an instance method gets a container-resolved instance, so you can
+inject dependencies):
+
+```php
+// 1. A callable array — [class-string, method]. The recommended form.
+'attach_member'     => [\App\Kinetix\SyncProvisionedMember::class, 'attach'],
+'detach_member'     => [\App\Kinetix\SyncProvisionedMember::class, 'detach'],
+
+// 2. An invokable class-string, when the class does one thing.
+'assignable_roles'  => \App\Kinetix\AssignableRoles::class,   // __invoke($teamId): array
+```
+
+```php
+namespace App\Kinetix;
+
+use App\Models\Team;
+use Happones\Kinetix\Membership\MemberProvision;
+use Illuminate\Database\Eloquent\Model;
+
+class SyncProvisionedMember
+{
+    public function attach(Model $user, MemberProvision $provision): void
+    {
+        if ($provision->team_id !== null) {
+            Team::find($provision->team_id)?->users()->attach($user->getKey());
+        }
+    }
+
+    public function detach(?Model $user, MemberProvision $provision): void
+    {
+        if ($user !== null && $provision->team_id !== null) {
+            Team::find($provision->team_id)?->users()->detach($user->getKey());
+        }
+    }
+}
+```
+
+A closure still works in development (and is fine in a service provider that
+assigns config at runtime), but the callable array is the only form that survives
+`config:cache` — so it is what the guides use.
 
 ### Dynamic allow-list
 
@@ -127,11 +179,18 @@ team key the provision belongs to and may return an array or a Collection of rol
 names (or `Role` models):
 
 ```php
-'assignable_roles' => fn ($teamId) => \Spatie\Permission\Models\Role::query()
-    ->where('team_id', $teamId)
-    ->whereNotIn('name', ['super-admin', 'admin'])
-    ->pluck('name')
-    ->all(),
+'assignable_roles' => [\App\Kinetix\AssignableRoles::class, 'forTeam'],
+```
+
+```php
+public function forTeam(int|string|null $teamId): array
+{
+    return \Spatie\Permission\Models\Role::query()
+        ->where('team_id', $teamId)
+        ->whereNotIn('name', ['super-admin', 'admin'])
+        ->pluck('name')
+        ->all();
+}
 ```
 
 It is resolved on every request that lists or validates roles, so a role created
@@ -140,14 +199,9 @@ a second ago is immediately assignable — and it is still enforced twice
 callback receives the **provision's** team, since the signed activation URL
 carries no `{current_team}` segment.
 
-::: warning Closures break `config:cache`
-A closure in a config file makes `php artisan config:cache` fail. Both callbacks
-here (`assignable_roles`, `attach_member` / `detach_member`) therefore also accept
-the **class-string of an invokable class**, which caches fine:
-
-```php
-'assignable_roles' => \App\Kinetix\AssignableRoles::class,   // __invoke($teamId): array
-```
+::: tip A list of role names is still just a list
+An array is read as a callback **only** when it is a `[class-string, method]`
+pair, so `['editor', 'viewer']` keeps meaning exactly what it looks like.
 :::
 
 ---
@@ -261,12 +315,10 @@ are needed:
 3. **Attach members to your team** — *mandatory with teams on*, or activated
    members belong to nothing. Point `membership.attach_member` at a callback that
    writes your team pivot; Kinetix assigns the Kinetix role, the host owns the
-   membership row:
+   membership row. Use the callable-array form so `config:cache` keeps working
+   (see [§2.1](#_2-1-callback-options-config-cache-safe) for the class):
    ```php
-   'attach_member' => fn ($user, $provision) =>
-       $provision->team_id
-           ? Team::find($provision->team_id)?->users()->attach($user->id)
-           : null,
+   'attach_member' => [\App\Kinetix\SyncProvisionedMember::class, 'attach'],
    ```
 4. **Swap the UI.** Replace `InviteMemberModal` with `<KinetixMemberList>`.
 

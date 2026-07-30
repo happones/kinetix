@@ -87,7 +87,7 @@ return inertia('Users/Edit', [
 ```vue
 <script setup lang="ts">
 import KinetixRelationManager from '@/components/kinetix/KinetixRelationManager.vue';
-import type { KinetixRelationManagerData } from '@/types';
+import type { KinetixRelationManagerData } from '@/types/kinetix';
 
 defineProps<{ relations: KinetixRelationManagerData[] }>();
 </script>

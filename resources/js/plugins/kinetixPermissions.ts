@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
 import type { App, DirectiveBinding } from 'vue';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * `v-can` directive: hides an element (display:none) unless the user has the

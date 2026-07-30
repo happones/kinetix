@@ -3,7 +3,7 @@ import type { ComputedRef, Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { executeAction } from '@/composables/useKinetixActions';
-import type { KinetixAction, KinetixTableRecord } from '@/types';
+import type { KinetixAction, KinetixTableRecord } from '@/types/kinetix';
 
 /**
  * Row selection plus bulk-action orchestration for a Kinetix table. Tracks the

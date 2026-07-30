@@ -13,7 +13,7 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixSavedViews } from '@/composables/useKinetixSavedViews';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixSavedView } from '@/types';
+import type { KinetixSavedView } from '@/types/kinetix';
 
 /**
  * Saved-views control for a table toolbar: apply / save / set-default / delete

@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Server interaction for gated wizards: marks a wizard slug complete so the

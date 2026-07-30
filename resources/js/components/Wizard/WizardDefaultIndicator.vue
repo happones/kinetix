@@ -2,7 +2,10 @@
 import { Check } from '@lucide/vue';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixWizardStatus } from '@/composables/useKinetixWizardStatus';
-import type { KinetixWizardStep, KinetixWizardStepLayout } from '@/types';
+import type {
+    KinetixWizardStep,
+    KinetixWizardStepLayout,
+} from '@/types/kinetix';
 
 const props = defineProps<{
     steps: KinetixWizardStep[];

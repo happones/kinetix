@@ -2,7 +2,7 @@
 import { Star } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixRatingLevel, KinetixWidget } from '@/types';
+import type { KinetixRatingLevel, KinetixWidget } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { schemaHasError } from '@/composables/useKinetixFormErrors';
-import type { KinetixWizardStep } from '@/types';
+import type { KinetixWizardStep } from '@/types/kinetix';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 import KinetixWizard from './KinetixWizard.vue';
 

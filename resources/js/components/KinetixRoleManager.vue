@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixRoleEditor } from '@/composables/useKinetixRoleEditor';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixRole } from '@/types';
+import type { KinetixRole } from '@/types/kinetix';
 import KinetixRoleForm from './KinetixRoleForm.vue';
 
 /**

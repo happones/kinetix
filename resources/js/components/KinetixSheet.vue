@@ -2,7 +2,7 @@
 import { X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixSheetSide } from '@/types';
+import type { KinetixSheetSide } from '@/types/kinetix';
 
 /**
  * A shadcn-style slide-in panel (Sheet) — a Dialog alternative anchored to an

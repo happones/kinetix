@@ -18,7 +18,10 @@ import {
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixSpotlight } from '@/composables/useKinetixSpotlight';
-import type { KinetixSpotlightGroup, KinetixSpotlightItem } from '@/types';
+import type {
+    KinetixSpotlightGroup,
+    KinetixSpotlightItem,
+} from '@/types/kinetix';
 
 /**
  * Global Cmd/Ctrl+K command palette. Built on Reka Dialog + Combobox (keyboard

@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Self-service GDPR actions: request a personal-data export (delivered as a

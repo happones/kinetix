@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import type { ComputedRef } from 'vue';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Frontend mirror of the backend feature flags. Reads the `kinetix_features`

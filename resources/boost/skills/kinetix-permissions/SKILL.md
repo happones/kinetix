@@ -24,6 +24,11 @@ For full details, reference `docs/permissions.md` (published at https://happones
 
 ## Common integration mistakes
 
+> **Diagnose first.** `php artisan kinetix:doctor` reports every silent
+> misconfiguration in one shot (prefix, team scoping, teamless roles,
+> `attach_member`, config closures, published-file drift, duplicated i18n
+> bundles) and exits non-zero on errors.
+
 Check these **first** — they are what actually breaks integrations, and each one
 fails silently:
 
@@ -40,8 +45,12 @@ fails silently:
    detects the override.)
 3. **Assuming the owner bypass exists.** Team ownership is not a role, so no role
    grants it. Set `permissions.owner_bypass => true` (uses the host's
-   `$user->ownsTeam($team)`) or pass a callback `fn ($user, $team) => bool`.
-   Without it a team owner with no role holds **no** permissions.
+   `$user->ownsTeam($team)`) or pass a callback as a callable array
+   (`[OwnerBypass::class, 'check']`). Without it a team owner with no role holds
+   **no** permissions. Do **not** hand-write a blanket
+   `Gate::before(fn ($user) => $user->ownsTeam(...) ? true : null)`: it also
+   short-circuits model policies, so the owner of team A passes `update` on team
+   B's records. Kinetix's bypass only grants registry abilities.
 4. **Seeding roles without team context.** Under team scoping a role created with
    no team id is *global*: visible in every team, editable by super-admins only.
    Pin the team first (`setPermissionsTeamId($team->id)`).
@@ -49,9 +58,11 @@ fails silently:
 5. **Forgetting the sync.** Enforcement reads the DB; an unsynced catalog makes
    roles look fine while granting nothing. Run it on deploy *and* in test setup.
 
-Callbacks in config (`owner_bypass`, and Membership's `assignable_roles` /
-`attach_member`) break `php artisan config:cache` when written as closures — they
-all also accept the class-string of an invokable class, which caches fine.
+6. **Writing a config callback as a closure.** `owner_bypass` (and Membership's
+   `assignable_roles` / `attach_member` / `detach_member`) as `fn (...) => ...`
+   makes `php artisan config:cache` abort ("value at … is non-serializable"), so
+   the app can't deploy. Use `[OwnerBypass::class, 'check']` or an invokable
+   class-string — both are resolved through the container.
 
 ## Configuration
 
@@ -63,7 +74,8 @@ Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, defaul
     'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
     'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
     // Owner-can-do-everything bypass: true (uses $user->ownsTeam($team)),
-    // a closure fn ($user, $team) => bool, an invokable class-string, or null.
+    // [Class::class, 'method'], an invokable class-string, or null.
+    // Grants only REGISTRY abilities — model policies still run.
     'owner_bypass'     => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
     'protected_roles'  => null, // null = protect the super_admin_role; or ['super-admin', 'owner']

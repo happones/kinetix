@@ -7,7 +7,7 @@ import type {
     KinetixInfolistData,
     KinetixRecordModals,
     KinetixTableRecord,
-} from '@/types';
+} from '@/types/kinetix';
 
 interface RecordModalOptions {
     /** The table's recordModals descriptor (token, source, blueprint). */

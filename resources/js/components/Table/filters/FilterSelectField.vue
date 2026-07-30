@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixTableFilter } from '@/types';
+import type { KinetixTableFilter } from '@/types/kinetix';
 import KinetixCombobox from '../../KinetixCombobox.vue';
 import KinetixSelect from '../../KinetixSelect.vue';
 

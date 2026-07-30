@@ -142,6 +142,13 @@ php artisan vendor:publish --tag=kinetix-skills
 > `php artisan kinetix:routes` to see the resolved URIs before writing an endpoint
 > of your own.
 
+> **Something not working?** `php artisan kinetix:doctor` reports the
+> misconfigurations that otherwise fail silently — half-enabled team scoping,
+> teamless roles, a missing `attach_member`, duplicated i18n bundles, closures in
+> config that break `config:cache`, and published files carrying local edits that
+> the next `composer install` will discard. It exits non-zero on errors, so it
+> doubles as a deploy gate.
+
 ### Theming (shadcn tokens)
 
 Kinetix is built for the **Vue + shadcn-vue** starter-kit stack. Its components:

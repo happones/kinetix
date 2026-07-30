@@ -268,7 +268,7 @@ return inertia('Users/Edit', [
 ```vue
 <script setup lang="ts">
 import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
-import type { KinetixAction } from '@/types';
+import type { KinetixAction } from '@/types/kinetix';
 
 defineProps<{ headerActions: KinetixAction[] }>();
 </script>

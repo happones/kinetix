@@ -21,7 +21,7 @@ import {
     statusBadgeClass,
     statusSoftClass,
 } from '@/composables/useStatusColor';
-import type { KinetixWidget, KinetixStat } from '@/types';
+import type { KinetixWidget, KinetixStat } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 

@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps, ReportTypeData } from '@/types';
+import type { KinetixSharedProps, ReportTypeData } from '@/types/kinetix';
 
 /**
  * Report-type list for `<KinetixReportLauncher>` — no `Table`/row-actions

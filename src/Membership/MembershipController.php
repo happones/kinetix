@@ -240,7 +240,10 @@ class MembershipController
     protected function assignableRoles(int|string|null $teamId = null): array
     {
         $configured = config('kinetix.membership.assignable_roles', []);
-        $callback   = is_array($configured) ? null : ConfigCallback::resolve($configured);
+
+        // A `[Class::class, 'method']` pair resolves to a callback; any other
+        // array is the static allow-list itself.
+        $callback = ConfigCallback::resolve($configured);
 
         if ($callback !== null) {
             $configured = $callback($teamId);

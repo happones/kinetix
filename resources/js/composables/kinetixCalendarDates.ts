@@ -1,6 +1,6 @@
 import { CalendarDate, parseAbsolute } from '@internationalized/date';
 import type { ZonedDateTime } from '@internationalized/date';
-import type { KinetixCalendarEvent } from '@/types';
+import type { KinetixCalendarEvent } from '@/types/kinetix';
 
 /** Zero-pad a month/day number to two digits. */
 export function pad(n: number): string {

@@ -69,7 +69,7 @@ import type {
   KinetixPlanData,
   KinetixSubscriptionData,
   KinetixUsageMetricData,
-} from '@/types';
+} from '@/types/kinetix';
 
 const props = withDefaults(
   defineProps<{

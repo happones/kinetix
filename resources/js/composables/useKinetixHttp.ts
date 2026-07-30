@@ -1,4 +1,4 @@
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Read Laravel's `XSRF-TOKEN` cookie for stateful (cookie/session) fetch calls.

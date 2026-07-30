@@ -4,7 +4,7 @@ import { useEchoNotification } from '@laravel/echo-vue';
 import { storeToRefs } from 'pinia';
 import { computed, watch, onMounted, onUnmounted } from 'vue';
 import { useNotificationsStore } from '@/stores/notifications';
-import type { KinetixAction, KinetixNotification } from '@/types';
+import type { KinetixAction, KinetixNotification } from '@/types/kinetix';
 import KinetixNotificationDrawer from './KinetixNotificationDrawer.vue';
 import KinetixNotificationTrigger from './KinetixNotificationTrigger.vue';
 

@@ -14,7 +14,10 @@ import {
     prepareEvents,
 } from '@/composables/kinetixCalendarDates';
 import type { PreparedEvent } from '@/composables/kinetixCalendarDates';
-import type { KinetixCalendarEvent, KinetixCalendarView } from '@/types';
+import type {
+    KinetixCalendarEvent,
+    KinetixCalendarView,
+} from '@/types/kinetix';
 
 export interface MonthDay {
     date: string;

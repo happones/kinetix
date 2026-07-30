@@ -286,11 +286,12 @@ return [
     | - `teams`: scope roles/permissions per team. When true, Kinetix wires
     |   spatie's team id to the starter-kit `currentTeam` via middleware.
     | - `super_admin_role`: a role that bypasses every gate check (Gate::before).
-    | - `owner_bypass`: grant a team's OWNER every ability. Ownership lives in
-    |   your team schema, not in a role, so it needs its own switch: `true` uses
-    |   the host's `$user->ownsTeam($team)`; a closure (or the class-string of an
-    |   invokable class — config:cache-safe) receives `($user, $team)` for a
-    |   bespoke rule; `null` disables it.
+    | - `owner_bypass`: grant a team's OWNER every REGISTERED ability (model
+    |   policies still run, so the bypass can't cross the tenancy boundary).
+    |   Ownership lives in your team schema, not in a role, so it needs its own
+    |   switch: `true` uses the host's `$user->ownsTeam($team)`; a callback
+    |   receives `($user, $team)`. Write callbacks as `[Class::class, 'method']`
+    |   or an invokable class-string — a closure here breaks `config:cache`.
     | - `guard`: the auth guard permissions are registered under.
     |
     */
@@ -326,12 +327,18 @@ return [
     | is a dynamic Kinetix role, so members never become owners or admins.
     |
     | - `assignable_roles`: the only roles a provisioner may assign. This is the
-    |   guard that keeps "added members" from ever becoming admin.
+    |   guard that keeps "added members" from ever becoming admin. A list of role
+    |   names, or a callback `($teamId) => array` for per-team catalogs.
     | - `user_model`: the host's User model, created on activation.
-    | - `attach_member` / `detach_member`: optional callables to (de)attach the
-    |   user to the host's own team pivot — Kinetix never touches it directly.
-    |   Signature: fn ($user, MemberProvision $provision) => void.
+    | - `attach_member` / `detach_member`: callbacks to (de)attach the user to the
+    |   host's own team pivot — Kinetix never touches it directly. Signature:
+    |   `($user, MemberProvision $provision) => void`. REQUIRED once team scoping
+    |   is on, or an activated member belongs to no team.
     | - `activation_view`: Inertia page rendered for the set-password screen.
+    |
+    | Write every callback above as `[Class::class, 'method']` or the class-string
+    | of an invokable class. A closure in this file breaks `config:cache` — the
+    | app then cannot be deployed with a cached config.
     |
     */
     'membership' => [
@@ -342,8 +349,10 @@ return [
         'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
         'activation_view'   => env('KINETIX_MEMBERSHIP_ACTIVATION_VIEW', 'Kinetix/MemberActivation'),
         'redirect_after'    => env('KINETIX_MEMBERSHIP_REDIRECT', '/'),
-        'attach_member'     => null,
-        'detach_member'     => null,
+
+        // e.g. [\App\Kinetix\SyncProvisionedMember::class, 'attach']
+        'attach_member' => null,
+        'detach_member' => null,
     ],
 
     /*

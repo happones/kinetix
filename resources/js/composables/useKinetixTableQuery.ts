@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/vue3';
 import { onBeforeUnmount } from 'vue';
 import type { Ref } from 'vue';
-import type { KinetixTableData } from '@/types';
+import type { KinetixTableData } from '@/types/kinetix';
 
 /**
  * The reload parameters a Kinetix table round-trips to the server. Every field

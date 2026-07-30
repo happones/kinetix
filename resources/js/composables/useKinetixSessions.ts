@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixBrowserSession, KinetixSharedProps } from '@/types';
+import type {
+    KinetixBrowserSession,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 /**
  * Self-service browser sessions: list the user's active sessions (requires

@@ -6,7 +6,7 @@ import type {
     KinetixApiLog,
     KinetixSharedProps,
     KinetixWebhookLog,
-} from '@/types';
+} from '@/types/kinetix';
 
 export type IntegrationLogTab = 'webhooks' | 'api';
 export type IntegrationLogResult = 'all' | 'success' | 'failed';

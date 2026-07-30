@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { onUnmounted, ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixQueueSnapshot, KinetixSharedProps } from '@/types';
+import type { KinetixQueueSnapshot, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Live queue-health metrics for <KinetixQueueStats>: loads a snapshot from the

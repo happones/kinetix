@@ -158,7 +158,7 @@ Use `<KinetixTable>` to render the listing with built-in sorting, filtering, and
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import type { KinetixTableData } from '@/types';
+import type { KinetixTableData } from '@/types/kinetix';
 
 defineProps<{
     articlesTable: KinetixTableData;

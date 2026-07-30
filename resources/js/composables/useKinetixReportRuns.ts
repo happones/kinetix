@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { onUnmounted, ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps, KinetixTableData } from '@/types';
+import type { KinetixSharedProps, KinetixTableData } from '@/types/kinetix';
 
 /**
  * Live report-runs table for `<KinetixReportRunsTable>`: fetches the

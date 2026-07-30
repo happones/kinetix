@@ -6,7 +6,7 @@ import { toast } from 'vue-sonner';
 import { useKinetixComments } from '@/composables/useKinetixComments';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixComment } from '@/types';
+import type { KinetixComment } from '@/types/kinetix';
 
 /**
  * Drop-in threaded comments for any commentable model. Pass the model's morph

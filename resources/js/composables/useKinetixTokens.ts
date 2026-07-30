@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps, KinetixToken } from '@/types';
+import type { KinetixSharedProps, KinetixToken } from '@/types/kinetix';
 
 /**
  * Self-service personal access tokens, talking to Kinetix's `tokens`

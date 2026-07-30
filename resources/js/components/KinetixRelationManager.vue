@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { KinetixRelationManagerData } from '@/types';
+import type { KinetixRelationManagerData } from '@/types/kinetix';
 import KinetixTable from './KinetixTable.vue';
 
 defineProps<{

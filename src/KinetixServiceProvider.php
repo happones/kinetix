@@ -20,6 +20,7 @@ use Happones\Kinetix\Commands\ApiLogsPruneCommand;
 use Happones\Kinetix\Commands\ConfidentialEncryptExistingCommand;
 use Happones\Kinetix\Commands\ConfidentialRotateKeyCommand;
 use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
+use Happones\Kinetix\Commands\DoctorCommand;
 use Happones\Kinetix\Commands\HelpScreenshotsCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
@@ -356,6 +357,7 @@ class KinetixServiceProvider extends ServiceProvider
                 UpgradeCommand::class,
                 InstallCommand::class,
                 RoutesCommand::class,
+                DoctorCommand::class,
             ]);
 
             // Publish config
@@ -370,12 +372,18 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../scripts/help-screenshots.mjs' => base_path('scripts/kinetix-help-screenshots.mjs'),
             ], 'kinetix-help-screenshots');
 
-            // Publish components
+            // Publish components. The TypeScript declarations land in
+            // `types/kinetix.ts` — NOT `types/index.ts`, which in the Laravel
+            // starter kits is the app's own barrel (re-exporting ./auth, ./teams,
+            // …). Overwriting that file used to silently strip those re-exports:
+            // `@/types` still resolved, so TypeScript degraded to `any` instead
+            // of erroring, and whole component prop contracts stopped being
+            // checked with nothing to show for it.
             $this->publishes([
-                __DIR__.'/../resources/js/components'  => resource_path('js/components/kinetix'),
-                __DIR__.'/../resources/js/composables' => resource_path('js/composables'),
-                __DIR__.'/../resources/js/stores'      => resource_path('js/stores'),
-                __DIR__.'/../resources/js/types'       => resource_path('js/types'),
+                __DIR__.'/../resources/js/components'       => resource_path('js/components/kinetix'),
+                __DIR__.'/../resources/js/composables'      => resource_path('js/composables'),
+                __DIR__.'/../resources/js/stores'           => resource_path('js/stores'),
+                __DIR__.'/../resources/js/types/kinetix.ts' => resource_path('js/types/kinetix.ts'),
             ], 'kinetix-components');
 
             // Publish translations directly into Laravel lang directory so
@@ -674,8 +682,19 @@ class KinetixServiceProvider extends ServiceProvider
         // in the host's team schema rather than in a role (see TeamOwner). The
         // `kinetix_permissions` Inertia prop picks these dynamic grants up
         // automatically, so the SPA stays in sync with the server.
+        //
+        // Scoped to the REGISTERED permission keys on purpose: a blanket
+        // `return true` would also short-circuit model policies, letting the
+        // owner of one team pass `update`/`delete` checks on another team's
+        // records. Policies keep running; only the feature abilities are granted.
         if (TeamOwner::enabled()) {
-            Gate::before(fn ($user): ?bool => TeamOwner::check($user) ? true : null);
+            Gate::before(function ($user, string $ability): ?bool {
+                if (! app(PermissionRegistry::class)->has($ability)) {
+                    return null;
+                }
+
+                return TeamOwner::check($user) ? true : null;
+            });
         }
 
         $this->registerPermissionRoutes();

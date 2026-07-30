@@ -7,7 +7,7 @@ import type {
     KinetixAction,
     KinetixNotification,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 
 export const useNotificationsStore = defineStore('kinetixNotifications', () => {
     const notifications = ref<KinetixNotification[]>([]);

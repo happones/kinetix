@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Component } from 'vue';
-import type { KinetixTableFilter } from '@/types';
+import type { KinetixTableFilter } from '@/types/kinetix';
 import FilterAddressField from './filters/FilterAddressField.vue';
 import FilterCheckboxField from './filters/FilterCheckboxField.vue';
 import FilterDateField from './filters/FilterDateField.vue';

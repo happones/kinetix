@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixSubscriptionData } from '@/types';
+import type { KinetixSubscriptionData } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardFooter from './primitives/CardFooter.vue';

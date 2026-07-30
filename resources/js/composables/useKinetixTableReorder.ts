@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef } from 'vue';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
-import type { KinetixTableRecord } from '@/types';
+import type { KinetixTableRecord } from '@/types/kinetix';
 
 /**
  * Return a new array with the item at `from` moved to `to`. Pure so the

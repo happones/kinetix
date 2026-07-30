@@ -330,7 +330,7 @@ The page is just the table:
 ```vue
 <script setup lang="ts">
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import type { KinetixTableData } from '@/types';
+import type { KinetixTableData } from '@/types/kinetix';
 
 defineProps<{ table: KinetixTableData }>();
 </script>
@@ -607,7 +607,7 @@ from the resource's `table()` (they self-hide until their routes are registered)
 ```vue
 <script setup lang="ts">
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
-import type { KinetixTableData } from '@/types';
+import type { KinetixTableData } from '@/types/kinetix';
 
 defineProps<{
   table: KinetixTableData;

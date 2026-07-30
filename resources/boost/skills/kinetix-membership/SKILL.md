@@ -23,6 +23,11 @@ For full details, reference `docs/membership.md` (published at https://happones.
 
 ## Common integration mistakes
 
+> **Diagnose first.** `php artisan kinetix:doctor` reports every silent
+> misconfiguration in one shot (prefix, team scoping, teamless roles,
+> `attach_member`, config closures, published-file drift, duplicated i18n
+> bundles) and exits non-zero on errors.
+
 Check these **first** — they are what actually breaks integrations, and each one
 fails silently:
 
@@ -45,9 +50,11 @@ fails silently:
    editable only), so it won't behave like the team role you expected.
    `kinetix:permissions:sync` lists teamless roles.
 
-Callbacks in config (`assignable_roles`, `attach_member`, `detach_member`) break
-`php artisan config:cache` when written as closures — all three also accept the
-class-string of an invokable class, which caches fine.
+5. **Writing a config callback as a closure.** `assignable_roles`,
+   `attach_member` and `detach_member` as `fn (...) => ...` make
+   `php artisan config:cache` abort ("value at … is non-serializable"), i.e. the
+   app can't deploy. Always use the serializable forms:
+   `[SyncProvisionedMember::class, 'attach']` or an invokable class-string.
 
 ## Configuration
 
@@ -120,22 +127,45 @@ team, since the signed URL carries no `{current_team}` segment). Kinetix assigns
 the dynamic Kinetix role; it never touches the host's team pivot, so wire
 `attach_member` — **required** once team scoping is on:
 
-```php
-'attach_member' => fn ($user, $provision) =>
-    $provision->team_id
-        ? Team::find($provision->team_id)?->users()->attach($user->id)
-        : null,
-```
-
-Teams that create their own roles in the Roles UI need a **dynamic** allow-list —
-pass a callback receiving the provision's team key instead of a static array:
+Teams that create their own roles in the Roles UI also need a **dynamic**
+allow-list — a callback receiving the provision's team key instead of a static
+array. **Write both as callable arrays, never closures**: a closure in a config
+file makes `php artisan config:cache` fail, so a closure-based config is not
+deployable.
 
 ```php
-'assignable_roles' => fn ($teamId) => Role::where('team_id', $teamId)
-    ->whereNotIn('name', ['super-admin', 'admin'])
-    ->pluck('name')
-    ->all(),
+// config/kinetix.php → membership
+'attach_member'    => [\App\Kinetix\SyncProvisionedMember::class, 'attach'],
+'detach_member'    => [\App\Kinetix\SyncProvisionedMember::class, 'detach'],
+'assignable_roles' => [\App\Kinetix\AssignableRoles::class, 'forTeam'],
 ```
+
+```php
+class SyncProvisionedMember
+{
+    public function attach(Model $user, MemberProvision $provision): void
+    {
+        if ($provision->team_id !== null) {
+            Team::find($provision->team_id)?->users()->attach($user->getKey());
+        }
+    }
+}
+
+class AssignableRoles
+{
+    public function forTeam(int|string|null $teamId): array
+    {
+        return Role::where('team_id', $teamId)
+            ->whereNotIn('name', ['super-admin', 'admin'])
+            ->pluck('name')
+            ->all();
+    }
+}
+```
+
+An invokable class-string (`AssignableRoles::class`) works too. An array is read
+as a callback only when it is a `[class-string, method]` pair, so
+`['editor', 'viewer']` still means a list of role names.
 
 ---
 

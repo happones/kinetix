@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixAnnouncement, KinetixSharedProps } from '@/types';
+import type { KinetixAnnouncement, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Self-service "what's new" feed: load published announcements + the unread

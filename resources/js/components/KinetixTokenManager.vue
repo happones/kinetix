@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixTokens } from '@/composables/useKinetixTokens';
 import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
-import type { KinetixToken } from '@/types';
+import type { KinetixToken } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixDatePicker from './KinetixDatePicker.vue';
 import KinetixLabel from './KinetixLabel.vue';

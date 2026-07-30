@@ -6,7 +6,7 @@ import type {
     KinetixSharedProps,
     KinetixTourData,
     KinetixToursState,
-} from '@/types';
+} from '@/types/kinetix';
 
 const STORAGE_PREFIX = 'kinetix.tour.';
 

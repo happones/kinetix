@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixOnboarding, KinetixSharedProps } from '@/types';
+import type { KinetixOnboarding, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Self-service onboarding checklist, talking to Kinetix's `onboarding`

@@ -8,7 +8,7 @@ import { brandFor } from '@/icons/brands';
 import type {
     KinetixConnectedAccount,
     KinetixConnectedProvider,
-} from '@/types';
+} from '@/types/kinetix';
 import KinetixLabel from './KinetixLabel.vue';
 
 /**

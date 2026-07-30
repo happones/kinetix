@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { statusFillClass, statusTextClass } from '@/composables/useStatusColor';
-import type { KinetixUsageMetricData } from '@/types';
+import type { KinetixUsageMetricData } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardHeader from './primitives/CardHeader.vue';

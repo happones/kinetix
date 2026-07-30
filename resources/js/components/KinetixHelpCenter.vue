@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { useKinetixHelp } from '@/composables/useKinetixHelp';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
-import type { KinetixHelpArticleSummary } from '@/types';
+import type { KinetixHelpArticleSummary } from '@/types/kinetix';
 import { cn } from './primitives/cn';
 
 /**

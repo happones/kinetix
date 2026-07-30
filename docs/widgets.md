@@ -112,7 +112,7 @@ Mount the grid in Vue and write custom slots matching any custom widget IDs:
 ```vue
 <script setup lang="ts">
 import KinetixWidgetsGrid from '@/components/kinetix/KinetixWidgetsGrid.vue';
-import type { KinetixWidgetsGridData } from '@/types';
+import type { KinetixWidgetsGridData } from '@/types/kinetix';
 
 defineProps<{
     dashboardGrid: KinetixWidgetsGridData;

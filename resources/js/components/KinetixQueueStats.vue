@@ -10,7 +10,7 @@ import {
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixQueue } from '@/composables/useKinetixQueue';
-import type { KinetixWidget } from '@/types';
+import type { KinetixWidget } from '@/types/kinetix';
 
 /**
  * A compact, live queue-health widget — throughput, recent & failed jobs, and

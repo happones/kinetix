@@ -46,6 +46,21 @@ class TeamScopedRoles
     }
 }
 
+/**
+ * The team-pivot writer as a callable array — the form the guides document,
+ * because a closure in config breaks `config:cache`.
+ */
+class RecordingAttacher
+{
+    /** @var array<int, array{0: string, 1: int|string|null}> */
+    public static array $calls = [];
+
+    public function attach(mixed $user, MemberProvision $provision): void
+    {
+        static::$calls[] = [$provision->email, $provision->team_id];
+    }
+}
+
 class MembershipAssignableRolesTest extends TestCase
 {
     use CreatesMembershipTables;
@@ -179,6 +194,30 @@ class MembershipAssignableRolesTest extends TestCase
         ])->assertStatus(422);
 
         $this->assertDatabaseMissing('users', ['email' => 'eight@example.com']);
+    }
+
+    public function test_attach_member_runs_as_a_callable_array(): void
+    {
+        // The config:cache-safe form documented in the guide — it must actually
+        // fire, since the closure form the docs used to show is undeployable.
+        config()->set('kinetix.membership.attach_member', [RecordingAttacher::class, 'attach']);
+        RecordingAttacher::$calls = [];
+
+        $provision = MemberProvision::create([
+            'team_id'    => 3,
+            'email'      => 'attached@example.com',
+            'role'       => 'editor',
+            'status'     => MemberProvisionStatus::Pending,
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $this->post($this->activationUrl($provision), [
+            'name'                  => 'Attached',
+            'password'              => 'secret-password',
+            'password_confirmation' => 'secret-password',
+        ])->assertRedirect();
+
+        $this->assertSame([['attached@example.com', 3]], RecordingAttacher::$calls);
     }
 
     public function test_a_static_array_still_works(): void

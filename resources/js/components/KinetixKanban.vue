@@ -9,7 +9,7 @@ import type {
     KinetixKanbanCard,
     KinetixKanbanData,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 import KanbanColumn from './Kanban/KanbanColumn.vue';
 
 /**

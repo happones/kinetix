@@ -13,7 +13,7 @@ import type {
     KinetixCalendarEventDisplay,
     KinetixCalendarView,
     KinetixSheetSide,
-} from '@/types';
+} from '@/types/kinetix';
 import CalendarEventDetails from './Calendar/CalendarEventDetails.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 

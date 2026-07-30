@@ -2,7 +2,7 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixRoles } from '@/composables/useKinetixRoles';
-import type { KinetixRole } from '@/types';
+import type { KinetixRole } from '@/types/kinetix';
 
 /**
  * Shared role-management orchestration on top of `useKinetixRoles`: loads the

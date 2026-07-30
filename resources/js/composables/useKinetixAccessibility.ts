@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixAccessibility, KinetixSharedProps } from '@/types';
+import type { KinetixAccessibility, KinetixSharedProps } from '@/types/kinetix';
 
 export const KINETIX_A11Y_STORAGE = 'kinetix.accessibility';
 

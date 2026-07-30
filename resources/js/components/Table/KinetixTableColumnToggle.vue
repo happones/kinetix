@@ -9,7 +9,7 @@ import {
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixTableColumn } from '@/types';
+import type { KinetixTableColumn } from '@/types/kinetix';
 import KinetixCheckbox from '../KinetixCheckbox.vue';
 
 const props = defineProps<{

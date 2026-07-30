@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { statusBadgeClass } from '@/composables/useStatusColor';
-import type { KinetixChartMetric, KinetixWidget } from '@/types';
+import type { KinetixChartMetric, KinetixWidget } from '@/types/kinetix';
 import KinetixEmptyState from './KinetixEmptyState.vue';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';

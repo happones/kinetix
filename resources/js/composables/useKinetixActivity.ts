@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixActivityResponse, KinetixSharedProps } from '@/types';
+import type {
+    KinetixActivityResponse,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 /**
  * Loads the paginated, team-scoped activity feed. Pass `subject_type` +

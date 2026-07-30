@@ -171,9 +171,45 @@ JS);
         $this->assertStringContainsString('resources/js/composables/useKinetix*.ts', $ignore);
         $this->assertStringContainsString('resources/js/composables/kinetix*.ts', $ignore);
         $this->assertStringContainsString('resources/js/stores/notifications.ts', $ignore);
-        $this->assertStringContainsString('resources/js/types/index.ts', $ignore);
+        $this->assertStringContainsString('resources/js/types/kinetix.ts', $ignore);
         $this->assertStringContainsString('resources/js/vue-i18n-locales*', $ignore);
         $this->assertStringContainsString('.claude/skills/kinetix-*/', $ignore);
+    }
+
+    public function test_it_gitignores_the_regenerated_output(): void
+    {
+        // Compiled output that `kinetix:upgrade` rewrites on every composer
+        // install — versioning it means a diff on every branch that touches a
+        // translation.
+        File::put($this->base.'/.gitignore', "/vendor\n/node_modules\n");
+        $this->seedEntryFile('ts');
+        $this->runInstaller();
+
+        $gitignore = File::get($this->base.'/.gitignore');
+
+        $this->assertStringContainsString('/vendor', $gitignore);
+        $this->assertStringContainsString('resources/js/vue-i18n-locales.generated.*', $gitignore);
+        $this->assertStringContainsString('resources/js/types/kinetix.ts', $gitignore);
+    }
+
+    public function test_gitignore_additions_are_idempotent(): void
+    {
+        File::put($this->base.'/.gitignore', "/vendor\n");
+        $this->seedEntryFile('ts');
+
+        $this->runInstaller();
+        $first = File::get($this->base.'/.gitignore');
+
+        $this->runInstaller();
+        $this->assertSame($first, File::get($this->base.'/.gitignore'));
+    }
+
+    public function test_no_gitignore_is_created_when_the_project_has_none(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->runInstaller();
+
+        $this->assertFileDoesNotExist($this->base.'/.gitignore');
     }
 
     public function test_it_publishes_the_agent_skills_by_default(): void

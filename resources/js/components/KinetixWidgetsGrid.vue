@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Component } from 'vue';
-import type { KinetixWidget, KinetixWidgetsGridData } from '@/types';
+import type { KinetixWidget, KinetixWidgetsGridData } from '@/types/kinetix';
 import KinetixChartWidget from './KinetixChartWidget.vue';
 import KinetixCustomWidget from './KinetixCustomWidget.vue';
 import KinetixHealthStatus from './KinetixHealthStatus.vue';

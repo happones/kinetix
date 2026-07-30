@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixMailTemplate, KinetixSharedProps } from '@/types';
+import type { KinetixMailTemplate, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Manage editable mail templates: list, create/update, delete, live-preview

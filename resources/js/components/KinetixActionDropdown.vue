@@ -13,7 +13,7 @@ import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { resolveIcon as resolveKinetixIcon } from '@/composables/useKinetixIcons';
 import { buttonVariants } from '@/composables/useShadcnVariants';
 import { statusInteractiveTextClass } from '@/composables/useStatusColor';
-import type { KinetixAction } from '@/types';
+import type { KinetixAction } from '@/types/kinetix';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 
 defineProps<{

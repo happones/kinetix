@@ -9,7 +9,7 @@ import type {
     KinetixWizardStep,
     KinetixWizardStepLayout,
     KinetixWizardVariant,
-} from '@/types';
+} from '@/types/kinetix';
 import { cn } from './primitives/cn';
 import WizardDefaultIndicator from './Wizard/WizardDefaultIndicator.vue';
 import WizardPanelsIndicator from './Wizard/WizardPanelsIndicator.vue';

@@ -1,6 +1,9 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import type { KinetixCookieConsentConfig, KinetixSharedProps } from '@/types';
+import type {
+    KinetixCookieConsentConfig,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 const DEFAULT_COOKIE_NAME = 'kinetix_cookie_consent';
 const DEFAULT_EXPIRY_DAYS = 365;

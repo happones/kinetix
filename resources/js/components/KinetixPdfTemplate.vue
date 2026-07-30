@@ -10,7 +10,7 @@ import type {
     KinetixPdfField,
     KinetixPdfTemplateData,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixLabel from './KinetixLabel.vue';
 import KinetixSelect from './KinetixSelect.vue';

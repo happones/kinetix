@@ -3,7 +3,7 @@ import { Check, Loader2, X } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixPlanData } from '@/types';
+import type { KinetixPlanData } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';

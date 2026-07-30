@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Check } from '@lucide/vue';
 import { useKinetixWizardStatus } from '@/composables/useKinetixWizardStatus';
-import type { KinetixWizardStep, KinetixWizardStepLayout } from '@/types';
+import type {
+    KinetixWizardStep,
+    KinetixWizardStepLayout,
+} from '@/types/kinetix';
 
 const props = defineProps<{
     steps: KinetixWizardStep[];

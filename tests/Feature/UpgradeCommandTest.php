@@ -15,7 +15,12 @@ class UpgradeCommandTest extends TestCase
     protected function tearDown(): void
     {
         // The testbench skeleton is shared — leave no published files behind.
+        // (The components tag also writes composables/stores/types, and a stale
+        // copy there makes the drift detection report files nobody touched.)
         File::deleteDirectory(resource_path('js/components/kinetix'));
+        File::deleteDirectory(resource_path('js/composables'));
+        File::deleteDirectory(resource_path('js/stores'));
+        File::deleteDirectory(resource_path('js/types'));
         File::delete(lang_path('en/kinetix.php'));
 
         parent::tearDown();

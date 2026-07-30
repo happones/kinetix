@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import type { KinetixTableColumn } from '@/types';
+import type { KinetixTableColumn } from '@/types/kinetix';
 
 /**
  * Local column-visibility state for a Kinetix table. Seeds the visible set from

@@ -1,7 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps } from '@/types';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Reads the `kinetix_impersonation` shared prop and ends an impersonation

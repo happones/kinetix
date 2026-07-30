@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSavedView, KinetixSharedProps } from '@/types';
+import type { KinetixSavedView, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Self-service saved table views for a given view key: load, create, update,

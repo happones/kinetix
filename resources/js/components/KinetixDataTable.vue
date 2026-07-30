@@ -20,7 +20,7 @@ import type {
     KinetixAction,
     KinetixTableData,
     KinetixTableRecord,
-} from '@/types';
+} from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';

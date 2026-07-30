@@ -7,7 +7,7 @@ import {
     actionButtonVariant,
     buttonVariants,
 } from '@/composables/useShadcnVariants';
-import type { KinetixAction, KinetixCalendarEvent } from '@/types';
+import type { KinetixAction, KinetixCalendarEvent } from '@/types/kinetix';
 
 export interface UseKinetixCalendarEventDetailsOptions {
     locale: () => string | undefined;

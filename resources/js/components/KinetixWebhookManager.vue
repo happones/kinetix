@@ -6,7 +6,10 @@ import { useKinetixWebhooks } from '@/composables/useKinetixWebhooks';
 import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
 import { statusBadgeClass } from '@/composables/useStatusColor';
 import type { KinetixStatusColor } from '@/composables/useStatusColor';
-import type { KinetixWebhookEndpoint, KinetixWebhookLog } from '@/types';
+import type {
+    KinetixWebhookEndpoint,
+    KinetixWebhookLog,
+} from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixLabel from './KinetixLabel.vue';
 

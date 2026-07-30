@@ -5,7 +5,7 @@ import type {
     KinetixPresenceState,
     KinetixPresenceUser,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 
 /**
  * Live presence: join the (team-resolved) presence channel and track who's

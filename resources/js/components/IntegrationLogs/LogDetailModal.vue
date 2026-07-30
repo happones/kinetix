@@ -15,7 +15,7 @@ import {
     statusClass,
 } from '@/composables/kinetixLogFormat';
 import { buttonVariants } from '@/composables/useShadcnVariants';
-import type { KinetixApiLog, KinetixWebhookLog } from '@/types';
+import type { KinetixApiLog, KinetixWebhookLog } from '@/types/kinetix';
 
 defineProps<{
     open: boolean;

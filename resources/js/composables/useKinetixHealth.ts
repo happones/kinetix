@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/vue3';
 import { onUnmounted, ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixHealthSnapshot, KinetixSharedProps } from '@/types';
+import type {
+    KinetixHealthSnapshot,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 /**
  * Live application-health metrics for <KinetixHealthStatus>: loads the latest

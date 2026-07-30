@@ -146,7 +146,7 @@ the `active` page — it reuses `<KinetixForm>` and posts to the settings endpoi
 ```vue
 <script setup lang="ts">
 import KinetixSettingsForm from '@/components/kinetix/KinetixSettingsForm.vue'
-import type { KinetixSettingsPageData } from '@/types'
+import type { KinetixSettingsPageData } from '@/types/kinetix'
 
 defineProps<{
   pages: { key: string; title: string; icon: string }[]

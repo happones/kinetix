@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
-import type { KinetixKanbanCard } from '@/types';
+import type { KinetixKanbanCard } from '@/types/kinetix';
 
 interface KanbanColumnData {
     key: string;

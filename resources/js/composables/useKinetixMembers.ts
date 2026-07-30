@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixMemberProvision, KinetixSharedProps } from '@/types';
+import type {
+    KinetixMemberProvision,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 interface MembersResponse {
     provisions: KinetixMemberProvision[];

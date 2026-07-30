@@ -8,7 +8,7 @@ import type {
     KinetixCalendarEvent,
     KinetixCalendarEventDisplay,
     KinetixSheetSide,
-} from '@/types';
+} from '@/types/kinetix';
 import KinetixSheet from '../KinetixSheet.vue';
 import { cn } from '../primitives/cn';
 

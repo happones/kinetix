@@ -3,7 +3,7 @@ import { CheckCircle2, CircleAlert, CircleX, HeartPulse } from '@lucide/vue';
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixHealth } from '@/composables/useKinetixHealth';
-import type { KinetixWidget } from '@/types';
+import type { KinetixWidget } from '@/types/kinetix';
 
 /**
  * A compact, live application-health widget powered by spatie/laravel-health.

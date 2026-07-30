@@ -8,7 +8,7 @@ import {
 import type { ColumnDef, SortingState } from '@tanstack/vue-table';
 import { computed, ref } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
-import type { KinetixTableColumn, KinetixTableRecord } from '@/types';
+import type { KinetixTableColumn, KinetixTableRecord } from '@/types/kinetix';
 
 /**
  * TanStack-backed client-side engine for Kinetix tables. Given the full row set

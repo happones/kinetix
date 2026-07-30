@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { KinetixInfolistData } from '@/types';
+import type { KinetixInfolistData } from '@/types/kinetix';
 import KinetixInfolistEntries from './KinetixInfolistEntries.vue';
 
 defineProps<{

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { formatTime, statusClass } from '@/composables/kinetixLogFormat';
-import type { KinetixApiLog } from '@/types';
+import type { KinetixApiLog } from '@/types/kinetix';
 
 defineProps<{
     logs: KinetixApiLog[];

@@ -6,7 +6,7 @@ import type {
     KinetixHelpArticleSummary,
     KinetixHelpSearchResult,
     KinetixSharedProps,
-} from '@/types';
+} from '@/types/kinetix';
 
 /**
  * Data layer for the Help Center components, talking to Kinetix's help

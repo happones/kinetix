@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { resolveIcon } from '@/composables/useKinetixIcons';
-import type { KinetixWidgetAction } from '@/types';
+import type { KinetixWidgetAction } from '@/types/kinetix';
 
 /**
  * Renders a widget's header actions (link/button) — e.g. "Export", "View all".

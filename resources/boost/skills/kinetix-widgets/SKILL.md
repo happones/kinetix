@@ -76,7 +76,7 @@ In your Inertia page, mount the grid and supply slots for any custom widgets if 
 ```vue
 <script setup lang="ts">
 import KinetixWidgetsGrid from '@/components/kinetix/KinetixWidgetsGrid.vue';
-import type { KinetixWidgetsGridData } from '@/types';
+import type { KinetixWidgetsGridData } from '@/types/kinetix';
 
 defineProps<{
     widgetsGrid: KinetixWidgetsGridData;

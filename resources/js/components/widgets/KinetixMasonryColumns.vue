@@ -6,7 +6,7 @@ import {
     packIntoColumns,
     resolveResponsiveValue,
 } from '@/composables/useMasonryColumns';
-import type { KinetixWidget } from '@/types';
+import type { KinetixWidget } from '@/types/kinetix';
 
 /**
  * Column-balanced masonry: distributes `widgets` into a responsive number of

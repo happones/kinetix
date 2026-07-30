@@ -5,7 +5,7 @@ import {
     actionButtonVariant,
     buttonVariants,
 } from '@/composables/useShadcnVariants';
-import type { KinetixAction } from '@/types';
+import type { KinetixAction } from '@/types/kinetix';
 
 defineProps<{
     bulkActions: KinetixAction[];

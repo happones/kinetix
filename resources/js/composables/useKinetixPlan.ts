@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import type { ComputedRef } from 'vue';
-import type { KinetixBillingState, KinetixSharedProps } from '@/types';
+import type { KinetixBillingState, KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Resolve a dot-path inside the plan's nested features JSON, mirroring

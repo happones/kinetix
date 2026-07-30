@@ -13,6 +13,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.119.0] - 2026-07-30
+
+### Security
+
+- **The team-owner bypass no longer short-circuits model policies.** `Gate::before`
+  returning a blanket `true` (v0.118.0, and the snippet the docs used to suggest)
+  also passed **policy** checks, so the owner of team A could `update`/`delete`
+  team B's records — the tenancy boundary was gone. The bypass now only grants
+  abilities **registered in the `PermissionRegistry`** (`posts.update`,
+  `reports.access`, …); record-bound policy abilities fall through and your policy
+  decides. `PermissionRegistry::has()` is public so a hand-written bypass can be
+  scoped the same way, and the docs now show that shape.
+
+### Changed
+
+- ⚠️ **BREAKING — Kinetix publishes its TypeScript declarations to
+  `resources/js/types/kinetix.ts`** instead of `types/index.ts`. In the Laravel
+  starter kits `types/index.ts` is the **app's own barrel** (`export * from
+  './auth'`, `'./teams'`, …); publishing over it stripped those re-exports, and
+  because `@/types` still resolved, TypeScript silently degraded to `any` rather
+  than erroring — entire component prop contracts stopped being checked with
+  nothing in the output. Kinetix's own imports moved to `@/types/kinetix`.
+  **Migration:** restore your barrel in `types/index.ts` and change Kinetix type
+  imports to `@/types/kinetix`; `kinetix:upgrade` prints the reminder while a
+  Kinetix-authored `index.ts` is still present, and `kinetix:doctor` flags it.
+- **Config callbacks accept a callable array** — `[SyncProvisionedMember::class,
+  'attach']`, resolved through the container (an instance method gets a
+  container-resolved instance). Every documented example now uses it: the previous
+  closure snippets were **not deployable**, since a closure in a config file makes
+  `php artisan config:cache` abort with "value at … is non-serializable". An array
+  is only read as a callback when it is a `[class-string, method]` pair, so
+  `assignable_roles => ['editor', 'viewer']` is unaffected.
+
+### Added
+
+- **`php artisan kinetix:doctor`** — one command for every misconfiguration that
+  otherwise fails silently: resolved route prefix, enabled modules, duplicated
+  `kinetix.*` route names (a host controller shadowing a package route for
+  `route()`), half-enabled team scoping, teamless roles, `attach_member` missing,
+  empty `assignable_roles`, **closures in config that break `config:cache`**,
+  duplicated i18n bundles, a legacy `types/index.ts`, and published files carrying
+  local edits. Exits non-zero on errors so it can gate a deploy; `--json` for
+  tooling.
+- **`kinetix:upgrade` names the local edits it overwrites.** It runs from
+  composer's `post-autoload-dump` and re-publishes with `--force`, so an edit in a
+  published component used to disappear in CI with nothing to show for it. It now
+  hashes the targets first and lists what differed.
+- **Duplicated Vue i18n bundle detection.** `vue-i18n:generate` defaults to
+  `--format=ts` while the generator config points `jsFile` at a `.js` path, so both
+  files can exist — and Vite resolves `.js` first, meaning the compiled bundle is
+  the one nothing refreshes (new keys never reach the UI). `kinetix:upgrade` and
+  `kinetix:doctor` both flag it.
+- **`kinetix:install` gitignores regenerated output** —
+  `resources/js/vue-i18n-locales.generated.*` and `resources/js/types/kinetix.ts`
+  are build artifacts the package rewrites on every `composer install`; versioning
+  them means a diff on every branch that touches a translation. Only appended when
+  the project already has a `.gitignore`.
+
 ## [0.118.0] - 2026-07-30
 
 ### Added

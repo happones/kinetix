@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
-import type { KinetixAction } from '@/types';
+import type { KinetixAction } from '@/types/kinetix';
 
 /**
  * Execute a Kinetix action's behaviour: fire a browser event, perform an

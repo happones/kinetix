@@ -5,7 +5,7 @@ import type {
     KinetixSharedProps,
     KinetixWebhookEndpoint,
     KinetixWebhookLog,
-} from '@/types';
+} from '@/types/kinetix';
 
 /**
  * CRUD + operations for the customer webhook dashboard, talking to Kinetix's

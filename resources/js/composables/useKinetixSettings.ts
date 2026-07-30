@@ -1,7 +1,10 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSettingsPageData, KinetixSharedProps } from '@/types';
+import type {
+    KinetixSettingsPageData,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 /**
  * Loads and persists a Kinetix settings page. Talks to the `settings` endpoint;

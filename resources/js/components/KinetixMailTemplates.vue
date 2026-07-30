@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixMailTemplates } from '@/composables/useKinetixMailTemplates';
 import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
-import type { KinetixMailTemplate } from '@/types';
+import type { KinetixMailTemplate } from '@/types/kinetix';
 
 /**
  * Manager for editable mail templates: a list, an editor (subject + Markdown/HTML
