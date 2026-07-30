@@ -130,7 +130,17 @@ php artisan vendor:publish --tag=kinetix-assets
 
 # Fallback design tokens — only if your app is NOT a shadcn-vue starter kit
 php artisan vendor:publish --tag=kinetix-styles
+
+# Per-module agent skills → .claude/skills/kinetix-* (kinetix:install does this
+# for you; coding agents only read the project, never vendor/)
+php artisan vendor:publish --tag=kinetix-skills
 ```
+
+> **Where Kinetix's endpoints live.** Every module registers its own endpoints
+> under `{current_team}/{kinetix.route_prefix}/…` and the published components
+> call them themselves — your app registers only the Inertia page routes. Run
+> `php artisan kinetix:routes` to see the resolved URIs before writing an endpoint
+> of your own.
 
 ### Theming (shadcn tokens)
 

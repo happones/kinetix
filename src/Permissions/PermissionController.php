@@ -261,9 +261,7 @@ class PermissionController
      */
     protected function protectedRoles(): array
     {
-        $configured = config('kinetix.permissions.protected_roles');
-
-        return $configured !== null ? (array) $configured : [SuperAdmin::role()];
+        return SuperAdmin::protectedRoles();
     }
 
     protected function assertNotProtected(string $roleName): void

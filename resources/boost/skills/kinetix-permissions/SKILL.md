@@ -22,6 +22,37 @@ Activate this skill when:
 
 For full details, reference `docs/permissions.md` (published at https://happones.github.io/kinetix/permissions).
 
+## Common integration mistakes
+
+Check these **first** — they are what actually breaks integrations, and each one
+fails silently:
+
+1. **Writing your own controller under the wrong prefix.** Kinetix registers its
+   endpoints under `{current_team}/{kinetix.route_prefix}/permissions/…` (e.g.
+   `/acme/_kinetix/permissions/roles`) and the components call those URLs
+   themselves. A controller of yours at `{current_team}/roles` is never invoked.
+   The app registers only the *Inertia page* route. Verify with
+   `php artisan kinetix:routes` before writing any endpoint.
+2. **Redefining a `kinetix_*` Inertia prop.** `HandleInertiaRequests::share()` is
+   merged **over** the package's shared props, so returning your own
+   `kinetix_permissions` key silently replaces it and every `can()` turns false.
+   Share your data under your own key. (Kinetix logs a warning in `local` when it
+   detects the override.)
+3. **Assuming the owner bypass exists.** Team ownership is not a role, so no role
+   grants it. Set `permissions.owner_bypass => true` (uses the host's
+   `$user->ownsTeam($team)`) or pass a callback `fn ($user, $team) => bool`.
+   Without it a team owner with no role holds **no** permissions.
+4. **Seeding roles without team context.** Under team scoping a role created with
+   no team id is *global*: visible in every team, editable by super-admins only.
+   Pin the team first (`setPermissionsTeamId($team->id)`).
+   `kinetix:permissions:sync` lists teamless roles that aren't protected.
+5. **Forgetting the sync.** Enforcement reads the DB; an unsynced catalog makes
+   roles look fine while granting nothing. Run it on deploy *and* in test setup.
+
+Callbacks in config (`owner_bypass`, and Membership's `assignable_roles` /
+`attach_member`) break `php artisan config:cache` when written as closures — they
+all also accept the class-string of an invokable class, which caches fine.
+
 ## Configuration
 
 Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, default off):
@@ -31,10 +62,22 @@ Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, defaul
     'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
     'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
     'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
+    // Owner-can-do-everything bypass: true (uses $user->ownsTeam($team)),
+    // a closure fn ($user, $team) => bool, an invokable class-string, or null.
+    'owner_bypass'     => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
     'protected_roles'  => null, // null = protect the super_admin_role; or ['super-admin', 'owner']
 ],
 ```
+
+### Team owners (`owner_bypass`)
+
+Ownership lives in the host's team schema, not in `model_has_roles` — so it can
+never be granted by a role and needs its own `Gate::before`. Kinetix registers it
+when `permissions.owner_bypass` is set, resolving the team from the
+`{current_team}` segment (falling back to `currentTeam`) and memoizing the verdict
+per user × team. The `kinetix_permissions` prop picks these dynamic grants up, so
+the SPA matches the server without the owner holding a permission row.
 
 ### Teams: `HasTeams` × `HasRoles` trait collision
 
@@ -210,7 +253,9 @@ Register once: `app.use(KinetixPermissions)` (from `@/plugins/kinetixPermissions
 ### 4. Role management UI
 
 Drop in `<KinetixRoleManager>` (grouped checkbox lists) or `<KinetixRoleMatrix>` (role cards with member counts + a module × ability grid editor — canonical CRUD columns, custom abilities appended, click a module to toggle its row), both gated behind `roles.manage`. They use the endpoints
-`{prefix}/permissions/{features,roles}` (CRUD, gated by `roles.manage`). For custom
+`{prefix}/permissions/{features,roles}` (CRUD, gated by `roles.manage`) — where
+`{prefix}` is `{current_team}/_kinetix` with teams on, **never a path of your
+own**; `php artisan kinetix:routes` prints the resolved URIs. For custom
 flows compose `KinetixPermissionMatrix` (`v-model` of permission keys) with
 `useKinetixRoles`. Seed starter roles with `KinetixRolesSeeder`.
 

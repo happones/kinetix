@@ -13,6 +13,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.118.0] - 2026-07-30
+
+### Added
+
+- **`php artisan kinetix:routes`** — lists every endpoint Kinetix registers with
+  its **resolved** URI (`/{current_team}/_kinetix/permissions/roles`, …), name and
+  (with `-v`) middleware; `--json` for tooling, an optional filter argument. The
+  header states the prefix contract explicitly, and app routes that happen to sit
+  under the same prefix are listed too, so collisions are visible. This closes the
+  #1 integration mistake: writing a controller under a different path and waiting
+  for a Kinetix component to call it (components own their URLs; the app registers
+  only the Inertia page route).
+- **Team-owner gate bypass** — `kinetix.permissions.owner_bypass` makes "the owner
+  can do everything" a config line instead of a hand-written `Gate::before`.
+  Ownership lives in the host's team schema, not in `model_has_roles`, so no role
+  can grant it: `true` uses the host's `$user->ownsTeam($team)`, or pass a callback
+  `fn ($user, $team) => bool`. The team is resolved from the `{current_team}`
+  segment (falling back to `currentTeam`), the verdict memoized per user × team in
+  a `WeakMap`, and the `kinetix_permissions` prop already reflects dynamic Gate
+  grants — so an owner's UI matches the server without holding a permission row.
+- **Dynamic `membership.assignable_roles`** — the allow-list now accepts a callback
+  receiving the team key (array, Collection or `Role` models), for apps whose teams
+  create their own roles in the Roles UI. Still enforced twice (provision +
+  activation); at activation it resolves against the **provision's** team, since
+  the signed URL carries no `{current_team}` segment.
+- Callback config options (`permissions.owner_bypass`,
+  `membership.assignable_roles` / `attach_member` / `detach_member`) also accept the
+  **class-string of an invokable class**, which keeps `php artisan config:cache`
+  working — a closure in a config file breaks it.
+- **`vendor:publish --tag=kinetix-skills`** — the 46 bundled agent skills
+  (`kinetix-permissions`, `kinetix-tables`, `kinetix-membership`, …) now reach the
+  host. They were shipped in `resources/boost/skills` where no coding agent can see
+  them; `kinetix:install` publishes them by default (`--skip-skills` opts out),
+  `kinetix:upgrade` refreshes an adopted copy, and `kinetix.skills_path`
+  (default `.claude/skills`) retargets other agent tooling.
+- **Two new boot/console diagnostics** for silent failures:
+  - `kinetix:permissions:sync` lists **global (teamless) roles** that aren't
+    protected when team scoping is on — the classic "seeder ran without team
+    context" accident, where roles become visible in every team and editable by
+    super-admins only.
+  - A boot warning when membership team scoping is on but `attach_member` is
+    `null` — activated members would get their role and belong to **no team**.
+- **Override detection for the `kinetix_*` Inertia props** — in `local` only,
+  Kinetix logs a warning when a response no longer carries its own shared prop
+  (i.e. `HandleInertiaRequests::share()` returned a `kinetix_permissions` key,
+  which `array_merge` puts last). Previously this silently turned every `can()`
+  into `false` with nothing in the logs. Nothing is registered in production.
+
+### Changed
+
+- The permissions/membership **skills** now open with a "Common integration
+  mistakes" section (wrong route prefix, null `attach_member`, overwritten share,
+  teamless roles) instead of only describing the API, and spell out `{prefix}`
+  wherever endpoints are listed.
+- **Docs**: `permissions.md` and `membership.md` now open with the endpoint-prefix
+  contract; §3 became "Gate bypasses (super admin & team owners)" with a Team
+  owners section; the frontend section warns against redefining the shared props;
+  `installation.md` documents `kinetix:routes` and the skills publish.
+
 ## [0.117.0] - 2026-07-25
 
 ### Added

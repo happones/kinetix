@@ -13,6 +13,20 @@ Kinetix Membership provides that second model as a drop-in alternative to the
 starter kit's `InviteMemberModal` / `TeamInvitation` flow, and it composes
 cleanly with the Kinetix [Roles & Permissions](/permissions) module.
 
+::: danger Read this first — where the endpoints live
+The module registers its **own** endpoints and `<KinetixMemberList>` calls them
+itself. With teams on they live under:
+
+```
+{current_team}/{kinetix.route_prefix}/members/...   →  e.g. /acme/_kinetix/members
+```
+
+**Do not register your own `{current_team}/members` controller expecting the
+component to hit it — it never will.** You register only the *Inertia page*
+route. Run `php artisan kinetix:routes members` to see the resolved URIs,
+methods and middleware.
+:::
+
 ---
 
 ## 1. Two onboarding models
@@ -57,7 +71,8 @@ Enable the module in `config/kinetix.php`:
 
     // Roles an admin is allowed to assign while provisioning. Anything outside
     // this list is rejected server-side — this is how you guarantee
-    // "I add members but they never become admin".
+    // "I add members but they never become admin". A static array, a closure,
+    // or an invokable class-string (see "Dynamic allow-list" below).
     'assignable_roles'  => ['editor', 'viewer'],
 
     // Hours an activation link stays valid
@@ -81,6 +96,59 @@ Enable the module in `config/kinetix.php`:
 > exactly like `roles.manage`. With the [Roles & Permissions](/permissions)
 > module enabled, just grant the `members.*` abilities to a role. Without it,
 > define those gates yourself.
+
+::: danger `attach_member` is required in a teams app
+Kinetix assigns the Kinetix **role** and never touches your `teams` pivot — the
+host owns that row. So with team scoping on and `attach_member` left at `null`,
+activation succeeds, the member gets their role… **and belongs to no team**, which
+in a team-routed app means they can't reach a single page. Kinetix logs a warning
+at boot when it detects that combination:
+
+```
+Kinetix: membership team scoping is on but `kinetix.membership.attach_member`
+is null — activated members will NOT be linked to any team.
+```
+
+Fix it in one line (see [step 3](#_6-adapting-the-starter-kit)):
+
+```php
+'attach_member' => fn ($user, $provision) =>
+    $provision->team_id
+        ? Team::find($provision->team_id)?->users()->attach($user->id)
+        : null,
+```
+:::
+
+### Dynamic allow-list
+
+A config array covers a fixed catalog. If your teams create their own roles in
+the Roles UI, point `assignable_roles` at a **callback** instead — it receives the
+team key the provision belongs to and may return an array or a Collection of role
+names (or `Role` models):
+
+```php
+'assignable_roles' => fn ($teamId) => \Spatie\Permission\Models\Role::query()
+    ->where('team_id', $teamId)
+    ->whereNotIn('name', ['super-admin', 'admin'])
+    ->pluck('name')
+    ->all(),
+```
+
+It is resolved on every request that lists or validates roles, so a role created
+a second ago is immediately assignable — and it is still enforced twice
+(provision + activation), the security boundary is unchanged. At activation the
+callback receives the **provision's** team, since the signed activation URL
+carries no `{current_team}` segment.
+
+::: warning Closures break `config:cache`
+A closure in a config file makes `php artisan config:cache` fail. Both callbacks
+here (`assignable_roles`, `attach_member` / `detach_member`) therefore also accept
+the **class-string of an invokable class**, which caches fine:
+
+```php
+'assignable_roles' => \App\Kinetix\AssignableRoles::class,   // __invoke($teamId): array
+```
+:::
 
 ---
 
@@ -158,8 +226,9 @@ and `kinetix:permissions:sync`:
 * `members.update` — Change a member's role
 * `members.revoke` — Remove members
 
-Endpoints (team-aware, mounted under the Kinetix route prefix — the same pattern
-as the permission routes):
+Endpoints (mounted under the Kinetix route prefix — the same pattern as the
+permission routes). `{prefix}` is `{current_team}/_kinetix` with teams on,
+`_kinetix` without; `php artisan kinetix:routes members` prints the resolved URIs:
 
 | Method | Endpoint | Ability | Description |
 |---|---|---|---|
@@ -189,9 +258,10 @@ are needed:
    personal team.
 2. **Close public registration.** Drop `Features::registration()` from
    `config/fortify.php`; the only entry point becomes the activation link.
-3. **Attach members to your team.** Point `membership.attach_member` at a
-   closure that writes your team pivot — Kinetix assigns the Kinetix role, the
-   host owns the membership row:
+3. **Attach members to your team** — *mandatory with teams on*, or activated
+   members belong to nothing. Point `membership.attach_member` at a callback that
+   writes your team pivot; Kinetix assigns the Kinetix role, the host owns the
+   membership row:
    ```php
    'attach_member' => fn ($user, $provision) =>
        $provision->team_id

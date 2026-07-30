@@ -241,8 +241,27 @@ return [
     | The prefix used for Kinetix's internal API routes.
     | Change this if it conflicts with your application's existing routes.
     |
+    | IMPORTANT: every Kinetix module mounts its endpoints under this prefix
+    | (`{current_team}/{route_prefix}/…` when teams are on) and the published Vue
+    | components call those URLs themselves. Never register your own controller
+    | on a different path expecting a Kinetix component to hit it — run
+    | `php artisan kinetix:routes` to see the URLs the frontend actually uses.
+    |
     */
     'route_prefix' => env('KINETIX_ROUTE_PREFIX', '_kinetix'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Agent Skills
+    |--------------------------------------------------------------------------
+    |
+    | Where `vendor:publish --tag=kinetix-skills` writes the per-module skills
+    | that coding agents load (they only read the project's own directory, never
+    | vendor/). Change it if your agent tooling looks elsewhere, e.g.
+    | `.agents/skills` or `.opencode/skills`.
+    |
+    */
+    'skills_path' => env('KINETIX_SKILLS_PATH', '.claude/skills'),
 
     /*
     |--------------------------------------------------------------------------
@@ -267,6 +286,11 @@ return [
     | - `teams`: scope roles/permissions per team. When true, Kinetix wires
     |   spatie's team id to the starter-kit `currentTeam` via middleware.
     | - `super_admin_role`: a role that bypasses every gate check (Gate::before).
+    | - `owner_bypass`: grant a team's OWNER every ability. Ownership lives in
+    |   your team schema, not in a role, so it needs its own switch: `true` uses
+    |   the host's `$user->ownsTeam($team)`; a closure (or the class-string of an
+    |   invokable class — config:cache-safe) receives `($user, $team)` for a
+    |   bespoke rule; `null` disables it.
     | - `guard`: the auth guard permissions are registered under.
     |
     */
@@ -274,7 +298,9 @@ return [
         'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
         'teams'            => env('KINETIX_PERMISSIONS_TEAMS'), // null = inherit kinetix.teams
         'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
-        'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
+        // true | closure | invokable class-string | null (off)
+        'owner_bypass' => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
+        'guard'        => env('KINETIX_PERMISSIONS_GUARD', 'web'),
 
         // Role names that the management UI/endpoints refuse to create, rename
         // to, edit or delete. `null` protects just the super-admin role above;

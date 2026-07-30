@@ -25,11 +25,14 @@ class InstallCommandTest extends TestCase
 {
     private string $base;
 
+    private string $originalBase;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->base = sys_get_temp_dir().'/kinetix_install_'.uniqid();
+        $this->originalBase = base_path();
+        $this->base         = sys_get_temp_dir().'/kinetix_install_'.uniqid();
         File::ensureDirectoryExists($this->base.'/resources/js');
         File::put($this->base.'/package.json', json_encode(['private' => true], JSON_PRETTY_PRINT));
 
@@ -41,18 +44,25 @@ class InstallCommandTest extends TestCase
     {
         File::deleteDirectory($this->base);
 
+        // The skills publish map resolves against the boot-time base path (the
+        // shared testbench skeleton), so clean that up too.
+        File::deleteDirectory($this->originalBase.'/.claude');
+
         parent::tearDown();
     }
 
     /**
      * @param array<string, mixed> $options
      */
-    private function runInstaller(array $options = []): void
+    private function runInstaller(array $options = []): CommandTester
     {
         $command = new TestableInstallCommand;
         $command->setLaravel($this->app);
 
-        (new CommandTester($command))->execute($options);
+        $tester = new CommandTester($command);
+        $tester->execute($options);
+
+        return $tester;
     }
 
     private function seedEntryFile(string $ext): void
@@ -163,6 +173,31 @@ JS);
         $this->assertStringContainsString('resources/js/stores/notifications.ts', $ignore);
         $this->assertStringContainsString('resources/js/types/index.ts', $ignore);
         $this->assertStringContainsString('resources/js/vue-i18n-locales*', $ignore);
+        $this->assertStringContainsString('.claude/skills/kinetix-*/', $ignore);
+    }
+
+    public function test_it_publishes_the_agent_skills_by_default(): void
+    {
+        $this->seedEntryFile('ts');
+
+        // Skills only reach an agent from the project itself, never from vendor/,
+        // so the installer publishes them without being asked. (Where the files
+        // land is covered by SkillsPublishTest — the publish map is resolved when
+        // the provider boots, before this test rebases base_path().)
+        $this->assertStringContainsString(
+            'Published the Kinetix agent skills',
+            $this->runInstaller()->getDisplay(),
+        );
+    }
+
+    public function test_skip_skills_opts_out(): void
+    {
+        $this->seedEntryFile('ts');
+
+        $this->assertStringNotContainsString(
+            'Published the Kinetix agent skills',
+            $this->runInstaller(['--skip-skills' => true])->getDisplay(),
+        );
     }
 
     public function test_prettierignore_additions_preserve_existing_entries_and_are_idempotent(): void

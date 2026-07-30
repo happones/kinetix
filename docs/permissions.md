@@ -4,6 +4,25 @@ Kinetix provides a feature-scoped roles and permissions system built on top of t
 
 Enforcement of authorization still flows natively through Laravel's standard `Gate` (which Kinetix resources and actions consume by default). This module adds a centralized permission registry, database synchronization, a super-admin bypass, and automatic tenant/team bridging.
 
+::: danger Read this first — where the endpoints live
+Kinetix registers its **own** endpoints and the published components call them
+themselves. With teams on they live under:
+
+```
+{current_team}/{kinetix.route_prefix}/permissions/...   →  e.g. /acme/_kinetix/permissions/roles
+```
+
+So: **do not write your own controller under `{current_team}/roles` (or any other
+path) expecting `<KinetixRoleManager>` / `<KinetixRoleMatrix>` to hit it — it
+never will.** You only register the *Inertia page* route; the data flows through
+the built-in endpoints. To see exactly what the frontend talks to:
+
+```bash
+php artisan kinetix:routes            # every Kinetix endpoint, resolved URI + middleware
+php artisan kinetix:routes permissions   # filter
+```
+:::
+
 ---
 
 ## Requirements
@@ -30,6 +49,10 @@ Enable permissions in your `config/kinetix.php` file:
 
     // Users with this role will bypass all Gate authorization checks
     'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
+
+    // Grant a team's OWNER every ability (see §3). true | closure | invokable
+    // class-string | null (off)
+    'owner_bypass'     => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
 
     // The guard permissions are registered under
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
@@ -244,7 +267,9 @@ protected function setUp(): void
 
 ---
 
-## 3. Super Admin Role
+## 3. Gate bypasses (super admin & team owners)
+
+### Super admin role
 
 When `permissions.enabled` is `true`, Kinetix automatically registers a `Gate::before` callback:
 
@@ -281,6 +306,54 @@ A super-admin assigned *inside* a team keeps the bypass only in that team.
 Teamless assignments require the hybrid teams migration below (spatie's stock
 teams migration puts the team key in the pivot's primary key, which cannot be
 `NULL`).
+
+### Team owners
+
+In a teams app, **"the owner can do everything"** is the most common rule — and
+it is *not* a role: ownership lives in your own team schema (`teams.user_id`, a
+pivot flag, …), never in `model_has_roles`. So no role assignment grants it and
+no permission sync creates it. It needs its own bypass, which Kinetix turns into
+one config line:
+
+```php
+// config/kinetix.php → permissions
+'owner_bypass' => true,   // uses the host's $user->ownsTeam($team)
+```
+
+With `true`, Kinetix resolves the team the request is scoped to (the
+`{current_team}` segment via `SetPermissionsTeam`, falling back to the user's
+`currentTeam`) and calls the host's `ownsTeam()` — the starter-kit / Jetstream
+`HasTeams` convention. Need a different rule? Pass a callback that receives the
+user and the resolved team:
+
+```php
+'owner_bypass' => fn ($user, $team) => $team !== null && $team->user_id === $user->id,
+```
+
+::: warning Closures break `config:cache`
+A closure in a config file makes `php artisan config:cache` fail ("Your
+configuration files are not serializable"). Every Kinetix option documented as a
+callback therefore also accepts the **class-string of an invokable class**, which
+caches fine:
+
+```php
+'owner_bypass' => \App\Kinetix\OwnerBypass::class,   // an __invoke($user, $team): bool
+```
+:::
+
+The verdict is memoized per user × team (`Gate::before` fires on *every* check),
+and it is picked up by the frontend automatically: the `kinetix_permissions`
+prop includes registered abilities the Gate grants dynamically, so an owner's UI
+matches what the server authorizes without them holding a single permission row.
+
+If you prefer to own the bypass yourself, leave `owner_bypass` at `null` and
+register it in your provider — Kinetix's role-management guardrails evaluate
+"permissions you hold" through the **Gate**, so a `Gate::before`-granted owner
+can still manage roles:
+
+```php
+Gate::before(fn ($user) => $user->ownsTeam(currentTeam()) ? true : null);
+```
 
 ---
 
@@ -407,6 +480,31 @@ existence is not leaked). Creating — or renaming to — a name that already
 exists in scope (same team or global) is a validation error, never a silent
 takeover of that role's permissions.
 
+::: tip The classic accident: a seeder that ran without team context
+`Role::create(['name' => 'admin'])` from a seeder or `tinker` has **no** team id,
+so it lands as a *global* role: visible in every team and editable by
+super-admins only — not by the team admins who are supposed to own it. Because
+this is invisible in the UI (just a *Global* badge), `kinetix:permissions:sync`
+lists them for you whenever team scoping is on:
+
+```
+$ php artisan kinetix:permissions:sync
+
+Global (teamless) roles found: admin, editor, viewer
+  Team scoping is on, so these are visible in EVERY team and editable by a
+  super-admin only. ...
+```
+
+Only the protected roles (`permissions.protected_roles`, default: the
+super-admin role) are exempt — those *should* be global. To seed a role into a
+team, pin the team id first:
+
+```php
+app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($team->id);
+Role::findOrCreate('admin', 'web');
+```
+:::
+
 ---
 
 ## 5. Frontend Authorization (Vue / Inertia)
@@ -416,6 +514,35 @@ roles via the `kinetix_permissions` Inertia prop — you do **not** need to edit
 `HandleInertiaRequests`. Gate your UI with the shipped helpers, using the same
 `{feature}.{ability}` keys the backend enforces. All checks are reactive (they
 update when Inertia replaces the page props, e.g. after a role change).
+
+::: danger Never redefine the `kinetix_*` props
+Whatever `HandleInertiaRequests::share()` returns is merged **over** what the
+package shared, so a `kinetix_permissions` key of your own wins *silently*:
+every component keeps reading the prop, it just reads your shape, and `can()`
+starts returning `false` everywhere with nothing in the logs.
+
+```php
+// app/Http/Middleware/HandleInertiaRequests.php
+public function share(Request $request): array
+{
+    return [
+        ...parent::share($request),
+
+        // ❌ kills Kinetix's permission gating (and the same applies to every
+        //    other kinetix_* prop: kinetix_config, kinetix_teams, …)
+        'kinetix_permissions' => [...],
+
+        // ✅ your data goes under your own key
+        'acme' => ['flags' => $request->user()?->flags],
+    ];
+}
+```
+
+Kinetix detects this: in **local**, a request whose response no longer carries
+the package's own prop logs
+`Kinetix: the Inertia prop \`kinetix_permissions\` was replaced by the application …`.
+Nothing runs in production.
+:::
 
 ### 5.1 `useKinetixCan` composable
 
@@ -551,8 +678,10 @@ Route::prefix('{current_team}')->group(function () {
 });
 ```
 
-It talks to the built-in endpoints registered under your Kinetix route prefix
-(team-aware), all gated by `roles.manage` (super-admin bypasses):
+It talks to the built-in endpoints registered under your Kinetix route prefix,
+all gated by `roles.manage` (super-admin bypasses). `{prefix}` below is
+`{current_team}/_kinetix` with teams on, `_kinetix` without — never a path of
+your own (`php artisan kinetix:routes` prints the resolved URIs):
 
 | Method | Endpoint | Description |
 |---|---|---|

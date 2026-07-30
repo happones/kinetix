@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Membership;
 
 use Happones\Kinetix\Data\MemberProvisionData;
+use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Enumerable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
@@ -48,7 +51,7 @@ class MembershipController
 
         return response()->json([
             'provisions'       => $provisions,
-            'assignable_roles' => $this->assignableRoles(),
+            'assignable_roles' => $this->assignableRoles($teamId),
         ]);
     }
 
@@ -61,10 +64,12 @@ class MembershipController
             'role'  => ['required', 'string'],
         ]);
 
-        $this->assertAssignable($validated['role']);
+        $teamId = $this->teamId($request);
+
+        $this->assertAssignable($validated['role'], $teamId);
 
         $provision = MemberProvision::updateOrCreate(
-            ['team_id' => $this->teamId($request), 'email' => $validated['email']],
+            ['team_id' => $teamId, 'email' => $validated['email']],
             [
                 'role'         => $validated['role'],
                 'invited_by'   => $request->user()?->getKey(),
@@ -103,7 +108,7 @@ class MembershipController
         $provision = $this->findProvision($request);
 
         $validated = $request->validate(['role' => ['required', 'string']]);
-        $this->assertAssignable($validated['role']);
+        $this->assertAssignable($validated['role'], $provision->team_id);
 
         $previousRole = $provision->role;
         $provision->update(['role' => $validated['role']]);
@@ -137,9 +142,9 @@ class MembershipController
                 }
             });
 
-            $detach = config('kinetix.membership.detach_member');
+            $detach = ConfigCallback::resolve(config('kinetix.membership.detach_member'));
 
-            if (is_callable($detach)) {
+            if ($detach !== null) {
                 $detach($this->resolveUser($provision->user_id), $provision);
             }
         }
@@ -180,8 +185,10 @@ class MembershipController
         ]);
 
         // Re-check the allow-list at activation time, in case config changed
-        // between provisioning and the person clicking the link.
-        $this->assertAssignable($provision->role);
+        // between provisioning and the person clicking the link. The activation
+        // route carries no `{current_team}` segment, so the allow-list is
+        // resolved against the team the provision was created for.
+        $this->assertAssignable($provision->role, $provision->team_id);
 
         $userModel = $this->userModel();
 
@@ -193,9 +200,9 @@ class MembershipController
 
         // Kinetix never touches the host's team pivot; the host attaches the
         // user to its team here if it tracks team membership itself.
-        $attach = config('kinetix.membership.attach_member');
+        $attach = ConfigCallback::resolve(config('kinetix.membership.attach_member'));
 
-        if (is_callable($attach)) {
+        if ($attach !== null) {
             $attach($user, $provision);
         }
 
@@ -223,16 +230,43 @@ class MembershipController
      * Roles a provisioner is allowed to assign. The security boundary for the
      * "members never become admin" guarantee.
      *
+     * A static array covers a fixed catalog; apps whose teams create their own
+     * roles in the Roles UI point the config at a callback instead — a closure
+     * or the class-string of an invokable class (config:cache-safe) receiving
+     * the team key the provision belongs to.
+     *
      * @return array<int, string>
      */
-    protected function assignableRoles(): array
+    protected function assignableRoles(int|string|null $teamId = null): array
     {
-        return array_values((array) config('kinetix.membership.assignable_roles', []));
+        $configured = config('kinetix.membership.assignable_roles', []);
+        $callback   = is_array($configured) ? null : ConfigCallback::resolve($configured);
+
+        if ($callback !== null) {
+            $configured = $callback($teamId);
+        }
+
+        // A Collection keeps its models (`toArray()` would flatten them to
+        // attribute arrays), so both a `pluck('name')` and a `Role` collection
+        // are accepted.
+        if ($configured instanceof Enumerable) {
+            $configured = $configured->all();
+        } elseif ($configured instanceof Arrayable) {
+            $configured = $configured->toArray();
+        }
+
+        return array_values(array_map(static function (mixed $role): string {
+            if ($role instanceof Model) {
+                return (string) $role->getAttribute('name');
+            }
+
+            return is_array($role) ? (string) ($role['name'] ?? '') : (string) $role;
+        }, (array) $configured));
     }
 
-    protected function assertAssignable(string $role): void
+    protected function assertAssignable(string $role, int|string|null $teamId = null): void
     {
-        abort_unless(in_array($role, $this->assignableRoles(), true), 422, 'Role is not assignable.');
+        abort_unless(in_array($role, $this->assignableRoles($teamId), true), 422, 'Role is not assignable.');
     }
 
     protected function teamId(Request $request): int|string|null

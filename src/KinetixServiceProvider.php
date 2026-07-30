@@ -38,6 +38,7 @@ use Happones\Kinetix\Commands\MakeSettingsPageCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\ReportRunsPruneCommand;
+use Happones\Kinetix\Commands\RoutesCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\SendReportsCommand;
 use Happones\Kinetix\Commands\UpgradeCommand;
@@ -88,6 +89,7 @@ use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
+use Happones\Kinetix\Permissions\TeamOwner;
 use Happones\Kinetix\Presence\PresenceManager;
 use Happones\Kinetix\Queue\QueueController;
 use Happones\Kinetix\Queue\QueueMetrics;
@@ -108,6 +110,7 @@ use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Tables\RecordModalController;
 use Happones\Kinetix\Tags\TagController;
@@ -127,10 +130,12 @@ use Happones\Kinetix\Wizards\Middleware\EnsureWizardCompleted;
 use Happones\Kinetix\Wizards\WizardController;
 use Happones\Kinetix\Wizards\WizardManager;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -350,6 +355,7 @@ class KinetixServiceProvider extends ServiceProvider
                 ConfidentialEncryptExistingCommand::class,
                 UpgradeCommand::class,
                 InstallCommand::class,
+                RoutesCommand::class,
             ]);
 
             // Publish config
@@ -499,6 +505,15 @@ class KinetixServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../public' => public_path('vendor/kinetix'),
             ], 'kinetix-assets');
+
+            // Publish the per-module agent skills so coding agents working in
+            // the HOST app get Kinetix's own guidance (they only load from the
+            // project's skills directory, never from vendor/).
+            $this->publishes([
+                __DIR__.'/../resources/boost/skills' => base_path(
+                    (string) config('kinetix.skills_path', '.claude/skills')
+                ),
+            ], 'kinetix-skills');
         }
 
         // Register endpoints for database notifications actions
@@ -655,6 +670,14 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::before(fn ($user): ?bool => SuperAdmin::check($user) ? true : null);
         }
 
+        // "The team owner can do everything" — opt-in, because ownership lives
+        // in the host's team schema rather than in a role (see TeamOwner). The
+        // `kinetix_permissions` Inertia prop picks these dynamic grants up
+        // automatically, so the SPA stays in sync with the server.
+        if (TeamOwner::enabled()) {
+            Gate::before(fn ($user): ?bool => TeamOwner::check($user) ? true : null);
+        }
+
         $this->registerPermissionRoutes();
     }
 
@@ -702,6 +725,18 @@ class KinetixServiceProvider extends ServiceProvider
     {
         if (! config('kinetix.membership.enabled', false)) {
             return;
+        }
+
+        // Surface the silent failure mode of a teams app: Kinetix assigns the
+        // role but never touches the host's team pivot, so without this callback
+        // an activated member belongs to no team and lands nowhere.
+        if (KinetixTeams::enabledFor('membership')
+            && ConfigCallback::resolve(config('kinetix.membership.attach_member')) === null) {
+            Log::warning(
+                'Kinetix: membership team scoping is on but `kinetix.membership.attach_member` is null — '
+                .'activated members will NOT be linked to any team. Point it at a callback that writes your '
+                .'team pivot: fn ($user, $provision) => Team::find($provision->team_id)?->users()->attach($user->id).'
+            );
         }
 
         app(PermissionRegistry::class)->feature('members')
@@ -2047,6 +2082,53 @@ class KinetixServiceProvider extends ServiceProvider
                 'ttlMinutes'    => (int) config('kinetix.confidential.reveal_ttl_minutes', 5),
                 'unlockedUntil' => $unlockedUntil?->toIso8601String(),
             ];
+        });
+
+        $this->guardSharedPropsFromOverrides();
+    }
+
+    /**
+     * Warn (in local only) when the host replaces one of the `kinetix_*` Inertia
+     * props instead of extending it.
+     *
+     * `HandleInertiaRequests::share()` is merged over what the package shared, so
+     * a host returning its own `kinetix_permissions` key wins **silently** — the
+     * components keep reading the prop, they just read the host's shape, and
+     * `can()` starts returning false everywhere with nothing in the logs. The
+     * check compares prop identity after the response is built, so it costs
+     * nothing in production (never registered) and nothing per-check in local.
+     */
+    protected function guardSharedPropsFromOverrides(): void
+    {
+        if (! $this->app->isLocal()) {
+            return;
+        }
+
+        /** @var array<string, mixed> $ours */
+        $ours = array_filter(
+            (array) Inertia::getShared(),
+            static fn (mixed $value, string $key): bool => str_starts_with($key, 'kinetix_'),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        Event::listen(RequestHandled::class, static function () use ($ours): void {
+            static $warned = [];
+
+            foreach ($ours as $key => $callback) {
+                if (isset($warned[$key]) || Inertia::getShared($key) === $callback) {
+                    continue;
+                }
+
+                $warned[$key] = true;
+
+                Log::warning(
+                    "Kinetix: the Inertia prop `{$key}` was replaced by the application (most likely a "
+                    ."`{$key}` key returned from HandleInertiaRequests::share(), which is merged OVER the "
+                    .'package\'s). Kinetix components read this prop and now see your shape instead — remove '
+                    .'the key and share your own data under a different name; Kinetix keeps these props '
+                    .'up to date for you.'
+                );
+            }
         });
     }
 

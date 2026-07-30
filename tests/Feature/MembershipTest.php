@@ -8,11 +8,11 @@ use Happones\Kinetix\Membership\MemberActivationNotification;
 use Happones\Kinetix\Membership\MemberProvision;
 use Happones\Kinetix\Membership\MemberProvisionStatus;
 use Happones\Kinetix\Permissions\KinetixPermissions;
+use Happones\Kinetix\Tests\Concerns\CreatesMembershipTables;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -34,6 +34,8 @@ class MemberUser extends Authenticatable
 
 class MembershipTest extends TestCase
 {
+    use CreatesMembershipTables;
+
     /**
      * @param  Application              $app
      * @return array<int, class-string>
@@ -60,7 +62,7 @@ class MembershipTest extends TestCase
     {
         parent::setUp();
 
-        $this->createTables();
+        $this->createMembershipTables();
 
         // Materialize the member abilities so they can be granted to a manager.
         foreach (KinetixPermissions::all() as $name) {
@@ -70,69 +72,6 @@ class MembershipTest extends TestCase
         foreach (['editor', 'viewer', 'admin'] as $role) {
             Role::findOrCreate($role, 'web');
         }
-    }
-
-    private function createTables(): void
-    {
-        Schema::create('users', function ($table) {
-            $table->increments('id');
-            $table->string('name')->nullable();
-            $table->string('email')->nullable();
-            $table->string('password')->nullable();
-        });
-
-        Schema::create('permissions', function ($table) {
-            $table->bigIncrements('id');
-            $table->string('name');
-            $table->string('guard_name');
-            $table->timestamps();
-            $table->unique(['name', 'guard_name']);
-        });
-
-        Schema::create('roles', function ($table) {
-            $table->bigIncrements('id');
-            $table->string('name');
-            $table->string('guard_name');
-            $table->timestamps();
-            $table->unique(['name', 'guard_name']);
-        });
-
-        Schema::create('role_has_permissions', function ($table) {
-            $table->unsignedBigInteger('permission_id');
-            $table->unsignedBigInteger('role_id');
-            $table->primary(['permission_id', 'role_id']);
-        });
-
-        Schema::create('model_has_permissions', function ($table) {
-            $table->unsignedBigInteger('permission_id');
-            $table->string('model_type');
-            $table->unsignedBigInteger('model_id');
-            $table->index(['model_id', 'model_type']);
-            $table->primary(['permission_id', 'model_id', 'model_type']);
-        });
-
-        Schema::create('model_has_roles', function ($table) {
-            $table->unsignedBigInteger('role_id');
-            $table->string('model_type');
-            $table->unsignedBigInteger('model_id');
-            $table->index(['model_id', 'model_type']);
-            $table->primary(['role_id', 'model_id', 'model_type']);
-        });
-
-        Schema::create('kinetix_member_provisions', function ($table) {
-            $table->id();
-            $table->unsignedBigInteger('team_id')->nullable()->index();
-            $table->string('email');
-            $table->string('name')->nullable();
-            $table->string('role');
-            $table->unsignedBigInteger('invited_by')->nullable();
-            $table->unsignedBigInteger('user_id')->nullable();
-            $table->string('status')->default('pending');
-            $table->timestamp('expires_at')->nullable();
-            $table->timestamp('activated_at')->nullable();
-            $table->timestamps();
-            $table->unique(['team_id', 'email']);
-        });
     }
 
     private function actingAsManager(): MemberUser

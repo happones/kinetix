@@ -34,6 +34,22 @@ class SuperAdmin
     }
 
     /**
+     * Role names that must not be created, renamed to, edited or deleted from
+     * the management UI — and that are legitimately global (teamless) under team
+     * scoping. Defaults to just the super-admin role.
+     *
+     * @return array<int, string>
+     */
+    public static function protectedRoles(): array
+    {
+        $configured = config('kinetix.permissions.protected_roles');
+
+        return $configured !== null
+            ? array_values(array_map('strval', (array) $configured))
+            : [static::role()];
+    }
+
+    /**
      * Whether the user holds the super-admin role in the current team context
      * or as a global (teamless) assignment. Memoized per user × team.
      */

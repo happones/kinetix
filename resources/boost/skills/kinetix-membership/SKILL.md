@@ -21,6 +21,34 @@ Activate this skill when:
 
 For full details, reference `docs/membership.md` (published at https://happones.github.io/kinetix/membership).
 
+## Common integration mistakes
+
+Check these **first** — they are what actually breaks integrations, and each one
+fails silently:
+
+1. **Writing your own controller under the wrong prefix.** The module's endpoints
+   live at `{current_team}/{kinetix.route_prefix}/members/…` (e.g.
+   `/acme/_kinetix/members`) and `<KinetixMemberList>` calls them itself. A
+   controller of yours at `{current_team}/members` is never invoked — the app
+   registers only the *Inertia page* route. Verify with
+   `php artisan kinetix:routes members` before writing any endpoint.
+2. **Leaving `attach_member` at `null` in a teams app.** Kinetix assigns the role
+   and never touches the host's team pivot, so activation succeeds and the member
+   belongs to **no team** — in a team-routed app they can't reach any page. Kinetix
+   logs a boot warning for exactly this combination.
+3. **Redefining a `kinetix_*` Inertia prop.** `HandleInertiaRequests::share()` is
+   merged **over** the package's shared props, so your own `kinetix_permissions`
+   key silently replaces Kinetix's and the `members.*` gating in the UI collapses.
+   Share your data under your own key.
+4. **Seeding the assignable roles without team context.** Under team scoping a
+   role created with no team id is global (visible in every team, super-admin
+   editable only), so it won't behave like the team role you expected.
+   `kinetix:permissions:sync` lists teamless roles.
+
+Callbacks in config (`assignable_roles`, `attach_member`, `detach_member`) break
+`php artisan config:cache` when written as closures — all three also accept the
+class-string of an invokable class, which caches fine.
+
 ## Configuration
 
 Enable the module in `config/kinetix.php` (opt-in, default off) and publish + run the migration:
@@ -36,7 +64,8 @@ php artisan migrate
     'teams'             => env('KINETIX_MEMBERSHIP_TEAMS', false),
     'user_model'        => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
     // The ONLY roles a provisioner may assign — the guard that keeps added
-    // members from ever becoming admin.
+    // members from ever becoming admin. Array, closure fn ($teamId) => array,
+    // or an invokable class-string (config:cache-safe).
     'assignable_roles'  => ['editor', 'viewer'],
     'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
     'activation_view'   => env('KINETIX_MEMBERSHIP_ACTIVATION_VIEW', 'Kinetix/MemberActivation'),
@@ -64,7 +93,9 @@ The module registers a `members` feature with the permission registry, so its
 abilities appear in the permission matrix and `kinetix:permissions:sync`:
 `members.viewAny`, `members.provision`, `members.update`, `members.revoke`.
 
-Management endpoints (team-aware, gated through Laravel's Gate like `roles.manage`):
+Management endpoints, gated through Laravel's Gate like `roles.manage`. `{prefix}`
+is `{current_team}/_kinetix` with teams on, `_kinetix` without — **never a path of
+your own** (`php artisan kinetix:routes members` prints the resolved URIs):
 
 | Method | Endpoint | Ability |
 |---|---|---|
@@ -84,15 +115,26 @@ the page, POST completes it — both share the same path so one signature covers
 
 **The allow-list is the security boundary.** A user who can `members.provision`
 still cannot assign a role outside `membership.assignable_roles` — it is enforced
-at provision **and** activation time. Kinetix assigns the dynamic Kinetix role; it
-never touches the host's team pivot, so wire `attach_member` to write your own
-membership row:
+at provision **and** activation time (at activation against the *provision's*
+team, since the signed URL carries no `{current_team}` segment). Kinetix assigns
+the dynamic Kinetix role; it never touches the host's team pivot, so wire
+`attach_member` — **required** once team scoping is on:
 
 ```php
 'attach_member' => fn ($user, $provision) =>
     $provision->team_id
         ? Team::find($provision->team_id)?->users()->attach($user->id)
         : null,
+```
+
+Teams that create their own roles in the Roles UI need a **dynamic** allow-list —
+pass a callback receiving the provision's team key instead of a static array:
+
+```php
+'assignable_roles' => fn ($teamId) => Role::where('team_id', $teamId)
+    ->whereNotIn('name', ['super-admin', 'admin'])
+    ->pluck('name')
+    ->all(),
 ```
 
 ---

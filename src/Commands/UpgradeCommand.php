@@ -24,7 +24,7 @@ class UpgradeCommand extends Command
 {
     protected $signature = 'kinetix:upgrade';
 
-    protected $description = 'Re-publish Kinetix components and translations after a composer update';
+    protected $description = 'Re-publish Kinetix components, translations and agent skills after a composer update';
 
     public function handle(): int
     {
@@ -53,8 +53,17 @@ class UpgradeCommand extends Command
             }
         }
 
+        // Agent skills — refreshed only if the app adopted them, so the hook
+        // never creates a skills directory in a project that doesn't want one.
+        $skillsPath = base_path((string) config('kinetix.skills_path', '.claude/skills'));
+
+        if (File::isDirectory($skillsPath.'/kinetix-permissions')) {
+            $this->callSilently('vendor:publish', ['--tag' => 'kinetix-skills', '--force' => true]);
+            $refreshed[] = 'agent skills';
+        }
+
         if ($refreshed === []) {
-            $this->info('Kinetix: nothing to upgrade — no published components/translations found.');
+            $this->info('Kinetix: nothing to upgrade — no published components/translations/skills found.');
 
             return self::SUCCESS;
         }

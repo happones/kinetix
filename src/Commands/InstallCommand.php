@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Commands;
 
 use Happones\Kinetix\Support\ComposerHook;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,7 +22,8 @@ class InstallCommand extends Command
         {--tanstack : Also install client-side table + list virtualization deps (@tanstack/vue-table, @tanstack/vue-virtual)}
         {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}
         {--tours : Also install the product-tour renderer (driver.js)}
-        {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}';
+        {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}
+        {--skip-skills : Do not publish the bundled agent skills}';
 
     /**
      * The console command description.
@@ -122,6 +124,8 @@ class InstallCommand extends Command
         } else {
             $this->info('Dependencies installed successfully.');
         }
+
+        $this->publishAgentSkills();
 
         // 2. Find and update main Inertia entry file (app.ts / app.js)
         $appPaths = [
@@ -247,6 +251,28 @@ JS;
         $this->info('Kinetix installation and configuration completed successfully!');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Copy the per-module agent skills into the project's skills directory.
+     *
+     * Agents only load skills from the project itself — a skill sitting in
+     * `vendor/happones/kinetix/resources/boost/skills` is invisible, which is
+     * why this runs by default instead of being an opt-in tag nobody discovers.
+     */
+    protected function publishAgentSkills(): void
+    {
+        if ($this->option('skip-skills')) {
+            return;
+        }
+
+        $path = (string) config('kinetix.skills_path', '.claude/skills');
+
+        // Through the facade rather than `$this->callSilently()` so the command
+        // also works when driven outside Artisan's console application.
+        Artisan::call('vendor:publish', ['--tag' => 'kinetix-skills', '--force' => true]);
+
+        $this->info("Published the Kinetix agent skills to {$path} (per-module guidance for coding agents).");
     }
 
     /**
@@ -383,6 +409,7 @@ JS;
             'resources/js/stores/notifications.ts',
             'resources/js/types/index.ts',
             'resources/js/vue-i18n-locales*',
+            rtrim((string) config('kinetix.skills_path', '.claude/skills'), '/').'/kinetix-*/',
         ];
 
         $path     = base_path('.prettierignore');

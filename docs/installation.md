@@ -49,16 +49,34 @@ php artisan vendor:publish --tag=kinetix-assets
 
 # Fallback shadcn design tokens — ONLY if your app is not a shadcn-vue starter kit
 php artisan vendor:publish --tag=kinetix-styles
+
+# Per-module agent skills → .claude/skills/kinetix-* (kinetix:install does this
+# for you). Coding agents only load skills from the project, never from vendor/.
+php artisan vendor:publish --tag=kinetix-skills
 ```
+
+::: tip Agent skills
+Kinetix ships a skill per module (`kinetix-permissions`, `kinetix-tables`,
+`kinetix-membership`, …) documenting the API *and* the integration mistakes each
+module invites. They are only visible to your coding agent once they live in the
+project, which is why `kinetix:install` publishes them by default
+(`--skip-skills` opts out) and `kinetix:upgrade` refreshes them. Different agent
+tooling? Point it elsewhere:
+
+```php
+// config/kinetix.php
+'skills_path' => '.agents/skills',   // or KINETIX_SKILLS_PATH
+```
+:::
 
 ::: tip Upgrading — automatic
 `kinetix:install` registers `@php artisan kinetix:upgrade` in your composer.json's
 `post-autoload-dump` (the same pattern as Filament's `filament:upgrade`), so every
 `composer install`/`update` re-publishes the volatile published assets —
-**components** (+ composables, stores, TS types) and **translations** (recompiling
-the Vue i18n bundle when `laravel-vue-i18n-generator` is installed). It only
-refreshes targets you have already published, and skips apps that never adopted
-them.
+**components** (+ composables, stores, TS types), **translations** (recompiling
+the Vue i18n bundle when `laravel-vue-i18n-generator` is installed) and the
+**agent skills**. It only refreshes targets you have already published, and skips
+apps that never adopted them.
 
 Because the hook **overwrites** the published copies, treat them as
 vendor-managed: customize via wrappers, slots, props and config — not by editing
@@ -394,6 +412,24 @@ slug or uuid, not the id). Kinetix resolves it via
 - if the user model has no teams relation, the raw segment is trusted as the
   key (id-routed teams) and **membership enforcement is your responsibility**
   (e.g. a middleware on your side).
+
+### The endpoint contract — `kinetix:routes`
+
+Every module registers its **own** endpoints under
+`{current_team}/{route_prefix}/…` and the published components call them
+directly. This is the single most common integration mistake: writing a
+controller of your own on a different path and waiting for a Kinetix component to
+hit it. Your app registers the *Inertia page* route; the data flows through the
+built-in endpoints.
+
+```bash
+php artisan kinetix:routes              # every Kinetix endpoint: method, resolved URI, name, middleware
+php artisan kinetix:routes members      # filter by URI/name
+php artisan kinetix:routes --json       # machine-readable
+```
+
+It also surfaces collisions: a route of yours that happens to live under the
+same prefix shows up in the list.
 
 ## Next steps
 
