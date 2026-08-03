@@ -33,6 +33,7 @@ return [
     'select_row'                       => '行を選択',
     'actions'                          => '操作',
     'reorder'                          => '並べ替え',
+    'results_count'                    => ':count 件の結果',
     'showing_range'                    => ':from 〜 :to 件を表示',
     'no_records_found'                 => 'レコードが見つかりません。',
     'copy'                             => 'コピー',

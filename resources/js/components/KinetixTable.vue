@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { router, usePage, usePoll } from '@inertiajs/vue3';
 import { GripVertical } from '@lucide/vue';
-import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
+import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixColumnVisibility } from '@/composables/useKinetixColumnVisibility';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import { resolveIcon } from '@/composables/useKinetixIcons';
@@ -71,6 +72,52 @@ const searchQuery = ref(props.table.state.search);
 const activeFilters = ref<Record<string, any>>({
     ...props.table.state.filters,
 });
+
+// --- Screen-reader result announcements ---------------------------------------
+// Search/filter/sort/page changes reload the rows with no focus change, so the
+// new result count is announced through the shared live region. Keyed off the
+// table STATE (not the records array) so polling refreshes stay silent.
+const { announce } = useKinetixAnnounce();
+
+const resultsAnnouncement = (): string => {
+    const pagination = props.table.pagination;
+
+    if (props.table.records.length === 0) {
+        return t('kinetix.no_records');
+    }
+
+    if (pagination?.total !== null && pagination?.total !== undefined) {
+        return t('kinetix.showing_records', {
+            from: pagination.from,
+            to: pagination.to,
+            total: pagination.total,
+        });
+    }
+
+    if (pagination?.from !== null && pagination?.from !== undefined) {
+        return t('kinetix.showing_range', {
+            from: pagination.from,
+            to: pagination.to,
+        });
+    }
+
+    return t('kinetix.results_count', {
+        count: props.table.records.length,
+    });
+};
+
+// An array OF getters (not one getter returning an array): Vue then compares
+// each source by value, so a poll refresh that only swaps `records` stays
+// silent while any state/page change announces.
+watch(
+    [
+        () => JSON.stringify(props.table.state),
+        () => props.table.pagination?.currentPage,
+    ],
+    () => {
+        announce(resultsAnnouncement());
+    },
+);
 
 // --- Column visibility -------------------------------------------------------
 const { isColumnVisible, toggleColumn, columnsToRender, visibleColumnNames } =

@@ -33,6 +33,7 @@ return [
     'select_row'                       => '选择行',
     'actions'                          => '操作',
     'reorder'                          => '重新排序',
+    'results_count'                    => ':count 条结果',
     'showing_range'                    => '显示第 :from 到 :to 条',
     'no_records_found'                 => '未找到记录。',
     'copy'                             => '复制',

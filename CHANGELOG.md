@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **(published) Table result counts are announced to screen readers.**
+  Search/filter/sort/page changes swap the rows with no focus change, so both
+  table variants now speak the outcome through the shared polite live region
+  (`useKinetixAnnounce`, previously shipped but unused): "Showing 1 to 10 of
+  25 results", or the empty state. Announcements key off the table STATE — a
+  `poll()` refresh that only swaps records stays silent. Action toasts and
+  import/export toasts were already announced (vue-sonner renders
+  `role="status"` + `aria-live="polite"`), so they are deliberately not
+  double-wired. New `results_count` key in all seven locales for
+  non-paginated tables.
+
 ## [0.132.0] - 2026-08-03
 
 Chart theming that actually lands on starter-kit apps, plus the first

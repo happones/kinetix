@@ -7,9 +7,10 @@ import {
     PopoverRoot,
     PopoverTrigger,
 } from 'reka-ui';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
+import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixClientTable } from '@/composables/useKinetixClientTable';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
@@ -79,6 +80,28 @@ const client = useKinetixClientTable({
     columns: () => columnsToRender.value,
     pageSize: props.table.state?.perPage ?? 10,
 });
+
+// Announce result counts on search/sort/page changes (client-side filtering
+// moves rows with no focus change, so assistive tech hears the new count).
+const { announce } = useKinetixAnnounce();
+
+watch(
+    [
+        client.search,
+        client.sortName,
+        client.sortDirection,
+        () => client.pagination.value.currentPage,
+    ],
+    () => {
+        const { total, from, to } = client.pagination.value;
+
+        announce(
+            total === 0
+                ? t('kinetix.no_records')
+                : t('kinetix.showing_records', { from, to, total }),
+        );
+    },
+);
 
 const recordActionClass = (action: {
     color?: string | null;

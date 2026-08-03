@@ -33,6 +33,7 @@ return [
     'select_row'                       => 'Выбрать строку',
     'actions'                          => 'Действия',
     'reorder'                          => 'Переупорядочить',
+    'results_count'                    => ':count результатов',
     'showing_range'                    => 'Показано с :from по :to',
     'no_records_found'                 => 'Записи не найдены.',
     'copy'                             => 'Копировать',

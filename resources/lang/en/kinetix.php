@@ -33,6 +33,7 @@ return [
     'select_row'                => 'Select row',
     'actions'                   => 'Actions',
     'reorder'                   => 'Reorder',
+    'results_count'             => ':count results',
     'showing_range'             => 'Showing :from to :to',
     'no_records_found'          => 'No records found.',
     'copy'                      => 'Copy',

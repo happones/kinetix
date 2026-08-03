@@ -33,6 +33,7 @@ return [
     'select_row'                => 'Sélectionner la ligne',
     'actions'                   => 'Actions',
     'reorder'                   => 'Réorganiser',
+    'results_count'             => ':count résultats',
     'showing_range'             => 'Affichage de :from à :to',
     'no_records_found'          => 'Aucun enregistrement trouvé.',
     'copy'                      => 'Copier',
