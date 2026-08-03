@@ -93,4 +93,63 @@ describe('useKinetixTableReorder', () => {
         await nextTick();
         expect(api!.rows.value.map((r) => r.id)).toEqual([9, 8, 7]);
     });
+
+    it('moves a row by keyboard and persists the order once, debounced', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockClear();
+        const source = ref([rec(1), rec(2), rec(3)]);
+        let api: ReturnType<typeof useKinetixTableReorder>;
+
+        const Harness = defineComponent({
+            setup() {
+                api = useKinetixTableReorder({
+                    records: () => source.value,
+                    reorderable: () => true,
+                    model: () => 'token',
+                    routePrefix: () => '_kinetix',
+                });
+
+                return () => h('div');
+            },
+        });
+
+        mount(Harness);
+
+        // Two rapid arrow presses: 1 moves to the end.
+        expect(api!.moveRowBy(0, 1)).toBe(1);
+        expect(api!.moveRowBy(1, 1)).toBe(2);
+        expect(api!.rows.value.map((r) => r.id)).toEqual([2, 3, 1]);
+
+        // One request, with the FINAL order, after the debounce window.
+        expect(fetchMock).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(700);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock.mock.calls[0][1].body.ids).toEqual([2, 3, 1]);
+
+        vi.useRealTimers();
+    });
+
+    it('refuses out-of-range keyboard moves', () => {
+        const source = ref([rec(1), rec(2)]);
+        let api: ReturnType<typeof useKinetixTableReorder>;
+
+        const Harness = defineComponent({
+            setup() {
+                api = useKinetixTableReorder({
+                    records: () => source.value,
+                    reorderable: () => true,
+                    model: () => 'token',
+                    routePrefix: () => '_kinetix',
+                });
+
+                return () => h('div');
+            },
+        });
+
+        mount(Harness);
+
+        expect(api!.moveRowBy(0, -1)).toBeNull();
+        expect(api!.moveRowBy(1, 1)).toBeNull();
+        expect(api!.rows.value.map((r) => r.id)).toEqual([1, 2]);
+    });
 });

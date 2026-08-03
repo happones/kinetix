@@ -207,25 +207,34 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                             <div class="gap-1 flex items-center">
                                 <button
                                     type="button"
-                                    class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30"
+                                    :aria-label="t('kinetix.move_up')"
+                                    class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-30"
                                     :disabled="idx === 0"
                                     @click="moveItem(comp.name, idx, -1)"
                                 >
-                                    <ChevronUp class="h-4 w-4" />
+                                    <ChevronUp
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
                                 </button>
                                 <button
                                     type="button"
-                                    class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent disabled:opacity-30"
+                                    :aria-label="t('kinetix.move_down')"
+                                    class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-30"
                                     :disabled="
                                         idx === itemsOf(comp.name).length - 1
                                     "
                                     @click="moveItem(comp.name, idx, 1)"
                                 >
-                                    <ChevronDown class="h-4 w-4" />
+                                    <ChevronDown
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
                                 </button>
                                 <button
                                     type="button"
-                                    class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                                    :aria-label="t('kinetix.remove')"
+                                    class="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-destructive/10 hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-30"
                                     :disabled="
                                         !!comp.minItems &&
                                         itemsOf(comp.name).length <=
@@ -233,7 +242,10 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                                     "
                                     @click="removeItem(comp.name, idx)"
                                 >
-                                    <Trash2 class="h-4 w-4" />
+                                    <Trash2
+                                        class="h-4 w-4"
+                                        aria-hidden="true"
+                                    />
                                 </button>
                             </div>
                         </div>

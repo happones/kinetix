@@ -17,6 +17,7 @@ const props = defineProps<{ column: KanbanColumnData }>();
 const emit = defineEmits<{
     (e: 'card-dragstart', card: KinetixKanbanCard): void;
     (e: 'card-dragend'): void;
+    (e: 'card-move', card: KinetixKanbanCard, direction: -1 | 1): void;
     (e: 'drop'): void;
 }>();
 
@@ -104,8 +105,10 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     :key="key"
                     :ref="measureRow"
                     :data-index="index"
+                    :data-kanban-card="card.id"
                     draggable="true"
-                    class="p-3 shadow-xs hover:shadow-md cursor-grab rounded-md border border-border bg-card transition-shadow active:cursor-grabbing"
+                    tabindex="0"
+                    class="p-3 shadow-xs hover:shadow-md cursor-grab rounded-md border border-border bg-card transition-shadow outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
                     :class="
                         virtual.enabled.value
                             ? 'top-0 left-0 absolute w-[calc(100%-1rem)]'
@@ -118,6 +121,8 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     "
                     @dragstart="emit('card-dragstart', card)"
                     @dragend="emit('card-dragend')"
+                    @keydown.left.prevent="emit('card-move', card, -1)"
+                    @keydown.right.prevent="emit('card-move', card, 1)"
                 >
                     <p class="text-sm font-medium text-foreground">
                         {{ card.title }}
@@ -128,6 +133,10 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     >
                         {{ card.description }}
                     </p>
+                    <!-- Keyboard alternative to dragging, for screen readers. -->
+                    <span class="sr-only">{{
+                        t('kinetix.kanban_keyboard_hint')
+                    }}</span>
                 </article>
 
                 <p

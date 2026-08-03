@@ -33,6 +33,12 @@ export interface UseKinetixTableReorder {
     onDragStart: (index: number) => void;
     onDragOver: (index: number, event: DragEvent) => void;
     onDrop: () => Promise<void>;
+    /**
+     * Keyboard alternative to dragging: move the row at `index` by `delta`
+     * positions. Returns the new index, or null when the move is out of range.
+     * Persistence is debounced so arrow-key bursts cost one request.
+     */
+    moveRowBy: (index: number, delta: number) => number | null;
 }
 
 /**
@@ -77,9 +83,7 @@ export function useKinetixTableReorder(
         dragIndex = index;
     };
 
-    const onDrop = async (): Promise<void> => {
-        dragIndex = null;
-
+    const persistOrder = async (): Promise<void> => {
         try {
             await kinetixFetch(`/${options.routePrefix()}/tables/reorder`, {
                 method: 'POST',
@@ -93,5 +97,37 @@ export function useKinetixTableReorder(
         }
     };
 
-    return { rows, onDragStart, onDragOver, onDrop };
+    const onDrop = async (): Promise<void> => {
+        dragIndex = null;
+        await persistOrder();
+    };
+
+    let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const moveRowBy = (index: number, delta: number): number | null => {
+        const target = index + delta;
+
+        if (
+            !options.reorderable() ||
+            target < 0 ||
+            target >= localRecords.value.length
+        ) {
+            return null;
+        }
+
+        localRecords.value = moveArrayItem(localRecords.value, index, target);
+
+        if (persistTimer !== null) {
+            clearTimeout(persistTimer);
+        }
+
+        persistTimer = setTimeout(() => {
+            persistTimer = null;
+            void persistOrder();
+        }, 600);
+
+        return target;
+    };
+
+    return { rows, onDragStart, onDragOver, onDrop, moveRowBy };
 }

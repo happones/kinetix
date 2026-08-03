@@ -79,4 +79,39 @@ describe('KinetixKanban', () => {
             status: 'done',
         });
     });
+
+    it('cards are focusable and the right arrow moves one column over', async () => {
+        fetchMock.mockClear();
+        const w = mountIt();
+        const card = w.findAll('article')[0]; // Card A in "todo"
+
+        expect(card.attributes('tabindex')).toBe('0');
+
+        await card.trigger('keydown', { key: 'ArrowRight' });
+        await Promise.resolve();
+
+        const call = fetchMock.mock.calls.find((c) =>
+            String(c[0]).endsWith('/tables/kanban-move'),
+        );
+        expect(call).toBeTruthy();
+        expect(call![1].body).toMatchObject({
+            recordId: 1,
+            status: 'doing',
+        });
+    });
+
+    it('the left arrow on the first column is a no-op', async () => {
+        fetchMock.mockClear();
+        const w = mountIt();
+        const card = w.findAll('article')[0];
+
+        await card.trigger('keydown', { key: 'ArrowLeft' });
+        await Promise.resolve();
+
+        expect(
+            fetchMock.mock.calls.find((c) =>
+                String(c[0]).endsWith('/tables/kanban-move'),
+            ),
+        ).toBeUndefined();
+    });
 });

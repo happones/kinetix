@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
-import { reactive, ref } from 'vue';
+import { nextTick, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixKanbanCard,
@@ -37,41 +38,93 @@ function onDragEnd(): void {
     dragging.value = null;
 }
 
-async function onDrop(toKey: string): Promise<void> {
-    const drag = dragging.value;
-    dragging.value = null;
-
-    if (!drag || drag.from === toKey) {
-        return;
+/**
+ * Move a card between columns (optimistic, reverting on error). Shared by the
+ * pointer drop and the keyboard alternative; resolves to whether it stuck.
+ */
+async function moveCard(
+    card: KinetixKanbanCard,
+    fromKey: string,
+    toKey: string,
+): Promise<boolean> {
+    if (fromKey === toKey) {
+        return false;
     }
 
-    const fromCol = columns.find((c) => c.key === drag.from);
+    const fromCol = columns.find((c) => c.key === fromKey);
     const toCol = columns.find((c) => c.key === toKey);
 
     if (!fromCol || !toCol) {
-        return;
+        return false;
     }
 
     // Optimistic move.
-    fromCol.cards = fromCol.cards.filter((c) => c.id !== drag.card.id);
-    toCol.cards = [...toCol.cards, drag.card];
+    fromCol.cards = fromCol.cards.filter((c) => c.id !== card.id);
+    toCol.cards = [...toCol.cards, card];
 
     try {
         await kinetixFetch(`/${kinetixRoutePrefix(page)}/tables/kanban-move`, {
             method: 'POST',
             body: {
                 model: props.kanban.model,
-                recordId: drag.card.id,
+                recordId: card.id,
                 status: toKey,
             },
         });
         router.reload();
+
+        return true;
     } catch {
         // Revert on failure.
-        toCol.cards = toCol.cards.filter((c) => c.id !== drag.card.id);
-        fromCol.cards = [...fromCol.cards, drag.card];
+        toCol.cards = toCol.cards.filter((c) => c.id !== card.id);
+        fromCol.cards = [...fromCol.cards, card];
         toast.error(t('kinetix.kanban_move_failed'));
+
+        return false;
     }
+}
+
+async function onDrop(toKey: string): Promise<void> {
+    const drag = dragging.value;
+    dragging.value = null;
+
+    if (!drag) {
+        return;
+    }
+
+    await moveCard(drag.card, drag.from, toKey);
+}
+
+// --- Keyboard alternative to dragging ------------------------------------------
+// Left/right arrows on a focused card move it to the adjacent column; the move
+// is announced and focus follows the card into its new column.
+const { announce } = useKinetixAnnounce();
+
+async function onCardKeyboardMove(
+    card: KinetixKanbanCard,
+    fromKey: string,
+    direction: -1 | 1,
+): Promise<void> {
+    const fromIndex = columns.findIndex((c) => c.key === fromKey);
+    const toCol = columns[fromIndex + direction];
+
+    if (fromIndex === -1 || !toCol) {
+        return;
+    }
+
+    const moved = await moveCard(card, fromKey, toCol.key);
+
+    if (!moved) {
+        return;
+    }
+
+    announce(t('kinetix.kanban_moved_to', { column: toCol.label }));
+
+    // The card re-renders inside its new column; put focus back on it.
+    await nextTick();
+    document
+        .querySelector<HTMLElement>(`[data-kanban-card="${card.id}"]`)
+        ?.focus();
 }
 </script>
 
@@ -88,6 +141,10 @@ async function onDrop(toKey: string): Promise<void> {
                 :column="column"
                 @card-dragstart="(card) => onDragStart(card, column.key)"
                 @card-dragend="onDragEnd"
+                @card-move="
+                    (card, direction) =>
+                        onCardKeyboardMove(card, column.key, direction)
+                "
                 @drop="onDrop(column.key)"
             />
         </div>

@@ -339,12 +339,30 @@ onMounted(() => {
 });
 
 // --- Row reordering ----------------------------------------------------------
-const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
-    records: () => props.table.records,
-    reorderable: () => !!props.table.reorderable,
-    model: () => props.table.model,
-    routePrefix: () => routePrefix.value,
-});
+const { rows, onDragStart, onDragOver, onDrop, moveRowBy } =
+    useKinetixTableReorder({
+        records: () => props.table.records,
+        reorderable: () => !!props.table.reorderable,
+        model: () => props.table.model,
+        routePrefix: () => routePrefix.value,
+    });
+
+// Keyboard alternative to dragging: arrows on the focused grip move the row.
+// Focus travels with the button (rows are keyed by id, so Vue moves the node).
+const moveRowKeyboard = (index: number, delta: number): void => {
+    const target = moveRowBy(index, delta);
+
+    if (target === null) {
+        return;
+    }
+
+    announce(
+        t('kinetix.row_moved', {
+            position: target + 1,
+            total: rows.value.length,
+        }),
+    );
+};
 </script>
 
 <template>
@@ -453,9 +471,22 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
                                 class="w-8 px-2 py-4 text-muted-foreground"
                                 @click.stop
                             >
-                                <GripVertical
-                                    class="size-4 cursor-grab active:cursor-grabbing"
-                                />
+                                <button
+                                    type="button"
+                                    :aria-label="t('kinetix.reorder')"
+                                    class="p-0.5 flex cursor-grab items-center justify-center rounded-md transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
+                                    @keydown.up.prevent="
+                                        moveRowKeyboard(rowIndex, -1)
+                                    "
+                                    @keydown.down.prevent="
+                                        moveRowKeyboard(rowIndex, 1)
+                                    "
+                                >
+                                    <GripVertical
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
                             </td>
                             <td
                                 v-if="table.bulkActions.length > 0"

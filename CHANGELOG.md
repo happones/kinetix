@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **(published) Every drag-and-drop surface now has a keyboard alternative**
+  (accessibility manifest rule 4 — pointer-only interactions are a defect):
+  - **Reorderable table rows**: the grip is now a focusable button —
+    Arrow Up/Down moves the row, the move is announced ("Moved to position 3
+    of 12"), and persistence is debounced so an arrow-key burst costs one
+    request instead of one per press.
+  - **Kanban cards**: cards are focusable — Arrow Left/Right moves the card to
+    the adjacent column (same optimistic move + revert as dropping), the move
+    is announced with the column label, focus follows the card, and an
+    `sr-only` hint teaches the interaction.
+  - **Repeater items**: the existing move up/down/remove icon buttons gained
+    translated `aria-label`s, decorative-marked icons and visible focus rings.
+  - New keys (`move_up`, `move_down`, `row_moved`, `kanban_keyboard_hint`,
+    `kanban_moved_to`) in all seven locales.
 - **(published) Table result counts are announced to screen readers.**
   Search/filter/sort/page changes swap the rows with no focus change, so both
   table variants now speak the outcome through the shared polite live region
