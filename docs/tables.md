@@ -12,6 +12,7 @@ Kinetix provides a powerful, Eloquent-driven, and highly interactive Tables syst
 - **Security Signatures**: Eloquent model namespaces are securely encrypted on serialization, preventing client-side database class tampering.
 - **Client-Side Column visibility**: Built-in column toggling lets users hide and show columns locally in the browser.
 - **Interactive Headers**: Header triggers automate debounced searching, column visibility, active filters, and sorting.
+- **Stat cards**: Optional KPI cards above the table (counts, sums, averages, with conditions) that fold into a single extra query no matter how many you declare. See [Stat cards](#stat-cards-stats).
 
 ---
 
@@ -619,6 +620,153 @@ The summary is computed over the exported query (so a bulk export of selected
 rows totals exactly those rows). `Exporter::hasSummary()` reports whether a row
 will be written; set `protected bool $withSummary = false;` on the exporter to
 suppress it.
+
+---
+
+## Stat cards (`stats()`)
+
+KPI cards above the table — counts, sums and averages over the same dataset the
+table lists. Optional: a table without `stats()` renders and queries exactly as
+before.
+
+```php
+use Happones\Kinetix\Tables\Table;
+use Happones\Kinetix\Tables\TableStat;
+
+Table::make(Book::query())
+    ->stats([
+        TableStat::make('Total books')->count()->icon('book'),
+
+        TableStat::make('On loan')
+            ->count()
+            ->where('status', 'loan')
+            ->icon('bookmark')
+            ->color('warning'),
+
+        TableStat::make('Overdue')
+            ->count()
+            ->where('due_at', '<', now())
+            ->icon('chart-bar')
+            ->color('danger')
+            ->url('/books?filters[overdue]=1'),
+
+        TableStat::make('Inventory value')
+            ->sum('price')
+            ->money('USD')
+            ->color('success'),
+    ])
+    ->columns([...]);
+```
+
+This works identically on a **Resource** — `Resource::table()` receives the same
+`Table`, so declare the cards there:
+
+```php
+public static function table(Table $table): Table
+{
+    return $table
+        ->stats([TableStat::make('Total')->count()])
+        ->columns([...]);
+}
+```
+
+### One query, however many cards
+
+Each card's condition compiles into a **conditional aggregate** inside a single
+shared query:
+
+```sql
+select count(*)                                            as kinetix_stat_0,
+       sum(case when "status" = ? then 1 else 0 end)        as kinetix_stat_1,
+       sum(case when "due_at" < ? then 1 else 0 end)        as kinetix_stat_2,
+       sum("price")                                         as kinetix_stat_3
+from "books" where ...
+```
+
+So two cards and twelve cards both cost **+1 query**. This is the reason the
+feature exists instead of stacking `Summarizer::query()` scopes on a column —
+each of those runs its own query, so cards would cost +1 query *each*, precisely
+on the large tables where a scan is expensive. A test asserts the batching holds.
+
+### Aggregates
+
+| Method | Aggregate |
+| --- | --- |
+| `count()` | `count(*)` — the default |
+| `sum('column')` | `sum(column)` |
+| `avg('column')` | `avg(column)` |
+| `min('column')` / `max('column')` | `min` / `max` |
+
+### Conditions
+
+`where()`, `whereNull()` and `whereNotNull()` narrow a single card without
+affecting the others. They chain as `AND`:
+
+```php
+TableStat::make('Big overdue loans')
+    ->count()
+    ->where('status', 'loan')
+    ->where('copies', '>=', 10)
+    ->whereNotNull('due_at');
+```
+
+Values travel as bindings, and the operator is checked against an allowlist
+(`=`, `!=`, `<>`, `>`, `>=`, `<`, `<=`, `like`, `not like`) — an unsupported one
+throws rather than reaching the SQL.
+
+### Filters
+
+**By default a card reflects the table's active filters and search**, like the
+footer summaries: filter the list to "on loan" and the cards describe that
+subset. They always cover the whole filtered set, never just the current page.
+
+For a KPI that should stay put while the user filters, call `ignoreFilters()`:
+
+```php
+TableStat::make('Books in catalogue')->count()->ignoreFilters(),
+```
+
+Cards that ignore filters share one aggregate query *with each other*, so mixing
+both kinds costs two queries total, not one per card.
+
+### Presentation
+
+| Method | Effect |
+| --- | --- |
+| `icon('book')` | Lucide icon in the card's badge |
+| `color('success')` | Badge colour: `primary`, `info`, `success`, `warning`, `danger`, `gray` |
+| `description('This month')` | Secondary line under the value |
+| `url('/books?…')` | Makes the whole card an Inertia link |
+| `numeric(2)` / `money('USD', divideBy: 100)` | Value formatting (same helpers as summarizers) |
+| `prefix()` / `suffix()` | Wrap the formatted value |
+
+### Visibility and authorization
+
+`visible()`, `hidden()` and `can()` behave as they do on columns — and a card the
+user may not see is **never computed**: its aggregate is left out of the query
+entirely rather than being fetched and discarded.
+
+```php
+TableStat::make('Revenue')->sum('total')->money('USD')->can('viewRevenue'),
+```
+
+### The escape hatch
+
+`using()` takes the query and returns the value, for anything a single-pass
+aggregate can't express. It cannot be batched, so it costs one query of its own —
+deliberately explicit:
+
+```php
+TableStat::make('Distinct authors')
+    ->using(fn (Builder $query) => $query->distinct()->count('author_id')),
+```
+
+::: tip Cards from a different model
+`stats()` aggregates the table's own dataset. For a KPI over another model (an
+"Active members" card above a books table), render a
+[`StatsOverviewWidget`](/widgets) beside the table instead — it isn't bound to the
+table's query, and you can cache it.
+:::
 
 ---
 

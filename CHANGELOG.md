@@ -15,6 +15,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **(published) `Table::stats()` — KPI cards above a table.** Counts, sums,
+  averages, mins and maxes over the same dataset the table lists, rendered as the
+  familiar label + big value + coloured icon cards:
+
+  ```php
+  Table::make(Book::query())->stats([
+      TableStat::make('Total books')->count()->icon('book'),
+      TableStat::make('On loan')->count()->where('status', 'loan')->color('warning'),
+      TableStat::make('Overdue')->count()->where('due_at', '<', now())->color('danger'),
+      TableStat::make('Inventory value')->sum('price')->money('USD'),
+  ]);
+  ```
+
+  Available on Resources for free, since `Resource::table()` receives the same
+  `Table`. Cards support `where()`/`whereNull()`/`whereNotNull()` conditions,
+  `icon()`, `color()`, `description()`, `url()`, the summarizer formatting helpers
+  (`numeric()`, `money()`, `prefix()`, `suffix()`), and `visible()`/`hidden()`/
+  `can()` — a card the user may not see is never computed at all.
+
+  **Each card's condition compiles into a conditional aggregate inside one shared
+  query**, so twelve cards cost the same single extra query as one. That is the
+  point of the feature rather than stacking `Summarizer::query()` scopes, which
+  cost one query *per* card; a test asserts the batching holds. Cards follow the
+  table's active filters by default (like the footer summaries) and always cover
+  the whole filtered set, never one page; `ignoreFilters()` opts a card out, and
+  those share a second query with each other. `using()` remains as an explicit,
+  documented one-query-of-its-own escape hatch.
+
 - **(published) `KinetixLanguageSwitcher` renders in two shapes.** A new
   `variant` prop picks between `dropdown` (default — the existing `Languages`
   icon + menu, for a header or toolbar) and `select` (a labelled Select field,
@@ -24,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `label` to override its text and `:show-label="false"` to keep only an
   `aria-label`. Each shape lives in its own subcomponent under
   `components/LanguageSwitcher/`.
+
+### Changed
+
+- Numeric/money formatting shared by summarizers and stat cards moved into a
+  `FormatsAggregateValue` concern, so a sum formatted as money reads identically
+  in the footer and in a card. No behaviour change.
+- `KinetixTable`'s root is now a wrapper holding the stat cards plus the table
+  card. Attributes are forwarded explicitly, so an existing
+  `<KinetixTable class="…">` still applies to the table card as before.
 
 ### Fixed
 

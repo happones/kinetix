@@ -11,6 +11,7 @@ use Happones\Kinetix\Data\SummaryData;
 use Happones\Kinetix\Data\TableData;
 use Happones\Kinetix\Data\TablePaginationData;
 use Happones\Kinetix\Data\TableRowData;
+use Happones\Kinetix\Data\TableStatData;
 use Happones\Kinetix\Data\TableStateData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
@@ -140,6 +141,13 @@ class Table implements Arrayable, JsonSerializable
      * default (`kinetix.tables.record_source`).
      */
     protected ?string $recordModalsSource = null;
+
+    /**
+     * KPI cards rendered above the table.
+     *
+     * @var array<int, TableStat>
+     */
+    protected array $stats = [];
 
     /**
      * Policy ability enforced on inline cell edits and reordering. Null lets
@@ -520,6 +528,30 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * KPI cards shown above the table — counts, sums and averages over the same
+     * dataset the table lists.
+     *
+     *     Table::make(Book::query())
+     *         ->stats([
+     *             TableStat::make('Total books')->count()->icon('book'),
+     *             TableStat::make('On loan')->count()->where('status', 'loan')->color('warning'),
+     *             TableStat::make('Overdue')->count()->where('due_at', '<', now())->color('danger'),
+     *         ])
+     *
+     * Every card's condition compiles into ONE shared aggregate query, so the
+     * cost is +1 query whether there are two cards or twelve. Cards follow the
+     * table's active filters unless they declare `ignoreFilters()`.
+     *
+     * @param array<int, TableStat> $stats
+     */
+    public function stats(array $stats): static
+    {
+        $this->stats = $stats;
+
+        return $this;
+    }
+
+    /**
      * Policy ability to enforce on inline cell edits and drag-and-drop
      * reordering. By default the model's `update` ability is used whenever it
      * has a policy; pass an explicit ability to require something narrower.
@@ -702,11 +734,21 @@ class Table implements Arrayable, JsonSerializable
             $filter->forModel($this->getModelClass());
         }
 
+        // Snapshot the dataset BEFORE search/sort/filters are applied:
+        // getResolvedQuery() mutates the builder it was given, so an
+        // ignoreFilters() card asked for it afterwards would get the filtered
+        // one back. Only taken when a card actually needs it.
+        $unfilteredQuery = $this->needsUnfilteredQuery() ? $this->getUnfilteredQuery() : null;
+
         $query = $this->getResolvedQuery();
 
         // Compute column summaries over the full filtered dataset, before
         // pagination narrows the query.
         [$summaries, $hasSummaries] = $this->computeSummaries($query);
+
+        // Same window: the KPI cards read the filtered-but-unpaginated set, so
+        // they describe the list the user is looking at rather than one page.
+        $stats = $this->computeStats($query, $unfilteredQuery);
 
         // Paginate if enabled
         $records    = [];
@@ -823,6 +865,7 @@ class Table implements Arrayable, JsonSerializable
             queryPrefix: $this->queryPrefix,
             summaries: $summaries,
             hasSummaries: $hasSummaries,
+            stats: $stats,
             reorderable: $this->reorderColumn !== null,
             savedViewsKey: $this->savedViewsKey,
             clientSide: $this->clientSide,
@@ -1020,6 +1063,159 @@ class Table implements Arrayable, JsonSerializable
      * @param  Builder<covariant Model>         $baseQuery
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * Compute the KPI cards above the table.
+     *
+     * Cards are grouped by the dataset they read — the filtered query, or the
+     * unfiltered one for `ignoreFilters()` — and each group resolves in a SINGLE
+     * query, because a card's conditions become conditional aggregates rather
+     * than a scoped query of their own. A `using()` card is the documented
+     * exception and pays for its own query.
+     *
+     * @param  Builder<Model>|null       $unfilteredQuery pristine dataset, for ignoreFilters() cards
+     * @return array<int, TableStatData>
+     */
+    protected function computeStats(Builder $filteredQuery, ?Builder $unfilteredQuery = null): array
+    {
+        if ($this->stats === []) {
+            return [];
+        }
+
+        // A card the user may not see is dropped BEFORE anything is computed, so
+        // its aggregate never reaches the query at all.
+        $stats = array_values(array_filter(
+            $this->stats,
+            static fn (TableStat $stat): bool => $stat->shouldRender(),
+        ));
+
+        if ($stats === []) {
+            return [];
+        }
+
+        $batched = [];
+        $custom  = [];
+
+        foreach ($stats as $index => $stat) {
+            $stat->isBatchable()
+                ? $batched[$stat->ignoresFilters() ? 'all' : 'filtered'][$index] = $stat
+                : $custom[$index]                                                = $stat;
+        }
+
+        /** @var array<int, mixed> $values */
+        $values = [];
+
+        foreach ($batched as $dataset => $group) {
+            $query = $dataset === 'all'
+                ? ($unfilteredQuery ?? $filteredQuery)
+                : $filteredQuery;
+
+            foreach ($this->fetchStatAggregates($query, $group) as $index => $value) {
+                $values[$index] = $value;
+            }
+        }
+
+        $resolved = [];
+
+        foreach ($stats as $index => $stat) {
+            $resolved[$index] = isset($custom[$index])
+                ? $stat->toDataFromFormatted($stat->resolveUsing(
+                    $stat->ignoresFilters() && $unfilteredQuery !== null
+                        ? (clone $unfilteredQuery)
+                        : (clone $filteredQuery),
+                ))
+                : $stat->toData($values[$index] ?? null);
+        }
+
+        ksort($resolved);
+
+        return array_values($resolved);
+    }
+
+    /**
+     * Run one aggregate query covering every card in the group.
+     *
+     * @param  array<int, TableStat> $stats keyed by their position
+     * @return array<int, mixed>     values keyed the same way
+     */
+    protected function fetchStatAggregates(Builder $baseQuery, array $stats): array
+    {
+        $grammar  = $baseQuery->getQuery()->getGrammar();
+        $selects  = [];
+        $bindings = [];
+        $map      = [];
+
+        foreach ($stats as $index => $stat) {
+            [$expression, $statBindings] = $stat->aggregateExpression($grammar);
+
+            $alias       = "kinetix_stat_{$index}";
+            $selects[]   = "{$expression} as {$alias}";
+            $bindings    = array_merge($bindings, $statBindings);
+            $map[$alias] = $index;
+        }
+
+        if ($selects === []) {
+            return [];
+        }
+
+        // Same reasoning as fetchBatchedAggregates(): aggregate off the base
+        // builder with no eager loads, columns, orders or limit, which would be
+        // invalid without a GROUP BY.
+        $query                     = (clone $baseQuery)->toBase();
+        $query->columns            = null;
+        $query->orders             = null;
+        $query->limit              = null;
+        $query->offset             = null;
+        $query->bindings['select'] = [];
+        $query->bindings['order']  = [];
+
+        $row = (array) ($query->selectRaw(implode(', ', $selects), $bindings)->first() ?? []);
+
+        $values = [];
+
+        foreach ($map as $alias => $index) {
+            $values[$index] = $row[$alias] ?? null;
+        }
+
+        return $values;
+    }
+
+    /**
+     * Whether any renderable card reads the unfiltered dataset.
+     */
+    protected function needsUnfilteredQuery(): bool
+    {
+        foreach ($this->stats as $stat) {
+            if ($stat->ignoresFilters() && $stat->shouldRender()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The table's dataset WITHOUT the request's search/sort/filters — what an
+     * `ignoreFilters()` card reads.
+     *
+     * @return Builder<Model>
+     */
+    protected function getUnfilteredQuery(): Builder
+    {
+        if ($this->queryOrModel instanceof Builder) {
+            return clone $this->queryOrModel;
+        }
+
+        if (is_string($this->queryOrModel) && is_subclass_of($this->queryOrModel, Model::class)) {
+            return $this->queryOrModel::query();
+        }
+
+        if ($this->queryOrModel instanceof Model) {
+            return $this->queryOrModel->newQuery();
+        }
+
+        throw new \InvalidArgumentException('Invalid query or model type provided to Table.');
+    }
+
     protected function fetchBatchedAggregates(Builder $baseQuery): array
     {
         $grammar = $baseQuery->getQuery()->getGrammar();

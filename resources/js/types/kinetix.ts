@@ -1041,6 +1041,8 @@ export interface KinetixTableData {
     stickyActions?: boolean;
     summaries?: Record<string, KinetixSummary[]>;
     hasSummaries?: boolean;
+    /** KPI cards rendered above the table (Table::stats()). */
+    stats?: KinetixTableStat[];
     reorderable?: boolean;
     savedViewsKey?: string | null;
     /** When true, all rows are shipped and a TanStack renderer handles interactions client-side. */
@@ -1069,6 +1071,19 @@ export interface KinetixRecordModals {
 export interface KinetixSummary {
     label: string | null;
     value: string;
+}
+
+/**
+ * One KPI card above a table. The value is aggregated and formatted server-side
+ * (see Table::stats() / TableStat in PHP), so the card only lays it out.
+ */
+export interface KinetixTableStat {
+    label: string;
+    value: string;
+    icon?: string | null;
+    color?: string;
+    description?: string | null;
+    url?: string | null;
 }
 
 export interface KinetixRelationManagerData {

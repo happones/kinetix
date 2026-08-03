@@ -20,6 +20,7 @@ class TableData extends Data
      * @param array<int, TableRowData>               $records
      * @param array<int, int>                        $paginationPageOptions
      * @param array<string, array<int, SummaryData>> $summaries
+     * @param array<int, TableStatData>              $stats
      */
     public function __construct(
         public ?string $heading,
@@ -42,6 +43,8 @@ class TableData extends Data
         public array $footerActions = [],
         public array $summaries = [],
         public bool $hasSummaries = false,
+        // KPI cards above the table (Table::stats()). Empty = none.
+        public array $stats = [],
         public bool $reorderable = false,
         public ?string $savedViewsKey = null,
         // Client-side mode: full row set shipped, browser handles interactions.

@@ -6,8 +6,8 @@ namespace Happones\Kinetix\Tables\Columns\Summarizers;
 
 use Closure;
 use Happones\Kinetix\Data\SummaryData;
+use Happones\Kinetix\Support\Concerns\FormatsAggregateValue;
 use Illuminate\Database\Eloquent\Builder;
-use NumberFormatter;
 
 /**
  * Base "summarizer": computes a single aggregate value (sum/avg/count/range/…)
@@ -17,6 +17,8 @@ use NumberFormatter;
  */
 class Summarizer
 {
+    use FormatsAggregateValue;
+
     protected ?string $label = null;
 
     /**
@@ -28,20 +30,6 @@ class Summarizer
      * @var (Closure(Builder): mixed)|null
      */
     protected ?Closure $using = null;
-
-    protected ?string $prefix = null;
-
-    protected ?string $suffix = null;
-
-    protected bool $isNumeric = false;
-
-    protected int $decimalPlaces = 0;
-
-    protected ?string $numberLocale = null;
-
-    protected ?string $currency = null;
-
-    protected int $moneyDivideBy = 1;
 
     protected bool|Closure $isHidden = false;
 
@@ -83,38 +71,6 @@ class Summarizer
         return $this;
     }
 
-    public function prefix(string $prefix): static
-    {
-        $this->prefix = $prefix;
-
-        return $this;
-    }
-
-    public function suffix(string $suffix): static
-    {
-        $this->suffix = $suffix;
-
-        return $this;
-    }
-
-    public function numeric(int $decimalPlaces = 0, ?string $locale = null): static
-    {
-        $this->isNumeric     = true;
-        $this->decimalPlaces = $decimalPlaces;
-        $this->numberLocale  = $locale;
-
-        return $this;
-    }
-
-    public function money(string $currency, int $divideBy = 1, ?string $locale = null): static
-    {
-        $this->currency      = strtoupper($currency);
-        $this->moneyDivideBy = max(1, $divideBy);
-        $this->numberLocale  = $locale;
-
-        return $this;
-    }
-
     public function hidden(bool|Closure $condition = true): static
     {
         $this->isHidden = $condition;
@@ -134,10 +90,6 @@ class Summarizer
         return $this->label;
     }
 
-    /**
-     * Compute and format this summarizer for the given (base) query + column.
-     * Returns null when the summarizer is hidden.
-     */
     /**
      * Whether this summarizer's value can be folded into the table's single
      * aggregate query.
@@ -225,58 +177,6 @@ class Summarizer
     protected function compute(Builder $query, string $column): mixed
     {
         return null;
-    }
-
-    protected function format(mixed $value): string
-    {
-        if ($value === null) {
-            return '';
-        }
-
-        if ($this->currency !== null) {
-            return $this->formatMoney((float) $value / $this->moneyDivideBy);
-        }
-
-        if ($this->isNumeric) {
-            return $this->formatNumber((float) $value);
-        }
-
-        return (string) $value;
-    }
-
-    protected function formatNumber(float $value): string
-    {
-        if (class_exists(NumberFormatter::class)) {
-            $formatter = new NumberFormatter($this->locale(), NumberFormatter::DECIMAL);
-            $formatter->setAttribute(NumberFormatter::FRACTION_DIGITS, $this->decimalPlaces);
-
-            return (string) $formatter->format($value);
-        }
-
-        return number_format($value, $this->decimalPlaces);
-    }
-
-    protected function formatMoney(float $value): string
-    {
-        if (class_exists(NumberFormatter::class)) {
-            $formatter = new NumberFormatter($this->locale(), NumberFormatter::CURRENCY);
-
-            return (string) $formatter->formatCurrency($value, (string) $this->currency);
-        }
-
-        return $this->currency.' '.number_format($value, 2);
-    }
-
-    protected function locale(): string
-    {
-        return $this->numberLocale
-            ?? config('kinetix.tables.number_locale')
-            ?? app()->getLocale();
-    }
-
-    protected function applyAffixes(string $value): string
-    {
-        return ($this->prefix ?? '').$value.($this->suffix ?? '');
     }
 
     protected function isHiddenFor(Builder $query): bool

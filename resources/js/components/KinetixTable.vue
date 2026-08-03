@@ -29,12 +29,18 @@ import KinetixTableBulkBar from './Table/KinetixTableBulkBar.vue';
 import KinetixTableCell from './Table/KinetixTableCell.vue';
 import KinetixTableHead from './Table/KinetixTableHead.vue';
 import KinetixTablePagination from './Table/KinetixTablePagination.vue';
+import KinetixTableStats from './Table/KinetixTableStats.vue';
 import KinetixTableSummaryRow from './Table/KinetixTableSummaryRow.vue';
 import KinetixTableToolbar from './Table/KinetixTableToolbar.vue';
 
 const props = defineProps<{
     table: KinetixTableData;
 }>();
+
+// The root is a wrapper holding the stat cards plus the table card, so attrs are
+// forwarded explicitly to the card — a consumer's `class` keeps landing where it
+// always did rather than on the new wrapper.
+defineOptions({ inheritAttrs: false });
 
 // Client-side ("TanStack") variant is loaded lazily so its dependency stays
 // code-split off the default server-driven path — only tables that opt into
@@ -295,435 +301,463 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
 </script>
 
 <template>
-    <!-- Client-side variant: full row set rendered by the TanStack engine. -->
-    <KinetixDataTable v-if="table.clientSide" :table="table" />
+    <div class="kinetix-table-root min-w-0 max-w-full">
+        <!-- KPI cards (Table::stats()), above the table in both variants. -->
+        <KinetixTableStats v-if="table.stats?.length" :stats="table.stats" />
 
-    <!-- Default: server-driven table (search/sort/filter/paginate via Inertia). -->
-    <div
-        v-else
-        data-slot="card"
-        class="kinetix-table-wrapper backdrop-blur-sm rounded-xl shadow-sm min-w-0 flex max-w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
-    >
-        <KinetixTableToolbar
-            v-model:search-query="searchQuery"
+        <!-- Client-side variant: full row set rendered by the TanStack engine. -->
+        <KinetixDataTable
+            v-if="table.clientSide"
+            v-bind="$attrs"
             :table="table"
-            :active-filters="activeFilters"
-            :current-view-state="currentViewState"
-            :is-column-visible="isColumnVisible"
-            @search-input="onSearchInput"
-            @apply-view="applyView"
-            @action-click="handleActionClick"
-            @set-filter="setFilter"
-            @clear-filters="clearFilters"
-            @toggle-column="toggleColumn"
         />
 
-        <!-- Bulk action bar (visible when rows are selected) -->
-        <KinetixTableBulkBar
-            v-if="table.bulkActions.length > 0 && selectionCount > 0"
-            :bulk-actions="table.bulkActions"
-            :selection-count="selectionCount"
-            :processing="bulkProcessing"
-            @run-action="requestBulkAction"
-            @clear="clearSelection"
-        />
+        <!-- Default: server-driven table (search/sort/filter/paginate via Inertia). -->
+        <div
+            v-else
+            v-bind="$attrs"
+            data-slot="card"
+            class="kinetix-table-wrapper backdrop-blur-sm rounded-xl shadow-sm min-w-0 flex max-w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
+        >
+            <KinetixTableToolbar
+                v-model:search-query="searchQuery"
+                :table="table"
+                :active-filters="activeFilters"
+                :current-view-state="currentViewState"
+                :is-column-visible="isColumnVisible"
+                @search-input="onSearchInput"
+                @apply-view="applyView"
+                @action-click="handleActionClick"
+                @set-filter="setFilter"
+                @clear-filters="clearFilters"
+                @toggle-column="toggleColumn"
+            />
 
-        <!-- HTML Table -->
-        <div class="kinetix-scroll-x overflow-x-auto">
-            <table class="min-w-full divide-y divide-border">
-                <KinetixTableHead
-                    :columns-to-render="columnsToRender"
-                    :sort="table.state.sort"
-                    :direction="table.state.direction"
-                    :has-bulk-actions="table.bulkActions.length > 0"
-                    :has-record-actions="table.recordActions.length > 0"
-                    :all-on-page-selected="allOnPageSelected"
-                    :sticky-actions="table.stickyActions"
-                    :reorderable="table.reorderable"
-                    @toggle-all-on-page="toggleAllOnPage"
-                    @toggle-sort="toggleSort"
-                />
-                <tbody
-                    class="divide-y divide-border"
-                    :class="{ 'divide-none': table.isStriped }"
-                >
-                    <!-- v-memo skips re-rendering rows whose identity, selection,
+            <!-- Bulk action bar (visible when rows are selected) -->
+            <KinetixTableBulkBar
+                v-if="table.bulkActions.length > 0 && selectionCount > 0"
+                :bulk-actions="table.bulkActions"
+                :selection-count="selectionCount"
+                :processing="bulkProcessing"
+                @run-action="requestBulkAction"
+                @clear="clearSelection"
+            />
+
+            <!-- HTML Table -->
+            <div class="kinetix-scroll-x overflow-x-auto">
+                <table class="min-w-full divide-y divide-border">
+                    <KinetixTableHead
+                        :columns-to-render="columnsToRender"
+                        :sort="table.state.sort"
+                        :direction="table.state.direction"
+                        :has-bulk-actions="table.bulkActions.length > 0"
+                        :has-record-actions="table.recordActions.length > 0"
+                        :all-on-page-selected="allOnPageSelected"
+                        :sticky-actions="table.stickyActions"
+                        :reorderable="table.reorderable"
+                        @toggle-all-on-page="toggleAllOnPage"
+                        @toggle-sort="toggleSort"
+                    />
+                    <tbody
+                        class="divide-y divide-border"
+                        :class="{ 'divide-none': table.isStriped }"
+                    >
+                        <!-- v-memo skips re-rendering rows whose identity, selection,
                          and position are unchanged — a large win on wide/long
                          tables during selection and polling. Server reloads ship
                          fresh record objects, so data changes still re-render. -->
-                    <tr
-                        v-for="(record, rowIndex) in rows"
-                        :key="record.id"
-                        v-memo="[record, isRowSelected(record.id), rowIndex]"
-                        class="group transition-colors"
-                        :data-state="
-                            isRowSelected(record.id) ? 'selected' : undefined
-                        "
-                        :draggable="table.reorderable || undefined"
-                        :class="[
-                            record.recordUrl ? 'cursor-pointer' : '',
-                            table.isStriped && rowIndex % 2 === 1
-                                ? 'bg-muted/30'
-                                : 'bg-transparent',
-                            record.recordUrl
-                                ? 'hover:bg-muted/40'
-                                : 'hover:bg-muted/30',
-                            'data-[state=selected]:bg-muted',
-                        ]"
-                        @click="handleRowClick(record, $event)"
-                        @dragstart="table.reorderable && onDragStart(rowIndex)"
-                        @dragover="
-                            table.reorderable && onDragOver(rowIndex, $event)
-                        "
-                        @drop="table.reorderable && onDrop()"
-                    >
-                        <td
-                            v-if="table.reorderable"
-                            class="w-8 px-2 py-4 text-muted-foreground"
-                            @click.stop
-                        >
-                            <GripVertical
-                                class="size-4 cursor-grab active:cursor-grabbing"
-                            />
-                        </td>
-                        <td
-                            v-if="table.bulkActions.length > 0"
-                            class="w-10 px-4 py-4"
-                            @click.stop
-                        >
-                            <KinetixCheckbox
-                                :checked="isRowSelected(record.id)"
-                                @change="toggleRow(record.id, $event)"
-                            />
-                        </td>
-                        <td
-                            v-for="col in columnsToRender"
-                            :key="col.name"
-                            class="px-6 py-4 text-sm font-medium whitespace-nowrap"
-                            :class="[
-                                col.alignment === 'center' ? 'text-center' : '',
-                                col.alignment === 'right'
-                                    ? 'text-right'
-                                    : 'text-left',
-                                col.type === 'text' && !col.isBadge
-                                    ? 'text-foreground'
-                                    : '',
+                        <tr
+                            v-for="(record, rowIndex) in rows"
+                            :key="record.id"
+                            v-memo="[
+                                record,
+                                isRowSelected(record.id),
+                                rowIndex,
                             ]"
+                            class="group transition-colors"
+                            :data-state="
+                                isRowSelected(record.id)
+                                    ? 'selected'
+                                    : undefined
+                            "
+                            :draggable="table.reorderable || undefined"
+                            :class="[
+                                record.recordUrl ? 'cursor-pointer' : '',
+                                table.isStriped && rowIndex % 2 === 1
+                                    ? 'bg-muted/30'
+                                    : 'bg-transparent',
+                                record.recordUrl
+                                    ? 'hover:bg-muted/40'
+                                    : 'hover:bg-muted/30',
+                                'data-[state=selected]:bg-muted',
+                            ]"
+                            @click="handleRowClick(record, $event)"
+                            @dragstart="
+                                table.reorderable && onDragStart(rowIndex)
+                            "
+                            @dragover="
+                                table.reorderable &&
+                                onDragOver(rowIndex, $event)
+                            "
+                            @drop="table.reorderable && onDrop()"
                         >
-                            <slot
-                                :name="`cell-${col.name}`"
-                                :col="col"
-                                :record="record"
-                                :value="record.values[col.name]"
-                                :row-index="rowIndex"
+                            <td
+                                v-if="table.reorderable"
+                                class="w-8 px-2 py-4 text-muted-foreground"
+                                @click.stop
                             >
-                                <KinetixTableCell
+                                <GripVertical
+                                    class="size-4 cursor-grab active:cursor-grabbing"
+                                />
+                            </td>
+                            <td
+                                v-if="table.bulkActions.length > 0"
+                                class="w-10 px-4 py-4"
+                                @click.stop
+                            >
+                                <KinetixCheckbox
+                                    :checked="isRowSelected(record.id)"
+                                    @change="toggleRow(record.id, $event)"
+                                />
+                            </td>
+                            <td
+                                v-for="col in columnsToRender"
+                                :key="col.name"
+                                class="px-6 py-4 text-sm font-medium whitespace-nowrap"
+                                :class="[
+                                    col.alignment === 'center'
+                                        ? 'text-center'
+                                        : '',
+                                    col.alignment === 'right'
+                                        ? 'text-right'
+                                        : 'text-left',
+                                    col.type === 'text' && !col.isBadge
+                                        ? 'text-foreground'
+                                        : '',
+                                ]"
+                            >
+                                <slot
+                                    :name="`cell-${col.name}`"
                                     :col="col"
                                     :record="record"
+                                    :value="record.values[col.name]"
                                     :row-index="rowIndex"
-                                    @update-cell="updateCell"
-                                    @copy-to-clipboard="copyToClipboard"
-                                />
-                            </slot>
-                        </td>
-
-                        <!-- Record row actions -->
-                        <td
-                            v-if="table.recordActions.length > 0"
-                            class="px-6 py-4 text-sm font-medium text-right whitespace-nowrap"
-                            :class="
-                                table.stickyActions
-                                    ? 'right-0 sticky z-10 border-l border-border bg-card group-hover:bg-muted/30'
-                                    : ''
-                            "
-                        >
-                            <div class="gap-2 flex items-center justify-end">
-                                <template
-                                    v-for="(action, idx) in record.actions"
-                                    :key="idx"
                                 >
-                                    <KinetixActionDropdown
-                                        v-if="action.type === 'group'"
-                                        :group="action"
+                                    <KinetixTableCell
+                                        :col="col"
+                                        :record="record"
+                                        :row-index="rowIndex"
+                                        @update-cell="updateCell"
+                                        @copy-to-clipboard="copyToClipboard"
                                     />
-                                    <button
-                                        v-else
-                                        :disabled="actionProcessing"
-                                        :class="recordActionClass(action)"
-                                        :title="
-                                            action.isIconButton
-                                                ? action.label
-                                                : undefined
-                                        "
-                                        :aria-label="
-                                            action.isIconButton
-                                                ? action.label
-                                                : undefined
-                                        "
-                                        @click.stop="
-                                            handleActionClick(action, record)
-                                        "
+                                </slot>
+                            </td>
+
+                            <!-- Record row actions -->
+                            <td
+                                v-if="table.recordActions.length > 0"
+                                class="px-6 py-4 text-sm font-medium text-right whitespace-nowrap"
+                                :class="
+                                    table.stickyActions
+                                        ? 'right-0 sticky z-10 border-l border-border bg-card group-hover:bg-muted/30'
+                                        : ''
+                                "
+                            >
+                                <div
+                                    class="gap-2 flex items-center justify-end"
+                                >
+                                    <template
+                                        v-for="(action, idx) in record.actions"
+                                        :key="idx"
                                     >
-                                        <component
-                                            :is="resolveIcon(action.icon)"
-                                            v-if="action.icon"
+                                        <KinetixActionDropdown
+                                            v-if="action.type === 'group'"
+                                            :group="action"
                                         />
-                                        <span v-if="!action.isIconButton">{{
-                                            action.label
-                                        }}</span>
-                                    </button>
-                                </template>
-                            </div>
-                        </td>
-                    </tr>
+                                        <button
+                                            v-else
+                                            :disabled="actionProcessing"
+                                            :class="recordActionClass(action)"
+                                            :title="
+                                                action.isIconButton
+                                                    ? action.label
+                                                    : undefined
+                                            "
+                                            :aria-label="
+                                                action.isIconButton
+                                                    ? action.label
+                                                    : undefined
+                                            "
+                                            @click.stop="
+                                                handleActionClick(
+                                                    action,
+                                                    record,
+                                                )
+                                            "
+                                        >
+                                            <component
+                                                :is="resolveIcon(action.icon)"
+                                                v-if="action.icon"
+                                            />
+                                            <span v-if="!action.isIconButton">{{
+                                                action.label
+                                            }}</span>
+                                        </button>
+                                    </template>
+                                </div>
+                            </td>
+                        </tr>
 
-                    <!-- Empty State -->
-                    <tr v-if="rows.length === 0">
-                        <td
-                            :colspan="
-                                columnsToRender.length +
-                                (table.recordActions.length > 0 ? 1 : 0) +
-                                (table.bulkActions.length > 0 ? 1 : 0) +
-                                (table.reorderable ? 1 : 0)
-                            "
-                            class="px-6 py-12 text-sm text-center text-muted-foreground"
-                        >
-                            {{ t('kinetix.no_records_found') }}
-                        </td>
-                    </tr>
-                </tbody>
+                        <!-- Empty State -->
+                        <tr v-if="rows.length === 0">
+                            <td
+                                :colspan="
+                                    columnsToRender.length +
+                                    (table.recordActions.length > 0 ? 1 : 0) +
+                                    (table.bulkActions.length > 0 ? 1 : 0) +
+                                    (table.reorderable ? 1 : 0)
+                                "
+                                class="px-6 py-12 text-sm text-center text-muted-foreground"
+                            >
+                                {{ t('kinetix.no_records_found') }}
+                            </td>
+                        </tr>
+                    </tbody>
 
-                <!-- Summary footer -->
-                <KinetixTableSummaryRow
-                    v-if="table.hasSummaries"
-                    :columns-to-render="columnsToRender"
-                    :summaries="table.summaries"
-                    :reorderable="table.reorderable"
-                    :has-bulk-actions="table.bulkActions.length > 0"
-                    :has-record-actions="table.recordActions.length > 0"
-                />
-            </table>
-        </div>
-
-        <!-- Footer actions bar (e.g. Export all) -->
-        <div
-            v-if="(table.footerActions?.length ?? 0) > 0"
-            class="gap-2 px-4 py-3 flex flex-wrap items-center border-t border-border"
-        >
-            <template
-                v-for="(action, i) in table.footerActions"
-                :key="`footer-${i}`"
-            >
-                <KinetixActionDropdown
-                    v-if="action.type === 'group'"
-                    :group="action"
-                />
-                <button
-                    v-else
-                    type="button"
-                    :disabled="actionProcessing"
-                    :class="
-                        buttonVariants({
-                            variant: action.color
-                                ? actionButtonVariant(action.color)
-                                : 'default',
-                            size: 'sm',
-                        })
-                    "
-                    @click="handleActionClick(action)"
-                >
-                    <component
-                        :is="resolveIcon(action.icon)"
-                        v-if="action.icon"
+                    <!-- Summary footer -->
+                    <KinetixTableSummaryRow
+                        v-if="table.hasSummaries"
+                        :columns-to-render="columnsToRender"
+                        :summaries="table.summaries"
+                        :reorderable="table.reorderable"
+                        :has-bulk-actions="table.bulkActions.length > 0"
+                        :has-record-actions="table.recordActions.length > 0"
                     />
-                    {{ action.label }}
-                </button>
-            </template>
-        </div>
+                </table>
+            </div>
 
-        <!-- Footer Pagination -->
-        <KinetixTablePagination
-            v-if="table.isPaginated && table.pagination"
-            :pagination="table.pagination"
-            :pagination-page-options="table.paginationPageOptions"
-            @change-page="triggerReload({ page: $event })"
-            @change-cursor="triggerReload({ cursor: $event })"
-            @change-per-page="
-                triggerReload({ perPage: $event, page: 1, cursor: null })
-            "
-        />
+            <!-- Footer actions bar (e.g. Export all) -->
+            <div
+                v-if="(table.footerActions?.length ?? 0) > 0"
+                class="gap-2 px-4 py-3 flex flex-wrap items-center border-t border-border"
+            >
+                <template
+                    v-for="(action, i) in table.footerActions"
+                    :key="`footer-${i}`"
+                >
+                    <KinetixActionDropdown
+                        v-if="action.type === 'group'"
+                        :group="action"
+                    />
+                    <button
+                        v-else
+                        type="button"
+                        :disabled="actionProcessing"
+                        :class="
+                            buttonVariants({
+                                variant: action.color
+                                    ? actionButtonVariant(action.color)
+                                    : 'default',
+                                size: 'sm',
+                            })
+                        "
+                        @click="handleActionClick(action)"
+                    >
+                        <component
+                            :is="resolveIcon(action.icon)"
+                            v-if="action.icon"
+                        />
+                        {{ action.label }}
+                    </button>
+                </template>
+            </div>
 
-        <!-- Confirmation modal for actions that require it -->
-        <KinetixConfirmModal
-            v-model:open="isConfirmOpen"
-            :heading="pendingAction?.modalHeading"
-            :description="pendingAction?.modalDescription"
-            :icon="pendingAction?.modalIcon"
-            :color="pendingAction?.color"
-            :submit-label="pendingAction?.modalSubmitActionLabel"
-            :cancel-label="pendingAction?.modalCancelActionLabel"
-            :processing="actionProcessing"
-            @confirm="onConfirmAction"
-            @cancel="onCancelAction"
-        />
+            <!-- Footer Pagination -->
+            <KinetixTablePagination
+                v-if="table.isPaginated && table.pagination"
+                :pagination="table.pagination"
+                :pagination-page-options="table.paginationPageOptions"
+                @change-page="triggerReload({ page: $event })"
+                @change-cursor="triggerReload({ cursor: $event })"
+                @change-per-page="
+                    triggerReload({ perPage: $event, page: 1, cursor: null })
+                "
+            />
 
-        <!-- Confirmation modal for bulk actions -->
-        <KinetixConfirmModal
-            v-model:open="isBulkConfirmOpen"
-            :heading="bulkPending?.modalHeading"
-            :description="bulkPending?.modalDescription"
-            :icon="bulkPending?.modalIcon"
-            :color="bulkPending?.color"
-            :submit-label="bulkPending?.modalSubmitActionLabel"
-            :cancel-label="bulkPending?.modalCancelActionLabel"
-            :processing="bulkProcessing"
-            @confirm="onBulkConfirm"
-            @cancel="onBulkCancel"
-        />
+            <!-- Confirmation modal for actions that require it -->
+            <KinetixConfirmModal
+                v-model:open="isConfirmOpen"
+                :heading="pendingAction?.modalHeading"
+                :description="pendingAction?.modalDescription"
+                :icon="pendingAction?.modalIcon"
+                :color="pendingAction?.color"
+                :submit-label="pendingAction?.modalSubmitActionLabel"
+                :cancel-label="pendingAction?.modalCancelActionLabel"
+                :processing="actionProcessing"
+                @confirm="onConfirmAction"
+                @cancel="onCancelAction"
+            />
 
-        <!-- Simple-resource create/edit + view modals, teleported to <body> so
+            <!-- Confirmation modal for bulk actions -->
+            <KinetixConfirmModal
+                v-model:open="isBulkConfirmOpen"
+                :heading="bulkPending?.modalHeading"
+                :description="bulkPending?.modalDescription"
+                :icon="bulkPending?.modalIcon"
+                :color="bulkPending?.color"
+                :submit-label="bulkPending?.modalSubmitActionLabel"
+                :cancel-label="bulkPending?.modalCancelActionLabel"
+                :processing="bulkProcessing"
+                @confirm="onBulkConfirm"
+                @cancel="onBulkCancel"
+            />
+
+            <!-- Simple-resource create/edit + view modals, teleported to <body> so
              the overlay is never clipped by the table's own stacking context.
              The form is fetched fresh from the server for edits by default;
              create opens instantly from the shipped blueprint. -->
-        <Teleport v-if="isMounted" to="body">
-            <div
-                v-if="isRecordFormOpen"
-                class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
-                @click.self="closeRecordForm"
-            >
+            <Teleport v-if="isMounted" to="body">
                 <div
-                    class="max-w-2xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
+                    v-if="isRecordFormOpen"
+                    class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
+                    @click.self="closeRecordForm"
                 >
                     <div
-                        class="p-6 flex items-center justify-between border-b border-border"
+                        class="max-w-2xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
                     >
-                        <h3 class="font-semibold text-lg">
-                            {{
-                                recordLabel ||
-                                (isRecordEditing
-                                    ? t('kinetix.edit')
-                                    : t('kinetix.create'))
-                            }}
-                        </h3>
-                        <button
-                            type="button"
-                            class="text-muted-foreground hover:text-foreground"
-                            :aria-label="t('kinetix.close')"
-                            @click="closeRecordForm"
+                        <div
+                            class="p-6 flex items-center justify-between border-b border-border"
                         >
-                            &times;
-                        </button>
-                    </div>
-
-                    <div class="p-6 overflow-y-auto">
-                        <div v-if="isRecordLoading" class="space-y-4">
-                            <div
-                                class="h-9 animate-pulse rounded-md bg-muted"
-                            ></div>
-                            <div
-                                class="h-9 animate-pulse rounded-md bg-muted"
-                            ></div>
-                            <div
-                                class="h-9 animate-pulse w-2/3 rounded-md bg-muted"
-                            ></div>
+                            <h3 class="font-semibold text-lg">
+                                {{
+                                    recordLabel ||
+                                    (isRecordEditing
+                                        ? t('kinetix.edit')
+                                        : t('kinetix.create'))
+                                }}
+                            </h3>
+                            <button
+                                type="button"
+                                class="text-muted-foreground hover:text-foreground"
+                                :aria-label="t('kinetix.close')"
+                                @click="closeRecordForm"
+                            >
+                                &times;
+                            </button>
                         </div>
 
-                        <KinetixForm
-                            v-else-if="recordForm"
-                            :form="recordForm"
-                            @submit="submitRecordForm"
-                        >
-                            <template #default>
-                                <div class="gap-3 mt-6 flex justify-end">
-                                    <button
-                                        type="button"
-                                        :class="
-                                            buttonVariants({
-                                                variant: 'outline',
-                                                size: 'sm',
-                                            })
-                                        "
-                                        :disabled="recordProcessing"
-                                        @click="closeRecordForm"
-                                    >
-                                        {{ t('kinetix.cancel') }}
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        :class="buttonVariants({ size: 'sm' })"
-                                        :disabled="recordProcessing"
-                                    >
-                                        {{ t('kinetix.save') }}
-                                    </button>
-                                </div>
-                            </template>
-                        </KinetixForm>
+                        <div class="p-6 overflow-y-auto">
+                            <div v-if="isRecordLoading" class="space-y-4">
+                                <div
+                                    class="h-9 animate-pulse rounded-md bg-muted"
+                                ></div>
+                                <div
+                                    class="h-9 animate-pulse rounded-md bg-muted"
+                                ></div>
+                                <div
+                                    class="h-9 animate-pulse w-2/3 rounded-md bg-muted"
+                                ></div>
+                            </div>
+
+                            <KinetixForm
+                                v-else-if="recordForm"
+                                :form="recordForm"
+                                @submit="submitRecordForm"
+                            >
+                                <template #default>
+                                    <div class="gap-3 mt-6 flex justify-end">
+                                        <button
+                                            type="button"
+                                            :class="
+                                                buttonVariants({
+                                                    variant: 'outline',
+                                                    size: 'sm',
+                                                })
+                                            "
+                                            :disabled="recordProcessing"
+                                            @click="closeRecordForm"
+                                        >
+                                            {{ t('kinetix.cancel') }}
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            :class="
+                                                buttonVariants({ size: 'sm' })
+                                            "
+                                            :disabled="recordProcessing"
+                                        >
+                                            {{ t('kinetix.save') }}
+                                        </button>
+                                    </div>
+                                </template>
+                            </KinetixForm>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Simple-resource view modal (read-only infolist, server-resolved). -->
-            <div
-                v-if="isRecordInfolistOpen"
-                class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
-                @click.self="closeRecordInfolist"
-            >
+                <!-- Simple-resource view modal (read-only infolist, server-resolved). -->
                 <div
-                    class="max-w-3xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
+                    v-if="isRecordInfolistOpen"
+                    class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
+                    @click.self="closeRecordInfolist"
                 >
                     <div
-                        class="p-6 flex items-center justify-between border-b border-border"
+                        class="max-w-3xl rounded-xl shadow-xl flex max-h-[90vh] w-full flex-col overflow-hidden border border-border bg-card text-card-foreground"
                     >
-                        <h3 class="font-semibold text-lg">
-                            {{ recordLabel || t('kinetix.view') }}
-                        </h3>
-                        <button
-                            type="button"
-                            class="text-muted-foreground hover:text-foreground"
-                            :aria-label="t('kinetix.close')"
-                            @click="closeRecordInfolist"
+                        <div
+                            class="p-6 flex items-center justify-between border-b border-border"
                         >
-                            &times;
-                        </button>
-                    </div>
-
-                    <div class="p-6 overflow-y-auto">
-                        <div v-if="isRecordLoading" class="space-y-4">
-                            <div
-                                class="h-6 animate-pulse w-1/3 rounded-md bg-muted"
-                            ></div>
-                            <div
-                                class="h-24 animate-pulse rounded-md bg-muted"
-                            ></div>
+                            <h3 class="font-semibold text-lg">
+                                {{ recordLabel || t('kinetix.view') }}
+                            </h3>
+                            <button
+                                type="button"
+                                class="text-muted-foreground hover:text-foreground"
+                                :aria-label="t('kinetix.close')"
+                                @click="closeRecordInfolist"
+                            >
+                                &times;
+                            </button>
                         </div>
-                        <KinetixInfolist
-                            v-else-if="recordInfolist"
-                            :infolist="recordInfolist"
-                        />
+
+                        <div class="p-6 overflow-y-auto">
+                            <div v-if="isRecordLoading" class="space-y-4">
+                                <div
+                                    class="h-6 animate-pulse w-1/3 rounded-md bg-muted"
+                                ></div>
+                                <div
+                                    class="h-24 animate-pulse rounded-md bg-muted"
+                                ></div>
+                            </div>
+                            <KinetixInfolist
+                                v-else-if="recordInfolist"
+                                :infolist="recordInfolist"
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
-        </Teleport>
+            </Teleport>
 
-        <!-- Simple-resource delete confirmation. -->
-        <KinetixConfirmModal
-            v-model:open="isRecordDeleteOpen"
-            :heading="
-                recordPendingDelete?.modalHeading ??
-                t('kinetix.confirm_heading')
-            "
-            :description="recordPendingDelete?.modalDescription"
-            :icon="recordPendingDelete?.modalIcon"
-            :color="recordPendingDelete?.color ?? 'danger'"
-            :submit-label="
-                recordPendingDelete?.modalSubmitActionLabel ??
-                t('kinetix.delete')
-            "
-            :cancel-label="recordPendingDelete?.modalCancelActionLabel"
-            :processing="recordProcessing"
-            @confirm="confirmRecordDelete"
-            @cancel="cancelRecordDelete"
-        />
+            <!-- Simple-resource delete confirmation. -->
+            <KinetixConfirmModal
+                v-model:open="isRecordDeleteOpen"
+                :heading="
+                    recordPendingDelete?.modalHeading ??
+                    t('kinetix.confirm_heading')
+                "
+                :description="recordPendingDelete?.modalDescription"
+                :icon="recordPendingDelete?.modalIcon"
+                :color="recordPendingDelete?.color ?? 'danger'"
+                :submit-label="
+                    recordPendingDelete?.modalSubmitActionLabel ??
+                    t('kinetix.delete')
+                "
+                :cancel-label="recordPendingDelete?.modalCancelActionLabel"
+                :processing="recordProcessing"
+                @confirm="confirmRecordDelete"
+                @cancel="cancelRecordDelete"
+            />
+        </div>
     </div>
 </template>
 
