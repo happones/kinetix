@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ArrowUp, ArrowDown, ArrowUpDown } from '@lucide/vue';
+import { useI18n } from 'vue-i18n';
 import KinetixCheckbox from '../KinetixCheckbox.vue';
 
 interface Column {
@@ -25,6 +26,8 @@ const emit = defineEmits<{
     (e: 'toggle-sort', column: string): void;
 }>();
 
+const { t } = useI18n();
+
 const getSortIcon = (name: string) => {
     if (props.sort !== name) {
         return ArrowUpDown;
@@ -32,17 +35,36 @@ const getSortIcon = (name: string) => {
 
     return props.direction === 'asc' ? ArrowUp : ArrowDown;
 };
+
+/**
+ * The ARIA sort state announced on a sortable column's <th>: 'none' until the
+ * column is the active sort, then the active direction.
+ */
+const getAriaSort = (
+    col: Column,
+): 'ascending' | 'descending' | 'none' | undefined => {
+    if (!col.isSortable) {
+        return undefined;
+    }
+
+    if (props.sort !== col.name) {
+        return 'none';
+    }
+
+    return props.direction === 'asc' ? 'ascending' : 'descending';
+};
 </script>
 
 <template>
     <thead class="bg-muted/40">
         <tr>
             <th v-if="reorderable" scope="col" class="w-8 px-2 py-3">
-                <span class="sr-only">Reorder</span>
+                <span class="sr-only">{{ t('kinetix.reorder') }}</span>
             </th>
             <th v-if="hasBulkActions" scope="col" class="w-10 px-4 py-3">
                 <KinetixCheckbox
                     :checked="allOnPageSelected"
+                    :aria-label="t('kinetix.select_all')"
                     @change="emit('toggle-all-on-page', $event)"
                 />
             </th>
@@ -50,6 +72,7 @@ const getSortIcon = (name: string) => {
                 v-for="col in columnsToRender"
                 :key="col.name"
                 scope="col"
+                :aria-sort="getAriaSort(col)"
                 class="px-6 py-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
                 :class="[
                     col.alignment === 'center' ? 'text-center' : '',
@@ -66,6 +89,7 @@ const getSortIcon = (name: string) => {
                     <component
                         :is="getSortIcon(col.name)"
                         class="h-3.5 w-3.5"
+                        aria-hidden="true"
                     />
                 </button>
                 <span v-else>{{ col.label }}</span>
@@ -80,7 +104,7 @@ const getSortIcon = (name: string) => {
                         : ''
                 "
             >
-                <span class="sr-only">Actions</span>
+                <span class="sr-only">{{ t('kinetix.actions') }}</span>
             </th>
         </tr>
     </thead>

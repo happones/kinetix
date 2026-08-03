@@ -417,6 +417,7 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
                             >
                                 <KinetixCheckbox
                                     :checked="isRowSelected(record.id)"
+                                    :aria-label="t('kinetix.select_row')"
                                     @change="toggleRow(record.id, $event)"
                                 />
                             </td>

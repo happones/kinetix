@@ -202,6 +202,24 @@ const dedicated = computed<Component | null>(
 const delegate = computed<Delegate | null>(
     () => DELEGATE_FIELDS[props.comp.type] ?? null,
 );
+
+/**
+ * Error wiring for assistive tech: `aria-invalid` flips the field into its
+ * destructive state (the shadcn input/textarea classes style it) and
+ * `aria-describedby` points at the error text KinetixFormSchema renders with
+ * the `<name>-error` id. Bound via fallthrough attrs so every field type gets
+ * it on its root control without per-field plumbing.
+ */
+const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
+    if (!props.errors[props.comp.name]) {
+        return {};
+    }
+
+    return {
+        'aria-invalid': 'true',
+        'aria-describedby': `${props.comp.name}-error`,
+    };
+});
 </script>
 
 <template>
@@ -220,6 +238,7 @@ const delegate = computed<Delegate | null>(
         v-else-if="dedicated"
         :comp="comp"
         :value="values[comp.name]"
+        v-bind="errorA11yAttrs"
         @update="emit('update', $event)"
     />
 
@@ -228,7 +247,7 @@ const delegate = computed<Delegate | null>(
         :is="delegate.component"
         v-else-if="delegate"
         :value="values[comp.name]"
-        v-bind="delegate.props(comp, values)"
+        v-bind="{ ...delegate.props(comp, values), ...errorA11yAttrs }"
         @update:value="emit('update', $event)"
     />
 </template>

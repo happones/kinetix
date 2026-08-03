@@ -133,25 +133,30 @@ const getPerPageOptions = (options?: number[]) => {
         </div>
 
         <div class="gap-4 flex items-center">
-            <div class="gap-1 flex items-center">
+            <nav
+                :aria-label="t('kinetix.pagination')"
+                class="gap-1 flex items-center"
+            >
                 <button
                     v-if="!isCountFree"
                     type="button"
                     data-testid="page-first"
+                    :aria-label="t('kinetix.first_page')"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                     :disabled="isFirstPage"
                     @click="emit('change-page', 1)"
                 >
-                    <ChevronsLeft class="h-4 w-4" />
+                    <ChevronsLeft class="h-4 w-4" aria-hidden="true" />
                 </button>
                 <button
                     type="button"
                     data-testid="page-prev"
+                    :aria-label="t('kinetix.previous_page')"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                     :disabled="isFirstPage"
                     @click="goPrevious"
                 >
-                    <ChevronLeft class="h-4 w-4" />
+                    <ChevronLeft class="h-4 w-4" aria-hidden="true" />
                 </button>
                 <span class="text-xs font-medium mx-2 text-muted-foreground">
                     <!-- A cursor has no page number to show. -->
@@ -175,23 +180,25 @@ const getPerPageOptions = (options?: number[]) => {
                 <button
                     type="button"
                     data-testid="page-next"
+                    :aria-label="t('kinetix.next_page')"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                     :disabled="isLastPage"
                     @click="goNext"
                 >
-                    <ChevronRight class="h-4 w-4" />
+                    <ChevronRight class="h-4 w-4" aria-hidden="true" />
                 </button>
                 <button
                     v-if="!isCountFree"
                     type="button"
                     data-testid="page-last"
+                    :aria-label="t('kinetix.last_page')"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                     :disabled="isLastPage"
                     @click="goLast"
                 >
-                    <ChevronsRight class="h-4 w-4" />
+                    <ChevronsRight class="h-4 w-4" aria-hidden="true" />
                 </button>
-            </div>
+            </nav>
 
             <!-- Page Size selector -->
             <div class="gap-2 text-xs flex items-center text-muted-foreground">

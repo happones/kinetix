@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **(published) Tables & Forms honor the accessibility manifest** (first
+  remediation pass of the 10-rule manifest in the development skill):
+  - Sortable column headers expose `aria-sort`
+    (`none`/`ascending`/`descending`) that flips with the active sort; sort
+    icons are marked decorative.
+  - The select-all and per-row selection checkboxes have translated
+    `aria-label`s; the reorder/actions header cells announce translated
+    `sr-only` names (previously hardcoded English).
+  - Pagination controls live in a labeled `<nav>` and every icon-only pager
+    button (first/previous/next/last) has a translated `aria-label`.
+  - An errored form field now sets `aria-invalid` (which also activates the
+    shadcn destructive border/ring on inputs) and `aria-describedby` pointing
+    at its error text, which renders with a stable `<name>-error` id and
+    `role="alert"` so screen readers announce it on appearance. Wired through
+    the field dispatcher via fallthrough attrs, so all ~30 field types get it
+    without per-field plumbing.
+  - New keys (`pagination`, `first_page`, `previous_page`, `next_page`,
+    `last_page`, `select_row`, `actions`, `reorder`) in all seven locales.
+  - Specs assert the wiring: `aria-sort` flip, labeled pager nav, error id ↔
+    `aria-describedby` linkage.
+
 ## [0.131.0] - 2026-08-03
 
 Chart widgets and stat cards, retouched end to end: working tooltips, automatic

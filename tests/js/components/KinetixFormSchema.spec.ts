@@ -128,4 +128,56 @@ describe('KinetixFormSchema', () => {
         // First tab's field is rendered in the active panel.
         expect(wrapper.find('#name').exists()).toBe(true);
     });
+
+    it('links an errored field to its announced error text', () => {
+        const wrapper = mount(KinetixFormSchema, {
+            props: {
+                schema: [
+                    {
+                        type: 'text-input',
+                        name: 'title',
+                        label: 'Title',
+                        columnSpan: 'full',
+                        inputType: 'text',
+                        isDisabled: false,
+                    },
+                ],
+                values: { title: '' },
+                errors: { title: 'The title is required.' },
+            },
+            global: { plugins: [i18n] },
+        });
+
+        const input = wrapper.get('input[type="text"]');
+        expect(input.attributes('aria-invalid')).toBe('true');
+        expect(input.attributes('aria-describedby')).toBe('title-error');
+
+        const error = wrapper.get('#title-error');
+        expect(error.attributes('role')).toBe('alert');
+        expect(error.text()).toBe('The title is required.');
+    });
+
+    it('leaves clean fields without error aria wiring', () => {
+        const wrapper = mount(KinetixFormSchema, {
+            props: {
+                schema: [
+                    {
+                        type: 'text-input',
+                        name: 'title',
+                        label: 'Title',
+                        columnSpan: 'full',
+                        inputType: 'text',
+                        isDisabled: false,
+                    },
+                ],
+                values: { title: 'ok' },
+                errors: {},
+            },
+            global: { plugins: [i18n] },
+        });
+
+        const input = wrapper.get('input[type="text"]');
+        expect(input.attributes('aria-invalid')).toBeUndefined();
+        expect(input.attributes('aria-describedby')).toBeUndefined();
+    });
 });

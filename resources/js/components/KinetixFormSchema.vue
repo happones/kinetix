@@ -275,9 +275,12 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                 />
             </div>
 
-            <!-- Validation Error -->
+            <!-- Validation Error (id is the aria-describedby target; alert
+                 role announces it to screen readers as it appears). -->
             <p
                 v-if="errors[comp.name]"
+                :id="`${comp.name}-error`"
+                role="alert"
                 class="text-xs font-semibold mt-1 text-destructive"
             >
                 {{ errors[comp.name] }}

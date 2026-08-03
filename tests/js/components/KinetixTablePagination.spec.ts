@@ -18,6 +18,11 @@ const i18n = createI18n({
                 page_number: 'Page {current}',
                 showing_records: 'Showing {from} to {to} of {total} results',
                 showing_range: 'Showing {from} to {to}',
+                pagination: 'Pagination',
+                first_page: 'First page',
+                previous_page: 'Previous page',
+                next_page: 'Next page',
+                last_page: 'Last page',
             },
         },
     },
@@ -217,6 +222,36 @@ describe('KinetixTablePagination', () => {
                     .find('[data-testid="page-next"]')
                     .attributes('disabled'),
             ).toBeDefined();
+        });
+    });
+
+    describe('accessibility', () => {
+        it('wraps the page controls in a labeled nav with named buttons', () => {
+            const wrapper = render(lengthAware);
+
+            expect(wrapper.find('nav[aria-label="Pagination"]').exists()).toBe(
+                true,
+            );
+            expect(
+                wrapper
+                    .find('[data-testid="page-first"]')
+                    .attributes('aria-label'),
+            ).toBe('First page');
+            expect(
+                wrapper
+                    .find('[data-testid="page-prev"]')
+                    .attributes('aria-label'),
+            ).toBe('Previous page');
+            expect(
+                wrapper
+                    .find('[data-testid="page-next"]')
+                    .attributes('aria-label'),
+            ).toBe('Next page');
+            expect(
+                wrapper
+                    .find('[data-testid="page-last"]')
+                    .attributes('aria-label'),
+            ).toBe('Last page');
         });
     });
 });
