@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.133.0] - 2026-08-03
+
+The accessibility manifest's remaining remediation (live-region announcements
++ a keyboard alternative for every drag-and-drop surface), plus UUID/ULID
+host-model guidance wired into the docs and every affected agent skill.
+
 ### Added
 
 - **(published) UUID / ULID host-model guidance, for humans and agents.**
