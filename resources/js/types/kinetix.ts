@@ -49,7 +49,13 @@ export interface KinetixNotification {
 /** Public-safe Kinetix runtime config shared with Inertia page props. */
 export interface KinetixConfig {
     database: boolean;
+    /** Kinetix's own endpoint prefix, with the team segment already resolved. */
     route_prefix: string;
+    /**
+     * The active team's ROUTE key (slug/uuid-aware), or null when teams are off.
+     * Build app links with `useKinetixTeams().teamUrl()` rather than reading it.
+     */
+    team: string | number | null;
     sound: { enabled: boolean; path: string };
     broadcasting: Record<string, unknown> | null;
 }

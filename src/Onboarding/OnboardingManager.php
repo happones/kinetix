@@ -88,14 +88,26 @@ class OnboardingManager
         ]);
     }
 
+    /**
+     * The active team: the `{current_team}` segment when the call happens in a
+     * request (so a page served for team B never writes team A's row), falling
+     * back to the given user's `currentTeam` outside one — queued jobs and
+     * console runs, where the user is explicit and there is no route.
+     */
     protected function teamId(Model $user): int|string|null
     {
         if (! KinetixTeams::enabledFor('onboarding')) {
             return null;
         }
 
-        $team = $user->getAttribute('currentTeam');
+        $team = KinetixTeams::currentTeamKey();
 
-        return $team instanceof Model ? $team->getKey() : null;
+        if ($team !== null) {
+            return $team;
+        }
+
+        $fallback = $user->getAttribute('currentTeam');
+
+        return $fallback instanceof Model ? $fallback->getKey() : null;
     }
 }

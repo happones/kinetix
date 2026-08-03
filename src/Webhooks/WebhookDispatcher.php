@@ -75,10 +75,6 @@ class WebhookDispatcher
 
     protected function teamId(): int|string|null
     {
-        if (! KinetixTeams::enabledFor('webhooks')) {
-            return null;
-        }
-
-        return auth()->user()?->currentTeam?->getKey();
+        return KinetixTeams::keyFor('webhooks');
     }
 }

@@ -1845,13 +1845,26 @@ class KinetixServiceProvider extends ServiceProvider
     {
         Inertia::share('kinetix_config', function () {
             $routePrefix = config('kinetix.route_prefix', '_kinetix');
+            $teamKey     = null;
 
             if (config('kinetix.teams', false)) {
-                // URL segment → the team's ROUTE key (slug/uuid-aware).
-                $team = request()->route('current_team')
-                    ?? (auth()->check() && auth()->user()->currentTeam ? auth()->user()->currentTeam->getRouteKey() : null);
+                // URL segment → the team's ROUTE key (slug/uuid-aware). The
+                // param may be a bound MODEL when the host registered a route
+                // binding, so never interpolate it directly — that fatals with
+                // "Object of class Team could not be converted to string".
+                // `{team}` is accepted too (the Billing routes use that name).
+                $team = request()->route('current_team') ?? request()->route('team');
 
-                if ($team) {
+                if ($team instanceof Model) {
+                    $team = $team->getRouteKey();
+                }
+
+                $team ??= auth()->check() && auth()->user()->currentTeam
+                    ? auth()->user()->currentTeam->getRouteKey()
+                    : null;
+
+                if ($team !== null && $team !== '') {
+                    $teamKey     = $team;
                     $routePrefix = "{$team}/{$routePrefix}";
                 }
             }
@@ -1859,7 +1872,12 @@ class KinetixServiceProvider extends ServiceProvider
             return [
                 'database'     => (bool) config('kinetix.notifications.database', false),
                 'route_prefix' => $routePrefix,
-                'sound'        => [
+                // The resolved team route key on its own, so the app can build
+                // its OWN team-prefixed links (useKinetixTeams().teamUrl()) —
+                // route_prefix is Kinetix's internal endpoint base, not a
+                // general-purpose URL builder.
+                'team'  => $teamKey,
+                'sound' => [
                     'enabled' => (bool) config('kinetix.notifications.sound.enabled', true),
                     'path'    => config('kinetix.notifications.sound.path', '/vendor/kinetix/notification.wav'),
                 ],
@@ -2491,6 +2509,13 @@ class KinetixServiceProvider extends ServiceProvider
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);
 
+        // Deliberately NOT team-prefixed, unlike every other module: the
+        // download URL is generated inside queued jobs (ExportProcessor,
+        // GdprExportJob) where there is no request to resolve a
+        // `{current_team}` segment from — requiring the parameter would throw
+        // UrlGenerationException. Authorization is the signed token, and the
+        // export query runs in the job, so an exporter that needs the tenant
+        // must capture it into its parameters at dispatch time.
         Route::middleware($middleware)
             ->prefix("{$prefix}/exports")
             ->group(function () {

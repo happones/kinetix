@@ -31,6 +31,20 @@ class KinetixTeams
     }
 
     /**
+     * The team key a MODULE should scope its data to: the active team when that
+     * module is team-scoped, `null` otherwise.
+     *
+     * This is the one call every module should make. Resolving the team by hand
+     * (`auth()->user()->currentTeam`) silently ignores the `{current_team}`
+     * segment, so a request served for team B writes and reads team A's rows —
+     * and skips the membership check {@see currentTeamKey()} performs.
+     */
+    public static function keyFor(string $module, ?Request $request = null): int|string|null
+    {
+        return static::enabledFor($module) ? static::currentTeamKey($request) : null;
+    }
+
+    /**
      * Resolve the current team's PRIMARY KEY for data scoping. The
      * `{current_team}` route segment is the team's ROUTE key (the host may
      * route teams by slug/uuid — `Team::getRouteKeyName()`), so it must never
@@ -48,7 +62,12 @@ class KinetixTeams
     public static function currentTeamKey(?Request $request = null): int|string|null
     {
         $request ??= request();
-        $param = $request->route('current_team');
+
+        // `{current_team}` is the canonical segment; `{team}` is accepted too
+        // because the Billing routes (and hosts that predate the rename) use
+        // that name — without this a Kinetix component rendered inside such a
+        // page would silently fall back to the user's `currentTeam`.
+        $param = $request->route('current_team') ?? $request->route('team');
 
         if ($param instanceof Model) {
             return $param->getKey();

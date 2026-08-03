@@ -36,6 +36,9 @@ class DispatchDueReportSchedulesCommand extends Command
                 launchedBy: $schedule->createdBy,
                 parameters: $schedule->parameters ?? [],
                 reportScheduleId: $schedule->id,
+                // Console run: no request to resolve the team from, so the run
+                // inherits the schedule's tenant.
+                teamId: $schedule->team_id,
             );
 
             $nextRunAt = $schedule->frequency->next(now());

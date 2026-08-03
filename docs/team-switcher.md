@@ -70,6 +70,43 @@ en/es/fr/pt).
 
 ---
 
+## Building team-aware links
+
+The same composable is how you link between **your own** pages in a multitenant
+app — `teamUrl()` prefixes a path with the active team's segment:
+
+```vue
+<script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import { useKinetixTeams } from '@/composables/useKinetixTeams';
+
+const { teamUrl, currentTeamKey } = useKinetixTeams();
+</script>
+
+<template>
+  <Link :href="teamUrl('/projects')">Projects</Link>   <!-- /acme/projects -->
+</template>
+```
+
+| | |
+|---|---|
+| `teamUrl(path)` | The path prefixed with the active team segment; unchanged when teams are off, and never double-prefixed |
+| `currentTeamKey` | The raw segment (`'acme'`), or `null` when teams are off |
+
+Two reasons to prefer it over hand-built strings:
+
+- The segment is the team's **route key** (`getRouteKey()` — a slug or uuid when
+  the model defines one), **not** the `id` you get from `current`. Interpolating
+  `current.id` produces URLs that 404 as soon as teams are slug-routed.
+- It is driven by the **server's** resolution of the current request, so a link
+  rendered on `/beta/...` points at `beta` even when the user's stored
+  `currentTeam` is something else.
+
+Unlike the switcher, linking only needs `kinetix.teams` — `team_switcher.enabled`
+is not required.
+
+---
+
 ## Shared prop
 
 `kinetix_teams` is shared on every Inertia response:

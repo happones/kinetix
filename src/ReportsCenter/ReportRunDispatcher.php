@@ -24,8 +24,13 @@ class ReportRunDispatcher
         ?Model $launchedBy = null,
         array $parameters = [],
         ?int $reportScheduleId = null,
+        int|string|null $teamId = null,
     ): ReportRun {
         $run = ReportRun::create([
+            // Pass the team explicitly when the run originates outside a request
+            // (the scheduler firing a due schedule); inside one it resolves from
+            // the `{current_team}` segment like every other module.
+            'team_id'            => $teamId ?? ReportRun::currentTeamId(),
             'report_schedule_id' => $reportScheduleId,
             'report_class'       => $report::class,
             'status'             => ReportRunStatus::Pending,

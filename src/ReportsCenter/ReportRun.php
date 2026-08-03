@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\ReportsCenter;
 
+use Happones\Kinetix\Support\Concerns\ScopedToTeam;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -34,6 +35,13 @@ use Illuminate\Support\Carbon;
  */
 class ReportRun extends Model
 {
+    use ScopedToTeam;
+
+    public static function kinetixTeamModule(): string
+    {
+        return 'reports_center';
+    }
+
     protected $table = 'kinetix_report_runs';
 
     protected $guarded = [];

@@ -109,11 +109,7 @@ class ActivityLogger
 
     protected function teamId(): int|string|null
     {
-        if (! KinetixTeams::enabledFor('activity')) {
-            return null;
-        }
-
-        return auth()->user()?->currentTeam?->getKey();
+        return KinetixTeams::keyFor('activity');
     }
 
     /**

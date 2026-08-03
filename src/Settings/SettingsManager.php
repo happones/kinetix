@@ -118,11 +118,7 @@ class SettingsManager
 
     protected function teamId(): int|string|null
     {
-        if (! KinetixTeams::enabledFor('settings')) {
-            return null;
-        }
-
-        return auth()->user()?->currentTeam?->getKey();
+        return KinetixTeams::keyFor('settings');
     }
 
     protected function scopeKey(): string

@@ -27,7 +27,7 @@ class ReportRunController
     {
         Gate::authorize('viewKinetixReportsCenter');
 
-        $table = Table::make(ReportRun::query()->latest())
+        $table = Table::make(ReportRun::query()->forCurrentTeam()->latest())
             ->columns([
                 TextColumn::make('report_class')
                     ->label((string) trans('kinetix.report_runs_report_column'))
@@ -126,6 +126,9 @@ class ReportRunController
             launchedBy: $run->launchedBy,
             parameters: $run->parameters ?? [],
             reportScheduleId: $run->report_schedule_id,
+            // The retry stays in the original run's tenant (already verified as
+            // the caller's by findRun()).
+            teamId: $run->team_id,
         );
 
         return response()->json(['status' => 'queued', 'run_id' => $newRun->id]);
@@ -149,6 +152,6 @@ class ReportRunController
 
     protected function findRun(Request $request): ReportRun
     {
-        return ReportRun::query()->whereKey($request->route('run'))->firstOrFail();
+        return ReportRun::query()->forCurrentTeam()->whereKey($request->route('run'))->firstOrFail();
     }
 }

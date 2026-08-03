@@ -45,6 +45,7 @@ class DoctorCommand extends Command
         $this->checkRoles();
         $this->checkMembership();
         $this->checkConfigCallbacks();
+        $this->checkGlobalData();
         $this->checkFrontend();
 
         $errors   = $this->countLevel('error');
@@ -235,6 +236,34 @@ class DoctorCommand extends Command
         $this->error_('Config cache', count($closures).' closure(s) in Kinetix config',
             'php artisan config:cache will abort ("non-serializable"), so the app cannot deploy with a cached '
             .'config. Use [Class::class, \'method\'] or an invokable class-string instead.', $closures);
+    }
+
+    /**
+     * Modules whose rows carry no `team_id` at all. Their routes are
+     * team-prefixed like everything else, which reads as tenant isolation — but
+     * the data is one shared pool, so a team admin edits every tenant's rows.
+     * Deliberate (a platform-level catalog), and worth stating out loud rather
+     * than leaving to be discovered.
+     */
+    protected function checkGlobalData(): void
+    {
+        if (! (bool) config('kinetix.teams', false)) {
+            return;
+        }
+
+        $global = array_keys(array_filter([
+            'mail templates' => (bool) config('kinetix.mail.enabled', false),
+            'announcements'  => (bool) config('kinetix.announcements.enabled', false),
+            'API logs'       => (bool) config('kinetix.api_logs.enabled', false),
+        ]));
+
+        if ($global === []) {
+            return;
+        }
+
+        $this->warn_('Tenancy', count($global).' enabled module(s) store GLOBAL data', 'These have no '
+            .'team_id column: every team sees and edits the same rows, even though their routes are '
+            .'team-prefixed. Gate them behind a platform-admin role rather than a per-team one.', $global);
     }
 
     protected function checkFrontend(): void

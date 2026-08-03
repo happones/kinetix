@@ -25,7 +25,7 @@ class ReportScheduleController
     {
         Gate::authorize('viewKinetixReportsCenter');
 
-        $table = Table::make(ReportSchedule::query()->latest())
+        $table = Table::make(ReportSchedule::query()->forCurrentTeam()->latest())
             ->columns([
                 TextColumn::make('report_class')
                     ->label((string) trans('kinetix.report_runs_report_column'))
@@ -68,6 +68,7 @@ class ReportScheduleController
         $reportClass = $this->classFromToken($data['report']);
 
         $schedule = ReportSchedule::create([
+            'team_id'              => ReportSchedule::currentTeamId(),
             'report_class'         => $reportClass,
             'frequency'            => $data['frequency'],
             'parameters'           => $data['parameters']           ?? [],
@@ -125,7 +126,7 @@ class ReportScheduleController
 
     protected function findSchedule(Request $request): ReportSchedule
     {
-        return ReportSchedule::query()->whereKey($request->route('schedule'))->firstOrFail();
+        return ReportSchedule::query()->forCurrentTeam()->whereKey($request->route('schedule'))->firstOrFail();
     }
 
     /**

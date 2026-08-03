@@ -13,6 +13,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.120.0] - 2026-08-02
+
+Outcome of a full multi-tenancy audit across all 34 route registrars, 24
+migrations and every module manager.
+
+### Security
+
+- **Reports Center was not tenant-isolated.** Both tables shipped a `team_id`
+  column that was **never written and never filtered**, so with the module
+  enabled any holder of `viewKinetixReportsCenter` could list, `run-now`, cancel,
+  retry, **download the generated file of**, and delete another team's report
+  schedules and runs. Schedules and runs are now stamped with the active team and
+  every query — including the `findRun()` / `findSchedule()` lookups behind the
+  mutations — is scoped to it.
+
+### Fixed
+
+- **Modules resolved the tenant from `$user->currentTeam`, ignoring the URL.**
+  Activity, Settings, Webhooks, Onboarding and Wizards read and wrote the user's
+  *stored* team rather than the team the request was serving, so on `/team-b/…`
+  the audit feed showed team A and settings writes landed in team A. All of them
+  now go through `KinetixTeams`, which reads the `{current_team}` segment (and
+  performs the membership check) with `currentTeam` only as the out-of-request
+  fallback.
+- **A bound team model crashed every page.** The `kinetix_config` share
+  interpolated the route parameter directly, so a host route-model binding on
+  `{current_team}` — a case `KinetixTeams` explicitly supports — fataled with
+  *"Object of class Team could not be converted to string"*. It now resolves
+  through `getRouteKey()`.
+- **Billing's `{team}` segment is recognized.** Billing (and Presence) mount
+  under `{team}` while the core uses `{current_team}`; `KinetixTeams` read only
+  the latter, so a Kinetix component rendered inside a billing page silently fell
+  back to `currentTeam`. Both names are accepted now.
+
+### Added
+
+- **`useKinetixTeams().teamUrl()`** — the documented way to build team-aware
+  links in your own Inertia pages: `teamUrl('/projects')` → `/acme/projects`, a
+  no-op when teams are off, and idempotent so a server-generated URL can pass
+  through it. Also `currentTeamKey`. The segment is the team's **route key**
+  (slug/uuid), not the `id` exposed on a team option — interpolating the id
+  produces URLs that 404 on slug-routed teams. Backed by a new
+  `kinetix_config.team` prop, available from `kinetix.teams` alone (the switcher
+  does not have to be enabled).
+- **`KinetixTeams::keyFor('module')`** — one resolver for every module: honors
+  the URL segment, checks membership, respects the module's tri-state `teams`
+  flag, falls back to `currentTeam` outside a request.
+- **`ScopedToTeam` trait** — `->forCurrentTeam()` + `::currentTeamId()` for any
+  model with a `team_id` column. **Fails closed**: while the module is
+  team-scoped the query is always constrained, and an unresolvable team matches
+  `NULL` rows rather than every row (the failure mode that made the Reports
+  Center leak invisible).
+- **`kinetix:doctor` reports global-data modules** — Mail Templates,
+  Announcements and API logs have no `team_id` at all, so their rows are shared
+  across tenants even though their routes are team-prefixed. The doctor now names
+  the ones you have enabled while teams are on.
+
+### Documentation
+
+- A **team-scoping coverage table** in `installation.md`: which modules scope per
+  team, which are per user, which inherit from a parent record, and which are
+  global. Route prefixing and data isolation are separate layers and the docs now
+  say so instead of implying the first means the second.
+- The exports endpoints are documented as **deliberately** outside the team
+  segment (the download URL is built inside queued jobs, where requiring the
+  parameter would throw), with guidance to capture the tenant into the job's
+  parameters — this was verified against the existing test that asserts it.
+
 ## [0.119.0] - 2026-07-30
 
 ### Security

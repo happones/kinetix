@@ -413,6 +413,84 @@ slug or uuid, not the id). Kinetix resolves it via
   key (id-routed teams) and **membership enforcement is your responsibility**
   (e.g. a middleware on your side).
 
+### Team-aware links in Vue — `useKinetixTeams().teamUrl()`
+
+The `{current_team}` segment carries the team's **route key** — `getRouteKey()`,
+which is a slug or uuid when the model defines one, and *not* the numeric id.
+So never build a link by interpolating a team id. Kinetix resolves the active
+team server-side and exposes it through the composable:
+
+```vue
+<script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import { useKinetixTeams } from '@/composables/useKinetixTeams';
+
+const { teamUrl, currentTeamKey } = useKinetixTeams();
+</script>
+
+<template>
+  <Link :href="teamUrl('/projects')">Projects</Link>   <!-- /acme/projects -->
+  <Link :href="teamUrl('/settings')">Settings</Link>
+</template>
+```
+
+- **Teams off** → `teamUrl('/projects')` returns `/projects`, so the same
+  template works in a single-tenant app.
+- **Idempotent** → a path that already carries the segment is returned
+  unchanged, so a server-generated URL can be passed through it safely.
+- `currentTeamKey` is the raw segment when you need it (a `router.visit`, an
+  `href` built elsewhere).
+
+The same composable exposes the switcher (`teams`, `current`, `switchTeam`,
+`createUrl`), which additionally needs `kinetix.team_switcher.enabled`. Linking
+works from `kinetix.teams` alone.
+
+::: tip Kinetix's own endpoints need no help
+Published components build their URLs from `kinetix_config.route_prefix`, which
+already includes the resolved segment. `teamUrl()` is for **your** pages.
+:::
+
+### Which modules scope data per team
+
+Team scoping has two independent layers: the **route** (every module is mounted
+under `{current_team}` when `kinetix.teams` is on) and the **data**. They are not
+the same thing — a team-prefixed URL does not by itself isolate rows:
+
+| Data scope | Modules |
+|---|---|
+| **Per team** (`team_id` column, filtered on read and stamped on write) | Permissions (roles), Membership, Settings, Activity, Webhooks (+ their logs, through the endpoint), Saved Views, Tags, PDF Templates, Onboarding, Wizards, Reports Center |
+| **Per user** (team-independent by nature) | Tours state, Accessibility, Notification preferences, Connected accounts, Sessions |
+| **Inherited** from the record they hang off | Comments (via the commentable) |
+| **Global** — one shared pool across every tenant | Mail Templates, Announcements, API request logs, Billing plans, Confidential keys |
+
+The last row matters: those routes *are* team-prefixed, which reads like
+isolation, but the rows are shared. Gate them behind a platform-level role, not
+a per-team one. `php artisan kinetix:doctor` lists the global-data modules you
+have enabled while teams are on.
+
+Every team-scoped module resolves the tenant through the same helper —
+`KinetixTeams::keyFor('module')` — which reads the `{current_team}` segment
+(falling back to the user's `currentTeam` outside a request) and 404s on a team
+the user doesn't belong to. Use it in your own code rather than
+`$user->currentTeam`, which ignores the URL and therefore the team the page is
+actually serving. A model with a `team_id` column can `use ScopedToTeam` and get
+`->forCurrentTeam()` plus `::currentTeamId()` for free; the scope fails closed
+(an unresolvable team matches `NULL` rows, never all of them).
+
+::: warning Exports and queued work carry no team context
+`{prefix}/exports/*` is the one pair of endpoints **not** under the team segment,
+on purpose: the download URL is generated inside the queued job, where there is
+no request to resolve a segment from. The same applies to any exporter or report
+you write — the query runs in a job, so `KinetixTeams::keyFor()` there resolves
+nothing. Capture the tenant at dispatch time and pass it in the job's parameters:
+
+```php
+PostExporter::make()->withParameters([
+    'team_id' => \Happones\Kinetix\Support\KinetixTeams::keyFor('exports'),
+])->export($user);
+```
+:::
+
 ### The endpoint contract — `kinetix:routes`
 
 Every module registers its **own** endpoints under

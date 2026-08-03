@@ -163,6 +163,27 @@ class DoctorCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_modules_storing_global_data_are_flagged_under_teams(): void
+    {
+        config()->set('kinetix.mail.enabled', true);
+        config()->set('kinetix.announcements.enabled', true);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('store GLOBAL data')
+            ->expectsOutputToContain('mail templates')
+            ->assertSuccessful();
+    }
+
+    public function test_global_data_is_not_flagged_without_teams(): void
+    {
+        config()->set('kinetix.teams', false);
+        config()->set('kinetix.mail.enabled', true);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('store GLOBAL data')
+            ->assertSuccessful();
+    }
+
     public function test_json_output_carries_the_findings_and_counts(): void
     {
         config()->set('kinetix.membership.enabled', true);
