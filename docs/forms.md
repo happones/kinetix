@@ -341,6 +341,54 @@ name an arbitrary table/column — same guard as inline table edits), and the
 currently-selected option's label is resolved server-side so it shows immediately.
 Remote search hits `POST {prefix}/forms/search`.
 
+#### From a relationship
+
+The relation already names the related model and its key, so `->relationship()`
+replaces repeating them (the same API `SelectFilter` exposes):
+
+```php
+Select::make('author_id')->relationship('author', 'name');
+
+// Narrow the options:
+Select::make('author_id')
+    ->relationship('author', 'name', fn ($query) => $query->where('active', true));
+```
+
+**Inherited by `CheckboxList` and `Radio`** — the three option-backed fields —
+so a BelongsToMany renders as a checkbox list with one line. Kinetix resolves the
+options; persisting a pivot stays your job in `mutateFormDataBeforeSave()` or the
+controller.
+
+The owning model comes from the form: `Form::make()->model(Article::class)`, or
+inferred when you `fill()` it with a record. Without one the relation can't be
+resolved and the field falls back to whatever `options()` holds — it never throws.
+
+::: tip Combining it with search
+`->relationship(...)->searchable()` derives the remote-search token from the
+relation, so the two can't disagree about the model or the label column.
+
+The query modifier travels with it **only as the class-string of an invokable
+class** — the token round-trips through the browser, and a closure can't be
+serialized:
+
+```php
+Select::make('author_id')
+    ->relationship('author', 'name', \App\Kinetix\ActiveAuthors::class)
+    ->searchable();
+```
+
+A closure still shapes the eagerly-loaded options; it just doesn't reach the
+search endpoint. (Same reasoning as the config callbacks — see
+[Membership](/membership#_2-1-callback-options-config-cache-safe).)
+:::
+
+::: warning Eager options are capped
+Without `searchable()`, a `relationship()` loads the related rows into the page
+payload, capped at `kinetix.forms.relationship_options_limit` (200). Past the cap
+the list is truncated and a warning is logged — declare the field `searchable()`
+so options are fetched on demand instead of shipping a table to the browser.
+:::
+
 ---
 
 ### 3. `Checkbox`

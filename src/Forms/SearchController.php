@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms;
 
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Support\ConfigCallback;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,8 +39,20 @@ class SearchController
 
         $query = (string) $request->input('q', '');
 
-        $rows = $model::query()
-            ->when($query !== '', fn ($builder) => KinetixQuery::search($builder, $query, $searchColumns))
+        $builder = $model::query();
+
+        // A searchable `relationship()` can carry a query modifier, but only as
+        // an invokable class-string: the descriptor round-trips through the
+        // browser, so it must be serializable, and it is resolved back to an
+        // object here rather than trusted as arbitrary input.
+        $modifier = ConfigCallback::resolve($descriptor['modifier'] ?? null);
+
+        if ($modifier !== null) {
+            $modifier($builder);
+        }
+
+        $rows = $builder
+            ->when($query !== '', fn ($b) => KinetixQuery::search($b, $query, $searchColumns))
             ->limit(20)
             ->get();
 

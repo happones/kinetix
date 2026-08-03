@@ -9,6 +9,7 @@ use Happones\Kinetix\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 
 class SelectFilter extends Filter
 {
@@ -110,9 +111,23 @@ class SelectFilter extends Filter
             ($this->modifyRelationshipQuery)($query);
         }
 
+        // Capped: unbounded, a relation over a large table puts every row in
+        // the page payload. Past the cap, narrow it with the modifier closure.
+        $limit   = (int) config('kinetix.forms.relationship_options_limit', 200);
         $options = [];
-        foreach ($query->get() as $row) {
+
+        foreach ($query->limit($limit)->get() as $row) {
             $options[(string) $row->getKey()] = (string) data_get($row, $this->relationshipTitleColumn);
+        }
+
+        if (count($options) === $limit) {
+            Log::warning(sprintf(
+                'Kinetix: the "%s" filter\'s relationship options hit the %d-row cap, so the list is '
+                .'incomplete. Narrow it with the third argument of relationship(), or raise '
+                .'kinetix.forms.relationship_options_limit.',
+                $this->name,
+                $limit,
+            ));
         }
 
         return $options;

@@ -823,6 +823,12 @@ return [
     */
     'forms' => [
         'rich_editor' => env('KINETIX_RICH_EDITOR', 'basic'),
+
+        // How many rows a `relationship()` Select / CheckboxList / Radio (and
+        // SelectFilter) loads eagerly into the page payload. Past this the list
+        // is truncated and a warning is logged — declare the field
+        // `searchable()` instead so options are fetched on demand.
+        'relationship_options_limit' => env('KINETIX_RELATIONSHIP_OPTIONS_LIMIT', 200),
     ],
 
     /*

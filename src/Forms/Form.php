@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Forms;
 use Happones\Kinetix\Data\FormData;
 use Happones\Kinetix\Forms\Components\Component;
 use Happones\Kinetix\Forms\Components\Field;
+use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Validator;
@@ -348,6 +349,17 @@ class Form implements Arrayable, JsonSerializable
      */
     public function toData(): FormData
     {
+        // Hand each relationship-aware field the owning model, the way Table
+        // does for its filters — without it, `relationship('author', 'name')`
+        // has no model to resolve the relation against.
+        if ($this->model !== null) {
+            foreach ($this->getFields() as $field) {
+                if ($field instanceof ResolvesRelationships) {
+                    $field->forModel($this->model);
+                }
+            }
+        }
+
         $serializedSchema = [];
         foreach ($this->schema as $component) {
             $componentData = $component->toData($this->operation, $this->record);

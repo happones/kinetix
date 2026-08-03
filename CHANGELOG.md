@@ -13,6 +13,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.127.0] - 2026-08-02
+
+### Added
+
+- **`Select::relationship($name, $titleColumn, $modifyQueryUsing)`** — the API
+  `SelectFilter` already had, now on the form side. The relation names the
+  related model and its key, so this replaces repeating them in `options()` /
+  `searchUsing()`:
+
+  ```php
+  Select::make('author_id')->relationship('author', 'name');
+  Select::make('author_id')->relationship('author', 'name', fn ($q) => $q->where('active', true));
+  ```
+
+  **Inherited by `CheckboxList` and `Radio`**, which extend `Select` — the three
+  option-backed fields, matching the set Filament supports.
+- `Form` hands its model to relationship-aware fields (the new
+  `ResolvesRelationships` contract), mirroring what `Table` already did for
+  filters. The model comes from `Form::model()` or is inferred from the record
+  the form was filled with; without one the field falls back to `options()`
+  rather than throwing.
+- **`relationship()` composes with `searchable()`**: the remote-search token is
+  derived from the relation, so the model and label column can't disagree. The
+  query modifier travels in the token **only as the class-string of an invokable
+  class** — the token round-trips through the browser and a closure isn't
+  serializable, the same constraint (and solution) as the config callbacks. A
+  closure still shapes the eagerly-loaded options.
+- `kinetix.forms.relationship_options_limit` (default 200).
+
+### Fixed
+
+- **`SelectFilter::relationship()` loaded every related row.** Its options query
+  had no limit, so a relation over a large table put the whole thing in the page
+  payload. It is capped now, and logs a warning naming the filter when the list
+  is truncated instead of silently showing a partial set.
+
+### Notes
+
+- `Repeater` / `TableRepeater` do **not** get `relationship()`. Filament's
+  version of it persists a HasMany (creating, updating and deleting child rows on
+  save) — that is a persistence feature, not an options one, and it deserves its
+  own design rather than riding along here.
+
 ## [0.126.0] - 2026-08-02
 
 ### Performance

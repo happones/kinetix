@@ -316,7 +316,7 @@ Renders as a checkbox.
 Renders as a dropdown select.
 - `options(array|Closure|string $options)`: Dropdown option pairs, a closure, or an Enum class (auto-mapped to value→label).
 - `attribute(string $attribute)`: Maps query parameters directly to database columns. If omitted, defaults to the filter name.
-- `relationship(string $name, string $titleColumn, ?Closure $modifyQueryUsing = null)`: Filament-compatible — options come from the related model (`key => title column`) and the filter applies `whereHas` on the relation's key:
+- `relationship(string $name, string $titleColumn, ?Closure $modifyQueryUsing = null)`: Filament-compatible — options come from the related model (`key => title column`) and the filter applies `whereHas` on the relation's key. Inherited by `MultiSelectFilter`, and mirrored by [`Select::relationship()`](/forms#from-a-relationship) on the form side. The eager options are capped by `kinetix.forms.relationship_options_limit` (200), with a warning when truncated:
   ```php
   SelectFilter::make('author')->relationship('author', 'name');
   SelectFilter::make('author')->relationship('author', 'name', fn ($q) => $q->where('active', true));
