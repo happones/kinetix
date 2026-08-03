@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixActivity } from '@/composables/useKinetixActivity';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixActivityEntry } from '@/types/kinetix';
 
 /**

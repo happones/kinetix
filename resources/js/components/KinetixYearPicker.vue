@@ -8,7 +8,10 @@ import {
 } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import { cn } from './primitives/cn';
 
 /**

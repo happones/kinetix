@@ -26,7 +26,7 @@ class ConfidentialController
         if (! $unlocked) {
             return response()->json([
                 'unlocked' => false,
-                'message'  => trans('kinetix.confidential_password_incorrect'),
+                'message'  => __('kinetix.confidential_password_incorrect'),
             ], 422);
         }
 

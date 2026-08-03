@@ -2,6 +2,18 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import { i18n } from './i18n';
 import KinetixTableCell from '@/components/Table/KinetixTableCell.vue';
+import CheckboxInputCell from '@/components/Table/cells/CheckboxInputCell.vue';
+import ColorCell from '@/components/Table/cells/ColorCell.vue';
+import IconCell from '@/components/Table/cells/IconCell.vue';
+import ImageCell from '@/components/Table/cells/ImageCell.vue';
+import NumberInputCell from '@/components/Table/cells/NumberInputCell.vue';
+import ProgressCell from '@/components/Table/cells/ProgressCell.vue';
+import SelectInputCell from '@/components/Table/cells/SelectInputCell.vue';
+import TextBadgeCell from '@/components/Table/cells/TextBadgeCell.vue';
+import TextCell from '@/components/Table/cells/TextCell.vue';
+import TextInputCell from '@/components/Table/cells/TextInputCell.vue';
+import ToggleInputCell from '@/components/Table/cells/ToggleInputCell.vue';
+import ViewCell from '@/components/Table/cells/ViewCell.vue';
 
 describe('KinetixTableCell progress mode', () => {
     it('renders the progress value and bar filled correctly', () => {
@@ -133,5 +145,154 @@ describe('KinetixTableCell view mode', () => {
         expect(wrapper.text()).toContain(
             'Mock Component john-doe-url with role admin',
         );
+    });
+});
+
+const blankRecord = {
+    id: 7,
+    values: {},
+    descriptions: {},
+    icons: {},
+    iconColors: {},
+    badgeColors: {},
+    progress: {},
+    progressColors: {},
+    viewProps: {},
+};
+
+const mountCell = (col: Record<string, unknown>, values = {}, over = {}) =>
+    mount(KinetixTableCell, {
+        props: {
+            col: { name: 'field', label: 'Field', ...col },
+            record: { ...blankRecord, values, ...over },
+            rowIndex: 0,
+        },
+        global: { plugins: [i18n] },
+    });
+
+/** No element rendered at all — the map resolved to nothing. */
+const expectBlank = (w: ReturnType<typeof mountCell>): void => {
+    expect(w.findAll('*')).toHaveLength(0);
+};
+
+describe('KinetixTableCell component map', () => {
+    it.each([
+        ['text', { type: 'text' }, TextCell],
+        ['text (badge)', { type: 'text', isBadge: true }, TextBadgeCell],
+        ['progress', { type: 'progress' }, ProgressCell],
+        [
+            'select-input',
+            { type: 'select-input', options: { a: 'A' } },
+            SelectInputCell,
+        ],
+        ['toggle-input', { type: 'toggle-input' }, ToggleInputCell],
+        ['text-input', { type: 'text-input' }, TextInputCell],
+        ['number-input', { type: 'number-input' }, NumberInputCell],
+        ['checkbox-input', { type: 'checkbox-input' }, CheckboxInputCell],
+    ])('resolves %s to its cell component', (_label, col, expected) => {
+        const w = mountCell(col, { field: 'x' });
+        expect(w.findComponent(expected).exists()).toBe(true);
+    });
+
+    it('resolves icon to IconCell only when the record carries an icon', () => {
+        const withIcon = mountCell(
+            { type: 'icon' },
+            {},
+            { icons: { field: 'edit' } },
+        );
+        expect(withIcon.findComponent(IconCell).exists()).toBe(true);
+
+        const without = mountCell({ type: 'icon' });
+        expect(without.findComponent(IconCell).exists()).toBe(false);
+        expectBlank(without);
+    });
+
+    it('resolves image to ImageCell only when the record carries a url', () => {
+        const withUrl = mountCell({ type: 'image' }, { field: '/a.png' });
+        expect(withUrl.findComponent(ImageCell).exists()).toBe(true);
+        expect(withUrl.find('img').attributes('src')).toBe('/a.png');
+
+        expectBlank(mountCell({ type: 'image' }));
+    });
+
+    it('resolves color to ColorCell only when the record carries a value', () => {
+        const withColor = mountCell({ type: 'color' }, { field: '#ff0000' });
+        expect(withColor.findComponent(ColorCell).exists()).toBe(true);
+
+        expectBlank(mountCell({ type: 'color' }));
+    });
+
+    it('resolves view to ViewCell only when the column names a component', () => {
+        const w = mount(KinetixTableCell, {
+            props: {
+                col: {
+                    name: 'field',
+                    label: 'Field',
+                    type: 'view',
+                    view: 'MyCell',
+                },
+                record: { ...blankRecord, values: { field: 'v' } },
+                rowIndex: 0,
+            },
+            global: {
+                plugins: [i18n],
+                components: {
+                    MyCell: {
+                        template: '<b>{{ value }}</b>',
+                        props: ['value'],
+                    },
+                },
+            },
+        });
+        expect(w.findComponent(ViewCell).exists()).toBe(true);
+        expect(w.text()).toContain('v');
+
+        expectBlank(mountCell({ type: 'view' }));
+    });
+
+    it('renders nothing for an unmapped column type', () => {
+        expectBlank(mountCell({ type: 'not-a-real-type' }));
+    });
+
+    it('re-emits update-cell from an editable cell with the record id', async () => {
+        const w = mountCell({ type: 'text-input' }, { field: 'old' });
+        const input = w.find('input');
+        (input.element as HTMLInputElement).value = 'new';
+        await input.trigger('change');
+
+        expect(w.emitted('update-cell')?.[0]).toEqual([7, 'field', 'new']);
+    });
+
+    it('re-emits update-cell from the toggle cell', async () => {
+        const w = mountCell({ type: 'toggle-input' }, { field: false });
+        await w.find('button').trigger('click');
+
+        expect(w.emitted('update-cell')?.[0]).toEqual([7, 'field', true]);
+    });
+
+    it('re-emits copy-to-clipboard from a copyable text cell', async () => {
+        const w = mountCell(
+            { type: 'text', isCopyable: true },
+            { field: 'abc' },
+        );
+        await w.find('button').trigger('click');
+
+        expect(w.emitted('copy-to-clipboard')?.[0]).toEqual(['abc']);
+    });
+
+    it('renders a text cell description above or below the value', () => {
+        const above = mountCell(
+            { type: 'text' },
+            { field: 'v' },
+            { descriptions: { field: { text: 'hint', position: 'above' } } },
+        );
+        expect(above.text()).toContain('hint');
+
+        const below = mountCell(
+            { type: 'text' },
+            { field: 'v' },
+            { descriptions: { field: { text: 'hint', position: 'below' } } },
+        );
+        expect(below.findAll('span').at(-1)!.text()).toBe('hint');
     });
 });

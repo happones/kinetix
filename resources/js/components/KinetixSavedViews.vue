@@ -12,7 +12,7 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixSavedViews } from '@/composables/useKinetixSavedViews';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixSavedView } from '@/types/kinetix';
 
 /**

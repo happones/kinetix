@@ -1,19 +1,13 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { FileText, GripVertical, Loader2, UploadCloud, X } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Loader2, UploadCloud } from '@lucide/vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import type { ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
-
-interface MediaItem {
-    id?: number | string | null;
-    path?: string | null;
-    url: string;
-    name: string;
-    size?: number | null;
-    mime?: string | null;
-    thumb?: string | null;
-}
+import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
+import type { KinetixMediaItem, KinetixSharedProps } from '@/types/kinetix';
+import MediaLibraryTile from './Media/MediaLibraryTile.vue';
 
 /**
  * A multi-file media grid: drag-drop / click to upload, reorder by dragging,
@@ -22,7 +16,7 @@ interface MediaItem {
  */
 const props = withDefaults(
     defineProps<{
-        value?: MediaItem[] | null;
+        value?: KinetixMediaItem[] | null;
         uploadToken: string;
         acceptedFileTypes?: string[] | null;
         isImage?: boolean;
@@ -41,14 +35,14 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    (e: 'update:value', value: MediaItem[]): void;
+    (e: 'update:value', value: KinetixMediaItem[]): void;
 }>();
 
 const { t } = useI18n();
-const page = usePage();
+const page = usePage<KinetixSharedProps>();
 
 const prefix = computed(
-    () => (page.props.kinetix_config as any)?.route_prefix ?? '_kinetix',
+    () => page.props.kinetix_config?.route_prefix ?? '_kinetix',
 );
 
 const inputRef = ref<HTMLInputElement | null>(null);
@@ -56,7 +50,7 @@ const uploading = ref(false);
 const errorMessage = ref<string | null>(null);
 const dragIndex = ref<number | null>(null);
 
-const items = computed<MediaItem[]>(() =>
+const items = computed<KinetixMediaItem[]>(() =>
     Array.isArray(props.value) ? props.value : [],
 );
 
@@ -74,36 +68,84 @@ const canAddMore = computed(
         (!props.maxFiles || items.value.length < props.maxFiles),
 );
 
-function isImageItem(item: MediaItem): boolean {
-    if (item.mime) {
-        return item.mime.startsWith('image/');
-    }
+// --- Virtualization (large libraries only) ----------------------------------
+// The plain grid is `grid-cols-2 sm:grid-cols-3 md:grid-cols-4`. Windowing means
+// grouping items into rows, which needs that column count in JS — hence the
+// viewport-width mirror of those Tailwind breakpoints.
+const GRID_COLUMNS = [
+    { minViewportWidth: 768, columns: 4 },
+    { minViewportWidth: 640, columns: 3 },
+    { minViewportWidth: 0, columns: 2 },
+];
 
-    return /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(item.url ?? '');
+const viewportWidth = ref(
+    typeof window === 'undefined' ? 1024 : window.innerWidth,
+);
+
+const onViewportResize = (): void => {
+    viewportWidth.value = window.innerWidth;
+};
+
+onMounted(() => {
+    window.addEventListener('resize', onViewportResize, { passive: true });
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('resize', onViewportResize);
+});
+
+const columnsPerRow = computed<number>(
+    () =>
+        GRID_COLUMNS.find((bp) => viewportWidth.value >= bp.minViewportWidth)
+            ?.columns ?? 2,
+);
+
+const gridColumnsClass = computed<string>(
+    () =>
+        ({ 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' })[
+            columnsPerRow.value
+        ] ?? 'grid-cols-2',
+);
+
+const scrollEl = ref<HTMLElement | null>(null);
+const virtual = useKinetixVirtualRows({
+    count: () => Math.ceil(items.value.length / columnsPerRow.value),
+    getScrollElement: () => scrollEl.value,
+    estimateSize: 180,
+    overscan: 3,
+    threshold: 12,
+});
+
+interface MediaRow {
+    tiles: { item: KinetixMediaItem; index: number }[];
+    start: number;
+    index: number;
+    key: string | number;
 }
 
-function thumbUrl(item: MediaItem): string {
-    return item.thumb || item.url;
-}
+const mediaRows = computed<MediaRow[]>(() =>
+    virtual.virtualRows.value.map((row) => {
+        const from = row.index * columnsPerRow.value;
 
-function humanSize(bytes?: number | null): string {
-    if (!bytes) {
-        return '';
+        return {
+            tiles: items.value
+                .slice(from, from + columnsPerRow.value)
+                .map((item, offset) => ({ item, index: from + offset })),
+            start: row.start,
+            index: row.index,
+            key: row.key,
+        };
+    }),
+);
+
+// Measure real row heights only while virtualized (tile height follows column width).
+const measureRow = (el: Element | ComponentPublicInstance | null): void => {
+    if (virtual.enabled.value && el instanceof Element) {
+        virtual.measureElement(el);
     }
+};
 
-    const units = ['B', 'KB', 'MB', 'GB'];
-    let size = bytes;
-    let unit = 0;
-
-    while (size >= 1024 && unit < units.length - 1) {
-        size /= 1024;
-        unit++;
-    }
-
-    return `${Math.round(size * 10) / 10} ${units[unit]}`;
-}
-
-async function uploadOne(file: File): Promise<MediaItem | null> {
+async function uploadOne(file: File): Promise<KinetixMediaItem | null> {
     const body = new FormData();
     body.append('file', file);
     body.append('token', props.uploadToken);
@@ -177,7 +219,15 @@ function remove(index: number): void {
     emit('update:value', next);
 }
 
-function preview(item: MediaItem): void {
+function isImageItem(item: KinetixMediaItem): boolean {
+    if (item.mime) {
+        return item.mime.startsWith('image/');
+    }
+
+    return /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(item.url ?? '');
+}
+
+function preview(item: KinetixMediaItem): void {
     if (!isImageItem(item)) {
         window.open(item.url, '_blank');
 
@@ -221,62 +271,60 @@ function onDropReorder(targetIndex: number): void {
 
 <template>
     <div class="space-y-3">
+        <!-- Small libraries stay a single responsive CSS grid (no virtualization
+             overhead, no JS-resolved column count). -->
         <div
-            v-if="items.length"
+            v-if="items.length && !virtual.enabled.value"
             class="gap-3 sm:grid-cols-3 md:grid-cols-4 grid grid-cols-2"
         >
-            <div
+            <MediaLibraryTile
                 v-for="(item, idx) in items"
                 :key="item.id ?? item.path ?? idx"
-                class="group rounded-lg relative overflow-hidden border border-border bg-card"
+                :item="item"
+                :reorderable="reorderable"
+                :disabled="disabled"
                 :draggable="reorderable"
                 @dragstart="onDragStart(idx)"
                 @dragover="onDragOver"
                 @drop="onDropReorder(idx)"
+                @preview="preview(item)"
+                @remove="remove(idx)"
+            />
+        </div>
+
+        <!-- Large libraries window their grid rows. -->
+        <div
+            v-else-if="items.length"
+            ref="scrollEl"
+            class="max-h-[70vh] overflow-y-auto"
+        >
+            <div
+                class="relative"
+                :style="{ height: `${virtual.totalSize.value}px` }"
             >
-                <button
-                    type="button"
-                    class="block aspect-square w-full"
-                    @click="preview(item)"
-                >
-                    <img
-                        v-if="isImageItem(item)"
-                        :src="thumbUrl(item)"
-                        :alt="item.name"
-                        class="size-full object-cover"
-                    />
-                    <span
-                        v-else
-                        class="flex size-full items-center justify-center bg-muted text-muted-foreground"
-                    >
-                        <FileText class="size-8" />
-                    </span>
-                </button>
-
                 <div
-                    class="gap-1 px-2 py-1 text-xs flex items-center justify-between"
+                    v-for="row in mediaRows"
+                    :key="row.key"
+                    :ref="measureRow"
+                    :data-index="row.index"
+                    class="gap-3 pb-3 top-0 left-0 absolute grid w-full"
+                    :class="gridColumnsClass"
+                    :style="{ transform: `translateY(${row.start}px)` }"
                 >
-                    <span class="truncate text-foreground" :title="item.name">{{
-                        item.name
-                    }}</span>
-                    <span class="shrink-0 text-muted-foreground">{{
-                        humanSize(item.size)
-                    }}</span>
+                    <MediaLibraryTile
+                        v-for="tile in row.tiles"
+                        :key="tile.item.id ?? tile.item.path ?? tile.index"
+                        :item="tile.item"
+                        :reorderable="reorderable"
+                        :disabled="disabled"
+                        :draggable="reorderable"
+                        @dragstart="onDragStart(tile.index)"
+                        @dragover="onDragOver"
+                        @drop="onDropReorder(tile.index)"
+                        @preview="preview(tile.item)"
+                        @remove="remove(tile.index)"
+                    />
                 </div>
-
-                <GripVertical
-                    v-if="reorderable"
-                    class="left-1 top-1 size-4 text-white/80 drop-shadow absolute cursor-grab opacity-0 transition-opacity group-hover:opacity-100"
-                />
-                <button
-                    v-if="!disabled"
-                    type="button"
-                    class="right-1 top-1 size-6 bg-black/50 text-white absolute flex items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive"
-                    :aria-label="t('kinetix.remove')"
-                    @click.stop="remove(idx)"
-                >
-                    <X class="size-3.5" />
-                </button>
             </div>
         </div>
 

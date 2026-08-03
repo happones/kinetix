@@ -149,18 +149,19 @@ class GdprTest extends TestCase
         $this->postJson('/_kinetix/gdpr/export')->assertStatus(401);
     }
 
-    public function test_export_job_writes_a_json_file_to_the_disk(): void
+    public function test_export_job_writes_a_json_file_to_the_private_disk(): void
     {
-        Storage::fake('public');
+        // A personal-data dump must never land on a publicly served disk.
+        Storage::fake('local');
 
         $user = $this->user();
         (new GdprExportJob(GdprUser::class, $user->getKey()))->handle();
 
-        $files = Storage::disk('public')->files('kinetix-exports');
+        $files = Storage::disk('local')->files('kinetix-exports');
         $this->assertCount(1, $files);
         $this->assertStringEndsWith('.json', $files[0]);
 
-        $contents = Storage::disk('public')->get($files[0]);
+        $contents = Storage::disk('local')->get($files[0]);
         $this->assertStringContainsString('ada@example.com', (string) $contents);
     }
 }

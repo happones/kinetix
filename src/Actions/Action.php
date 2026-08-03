@@ -119,12 +119,9 @@ class Action
     }
 
     /**
-     * Set an icon to display inside the action button.
-     * Use the icon name from `@lucide/vue` (e.g. 'trash', 'check').
-     */
-    /**
-     * Set the action's icon, or pass null to remove it (e.g. on a prebuilt
-     * action whose default icon you don't want).
+     * Set the icon displayed inside the action button — an icon name from
+     * `@lucide/vue` (e.g. 'trash', 'check'). Pass null to remove it, e.g. on a
+     * prebuilt action whose default icon you don't want.
      */
     public function icon(?string $icon, string $position = 'before'): static
     {

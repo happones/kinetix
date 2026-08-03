@@ -8,7 +8,7 @@ import {
     DialogTitle,
 } from 'reka-ui';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * Role delete confirmation shared by the role-management UIs. `open` when a

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { effectScope } from 'vue';
 import { useKinetixPrecognition } from '@/composables/useKinetixPrecognition';
 
 afterEach(() => {
@@ -114,6 +115,26 @@ describe('useKinetixPrecognition', () => {
         expect(precog.errors.value.title).toBe('required');
         // `body` was not requested, so its error is not surfaced.
         expect(precog.errors.value.body).toBeUndefined();
+    });
+
+    it('cancels a pending validation when its owning scope is disposed', async () => {
+        vi.useFakeTimers();
+        const fetchMock = stubFetch({ status: 204 });
+
+        const scope = effectScope();
+        let precog!: ReturnType<typeof useKinetixPrecognition>;
+        scope.run(() => {
+            precog = useKinetixPrecognition({
+                url: '/posts',
+                getData: () => ({ title: 'x' }),
+            });
+        });
+
+        precog.validate('title');
+        scope.stop();
+        await flush();
+
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('debounces repeated calls for the same field into one request', async () => {

@@ -76,6 +76,24 @@ describe('KinetixMailTemplates', () => {
         expect(w.html()).toContain('Hello Ada');
     });
 
+    it('drops a pending preview when unmounted mid-debounce', async () => {
+        vi.useFakeTimers();
+        const w = mount(KinetixMailTemplates, { global: { plugins: [i18n] } });
+
+        // The immediate watch armed a preview debounce; unmount before it fires.
+        w.unmount();
+        fetchMock.mockClear();
+        vi.runAllTimers();
+        await flushPromises();
+
+        expect(
+            fetchMock.mock.calls.filter((c) =>
+                String(c[0]).endsWith('/preview'),
+            ),
+        ).toHaveLength(0);
+        vi.useRealTimers();
+    });
+
     it('saves a new template via POST', async () => {
         const w = mount(KinetixMailTemplates, { global: { plugins: [i18n] } });
         await flushPromises();

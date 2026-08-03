@@ -15,7 +15,7 @@ class CreateAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.create'))
+        $this->label((string) __('kinetix.create'))
             ->icon('plus')
             ->color('primary');
 

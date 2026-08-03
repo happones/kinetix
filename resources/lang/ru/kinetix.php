@@ -509,4 +509,47 @@ return [
     'confidential_lock'               => 'Заблокировать',
     'confidential_password_label'     => 'Пароль',
     'confidential_password_incorrect' => 'Неверный пароль.',
+
+    // Table write endpoints (inline edits, reordering, kanban moves)
+    'table_column_not_editable' => 'Этот столбец нельзя редактировать.',
+    'table_record_not_found'    => 'Запись не найдена.',
+    'table_write_forbidden'     => 'Это действие не разрешено.',
+    'table_invalid_signature'   => 'Недействительная подпись таблицы.',
+    'table_invalid_model'       => 'Недействительный класс модели.',
+    'table_descriptor_expired'  => 'Сессия таблицы истекла. Обновите страницу.',
+    'table_not_reorderable'     => 'Эту таблицу нельзя переупорядочить.',
+    'kanban_invalid_status'     => 'Недопустимый статус.',
+
+    // Import / export / upload endpoints
+    'import_invalid'                  => 'Недействительный импортер.',
+    'import_invalid_session'          => 'Недействительная сессия импорта.',
+    'import_forbidden'                => 'У вас нет прав на выполнение этого импорта.',
+    'import_required_columns_missing' => 'Обязательные столбцы не сопоставлены.',
+    'export_invalid'                  => 'Недействительный экспортер.',
+    'export_forbidden'                => 'У вас нет прав на выполнение этого экспорта.',
+    'upload_invalid_field'            => 'Недействительное поле загрузки.',
+    'upload_invalid_path'             => 'Недействительный путь к файлу.',
+    'upload_blocked_type'             => 'Этот тип файла не разрешён.',
+
+    // Job failures and form submit
+    'submit'                  => 'Отправить',
+    'export_failed'           => 'Экспорт не выполнен',
+    'export_failed_body'      => 'Не удалось создать экспорт. Попробуйте снова.',
+    'import_failed_body'      => 'Не удалось обработать импорт. Попробуйте снова.',
+    'import_failed_row'       => 'Строка :row: :reason',
+    'import_failed_more'      => '…и ещё :count строк не удалось.',
+    'gdpr_export_failed_body' => 'Не удалось подготовить экспорт ваших данных. Запросите его снова.',
+    'search_invalid_token'    => 'Недействительный токен поиска.',
+    'search_invalid_model'    => 'Недействительная модель поиска.',
+    'search_forbidden'        => 'Этот поиск не разрешён.',
+    'search_expired'          => 'Сессия поиска истекла. Обновите страницу.',
+
+    // Reports center, repeater rows and permission guardrails
+    'repeater_row_not_found'              => 'Строка не найдена.',
+    'form_session_expired'                => 'Сессия формы истекла. Обновите страницу.',
+    'report_invalid'                      => 'Недействительный отчёт.',
+    'report_run_not_cancellable'          => 'Этот запуск больше нельзя отменить.',
+    'report_run_not_retryable'            => 'Этот запуск нельзя повторить.',
+    'permissions_cannot_grant_unheld'     => 'Нельзя выдать права, которых у вас нет: :permissions',
+    'permissions_would_revoke_own_access' => 'Это изменение лишит вас доступа к управлению ролями.',
 ];

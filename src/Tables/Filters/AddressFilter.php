@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables\Filters;
 
+use Happones\Kinetix\Query\KinetixQuery;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -48,12 +49,10 @@ class AddressFilter extends Filter
         }
 
         $columns = $this->columns !== [] ? $this->columns : [$this->name];
-        $term    = '%'.trim($value).'%';
 
-        $query->where(function (Builder $q) use ($columns, $term): void {
-            foreach ($columns as $column) {
-                $q->orWhere($column, 'like', $term);
-            }
-        });
+        // Routed through KinetixQuery so LIKE wildcards in the term are escaped —
+        // a bare `%` would otherwise force a full scan on every column — and so
+        // dot-notation columns resolve through the relation like everywhere else.
+        KinetixQuery::search($query, $value, $columns);
     }
 }

@@ -509,4 +509,47 @@ return [
     'confidential_lock'               => '锁定',
     'confidential_password_label'     => '密码',
     'confidential_password_incorrect' => '密码错误。',
+
+    // Table write endpoints (inline edits, reordering, kanban moves)
+    'table_column_not_editable' => '此列不可编辑。',
+    'table_record_not_found'    => '未找到记录。',
+    'table_write_forbidden'     => '此操作未获授权。',
+    'table_invalid_signature'   => '表格签名无效。',
+    'table_invalid_model'       => '模型类无效。',
+    'table_descriptor_expired'  => '表格会话已过期，请重新加载页面。',
+    'table_not_reorderable'     => '此表格不支持重新排序。',
+    'kanban_invalid_status'     => '状态无效。',
+
+    // Import / export / upload endpoints
+    'import_invalid'                  => '导入器无效。',
+    'import_invalid_session'          => '导入会话无效。',
+    'import_forbidden'                => '您无权执行此导入。',
+    'import_required_columns_missing' => '必填列尚未映射。',
+    'export_invalid'                  => '导出器无效。',
+    'export_forbidden'                => '您无权执行此导出。',
+    'upload_invalid_field'            => '上传字段无效。',
+    'upload_invalid_path'             => '文件路径无效。',
+    'upload_blocked_type'             => '不允许此文件类型。',
+
+    // Job failures and form submit
+    'submit'                  => '提交',
+    'export_failed'           => '导出失败',
+    'export_failed_body'      => '无法生成导出文件，请重试。',
+    'import_failed_body'      => '无法处理导入，请重试。',
+    'import_failed_row'       => '第 :row 行：:reason',
+    'import_failed_more'      => '…另有 :count 行失败。',
+    'gdpr_export_failed_body' => '无法准备您的数据导出，请重新申请。',
+    'search_invalid_token'    => '搜索令牌无效。',
+    'search_invalid_model'    => '搜索模型无效。',
+    'search_forbidden'        => '此搜索未获授权。',
+    'search_expired'          => '搜索会话已过期，请重新加载页面。',
+
+    // Reports center, repeater rows and permission guardrails
+    'repeater_row_not_found'              => '未找到该行。',
+    'form_session_expired'                => '表单会话已过期，请重新加载页面。',
+    'report_invalid'                      => '报表无效。',
+    'report_run_not_cancellable'          => '此运行已无法取消。',
+    'report_run_not_retryable'            => '此运行无法重试。',
+    'permissions_cannot_grant_unheld'     => '您无法授予自己不具备的权限：:permissions',
+    'permissions_would_revoke_own_access' => '此更改会撤销您自己的角色管理权限。',
 ];

@@ -5,7 +5,10 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixHelp } from '@/composables/useKinetixHelp';
 import { resolveIcon } from '@/composables/useKinetixIcons';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import type { KinetixHelpArticleSummary } from '@/types/kinetix';
 import { cn } from './primitives/cn';
 

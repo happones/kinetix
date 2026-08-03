@@ -120,6 +120,23 @@ describe('KinetixIntegrationLogs', () => {
         w.unmount();
     });
 
+    it('drops a pending search fetch when unmounted mid-debounce', async () => {
+        vi.useFakeTimers();
+        const w = mountLogs();
+        await vi.runAllTimersAsync();
+
+        const search = w.find('input[type="search"]');
+        (search.element as HTMLInputElement).value = 'order';
+        await search.trigger('input');
+
+        w.unmount();
+        kinetixFetch.mockClear();
+        await vi.runAllTimersAsync();
+
+        expect(kinetixFetch).not.toHaveBeenCalled();
+        vi.useRealTimers();
+    });
+
     it('respects the only prop (single feed, no tab switcher)', async () => {
         const w = mountLogs({ only: 'api' });
         await flushPromises();

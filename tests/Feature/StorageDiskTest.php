@@ -44,7 +44,30 @@ class StorageDiskTest extends TestCase
         $this->assertSame('s3', KinetixDisk::name());
     }
 
-    public function test_export_writes_to_the_configured_disk(): void
+    public function test_kinetix_private_disk_defaults_to_a_non_public_disk(): void
+    {
+        $this->assertSame('local', KinetixDisk::privateName());
+    }
+
+    public function test_export_writes_to_the_configured_private_disk(): void
+    {
+        Schema::create('disk_widgets', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('name');
+        });
+        DiskWidget::create(['name' => 'Ada']);
+
+        Storage::fake('artifacts');
+        config()->set('kinetix.filesystem.private_disk', 'artifacts');
+
+        (new ExportProcessor(DiskWidgetExporter::class))->handle();
+
+        $files = Storage::disk('artifacts')->files('kinetix-exports');
+        $this->assertNotEmpty($files, 'Export file should be stored on the private disk');
+        $this->assertStringContainsString('Ada', Storage::disk('artifacts')->get($files[0]));
+    }
+
+    public function test_exports_do_not_land_on_the_public_asset_disk(): void
     {
         Schema::create('disk_widgets', function (Blueprint $table) {
             $table->increments('id');
@@ -53,13 +76,16 @@ class StorageDiskTest extends TestCase
         DiskWidget::create(['name' => 'Ada']);
 
         Storage::fake('public');
+        Storage::fake('local');
+
+        // A public disk serves these at a guessable /storage/... URL with no
+        // auth, so the artifact must never follow the asset disk.
         config()->set('kinetix.filesystem.disk', 'public');
 
         (new ExportProcessor(DiskWidgetExporter::class))->handle();
 
-        $files = Storage::disk('public')->files('kinetix-exports');
-        $this->assertNotEmpty($files, 'Export file should be stored on the configured disk');
-        $this->assertStringContainsString('Ada', Storage::disk('public')->get($files[0]));
+        $this->assertEmpty(Storage::disk('public')->files('kinetix-exports'));
+        $this->assertNotEmpty(Storage::disk('local')->files('kinetix-exports'));
     }
 
     public function test_export_scopes_to_selected_ids_via_parameters(): void
@@ -72,8 +98,7 @@ class StorageDiskTest extends TestCase
         DiskWidget::create(['name' => 'Bob']);
         $cleo = DiskWidget::create(['name' => 'Cleo']);
 
-        Storage::fake('public');
-        config()->set('kinetix.filesystem.disk', 'public');
+        Storage::fake('local');
         // export() dispatches the processor; run it inline so the assertions
         // below see the written file (no `jobs` table in the test database).
         config()->set('queue.default', 'sync');
@@ -81,8 +106,8 @@ class StorageDiskTest extends TestCase
         // Mirrors a bulk action passing the selected ids to the export route.
         (new DiskWidgetExporter)->export(null, ['ids' => [$ada->id, $cleo->id]]);
 
-        $contents = Storage::disk('public')->get(
-            Storage::disk('public')->files('kinetix-exports')[0],
+        $contents = Storage::disk('local')->get(
+            Storage::disk('local')->files('kinetix-exports')[0],
         );
 
         $this->assertStringContainsString('Ada', $contents);

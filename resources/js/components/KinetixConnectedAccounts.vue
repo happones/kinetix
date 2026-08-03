@@ -3,8 +3,11 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixConnectedAccounts } from '@/composables/useKinetixConnectedAccounts';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
-import { brandFor } from '@/icons/brands';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
+import { brandFor } from '@/icons/kinetixBrands';
 import type {
     KinetixConnectedAccount,
     KinetixConnectedProvider,

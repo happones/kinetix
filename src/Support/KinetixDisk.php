@@ -15,11 +15,27 @@ use Throwable;
 class KinetixDisk
 {
     /**
-     * The configured default disk (uploads, exports, imports, asset URLs).
+     * The configured default disk for user-facing files (uploads, asset URLs).
+     * Usually a public disk, because these are meant to be linked to.
      */
     public static function name(): string
     {
         return (string) config('kinetix.filesystem.disk', 'public');
+    }
+
+    /**
+     * The disk for generated artifacts — exports, uploaded import files, report
+     * runs, GDPR personal-data dumps.
+     *
+     * These must NOT live on a public disk: a public disk serves them at a
+     * guessable `/storage/...` URL with no authentication, which turns the
+     * token-guarded download endpoints into a side door and makes "secret URL"
+     * the only thing protecting a user's personal-data export. Falls back to the
+     * default disk only if the host explicitly points it there.
+     */
+    public static function privateName(): string
+    {
+        return (string) config('kinetix.filesystem.private_disk', 'local');
     }
 
     /**

@@ -15,7 +15,7 @@ class EditAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.edit'))
+        $this->label((string) __('kinetix.edit'))
             ->icon('edit')
             ->color('gray')
             ->authorize('update'); // checks the model's `update` policy per record

@@ -17,7 +17,7 @@ class RestoreAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.restore'))
+        $this->label((string) __('kinetix.restore'))
             ->icon('rotate-ccw')
             ->color('gray')
             ->authorize('restore') // checks the model's `restore` policy per record

@@ -3,7 +3,7 @@ import { usePage, router } from '@inertiajs/vue3';
 import { useEchoNotification } from '@laravel/echo-vue';
 import { storeToRefs } from 'pinia';
 import { computed, watch, onMounted, onUnmounted } from 'vue';
-import { useNotificationsStore } from '@/stores/notifications';
+import { useNotificationsStore } from '@/stores/kinetixNotifications';
 import type { KinetixAction, KinetixNotification } from '@/types/kinetix';
 import KinetixNotificationDrawer from './KinetixNotificationDrawer.vue';
 import KinetixNotificationTrigger from './KinetixNotificationTrigger.vue';
@@ -99,13 +99,14 @@ watch(
     { immediate: true },
 );
 
-// Watch Inertia shared props for kinetix_notifications
+// Watch Inertia shared props for kinetix_notifications. Inertia replaces props
+// wholesale on every visit/reload, so watching the array reference is enough.
 watch(
     () => page.props.kinetix_notifications,
     (newVal) => {
         syncFromProps(newVal);
     },
-    { immediate: true, deep: true },
+    { immediate: true },
 );
 
 // Escape key listener

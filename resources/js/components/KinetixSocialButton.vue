@@ -3,8 +3,8 @@ import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import { buttonVariants } from '@/composables/useShadcnVariants';
-import { brandFor } from '@/icons/brands';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import { brandFor } from '@/icons/kinetixBrands';
 import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**

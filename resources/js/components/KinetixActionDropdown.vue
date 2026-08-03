@@ -11,8 +11,8 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { resolveIcon as resolveKinetixIcon } from '@/composables/useKinetixIcons';
-import { buttonVariants } from '@/composables/useShadcnVariants';
-import { statusInteractiveTextClass } from '@/composables/useStatusColor';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import { statusInteractiveTextClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixAction } from '@/types/kinetix';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 

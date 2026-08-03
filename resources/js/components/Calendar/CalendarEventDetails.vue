@@ -2,7 +2,7 @@
 import { X } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
 import { resolveIcon } from '@/composables/useKinetixIcons';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixAction,
     KinetixCalendarEvent,

@@ -300,7 +300,7 @@ class PermissionController
         ));
 
         if ($disallowed !== []) {
-            abort(403, 'You cannot grant permissions you do not hold: '.implode(', ', $disallowed));
+            abort(403, (string) __('kinetix.permissions_cannot_grant_unheld', ['permissions' => implode(', ', $disallowed)]));
         }
     }
 
@@ -325,7 +325,7 @@ class PermissionController
         }
 
         if (Gate::forUser($user)->denies('roles.manage')) {
-            abort(403, 'This change would revoke your own role-management access.');
+            abort(403, (string) __('kinetix.permissions_would_revoke_own_access'));
         }
     }
 }

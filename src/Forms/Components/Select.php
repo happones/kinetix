@@ -43,6 +43,36 @@ class Select extends Field implements ResolvesRelationships
     protected Closure|string|null $modifyRelationshipQuery = null;
 
     /**
+     * Constraints bounding the remote-search query.
+     *
+     * @var array<string, mixed>
+     */
+    protected array $searchScope = [];
+
+    /**
+     * Bound which records remote search may return.
+     *
+     * A searchable Select queries the related model directly, so without a bound
+     * it happily returns every tenant's rows 20 labels at a time. Declare the
+     * tenant key here:
+     *
+     *     Select::make('project_id')
+     *         ->relationship('project', 'name')
+     *         ->searchable()
+     *         ->searchScope(['team_id' => $request->user()->currentTeam->getKey()])
+     *
+     * For anything a plain equality can't express, use a query modifier instead.
+     *
+     * @param array<string, mixed> $constraints
+     */
+    public function searchScope(array $constraints): static
+    {
+        $this->searchScope = $constraints;
+
+        return $this;
+    }
+
+    /**
      * @param class-string<Model> $modelClass
      */
     public function forModel(string $modelClass): static
@@ -227,12 +257,12 @@ class Select extends Field implements ResolvesRelationships
     protected function searchDescriptor(): ?array
     {
         if ($this->searchModel !== null) {
-            return [
+            return $this->bindDescriptor([
                 'model'   => $this->searchModel,
                 'label'   => $this->searchLabelColumn,
                 'columns' => $this->searchColumns,
                 'value'   => $this->searchValueColumn,
-            ];
+            ]);
         }
 
         if ($this->relationshipName === null || $this->ownerModel === null || $this->searchable === false) {
@@ -247,12 +277,32 @@ class Select extends Field implements ResolvesRelationships
 
         $related = $owner->{$this->relationshipName}()->getRelated();
 
-        return [
+        return $this->bindDescriptor([
             'model'    => $related::class,
             'label'    => $this->relationshipTitleColumn,
             'columns'  => [$this->relationshipTitleColumn],
             'value'    => $related->getKeyName(),
             'modifier' => is_string($this->modifyRelationshipQuery) ? $this->modifyRelationshipQuery : null,
+        ]);
+    }
+
+    /**
+     * Attach the scope, the user the descriptor was minted for and an expiry, so
+     * a descriptor lifted from one user's payload can't be replayed by another.
+     *
+     * @param  array<string, mixed> $descriptor
+     * @return array<string, mixed>
+     */
+    protected function bindDescriptor(array $descriptor): array
+    {
+        $ttl = config('kinetix.tables.token_ttl', 1440);
+
+        return $descriptor + [
+            'scope'   => $this->searchScope,
+            'user'    => auth()->id(),
+            'expires' => is_numeric($ttl) && (int) $ttl > 0
+                ? now()->getTimestamp() + ((int) $ttl * 60)
+                : null,
         ];
     }
 

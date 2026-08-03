@@ -8,7 +8,7 @@ import {
 } from 'reka-ui';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixTableFilter } from '@/types/kinetix';
 import KinetixTableFilterField from './KinetixTableFilterField.vue';
 

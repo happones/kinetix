@@ -22,6 +22,8 @@ class PublishedTypesTest extends TestCase
         File::deleteDirectory(resource_path('js/components/kinetix'));
         File::deleteDirectory(resource_path('js/composables'));
         File::deleteDirectory(resource_path('js/stores'));
+        File::deleteDirectory(resource_path('js/plugins'));
+        File::deleteDirectory(resource_path('js/icons'));
 
         parent::tearDown();
     }
@@ -57,6 +59,84 @@ class PublishedTypesTest extends TestCase
         // file by name.
         $this->assertFileDoesNotExist(__DIR__.'/../../resources/js/types/index.ts');
         $this->assertFileExists(__DIR__.'/../../resources/js/types/kinetix.ts');
+    }
+
+    public function test_every_published_file_in_a_shared_directory_claims_a_kinetix_name(): void
+    {
+        // components/ gets its own `kinetix/` subdirectory, but composables,
+        // stores, plugins and icons publish straight into directories the starter
+        // kits already own. A generic filename there (stores/notifications.ts)
+        // would be overwritten by `kinetix:upgrade` on every composer update —
+        // silently, and forever after.
+        // Only the TOP-LEVEL entry has to be namespaced: anything nested inside a
+        // `kinetix`-named directory is already unreachable from a host path.
+        $offenders = [];
+
+        foreach (['composables', 'stores', 'plugins', 'icons'] as $directory) {
+            $path = __DIR__.'/../../resources/js/'.$directory;
+
+            if (! File::isDirectory($path)) {
+                continue;
+            }
+
+            $entries = array_merge(
+                array_map(static fn ($file) => $file->getFilename(), File::files($path)),
+                array_map(static fn ($dir) => basename((string) $dir), File::directories($path)),
+            );
+
+            foreach ($entries as $name) {
+                if (! preg_match('/^(useKinetix|kinetix)/i', $name)) {
+                    $offenders[] = $directory.'/'.$name;
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'These published files could clobber a host file: '.implode(', ', $offenders),
+        );
+    }
+
+    public function test_the_components_publish_ships_every_directory_its_imports_need(): void
+    {
+        $this->artisan('vendor:publish', ['--tag' => 'kinetix-components'])->assertSuccessful();
+
+        // Published components import `@/icons/kinetixBrands` and the docs tell
+        // hosts to register `@/plugins/kinetix*`; omitting either from the publish
+        // map broke the host's Vite build on an unresolvable import.
+        $this->assertFileExists(resource_path('js/icons/kinetixBrands.ts'));
+        $this->assertFileExists(resource_path('js/plugins/kinetixAccessibility.ts'));
+        $this->assertFileExists(resource_path('js/composables/useKinetixCan.ts'));
+        $this->assertFileExists(resource_path('js/stores/kinetixNotifications.ts'));
+    }
+
+    public function test_no_package_source_imports_an_unpublished_path(): void
+    {
+        // Anything a shipped component imports from `@/…` must be inside one of
+        // the published directories, or the host build fails at that import.
+        $published = ['components', 'composables', 'stores', 'plugins', 'icons', 'types'];
+        $offenders = [];
+
+        foreach (File::allFiles(__DIR__.'/../../resources/js') as $file) {
+            if (! in_array($file->getExtension(), ['ts', 'vue'], true)) {
+                continue;
+            }
+
+            preg_match_all('/from\s+[\'"]@\/([a-zA-Z0-9_-]+)/', (string) $file->getContents(), $matches);
+
+            foreach ($matches[1] ?? [] as $segment) {
+                if (! in_array($segment, $published, true)) {
+                    $offenders[] = $file->getRelativePathname().' → @/'.$segment;
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            array_values(array_unique($offenders)),
+            'These imports point outside the publish map: '.implode(', ', array_unique($offenders)),
+        );
     }
 
     public function test_every_package_source_imports_types_from_the_new_path(): void

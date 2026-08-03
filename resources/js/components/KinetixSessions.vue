@@ -4,7 +4,10 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixSessions } from '@/composables/useKinetixSessions';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import KinetixLabel from './KinetixLabel.vue';
 
 /**

@@ -9,7 +9,7 @@ import {
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixAnnouncements } from '@/composables/useKinetixAnnouncements';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * "What's new" header control: an icon button with an unread badge that opens a

@@ -7,7 +7,7 @@ import {
     actionButtonSize,
     actionButtonVariant,
     buttonVariants,
-} from '@/composables/useShadcnVariants';
+} from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAction } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';

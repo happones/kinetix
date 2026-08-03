@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Plus, Send, Trash2 } from '@lucide/vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixMailTemplates } from '@/composables/useKinetixMailTemplates';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import type { KinetixMailTemplate } from '@/types/kinetix';
 
 /**
@@ -80,6 +83,14 @@ watch(
     },
     { deep: true, immediate: true },
 );
+
+// The preview is a read-only render, so a pending one is simply dropped.
+onBeforeUnmount(() => {
+    if (timer) {
+        clearTimeout(timer);
+        timer = null;
+    }
+});
 
 async function refreshPreview(): Promise<void> {
     const res = await preview({
@@ -280,7 +291,7 @@ async function test(): Promise<void> {
                     {{ t('kinetix.mail_preview') }} —
                     <span class="text-foreground">{{ previewSubject }}</span>
                 </div>
-                <!-- eslint-disable-next-line vue/no-v-html -->
+                <!-- eslint-disable-next-line vue/no-v-html -- server-rendered preview of an admin-authored template body -->
                 <div
                     class="prose prose-sm dark:prose-invert max-w-none"
                     v-html="previewHtml"

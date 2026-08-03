@@ -10,7 +10,7 @@ import {
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixLocale } from '@/composables/useKinetixLocale';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * A header language switcher (Languages icon → dropdown of supported locales).

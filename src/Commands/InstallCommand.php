@@ -403,11 +403,16 @@ JS;
      */
     protected function protectPublishedPathsFromFormatters(): void
     {
+        // Every entry matches a `kinetix`-prefixed name: publishes share the host's
+        // own directories, so a vendor-managed file must never be able to collide
+        // with (or be mistaken for) one of the app's files.
         $entries = [
             'resources/js/components/kinetix/',
             'resources/js/composables/useKinetix*.ts',
             'resources/js/composables/kinetix*.ts',
-            'resources/js/stores/notifications.ts',
+            'resources/js/stores/kinetix*.ts',
+            'resources/js/plugins/kinetix*.ts',
+            'resources/js/icons/kinetixBrands*',
             'resources/js/types/kinetix.ts',
             'resources/js/vue-i18n-locales*',
             rtrim((string) config('kinetix.skills_path', '.claude/skills'), '/').'/kinetix-*/',
@@ -429,7 +434,7 @@ JS;
         File::put($path, $block);
         $this->info('Added the Kinetix publish paths to .prettierignore (vendor-managed files stay formatter-free).');
         $this->comment('If eslint lints resources/, mirror them in your eslint config:');
-        $this->line("  { ignores: ['resources/js/components/kinetix/**', 'resources/js/composables/useKinetix*', 'resources/js/composables/kinetix*', 'resources/js/stores/notifications.ts', 'resources/js/types/kinetix.ts', 'resources/js/vue-i18n-locales*'] }");
+        $this->line("  { ignores: ['resources/js/components/kinetix/**', 'resources/js/composables/useKinetix*', 'resources/js/composables/kinetix*', 'resources/js/stores/kinetix*', 'resources/js/plugins/kinetix*', 'resources/js/icons/kinetixBrands*', 'resources/js/types/kinetix.ts', 'resources/js/vue-i18n-locales*'] }");
     }
 
     /**

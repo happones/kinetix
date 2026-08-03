@@ -34,7 +34,7 @@ vi.mock('driver.js', () => ({ driver: driverFactory }));
 vi.mock('driver.js/dist/driver.css', () => ({}));
 
 import KinetixTours from '@/components/KinetixTours.vue';
-import { useKinetixToursStore } from '@/stores/tours';
+import { useKinetixToursStore } from '@/stores/kinetixTours';
 
 const i18n = createI18n({
     legacy: false,

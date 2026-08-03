@@ -6,7 +6,7 @@ import {
     statusInteractiveTextClass,
     statusSoftClass,
     statusTextClass,
-} from '@/composables/useStatusColor';
+} from '@/composables/useKinetixStatusColor';
 
 describe('useStatusColor', () => {
     it('maps statuses to semantic tokens (not raw palettes)', () => {

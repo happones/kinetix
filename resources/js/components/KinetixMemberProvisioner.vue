@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import KinetixLabel from './KinetixLabel.vue';
 import KinetixSelect from './KinetixSelect.vue';
 

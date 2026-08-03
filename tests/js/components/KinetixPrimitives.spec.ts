@@ -9,7 +9,7 @@ import {
     badgeVariants,
     buttonVariants,
     inputClass,
-} from '@/composables/useShadcnVariants';
+} from '@/composables/useKinetixShadcnVariants';
 
 describe('cn', () => {
     it('joins truthy classes and drops falsy ones', () => {

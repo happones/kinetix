@@ -571,4 +571,47 @@ return [
     'confidential_lock'               => 'Bloquear',
     'confidential_password_label'     => 'Senha',
     'confidential_password_incorrect' => 'Senha incorreta.',
+
+    // Table write endpoints (inline edits, reordering, kanban moves)
+    'table_column_not_editable' => 'Esta coluna não é editável.',
+    'table_record_not_found'    => 'Registro não encontrado.',
+    'table_write_forbidden'     => 'Você não tem autorização para esta ação.',
+    'table_invalid_signature'   => 'Assinatura de tabela inválida.',
+    'table_invalid_model'       => 'Classe de modelo inválida.',
+    'table_descriptor_expired'  => 'A sessão desta tabela expirou. Recarregue a página.',
+    'table_not_reorderable'     => 'Esta tabela não permite reordenação.',
+    'kanban_invalid_status'     => 'Status inválido.',
+
+    // Import / export / upload endpoints
+    'import_invalid'                  => 'Importador inválido.',
+    'import_invalid_session'          => 'Sessão de importação inválida.',
+    'import_forbidden'                => 'Você não tem permissão para executar esta importação.',
+    'import_required_columns_missing' => 'Colunas obrigatórias não foram mapeadas.',
+    'export_invalid'                  => 'Exportador inválido.',
+    'export_forbidden'                => 'Você não tem permissão para executar esta exportação.',
+    'upload_invalid_field'            => 'Campo de upload inválido.',
+    'upload_invalid_path'             => 'Caminho de arquivo inválido.',
+    'upload_blocked_type'             => 'Este tipo de arquivo não é permitido.',
+
+    // Job failures and form submit
+    'submit'                  => 'Enviar',
+    'export_failed'           => 'A exportação falhou',
+    'export_failed_body'      => 'Não foi possível gerar sua exportação. Tente novamente.',
+    'import_failed_body'      => 'Não foi possível processar sua importação. Tente novamente.',
+    'import_failed_row'       => 'Linha :row: :reason',
+    'import_failed_more'      => '…e :count linhas adicionais falharam.',
+    'gdpr_export_failed_body' => 'Não conseguimos preparar a exportação dos seus dados. Solicite novamente.',
+    'search_invalid_token'    => 'Token de busca inválido.',
+    'search_invalid_model'    => 'Modelo de busca inválido.',
+    'search_forbidden'        => 'Esta busca não está autorizada.',
+    'search_expired'          => 'A sessão de busca expirou. Recarregue a página.',
+
+    // Reports center, repeater rows and permission guardrails
+    'repeater_row_not_found'              => 'Linha não encontrada.',
+    'form_session_expired'                => 'A sessão deste formulário expirou. Recarregue a página.',
+    'report_invalid'                      => 'Relatório inválido.',
+    'report_run_not_cancellable'          => 'Esta execução já não pode ser cancelada.',
+    'report_run_not_retryable'            => 'Esta execução não pode ser repetida.',
+    'permissions_cannot_grant_unheld'     => 'Você não pode conceder permissões que não possui: :permissions',
+    'permissions_would_revoke_own_access' => 'Esta alteração revogaria o seu próprio acesso à gestão de funções.',
 ];

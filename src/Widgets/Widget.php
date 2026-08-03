@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Widgets;
 
 use Closure;
+use Happones\Kinetix\Data\WidgetData;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Facades\Gate;
 use JsonSerializable;
@@ -185,20 +186,35 @@ abstract class Widget implements Arrayable, JsonSerializable
         return $this->sort ?? 0;
     }
 
+    /**
+     * The widget type's own payload (series, values, rows).
+     *
+     * @return array<string, mixed>
+     */
     abstract protected function getData(): array;
+
+    /**
+     * Serialize through a Data class like every other Kinetix builder, so the
+     * widget envelope gets a generated TypeScript contract instead of being an
+     * untyped array the frontend has to guess at.
+     */
+    public function toData(): WidgetData
+    {
+        return new WidgetData(
+            id: $this->id,
+            type: $this->type,
+            title: $this->title,
+            description: $this->description,
+            columnSpan: $this->columnSpan,
+            sort: $this->sort,
+            headerActions: $this->headerActions,
+            data: $this->getData(),
+        );
+    }
 
     public function toArray(): array
     {
-        return [
-            'id'            => $this->id,
-            'type'          => $this->type,
-            'title'         => $this->title,
-            'description'   => $this->description,
-            'columnSpan'    => $this->columnSpan,
-            'sort'          => $this->sort,
-            'headerActions' => $this->headerActions,
-            'data'          => $this->getData(),
-        ];
+        return $this->toData()->toArray();
     }
 
     public function jsonSerialize(): mixed

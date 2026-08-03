@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Persists individual TableRepeater rows for autosave mode. Every request is
@@ -32,7 +33,7 @@ class TableRepeaterController
         [$relation, $columns] = $this->resolve($request);
 
         $row = $relation->getQuery()->whereKey($request->input('id'))->first();
-        abort_if($row === null, 404, 'Row not found.');
+        abort_if($row === null, 404, (string) __('kinetix.repeater_row_not_found'));
 
         $row->fill($this->values($request, $columns))->save();
 
@@ -73,8 +74,34 @@ class TableRepeaterController
         );
         abort_unless(is_string($relationName) && $relationName !== '', 400, 'Invalid relation.');
 
+        // The descriptor is minted for one user and expires, so it can't be lifted
+        // from another user's page and replayed.
+        $mintedFor = $payload['user'] ?? null;
+        abort_if(
+            $mintedFor !== null && (string) $mintedFor !== (string) $request->user()?->getAuthIdentifier(),
+            403,
+            (string) __('kinetix.table_write_forbidden'),
+        );
+
+        $expiresAt = $payload['expires'] ?? null;
+        abort_if(
+            is_int($expiresAt) && $expiresAt < now()->getTimestamp(),
+            403,
+            (string) __('kinetix.form_session_expired'),
+        );
+
         $parent = $parentClass::query()->whereKey($payload['key'] ?? null)->first();
         abort_if($parent === null, 404, 'Parent record not found.');
+
+        // Editing a repeater row is editing the parent record, so the parent's own
+        // policy governs it — the same rule the record modals and kanban use.
+        if (Gate::getPolicyFor($parent::class) !== null) {
+            abort_unless(
+                Gate::forUser($request->user())->allows('update', $parent),
+                403,
+                'This action is unauthorized.',
+            );
+        }
 
         abort_unless(method_exists($parent, $relationName), 400, 'Unknown relation.');
         $relation = $parent->{$relationName}();

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import { useKinetixImpersonation } from '@/composables/useKinetixImpersonation';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * Top banner shown while impersonating, with a "return to your account" button.

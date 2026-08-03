@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n';
 import { useKinetixCalendarEventDetails } from '@/composables/useKinetixCalendarEventDetails';
 import { useKinetixCalendarGrids } from '@/composables/useKinetixCalendarGrids';
 import { useKinetixCalendarNavigation } from '@/composables/useKinetixCalendarNavigation';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixCalendarData,
     KinetixCalendarEventDisplay,

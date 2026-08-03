@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { textareaClass } from '@/composables/useShadcnVariants';
+import { textareaClass } from '@/composables/useKinetixShadcnVariants';
 
 defineProps<{ comp: any; value: any }>();
 

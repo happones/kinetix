@@ -32,7 +32,7 @@ class HelpSpotlightSource implements SpotlightSource
         return array_map(
             fn (array $hit): SpotlightItemData => new SpotlightItemData(
                 type: 'link',
-                group: (string) trans('kinetix.help_center'),
+                group: (string) __('kinetix.help_center'),
                 title: $hit['title'],
                 subtitle: $hit['excerpt'],
                 url: $this->articleUrl($hit['slug']),

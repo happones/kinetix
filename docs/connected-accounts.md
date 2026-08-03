@@ -139,8 +139,8 @@ the destination). The `KinetixConnectedAccounts` manager takes the same
 
 ### Bundled brand icons
 
-Brand glyphs are local SVG components under `resources/js/icons/brands/` (no
-runtime icon dependency) and resolved through `@/icons/brands`. Bundled:
+Brand glyphs are local SVG components under `resources/js/icons/kinetixBrands/` (no
+runtime icon dependency) and resolved through `@/icons/kinetixBrands`. Bundled:
 **github, google, microsoft, gitlab, bitbucket, facebook, x (twitter), apple,
 discord, twitch**. Unknown providers fall back to a generic link glyph and a
 title-cased label, so any Socialite driver still works.

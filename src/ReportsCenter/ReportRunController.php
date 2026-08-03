@@ -30,11 +30,11 @@ class ReportRunController
         $table = Table::make(ReportRun::query()->forCurrentTeam()->latest())
             ->columns([
                 TextColumn::make('report_class')
-                    ->label((string) trans('kinetix.report_runs_report_column'))
+                    ->label((string) __('kinetix.report_runs_report_column'))
                     ->formatStateUsing(fn ($value) => (new $value)->label()),
                 TextColumn::make('status')->badge(),
                 TextColumn::make('processed_rows')
-                    ->label((string) trans('kinetix.report_runs_rows_column')),
+                    ->label((string) __('kinetix.report_runs_rows_column')),
                 ProgressColumn::make('percent')
                     ->color(fn ($value, $record) => $record->status->getColor()),
                 TextColumn::make('format'),
@@ -42,14 +42,14 @@ class ReportRunController
             ])
             ->recordActions([
                 Action::make('download')
-                    ->label((string) trans('kinetix.download_export'))
+                    ->label((string) __('kinetix.download_export'))
                     ->icon('download')
                     ->iconButton()
                     ->url(fn (ReportRun $run) => route('kinetix.report-runs.download', $run))
                     ->download()
                     ->visible(fn (ReportRun $run) => $run->isDownloadable()),
                 Action::make('cancel')
-                    ->label((string) trans('kinetix.cancel_run'))
+                    ->label((string) __('kinetix.cancel_run'))
                     ->icon('x')
                     ->iconButton()
                     ->color('danger')
@@ -57,7 +57,7 @@ class ReportRunController
                     ->requiresConfirmation()
                     ->visible(fn (ReportRun $run) => $run->status->isCancellable()),
                 Action::make('retry')
-                    ->label((string) trans('kinetix.retry_run'))
+                    ->label((string) __('kinetix.retry_run'))
                     ->icon('rotate-ccw')
                     ->iconButton()
                     ->request(fn (ReportRun $run) => route('kinetix.report-runs.retry', $run))
@@ -74,7 +74,7 @@ class ReportRunController
         try {
             $report = Report::fromToken((string) $request->input('report', ''));
         } catch (Throwable) {
-            return response()->json(['message' => 'Invalid report.'], 422);
+            return response()->json(['message' => __('kinetix.report_invalid')], 422);
         }
 
         $run = $this->dispatcher->dispatch(
@@ -93,7 +93,7 @@ class ReportRunController
         $run = $this->findRun($request);
 
         if (! $run->status->isCancellable()) {
-            return response()->json(['message' => 'This run can no longer be cancelled.'], 422);
+            return response()->json(['message' => __('kinetix.report_run_not_cancellable')], 422);
         }
 
         $run->forceFill([
@@ -111,7 +111,7 @@ class ReportRunController
         $run = $this->findRun($request);
 
         if (! $run->status->isRetryable()) {
-            return response()->json(['message' => 'This run cannot be retried.'], 422);
+            return response()->json(['message' => __('kinetix.report_run_not_retryable')], 422);
         }
 
         if (! class_exists($run->report_class) || ! is_subclass_of($run->report_class, Report::class)) {

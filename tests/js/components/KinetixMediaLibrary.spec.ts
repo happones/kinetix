@@ -97,6 +97,31 @@ describe('KinetixMediaLibrary', () => {
         expect(emitted[0].id).toBe(2);
     });
 
+    it('renders one plain CSS grid below the virtualization threshold', () => {
+        const w = mountIt([imageItem, fileItem]);
+
+        expect(w.find('.sm\\:grid-cols-3').exists()).toBe(true);
+        expect(w.findAll('[draggable="true"]')).toHaveLength(2);
+    });
+
+    it('windows the grid into rows once the library grows past the threshold', () => {
+        const many = Array.from({ length: 60 }, (_, i) => ({
+            ...imageItem,
+            id: i + 1,
+            name: `img-${i}.jpg`,
+        }));
+        const w = mountIt(many);
+
+        // Virtualized: a scroll container with a sized spacer, and only a window
+        // of tiles in the DOM rather than all 60.
+        const scroller = w.find('.overflow-y-auto');
+        expect(scroller.exists()).toBe(true);
+        expect(scroller.find('.relative').attributes('style')).toContain(
+            'height:',
+        );
+        expect(w.findAll('[draggable="true"]').length).toBeLessThan(60);
+    });
+
     it('reorders items via drag and drop', async () => {
         const w = mountIt([imageItem, fileItem]);
         const cards = w.findAll('[draggable="true"]');

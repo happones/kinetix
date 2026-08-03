@@ -12,8 +12,8 @@ import {
 } from 'reka-ui';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTeams } from '@/composables/useKinetixTeams';
-import { buttonVariants } from '@/composables/useShadcnVariants';
 
 /**
  * A header dropdown to switch the active team. Reads the user's teams (each with

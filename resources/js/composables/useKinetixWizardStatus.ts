@@ -1,4 +1,4 @@
-import { statusButtonClass } from '@/composables/useStatusColor';
+import { statusButtonClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixWizardStep } from '@/types/kinetix';
 
 export interface UseKinetixWizardStatusOptions {

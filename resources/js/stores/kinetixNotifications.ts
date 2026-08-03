@@ -22,11 +22,11 @@ export const useNotificationsStore = defineStore('kinetixNotifications', () => {
     });
 
     const routePrefix = computed(() => {
-        return (page.props.kinetix_config as any)?.route_prefix ?? '_kinetix';
+        return page.props.kinetix_config?.route_prefix ?? '_kinetix';
     });
 
     const userId = computed(() => {
-        return (page.props.auth as any)?.user?.id ?? null;
+        return page.props.auth?.user?.id ?? null;
     });
 
     const unreadCount = computed(() => {

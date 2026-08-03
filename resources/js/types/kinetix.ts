@@ -711,6 +711,43 @@ export interface KinetixChartMetric {
     badgeColor?: string | null;
 }
 
+/** One series in a chart widget's `datasets` array. */
+export interface KinetixChartDataset {
+    label?: string | null;
+    data: (number | string | null)[];
+    borderColor?: string | null;
+    backgroundColor?: string | null;
+}
+
+/** The `data` payload of a `chart` widget. */
+export interface KinetixChartData {
+    labels?: string[];
+    datasets?: KinetixChartDataset[];
+    chartType?: string;
+    stacked?: boolean;
+    legend?: boolean;
+    centerValue?: string | null;
+    centerLabel?: string | null;
+    metrics?: KinetixChartMetric[];
+}
+
+/**
+ * One x-position in the series data handed to the chart canvas. Labels are
+ * mapped to numeric indices (`x`) because a continuous scale yields NaN for
+ * string categories; each series' value lands under `y_<datasetIndex>`.
+ */
+export interface KinetixChartPoint {
+    x: number;
+    label: string;
+    [series: `y_${number}`]: number | string | null;
+}
+
+/** One slice of a pie/donut chart. */
+export interface KinetixChartSlice {
+    label: string;
+    value: number | string | null;
+}
+
 /** A row in a KinetixListWidget. */
 export interface KinetixListItem {
     title: string;
@@ -839,6 +876,59 @@ export interface KinetixTableRecord {
     >;
     recordUrl: string | null;
     actions?: KinetixAction[];
+}
+
+/** One entry in a KinetixMediaLibrary value (an ordered array of these). */
+export interface KinetixMediaItem {
+    id?: number | string | null;
+    path?: string | null;
+    url: string;
+    name: string;
+    size?: number | null;
+    mime?: string | null;
+    thumb?: string | null;
+}
+
+/**
+ * The column slice a cell renderer needs. Narrower than `KinetixTableColumn`
+ * (which also carries table-level concerns like sorting and toggling) and
+ * additionally carries the per-type rendering options.
+ */
+export interface KinetixTableCellColumn {
+    name: string;
+    label: string;
+    type: string;
+    isBadge?: boolean;
+    alignment?: 'left' | 'center' | 'right' | null;
+    isCircular?: boolean;
+    isPreviewable?: boolean;
+    size?: number | null;
+    isCopyable?: boolean;
+    isConfidential?: boolean;
+    options?: Record<string, string> | null;
+    inputType?: string | null;
+    placeholder?: string | null;
+    numberConfig?: Record<string, unknown> | null;
+    view?: string | null;
+}
+
+/** A per-column description rendered above or below a cell's value. */
+export interface KinetixTableCellDescription {
+    text: string | null;
+    position: 'above' | 'below';
+}
+
+/** The record slice a cell renderer reads, keyed by column name. */
+export interface KinetixTableCellRecord {
+    id: string | number;
+    values: Record<string, any>;
+    descriptions: Record<string, KinetixTableCellDescription | null>;
+    icons: Record<string, string | null>;
+    iconColors: Record<string, string | null>;
+    badgeColors: Record<string, string | null>;
+    progress: Record<string, number | null>;
+    progressColors: Record<string, string | null>;
+    viewProps: Record<string, Record<string, any>>;
 }
 
 export interface KinetixImportColumn {

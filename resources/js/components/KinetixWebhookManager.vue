@@ -2,10 +2,13 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
+import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
+import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import { useKinetixWebhooks } from '@/composables/useKinetixWebhooks';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
-import { statusBadgeClass } from '@/composables/useStatusColor';
-import type { KinetixStatusColor } from '@/composables/useStatusColor';
 import type {
     KinetixWebhookEndpoint,
     KinetixWebhookLog,

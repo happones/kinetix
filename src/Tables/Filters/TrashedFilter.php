@@ -15,7 +15,7 @@ class TrashedFilter extends Filter
     public function __construct(string $name = 'trashed')
     {
         parent::__construct($name);
-        $this->label((string) trans('kinetix.trashed_filter'));
+        $this->label((string) __('kinetix.trashed_filter'));
     }
 
     public static function make(string $name = 'trashed'): static
@@ -47,8 +47,8 @@ class TrashedFilter extends Filter
     {
         return [
             'options' => [
-                'with' => (string) trans('kinetix.with_trashed'),
-                'only' => (string) trans('kinetix.only_trashed'),
+                'with' => (string) __('kinetix.with_trashed'),
+                'only' => (string) __('kinetix.only_trashed'),
             ],
         ];
     }

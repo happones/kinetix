@@ -17,12 +17,30 @@ class DocumentBuilder
      * @param array<string, mixed> $settings
      * @param array<string, mixed> $data
      */
+    /**
+     * A CSS colour safe to interpolate: a 3/6/8-digit hex value or a plain
+     * colour keyword. Anything else falls back to the default rather than being
+     * escaped, since there is no escaping that makes arbitrary text safe here.
+     */
+    private static function cssColor(mixed $value, string $fallback): string
+    {
+        $value = is_string($value) ? trim($value) : '';
+
+        return preg_match('/^(#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})|[a-z]{3,20})$/i', $value) === 1
+            ? $value
+            : $fallback;
+    }
+
     public static function build(PdfTemplate $template, array $settings, array $data): string
     {
         $e = static fn (mixed $v): string => htmlspecialchars((string) ($v ?? ''), ENT_QUOTES);
 
-        $accent = $e($settings['accent'] ?? '#6366f1');
-        $text   = $e($settings['text'] ?? '#0f172a');
+        // Colours are interpolated inside a <style> block and into inline style
+        // attributes, where htmlspecialchars() is no defence: `#fff;}` would close
+        // the declaration and let the rest of the value become new CSS. Only a
+        // literal colour gets through.
+        $accent = self::cssColor($settings['accent'] ?? null, '#6366f1');
+        $text   = self::cssColor($settings['text'] ?? null, '#0f172a');
         $font   = ($settings['font'] ?? 'sans') === 'serif'
             ? "'DejaVu Serif', Georgia, serif"
             : "'DejaVu Sans', Helvetica, Arial, sans-serif";

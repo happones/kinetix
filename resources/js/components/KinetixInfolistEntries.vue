@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Check, Circle, Copy, ExternalLink, Lock } from '@lucide/vue';
-import { reactive, ref } from 'vue';
+import { onBeforeUnmount, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { requestConfidentialUnlock } from '@/composables/useKinetixConfidential';
@@ -8,11 +8,11 @@ import { resolveIcon as resolveActionIcon } from '@/composables/useKinetixIcons'
 import {
     actionButtonVariant,
     buttonVariants,
-} from '@/composables/useShadcnVariants';
+} from '@/composables/useKinetixShadcnVariants';
 import {
     statusBadgeClass as getBadgeColorClass,
     statusTextClass,
-} from '@/composables/useStatusColor';
+} from '@/composables/useKinetixStatusColor';
 import type { KinetixAction, KinetixInfolistEntry } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
@@ -70,6 +70,7 @@ const isEmpty = (value: unknown) =>
     value === null || value === undefined || value === '';
 
 const copiedName = ref<string | null>(null);
+let copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
 const copyToClipboard = (entry: KinetixInfolistEntry) => {
     const value = entry.state;
@@ -80,13 +81,25 @@ const copyToClipboard = (entry: KinetixInfolistEntry) => {
 
     navigator.clipboard?.writeText(String(value)).then(() => {
         copiedName.value = entry.name ?? null;
-        setTimeout(() => {
+
+        if (copiedTimer) {
+            clearTimeout(copiedTimer);
+        }
+
+        copiedTimer = setTimeout(() => {
             if (copiedName.value === (entry.name ?? null)) {
                 copiedName.value = null;
             }
         }, 1500);
     });
 };
+
+onBeforeUnmount(() => {
+    if (copiedTimer) {
+        clearTimeout(copiedTimer);
+        copiedTimer = null;
+    }
+});
 </script>
 
 <template>

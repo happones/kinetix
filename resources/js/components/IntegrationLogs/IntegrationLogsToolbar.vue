@@ -5,7 +5,10 @@ import type {
     IntegrationLogResult,
     IntegrationLogTab,
 } from '@/composables/useKinetixIntegrationLogs';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import { cn } from '../primitives/cn';
 
 defineProps<{

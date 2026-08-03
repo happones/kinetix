@@ -72,6 +72,7 @@ use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
 use Happones\Kinetix\Imports\ImportController;
+use Happones\Kinetix\Kanban\KanbanMoveController;
 use Happones\Kinetix\Locale\LocaleController;
 use Happones\Kinetix\Locale\LocaleManager;
 use Happones\Kinetix\Locale\Middleware\SetKinetixLocale;
@@ -81,6 +82,7 @@ use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
+use Happones\Kinetix\Notifications\NotificationController;
 use Happones\Kinetix\Onboarding\OnboardingController;
 use Happones\Kinetix\Onboarding\OnboardingManager;
 use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
@@ -114,6 +116,7 @@ use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Tables\RecordModalController;
+use Happones\Kinetix\Tables\TableWriteController;
 use Happones\Kinetix\Tags\TagController;
 use Happones\Kinetix\Tags\TagManager;
 use Happones\Kinetix\Tags\TagRegistry;
@@ -135,13 +138,13 @@ use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
+use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\WebhookServer\Events\WebhookCallFailedEvent;
 use Spatie\WebhookServer\Events\WebhookCallSucceededEvent;
@@ -379,10 +382,17 @@ class KinetixServiceProvider extends ServiceProvider
             // `@/types` still resolved, so TypeScript degraded to `any` instead
             // of erroring, and whole component prop contracts stopped being
             // checked with nothing to show for it.
+            // `icons` and `plugins` are not optional extras: published components
+            // import `@/icons/kinetixBrands` (Connected Accounts' provider
+            // glyphs) and the docs tell hosts to register `@/plugins/kinetix*`.
+            // Leaving either out of this map made the host's Vite build fail on
+            // an unresolvable import.
             $this->publishes([
                 __DIR__.'/../resources/js/components'       => resource_path('js/components/kinetix'),
                 __DIR__.'/../resources/js/composables'      => resource_path('js/composables'),
                 __DIR__.'/../resources/js/stores'           => resource_path('js/stores'),
+                __DIR__.'/../resources/js/plugins'          => resource_path('js/plugins'),
+                __DIR__.'/../resources/js/icons'            => resource_path('js/icons'),
                 __DIR__.'/../resources/js/types/kinetix.ts' => resource_path('js/types/kinetix.ts'),
             ], 'kinetix-components');
 
@@ -720,8 +730,14 @@ class KinetixServiceProvider extends ServiceProvider
         $middleware = config('kinetix.middleware', ['web', 'auth']);
 
         if (config('kinetix.teams', false)) {
-            $prefix       = '{current_team}/'.$prefix;
-            $middleware[] = 'kinetix.permissions.team';
+            $prefix = '{current_team}/'.$prefix;
+
+            // The alias only exists when spatie is installed; pushing it
+            // unconditionally makes these routes throw on a teams-enabled host
+            // that doesn't use the permissions module.
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
         }
 
         Route::middleware($middleware)
@@ -1173,8 +1189,14 @@ class KinetixServiceProvider extends ServiceProvider
         $middleware = config('kinetix.middleware', ['web', 'auth']);
 
         if (config('kinetix.teams', false)) {
-            $prefix       = '{current_team}/'.$prefix;
-            $middleware[] = 'kinetix.permissions.team';
+            $prefix = '{current_team}/'.$prefix;
+
+            // The alias only exists when spatie is installed; pushing it
+            // unconditionally makes these routes throw on a teams-enabled host
+            // that doesn't use the permissions module.
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
         }
 
         Route::middleware($middleware)
@@ -1211,8 +1233,14 @@ class KinetixServiceProvider extends ServiceProvider
         $middleware = config('kinetix.middleware', ['web', 'auth']);
 
         if (config('kinetix.teams', false)) {
-            $prefix       = '{current_team}/'.$prefix;
-            $middleware[] = 'kinetix.permissions.team';
+            $prefix = '{current_team}/'.$prefix;
+
+            // The alias only exists when spatie is installed; pushing it
+            // unconditionally makes these routes throw on a teams-enabled host
+            // that doesn't use the permissions module.
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
         }
 
         Route::middleware($middleware)
@@ -1384,6 +1412,18 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerConnectedAccounts(): void
     {
         if (! config('kinetix.connected_accounts.enabled', false)) {
+            return;
+        }
+
+        // Every endpoint here goes through Socialite. Registering the routes
+        // without it turns a missing optional dependency into a fatal at request
+        // time; warn at boot and stay out of the way instead.
+        if (! class_exists(Socialite::class)) {
+            Log::warning(
+                'Kinetix: `kinetix.connected_accounts.enabled` is true but laravel/socialite is not installed — '
+                .'the connected-accounts routes were not registered. Install it with: composer require laravel/socialite'
+            );
+
             return;
         }
 
@@ -2213,37 +2253,17 @@ class KinetixServiceProvider extends ServiceProvider
         Route::middleware($middleware)
             ->prefix("{$prefix}/notifications")
             ->group(function () {
-                Route::post('{id}/read', function (Request $request) {
-                    // Resolve by name (not positionally): with teams enabled the
-                    // prefix adds a leading `{current_team}` param, so a
-                    // positional `$id` would receive the team, not the id.
-                    $id = (string) $request->route('id');
-                    auth()->user()->unreadNotifications()->where('id', $id)->first()?->markAsRead();
+                Route::post('{id}/read', [NotificationController::class, 'read'])
+                    ->name('kinetix.notifications.read');
 
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.notifications.read');
+                Route::post('read-all', [NotificationController::class, 'readAll'])
+                    ->name('kinetix.notifications.read-all');
 
-                Route::post('read-all', function () {
-                    auth()->user()->unreadNotifications->markAsRead();
+                Route::delete('clear-all', [NotificationController::class, 'clearAll'])
+                    ->name('kinetix.notifications.clear-all');
 
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.notifications.read-all');
-
-                Route::delete('clear-all', function () {
-                    auth()->user()->notifications()->delete();
-
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.notifications.clear-all');
-
-                Route::delete('{id}', function (Request $request) {
-                    // Resolve by name (not positionally): with teams enabled the
-                    // prefix adds a leading `{current_team}` param, so a
-                    // positional `$id` would receive the team, not the id.
-                    $id = (string) $request->route('id');
-                    auth()->user()->notifications()->where('id', $id)->delete();
-
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.notifications.delete');
+                Route::delete('{id}', [NotificationController::class, 'destroy'])
+                    ->name('kinetix.notifications.delete');
             });
     }
 
@@ -2268,129 +2288,17 @@ class KinetixServiceProvider extends ServiceProvider
         Route::middleware($middleware)
             ->prefix("{$prefix}/tables")
             ->group(function () {
-                Route::post('cell-update', function () {
-                    $encryptedModel = request('model');
-                    $recordId       = request('recordId');
-                    $column         = (string) request('column');
-                    $value          = request('value');
+                Route::post('cell-update', [TableWriteController::class, 'cellUpdate'])
+                    ->name('kinetix.tables.cell-update');
 
-                    try {
-                        $payload = Crypt::decrypt((string) $encryptedModel);
-                    } catch (\Exception $e) {
-                        return response()->json(['status' => 'error', 'message' => 'Invalid model signature.'], 400);
-                    }
-
-                    $modelClass      = is_array($payload) ? ($payload['model'] ?? null) : null;
-                    $editableColumns = is_array($payload) ? ($payload['columns'] ?? []) : [];
-
-                    if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
-                        return response()->json(['status' => 'error', 'message' => 'Invalid model class.'], 400);
-                    }
-
-                    // Only columns explicitly declared as editable on the table may be written,
-                    // preventing tampering with arbitrary (e.g. privileged) attributes.
-                    if (! is_array($editableColumns) || ! in_array($column, $editableColumns, true)) {
-                        return response()->json(['status' => 'error', 'message' => 'Column is not editable.'], 403);
-                    }
-
-                    $record = $modelClass::find($recordId);
-
-                    if (! $record) {
-                        return response()->json(['status' => 'error', 'message' => 'Record not found.'], 404);
-                    }
-
-                    $record->{$column} = $value;
-                    $record->save();
-
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.tables.cell-update');
-
-                Route::post('reorder', function () {
-                    try {
-                        $payload = Crypt::decrypt((string) request('model'));
-                    } catch (\Exception $e) {
-                        return response()->json(['status' => 'error', 'message' => 'Invalid model signature.'], 400);
-                    }
-
-                    $modelClass    = is_array($payload) ? ($payload['model'] ?? null) : null;
-                    $reorderColumn = is_array($payload) ? ($payload['reorder'] ?? null) : null;
-
-                    if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
-                        return response()->json(['status' => 'error', 'message' => 'Invalid model class.'], 400);
-                    }
-
-                    // The reorder column is baked into the signed token only when
-                    // the table opted in via reorderable(); otherwise reject.
-                    if (! is_string($reorderColumn) || $reorderColumn === '') {
-                        return response()->json(['status' => 'error', 'message' => 'Table is not reorderable.'], 403);
-                    }
-
-                    /** @var array<int, mixed> $ids */
-                    $ids = (array) request('ids', []);
-
-                    foreach (array_values($ids) as $position => $id) {
-                        $modelClass::query()->whereKey($id)->update([$reorderColumn => $position + 1]);
-                    }
-
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.tables.reorder');
+                Route::post('reorder', [TableWriteController::class, 'reorder'])
+                    ->name('kinetix.tables.reorder');
 
                 // Kanban card move: set a record's status column to a target
                 // status, guarded by the board's signed descriptor (statuses,
                 // move scope) and the host's policy.
-                Route::post('kanban-move', function () {
-                    try {
-                        $payload = Crypt::decrypt((string) request('model'));
-                    } catch (\Exception $e) {
-                        return response()->json(['status' => 'error', 'message' => 'Invalid model signature.'], 400);
-                    }
-
-                    $modelClass   = is_array($payload) ? ($payload['model'] ?? null) : null;
-                    $statusColumn = is_array($payload) ? ($payload['statusColumn'] ?? null) : null;
-                    $statuses     = is_array($payload) ? ($payload['statuses'] ?? []) : [];
-                    $moveAbility  = is_array($payload) ? ($payload['moveAbility'] ?? null) : null;
-                    $moveScope    = is_array($payload) ? ($payload['moveScope'] ?? []) : [];
-                    $status       = (string) request('status');
-
-                    if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
-                        return response()->json(['status' => 'error', 'message' => 'Invalid model class.'], 400);
-                    }
-
-                    if (! is_string($statusColumn) || ! is_array($statuses) || ! in_array($status, $statuses, true)) {
-                        return response()->json(['status' => 'error', 'message' => 'Invalid status.'], 403);
-                    }
-
-                    // The board's moveScope() constraints bound the lookup — a
-                    // record outside them (e.g. another tenant's) is a 404.
-                    $query = $modelClass::query();
-
-                    if (is_array($moveScope)) {
-                        foreach ($moveScope as $column => $value) {
-                            $query->where((string) $column, $value);
-                        }
-                    }
-
-                    $record = $query->find(request('recordId'));
-
-                    if (! $record) {
-                        return response()->json(['status' => 'error', 'message' => 'Record not found.'], 404);
-                    }
-
-                    // Authorize via the host's policy: the explicit ability from
-                    // authorizeMove(), or `update` whenever a policy exists.
-                    $ability = is_string($moveAbility)
-                        ? $moveAbility
-                        : (Gate::getPolicyFor($modelClass) !== null ? 'update' : null);
-
-                    if ($ability !== null && Gate::forUser(request()->user())->denies($ability, $record)) {
-                        return response()->json(['status' => 'error', 'message' => 'Forbidden.'], 403);
-                    }
-
-                    $record->{$statusColumn} = $status;
-                    $record->save();
-
-                    return response()->json(['status' => 'success']);
-                })->name('kinetix.tables.kanban-move');
+                Route::post('kanban-move', KanbanMoveController::class)
+                    ->name('kinetix.tables.kanban-move');
 
                 // TableRepeater autosave: create/update/delete a single row on the
                 // bound relation, guarded by the field's signed descriptor.
@@ -2543,7 +2451,15 @@ class KinetixServiceProvider extends ServiceProvider
             throw new \RuntimeException('Kinetix requires PHP 8.3 or superior.');
         }
 
-        // 2. Front-end environment validations (only validate when boot is running in web request or testing to avoid breaking setup commands)
+        // 2. Front-end environment validations. Development-time only: this reads
+        // and JSON-decodes package.json, so running it on every production request
+        // is both wasted I/O and a way to hard-fail a deploy whose box happens to
+        // carry a trimmed package.json. `kinetix:doctor` covers the same ground on
+        // demand, in any environment.
+        if (! $this->app->environment(['local', 'testing'])) {
+            return;
+        }
+
         if (! $this->app->runningInConsole() || $this->app->runningUnitTests()) {
             $packageJsonPath = base_path('package.json');
 

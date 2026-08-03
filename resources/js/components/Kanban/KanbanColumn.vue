@@ -88,13 +88,13 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
         <div
             ref="scrollEl"
             class="min-h-16 flex flex-1 flex-col"
-            :class="virtual.enabled ? 'max-h-[70vh] overflow-y-auto' : ''"
+            :class="virtual.enabled.value ? 'max-h-[70vh] overflow-y-auto' : ''"
         >
             <div
                 class="gap-2 p-2 flex flex-1 flex-col"
-                :class="virtual.enabled ? 'relative block' : ''"
+                :class="virtual.enabled.value ? 'relative block' : ''"
                 :style="
-                    virtual.enabled
+                    virtual.enabled.value
                         ? { height: `${virtual.totalSize.value}px` }
                         : undefined
                 "
@@ -107,12 +107,12 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     draggable="true"
                     class="p-3 shadow-xs hover:shadow-md cursor-grab rounded-md border border-border bg-card transition-shadow active:cursor-grabbing"
                     :class="
-                        virtual.enabled
+                        virtual.enabled.value
                             ? 'top-0 left-0 absolute w-[calc(100%-1rem)]'
                             : ''
                     "
                     :style="
-                        virtual.enabled
+                        virtual.enabled.value
                             ? { transform: `translateY(${start}px)` }
                             : undefined
                     "

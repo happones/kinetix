@@ -8,7 +8,7 @@ import {
 } from 'reka-ui';
 import { useI18n } from 'vue-i18n';
 import { useKinetixAccessibility } from '@/composables/useKinetixAccessibility';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAccessibility } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixLabel from './KinetixLabel.vue';

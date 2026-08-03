@@ -571,4 +571,47 @@ return [
     'confidential_lock'               => 'Verrouiller',
     'confidential_password_label'     => 'Mot de passe',
     'confidential_password_incorrect' => 'Mot de passe incorrect.',
+
+    // Table write endpoints (inline edits, reordering, kanban moves)
+    'table_column_not_editable' => 'Cette colonne n’est pas modifiable.',
+    'table_record_not_found'    => 'Enregistrement introuvable.',
+    'table_write_forbidden'     => 'Vous n’êtes pas autorisé à effectuer cette action.',
+    'table_invalid_signature'   => 'Signature de tableau invalide.',
+    'table_invalid_model'       => 'Classe de modèle invalide.',
+    'table_descriptor_expired'  => 'La session de ce tableau a expiré. Veuillez recharger la page.',
+    'table_not_reorderable'     => 'Ce tableau ne peut pas être réordonné.',
+    'kanban_invalid_status'     => 'Statut invalide.',
+
+    // Import / export / upload endpoints
+    'import_invalid'                  => 'Importateur invalide.',
+    'import_invalid_session'          => 'Session d’import invalide.',
+    'import_forbidden'                => 'Vous n’êtes pas autorisé à exécuter cet import.',
+    'import_required_columns_missing' => 'Des colonnes obligatoires ne sont pas mappées.',
+    'export_invalid'                  => 'Exportateur invalide.',
+    'export_forbidden'                => 'Vous n’êtes pas autorisé à exécuter cet export.',
+    'upload_invalid_field'            => 'Champ de téléversement invalide.',
+    'upload_invalid_path'             => 'Chemin de fichier invalide.',
+    'upload_blocked_type'             => 'Ce type de fichier n’est pas autorisé.',
+
+    // Job failures and form submit
+    'submit'                  => 'Envoyer',
+    'export_failed'           => 'L’export a échoué',
+    'export_failed_body'      => 'Votre export n’a pas pu être généré. Veuillez réessayer.',
+    'import_failed_body'      => 'Votre import n’a pas pu être traité. Veuillez réessayer.',
+    'import_failed_row'       => 'Ligne :row : :reason',
+    'import_failed_more'      => '…et :count autres lignes ont échoué.',
+    'gdpr_export_failed_body' => 'Nous n’avons pas pu préparer votre export de données. Veuillez le demander à nouveau.',
+    'search_invalid_token'    => 'Jeton de recherche invalide.',
+    'search_invalid_model'    => 'Modèle de recherche invalide.',
+    'search_forbidden'        => 'Cette recherche n’est pas autorisée.',
+    'search_expired'          => 'Cette session de recherche a expiré. Veuillez recharger la page.',
+
+    // Reports center, repeater rows and permission guardrails
+    'repeater_row_not_found'              => 'Ligne introuvable.',
+    'form_session_expired'                => 'La session de ce formulaire a expiré. Veuillez recharger la page.',
+    'report_invalid'                      => 'Rapport invalide.',
+    'report_run_not_cancellable'          => 'Cette exécution ne peut plus être annulée.',
+    'report_run_not_retryable'            => 'Cette exécution ne peut pas être relancée.',
+    'permissions_cannot_grant_unheld'     => 'Vous ne pouvez pas accorder des permissions que vous ne détenez pas : :permissions',
+    'permissions_would_revoke_own_access' => 'Ce changement révoquerait votre propre accès à la gestion des rôles.',
 ];

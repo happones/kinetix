@@ -17,7 +17,7 @@ class ForceDeleteAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.force_delete'))
+        $this->label((string) __('kinetix.force_delete'))
             ->icon('trash-2')
             ->color('danger')
             ->requiresConfirmation()

@@ -3,7 +3,7 @@ import { X, Bell } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useNotificationsStore } from '@/stores/notifications';
+import { useNotificationsStore } from '@/stores/kinetixNotifications';
 import KinetixNotificationItem from './KinetixNotificationItem.vue';
 
 const store = useNotificationsStore();

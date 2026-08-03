@@ -597,4 +597,47 @@ return [
     'confidential_lock'               => 'Lock',
     'confidential_password_label'     => 'Password',
     'confidential_password_incorrect' => 'Incorrect password.',
+
+    // Table write endpoints (inline edits, reordering, kanban moves)
+    'table_column_not_editable' => 'This column is not editable.',
+    'table_record_not_found'    => 'Record not found.',
+    'table_write_forbidden'     => 'This action is unauthorized.',
+    'table_invalid_signature'   => 'Invalid table signature.',
+    'table_invalid_model'       => 'Invalid model class.',
+    'table_descriptor_expired'  => 'This table session expired. Please reload the page.',
+    'table_not_reorderable'     => 'This table is not reorderable.',
+    'kanban_invalid_status'     => 'Invalid status.',
+
+    // Import / export / upload endpoints
+    'import_invalid'                  => 'Invalid importer.',
+    'import_invalid_session'          => 'Invalid import session.',
+    'import_forbidden'                => 'You are not allowed to run this import.',
+    'import_required_columns_missing' => 'Required columns are not mapped.',
+    'export_invalid'                  => 'Invalid exporter.',
+    'export_forbidden'                => 'You are not allowed to run this export.',
+    'upload_invalid_field'            => 'Invalid upload field.',
+    'upload_invalid_path'             => 'Invalid file path.',
+    'upload_blocked_type'             => 'This file type is not allowed.',
+
+    // Job failures and form submit
+    'submit'                  => 'Submit',
+    'export_failed'           => 'Export failed',
+    'export_failed_body'      => 'Your export could not be generated. Please try again.',
+    'import_failed_body'      => 'Your import could not be processed. Please try again.',
+    'import_failed_row'       => 'Row :row: :reason',
+    'import_failed_more'      => '…and :count more rows failed.',
+    'gdpr_export_failed_body' => 'We could not prepare your data export. Please request it again.',
+    'search_invalid_token'    => 'Invalid search token.',
+    'search_invalid_model'    => 'Invalid search model.',
+    'search_forbidden'        => 'This search is unauthorized.',
+    'search_expired'          => 'This search session expired. Please reload the page.',
+
+    // Reports center, repeater rows and permission guardrails
+    'repeater_row_not_found'              => 'Row not found.',
+    'form_session_expired'                => 'This form session expired. Please reload the page.',
+    'report_invalid'                      => 'Invalid report.',
+    'report_run_not_cancellable'          => 'This run can no longer be cancelled.',
+    'report_run_not_retryable'            => 'This run cannot be retried.',
+    'permissions_cannot_grant_unheld'     => 'You cannot grant permissions you do not hold: :permissions',
+    'permissions_would_revoke_own_access' => 'This change would revoke your own role-management access.',
 ];

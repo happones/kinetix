@@ -122,6 +122,27 @@ describe('KinetixTableRepeater', () => {
         expect(w.find('tfoot').text()).toContain('5');
     });
 
+    it('flushes a pending autosave when unmounted mid-debounce', async () => {
+        vi.useFakeTimers();
+        const comp = { ...baseComp, autosave: true, autosaveToken: 'tok' };
+        const w = mountIt(comp, [{ id: 5, name: 'A', qty: 1 }]);
+
+        const input = w.find('input.cell');
+        (input.element as HTMLInputElement).value = 'B';
+        await input.trigger('input');
+        expect(updateMock).not.toHaveBeenCalled();
+
+        // Unmounting mid-debounce must persist the edit, not drop it.
+        w.unmount();
+        expect(updateMock).toHaveBeenCalledWith('tok', 5, { name: 'B' });
+
+        // …and nothing fires afterwards: the timer was cleared, not left armed.
+        updateMock.mockClear();
+        vi.runAllTimers();
+        expect(updateMock).not.toHaveBeenCalled();
+        vi.useRealTimers();
+    });
+
     it('autosaves a created row when a token is present', async () => {
         const comp = { ...baseComp, autosave: true, autosaveToken: 'tok' };
         const w = mountIt(comp, []);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { inputClass } from '@/composables/useShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixCombobox from './KinetixCombobox.vue';
 import KinetixLabel from './KinetixLabel.vue';
 

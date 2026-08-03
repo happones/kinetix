@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Download, Plus, Trash2 } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTableRepeater } from '@/composables/useKinetixTableRepeater';
-import { buttonVariants } from '@/composables/useShadcnVariants';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 
 /**
@@ -78,6 +78,21 @@ function queueUpdate(id: number | string, field: string, value: unknown): void {
         setTimeout(() => flush(id), 500),
     );
 }
+
+// Unmounting mid-debounce (a tab switch, a wizard step, a modal close) must not
+// silently discard an edit the user already made, so every outstanding row is
+// flushed now rather than cancelled.
+onBeforeUnmount(() => {
+    for (const timer of timers.values()) {
+        clearTimeout(timer);
+    }
+
+    timers.clear();
+
+    for (const id of [...pending.keys()]) {
+        flush(id);
+    }
+});
 
 function buildBlankRow(): Record<string, any> {
     const row: Record<string, any> = {};

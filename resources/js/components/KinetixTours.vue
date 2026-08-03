@@ -2,7 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useKinetixToursStore } from '@/stores/tours';
+import { useKinetixToursStore } from '@/stores/kinetixTours';
 import type { KinetixTourData } from '@/types/kinetix';
 
 /**

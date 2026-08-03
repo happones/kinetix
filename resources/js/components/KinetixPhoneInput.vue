@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { inputClass } from '@/composables/useShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixCombobox from './KinetixCombobox.vue';
 
 interface PhoneCountry {

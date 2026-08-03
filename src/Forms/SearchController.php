@@ -24,13 +24,27 @@ class SearchController
         try {
             $descriptor = Crypt::decrypt((string) $request->input('token'));
         } catch (\Throwable) {
-            return response()->json(['message' => 'Invalid search token.'], 400);
+            return response()->json(['message' => __('kinetix.search_invalid_token')], 400);
         }
 
         $model = is_array($descriptor) ? ($descriptor['model'] ?? null) : null;
 
         if (! is_string($model) || ! class_exists($model) || ! is_subclass_of($model, Model::class)) {
-            return response()->json(['message' => 'Invalid search model.'], 400);
+            return response()->json(['message' => __('kinetix.search_invalid_model')], 400);
+        }
+
+        // The descriptor is minted for one user and expires, so it can't be
+        // lifted from someone else's payload and replayed.
+        $mintedFor = $descriptor['user'] ?? null;
+
+        if ($mintedFor !== null && (string) $mintedFor !== (string) $request->user()?->getAuthIdentifier()) {
+            return response()->json(['message' => __('kinetix.search_forbidden')], 403);
+        }
+
+        $expiresAt = $descriptor['expires'] ?? null;
+
+        if (is_int($expiresAt) && $expiresAt < now()->getTimestamp()) {
+            return response()->json(['message' => __('kinetix.search_expired')], 403);
         }
 
         $labelColumn   = (string) ($descriptor['label'] ?? 'name');
@@ -40,6 +54,20 @@ class SearchController
         $query = (string) $request->input('q', '');
 
         $builder = $model::query();
+
+        // The field's searchScope() bounds which records can come back, so a
+        // searchable Select doesn't hand out other tenants' labels.
+        $scope = is_array($descriptor['scope'] ?? null) ? $descriptor['scope'] : [];
+
+        foreach ($scope as $column => $value) {
+            if (! is_string($column)) {
+                continue;
+            }
+
+            $value === null
+                ? $builder->whereNull($column)
+                : $builder->where($column, $value);
+        }
 
         // A searchable `relationship()` can carry a query modifier, but only as
         // an invokable class-string: the descriptor round-trips through the

@@ -2,8 +2,8 @@
 import { Bell } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useShadcnVariants';
-import { useNotificationsStore } from '@/stores/notifications';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import { useNotificationsStore } from '@/stores/kinetixNotifications';
 
 const store = useNotificationsStore();
 const { unreadCount } = storeToRefs(store);

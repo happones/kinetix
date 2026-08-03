@@ -509,4 +509,47 @@ return [
     'confidential_lock'               => 'ロック',
     'confidential_password_label'     => 'パスワード',
     'confidential_password_incorrect' => 'パスワードが正しくありません。',
+
+    // Table write endpoints (inline edits, reordering, kanban moves)
+    'table_column_not_editable' => 'この列は編集できません。',
+    'table_record_not_found'    => 'レコードが見つかりません。',
+    'table_write_forbidden'     => 'この操作は許可されていません。',
+    'table_invalid_signature'   => 'テーブルの署名が無効です。',
+    'table_invalid_model'       => 'モデルクラスが無効です。',
+    'table_descriptor_expired'  => 'テーブルのセッションが期限切れです。ページを再読み込みしてください。',
+    'table_not_reorderable'     => 'このテーブルは並べ替えできません。',
+    'kanban_invalid_status'     => 'ステータスが無効です。',
+
+    // Import / export / upload endpoints
+    'import_invalid'                  => 'インポーターが無効です。',
+    'import_invalid_session'          => 'インポートセッションが無効です。',
+    'import_forbidden'                => 'このインポートを実行する権限がありません。',
+    'import_required_columns_missing' => '必須列がマッピングされていません。',
+    'export_invalid'                  => 'エクスポーターが無効です。',
+    'export_forbidden'                => 'このエクスポートを実行する権限がありません。',
+    'upload_invalid_field'            => 'アップロードフィールドが無効です。',
+    'upload_invalid_path'             => 'ファイルパスが無効です。',
+    'upload_blocked_type'             => 'このファイル形式は許可されていません。',
+
+    // Job failures and form submit
+    'submit'                  => '送信',
+    'export_failed'           => 'エクスポートに失敗しました',
+    'export_failed_body'      => 'エクスポートを生成できませんでした。もう一度お試しください。',
+    'import_failed_body'      => 'インポートを処理できませんでした。もう一度お試しください。',
+    'import_failed_row'       => '行 :row: :reason',
+    'import_failed_more'      => '…他 :count 行が失敗しました。',
+    'gdpr_export_failed_body' => 'データのエクスポートを準備できませんでした。もう一度リクエストしてください。',
+    'search_invalid_token'    => '検索トークンが無効です。',
+    'search_invalid_model'    => '検索モデルが無効です。',
+    'search_forbidden'        => 'この検索は許可されていません。',
+    'search_expired'          => '検索セッションが期限切れです。ページを再読み込みしてください。',
+
+    // Reports center, repeater rows and permission guardrails
+    'repeater_row_not_found'              => '行が見つかりません。',
+    'form_session_expired'                => 'フォームのセッションが期限切れです。ページを再読み込みしてください。',
+    'report_invalid'                      => 'レポートが無効です。',
+    'report_run_not_cancellable'          => 'この実行はもうキャンセルできません。',
+    'report_run_not_retryable'            => 'この実行は再試行できません。',
+    'permissions_cannot_grant_unheld'     => '自分が持っていない権限は付与できません: :permissions',
+    'permissions_would_revoke_own_access' => 'この変更により、自分自身のロール管理権限が失われます。',
 ];

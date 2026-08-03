@@ -80,7 +80,7 @@ class ReportRunJobTest extends TestCase
             $table->timestamps();
         });
 
-        Storage::fake('public');
+        Storage::fake('local');
         config()->set('kinetix.filesystem.disk', 'public');
         config()->set('kinetix.reports_center.retention_days', 7);
     }
@@ -107,7 +107,7 @@ class ReportRunJobTest extends TestCase
         $this->assertNotNull($run->expires_at);
         $this->assertTrue($run->expires_at->isFuture());
 
-        $contents = Storage::disk('public')->get($run->path);
+        $contents = Storage::disk('local')->get($run->path);
         $this->assertStringContainsString('Ada', $contents);
         $this->assertStringContainsString('Bob', $contents);
     }

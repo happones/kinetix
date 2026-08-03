@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { ComputedRef, Ref, WritableComputedRef } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
@@ -113,6 +113,10 @@ export function useKinetixIntegrationLogs(options: {
     });
 
     onMounted(load);
+
+    // A pending search is a read-only fetch, so it is dropped on unmount rather
+    // than firing into a component that is already gone.
+    onBeforeUnmount(() => clearTimeout(searchTimer));
 
     // --- Detail modal --------------------------------------------------------
     const detailWebhook = ref<KinetixWebhookLog | null>(null);

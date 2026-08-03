@@ -11,6 +11,11 @@ import {
     VisTooltip,
     VisXYContainer,
 } from '@unovis/vue';
+import type {
+    KinetixChartDataset,
+    KinetixChartPoint,
+    KinetixChartSlice,
+} from '@/types/kinetix';
 
 /**
  * The `@unovis`-backed chart surface (pie/donut + line/area/bar). Split out of
@@ -19,27 +24,30 @@ import {
  * — pages with widgets but no chart never pay for it. Horizontal-bar and legend
  * rendering stay in the parent (plain CSS, no `@unovis`).
  */
+/** A value read off a series point — numeric once the scale coerces it. */
+type ChartValue = number | string | null | undefined;
+
 defineProps<{
     chartType: string;
     isCircular: boolean;
-    chartData: any[];
-    pieData: any[];
-    datasets: any[];
+    chartData: KinetixChartPoint[];
+    pieData: KinetixChartSlice[];
+    datasets: KinetixChartDataset[];
     labels: string[];
     stacked: boolean;
-    xAccessor: (d: any) => any;
-    yAccessors: ((d: any) => any)[];
-    colorAccessor: (d: any, index: number) => string;
+    xAccessor: (d: KinetixChartPoint | null) => number | undefined;
+    yAccessors: ((d: KinetixChartPoint | null) => ChartValue)[];
+    colorAccessor: (d: KinetixChartPoint | null, index: number) => string;
     areaColors: string[];
     groupedBarColors: string[];
-    pieValueAccessor: (d: any) => any;
-    pieLabelAccessor: (d: any) => any;
-    pieColorAccessor: (d: any, index: number) => string;
+    pieValueAccessor: (d: KinetixChartSlice | null) => ChartValue;
+    pieLabelAccessor: (d: KinetixChartSlice | null) => string | undefined;
+    pieColorAccessor: (d: KinetixChartSlice | null, index: number) => string;
     arcWidthValue: number;
     centerValue: string | null;
     centerCaption: string | null;
-    tooltipTemplate: (d: any) => string;
-    pieTooltipTemplate: (d: any) => string;
+    tooltipTemplate: (d: KinetixChartPoint | null) => string;
+    pieTooltipTemplate: (d: KinetixChartSlice | null) => string;
 }>();
 </script>
 

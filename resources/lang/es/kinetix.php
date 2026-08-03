@@ -571,4 +571,47 @@ return [
     'confidential_lock'               => 'Bloquear',
     'confidential_password_label'     => 'Contraseña',
     'confidential_password_incorrect' => 'Contraseña incorrecta.',
+
+    // Table write endpoints (inline edits, reordering, kanban moves)
+    'table_column_not_editable' => 'Esta columna no es editable.',
+    'table_record_not_found'    => 'Registro no encontrado.',
+    'table_write_forbidden'     => 'No tienes autorización para esta acción.',
+    'table_invalid_signature'   => 'Firma de tabla no válida.',
+    'table_invalid_model'       => 'Clase de modelo no válida.',
+    'table_descriptor_expired'  => 'La sesión de la tabla expiró. Recarga la página.',
+    'table_not_reorderable'     => 'Esta tabla no admite reordenación.',
+    'kanban_invalid_status'     => 'Estado no válido.',
+
+    // Import / export / upload endpoints
+    'import_invalid'                  => 'Importador no válido.',
+    'import_invalid_session'          => 'Sesión de importación no válida.',
+    'import_forbidden'                => 'No tienes permiso para ejecutar esta importación.',
+    'import_required_columns_missing' => 'Faltan columnas obligatorias por asignar.',
+    'export_invalid'                  => 'Exportador no válido.',
+    'export_forbidden'                => 'No tienes permiso para ejecutar esta exportación.',
+    'upload_invalid_field'            => 'Campo de subida no válido.',
+    'upload_invalid_path'             => 'Ruta de archivo no válida.',
+    'upload_blocked_type'             => 'Este tipo de archivo no está permitido.',
+
+    // Job failures and form submit
+    'submit'                  => 'Enviar',
+    'export_failed'           => 'La exportación falló',
+    'export_failed_body'      => 'No se pudo generar tu exportación. Inténtalo de nuevo.',
+    'import_failed_body'      => 'No se pudo procesar tu importación. Inténtalo de nuevo.',
+    'import_failed_row'       => 'Fila :row: :reason',
+    'import_failed_more'      => '…y :count filas más fallaron.',
+    'gdpr_export_failed_body' => 'No pudimos preparar la exportación de tus datos. Solicítala de nuevo.',
+    'search_invalid_token'    => 'Token de búsqueda no válido.',
+    'search_invalid_model'    => 'Modelo de búsqueda no válido.',
+    'search_forbidden'        => 'Esta búsqueda no está autorizada.',
+    'search_expired'          => 'La sesión de búsqueda expiró. Recarga la página.',
+
+    // Reports center, repeater rows and permission guardrails
+    'repeater_row_not_found'              => 'Fila no encontrada.',
+    'form_session_expired'                => 'La sesión del formulario expiró. Recarga la página.',
+    'report_invalid'                      => 'Informe no válido.',
+    'report_run_not_cancellable'          => 'Esta ejecución ya no se puede cancelar.',
+    'report_run_not_retryable'            => 'Esta ejecución no se puede reintentar.',
+    'permissions_cannot_grant_unheld'     => 'No puedes otorgar permisos que no posees: :permissions',
+    'permissions_would_revoke_own_access' => 'Este cambio revocaría tu propio acceso a la gestión de roles.',
 ];

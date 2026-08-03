@@ -220,7 +220,7 @@ class Calendar
     /**
      * @return Collection<int, Model>
      */
-    protected function records()
+    protected function records(): Collection
     {
         $query = $this->resolveQuery();
 

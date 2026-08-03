@@ -22,7 +22,7 @@ vi.mock('vue-sonner', () => ({
     },
 }));
 
-import { useNotificationsStore } from '@/stores/notifications';
+import { useNotificationsStore } from '@/stores/kinetixNotifications';
 
 describe('notifications store — sendRequest (database mode)', () => {
     beforeEach(() => {

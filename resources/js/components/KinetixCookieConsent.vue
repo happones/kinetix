@@ -2,7 +2,7 @@
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixCookieConsent } from '@/composables/useKinetixCookieConsent';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * A shadcn-styled cookie consent bar. Mount once in your layout — it shows

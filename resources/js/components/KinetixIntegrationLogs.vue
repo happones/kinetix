@@ -4,7 +4,7 @@ import { computed } from 'vue';
 import type { Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixIntegrationLogs } from '@/composables/useKinetixIntegrationLogs';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import ApiLogsTable from './IntegrationLogs/ApiLogsTable.vue';
 import IntegrationLogsToolbar from './IntegrationLogs/IntegrationLogsToolbar.vue';
 import LogDetailModal from './IntegrationLogs/LogDetailModal.vue';

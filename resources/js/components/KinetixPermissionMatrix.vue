@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { inputClass } from '@/composables/useShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixPermissionFeature } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 

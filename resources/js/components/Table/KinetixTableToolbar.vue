@@ -6,7 +6,7 @@ import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
     actionButtonVariant,
     buttonVariants,
-} from '@/composables/useShadcnVariants';
+} from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAction, KinetixTableData } from '@/types/kinetix';
 import KinetixActionDropdown from '../KinetixActionDropdown.vue';
 import KinetixSavedViews from '../KinetixSavedViews.vue';

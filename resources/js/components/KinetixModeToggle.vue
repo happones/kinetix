@@ -10,7 +10,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { useKinetixAppearance } from '@/composables/useKinetixAppearance';
 import type { KinetixAppearance } from '@/composables/useKinetixAppearance';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * Dark-mode toggle button (Sun/Moon icon) with a Light / Dark / System dropdown.

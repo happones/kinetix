@@ -33,8 +33,8 @@ class ScheduledReportMail extends Mailable
     public function content(): Content
     {
         $app   = (string) config('app.name', 'Application');
-        $intro = (string) trans('kinetix.report_mail_intro', ['name' => $this->reportSubject]);
-        $outro = (string) trans('kinetix.report_mail_outro', ['app' => $app]);
+        $intro = (string) __('kinetix.report_mail_intro', ['name' => $this->reportSubject]);
+        $outro = (string) __('kinetix.report_mail_outro', ['app' => $app]);
 
         return new Content(
             htmlString: "<p>{$intro}</p><p style=\"color:#6b7280;font-size:13px\">{$outro}</p>",

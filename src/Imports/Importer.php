@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Imports;
 
 use Happones\Kinetix\Data\ImportColumnData;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
 abstract class Importer
@@ -72,6 +74,36 @@ abstract class Importer
         }
 
         return new $class;
+    }
+
+    /**
+     * Policy ability required to run this import. Null resolves to `create`
+     * whenever the target model has a policy; return a string to require a
+     * different ability, or override {@see authorize()} for custom logic.
+     */
+    public function ability(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Whether the given user may run this import.
+     *
+     * Enforced on every import endpoint (upload, preview, start), because an
+     * import is a write primitive: it creates and updates records of the target
+     * model. Without a policy on that model nothing is enforced here and the
+     * host owns access.
+     */
+    public function authorize(?Authenticatable $user): bool
+    {
+        $ability = $this->ability()
+            ?? (Gate::getPolicyFor(static::getModel()) !== null ? 'create' : null);
+
+        if ($ability === null) {
+            return true;
+        }
+
+        return Gate::forUser($user)->allows($ability, static::getModel());
     }
 
     /**

@@ -25,7 +25,7 @@ class PlanFeatureMiddleware
             && $billable->canUseFeature($feature);
 
         if (! $allowed) {
-            abort(403, (string) trans('kinetix.billing_feature_unavailable'));
+            abort(403, (string) __('kinetix.billing_feature_unavailable'));
         }
 
         return $next($request);

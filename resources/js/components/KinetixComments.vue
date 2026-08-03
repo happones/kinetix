@@ -4,8 +4,8 @@ import type { ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixComments } from '@/composables/useKinetixComments';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
-import { buttonVariants } from '@/composables/useShadcnVariants';
 import type { KinetixComment } from '@/types/kinetix';
 
 /**

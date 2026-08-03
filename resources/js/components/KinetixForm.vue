@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import {
     firstErroredField,
     focusField,
 } from '@/composables/useKinetixFormErrors';
 import { useKinetixPrecognition } from '@/composables/useKinetixPrecognition';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 
 const props = defineProps<{
@@ -31,6 +32,7 @@ const emit = defineEmits<{
     (e: 'submit', values: Record<string, any>): void;
 }>();
 
+const { t } = useI18n();
 const page = usePage();
 
 const formValues = ref<Record<string, any>>({ ...props.form.data });
@@ -85,20 +87,17 @@ watch(
 // When a fresh set of submit errors arrives, reveal + focus the first one.
 // Containers (Tabs/Wizard) independently switch to the panel holding an error
 // on the same change; focusField retries across frames until that panel mounts.
-watch(
-    serverErrors,
-    (bag) => {
-        const keys = Object.keys(bag);
+// Inertia replaces the error bag wholesale, so watching the reference is enough.
+watch(serverErrors, (bag) => {
+    const keys = Object.keys(bag);
 
-        if (keys.length === 0) {
-            return;
-        }
+    if (keys.length === 0) {
+        return;
+    }
 
-        dismissed.value = {};
-        focusField(firstErroredField(props.form.schema, keys));
-    },
-    { deep: true },
-);
+    dismissed.value = {};
+    focusField(firstErroredField(props.form.schema, keys));
+});
 
 const onUpdateValue = (name: string, value: any) => {
     formValues.value[name] = value;
@@ -134,7 +133,9 @@ const onSubmit = (e: Event) => {
         <!-- Actions Slot -->
         <div class="gap-3 mt-4 flex justify-end">
             <slot :values="formValues" :errors="errors">
-                <button type="submit" :class="buttonVariants()">Submit</button>
+                <button type="submit" :class="buttonVariants()">
+                    {{ t('kinetix.submit') }}
+                </button>
             </slot>
         </div>
     </form>

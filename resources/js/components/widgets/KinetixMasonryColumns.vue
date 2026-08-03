@@ -5,7 +5,7 @@ import {
     gapToPx,
     packIntoColumns,
     resolveResponsiveValue,
-} from '@/composables/useMasonryColumns';
+} from '@/composables/useKinetixMasonryColumns';
 import type { KinetixWidget } from '@/types/kinetix';
 
 /**

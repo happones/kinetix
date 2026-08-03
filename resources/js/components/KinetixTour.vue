@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTour } from '@/composables/useKinetixTour';
 import type { KinetixTourStep } from '@/composables/useKinetixTour';
-import { buttonVariants } from '@/composables/useShadcnVariants';
 
 /**
  * Dependency-free product tour. Highlights each step's target element with a

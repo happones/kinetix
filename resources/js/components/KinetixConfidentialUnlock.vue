@@ -10,7 +10,10 @@ import {
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixConfidential } from '@/composables/useKinetixConfidential';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import KinetixLabel from './KinetixLabel.vue';
 
 /**

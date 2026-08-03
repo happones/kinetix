@@ -15,7 +15,7 @@ class PreviewAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.preview'))
+        $this->label((string) __('kinetix.preview'))
             ->icon('eye')
             ->color('gray')
             ->preview();

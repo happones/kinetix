@@ -96,4 +96,22 @@ return new class extends Migration
             ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
             ->forget(config('permission.cache.key'));
     }
+
+    /**
+     * Deliberately not reversible.
+     *
+     * Rolling this back would mean dropping the team key from spatie's pivots and
+     * restoring their original primary keys — which silently discards every
+     * team-scoped role assignment (rows that only differ by team would collide on
+     * the restored PK) and destroys any global assignment. There is no safe
+     * automatic inverse, so this fails loudly instead of pretending to undo.
+     */
+    public function down(): void
+    {
+        throw new RuntimeException(
+            'This migration is not reversible: reverting it would drop the team key from '
+            .'spatie\'s permission pivots and discard every team-scoped role assignment. '
+            .'Restore from a backup instead.'
+        );
+    }
 };

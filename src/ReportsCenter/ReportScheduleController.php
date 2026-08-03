@@ -28,7 +28,7 @@ class ReportScheduleController
         $table = Table::make(ReportSchedule::query()->forCurrentTeam()->latest())
             ->columns([
                 TextColumn::make('report_class')
-                    ->label((string) trans('kinetix.report_runs_report_column'))
+                    ->label((string) __('kinetix.report_runs_report_column'))
                     ->formatStateUsing(fn ($value) => (new $value)->label()),
                 TextColumn::make('frequency'),
                 ToggleColumn::make('enabled'),
@@ -37,12 +37,12 @@ class ReportScheduleController
             ])
             ->recordActions([
                 Action::make('run-now')
-                    ->label((string) trans('kinetix.run_now'))
+                    ->label((string) __('kinetix.run_now'))
                     ->icon('play')
                     ->iconButton()
                     ->request(fn (ReportSchedule $schedule) => route('kinetix.report-schedules.run-now', $schedule)),
                 Action::make('delete')
-                    ->label((string) trans('kinetix.delete'))
+                    ->label((string) __('kinetix.delete'))
                     ->icon('trash')
                     ->iconButton()
                     ->color('danger')
@@ -62,7 +62,7 @@ class ReportScheduleController
         try {
             Report::fromToken($data['report']);
         } catch (Throwable) {
-            return response()->json(['message' => 'Invalid report.'], 422);
+            return response()->json(['message' => __('kinetix.report_invalid')], 422);
         }
 
         $reportClass = $this->classFromToken($data['report']);

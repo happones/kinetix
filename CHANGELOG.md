@@ -13,6 +13,138 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.129.0] - 2026-08-03
+
+A hardening release from a full-package audit. Nothing here adds features; it
+closes a cross-tenant write hole, makes the package deployable under
+`route:cache`, and fixes a publish gap that broke the host's frontend build.
+
+### Security
+
+- ⚠️ **Fixed: inline cell edits and reordering could write another tenant's
+  rows.** `_kinetix/tables/cell-update` and `.../reorder` resolved the record
+  with a bare `Model::find()` and ran **no authorization at all**, so any
+  authenticated user holding a valid table token could write to any record of
+  that model by changing `recordId`. Both endpoints now live in
+  `TableWriteController` and are guarded on four axes: the record resolves
+  through the table's own scope, the model's policy is enforced (`update`, or
+  `Table::writeAbility()`), the descriptor is bound to the user it was minted
+  for, and it expires (`kinetix.tables.token_ttl`, default 24h). Reordering also
+  saves through the model, so host observers and audit logs fire again, and
+  `ids: [[1,2]]` can no longer mass-assign one position.
+- **Signed descriptors are now user-bound and expiring** across tables, kanban
+  boards, searchable Selects and TableRepeater autosave. Encryption proved
+  Kinetix minted a payload but not that the presenter was entitled to it, so an
+  admin's token — which embeds a wider editable-column allowlist — was replayable
+  by anyone who obtained it.
+- **Exports and imports are authorized.** `Exporter::authorize()` /
+  `Importer::authorize()` (overridable, `viewAny`/`create` by default when the
+  model has a policy) now gate `exports/start` and every import endpoint. An
+  import is a write primitive and an export could previously be pointed at
+  arbitrary `ids`.
+- ⚠️ **Generated artifacts moved off the public disk.** Exports, uploaded import
+  files, report runs and GDPR personal-data dumps now use
+  `kinetix.filesystem.private_disk` (default `local`). On a public disk they were
+  served at a guessable `/storage/...` URL with **no authentication**, making the
+  token-guarded download route a side door. `kinetix.filesystem.disk` still
+  serves uploads and image URLs.
+- **Download links are bound to their recipient and expire**
+  (`kinetix.exports.download_ttl`). The GDPR dump link was documented as
+  one-time; it was neither bound nor expiring.
+- **Spreadsheet formula injection is neutralized** in CSV and XLSX exports.
+  Cells starting with `=`, `+`, `-`, `@` were written verbatim, and
+  PhpSpreadsheet typed a leading `=` as a real formula — so exported user content
+  like `=HYPERLINK(...)` exfiltrated the row of whoever opened the file.
+- **Uploads reject browser-executable files by default.** A `FileUpload` with no
+  `accept()` took anything; on the public disk an uploaded `.html`/`.svg` was
+  stored XSS on the app's own origin. See
+  `kinetix.filesystem.upload_blocked_extensions` and `upload_max_size`.
+- ⚠️ **Uploads are stored per user** (`kinetix.filesystem.scope_uploads_by_user`,
+  default on), which is what stops one user deleting another's file — uploads
+  previously shared one flat directory with no ownership record. Paths for new
+  uploads gain a user segment.
+- **Membership provisions are team-scoped on the admin endpoints.** An admin of
+  one team could update, resend (leaking an activation link) or revoke another
+  team's invitation by id.
+- **Impersonation can no longer be laundered into role management.** A user
+  holding `users.impersonate` could impersonate an admin holding `roles.manage`
+  and inherit the session. See `kinetix.impersonation.protected_permissions`.
+- **Searchable Selects can be bounded** with `Select::searchScope()`; without a
+  query modifier they returned every tenant's labels 20 rows at a time.
+- **TableRepeater no longer mints a write token for a read-only render**
+  (`view` operation or a disabled field), and its autosave endpoint enforces the
+  parent record's policy.
+- **Smaller fixes:** `perPage` is clamped (`kinetix.tables.max_per_page`) so a
+  crafted value can't hydrate a whole table into one payload; `AddressFilter`
+  escapes LIKE wildcards; PDF template colours are validated instead of
+  HTML-escaped into a `<style>` block; `MediaManager::sync()` constrains
+  client-supplied paths and only reorders media the record owns.
+
+### Fixed
+
+- ⚠️ **`php artisan route:cache` works.** Ten routes (notifications, table
+  cell-update/reorder, kanban-move) were registered as closures, so the standard
+  production deploy step failed for **every** app with Kinetix installed. They
+  are controllers now, and a test asserts the whole route surface stays
+  serializable.
+- ⚠️ **The published frontend builds.** `resources/js/icons` and
+  `resources/js/plugins` were missing from the `kinetix-components` publish tag,
+  while shipped components import `@/icons/kinetixBrands` and the docs instruct
+  registering `@/plugins/kinetix*` — so a host following the docs hit an
+  unresolvable import.
+- **Vue dialogs are accessible.** `KinetixConfirmModal` and `KinetixSheet` had no
+  focus trap, initial focus, focus restore or `aria-labelledby`; Tab reached the
+  page behind the overlay. Extracted as `useKinetixFocusTrap`.
+- **Kanban columns rendered every card at the same position.** `KanbanColumn`
+  read `virtual.enabled` (a always-truthy `Ref`) in its template instead of
+  `.value`, so it used virtualized markup with a window of 0.
+- **Queued exports, imports and GDPR dumps report failures.** None declared
+  `tries`/`backoff`/`failed()`, so a thrown job died in `failed_jobs` and the
+  user who was promised a notification never heard anything. Import failures now
+  name the row number and reason instead of only a count.
+- `validateEnvironment()` no longer reads and JSON-decodes `package.json` on
+  every production request (and can no longer hard-fail one); it runs in
+  local/testing, and `kinetix:doctor` covers it on demand.
+- The `kinetix.permissions.team` middleware is no longer pushed without its
+  `class_exists` guard on the PDF-templates and API-logs routes, which threw on a
+  teams-enabled host without spatie/laravel-permission.
+- Connected Accounts warns and skips route registration when laravel/socialite is
+  absent, instead of fataling at request time.
+- Timers in `KinetixTableRepeater` (now flushed on unmount, so a pending autosave
+  isn't lost), `KinetixMailTemplates`, `useKinetixIntegrationLogs`,
+  `useKinetixPrecognition`, `KinetixCopyableInput` and `KinetixInfolistEntries`
+  no longer fire after the component is gone.
+
+### Changed
+
+- ⚠️ **(published) Vendor-managed files that shared a host directory were
+  renamed** so a publish can never claim a filename the app might own:
+  `stores/notifications.ts` → `stores/kinetixNotifications.ts`,
+  `stores/tours.ts` → `stores/kinetixTours.ts`,
+  `composables/useMasonryColumns|useShadcnVariants|useStatusColor` →
+  `useKinetixMasonryColumns|useKinetixShadcnVariants|useKinetixStatusColor`,
+  `icons/brands*` → `icons/kinetixBrands*`. Update your imports; a test now
+  enforces the naming.
+- `Table/KinetixTableCell.vue` uses a component map (12 cell components) instead
+  of an 11-branch `v-else-if` chain in the hottest render path.
+- The `MediaLibrary` grid virtualizes past a threshold, like Kanban and Comments.
+- Widgets serialize through a `WidgetData` class, so widget payloads get a
+  generated TypeScript contract like every other builder.
+- User-facing endpoint messages are translated (7 locales) rather than hardcoded
+  English; `trans()` call sites are unified on `__()`.
+- `.gitattributes` keeps docs, tests, the gallery and dev config out of the
+  Packagist dist — 1602 → 933 files for every consumer.
+- `composer.json` `suggest` now lists Horizon, spatie/laravel-health,
+  spatie/laravel-medialibrary and Cashier, which the code already guards for.
+
+### Added
+
+- Tests for the above: `TableWriteSecurityTest`, `ExportImportSecurityTest`,
+  `TableRepeaterSecurityTest`, `RouteCachingTest`, `BillingHttpTest` (the billing
+  HTTP layer had no coverage at all) and `MiddlewareEnforcementTest`, which runs
+  with the real `web`+`auth` stack the rest of the suite clears and asserts every
+  route carries it. 947 → 989 PHP tests, 577 → 616 JS tests.
+
 ## [0.128.0] - 2026-08-03
 
 ### Changed

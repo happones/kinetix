@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { getCurrentScope, onScopeDispose, ref } from 'vue';
 import type { Ref } from 'vue';
 import { xsrfToken } from '@/composables/useKinetixHttp';
 
@@ -158,6 +158,19 @@ export function useKinetixPrecognition(
     };
 
     const validateAll = (): Promise<boolean> => request([]);
+
+    // Debounced validations are read-only checks with no side effects worth
+    // keeping, so a pending one is cancelled when the owning form goes away.
+    // Guarded because this may be called outside any effect scope.
+    if (getCurrentScope()) {
+        onScopeDispose(() => {
+            for (const timer of timers.values()) {
+                clearTimeout(timer);
+            }
+
+            timers.clear();
+        });
+    }
 
     return { errors, validating, validate, validateAll, clearError };
 }

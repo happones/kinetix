@@ -61,6 +61,27 @@ class AddressFilterTest extends TestCase
         $this->assertCount(3, $q->get());
     }
 
+    public function test_like_wildcards_in_the_term_are_escaped(): void
+    {
+        // An unescaped `%` would match every row and force a full scan, turning
+        // the filter into a cheap way to hammer the database.
+        $q = Place::query();
+        AddressFilter::make('address')->columns(['city'])->apply($q, '%');
+
+        $this->assertCount(0, $q->get());
+    }
+
+    public function test_a_literal_underscore_matches_only_itself(): void
+    {
+        Place::create(['city' => 'a_b', 'state' => 'TX', 'country' => 'United States']);
+        Place::create(['city' => 'axb', 'state' => 'TX', 'country' => 'United States']);
+
+        $q = Place::query();
+        AddressFilter::make('address')->columns(['city'])->apply($q, 'a_b');
+
+        $this->assertSame(['a_b'], $q->pluck('city')->all());
+    }
+
     public function test_serializes_with_address_type(): void
     {
         $data = AddressFilter::make('address')->columns(['city'])->toData();

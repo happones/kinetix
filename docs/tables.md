@@ -754,6 +754,39 @@ is baked into the same encrypted token as the table's model, so a request can
 only reorder a table that explicitly opted in via `reorderable()` — the column
 can't be forged from the client (the same guard as inline cell edits).
 
+### How the write endpoints are guarded
+
+Inline cell edits (`ToggleColumn`, `TextInputColumn`, `SelectColumn`) and
+reordering both post to Kinetix-owned endpoints that trust **only** the table's
+signed descriptor. That descriptor is defended on four axes:
+
+| Axis | What it stops |
+|---|---|
+| **Scoping** | The record is resolved through the table's own constraints, so a tampered `recordId` outside the table is a 404, not a write. |
+| **Authorization** | The model's policy decides — `update`, or the ability from `writeAbility()`. |
+| **Binding** | The descriptor records the user it was minted for, so a token lifted from an admin's page (with a wider editable-column allowlist) is useless to anyone else. |
+| **Freshness** | Descriptors expire after `kinetix.tables.token_ttl` minutes (default 1440). |
+
+Scoping is automatic for the common case: Kinetix reads the base query's simple
+`where` clauses when it mints the descriptor, so
+`Table::make(Post::where('team_id', $id))` is already bounded. Declare it
+explicitly when the constraints can't be introspected — a global scope, a nested
+closure, a join:
+
+```php
+Table::make($this->postsQuery())
+    ->writeScope(['team_id' => $request->user()->currentTeam->getKey()])
+    ->writeAbility('publish') // optional: require something narrower than `update`
+    ->columns([ToggleColumn::make('is_published')]);
+```
+
+::: warning Without a policy, scoping is the only boundary
+When the model has no policy, Kinetix enforces nothing here — the host owns
+access, exactly as with record actions and kanban moves. In a multi-tenant app
+that means the scope (captured or declared) is what keeps one tenant out of
+another's rows, so make sure your base query actually carries it.
+:::
+
 ---
 
 ## Defining a Table as a Class

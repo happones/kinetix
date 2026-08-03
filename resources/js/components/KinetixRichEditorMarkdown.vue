@@ -2,7 +2,7 @@
 import { Eye, Pencil } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { inputClass } from '@/composables/useShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * Zero-dependency Markdown editor: a textarea with a live preview tab. Stores the

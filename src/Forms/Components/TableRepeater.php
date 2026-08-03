@@ -113,17 +113,29 @@ class TableRepeater extends Repeater
         $data->exportable = $this->exportable;
         $data->autosave   = $this->autosave;
 
-        if ($this->autosave && $this->relationship !== null && $record !== null && $record->exists) {
+        // A write token is only minted for a render that can actually write: not
+        // for `view`, and not for a disabled field. The token IS the authority the
+        // autosave endpoint trusts, so handing one to a read-only render would let
+        // the row be edited anyway.
+        $isWritable = $operation !== 'view' && ! $data->isDisabled;
+
+        if ($isWritable && $this->autosave && $this->relationship !== null && $record !== null && $record->exists) {
             $columns = array_values(array_filter(array_map(
                 static fn (FormFieldData $field): ?string => $field->name,
                 $data->schema ?? [],
             )));
+
+            $ttl = config('kinetix.tables.token_ttl', 1440);
 
             $data->autosaveToken = Crypt::encrypt([
                 'parent'   => $record::class,
                 'key'      => $record->getKey(),
                 'relation' => $this->relationship,
                 'columns'  => $columns,
+                'user'     => auth()->id(),
+                'expires'  => is_numeric($ttl) && (int) $ttl > 0
+                    ? now()->getTimestamp() + ((int) $ttl * 60)
+                    : null,
             ]);
         }
 

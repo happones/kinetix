@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
@@ -48,6 +48,18 @@ describe('KinetixCopyableInput', () => {
         (input.element as HTMLInputElement).value = 'typed';
         await input.trigger('input');
         expect(w.emitted('update:value')?.[0]).toEqual(['typed']);
+    });
+
+    it('clears the "copied" reset timer on unmount', async () => {
+        vi.useFakeTimers();
+        const w = mountIt({ value: 'sk-123', copyable: true });
+        await w.find('button[aria-label="Copy"]').trigger('click');
+        await flushPromises();
+        expect(vi.getTimerCount()).toBe(1);
+
+        w.unmount();
+        expect(vi.getTimerCount()).toBe(0);
+        vi.useRealTimers();
     });
 
     it('renders no buttons when neither copyable nor revealable', () => {

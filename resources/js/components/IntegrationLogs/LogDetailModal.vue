@@ -14,7 +14,7 @@ import {
     pretty,
     statusClass,
 } from '@/composables/kinetixLogFormat';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixApiLog, KinetixWebhookLog } from '@/types/kinetix';
 
 defineProps<{

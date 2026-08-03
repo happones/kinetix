@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixReportSchedules } from '@/composables/useKinetixReportSchedules';
 import { useKinetixReportTypes } from '@/composables/useKinetixReportTypes';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import KinetixSelect from './KinetixSelect.vue';
 import KinetixTable from './KinetixTable.vue';
 

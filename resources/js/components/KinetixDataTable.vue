@@ -15,7 +15,7 @@ import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
     actionButtonVariant,
     buttonVariants,
-} from '@/composables/useShadcnVariants';
+} from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixAction,
     KinetixTableData,

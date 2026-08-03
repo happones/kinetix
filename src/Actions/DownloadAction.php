@@ -15,7 +15,7 @@ class DownloadAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.download'))
+        $this->label((string) __('kinetix.download'))
             ->icon('download')
             ->color('gray')
             ->download();

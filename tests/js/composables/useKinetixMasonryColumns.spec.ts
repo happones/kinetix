@@ -4,7 +4,7 @@ import {
     gapToPx,
     packIntoColumns,
     resolveResponsiveValue,
-} from '@/composables/useMasonryColumns';
+} from '@/composables/useKinetixMasonryColumns';
 
 describe('useMasonryColumns', () => {
     describe('resolveResponsiveValue', () => {

@@ -61,6 +61,37 @@ describe('KinetixConfirmModal', () => {
         w.unmount();
     });
 
+    it('moves focus into the panel and labels the dialog by its heading', async () => {
+        const w = mountModal();
+        await w.vm.$nextTick();
+        await w.vm.$nextTick();
+
+        const dialog = document.body.querySelector('[role="dialog"]')!;
+        const heading = document.body.querySelector('h2')!;
+        expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
+
+        const panel = document.body.querySelector(
+            '[role="dialog"] > div + div',
+        );
+        expect(panel?.contains(document.activeElement)).toBe(true);
+        w.unmount();
+    });
+
+    it('restores focus to the opener when it closes', async () => {
+        const opener = document.createElement('button');
+        document.body.append(opener);
+        opener.focus();
+
+        const w = mountModal();
+        await w.vm.$nextTick();
+        await w.vm.$nextTick();
+        expect(document.activeElement).not.toBe(opener);
+
+        await w.setProps({ open: false });
+        expect(document.activeElement).toBe(opener);
+        w.unmount();
+    });
+
     it('while processing: buttons disable and confirm/cancel are no-ops', async () => {
         const w = mountModal({ processing: true });
         await w.vm.$nextTick();

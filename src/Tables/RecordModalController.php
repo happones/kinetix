@@ -83,7 +83,7 @@ class RecordModalController
 
         $resource::getEloquentQuery()->create($data);
 
-        return back()->with('message', (string) trans('kinetix.record_created'));
+        return back()->with('message', (string) __('kinetix.record_created'));
     }
 
     /**
@@ -107,7 +107,7 @@ class RecordModalController
 
         $record->update($data);
 
-        return back()->with('message', (string) trans('kinetix.record_updated'));
+        return back()->with('message', (string) __('kinetix.record_updated'));
     }
 
     /**
@@ -122,7 +122,7 @@ class RecordModalController
 
         $record->delete();
 
-        return back()->with('message', (string) trans('kinetix.record_deleted'));
+        return back()->with('message', (string) __('kinetix.record_deleted'));
     }
 
     /**
@@ -165,7 +165,7 @@ class RecordModalController
     {
         $record = $resource::getEloquentQuery()->whereKey($id)->first();
 
-        abort_if($record === null, 404, 'Record not found.');
+        abort_if($record === null, 404, (string) __('kinetix.table_record_not_found'));
 
         return $record;
     }
@@ -183,6 +183,10 @@ class RecordModalController
             return;
         }
 
-        abort_unless(Gate::forUser(request()->user())->allows($ability, $subject), 403, 'This action is unauthorized.');
+        abort_unless(
+            Gate::forUser(request()->user())->allows($ability, $subject),
+            403,
+            (string) __('kinetix.table_write_forbidden'),
+        );
     }
 }

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Check, Copy, Eye, EyeOff } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { inputClass } from '@/composables/useShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * A text input with a click-to-copy button and/or a reveal toggle. When
@@ -43,15 +43,29 @@ const resolvedType = computed(() =>
     props.revealable && !revealed.value ? 'password' : props.inputType,
 );
 
+let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+
 async function copy(): Promise<void> {
     try {
         await navigator.clipboard.writeText(String(props.value ?? ''));
         copied.value = true;
-        setTimeout(() => (copied.value = false), 1500);
+
+        if (copiedTimer) {
+            clearTimeout(copiedTimer);
+        }
+
+        copiedTimer = setTimeout(() => (copied.value = false), 1500);
     } catch {
         // clipboard unavailable — silently ignore
     }
 }
+
+onBeforeUnmount(() => {
+    if (copiedTimer) {
+        clearTimeout(copiedTimer);
+        copiedTimer = null;
+    }
+});
 </script>
 
 <template>

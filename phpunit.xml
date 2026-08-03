@@ -15,6 +15,9 @@
         </include>
     </source>
     <php>
+        <!-- The whole suite runs in one process; 128M (a common CLI default) is
+             already exceeded, and finfo's mime detection allocates in megabytes. -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_KEY" value="base64:2fl+Ktv1bMxQwq3uOJ2A9eW6L+1Hk3xY8Q1pZ0r9aXs="/>
         <env name="DB_CONNECTION" value="testing"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

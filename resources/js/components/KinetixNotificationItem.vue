@@ -9,7 +9,7 @@ import {
     ShoppingBag,
 } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
-import { useNotificationsStore } from '@/stores/notifications';
+import { useNotificationsStore } from '@/stores/kinetixNotifications';
 import type { KinetixNotification } from '@/types/kinetix';
 
 defineProps<{

@@ -17,7 +17,7 @@ class ImportAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.import'))
+        $this->label((string) __('kinetix.import'))
             ->icon('upload')
             ->color('gray');
     }

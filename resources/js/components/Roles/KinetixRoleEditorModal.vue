@@ -11,7 +11,10 @@ import {
 } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import type { KinetixPermissionFeature, KinetixRole } from '@/types/kinetix';
 import KinetixCheckbox from '../KinetixCheckbox.vue';
 import KinetixLabel from '../KinetixLabel.vue';

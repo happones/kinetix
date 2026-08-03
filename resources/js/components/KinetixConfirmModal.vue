@@ -2,10 +2,11 @@
 import { AlertTriangle, Loader2, X } from '@lucide/vue';
 import { onBeforeUnmount, watch, ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useKinetixFocusTrap } from '@/composables/useKinetixFocusTrap';
 import {
     statusButtonClass,
     statusSoftClass,
-} from '@/composables/useStatusColor';
+} from '@/composables/useKinetixStatusColor';
 
 const props = withDefaults(
     defineProps<{
@@ -95,6 +96,14 @@ onBeforeUnmount(() => {
     }
 });
 
+// Focus moves into the panel on open, Tab cycles inside it, and the opener gets
+// focus back on close.
+const panelEl = ref<HTMLElement | null>(null);
+const { headingId } = useKinetixFocusTrap({
+    active: () => props.open,
+    container: () => panelEl.value,
+});
+
 const getConfirmButtonClass = (color?: string | null) =>
     statusButtonClass(color);
 
@@ -114,6 +123,7 @@ const getIconWrapperClass = (color?: string | null) => statusSoftClass(color);
                 class="inset-0 p-4 fixed z-[100] flex items-center justify-center"
                 role="dialog"
                 aria-modal="true"
+                :aria-labelledby="headingId"
             >
                 <!-- Overlay -->
                 <div
@@ -123,7 +133,9 @@ const getIconWrapperClass = (color?: string | null) => statusSoftClass(color);
 
                 <!-- Dialog -->
                 <div
-                    class="max-w-md rounded-xl shadow-2xl relative w-full border border-border bg-popover"
+                    ref="panelEl"
+                    tabindex="-1"
+                    class="max-w-md rounded-xl shadow-2xl relative w-full border border-border bg-popover outline-none"
                 >
                     <button
                         type="button"
@@ -145,6 +157,7 @@ const getIconWrapperClass = (color?: string | null) => statusSoftClass(color);
 
                             <div class="pt-1 flex-1">
                                 <h2
+                                    :id="headingId"
                                     class="text-base font-semibold tracking-tight leading-none text-foreground"
                                 >
                                     {{

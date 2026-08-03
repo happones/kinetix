@@ -15,7 +15,7 @@ class DeleteAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.delete'))
+        $this->label((string) __('kinetix.delete'))
             ->icon('trash')
             ->color('danger')
             ->requiresConfirmation()

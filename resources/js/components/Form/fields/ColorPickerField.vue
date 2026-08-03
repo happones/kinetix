@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inputClass } from '@/composables/useShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import { cn } from '../../primitives/cn';
 
 defineProps<{ comp: any; value: any }>();

@@ -32,14 +32,18 @@
         "dompdf/dompdf": "^3.0"
     },
     "suggest": {
-        "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions.",
-        "spatie/laravel-activitylog": "Preferred driver for the Kinetix activity feature (^4.8). When installed, Kinetix logs through it instead of its native store.",
+        "dompdf/dompdf": "Required only for PDF exports (^3.0) — when an Exporter sets format() to 'pdf'. Other formats (csv/xlsx) need nothing extra.",
+        "laravel/cashier": "Required for the Kinetix billing feature (^15.0|^16.0). The billable model must use Laravel\\Cashier\\Billable.",
+        "laravel/horizon": "Queue dashboard metrics for the Kinetix queue feature (^5.0). When installed, Kinetix reads Horizon's metrics; otherwise it falls back to the queue connection's own stats.",
         "laravel/pennant": "Preferred driver for the Kinetix feature-flags feature (^1.0). When installed, Kinetix resolves flags through Pennant; otherwise a native evaluator is used.",
-        "laravel/scout": "Search driver for the Kinetix spotlight command palette (^10.0). When a searched model is Searchable, spotlight routes through Scout; otherwise it uses a LIKE query.",
-        "spatie/laravel-webhook-server": "Preferred delivery driver for the Kinetix webhooks feature (^3.0). When installed, deliveries route through its tuned retries/backoff; otherwise Kinetix's native queued job is used.",
         "laravel/sanctum": "Required for the Kinetix developer-tokens feature (^4.0). The User model must use Laravel\\Sanctum\\HasApiTokens.",
+        "laravel/scout": "Search driver for the Kinetix spotlight command palette (^10.0). When a searched model is Searchable, spotlight routes through Scout; otherwise it uses a LIKE query.",
         "laravel/socialite": "Required for the Kinetix connected-accounts / social-auth feature (^5.0). Configure providers in config/services.php and kinetix.connected_accounts.providers.",
-        "dompdf/dompdf": "Required only for PDF exports (^3.0) — when an Exporter sets format() to 'pdf'. Other formats (csv/xlsx) need nothing extra."
+        "spatie/laravel-activitylog": "Preferred driver for the Kinetix activity feature (^4.8). When installed, Kinetix logs through it instead of its native store.",
+        "spatie/laravel-health": "Preferred driver for the Kinetix health feature (^1.0). When installed, Kinetix surfaces its registered checks; otherwise a native set of checks is used.",
+        "spatie/laravel-medialibrary": "Required for the Kinetix media-library feature (^11.0). Models must implement HasMedia; without it the media manager is a no-op.",
+        "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions.",
+        "spatie/laravel-webhook-server": "Preferred delivery driver for the Kinetix webhooks feature (^3.0). When installed, deliveries route through its tuned retries/backoff; otherwise Kinetix's native queued job is used."
     },
     "autoload": {
         "psr-4": {
@@ -53,7 +57,7 @@
     },
     "scripts": {
         "test": "phpunit",
-        "analyse": "phpstan analyse",
+        "analyse": "phpstan analyse --memory-limit=1G",
         "format": "pint"
     },
     "extra": {

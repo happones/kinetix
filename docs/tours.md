@@ -91,7 +91,7 @@ in your help menu, for example:
 
 ```vue
 <script setup lang="ts">
-import { useKinetixToursStore } from '@/stores/tours';
+import { useKinetixToursStore } from '@/stores/kinetixTours';
 
 const tours = useKinetixToursStore();
 </script>

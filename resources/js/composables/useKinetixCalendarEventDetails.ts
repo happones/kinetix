@@ -6,7 +6,7 @@ import { useActionConfirmation } from '@/composables/useKinetixActions';
 import {
     actionButtonVariant,
     buttonVariants,
-} from '@/composables/useShadcnVariants';
+} from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAction, KinetixCalendarEvent } from '@/types/kinetix';
 
 export interface UseKinetixCalendarEventDetailsOptions {

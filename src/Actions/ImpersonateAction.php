@@ -20,7 +20,7 @@ class ImpersonateAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.impersonate'))
+        $this->label((string) __('kinetix.impersonate'))
             ->icon('user')
             ->color('gray')
             ->authorize('users.impersonate')

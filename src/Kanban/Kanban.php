@@ -168,14 +168,31 @@ class Kanban
         return new KanbanData(
             heading: $this->heading,
             columns: $columns,
-            model: Crypt::encrypt([
-                'model'        => $this->getModelClass(),
-                'statusColumn' => $this->statusColumn,
-                'statuses'     => array_map(strval(...), array_keys($this->statuses)),
-                'moveAbility'  => $this->moveAbility,
-                'moveScope'    => $this->moveScope,
-            ]),
+            model: $this->buildMoveDescriptor(),
         );
+    }
+
+    /**
+     * Mint the signed descriptor {@see KanbanMoveController} trusts: the model,
+     * the status column and allowed keys, the ability and scope bounding the
+     * move, plus the user it was minted for and an expiry so a leaked token
+     * isn't replayable by someone else.
+     */
+    protected function buildMoveDescriptor(): string
+    {
+        $ttl = config('kinetix.tables.token_ttl', 1440);
+
+        return Crypt::encrypt([
+            'model'        => $this->getModelClass(),
+            'statusColumn' => $this->statusColumn,
+            'statuses'     => array_map(strval(...), array_keys($this->statuses)),
+            'moveAbility'  => $this->moveAbility,
+            'moveScope'    => $this->moveScope,
+            'user'         => auth()->id(),
+            'expires'      => is_numeric($ttl) && (int) $ttl > 0
+                ? now()->getTimestamp() + ((int) $ttl * 60)
+                : null,
+        ]);
     }
 
     /**
@@ -200,7 +217,7 @@ class Kanban
     /**
      * @return Collection<int, Model>
      */
-    protected function records()
+    protected function records(): Collection
     {
         $query = $this->resolveQuery();
 

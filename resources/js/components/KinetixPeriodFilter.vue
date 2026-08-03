@@ -10,7 +10,7 @@ import {
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { KinetixPeriodKey } from '@/composables/useKinetixPeriod';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * A dashboard period filter — segmented buttons (Last 7 days / 30 days / …) or a

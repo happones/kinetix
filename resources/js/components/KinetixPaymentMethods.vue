@@ -2,8 +2,8 @@
 import { Check, CreditCard, Plus, Trash2 } from '@lucide/vue';
 import { nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixStripe } from '@/composables/useKinetixStripe';
-import { buttonVariants } from '@/composables/useShadcnVariants';
 import type { KinetixPaymentMethod } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';

@@ -140,8 +140,8 @@ class ImportTest extends TestCase
 
     public function test_the_queued_job_restores_the_context_before_importing_rows(): void
     {
-        Storage::fake('public');
-        Storage::disk('public')->put('kinetix-imports/ctx.csv', "name\nAda\nGrace\n");
+        Storage::fake('local');
+        Storage::disk('local')->put('kinetix-imports/ctx.csv', "name\nAda\nGrace\n");
         ContextRecordingImporter::$seen = [];
 
         (new ImportProcessor(

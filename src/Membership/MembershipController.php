@@ -288,9 +288,21 @@ class MembershipController
         return (int) config('kinetix.membership.activation_expiry', 72);
     }
 
+    /**
+     * Resolve a provision for the ADMIN endpoints, constrained to the team the
+     * request is scoped to — exactly like index(). Without this, an admin of one
+     * team could update, resend or revoke another team's invitation by id, and
+     * `resend` in particular would hand them an activation link for it.
+     */
     protected function findProvision(Request $request): MemberProvision
     {
-        return MemberProvision::findOrFail($request->route('provision'));
+        $teamId = $this->teamId($request);
+
+        return MemberProvision::query()
+            ->when($teamId !== null, fn ($query) => $query->where('team_id', $teamId))
+            ->when($teamId === null, fn ($query) => $query->whereNull('team_id'))
+            ->whereKey($request->route('provision'))
+            ->firstOrFail();
     }
 
     protected function pendingProvisionOrFail(Request $request): MemberProvision

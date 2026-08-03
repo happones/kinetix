@@ -57,23 +57,44 @@ class MediaManager
      *
      * @param array<int, array<string, mixed>> $items
      */
-    public function sync(Model $record, string $collection, array $items, ?string $disk = null): void
-    {
+    public function sync(
+        Model $record,
+        string $collection,
+        array $items,
+        ?string $disk = null,
+        ?string $directory = null,
+    ): void {
         if (! $this->usesSpatie($record)) {
             return;
         }
 
         $disk ??= (string) config('kinetix.filesystem.disk', 'public');
 
-        // Add new uploads / keep existing, building the desired order of ids.
+        // `$items` reflects submitted form state, so both the ids and the paths in
+        // it are client-controlled. Existing media is therefore matched against
+        // what this record actually owns, and new files must sit inside the
+        // field's own directory — otherwise a crafted `path` could pull an
+        // unrelated file (say, someone's export) into this collection, and a
+        // crafted `id` could adopt or reorder another record's media.
+        $ownedIds = $record->getMedia($collection)
+            ->map(static fn ($media) => (string) $media->getKey())
+            ->all();
+
         $orderedIds = [];
+
         foreach ($items as $item) {
             $id   = $item['id']   ?? null;
             $path = $item['path'] ?? null;
 
             if ($id !== null && $id !== '') {
-                $orderedIds[] = $id;
-            } elseif (is_string($path) && $path !== '') {
+                if (in_array((string) $id, $ownedIds, true)) {
+                    $orderedIds[] = $id;
+                }
+
+                continue;
+            }
+
+            if (is_string($path) && $path !== '' && $this->isPathAllowed($path, $directory)) {
                 $media        = $record->addMediaFromDisk($path, $disk)->toMediaCollection($collection);
                 $orderedIds[] = $media->getKey();
             }
@@ -86,10 +107,27 @@ class MediaManager
             }
         });
 
-        // Persist the order.
+        // Persist the order. spatie's setNewOrder() is not record-scoped, so only
+        // ids verified above as belonging to this record are handed to it.
         if ($orderedIds !== []) {
             $mediaClass = $record->media()->getRelated();
             $mediaClass::setNewOrder($orderedIds);
         }
+    }
+
+    /**
+     * Whether a client-supplied path may be pulled into a media collection.
+     */
+    protected function isPathAllowed(string $path, ?string $directory): bool
+    {
+        if (str_contains($path, '..')) {
+            return false;
+        }
+
+        if ($directory === null) {
+            return true;
+        }
+
+        return str_starts_with($path, trim($directory, '/').'/');
     }
 }

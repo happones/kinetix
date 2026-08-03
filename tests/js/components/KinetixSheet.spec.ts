@@ -12,6 +12,10 @@ const i18n = createI18n({
     messages: { en: { kinetix: { close: 'Close' } } },
 });
 
+// Tracked so every sheet is unmounted between tests — a mounted one keeps its
+// escape-key and focus-trap listeners on `window`.
+const mounted: { unmount: () => void }[] = [];
+
 const mountSheet = async (props: Record<string, unknown> = {}) => {
     const wrapper = mount(KinetixSheet, {
         props: { open: true, ...props },
@@ -19,6 +23,9 @@ const mountSheet = async (props: Record<string, unknown> = {}) => {
         global: { plugins: [i18n] },
         attachTo: document.body,
     });
+    mounted.push(wrapper);
+    await nextTick();
+    // The panel teleports on the tick after mount.
     await nextTick();
 
     return wrapper;
@@ -26,6 +33,10 @@ const mountSheet = async (props: Record<string, unknown> = {}) => {
 
 describe('KinetixSheet', () => {
     afterEach(() => {
+        while (mounted.length > 0) {
+            mounted.pop()!.unmount();
+        }
+
         document.body.innerHTML = '';
     });
 
@@ -73,6 +84,39 @@ describe('KinetixSheet', () => {
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         await nextTick();
         expect(w.emitted('close')).toBeTruthy();
+    });
+
+    it('moves focus into the panel and labels the dialog by its heading', async () => {
+        await mountSheet({ title: 'Event details' });
+
+        const dialog = document.body.querySelector('[role="dialog"]')!;
+        const heading = document.body.querySelector('h2')!;
+        expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
+        expect(heading.id).not.toBe('');
+
+        const panel = document.body.querySelector(
+            '[role="dialog"] .shadow-2xl',
+        );
+        expect(panel?.contains(document.activeElement)).toBe(true);
+    });
+
+    it('omits aria-labelledby when there is no title to point at', async () => {
+        await mountSheet();
+
+        const dialog = document.body.querySelector('[role="dialog"]')!;
+        expect(dialog.hasAttribute('aria-labelledby')).toBe(false);
+    });
+
+    it('restores focus to the opener when it closes', async () => {
+        const opener = document.createElement('button');
+        document.body.append(opener);
+        opener.focus();
+
+        const w = await mountSheet({ title: 'Event details' });
+        expect(document.activeElement).not.toBe(opener);
+
+        await w.setProps({ open: false });
+        expect(document.activeElement).toBe(opener);
     });
 
     it('closes when the overlay is clicked', async () => {

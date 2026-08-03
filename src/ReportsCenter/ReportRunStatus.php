@@ -26,7 +26,7 @@ enum ReportRunStatus: string implements HasColor, HasLabel
 
     public function getLabel(): string
     {
-        return trans('kinetix.report_run_status_'.$this->value);
+        return __('kinetix.report_run_status_'.$this->value);
     }
 
     public function getColor(): string

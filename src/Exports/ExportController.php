@@ -6,7 +6,6 @@ namespace Happones\Kinetix\Exports;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -27,11 +26,20 @@ class ExportController
                 (string) $request->input('exporter', ''),
             );
         } catch (Throwable $e) {
-            return response()->json(['message' => 'Invalid exporter.'], 422);
+            return response()->json(['message' => __('kinetix.export_invalid')], 422);
         }
 
-        /** @var array<int, mixed> $ids */
-        $ids = (array) $request->input('ids', []);
+        if (! $exporter->authorize($request->user())) {
+            return response()->json(['message' => __('kinetix.export_forbidden')], 403);
+        }
+
+        // Only scalar ids: a nested array would widen `whereKey()` unpredictably.
+        // They are applied on top of the exporter's own query(), so they can only
+        // ever narrow what that query already allows.
+        $ids = array_values(array_filter(
+            (array) $request->input('ids', []),
+            static fn (mixed $id): bool => is_scalar($id),
+        ));
 
         $exporter->export($request->user(), $ids !== [] ? ['ids' => $ids] : []);
 
@@ -43,30 +51,25 @@ class ExportController
      */
     public function download(Request $request): StreamedResponse
     {
-        $token = (string) $request->input('token', '');
+        // The token is bound to the user it was minted for and expires, so a link
+        // that leaks out of a mailbox or a proxy log isn't a standing grant.
+        $payload = DownloadToken::open((string) $request->input('token', ''), $request->user());
 
-        try {
-            $payload = Crypt::decrypt($token);
-        } catch (Throwable $e) {
+        if ($payload === null) {
             abort(403);
         }
 
-        $path = is_array($payload) ? ($payload['path'] ?? '') : '';
-        $name = is_array($payload) ? ($payload['name'] ?? 'export') : 'export';
-        $disk = is_array($payload) && is_string($payload['disk'] ?? null)
-            ? $payload['disk']
-            : (string) config('kinetix.filesystem.disk', 'public');
+        ['disk' => $disk, 'path' => $path, 'name' => $name] = $payload;
 
         // Constrain to the export directory and require the file to still exist.
         if (
-            ! is_string($path)
-            || ! str_starts_with($path, $this->directory.'/')
+            ! str_starts_with($path, $this->directory.'/')
             || str_contains($path, '..')
             || ! Storage::disk($disk)->exists($path)
         ) {
             abort(404);
         }
 
-        return Storage::disk($disk)->download($path, (string) $name);
+        return Storage::disk($disk)->download($path, $name);
     }
 }

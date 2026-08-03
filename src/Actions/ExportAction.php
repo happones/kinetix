@@ -17,7 +17,7 @@ class ExportAction extends Action
     {
         parent::__construct($name);
 
-        $this->label((string) trans('kinetix.export'))
+        $this->label((string) __('kinetix.export'))
             ->icon('download')
             ->color('gray');
     }
@@ -37,7 +37,7 @@ class ExportAction extends Action
         // the user is notified with a download link when it finishes.
         $this->request(
             route('kinetix.exports.start', ['exporter' => $exporterClass::token()]),
-            ['method' => 'post', 'toast' => (string) trans('kinetix.export_started')],
+            ['method' => 'post', 'toast' => (string) __('kinetix.export_started')],
         );
 
         return $this;

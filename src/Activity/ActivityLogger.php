@@ -205,7 +205,7 @@ class ActivityLogger
      * @param  array<string, mixed>     $filters
      * @return Builder<covariant Model>
      */
-    protected function applyFilters($query, array $filters)
+    protected function applyFilters(Builder $query, array $filters): Builder
     {
         return $query
             ->with('causer')

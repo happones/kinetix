@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { statusBadgeClass } from '@/composables/useStatusColor';
-import type { KinetixChartMetric, KinetixWidget } from '@/types/kinetix';
+import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
+import type {
+    KinetixChartData,
+    KinetixChartDataset,
+    KinetixChartMetric,
+    KinetixChartPoint,
+    KinetixChartSlice,
+    KinetixWidget,
+} from '@/types/kinetix';
 import KinetixEmptyState from './KinetixEmptyState.vue';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
@@ -23,34 +30,37 @@ const props = defineProps<{
     widget: KinetixWidget;
 }>();
 
-const labels = computed<string[]>(() => props.widget.data.labels || []);
-const datasets = computed<any[]>(() => props.widget.data.datasets || []);
-const chartType = computed<string>(() => props.widget.data.chartType || 'line');
-const stacked = computed<boolean>(() => !!props.widget.data.stacked);
-const showLegend = computed<boolean>(() => !!props.widget.data.legend);
+// `KinetixWidget.data` is the untyped union of every widget kind's payload; a
+// chart widget's slice of it is `KinetixChartData`.
+const data = computed<KinetixChartData>(
+    () => props.widget.data as KinetixChartData,
+);
+
+const labels = computed<string[]>(() => data.value.labels || []);
+const datasets = computed<KinetixChartDataset[]>(
+    () => data.value.datasets || [],
+);
+const chartType = computed<string>(() => data.value.chartType || 'line');
+const stacked = computed<boolean>(() => !!data.value.stacked);
+const showLegend = computed<boolean>(() => !!data.value.legend);
 const centerValue = computed<string | null>(
-    () => props.widget.data.centerValue ?? null,
+    () => data.value.centerValue ?? null,
 );
 const centerCaption = computed<string | null>(
-    () => props.widget.data.centerLabel ?? null,
+    () => data.value.centerLabel ?? null,
 );
 const isHorizontalBar = computed(() => chartType.value === 'horizontalBar');
-const metrics = computed<KinetixChartMetric[]>(
-    () => props.widget.data.metrics ?? [],
-);
+const metrics = computed<KinetixChartMetric[]>(() => data.value.metrics ?? []);
 
 // Transform standard chart dataset structure to Unovis format
 // Map string labels to numeric indices to avoid NaN errors on continuous scale
-const chartData = computed(() => {
-    const lbls = labels.value;
+const chartData = computed<KinetixChartPoint[]>(() => {
     const dts = datasets.value;
 
-    return lbls.map((label: string, index: number) => {
-        const point: Record<string, any> = {
-            x: index,
-            label: label,
-        };
-        dts.forEach((dataset: any, dIndex: number) => {
+    return labels.value.map((label, index) => {
+        const point: KinetixChartPoint = { x: index, label };
+
+        dts.forEach((dataset, dIndex) => {
             point[`y_${dIndex}`] = dataset.data[index] ?? 0;
         });
 
@@ -70,13 +80,11 @@ const hasData = computed(() => {
     return chartData.value.length > 0;
 });
 
-const xAccessor = (d: any) => d?.x;
+const xAccessor = (d: KinetixChartPoint | null): number | undefined => d?.x;
 
-const yAccessors = computed(() => {
-    return datasets.value.map(
-        (_: any, index: number) => (d: any) => d?.[`y_${index}`],
-    );
-});
+const yAccessors = computed<
+    ((d: KinetixChartPoint | null) => number | string | null | undefined)[]
+>(() => datasets.value.map((_, index) => (d) => d?.[`y_${index}`]));
 
 // Vibrant modern colors
 const themeColors = [
@@ -89,7 +97,7 @@ const themeColors = [
     '#0ea5e9', // sky
 ];
 
-const colorAccessor = (_: any, index: number) => {
+const colorAccessor = (_d: KinetixChartPoint | null, index: number): string => {
     const customColor =
         datasets.value[index]?.borderColor ||
         datasets.value[index]?.backgroundColor;
@@ -101,9 +109,9 @@ const colorAccessor = (_: any, index: number) => {
     return themeColors[index % themeColors.length];
 };
 
-const groupedBarColors = computed(() => {
-    return datasets.value.map((_, index) => colorAccessor(null, index));
-});
+const groupedBarColors = computed<string[]>(() =>
+    datasets.value.map((_, index) => colorAccessor(null, index)),
+);
 
 // Area fills use a vertical gradient (solid → transparent), shadcn-style. Each
 // series gets a unique gradient def referenced by `fill: url(#id)`.
@@ -112,7 +120,7 @@ const gradientUid = computed(() =>
 );
 const areaGradientId = (index: number): string =>
     `kx-area-${gradientUid.value}-${index}`;
-const areaColors = computed(() =>
+const areaColors = computed<string[]>(() =>
     datasets.value.map((_, index) => `url(#${areaGradientId(index)})`),
 );
 
@@ -135,11 +143,11 @@ const legendItems = computed<{ label: string; color: string }[]>(() => {
 const horizontalBars = computed<
     { label: string; value: number; pct: number; color: string }[]
 >(() => {
-    const data: number[] = datasets.value[0]?.data ?? [];
-    const max = Math.max(1, ...data.map((v) => Number(v) || 0));
+    const values = datasets.value[0]?.data ?? [];
+    const max = Math.max(1, ...values.map((v) => Number(v) || 0));
 
     return labels.value.map((label, index) => {
-        const value = Number(data[index]) || 0;
+        const value = Number(values[index]) || 0;
 
         return {
             label,
@@ -164,28 +172,32 @@ const isCircular = computed(() => {
     return false;
 });
 
-const pieData = computed(() => {
+const pieData = computed<KinetixChartSlice[]>(() => {
     if (!isCircular.value) {
         return [];
     }
 
-    const lbls = labels.value;
     const dataset = datasets.value[0];
 
     if (!dataset || !Array.isArray(dataset.data)) {
         return [];
     }
 
-    return lbls.map((label: string, index: number) => ({
+    return labels.value.map((label, index) => ({
         label,
         value: dataset.data[index] ?? 0,
     }));
 });
 
-const pieValueAccessor = (d: any) => d?.value;
-const pieLabelAccessor = (d: any) => d?.label;
-const pieColorAccessor = (_: any, index: number) =>
-    themeColors[index % themeColors.length];
+const pieValueAccessor = (
+    d: KinetixChartSlice | null,
+): number | string | null | undefined => d?.value;
+const pieLabelAccessor = (d: KinetixChartSlice | null): string | undefined =>
+    d?.label;
+const pieColorAccessor = (
+    _d: KinetixChartSlice | null,
+    index: number,
+): string => themeColors[index % themeColors.length];
 
 const arcWidthValue = computed(() => {
     if (chartType.value === 'pie') {
@@ -195,7 +207,7 @@ const arcWidthValue = computed(() => {
     return 40; // donut
 });
 
-const tooltipTemplate = (d: any) => {
+const tooltipTemplate = (d: KinetixChartPoint | null): string => {
     if (!d) {
         return '';
     }
@@ -204,7 +216,7 @@ const tooltipTemplate = (d: any) => {
     let html = `<div class="p-3 text-xs font-sans bg-popover/95 text-popover-foreground rounded-lg border border-border shadow-md">
         <div class="font-bold mb-2 border-b border-border pb-1.5">${label}</div>`;
 
-    datasets.value.forEach((dataset: any, index: number) => {
+    datasets.value.forEach((dataset, index) => {
         const val = d[`y_${index}`];
         const color = colorAccessor(null, index);
         html += `<div class="flex items-center gap-4 mt-1.5 min-w-[120px]">
@@ -219,7 +231,7 @@ const tooltipTemplate = (d: any) => {
     return html;
 };
 
-const pieTooltipTemplate = (d: any) => {
+const pieTooltipTemplate = (d: KinetixChartSlice | null): string => {
     if (!d) {
         return '';
     }
@@ -274,9 +286,7 @@ const pieTooltipTemplate = (d: any) => {
                             <span
                                 v-if="metric.badge"
                                 class="px-1.5 py-0.5 text-xs font-medium rounded-full"
-                                :class="
-                                    statusBadgeClass(metric.badgeColor as any)
-                                "
+                                :class="statusBadgeClass(metric.badgeColor)"
                                 >{{ metric.badge }}</span
                             >
                         </div>

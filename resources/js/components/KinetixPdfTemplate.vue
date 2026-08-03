@@ -5,7 +5,10 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixPdfField,
     KinetixPdfTemplateData,

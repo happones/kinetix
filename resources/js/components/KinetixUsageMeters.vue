@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { statusFillClass, statusTextClass } from '@/composables/useStatusColor';
+import {
+    statusFillClass,
+    statusTextClass,
+} from '@/composables/useKinetixStatusColor';
 import type { KinetixUsageMetricData } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';

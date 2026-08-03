@@ -100,8 +100,44 @@ class ContactImporter extends Importer
 | `context(Request $request): array` | Request context captured at dispatch, restored on the worker (see below) |
 | `getContext(): array` / `$this->context` | Read the restored context inside `importRow()` / `resolveRecord()` |
 | `token()` / `fromToken()` | Signed class token passed to/from the frontend |
+| `ability(): ?string` | Policy ability required to run the import (null = `create` when the model has a policy) |
+| `authorize(?Authenticatable $user): bool` | Override for custom authorization; enforced on every import endpoint |
 | `protected bool $downloadableTemplate = true` | Offer a "Download template" link in the import modal |
 | `protected ?string $templateFileName = null` | Template filename (null = studly class name, `ProductImporter.csv`) |
+
+### Authorization
+
+An import is a write primitive: it creates and updates records of the target
+model. Every endpoint (`upload`, `preview`, `start`) therefore authorizes before
+doing anything, so an importer token that reaches a lower-privileged user's page
+can't be replayed into a bulk write.
+
+By default the target model's `create` ability is required whenever it has a
+policy. Narrow it, or take over entirely:
+
+```php
+class ProductImporter extends Importer
+{
+    protected static ?string $model = Product::class;
+
+    // Require a specific ability instead of `create`.
+    public function ability(): ?string
+    {
+        return 'import';
+    }
+
+    // …or decide yourself.
+    public function authorize(?Authenticatable $user): bool
+    {
+        return $user?->hasRole('data-team') ?? false;
+    }
+}
+```
+
+::: warning No policy means no check
+With no policy on the model, nothing is enforced here and the host owns access —
+the same convention as record actions. Add a policy or override `authorize()`.
+:::
 
 ### Downloadable template
 
@@ -303,7 +339,7 @@ Customize the dispatch by overriding `queue()` and `chunkSize()`, or the whole p
 
 A queued `Exporter` streams records (CSV) or builds a workbook (Excel) to storage, then sends the user a **download notification** carrying a signed, time-unguessable download link.
 
-> **Storage disk.** Exports and the temporary import file both use the global `kinetix.filesystem.disk` (default `public`; set it to `s3`, etc.). Because CSV/XLSX read & write need a real local path, cloud disks are bridged automatically: exports write to a temp file then upload to the disk, and imports stream the file to a temp path for parsing (handled by `Happones\Kinetix\Support\KinetixDisk`). The signed download token carries the disk it was written to.
+> **Storage disk.** Exports and the temporary import file both use `kinetix.filesystem.private_disk` (default `local`), **not** the public `kinetix.filesystem.disk` that serves uploads and image columns. Generated artifacts must not be reachable by URL: on a public disk they sit at a guessable `/storage/…` path with no authentication, which turns the token-guarded download route into a side door. Because CSV/XLSX read & write need a real local path, cloud disks are bridged automatically: exports write to a temp file then upload to the disk, and imports stream the file to a temp path for parsing (handled by `Happones\Kinetix\Support\KinetixDisk`). The signed download token carries the disk it was written to.
 
 ```mermaid
 graph LR
@@ -487,9 +523,31 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 | `->label(string)` | Column heading |
 | `->formatStateUsing(Closure)` | Transform the value (`fn ($value, $record)`) |
 
+### Authorization
+
+`Exporter::ability()` / `Exporter::authorize()` mirror the importer API and are
+enforced by the export-start endpoint, defaulting to the model's `viewAny`
+ability when it has a policy.
+
+Scope the data in `query()`: a bulk export's selected `ids` are applied **on top
+of** that query, so they can only ever narrow what it already allows — but a
+default `query()` is unscoped.
+
+```php
+class InvoiceExporter extends Exporter
+{
+    protected static ?string $model = Invoice::class;
+
+    public function query(): Builder
+    {
+        return Invoice::where('team_id', auth()->user()->currentTeam->getKey());
+    }
+}
+```
+
 ### Download endpoint & security
 
-`GET {prefix}/exports/download?token=…` (named `kinetix.exports.download`) streams the file. The token is an encrypted payload of the stored path + download name, constrained to the `kinetix-exports` directory; the route sits behind the configured `web`+`auth` middleware.
+`GET {prefix}/exports/download?token=…` (named `kinetix.exports.download`) streams the file. The token is an encrypted payload of the stored path + download name, constrained to the `kinetix-exports` directory, **bound to the user it was minted for** and expiring after `kinetix.exports.download_ttl` minutes (default 24h) — so a link that leaks out of a mailbox or a proxy log is not a standing grant. The route also sits behind the configured `web`+`auth` middleware.
 
 > **Teams.** The export endpoints (`exports/start` and `exports/download`) are
 > the one Kinetix group registered **without** the `{current_team}` prefix:

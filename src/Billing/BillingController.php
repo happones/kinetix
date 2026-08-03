@@ -68,7 +68,7 @@ class BillingController
             return back()->withErrors(['message' => $e->getMessage()]);
         }
 
-        return back()->with('status', (string) trans('kinetix.billing_subscription_updated'));
+        return back()->with('status', (string) __('kinetix.billing_subscription_updated'));
     }
 
     public function addPaymentMethod(Request $request): RedirectResponse
@@ -83,7 +83,7 @@ class BillingController
             return back()->withErrors(['message' => $e->getMessage()]);
         }
 
-        return back()->with('status', (string) trans('kinetix.billing_payment_method_added'));
+        return back()->with('status', (string) __('kinetix.billing_payment_method_added'));
     }
 
     public function removePaymentMethod(Request $request): RedirectResponse
@@ -94,7 +94,7 @@ class BillingController
             return back()->withErrors(['message' => $e->getMessage()]);
         }
 
-        return back()->with('status', (string) trans('kinetix.billing_payment_method_removed'));
+        return back()->with('status', (string) __('kinetix.billing_payment_method_removed'));
     }
 
     public function downloadInvoice(Request $request): mixed
@@ -106,13 +106,13 @@ class BillingController
     {
         $this->manager()->cancel();
 
-        return back()->with('status', (string) trans('kinetix.billing_subscription_cancelled'));
+        return back()->with('status', (string) __('kinetix.billing_subscription_cancelled'));
     }
 
     public function resume(Request $request): RedirectResponse
     {
         $this->manager()->resume();
 
-        return back()->with('status', (string) trans('kinetix.billing_subscription_resumed'));
+        return back()->with('status', (string) __('kinetix.billing_subscription_resumed'));
     }
 }

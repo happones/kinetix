@@ -54,14 +54,58 @@ return [
     | Kinetix Filesystem
     |--------------------------------------------------------------------------
     |
-    | The default filesystem disk used for file uploads (FileUpload field) and
-    | for resolving asset URLs (ImageColumn). Defaults to "public"; point it at
-    | any configured disk (e.g. "s3"). Per-component overrides are available via
+    | Two disks, deliberately separate. `disk` holds user-facing files that are
+    | meant to be linked to — FileUpload fields, ImageColumn/ImageEntry asset
+    | URLs — and defaults to "public". `private_disk` holds generated artifacts
+    | nobody should reach by URL, and defaults to "local". Point either at any
+    | configured disk (e.g. "s3"). Per-component overrides are available via
     | FileUpload::disk() and ImageColumn::disk().
     |
     */
     'filesystem' => [
         'disk' => env('KINETIX_FILESYSTEM_DISK', 'public'),
+
+        // Disk for GENERATED artifacts: exports, uploaded import files, report
+        // runs and GDPR personal-data dumps. Keep this private — on a public
+        // disk these are served at a guessable /storage/... URL with no auth,
+        // so the token-guarded download endpoints become a side door and a
+        // user's personal-data export is protected by nothing but obscurity.
+        'private_disk' => env('KINETIX_FILESYSTEM_PRIVATE_DISK', 'local'),
+
+        // Fallback size ceiling (kilobytes) for a FileUpload field that doesn't
+        // declare maxSize(), so an unbounded upload can't fill the disk.
+        'upload_max_size' => env('KINETIX_UPLOAD_MAX_SIZE', 12288),
+
+        // Store uploads under a per-user subdirectory. This is what stops one
+        // user from naming — and therefore deleting — another user's file, since
+        // uploads otherwise share one flat directory with no ownership record.
+        'scope_uploads_by_user' => env('KINETIX_SCOPE_UPLOADS_BY_USER', true),
+
+        // Extensions refused by a FileUpload field that declares no accept():
+        // anything a browser would execute if served from the app's own origin.
+        // A field that explicitly accepts one of these overrides the list.
+        'upload_blocked_extensions' => [
+            'html', 'htm', 'xhtml', 'shtml', 'svg', 'xml', 'xsl',
+            'js', 'mjs', 'cjs', 'jsx', 'vue',
+            'php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'phar', 'phps',
+            'swf', 'jar', 'hta', 'htaccess',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Exports
+    |--------------------------------------------------------------------------
+    |
+    | How long (minutes) an export / GDPR download link stays valid. The link's
+    | token is bound to the user it was minted for, so this only bounds how long
+    | that user's own link keeps working — it is not the only thing protecting
+    | the file. Null disables expiry (not recommended: these links travel through
+    | email and proxy logs).
+    |
+    */
+    'exports' => [
+        'download_ttl' => env('KINETIX_EXPORT_DOWNLOAD_TTL', 1440),
     ],
 
     /*
@@ -786,6 +830,18 @@ return [
         // but shows the value as of the last table load). Per-table override:
         // ->recordModals(Resource::class, source: 'row').
         'record_source' => env('KINETIX_TABLES_RECORD_SOURCE', 'server'),
+
+        // How long (minutes) a table's signed write descriptor stays valid. The
+        // descriptor authorizes inline cell edits, reordering and kanban moves,
+        // and is bound to the user it was minted for, so this bounds the replay
+        // window of a token captured from a long-lived page. Beyond it the
+        // endpoints answer 403 and the page must be reloaded. Null disables
+        // expiry (not recommended).
+        'token_ttl' => env('KINETIX_TABLES_TOKEN_TTL', 1440),
+
+        // Hard ceiling on the `perPage` a request may ask for, so a crafted
+        // ?perPage=10000000 can't hydrate a whole table into one payload.
+        'max_per_page' => env('KINETIX_TABLES_MAX_PER_PAGE', 200),
     ],
 
     'saved_views' => [
@@ -969,6 +1025,13 @@ return [
 
         // Optional override: fn (Authenticatable $impersonator, Authenticatable $target): bool
         'can_impersonate' => null,
+
+        // Permissions that make a user off-limits to impersonate unless the
+        // impersonator holds them too. Impersonating a session means inheriting
+        // it, so without this `users.impersonate` can be laundered into role
+        // management by impersonating whoever holds it. Add any of your own
+        // abilities that grant privileges to others.
+        'protected_permissions' => ['roles.manage'],
     ],
 
     /*

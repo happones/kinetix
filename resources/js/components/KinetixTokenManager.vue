@@ -2,8 +2,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTokens } from '@/composables/useKinetixTokens';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
 import type { KinetixToken } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixDatePicker from './KinetixDatePicker.vue';

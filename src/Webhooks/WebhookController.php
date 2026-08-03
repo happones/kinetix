@@ -203,7 +203,7 @@ class WebhookController
     /**
      * @return Builder<WebhookEndpoint>
      */
-    protected function scopedEndpoints()
+    protected function scopedEndpoints(): Builder
     {
         return WebhookEndpoint::query()->where('team_id', $this->teamId());
     }

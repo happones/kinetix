@@ -99,7 +99,9 @@ if eslint lints `resources/`, mirror them in your flat config:
     'resources/js/components/kinetix/**',
     'resources/js/composables/useKinetix*',
     'resources/js/composables/kinetix*',
-    'resources/js/stores/notifications.ts',
+    'resources/js/stores/kinetix*.ts',
+    'resources/js/plugins/kinetix*.ts',
+    'resources/js/icons/kinetixBrands*',
     'resources/js/types/index.ts',
     'resources/js/vue-i18n-locales*',
   ],
@@ -359,7 +361,8 @@ return [
     // Real-time WebSocket config (Laravel Echo). See the Notifications guide.
     'broadcasting' => [ /* 'echo' => [ ... ] */ ],
 
-    // Global filesystem disk for uploads, image columns, exports & imports.
+    // Public disk for uploads & image columns. Generated artifacts (exports,
+    // imports, report runs, GDPR dumps) use `private_disk` instead.
     'filesystem' => ['disk' => env('KINETIX_FILESYSTEM_DISK', 'public')],
 
     // Scope internal routes/queries to the current team (e.g. {team}/_kinetix).

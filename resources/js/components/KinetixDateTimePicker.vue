@@ -8,7 +8,7 @@ import {
 } from 'reka-ui';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import KinetixCalendar from './KinetixCalendar.vue';
 import { cn } from './primitives/cn';
 import ScrollArea from './primitives/ScrollArea.vue';

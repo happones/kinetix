@@ -15,7 +15,7 @@ vi.mock('@/composables/useKinetixHttp', () => ({
     kinetixRoutePrefix: () => '_kinetix',
 }));
 
-import { useKinetixToursStore } from '@/stores/tours';
+import { useKinetixToursStore } from '@/stores/kinetixTours';
 
 const TOURS = [
     {

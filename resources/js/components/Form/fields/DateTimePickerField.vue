@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inputClass } from '@/composables/useShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixDateTimePicker from '../../KinetixDateTimePicker.vue';
 
 defineProps<{ comp: any; value: any }>();

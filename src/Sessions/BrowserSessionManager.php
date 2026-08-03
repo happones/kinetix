@@ -78,10 +78,7 @@ class BrowserSessionManager
             ->delete();
     }
 
-    /**
-     * @return Builder
-     */
-    protected function query()
+    protected function query(): Builder
     {
         $connection = config('session.connection');
         $table      = (string) config('session.table', 'sessions');

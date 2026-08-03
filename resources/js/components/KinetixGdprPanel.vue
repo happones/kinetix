@@ -11,7 +11,10 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixGdpr } from '@/composables/useKinetixGdpr';
-import { buttonVariants, inputClass } from '@/composables/useShadcnVariants';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
 import KinetixLabel from './KinetixLabel.vue';
 import { cn } from './primitives/cn';
 

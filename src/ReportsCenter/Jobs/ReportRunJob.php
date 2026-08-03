@@ -105,7 +105,7 @@ class ReportRunJob implements ShouldQueue
 
             $storedName   = Str::uuid()->toString().'.'.$format;
             $relativePath = $this->directory.'/'.$storedName;
-            $disk         = KinetixDisk::name();
+            $disk         = KinetixDisk::privateName();
             $tempPath     = (string) tempnam(sys_get_temp_dir(), 'kinetix_report_');
 
             $writer = new FileWriter($tempPath, $format);
@@ -230,12 +230,12 @@ class ReportRunJob implements ShouldQueue
         $url = route('kinetix.report-runs.download', $run);
 
         $notification = Notification::make()
-            ->title((string) trans('kinetix.report_run_ready'))
-            ->body((string) trans('kinetix.report_run_ready_body'))
+            ->title((string) __('kinetix.report_run_ready'))
+            ->body((string) __('kinetix.report_run_ready_body'))
             ->success()
             ->actions([
                 Action::make('download')
-                    ->label((string) trans('kinetix.download_export'))
+                    ->label((string) __('kinetix.download_export'))
                     ->icon('download')
                     ->color('primary')
                     ->button()

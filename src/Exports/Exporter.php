@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Exports;
 
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
 abstract class Exporter
@@ -58,12 +60,46 @@ abstract class Exporter
 
     /**
      * The query whose records are exported. Override to filter/scope the export.
+     *
+     * This is the export's data boundary: the `ids` of a bulk export are applied
+     * ON TOP of it, so a tampered id list can never reach beyond what this query
+     * already allows. In a multi-tenant app, scope it here.
      */
     public function query(): Builder
     {
         $model = static::getModel();
 
         return $model::query();
+    }
+
+    /**
+     * Policy ability required to run this export. Null resolves to `viewAny`
+     * whenever the exported model has a policy; return a string to require a
+     * different ability, or override {@see authorize()} for custom logic.
+     */
+    public function ability(): ?string
+    {
+        return null;
+    }
+
+    /**
+     * Whether the given user may run this export.
+     *
+     * Enforced by the export-start endpoint before anything is queued, so an
+     * exporter token leaked into a lower-privileged user's page can't be
+     * replayed into a data dump. Without a policy on the model nothing is
+     * enforced here and the host owns access — scope {@see query()} accordingly.
+     */
+    public function authorize(?Authenticatable $user): bool
+    {
+        $ability = $this->ability()
+            ?? (Gate::getPolicyFor(static::getModel()) !== null ? 'viewAny' : null);
+
+        if ($ability === null) {
+            return true;
+        }
+
+        return Gate::forUser($user)->allows($ability, static::getModel());
     }
 
     /**
@@ -188,7 +224,7 @@ abstract class Exporter
             }
 
             if (! $labelPlaced && $index === 0) {
-                $row[]       = (string) trans('kinetix.summary_total');
+                $row[]       = (string) __('kinetix.summary_total');
                 $labelPlaced = true;
 
                 continue;

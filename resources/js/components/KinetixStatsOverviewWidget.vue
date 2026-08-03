@@ -20,7 +20,7 @@ import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
     statusBadgeClass,
     statusSoftClass,
-} from '@/composables/useStatusColor';
+} from '@/composables/useKinetixStatusColor';
 import type { KinetixWidget, KinetixStat } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';

@@ -142,6 +142,22 @@ class Table implements Arrayable, JsonSerializable
     protected ?string $recordModalsSource = null;
 
     /**
+     * Policy ability enforced on inline cell edits and reordering. Null lets
+     * {@see TableWriteController} fall back to `update` whenever the model has
+     * a policy. Set via {@see writeAbility()}.
+     */
+    protected ?string $writeAbility = null;
+
+    /**
+     * Explicit constraints bounding which records the table's write endpoints
+     * may touch. Empty means they are captured from the base query at mint
+     * time. Set via {@see writeScope()}.
+     *
+     * @var array<string, mixed>|null
+     */
+    protected ?array $writeScope = null;
+
+    /**
      * Create a new table builder instance.
      *
      * @param Builder|Model|string $queryOrModel Eloquent query builder, model instance, or model class string.
@@ -504,6 +520,39 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Policy ability to enforce on inline cell edits and drag-and-drop
+     * reordering. By default the model's `update` ability is used whenever it
+     * has a policy; pass an explicit ability to require something narrower.
+     */
+    public function writeAbility(string $ability): static
+    {
+        $this->writeAbility = $ability;
+
+        return $this;
+    }
+
+    /**
+     * Constrain which records the table's write endpoints may touch, so a
+     * tampered record id resolves to a 404 instead of a cross-tenant write.
+     *
+     * Kinetix captures the base query's simple `where` clauses automatically, so
+     * `Table::make(Post::where('team_id', $id))` is already bounded. Declare the
+     * scope explicitly when the base query builds its constraints in a way that
+     * can't be introspected — a global scope, a nested closure, or a join:
+     *
+     *     Table::make($this->postsQuery())
+     *         ->writeScope(['team_id' => $request->user()->currentTeam->getKey()])
+     *
+     * @param array<string, mixed> $constraints
+     */
+    public function writeScope(array $constraints): static
+    {
+        $this->writeScope = $constraints;
+
+        return $this;
+    }
+
+    /**
      * Namespace this table's query-string params (e.g. 'posts_' → posts_search, posts_page).
      */
     public function queryPrefix(string $prefix): static
@@ -663,7 +712,7 @@ class Table implements Arrayable, JsonSerializable
         $records    = [];
         $pagination = null;
 
-        $perPage = (int) $this->param('perPage', (string) $this->defaultPaginationPageOption);
+        $perPage = $this->resolvePerPage();
 
         if ($this->clientSide) {
             // Ship the full (capped) set; the browser paginates. Base-query
@@ -759,11 +808,7 @@ class Table implements Arrayable, JsonSerializable
             poll: $this->poll,
             isStriped: $this->isStriped,
             stickyActions: $this->stickyActions,
-            model: Crypt::encrypt([
-                'model'   => $this->getModelClass(),
-                'columns' => $editableColumns,
-                'reorder' => $this->reorderColumn,
-            ]),
+            model: $this->buildWriteDescriptor($editableColumns),
             columns: $columnsData,
             filters: $filtersData,
             recordActions: $recordActionsData,
@@ -783,6 +828,107 @@ class Table implements Arrayable, JsonSerializable
             clientSide: $this->clientSide,
             recordModals: $this->buildRecordModalsData(),
         );
+    }
+
+    /**
+     * The page size for this request, clamped so a crafted `?perPage=10000000`
+     * can't hydrate the whole table into one Inertia payload. Values the table
+     * itself offers via paginationPageOptions() are always honored; anything
+     * else is capped at `kinetix.tables.max_per_page`.
+     */
+    protected function resolvePerPage(): int
+    {
+        $perPage = (int) $this->param('perPage', (string) $this->defaultPaginationPageOption);
+
+        if ($perPage < 1) {
+            return $this->defaultPaginationPageOption;
+        }
+
+        if (in_array($perPage, $this->paginationPageOptions, true)) {
+            return $perPage;
+        }
+
+        $max = config('kinetix.tables.max_per_page', 200);
+
+        if (! is_numeric($max) || (int) $max < 1) {
+            return $perPage;
+        }
+
+        return min($perPage, (int) $max);
+    }
+
+    /**
+     * Mint the signed descriptor the write endpoints trust.
+     *
+     * Beyond the model and the editable-columns allowlist, it carries everything
+     * {@see TableWriteController} needs to fail closed without the client ever
+     * naming a class: the resource (so records resolve through the resource's own
+     * query), the scope bounding the lookup, the ability to enforce, the user it
+     * was minted for (so a leaked token isn't replayable by someone else), and
+     * an expiry.
+     *
+     * @param array<int, string> $editableColumns
+     */
+    protected function buildWriteDescriptor(array $editableColumns): string
+    {
+        $ttl = config('kinetix.tables.token_ttl', 1440);
+
+        return Crypt::encrypt([
+            'model'    => $this->getModelClass(),
+            'columns'  => $editableColumns,
+            'reorder'  => $this->reorderColumn,
+            'resource' => $this->recordModalsResource,
+            'scope'    => $this->writeScope ?? $this->captureWriteScope(),
+            'ability'  => $this->writeAbility,
+            'user'     => auth()->id(),
+            'expires'  => is_numeric($ttl) && (int) $ttl > 0
+                ? now()->getTimestamp() + ((int) $ttl * 60)
+                : null,
+        ]);
+    }
+
+    /**
+     * Capture the base query's simple equality constraints so the write
+     * endpoints resolve records through the same bounds the table rendered
+     * under — without this, `Table::make(Post::where('team_id', $id))` would
+     * hand out a descriptor good for every Post in the database.
+     *
+     * Only plain `where(column, value)` and `whereNull(column)` clauses are
+     * readable this way; a table whose constraints live in a join or a nested
+     * closure should declare them with {@see writeScope()}. Authorization is
+     * enforced independently, so an uncapturable scope degrades to the host's
+     * policy rather than to nothing.
+     *
+     * @return array<string, mixed>
+     */
+    protected function captureWriteScope(): array
+    {
+        if (! $this->queryOrModel instanceof Builder) {
+            return [];
+        }
+
+        $scope = [];
+
+        foreach ($this->queryOrModel->getQuery()->wheres as $where) {
+            $type   = $where['type']   ?? null;
+            $column = $where['column'] ?? null;
+
+            if (! is_string($column)) {
+                continue;
+            }
+
+            if ($type === 'Basic' && ($where['operator'] ?? null) === '=' && is_scalar($where['value'] ?? null)) {
+                $scope[$column] = $where['value'];
+
+                continue;
+            }
+
+            if ($type === 'Null') {
+                $scope[$column] = null;
+            }
+        }
+
+        return $scope;
     }
 
     /**

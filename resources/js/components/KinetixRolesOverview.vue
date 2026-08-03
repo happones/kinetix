@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixCan } from '@/composables/useKinetixCan';
 import { useKinetixRoleEditor } from '@/composables/useKinetixRoleEditor';
-import { buttonVariants } from '@/composables/useShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixPermissionFeature, KinetixRole } from '@/types/kinetix';
 import { cn } from './primitives/cn';
 import KinetixRoleDeleteDialog from './Roles/KinetixRoleDeleteDialog.vue';

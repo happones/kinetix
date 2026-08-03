@@ -1,15 +1,15 @@
 import type { Component } from 'vue';
-import BrandApple from './brands/BrandApple.vue';
-import BrandBitbucket from './brands/BrandBitbucket.vue';
-import BrandDiscord from './brands/BrandDiscord.vue';
-import BrandFacebook from './brands/BrandFacebook.vue';
-import BrandGeneric from './brands/BrandGeneric.vue';
-import BrandGithub from './brands/BrandGithub.vue';
-import BrandGitlab from './brands/BrandGitlab.vue';
-import BrandGoogle from './brands/BrandGoogle.vue';
-import BrandMicrosoft from './brands/BrandMicrosoft.vue';
-import BrandTwitch from './brands/BrandTwitch.vue';
-import BrandX from './brands/BrandX.vue';
+import BrandApple from './kinetixBrands/BrandApple.vue';
+import BrandBitbucket from './kinetixBrands/BrandBitbucket.vue';
+import BrandDiscord from './kinetixBrands/BrandDiscord.vue';
+import BrandFacebook from './kinetixBrands/BrandFacebook.vue';
+import BrandGeneric from './kinetixBrands/BrandGeneric.vue';
+import BrandGithub from './kinetixBrands/BrandGithub.vue';
+import BrandGitlab from './kinetixBrands/BrandGitlab.vue';
+import BrandGoogle from './kinetixBrands/BrandGoogle.vue';
+import BrandMicrosoft from './kinetixBrands/BrandMicrosoft.vue';
+import BrandTwitch from './kinetixBrands/BrandTwitch.vue';
+import BrandX from './kinetixBrands/BrandX.vue';
 
 /** A known provider's display label, icon component and brand color. */
 export interface BrandDefinition {

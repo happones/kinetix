@@ -2,13 +2,14 @@
 import { X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useKinetixFocusTrap } from '@/composables/useKinetixFocusTrap';
 import type { KinetixSheetSide } from '@/types/kinetix';
 
 /**
  * A shadcn-style slide-in panel (Sheet) — a Dialog alternative anchored to an
  * edge of the viewport instead of centered. Hand-rolled Teleport + Transition
- * (same leak-safe pattern as `KinetixConfirmModal`: the escape-key listener is
- * only attached while open and always removed on unmount).
+ * (same leak-safe pattern as `KinetixConfirmModal`: the escape-key listener and
+ * focus trap are only attached while open and always removed on unmount).
  */
 const props = withDefaults(
     defineProps<{
@@ -71,6 +72,14 @@ onBeforeUnmount(() => {
     }
 });
 
+// Focus moves into the panel on open, Tab cycles inside it, and the opener gets
+// focus back on close.
+const panelEl = ref<HTMLElement | null>(null);
+const { headingId } = useKinetixFocusTrap({
+    active: () => props.open,
+    container: () => panelEl.value,
+});
+
 const positionClass = computed(
     () =>
         ({
@@ -110,6 +119,7 @@ const enterFromClass = computed(
             class="inset-0 fixed z-[100]"
             role="dialog"
             aria-modal="true"
+            :aria-labelledby="title ? headingId : undefined"
         >
             <Transition
                 enter-active-class="transition-opacity duration-200"
@@ -129,7 +139,9 @@ const enterFromClass = computed(
                 appear
             >
                 <div
-                    class="p-6 shadow-2xl absolute flex flex-col overflow-y-auto border-border bg-background"
+                    ref="panelEl"
+                    tabindex="-1"
+                    class="p-6 shadow-2xl absolute flex flex-col overflow-y-auto border-border bg-background outline-none"
                     :class="[positionClass, sizeClass]"
                 >
                     <div class="mb-4 flex items-start justify-between">
@@ -137,6 +149,7 @@ const enterFromClass = computed(
                             <div class="min-w-0">
                                 <h2
                                     v-if="title"
+                                    :id="headingId"
                                     class="text-base font-semibold tracking-tight text-foreground"
                                 >
                                     {{ title }}

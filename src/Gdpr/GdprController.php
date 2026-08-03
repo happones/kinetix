@@ -41,7 +41,7 @@ class GdprController
             abort_unless(
                 $hash !== '' && Hash::check((string) $request->input('password', ''), $hash),
                 422,
-                (string) trans('kinetix.gdpr_password_incorrect'),
+                (string) __('kinetix.gdpr_password_incorrect'),
             );
         }
 

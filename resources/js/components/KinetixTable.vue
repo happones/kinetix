@@ -9,12 +9,12 @@ import { kinetixFetch } from '@/composables/useKinetixHttp';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixRecordModals } from '@/composables/useKinetixRecordModals';
 import { useKinetixRowSelection } from '@/composables/useKinetixRowSelection';
-import { useKinetixTableQuery } from '@/composables/useKinetixTableQuery';
-import { useKinetixTableReorder } from '@/composables/useKinetixTableReorder';
 import {
     actionButtonVariant,
     buttonVariants,
-} from '@/composables/useShadcnVariants';
+} from '@/composables/useKinetixShadcnVariants';
+import { useKinetixTableQuery } from '@/composables/useKinetixTableQuery';
+import { useKinetixTableReorder } from '@/composables/useKinetixTableReorder';
 import type {
     KinetixAction,
     KinetixTableData,

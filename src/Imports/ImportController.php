@@ -56,10 +56,14 @@ class ImportController
         try {
             $importer = Importer::fromToken($request->string('importer')->toString());
         } catch (Throwable $e) {
-            return response()->json(['message' => 'Invalid importer.'], 422);
+            return response()->json(['message' => __('kinetix.import_invalid')], 422);
         }
 
-        $path = $request->file('file')->store($this->storageDirectory, KinetixDisk::name());
+        if (! $importer->authorize($request->user())) {
+            return response()->json(['message' => __('kinetix.import_forbidden')], 403);
+        }
+
+        $path = $request->file('file')->store($this->storageDirectory, KinetixDisk::privateName());
 
         return response()->json(
             $this->buildPreview($importer, $path, $this->optionsFromRequest($request))->toArray()
@@ -76,11 +80,23 @@ class ImportController
             'fileToken' => ['required', 'string'],
         ]);
 
+        // Resolve and authorize the importer BEFORE touching the file token, so an
+        // unauthorized caller gets a flat 403 instead of a 422 that reveals
+        // whether the session they guessed at exists.
         try {
             $importer = Importer::fromToken($request->string('importer')->toString());
-            $path     = $this->resolvePath($request->string('fileToken')->toString());
         } catch (Throwable $e) {
-            return response()->json(['message' => 'Invalid import session.'], 422);
+            return response()->json(['message' => __('kinetix.import_invalid')], 422);
+        }
+
+        if (! $importer->authorize($request->user())) {
+            return response()->json(['message' => __('kinetix.import_forbidden')], 403);
+        }
+
+        try {
+            $path = $this->resolvePath($request->string('fileToken')->toString());
+        } catch (Throwable $e) {
+            return response()->json(['message' => __('kinetix.import_invalid_session')], 422);
         }
 
         return response()->json(
@@ -101,9 +117,18 @@ class ImportController
 
         try {
             $importer = Importer::fromToken($request->string('importer')->toString());
-            $path     = $this->resolvePath($request->string('fileToken')->toString());
         } catch (Throwable $e) {
-            return response()->json(['message' => 'Invalid import session.'], 422);
+            return response()->json(['message' => __('kinetix.import_invalid')], 422);
+        }
+
+        if (! $importer->authorize($request->user())) {
+            return response()->json(['message' => __('kinetix.import_forbidden')], 403);
+        }
+
+        try {
+            $path = $this->resolvePath($request->string('fileToken')->toString());
+        } catch (Throwable $e) {
+            return response()->json(['message' => __('kinetix.import_invalid_session')], 422);
         }
 
         /** @var array<string, int|null> $mapping */
@@ -117,7 +142,7 @@ class ImportController
 
         if ($missing !== []) {
             return response()->json([
-                'message' => 'Required columns are not mapped.',
+                'message' => __('kinetix.import_required_columns_missing'),
                 'missing' => array_values($missing),
             ], 422);
         }
@@ -149,7 +174,7 @@ class ImportController
      */
     protected function buildPreview(Importer $importer, string $path, ImportOptionsData $options): ImportPreviewData
     {
-        [$absolutePath, $isTemp] = KinetixDisk::localReadablePath(KinetixDisk::name(), $path);
+        [$absolutePath, $isTemp] = KinetixDisk::localReadablePath(KinetixDisk::privateName(), $path);
 
         try {
             $parsed = FileReader::read($absolutePath, $options, $this->previewRows);
