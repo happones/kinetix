@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.132.0] - 2026-08-03
+
+Chart theming that actually lands on starter-kit apps, plus the first
+remediation pass of the accessibility manifest (tables + forms).
+
+### Fixed
+
+- ⚠️ **(published) v0.131.0's chart axis/grid theming silently no-oped on
+  complete-color hosts — including the Laravel + Vue starter kit.** The
+  `--vis-*` mapping wrapped every token in `hsl()` from CSS
+  (`hsl(var(--border))`), which is only valid when the host stores HSL
+  triplets (the kinetix.css style). A host storing complete colors
+  (`--border: hsl(0 0% 92.8%)`, the starter-kit style) produced invalid
+  `hsl(hsl(…))` values that the browser drops silently, so unovis fell back to
+  its own defaults — the near-white dark-mode grid v0.131.0 claimed to fix was
+  still there on those apps. The eight surface properties (axis grid/tick/
+  domain/labels, crosshair line/circle, donut segment stroke) are now resolved
+  in JS through the same both-shapes normalizer the series palette already
+  used, bound as an inline style and re-resolved live by the existing
+  dark-mode observer. Verified in-browser against both token shapes.
+- Documented that a stock shadcn theme defines only `--chart-1`…`--chart-5`:
+  series 6-8 fall back to Kinetix's validated palette unless the host defines
+  the extended slots.
+
 ### Added
 
 - **(published) Tables & Forms honor the accessibility manifest** (first
