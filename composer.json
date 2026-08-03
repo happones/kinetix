@@ -58,7 +58,8 @@
     "scripts": {
         "test": "phpunit",
         "analyse": "phpstan analyse --memory-limit=1G",
-        "format": "pint"
+        "format": "pint",
+        "test:ci": "testbench package:test"
     },
     "extra": {
         "laravel": {

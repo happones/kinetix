@@ -8,6 +8,7 @@ use Happones\Kinetix\Exports\DownloadToken;
 use Happones\Kinetix\Exports\ExportColumn;
 use Happones\Kinetix\Exports\Exporter;
 use Happones\Kinetix\Exports\FileWriter;
+use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Imports\ImportColumn;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Tests\TestCase;
@@ -16,6 +17,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -104,14 +106,34 @@ class ExportImportSecurityTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_an_export_runs_when_the_policy_allows_it(): void
+    public function test_an_export_is_queued_when_the_policy_allows_it(): void
     {
+        // Faked so the assertion is about the endpoint queueing the work, not
+        // about the worker running it — and so the test doesn't depend on the
+        // runner's default queue driver having a `jobs` table.
+        Queue::fake();
+
         $response = $this->actingAs(GuardedRecordUser::create([]))
             ->postJson(route('kinetix.exports.start'), [
                 'exporter' => GuardedExporter::token(),
             ]);
 
         $response->assertOk();
+        Queue::assertPushed(ExportProcessor::class);
+    }
+
+    public function test_nothing_is_queued_when_the_export_is_denied(): void
+    {
+        Queue::fake();
+        Gate::policy(GuardedRecord::class, DenyEverythingPolicy::class);
+
+        $this->actingAs(GuardedRecordUser::create([]))
+            ->postJson(route('kinetix.exports.start'), [
+                'exporter' => GuardedExporter::token(),
+            ])
+            ->assertForbidden();
+
+        Queue::assertNothingPushed();
     }
 
     public function test_importing_requires_the_models_create_ability(): void

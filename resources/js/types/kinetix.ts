@@ -711,12 +711,20 @@ export interface KinetixChartMetric {
     badgeColor?: string | null;
 }
 
-/** One series in a chart widget's `datasets` array. */
+/**
+ * One series in a chart widget's `datasets` array.
+ *
+ * Colours accept an array because per-point palettes are valid for bar/pie
+ * charts, and the index signature keeps room for extra keys a host puts in the
+ * widget's open `data` payload.
+ */
 export interface KinetixChartDataset {
     label?: string | null;
     data: (number | string | null)[];
-    borderColor?: string | null;
-    backgroundColor?: string | null;
+    borderColor?: string | string[] | null;
+    backgroundColor?: string | string[] | null;
+    borderWidth?: number;
+    [key: string]: unknown;
 }
 
 /** The `data` payload of a `chart` widget. */
@@ -759,15 +767,6 @@ export interface KinetixListItem {
     badgeColor?: string | null;
     progress?: number | null;
     url?: string | null;
-}
-
-export interface KinetixChartDataset {
-    label: string;
-    data: number[];
-    backgroundColor?: string | string[];
-    borderColor?: string | string[];
-    borderWidth?: number;
-    [key: string]: any;
 }
 
 /** A goal/quota progress widget payload. */

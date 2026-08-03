@@ -17,7 +17,8 @@
         "docs:preview": "vitepress preview docs",
         "gallery:dev": "vite --config vite.gallery.config.ts",
         "screenshots:messages": "php scripts/gen-gallery-messages.php",
-        "screenshots": "npm run screenshots:messages && node scripts/screenshots.mjs"
+        "screenshots": "npm run screenshots:messages && node scripts/screenshots.mjs",
+        "types:check": "vue-tsc --noEmit"
     },
     "devDependencies": {
         "@eslint/js": "^9.19.0",
