@@ -128,7 +128,8 @@ Dehydration processes user inputs, validates them, and transforms the states int
 Layout elements organize fields inside grids and visual groupings. They inherit column spans and conditional visibility parameters.
 
 ### 1. Grid
-The `Grid` component creates a multi-column responsive layout. By default, it operates on a **12-column grid**.
+The `Grid` component creates a multi-column layout. It defaults to **2 columns**,
+and a field spans **1** — so two fields sit side by side with no annotation:
 
 <Screenshot name="layout-grid" alt="Grid layout" />
 
@@ -136,12 +137,31 @@ The `Grid` component creates a multi-column responsive layout. By default, it op
 use Happones\Kinetix\Forms\Components\Grid;
 use Happones\Kinetix\Forms\Components\TextInput;
 
-Grid::make(12)
+Grid::make()
     ->schema([
-        TextInput::make('first_name')->columnSpan(6),
-        TextInput::make('last_name')->columnSpan(6),
+        TextInput::make('first_name'),   // 50%
+        TextInput::make('last_name'),    // 50%
     ])
 ```
+
+Pass a column count for anything else. A 12-column grid gives the finest control:
+
+```php
+Grid::make(12)
+    ->schema([
+        TextInput::make('street')->columnSpan(8),
+        TextInput::make('number')->columnSpan(4),
+    ])
+```
+
+::: warning Defaults changed in v0.128.0
+The form root is now a **1-column** grid and a field's default `columnSpan` is
+**1** (it was a 12-column root with `columnSpan: 'full'`). Plain fields still
+render full width, and explicit spans inside an explicit `Grid::make(12)` are
+unchanged — but a field with **no** span inside a `Grid::make(12)` used to fill
+the row and now takes 1/12. Add `->columnSpanFull()` to those, or drop the `12`
+and let the new default do the work.
+:::
 
 #### Tailwind Grid-Purge Prevention
 To ensure column layouts render correctly without depending on dynamic Tailwind compiler classes (which JIT compilers purge), Kinetix evaluates `columnSpan` parameters into inline CSS styles:
@@ -157,7 +177,7 @@ use Happones\Kinetix\Forms\Components\Section;
 
 Section::make('General Profile')
     ->description('Enter your public accounts info.')
-    ->columns(2) // Implicitly maps inside fields to a 2-column grid
+    ->columns(2) // Sections are single-column until told otherwise
     ->schema([
         TextInput::make('display_name'),
         TextInput::make('twitter_handle'),

@@ -24,7 +24,15 @@ abstract class Component
     /**
      * @var int|string|array<string, int|string>
      */
-    protected mixed $columnSpan = 'full';
+    /**
+     * How many of the parent schema's columns this component occupies.
+     *
+     * Defaults to 1, like Filament. Combined with the 1-column form root that
+     * still means "full width" for a plain field; inside `Grid::make(2)` it
+     * means half, with no annotation needed. Use `columnSpanFull()` to span the
+     * whole row regardless of the parent's column count.
+     */
+    protected mixed $columnSpan = 1;
 
     /**
      * @var string|array<int, string>|null

@@ -19,7 +19,7 @@ class Section extends Component
      */
     protected array $schema = [];
 
-    protected int $columns = 12;
+    protected int $columns = 1;
 
     public function __construct(mixed $heading)
     {

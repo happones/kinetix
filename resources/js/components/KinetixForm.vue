@@ -120,7 +120,9 @@ const onSubmit = (e: Event) => {
 
 <template>
     <form @submit="onSubmit" class="space-y-6">
-        <div class="gap-4 grid grid-cols-12">
+        <!-- 1-column root, like Filament: a field's default span of 1 is the
+             full width, and Grid::make(2) opts into columns. -->
+        <div class="gap-4 grid grid-cols-1">
             <KinetixFormSchema
                 :schema="form.schema"
                 :values="formValues"

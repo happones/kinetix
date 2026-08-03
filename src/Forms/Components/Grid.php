@@ -14,14 +14,14 @@ class Grid extends Component
      */
     protected array $schema = [];
 
-    protected int $columns = 12;
+    protected int $columns = 2;
 
-    public function __construct(int $columns = 12)
+    public function __construct(int $columns = 2)
     {
         $this->columns = $columns;
     }
 
-    public static function make(int $columns = 12): static
+    public static function make(int $columns = 2): static
     {
         return new static($columns);
     }

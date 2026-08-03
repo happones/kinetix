@@ -46,7 +46,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
             v-if="comp.type === 'grid'"
             class="gap-4 grid"
             :style="{
-                gridTemplateColumns: `repeat(${comp.columns || 12}, minmax(0, 1fr))`,
+                gridTemplateColumns: `repeat(${comp.columns || 1}, minmax(0, 1fr))`,
                 gridColumn: getColumnSpan(comp.columnSpan),
             }"
         >
@@ -81,7 +81,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                 <div
                     class="gap-4 grid"
                     :style="{
-                        gridTemplateColumns: `repeat(${comp.columns || 12}, minmax(0, 1fr))`,
+                        gridTemplateColumns: `repeat(${comp.columns || 1}, minmax(0, 1fr))`,
                     }"
                 >
                     <KinetixFormSchema
@@ -111,7 +111,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
             <div
                 class="gap-4 grid"
                 :style="{
-                    gridTemplateColumns: `repeat(${comp.columns || 12}, minmax(0, 1fr))`,
+                    gridTemplateColumns: `repeat(${comp.columns || 1}, minmax(0, 1fr))`,
                 }"
             >
                 <KinetixFormSchema
@@ -238,7 +238,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                             </div>
                         </div>
 
-                        <div class="gap-4 grid grid-cols-12">
+                        <div class="gap-4 grid grid-cols-1">
                             <KinetixFormSchema
                                 :schema="comp.schema"
                                 :values="item"

@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.128.0] - 2026-08-03
+
+### Changed
+
+- ⚠️ **BREAKING — the form grid now matches Filament.** A field's default
+  `columnSpan` is **1** (was `'full'`), and the column counts moved with it:
+
+  | | Before | Now |
+  |---|---|---|
+  | Form root | 12 columns | **1** |
+  | `Grid::make()` | 12 | **2** |
+  | `Section` / `Fieldset` / `Tab` / `Step` | 12 | **1** |
+  | Field `columnSpan` | `'full'` | **1** |
+
+  The two defaults only make sense together: a 1-column root means a plain
+  field's span of 1 *is* full width, so **simple forms render identically**,
+  while `Grid::make(2)` now yields two columns without annotating every field —
+  the DX this change is for.
+
+  **What breaks:** a field with **no** explicit span inside an explicit
+  `Grid::make(12)` (or a `->columns(12)` section) used to fill the row and now
+  takes 1/12. Fix by adding `->columnSpanFull()`, or by dropping the explicit
+  `12` and letting the new default apply. Explicit spans inside explicit grids
+  (`Grid::make(12)` + `->columnSpan(6)`) are unaffected.
+
+  Infolists keep their own 12-column system — this touches forms only.
+
+### Added
+
+- `FormGridDefaultsTest` pins the whole contract (root, per-layout column counts,
+  default and explicit spans). It had **no** coverage before, which is why the
+  defaults could drift silently.
+
 ## [0.127.0] - 2026-08-02
 
 ### Added

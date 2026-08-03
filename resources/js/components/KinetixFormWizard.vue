@@ -119,7 +119,7 @@ function beforeNext(index: number): boolean {
             <div
                 class="gap-4 grid"
                 :style="{
-                    gridTemplateColumns: `repeat(${comp.schema?.[index]?.columns || 12}, minmax(0, 1fr))`,
+                    gridTemplateColumns: `repeat(${comp.schema?.[index]?.columns || 1}, minmax(0, 1fr))`,
                 }"
             >
                 <KinetixFormSchema

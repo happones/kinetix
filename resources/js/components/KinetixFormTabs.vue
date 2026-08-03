@@ -87,7 +87,7 @@ watch(
             <div
                 class="gap-4 grid"
                 :style="{
-                    gridTemplateColumns: `repeat(${tab.columns || 12}, minmax(0, 1fr))`,
+                    gridTemplateColumns: `repeat(${tab.columns || 1}, minmax(0, 1fr))`,
                 }"
             >
                 <KinetixFormSchema
