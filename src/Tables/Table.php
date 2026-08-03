@@ -618,17 +618,11 @@ class Table implements Arrayable, JsonSerializable
      */
     protected function getResolvedQuery(): Builder
     {
-        $query = null;
-
-        if ($this->queryOrModel instanceof Builder) {
-            $query = $this->queryOrModel;
-        } elseif (is_string($this->queryOrModel) && is_subclass_of($this->queryOrModel, Model::class)) {
-            $query = $this->queryOrModel::query();
-        } elseif ($this->queryOrModel instanceof Model) {
-            $query = $this->queryOrModel->newQuery();
-        } else {
-            throw new \InvalidArgumentException('Invalid query or model type provided to Table.');
-        }
+        // Always a FRESH builder. Applying the request's search/sort/filters to
+        // the caller's own instance would leak them back out — a developer who
+        // reused `$query` after rendering the table would silently get the
+        // table's filters — and would double-apply them if this ran twice.
+        $query = $this->getUnfilteredQuery();
 
         // Eager-load the relations behind dot-notation columns. Without this
         // `data_get($record, 'author.name')` lazy-loads once PER ROW — the N+1
@@ -734,12 +728,6 @@ class Table implements Arrayable, JsonSerializable
             $filter->forModel($this->getModelClass());
         }
 
-        // Snapshot the dataset BEFORE search/sort/filters are applied:
-        // getResolvedQuery() mutates the builder it was given, so an
-        // ignoreFilters() card asked for it afterwards would get the filtered
-        // one back. Only taken when a card actually needs it.
-        $unfilteredQuery = $this->needsUnfilteredQuery() ? $this->getUnfilteredQuery() : null;
-
         $query = $this->getResolvedQuery();
 
         // Compute column summaries over the full filtered dataset, before
@@ -748,7 +736,7 @@ class Table implements Arrayable, JsonSerializable
 
         // Same window: the KPI cards read the filtered-but-unpaginated set, so
         // they describe the list the user is looking at rather than one page.
-        $stats = $this->computeStats($query, $unfilteredQuery);
+        $stats = $this->computeStats($query);
 
         // Paginate if enabled
         $records    = [];
@@ -1072,10 +1060,9 @@ class Table implements Arrayable, JsonSerializable
      * than a scoped query of their own. A `using()` card is the documented
      * exception and pays for its own query.
      *
-     * @param  Builder<Model>|null       $unfilteredQuery pristine dataset, for ignoreFilters() cards
      * @return array<int, TableStatData>
      */
-    protected function computeStats(Builder $filteredQuery, ?Builder $unfilteredQuery = null): array
+    protected function computeStats(Builder $filteredQuery): array
     {
         if ($this->stats === []) {
             return [];
@@ -1105,9 +1092,10 @@ class Table implements Arrayable, JsonSerializable
         $values = [];
 
         foreach ($batched as $dataset => $group) {
-            $query = $dataset === 'all'
-                ? ($unfilteredQuery ?? $filteredQuery)
-                : $filteredQuery;
+            // getUnfilteredQuery() returns a fresh builder every call, so asking
+            // for it here — after the filters were applied to a clone — still
+            // yields the pristine dataset.
+            $query = $dataset === 'all' ? $this->getUnfilteredQuery() : $filteredQuery;
 
             foreach ($this->fetchStatAggregates($query, $group) as $index => $value) {
                 $values[$index] = $value;
@@ -1119,8 +1107,8 @@ class Table implements Arrayable, JsonSerializable
         foreach ($stats as $index => $stat) {
             $resolved[$index] = isset($custom[$index])
                 ? $stat->toDataFromFormatted($stat->resolveUsing(
-                    $stat->ignoresFilters() && $unfilteredQuery !== null
-                        ? (clone $unfilteredQuery)
+                    $stat->ignoresFilters()
+                        ? $this->getUnfilteredQuery()
                         : (clone $filteredQuery),
                 ))
                 : $stat->toData($values[$index] ?? null);
@@ -1180,22 +1168,12 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
-     * Whether any renderable card reads the unfiltered dataset.
-     */
-    protected function needsUnfilteredQuery(): bool
-    {
-        foreach ($this->stats as $stat) {
-            if ($stat->ignoresFilters() && $stat->shouldRender()) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * The table's dataset WITHOUT the request's search/sort/filters — what an
-     * `ignoreFilters()` card reads.
+     * A FRESH builder for the table's dataset, before the request's
+     * search/sort/filters are applied.
+     *
+     * Every caller gets its own instance — {@see getResolvedQuery()} applies the
+     * request state to one of these rather than to the builder the developer
+     * handed in, and an `ignoreFilters()` stat card reads another.
      *
      * @return Builder<Model>
      */
