@@ -14,6 +14,7 @@ use Happones\Kinetix\Data\TableRowData;
 use Happones\Kinetix\Data\TableStateData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
@@ -23,9 +24,6 @@ use Happones\Kinetix\Tables\Filters\Filter;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
 
@@ -441,24 +439,23 @@ class Table implements Arrayable, JsonSerializable
             throw new \InvalidArgumentException('Invalid query or model type provided to Table.');
         }
 
-        // Apply searching
+        // Eager-load the relations behind dot-notation columns. Without this
+        // `data_get($record, 'author.name')` lazy-loads once PER ROW — the N+1
+        // the feature is supposed to avoid. Derived from the rendered columns,
+        // so it stays in sync with what the payload actually reads.
+        KinetixQuery::eagerLoad($query, array_map(
+            static fn (Column $column): string => $column->getName(),
+            $this->columns,
+        ));
+
+        // Apply searching (grouped OR, LIKE wildcards escaped).
         $search = $this->param('search');
+
         if ($search !== null && $search !== '') {
-            $query->where(function (Builder $q) use ($search) {
-                foreach ($this->columns as $column) {
-                    if ($column->isSearchable()) {
-                        $colName = $column->getName();
-                        if (str_contains($colName, '.')) {
-                            [$relation, $relationAttr] = explode('.', $colName, 2);
-                            $q->orWhereHas($relation, function (Builder $relQ) use ($relationAttr, $search) {
-                                $relQ->where($relationAttr, 'like', "%{$search}%");
-                            });
-                        } else {
-                            $q->orWhere($colName, 'like', "%{$search}%");
-                        }
-                    }
-                }
-            });
+            KinetixQuery::search($query, (string) $search, array_values(array_map(
+                static fn (Column $column): string => $column->getName(),
+                array_filter($this->columns, static fn (Column $column): bool => $column->isSearchable()),
+            )));
         }
 
         // Apply sorting
@@ -492,7 +489,7 @@ class Table implements Arrayable, JsonSerializable
     protected function applySort(Builder $query): void
     {
         $sort      = $this->param('sort');
-        $direction = strtolower((string) $this->param('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
+        $direction = KinetixQuery::direction($this->param('direction', 'asc'));
 
         if ($sort === null || $sort === '') {
             if ($this->reorderColumn !== null) {
@@ -523,42 +520,7 @@ class Table implements Arrayable, JsonSerializable
             return;
         }
 
-        $this->applyRelationSort($query, (string) $sort, $direction);
-    }
-
-    /**
-     * Sort by a `relation.column` key via a correlated subquery — no join, so
-     * no row duplication or column-collision. Supports BelongsTo and HasOne
-     * (single-level); anything else is skipped rather than risking a bad query.
-     */
-    protected function applyRelationSort(Builder $query, string $sort, string $direction): void
-    {
-        [$relationName, $attribute] = explode('.', $sort, 2);
-
-        // Only single-level relations, and the method must exist on the model.
-        if (str_contains($attribute, '.') || ! method_exists($query->getModel(), $relationName)) {
-            return;
-        }
-
-        $relation = $query->getModel()->{$relationName}();
-        if (! $relation instanceof Relation) {
-            return;
-        }
-
-        $related = $relation->getRelated();
-        $sub     = $related->newQuery()
-            ->select($related->qualifyColumn($attribute))
-            ->limit(1);
-
-        if ($relation instanceof BelongsTo) {
-            $sub->whereColumn($relation->getQualifiedOwnerKeyName(), $relation->getQualifiedForeignKeyName());
-        } elseif ($relation instanceof HasOne) {
-            $sub->whereColumn($relation->getQualifiedForeignKeyName(), $relation->getQualifiedParentKeyName());
-        } else {
-            return;
-        }
-
-        $query->orderBy($sub, $direction);
+        KinetixQuery::sortByRelation($query, (string) $sort, $direction);
     }
 
     /**

@@ -135,8 +135,12 @@ class MakeResourceCommandTest extends TestCase
         $resourcePath = app_path('Kinetix/Resources/PostResource.php');
         $resource     = File::get($resourcePath);
         $this->assertStringContainsString('public static function getEloquentQuery(): Builder', $resource);
-        $this->assertStringContainsString("where('team_id', request()->user()->currentTeam->id)", $resource);
-        $this->assertStringContainsString("\$data['team_id'] = request()->user()->currentTeam->id", $resource);
+        // The tenant comes from KinetixTeams — reading `$user->currentTeam`
+        // ignores the {current_team} segment and skips the membership check.
+        $this->assertStringContainsString("where('team_id', KinetixTeams::currentTeamKey())", $resource);
+        $this->assertStringContainsString("\$data['team_id'] = KinetixTeams::currentTeamKey();", $resource);
+        $this->assertStringContainsString('use Happones\\Kinetix\\Support\\KinetixTeams;', $resource);
+        $this->assertStringNotContainsString('currentTeam->id', $resource);
 
         exec('php -l '.escapeshellarg($resourcePath).' 2>&1', $out, $code);
         $this->assertSame(0, $code, "Generated team resource has a syntax error:\n".implode("\n", $out));
@@ -233,8 +237,11 @@ class MakeResourceCommandTest extends TestCase
         $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
 
         $this->assertStringContainsString('public function index(Request $request)', $controller);
-        $this->assertStringContainsString("where('team_id', \$request->user()->currentTeam->id)", $controller);
-        $this->assertStringContainsString("'team_id' => \$request->user()->currentTeam->id", $controller);
+        $this->assertStringContainsString("where('team_id', KinetixTeams::currentTeamKey())", $controller);
+        $this->assertStringContainsString("'team_id' => KinetixTeams::currentTeamKey()", $controller);
+        // …and the generated file imports it, or it would not even parse.
+        $this->assertStringContainsString('use Happones\\Kinetix\\Support\\KinetixTeams;', $controller);
+        $this->assertStringNotContainsString('currentTeam->id', $controller);
 
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
         File::deleteDirectory(app_path('Kinetix'));

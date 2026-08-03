@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms;
 
+use Happones\Kinetix\Query\KinetixQuery;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,13 +39,7 @@ class SearchController
         $query = (string) $request->input('q', '');
 
         $rows = $model::query()
-            ->when($query !== '', function ($builder) use ($searchColumns, $query): void {
-                $builder->where(function ($where) use ($searchColumns, $query): void {
-                    foreach ($searchColumns as $column) {
-                        $where->orWhere($column, 'like', "%{$query}%");
-                    }
-                });
-            })
+            ->when($query !== '', fn ($builder) => KinetixQuery::search($builder, $query, $searchColumns))
             ->limit(20)
             ->get();
 

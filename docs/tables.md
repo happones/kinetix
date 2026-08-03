@@ -7,7 +7,7 @@ Kinetix provides a powerful, Eloquent-driven, and highly interactive Tables syst
 ## Key Features
 
 - **Fluent Schema Definitions**: Define columns, filters, and row-level actions with chaining methods.
-- **Eager Loaded Relationships**: Safe dot-notation (e.g. `author.name`) simplifies displaying relationship values without causing N+1 queries.
+- **Eager Loaded Relationships**: Safe dot-notation (e.g. `author.name`) displays relationship values without N+1 queries — Kinetix derives the `with()` from the columns you declared, so it needs no configuration and can't drift from what is rendered.
 - **Dynamic Inline Editing**: Editable columns (Selects, Toggles, Text Inputs, Checkboxes) automatically perform background XHR updates to the database.
 - **Security Signatures**: Eloquent model namespaces are securely encrypted on serialization, preventing client-side database class tampering.
 - **Client-Side Column visibility**: Built-in column toggling lets users hide and show columns locally in the browser.
@@ -32,7 +32,9 @@ use App\Models\Post;
 
 public function index()
 {
-    $table = Table::make(Post::with('author'))
+    // `with('author')` is optional — the table eager-loads the relations behind
+    // its dot-notation columns automatically. Pass your own for anything else.
+    $table = Table::make(Post::query())
         ->heading('Blog Posts')
         ->description('Manage your application articles.')
         ->striped()
@@ -751,6 +753,29 @@ To enable teams, set the `teams` parameter to `true` in your `config/kinetix.php
 When enabled:
 - Kinetix automatically prefixes its internal API endpoints (e.g., cell updates, notification actions) under the active `{current_team}/`.
 - Actions that evaluate closure URLs (like `fn ($record) => route('posts.edit', $record)`) will automatically inherit the active team parameter in their route parameters using URL defaults, avoiding `Missing required parameter: current_team` errors.
+
+### The table does not scope your rows — you do
+
+Routing and data isolation are separate layers. `Table::make($query)` renders
+whatever query you hand it: Kinetix has no idea which column holds your tenant,
+so a filter here would either guess or silently do nothing. The scoping seam is
+`Resource::getEloquentQuery()`, which the index page **and** the in-table modal
+endpoint both read — scope it once and modal CRUD is tenant-safe too:
+
+```php
+public static function getEloquentQuery(): Builder
+{
+    return Post::where('team_id', KinetixTeams::currentTeamKey());
+}
+```
+
+Use `KinetixTeams::currentTeamKey()` rather than `$user->currentTeam`: it reads
+the `{current_team}` segment (so a page served for team B never reads team A's
+rows) and verifies the user belongs to that team. `kinetix:make-resource`
+scaffolds exactly this when teams are on.
+
+Search is applied **inside** a grouped `where()`, so its OR terms can never
+escape your tenant filter and widen the result set.
 
 ---
 

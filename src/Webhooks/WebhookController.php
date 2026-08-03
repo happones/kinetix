@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Webhooks;
 
 use Happones\Kinetix\Data\WebhookEndpointData;
 use Happones\Kinetix\Data\WebhookLogData;
+use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -150,10 +151,7 @@ class WebhookController
         }
 
         if (($search = trim((string) $request->query('search'))) !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('event', 'like', "%{$search}%")
-                    ->orWhereHas('endpoint', fn ($e) => $e->where('name', 'like', "%{$search}%"));
-            });
+            KinetixQuery::search($query, $search, ['event', 'endpoint.name']);
         }
 
         $paginator = $query->paginate(15);

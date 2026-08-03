@@ -13,6 +13,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.123.0] - 2026-08-02
+
+### Fixed
+
+- **Dot-notation table columns caused an N+1.** `docs/tables.md` promised
+  `author.name` renders "without causing N+1 queries", but `Table` never called
+  `->with()` — `data_get($record, 'author.name')` lazy-loaded the relation once
+  **per row**, so a 25-row page fired 25 extra queries unless the caller
+  remembered `Post::with('author')` by hand. The eager loads are now derived from
+  the declared columns, so they cannot drift from what is rendered. A JSON path
+  (`meta.color`) is not mistaken for a relation, and an already-loaded relation
+  is not added twice.
+- **LIKE wildcards in search input were not escaped.** Searching `100%` produced
+  `%100%%`, which matches every row and scans the table; `_` behaved as a
+  single-character wildcard. Terms are escaped with an explicit
+  `ESCAPE '!'` clause — not a backslash, which MySQL and SQLite disagree about.
+- **`kinetix:make-resource` scaffolded the tenant antipattern.** The generated
+  `getEloquentQuery()` / controller used
+  `request()->user()->currentTeam->id` — the exact resolution v0.120.0 removed
+  from the package's own modules: it ignores the `{current_team}` segment, skips
+  the membership check, and fatals when the user has no current team. It now
+  generates `KinetixTeams::currentTeamKey()`, with the import (the generated file
+  would not have parsed without it).
+
+### Added
+
+- **`Happones\Kinetix\Query\KinetixQuery`** — the query primitives every Kinetix
+  reader shares, previously reimplemented in five places with subtly different
+  behavior: `search()` (grouped OR, escaped, dot-notation aware),
+  `escapeLike()`, `eagerLoad()`, `sortByRelation()` (correlated subquery, no
+  join) and `direction()`. `Table`, the select-field search, Spotlight, and the
+  API-log and webhook-log feeds all route through it.
+
+  **Tenancy is deliberately not part of it.** Kinetix doesn't know the host's
+  team schema; the caller supplies an already-scoped base query and
+  `Resource::getEloquentQuery()` stays the documented seam. The grouping in
+  `search()` is what makes that safe — OR terms can't escape the tenant filter.
+
+### Notes
+
+- Cursor/`simplePaginate` support for very large tables is **not** included: it
+  changes the pagination payload the Vue component and TS types consume, so it
+  belongs in its own release rather than riding along with a query refactor.
+
 ## [0.122.0] - 2026-08-02
 
 ### Added

@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Spotlight;
 
 use Closure;
 use Happones\Kinetix\Data\SpotlightItemData;
+use Happones\Kinetix\Query\KinetixQuery;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
@@ -171,11 +172,7 @@ class SpotlightResource implements SpotlightSource
 
         $base = $this->queryResolver !== null ? ($this->queryResolver)() : $this->model::query();
 
-        return $base->where(function ($builder) use ($query): void {
-            foreach ($this->searchColumns as $column) {
-                $builder->orWhere($column, 'like', "%{$query}%");
-            }
-        })->limit($buffer)->get();
+        return KinetixQuery::search($base, $query, $this->searchColumns)->limit($buffer)->get();
     }
 
     protected function usesScout(): bool

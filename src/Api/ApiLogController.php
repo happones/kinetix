@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Api;
 
 use Happones\Kinetix\Data\ApiLogData;
+use Happones\Kinetix\Query\KinetixQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,10 +30,7 @@ class ApiLogController
         }
 
         if (($search = trim((string) $request->query('search'))) !== '') {
-            $query->where(function ($q) use ($search): void {
-                $q->where('path', 'like', "%{$search}%")
-                    ->orWhere('token_name', 'like', "%{$search}%");
-            });
+            KinetixQuery::search($query, $search, ['path', 'token_name']);
         }
 
         $paginator = $query->paginate(15);

@@ -296,19 +296,32 @@ PHP;
         $teamImports = '';
 
         if ($teams) {
-            $teamImports = "\nuse Illuminate\Database\Eloquent\Builder;";
+            $teamImports = "\nuse Happones\Kinetix\Support\KinetixTeams;\nuse Illuminate\Database\Eloquent\Builder;";
             $teamHooks   = <<<PHP
 
 
+    /**
+     * Scopes every read — the index table AND the in-table modal endpoint's
+     * record lookup — to the active team.
+     *
+     * `KinetixTeams::currentTeamKey()` reads the `{current_team}` URL segment
+     * (so a page served for team B never reads team A's rows) and verifies the
+     * user belongs to it, falling back to their currentTeam outside a request.
+     * Resolving with `\$user->currentTeam` directly would skip both.
+     */
     public static function getEloquentQuery(): Builder
     {
-        return {$modelName}::where('team_id', request()->user()->currentTeam->id);
+        return {$modelName}::where('team_id', KinetixTeams::currentTeamKey());
     }
 
+    /**
+     * Stamps the owning team on create. `team_id` is server-owned: it is never
+     * part of the form schema, so a submitted value can't reassign the record.
+     */
     public static function mutateFormDataBeforeSave(array \$data, string \$operation, ?\Illuminate\Database\Eloquent\Model \$record = null): array
     {
         if (\$operation === 'create') {
-            \$data['team_id'] = request()->user()->currentTeam->id;
+            \$data['team_id'] = KinetixTeams::currentTeamKey();
         }
 
         return \$data;
@@ -399,14 +412,16 @@ PHP;
             File::makeDirectory($directory, 0755, true);
         }
 
-        // Team-aware index signature, base query, and create expression. Adjust
-        // the `team_id` column / scope to match your application's team schema.
+        // Team-aware index signature, base query, and create expression. The
+        // tenant comes from KinetixTeams (the `{current_team}` segment, with a
+        // membership check) — not `$user->currentTeam`, which ignores the URL.
+        // Adjust the `team_id` column to match your application's team schema.
         $indexParams = $teams ? 'Request $request' : '';
         $indexQuery  = $teams
-            ? "{$modelName}::where('team_id', \$request->user()->currentTeam->id)"
+            ? "{$modelName}::where('team_id', KinetixTeams::currentTeamKey())"
             : "{$modelName}::query()";
         $createExpr = $teams
-            ? "{$modelName}::create(array_merge(\$form->getState(\$request->all()), ['team_id' => \$request->user()->currentTeam->id]))"
+            ? "{$modelName}::create(array_merge(\$form->getState(\$request->all()), ['team_id' => KinetixTeams::currentTeamKey()]))"
             : "{$modelName}::create(\$form->getState(\$request->all()))";
 
         $softDeletesTraits  = '';
@@ -434,6 +449,9 @@ PHP;
 PHP;
         }
 
+        // Only the team-aware base query references the tenant resolver.
+        $teamsImport = $teams ? "\nuse Happones\Kinetix\Support\KinetixTeams;" : '';
+
         if ($simple) {
             // Simple controller: a single index page. Columns, in-table modals
             // (create/edit/view/delete) and reorder are all declared on the
@@ -453,7 +471,7 @@ namespace App\Http\Controllers\Kinetix;
 
 use App\Http\Controllers\Controller;
 use App\Kinetix\Resources\\{$resourceClass};{$modelImport}
-use Happones\Kinetix\Tables\Table;{$requestImport}
+use Happones\Kinetix\Tables\Table;{$teamsImport}{$requestImport}
 
 class {$modelName}Controller extends Controller
 {
@@ -491,7 +509,7 @@ use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
-use Happones\Kinetix\Tables\Table;
+use Happones\Kinetix\Tables\Table;{$teamsImport}
 use Illuminate\Http\Request;
 
 class {$modelName}Controller extends Controller
