@@ -11,12 +11,14 @@ import {
 } from '@lucide/vue';
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { loadKinetixTiptap } from '@/composables/useKinetixRichEditorEngine';
 
 /**
- * Tiptap-backed WYSIWYG. Tiptap is loaded lazily at runtime (dynamic import with
- * @vite-ignore) so it stays an OPTIONAL dependency: if @tiptap/core +
- * @tiptap/starter-kit aren't installed, the field shows an install notice and the
- * rest of the app builds and runs fine.
+ * Tiptap-backed WYSIWYG. Tiptap stays an OPTIONAL dependency through the
+ * registration seam in `useKinetixRichEditorEngine`: the HOST registers a
+ * loader in its entry file (its own import, resolved by its own build), and
+ * apps that don't register see the install notice — no import shape inside a
+ * published component can be optional at build time AND resolvable at runtime.
  */
 const props = withDefaults(
     defineProps<{
@@ -56,14 +58,18 @@ function refreshActive(): void {
 }
 
 onMounted(async () => {
-    try {
-        const core = await import(/* @vite-ignore */ '@tiptap/core');
-        const starter = await import(/* @vite-ignore */ '@tiptap/starter-kit');
-        const StarterKit = starter.default ?? starter.StarterKit;
+    const engine = await loadKinetixTiptap();
 
-        editor.value = new core.Editor({
+    if (engine === null) {
+        failed.value = true;
+
+        return;
+    }
+
+    try {
+        editor.value = new engine.Editor({
             element: element.value as HTMLElement,
-            extensions: [StarterKit],
+            extensions: [engine.StarterKit],
             content: props.value ?? '',
             editable: !props.disabled,
             onUpdate: ({

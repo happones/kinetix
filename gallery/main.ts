@@ -1,9 +1,17 @@
 import { createApp, defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 import { Toaster } from 'vue-sonner';
+import { registerKinetixTiptap } from '@/composables/useKinetixRichEditorEngine';
 import enMessages from './messages.en.json';
 import { specimens } from './specimens';
 import './app.css';
+
+// The Tiptap engine is host-registered (see useKinetixRichEditorEngine); the
+// gallery acts as the host so the rich-editor-tiptap specimen renders live.
+registerKinetixTiptap(async () => ({
+    core: await import('@tiptap/core'),
+    starterKit: await import('@tiptap/starter-kit'),
+}));
 
 const params = new URLSearchParams(location.search);
 const name = params.get('s') ?? specimens[0].name;

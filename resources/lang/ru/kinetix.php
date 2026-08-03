@@ -155,7 +155,7 @@ return [
     'address_search'                   => 'Поиск адреса…',
     'editor_write'                     => 'Редактор',
     'editor_preview'                   => 'Предпросмотр',
-    'editor_tiptap_missing'            => 'Редактору Tiptap нужны пакеты tiptap/core и tiptap/starter-kit. Установите их или переключите это поле на базовый или Markdown-редактор.',
+    'editor_tiptap_missing'            => 'Редактор Tiptap не зарегистрирован. Установите @tiptap/core + @tiptap/starter-kit и зарегистрируйте их в точке входа через registerKinetixTiptap() (см. документацию Forms), либо переключите поле на базовый или Markdown-редактор.',
     'signature_clear'                  => 'Очистить',
     'comments_title'                   => 'Комментарии',
     'comment_placeholder'              => 'Напишите комментарий…',

@@ -621,15 +621,29 @@ RichEditor::make('body')->tiptap();     // rich WYSIWYG (opt-in dependency)
 RichEditor::make('notes')->markdown();  // Markdown source + preview
 ```
 
-To use the Tiptap driver, install its packages in your app:
+To use the Tiptap driver, install its packages **and register them in your
+entry file** — the import must live in *your* module graph, because no import
+shape inside a published component can be optional at build time and still
+resolve at runtime:
 
 ```bash
 npm install @tiptap/core @tiptap/starter-kit
 ```
 
-Tiptap is imported lazily, so it stays an **optional** dependency — if it isn't
-installed (and you don't select it) your build is unaffected; selecting it
-without installing shows an inline install notice.
+```ts
+// resources/js/app.ts
+import { registerKinetixTiptap } from '@/composables/useKinetixRichEditorEngine';
+
+registerKinetixTiptap(async () => ({
+    core: await import('@tiptap/core'),
+    starterKit: await import('@tiptap/starter-kit'),
+}));
+```
+
+The loader uses dynamic imports, so Tiptap stays **code-split** — it downloads
+only when a `->tiptap()` field actually renders. Apps that never register keep
+building and running unaffected; a `->tiptap()` field without a registration
+shows an inline notice with these instructions.
 
 <Screenshot name="rich-editor-tiptap" alt="Rich editor — Tiptap driver" />
 

@@ -155,7 +155,7 @@ return [
     'address_search'                   => '住所を検索…',
     'editor_write'                     => '編集',
     'editor_preview'                   => 'プレビュー',
-    'editor_tiptap_missing'            => 'Tiptap エディタには tiptap/core と tiptap/starter-kit パッケージが必要です。インストールするか、このフィールドをベーシックまたは Markdown エディタに切り替えてください。',
+    'editor_tiptap_missing'            => 'Tiptap エディタが登録されていません。@tiptap/core と @tiptap/starter-kit をインストールし、アプリのエントリで registerKinetixTiptap() で登録してください（Forms ドキュメント参照）。またはこのフィールドをベーシック/Markdown エディタに切り替えてください。',
     'signature_clear'                  => 'クリア',
     'comments_title'                   => 'コメント',
     'comment_placeholder'              => 'コメントを書く…',

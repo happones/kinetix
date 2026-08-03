@@ -155,7 +155,7 @@ return [
     'address_search'                   => '搜索地址…',
     'editor_write'                     => '编写',
     'editor_preview'                   => '预览',
-    'editor_tiptap_missing'            => 'Tiptap 编辑器需要 tiptap/core 和 tiptap/starter-kit 包。请安装它们，或将此字段切换为基础或 Markdown 编辑器。',
+    'editor_tiptap_missing'            => 'Tiptap 编辑器尚未注册。请安装 @tiptap/core 和 @tiptap/starter-kit，并在应用入口用 registerKinetixTiptap() 注册（参见 Forms 文档），或将此字段切换为基础或 Markdown 编辑器。',
     'signature_clear'                  => '清除',
     'comments_title'                   => '评论',
     'comment_placeholder'              => '写下评论…',

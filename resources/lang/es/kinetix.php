@@ -165,7 +165,7 @@ return [
     // Rich text editor
     'editor_write'          => 'Escribir',
     'editor_preview'        => 'Vista previa',
-    'editor_tiptap_missing' => 'El editor Tiptap necesita los paquetes tiptap/core y tiptap/starter-kit. Instálalos o cambia este campo al editor básico o markdown.',
+    'editor_tiptap_missing' => 'El editor Tiptap no está registrado. Instala @tiptap/core + @tiptap/starter-kit y regístralos en tu entry con registerKinetixTiptap() (ver docs de Forms), o cambia este campo al editor básico o markdown.',
     'signature_clear'       => 'Limpiar',
 
     // Comments
