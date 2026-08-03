@@ -13,6 +13,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.121.0] - 2026-08-02
+
+Closes the last gap from the v0.120.0 tenancy audit: the two modules that stored
+one shared pool of rows behind team-prefixed routes.
+
+### Added
+
+- **Mail Templates are tenant-aware**, in the hybrid shape roles already use:
+  `team_id` NULL is a **global default** every tenant resolves, and a team may
+  hold its own override under the same key (uniqueness moved from `key` to
+  `(team_id, key)`). `KinetixMail` prefers the override and falls back to the
+  default. Editing a global template from inside a team **forks** it
+  (copy-on-write, `201` + `forked: true`) instead of rewriting the platform
+  default for every tenant; deleting the fork reverts that team; deleting the
+  default from a team scope is refused (`403`). A disabled override turns the
+  mail off for that team only. Another team's template is a `404`.
+- **Announcements are tenant-aware**: an entry belongs to the team it was
+  published from, and `team_id` NULL is platform-wide — every feed shows it.
+  `KinetixAnnouncements::publishGlobally()` is the explicit way to reach every
+  tenant, and `publish()` already lands there when called with no team context
+  (a deploy step or seeder). Feeds and unread counts are scoped to the team plus
+  the global entries.
+- `ScopedToTeam` gained `->forCurrentTeamOrGlobal()` (the hybrid scope) and
+  `::teamAttributes()`, which writes `team_id` **only** while the module is
+  team-scoped — so an app that upgrades without running the new migration keeps
+  working against the old schema instead of erroring on a missing column.
+- `kinetix:doctor` reports **tables missing their `team_id` column** when the
+  module is team-scoped — the "published the package, forgot the migration"
+  state, where scoping is silently inert.
+
+### Fixed
+
+- **Mail template edit / delete / test were broken with teams on.** The
+  controller took the id as a positional argument, so the leading
+  `{current_team}` segment was injected as the template id — every mutation hit
+  the wrong row or 404'd. The id is now read by route-parameter name, the guard
+  every other Kinetix controller already had.
+
+### Upgrading
+
+```bash
+php artisan vendor:publish --tag=kinetix-mail-templates-migrations --force
+php artisan vendor:publish --tag=kinetix-announcements-migrations --force
+php artisan migrate
+```
+
+Both migrations are additive and idempotent. **Existing rows keep `team_id`
+NULL**, which makes them the global defaults / platform-wide entries — nothing
+disappears from any UI, and single-tenant apps are unaffected whether or not they
+run them.
+
 ## [0.120.0] - 2026-08-02
 
 Outcome of a full multi-tenancy audit across all 34 route registrars, 24

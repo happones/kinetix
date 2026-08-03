@@ -676,6 +676,11 @@ return [
     */
     'announcements' => [
         'enabled' => env('KINETIX_ANNOUNCEMENTS_ENABLED', false),
+
+        // With teams on, an announcement belongs to the team it was published
+        // from; a NULL team is platform-wide (every feed shows it), which is
+        // what `KinetixAnnouncements::publishGlobally()` writes.
+        'teams' => env('KINETIX_ANNOUNCEMENTS_TEAMS'), // null = inherit kinetix.teams
     ],
 
     /*
@@ -1100,9 +1105,15 @@ return [
     | triggers sends via KinetixMail::send($to, $key, $data). The manager + test
     | endpoints are gated by the `viewKinetixMail` ability (default allow-local).
     |
+    | With `teams` on, a template with a NULL team is a GLOBAL default every
+    | tenant sees; a team editing one forks it into its own override (same key,
+    | its own row) and the resolver prefers the override. null = inherit
+    | `kinetix.teams`.
+    |
     */
     'mail_templates' => [
         'enabled' => env('KINETIX_MAIL_TEMPLATES_ENABLED', false),
+        'teams'   => env('KINETIX_MAIL_TEMPLATES_TEAMS'), // null = inherit kinetix.teams
     ],
 
     /*

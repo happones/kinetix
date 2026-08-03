@@ -165,22 +165,58 @@ class DoctorCommandTest extends TestCase
 
     public function test_modules_storing_global_data_are_flagged_under_teams(): void
     {
-        config()->set('kinetix.mail.enabled', true);
-        config()->set('kinetix.announcements.enabled', true);
+        config()->set('kinetix.api_logs.enabled', true);
 
         $this->artisan('kinetix:doctor')
             ->expectsOutputToContain('store GLOBAL data')
-            ->expectsOutputToContain('mail templates')
+            ->expectsOutputToContain('API logs')
+            ->assertSuccessful();
+    }
+
+    public function test_team_scoped_modules_are_not_flagged_as_global(): void
+    {
+        // Mail templates and announcements became tenant-aware in v0.121.0.
+        config()->set('kinetix.mail_templates.enabled', true);
+        config()->set('kinetix.announcements.enabled', true);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('store GLOBAL data')
             ->assertSuccessful();
     }
 
     public function test_global_data_is_not_flagged_without_teams(): void
     {
         config()->set('kinetix.teams', false);
-        config()->set('kinetix.mail.enabled', true);
+        config()->set('kinetix.api_logs.enabled', true);
 
         $this->artisan('kinetix:doctor')
             ->doesntExpectOutputToContain('store GLOBAL data')
+            ->assertSuccessful();
+    }
+
+    public function test_a_missing_tenant_column_is_an_error(): void
+    {
+        config()->set('kinetix.announcements.enabled', true);
+
+        // The pre-tenant schema: the app published the package but never ran the
+        // migration that adds team_id.
+        (require __DIR__.'/../../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php')->up();
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('missing their team_id column')
+            ->expectsOutputToContain('kinetix_announcements')
+            ->assertFailed();
+    }
+
+    public function test_a_migrated_table_is_not_flagged(): void
+    {
+        config()->set('kinetix.announcements.enabled', true);
+
+        (require __DIR__.'/../../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php')->up();
+        (require __DIR__.'/../../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php')->up();
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('missing their team_id column')
             ->assertSuccessful();
     }
 

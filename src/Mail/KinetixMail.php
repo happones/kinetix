@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Mail;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -19,7 +20,37 @@ class KinetixMail
 {
     public static function template(string $key): ?MailTemplate
     {
-        return MailTemplate::query()->where('key', $key)->where('enabled', true)->first();
+        $template = static::resolve($key);
+
+        // A team that disabled its own override has turned the mail off for
+        // itself — it does not silently fall back to the global default.
+        return $template !== null && $template->enabled ? $template : null;
+    }
+
+    /**
+     * The template for a key in the current tenant: the team's own override when
+     * it has one, else the global (`team_id` NULL) default.
+     *
+     * Resolution runs off the request, so a mail sent from a **queued job** —
+     * where there is no team context — falls back to the global template. Pass
+     * the team explicitly when a job must render a specific tenant's override.
+     */
+    public static function resolve(string $key, int|string|null $teamId = null): ?MailTemplate
+    {
+        $query = MailTemplate::query()->where('key', $key);
+
+        if (! KinetixTeams::enabledFor('mail_templates')) {
+            return $query->first();
+        }
+
+        $teamId ??= KinetixTeams::currentTeamKey();
+
+        // Order puts the team's override ahead of the global default; both are
+        // fetched in one query.
+        return $query
+            ->where(fn ($inner) => $inner->where('team_id', $teamId)->orWhereNull('team_id'))
+            ->orderByRaw('CASE WHEN team_id IS NULL THEN 1 ELSE 0 END')
+            ->first();
     }
 
     /**
@@ -60,7 +91,7 @@ class KinetixMail
      */
     public static function test(string $key, string $to, array $data = []): bool
     {
-        $template = MailTemplate::query()->where('key', $key)->first();
+        $template = static::resolve($key);
 
         if ($template === null) {
             return false;

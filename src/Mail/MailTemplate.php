@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Mail;
 
+use Happones\Kinetix\Support\Concerns\ScopedToTeam;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -12,6 +13,7 @@ use Illuminate\Support\Str;
  * placeholders. `render($data)` interpolates the variables (HTML-escaped) and
  * compiles Markdown bodies to HTML.
  *
+ * @property int|string|null                       $team_id
  * @property string                                $key
  * @property string                                $name
  * @property string                                $subject
@@ -22,6 +24,13 @@ use Illuminate\Support\Str;
  */
 class MailTemplate extends Model
 {
+    use ScopedToTeam;
+
+    public static function kinetixTeamModule(): string
+    {
+        return 'mail_templates';
+    }
+
     protected $table = 'kinetix_mail_templates';
 
     protected $guarded = [];

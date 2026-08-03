@@ -459,9 +459,10 @@ the same thing — a team-prefixed URL does not by itself isolate rows:
 | Data scope | Modules |
 |---|---|
 | **Per team** (`team_id` column, filtered on read and stamped on write) | Permissions (roles), Membership, Settings, Activity, Webhooks (+ their logs, through the endpoint), Saved Views, Tags, PDF Templates, Onboarding, Wizards, Reports Center |
+| **Hybrid** — a team's own rows *plus* platform-wide ones (`team_id` NULL) | Mail Templates (a global default a team may override), Announcements (a global entry every feed shows) |
 | **Per user** (team-independent by nature) | Tours state, Accessibility, Notification preferences, Connected accounts, Sessions |
 | **Inherited** from the record they hang off | Comments (via the commentable) |
-| **Global** — one shared pool across every tenant | Mail Templates, Announcements, API request logs, Billing plans, Confidential keys |
+| **Global** — one shared pool across every tenant | API request logs, Billing plans, Confidential keys |
 
 The last row matters: those routes *are* team-prefixed, which reads like
 isolation, but the rows are shared. Gate them behind a platform-level role, not

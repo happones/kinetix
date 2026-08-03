@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Announcements;
 
+use Happones\Kinetix\Support\Concerns\ScopedToTeam;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -20,6 +21,13 @@ use Illuminate\Support\Carbon;
  */
 class Announcement extends Model
 {
+    use ScopedToTeam;
+
+    public static function kinetixTeamModule(): string
+    {
+        return 'announcements';
+    }
+
     protected $table = 'kinetix_announcements';
 
     protected $guarded = [];

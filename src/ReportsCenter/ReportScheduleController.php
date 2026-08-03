@@ -68,7 +68,7 @@ class ReportScheduleController
         $reportClass = $this->classFromToken($data['report']);
 
         $schedule = ReportSchedule::create([
-            'team_id'              => ReportSchedule::currentTeamId(),
+            ...ReportSchedule::teamAttributes(),
             'report_class'         => $reportClass,
             'frequency'            => $data['frequency'],
             'parameters'           => $data['parameters']           ?? [],

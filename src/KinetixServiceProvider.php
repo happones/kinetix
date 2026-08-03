@@ -467,9 +467,12 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000013_create_kinetix_saved_views_table.php' => database_path('migrations/2026_01_01_000013_create_kinetix_saved_views_table.php'),
             ], 'kinetix-saved-views-migrations');
 
-            // Publish the optional Announcements module's migration.
+            // Publish the optional Announcements module's migrations (the table,
+            // plus the tenant column — separate file so apps that already
+            // migrated pick it up on the next publish).
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php' => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php'         => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php' => database_path('migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'),
             ], 'kinetix-announcements-migrations');
 
             // Publish the optional locale column migration (language switcher).
@@ -477,9 +480,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000015_add_locale_to_users_table.php' => database_path('migrations/2026_01_01_000015_add_locale_to_users_table.php'),
             ], 'kinetix-locale-migrations');
 
-            // Publish the optional Mail Templates module's migration.
+            // Publish the optional Mail Templates module's migrations (the table,
+            // plus the tenant column + per-team key uniqueness).
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php' => database_path('migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php'         => database_path('migrations/2026_01_01_000016_create_kinetix_mail_templates_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000024_add_team_id_to_kinetix_mail_templates_table.php' => database_path('migrations/2026_01_01_000024_add_team_id_to_kinetix_mail_templates_table.php'),
             ], 'kinetix-mail-templates-migrations');
 
             // Publish the hybrid teams migration for spatie's permission tables

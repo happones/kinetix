@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Announcements;
 
 use Carbon\CarbonInterface;
 use Happones\Kinetix\Data\AnnouncementData;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -24,6 +25,7 @@ class AnnouncementManager
         $seenAt = $this->seenAt($user);
 
         return Announcement::query()
+            ->forCurrentTeamOrGlobal()
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now())
             ->orderByDesc('published_at')
@@ -44,6 +46,7 @@ class AnnouncementManager
         $seenAt = $this->seenAt($user);
 
         return Announcement::query()
+            ->forCurrentTeamOrGlobal()
             ->whereNotNull('published_at')
             ->where('published_at', '<=', now())
             ->when($seenAt !== null, fn ($q) => $q->where('published_at', '>', $seenAt))
@@ -63,15 +66,31 @@ class AnnouncementManager
 
     /**
      * Publish an announcement (defaults to publishing immediately).
+     *
+     * Scoped to the active team when announcements are team-scoped. Pass
+     * `global: true` for a platform-wide entry — a product update every tenant
+     * should read — which is what a deploy step or seeder usually wants, since
+     * neither runs inside a team's request.
      */
-    public function create(string $title, string $body, string $level = 'info', ?CarbonInterface $publishedAt = null): Announcement
-    {
-        return Announcement::query()->create([
+    public function create(
+        string $title,
+        string $body,
+        string $level = 'info',
+        ?CarbonInterface $publishedAt = null,
+        bool $global = false,
+    ): Announcement {
+        $attributes = [
             'title'        => $title,
             'body'         => $body,
             'level'        => $level,
             'published_at' => $publishedAt ?? now(),
-        ]);
+        ];
+
+        if (KinetixTeams::enabledFor('announcements')) {
+            $attributes['team_id'] = $global ? null : Announcement::currentTeamId();
+        }
+
+        return Announcement::query()->create($attributes);
     }
 
     protected function seenAt(Model $user): ?CarbonInterface

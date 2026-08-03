@@ -42,6 +42,33 @@ KinetixAnnouncements::publish('Maintenance window', '…', 'info', now()->addDay
 
 Only entries with a past `published_at` are shown; a `null` value is a draft.
 
+### Multi-tenant
+
+With `kinetix.teams` on, an announcement belongs to the team it was published
+from, and a `NULL` team is **platform-wide** — shown in every team's feed. A
+user's feed is their team's entries plus the global ones; another team's are
+never visible.
+
+```php
+// Scoped to the team the request is serving.
+KinetixAnnouncements::publish('New export format', '…');
+
+// Platform-wide — every tenant sees it. This is what a deploy step or seeder
+// wants, and what `publish()` falls back to anyway when there is no team
+// context (no request, no currentTeam).
+KinetixAnnouncements::publishGlobally('v2.0 is here 🎉', '…', 'feature');
+```
+
+Upgrading an existing install:
+
+```bash
+php artisan vendor:publish --tag=kinetix-announcements-migrations --force
+php artisan migrate
+```
+
+Additive and idempotent — existing entries keep `team_id` NULL, so they stay
+platform-wide and every feed keeps showing them.
+
 ---
 
 ## The component
@@ -77,7 +104,8 @@ badge reflects only entries published since their last visit.
 
 ## Endpoints
 
-Registered under your Kinetix prefix (team-aware when `kinetix.teams` is on):
+Registered under your Kinetix prefix (`{current_team}/_kinetix/announcements` with teams on).
+The feed is scoped to the active team plus the platform-wide entries:
 
 | Method | Route                          | Name                          |
 | ------ | ------------------------------ | ----------------------------- |

@@ -13,6 +13,7 @@ use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -45,6 +46,7 @@ class DoctorCommand extends Command
         $this->checkRoles();
         $this->checkMembership();
         $this->checkConfigCallbacks();
+        $this->checkTenantColumns();
         $this->checkGlobalData();
         $this->checkFrontend();
 
@@ -245,6 +247,42 @@ class DoctorCommand extends Command
      * Deliberate (a platform-level catalog), and worth stating out loud rather
      * than leaving to be discovered.
      */
+    /**
+     * A module that became tenant-aware needs its `team_id` column. Publishing
+     * the package without running the new migration leaves scoping silently
+     * inert (writes omit the column, reads can't filter), so name it.
+     */
+    protected function checkTenantColumns(): void
+    {
+        $pending = [];
+
+        foreach ([
+            'mail_templates' => ['kinetix_mail_templates', 'kinetix-mail-templates-migrations'],
+            'announcements'  => ['kinetix_announcements', 'kinetix-announcements-migrations'],
+            'reports_center' => ['kinetix_report_schedules', 'kinetix-reports-center-migrations'],
+        ] as $module => [$table, $tag]) {
+            if (! config("kinetix.{$module}.enabled", false) || ! KinetixTeams::enabledFor($module)) {
+                continue;
+            }
+
+            try {
+                if (Schema::hasTable($table) && ! Schema::hasColumn($table, 'team_id')) {
+                    $pending[] = "{$table} (vendor:publish --tag={$tag})";
+                }
+            } catch (QueryException) {
+                // No database to inspect — not this command's problem.
+            }
+        }
+
+        if ($pending === []) {
+            return;
+        }
+
+        $this->error_('Tenancy', count($pending).' table(s) are missing their team_id column',
+            'The module is team-scoped but the table predates the tenant migration, so rows are neither '
+            .'stamped nor filtered. Publish the tag and run migrate.', $pending);
+    }
+
     protected function checkGlobalData(): void
     {
         if (! (bool) config('kinetix.teams', false)) {
@@ -252,9 +290,7 @@ class DoctorCommand extends Command
         }
 
         $global = array_keys(array_filter([
-            'mail templates' => (bool) config('kinetix.mail.enabled', false),
-            'announcements'  => (bool) config('kinetix.announcements.enabled', false),
-            'API logs'       => (bool) config('kinetix.api_logs.enabled', false),
+            'API logs' => (bool) config('kinetix.api_logs.enabled', false),
         ]));
 
         if ($global === []) {
