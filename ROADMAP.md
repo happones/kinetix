@@ -12,7 +12,7 @@ overlap matrix.
 
 > This document is the current-state map of what's shipped plus what's on the
 > table next. Per-release detail lives in [`CHANGELOG.md`](CHANGELOG.md).
-> Current version: **v0.129.0** — 50+ modules.
+> Current version: **v0.130.0** — 50+ modules.
 
 ---
 
@@ -46,7 +46,8 @@ skill, translations (en/es/fr/pt) and tests.
   auto-discovery and a dedicated provider scaffold. `docs/resources.md`
 - **Tables** — server-driven data grids: columns, filters, search, sort
   (incl. **relationship-column sorting**), pagination, inline-editable columns,
-  bulk/record actions, reorder, and an opt-in **client-side (TanStack) mode**.
+  bulk/record actions, reorder, footer summaries, optional **KPI stat cards**
+  (batched into one query), and an opt-in **client-side (TanStack) mode**.
   `docs/tables.md`
 - **Infolists** — read-only record views. `docs/infolists.md`
 - **Relation Managers** — related-record tables on a parent page.
