@@ -922,10 +922,14 @@ export interface KinetixTableData {
     isPaginated: boolean;
     paginationPageOptions: number[];
     pagination: {
-        total: number;
         perPage: number;
         currentPage: number;
-        lastPage: number;
+        /** Whether a next page exists. The only reliable signal in simple mode. */
+        hasMore: boolean;
+        /** Null in simple mode — no COUNT(*) is run. */
+        total: number | null;
+        /** Null in simple mode. */
+        lastPage: number | null;
         from: number | null;
         to: number | null;
     } | null;

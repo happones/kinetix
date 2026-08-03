@@ -24,6 +24,7 @@ use Happones\Kinetix\Tables\Filters\Filter;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
 
@@ -78,6 +79,12 @@ class Table implements Arrayable, JsonSerializable
     protected array $paginationPageOptions = [5, 10, 25, 50];
 
     protected bool $isPaginated = true;
+
+    /**
+     * Skip the `COUNT(*)` and report only whether a next page exists.
+     * See {@see simplePaginated()}.
+     */
+    protected bool $simplePaginate = false;
 
     protected ?Closure $recordUrl = null;
 
@@ -317,6 +324,27 @@ class Table implements Arrayable, JsonSerializable
 
         $this->isPaginated           = true;
         $this->paginationPageOptions = $options;
+
+        return $this;
+    }
+
+    /**
+     * Paginate without counting the whole result set.
+     *
+     * A normal `paginate()` runs a `COUNT(*)` over the filtered query on every
+     * page load to know the total — on a large or expensive-to-filter table that
+     * count dominates the request. Simple mode fetches one extra row instead to
+     * learn whether a next page exists.
+     *
+     * The trade is what the footer can show: no total, no last page, so no
+     * "showing 1–10 of 4,231" and no jump-to-last button. Prefer it for tables
+     * measured in the hundreds of thousands of rows, where the count is the cost
+     * and nobody jumps to page 4,000 anyway.
+     */
+    public function simplePaginated(bool $simple = true): static
+    {
+        $this->isPaginated    = true;
+        $this->simplePaginate = $simple;
 
         return $this;
     }
@@ -562,20 +590,35 @@ class Table implements Arrayable, JsonSerializable
                 $records[] = $this->formatRecord($record);
             }
         } elseif ($this->isPaginated) {
-            $paginator = $query->paginate($perPage, ['*'], $this->queryPrefix.'page');
+            $pageName = $this->queryPrefix.'page';
+
+            // Simple mode fetches perPage+1 rows to learn whether a next page
+            // exists, instead of running a COUNT(*) over the filtered set.
+            $paginator = $this->simplePaginate
+                ? $query->simplePaginate($perPage, ['*'], $pageName)
+                : $query->paginate($perPage, ['*'], $pageName);
 
             foreach ($paginator->items() as $record) {
                 $records[] = $this->formatRecord($record);
             }
 
-            $pagination = new TablePaginationData(
-                total: $paginator->total(),
-                perPage: $paginator->perPage(),
-                currentPage: $paginator->currentPage(),
-                lastPage: $paginator->lastPage(),
-                from: $paginator->firstItem(),
-                to: $paginator->lastItem(),
-            );
+            $pagination = $paginator instanceof LengthAwarePaginator
+                ? new TablePaginationData(
+                    perPage: $paginator->perPage(),
+                    currentPage: $paginator->currentPage(),
+                    hasMore: $paginator->hasMorePages(),
+                    total: $paginator->total(),
+                    lastPage: $paginator->lastPage(),
+                    from: $paginator->firstItem(),
+                    to: $paginator->lastItem(),
+                )
+                : new TablePaginationData(
+                    perPage: $paginator->perPage(),
+                    currentPage: $paginator->currentPage(),
+                    hasMore: $paginator->hasMorePages(),
+                    from: $paginator->firstItem(),
+                    to: $paginator->lastItem(),
+                );
         } else {
             $items = $query->get();
 

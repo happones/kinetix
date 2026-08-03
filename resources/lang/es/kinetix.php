@@ -24,6 +24,8 @@ return [
     'showing_records'           => 'Mostrando :from a :to de :total resultados',
     'no_records'                => 'Sin resultados',
     'page_of'                   => 'Página :current de :total',
+    'page_number'               => 'Página :current',
+    'showing_range'             => 'Mostrando :from a :to',
     'no_records_found'          => 'No se encontraron registros.',
     'copy'                      => 'Copiar',
     'reveal'                    => 'Mostrar',

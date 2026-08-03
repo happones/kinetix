@@ -24,6 +24,8 @@ return [
     'showing_records'                  => ':total 件中 :from〜:to 件を表示',
     'no_records'                       => '結果なし',
     'page_of'                          => ':total ページ中 :current ページ',
+    'page_number'                      => ':current ページ',
+    'showing_range'                    => ':from 〜 :to 件を表示',
     'no_records_found'                 => 'レコードが見つかりません。',
     'copy'                             => 'コピー',
     'reveal'                           => '表示',

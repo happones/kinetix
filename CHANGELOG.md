@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.124.0] - 2026-08-02
+
+Delivers the pagination work deferred from v0.123.0.
+
+### Added
+
+- **`Table::simplePaginated()`** — paginate without the `COUNT(*)`. The default
+  paginator counts the **filtered** query on every page load just to know the
+  total; on a large table (or one with expensive filters) that count dominates
+  the request, and it re-runs on every keystroke, filter change and page step.
+  Simple mode fetches one extra row instead, to learn whether a next page exists.
+- `pagination.hasMore` on the table payload — the reliable "is there a next page"
+  signal in both modes. Custom footers should read it instead of comparing
+  against `lastPage`.
+- The four pagination buttons carry `data-testid` (`page-first`, `page-prev`,
+  `page-next`, `page-last`), so tests and host code can target them without
+  depending on DOM order — the per-page select renders a button too.
+- Two locale strings in all 7 languages: `page_number` (*Page 2*) and
+  `showing_range` (*Showing 11 to 20*), the countless variants of the footer
+  labels.
+
+### Changed
+
+- ⚠️ **`TablePaginationData.total` and `.lastPage` are now nullable.** They are
+  `null` in simple mode — the whole point is that the server never computed them,
+  so rendering a placeholder would be a lie. The default paginator still sends
+  both, so a length-aware table's payload is unchanged.
+
+  A custom table footer that reads `pagination.total` / `pagination.lastPage`
+  keeps working for `paginated()` tables; guard those reads before adopting
+  `simplePaginated()`. The bundled footer drops the total line and the
+  first/last jumps in simple mode rather than rendering empty numbers.
+- `useKinetixClientTable`'s pagination gained `hasMore` too, so the client-side
+  and server-side footers share one contract.
+
 ## [0.123.0] - 2026-08-02
 
 ### Fixed

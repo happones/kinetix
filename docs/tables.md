@@ -604,6 +604,7 @@ Table-level methods control refresh, pagination, and row behavior:
 - `poll(string $interval)`: Refreshes the table on an interval (e.g. `->poll('10s')`). Backed by Inertia's **`usePoll`** — a partial reload that preserves scroll and table state (search/filters/sort/page). Accepts `'10s'`, `'5000ms'`, etc.
 - `reorderable(string $column = 'sort_order')`: Enables drag-and-drop row reordering (a grip-handle column appears). The new order is persisted to the given integer column via a signed, token-guarded `tables/reorder` endpoint, and rows default to that order. See [Reordering rows](#reordering-rows).
 - `paginated(bool|array $options)`: Toggles pagination or sets the page-size options. Pass `false` to disable pagination (the full result set is rendered), or an array of integers to override the selectable per-page options (default `[5, 10, 25, 50]`).
+- `simplePaginated(bool $simple = true)`: Paginate **without counting** the result set. See [Large tables](#large-tables-simplepaginated).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
 - `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
@@ -618,6 +619,37 @@ Table::make(Post::query())
 // Disable pagination entirely
 Table::make(Post::query())->paginated(false);
 ```
+
+### Large tables — `simplePaginated()`
+
+A normal `paginate()` runs a `COUNT(*)` over the **filtered** query on every page
+load, just to know the total. On a table with hundreds of thousands of rows — or
+one whose filters are expensive — that count dominates the request, and it runs
+again on every search keystroke, filter change and page step.
+
+```php
+Table::make(AuditEntry::query())->simplePaginated();
+```
+
+Simple mode fetches one extra row instead, to learn whether a next page exists.
+What you give up is what the count paid for:
+
+| | `paginated()` | `simplePaginated()` |
+|---|---|---|
+| Query per page | rows + `COUNT(*)` | rows only (+1 row) |
+| Footer label | *Showing 11–20 of 4,231* | *Showing 11–20* |
+| Page indicator | *Page 2 of 424* | *Page 2* |
+| First / last jump | ✅ | ✅ prev/next only |
+
+The payload reflects this: `pagination.total` and `pagination.lastPage` are
+`null`, and `pagination.hasMore` is the signal for whether a next page exists.
+Custom footers must read `hasMore` rather than comparing against `lastPage`.
+
+::: tip Summaries still aggregate
+Column summarizers run their own aggregate over the filtered set, so a table with
+both `simplePaginated()` and `->summarize()` still pays for a full scan. Drop the
+summaries too if the goal is a cheap page.
+:::
 
 ---
 

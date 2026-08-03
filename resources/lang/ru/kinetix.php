@@ -24,6 +24,8 @@ return [
     'showing_records'                  => 'Показаны записи с :from по :to из :total',
     'no_records'                       => 'Нет результатов',
     'page_of'                          => 'Страница :current из :total',
+    'page_number'                      => 'Страница :current',
+    'showing_range'                    => 'Показано с :from по :to',
     'no_records_found'                 => 'Записи не найдены.',
     'copy'                             => 'Копировать',
     'reveal'                           => 'Показать',

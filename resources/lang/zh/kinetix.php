@@ -24,6 +24,8 @@ return [
     'showing_records'                  => '显示第 :from 到 :to 条，共 :total 条结果',
     'no_records'                       => '无结果',
     'page_of'                          => '第 :current 页，共 :total 页',
+    'page_number'                      => '第 :current 页',
+    'showing_range'                    => '显示第 :from 到 :to 条',
     'no_records_found'                 => '未找到记录。',
     'copy'                             => '复制',
     'reveal'                           => '显示',

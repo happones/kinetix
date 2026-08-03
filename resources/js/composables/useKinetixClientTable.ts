@@ -30,6 +30,11 @@ export interface KinetixClientPagination {
     perPage: number;
     currentPage: number;
     lastPage: number;
+    /**
+     * Always known client-side (the whole set is in memory), but part of the
+     * footer's contract because a server-paginated table may not have a total.
+     */
+    hasMore: boolean;
     from: number | null;
     to: number | null;
 }
@@ -159,7 +164,15 @@ export function useKinetixClientTable(
         const from = total === 0 ? null : pageIndex * pageSize + 1;
         const to = total === 0 ? null : Math.min(total, currentPage * pageSize);
 
-        return { total, perPage: pageSize, currentPage, lastPage, from, to };
+        return {
+            total,
+            perPage: pageSize,
+            currentPage,
+            lastPage,
+            hasMore: currentPage < lastPage,
+            from,
+            to,
+        };
     });
 
     const setPage = (page: number): void => {

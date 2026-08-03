@@ -24,6 +24,8 @@ return [
     'showing_records'           => 'Affichage de :from à :to sur :total résultats',
     'no_records'                => 'Aucun résultat',
     'page_of'                   => 'Page :current sur :total',
+    'page_number'               => 'Page :current',
+    'showing_range'             => 'Affichage de :from à :to',
     'no_records_found'          => 'Aucun enregistrement trouvé.',
     'copy'                      => 'Copier',
     'reveal'                    => 'Afficher',
