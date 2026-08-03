@@ -19,7 +19,7 @@ class ApiLogController
     {
         Gate::authorize('viewKinetixApiLogs');
 
-        $query = ApiLog::query()->latest('created_at')->latest('id');
+        $query = ApiLog::query()->forCurrentTeam()->latest('created_at')->latest('id');
 
         // Status band filter: success (2xx/3xx) vs failed (4xx/5xx).
         if ($request->query('result') === 'success') {

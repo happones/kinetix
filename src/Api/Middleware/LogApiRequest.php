@@ -38,6 +38,9 @@ class LogApiRequest
 
         try {
             ApiLog::query()->create([
+                // An API route rarely carries a `{current_team}` segment, so
+                // this usually resolves through the token holder's currentTeam.
+                ...ApiLog::teamAttributes(),
                 'user_id'     => $request->user()?->getAuthIdentifier(),
                 'token_id'    => $this->tokenId($request),
                 'token_name'  => $this->tokenName($request),

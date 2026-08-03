@@ -458,16 +458,23 @@ the same thing — a team-prefixed URL does not by itself isolate rows:
 
 | Data scope | Modules |
 |---|---|
-| **Per team** (`team_id` column, filtered on read and stamped on write) | Permissions (roles), Membership, Settings, Activity, Webhooks (+ their logs, through the endpoint), Saved Views, Tags, PDF Templates, Onboarding, Wizards, Reports Center |
+| **Per team** (`team_id` column, filtered on read and stamped on write) | Permissions (roles), Membership, Settings, Activity, Webhooks (+ their logs, through the endpoint), Saved Views, Tags, PDF Templates, Onboarding, Wizards, Reports Center, API request logs |
 | **Hybrid** — a team's own rows *plus* platform-wide ones (`team_id` NULL) | Mail Templates (a global default a team may override), Announcements (a global entry every feed shows) |
 | **Per user** (team-independent by nature) | Tours state, Accessibility, Notification preferences, Connected accounts, Sessions |
 | **Inherited** from the record they hang off | Comments (via the commentable) |
-| **Global** — one shared pool across every tenant | API request logs, Billing plans, Confidential keys |
+| **Global** — one shared pool across every tenant, by design | Billing plans (a catalog), Confidential keys |
 
 The last row matters: those routes *are* team-prefixed, which reads like
-isolation, but the rows are shared. Gate them behind a platform-level role, not
-a per-team one. `php artisan kinetix:doctor` lists the global-data modules you
-have enabled while teams are on.
+isolation, but the rows are shared — deliberately, since both are platform-level
+catalogs. Gate their management behind a platform role, not a per-team one.
+`php artisan kinetix:doctor` states which ones you have enabled, and errors when
+a team-scoped module's table is still missing its `team_id` column (published the
+package, forgot the migration).
+
+**Hybrid vs per-team** is a deliberate distinction. Mail templates and
+announcements use `NULL` as a *shared default* every tenant can see. Logs and
+records never do: for Reports Center and API logs a `NULL` row is
+*unattributed*, and the scope fails closed rather than showing it to everyone.
 
 Every team-scoped module resolves the tenant through the same helper —
 `KinetixTeams::keyFor('module')` — which reads the `{current_team}` segment

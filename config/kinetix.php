@@ -433,9 +433,15 @@ return [
     | <KinetixIntegrationLogs> (gate: `viewKinetixApiLogs`). Schedule
     | `kinetix:api-logs:prune` to keep the table bounded.
     |
+    | With `teams` on, each row is attributed to the caller's team (resolved from
+    | a team route segment when the API has one, else the token holder's
+    | currentTeam) and the viewer scopes strictly — a NULL row is unattributed,
+    | not shared. null = inherit `kinetix.teams`.
+    |
     */
     'api_logs' => [
         'enabled'           => env('KINETIX_API_LOGS_ENABLED', false),
+        'teams'             => env('KINETIX_API_LOGS_TEAMS'), // null = inherit kinetix.teams
         'log_request_body'  => env('KINETIX_API_LOGS_REQUEST_BODY', false),
         'log_response_body' => env('KINETIX_API_LOGS_RESPONSE_BODY', false),
         'body_limit'        => env('KINETIX_API_LOGS_BODY_LIMIT', 10240),

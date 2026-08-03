@@ -14,7 +14,8 @@ webhook delivery log.
 
 The [Webhooks module](/webhooks) already records every delivery attempt
 (event, payload, response, status, attempt) in `kinetix_webhook_logs`. Two
-feeds expose it, both gated by `webhooks.manage` and team-scoped:
+feeds expose it, both gated by `webhooks.manage` and scoped to the active
+team's endpoints:
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -80,6 +81,29 @@ Keep the table bounded — schedule the prune:
 ```php
 Schedule::command('kinetix:api-logs:prune')->daily();
 ```
+
+### Multi-tenant
+
+With `kinetix.teams` on, each row is attributed to the caller's team and the
+feed is scoped **strictly** — logs carry paths, token names and optionally
+bodies, so there is no shared pool here: unlike mail templates, a `NULL`
+`team_id` means *unattributed*, not *visible to everyone*.
+
+The tenant is resolved from a team segment when your API route has one
+(`api/v1/{current_team}/…`), otherwise from the **token holder's**
+`currentTeam` — which is what a typical token-authenticated route resolves to,
+since it has no session and no segment.
+
+```bash
+php artisan vendor:publish --tag=kinetix-api-logs-migrations --force
+php artisan migrate
+```
+
+Additive and idempotent. Rows written **before** the migration keep `team_id`
+NULL and therefore stop appearing inside a team's viewer — deliberately, since
+there is no way to know which tenant they belonged to. They age out with the
+retention prune. Single-tenant apps are unaffected: Kinetix omits the column
+entirely when the module isn't team-scoped, and the scope is a no-op.
 
 ---
 

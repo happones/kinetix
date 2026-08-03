@@ -495,7 +495,8 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional API request logs migration.
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000018_create_kinetix_api_logs_table.php' => database_path('migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'         => database_path('migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000026_add_team_id_to_kinetix_api_logs_table.php' => database_path('migrations/2026_01_01_000026_add_team_id_to_kinetix_api_logs_table.php'),
             ], 'kinetix-api-logs-migrations');
 
             // Publish the optional PDF Templates settings migration.

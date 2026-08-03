@@ -241,13 +241,6 @@ class DoctorCommand extends Command
     }
 
     /**
-     * Modules whose rows carry no `team_id` at all. Their routes are
-     * team-prefixed like everything else, which reads as tenant isolation — but
-     * the data is one shared pool, so a team admin edits every tenant's rows.
-     * Deliberate (a platform-level catalog), and worth stating out loud rather
-     * than leaving to be discovered.
-     */
-    /**
      * A module that became tenant-aware needs its `team_id` column. Publishing
      * the package without running the new migration leaves scoping silently
      * inert (writes omit the column, reads can't filter), so name it.
@@ -260,6 +253,7 @@ class DoctorCommand extends Command
             'mail_templates' => ['kinetix_mail_templates', 'kinetix-mail-templates-migrations'],
             'announcements'  => ['kinetix_announcements', 'kinetix-announcements-migrations'],
             'reports_center' => ['kinetix_report_schedules', 'kinetix-reports-center-migrations'],
+            'api_logs'       => ['kinetix_api_logs', 'kinetix-api-logs-migrations'],
         ] as $module => [$table, $tag]) {
             if (! config("kinetix.{$module}.enabled", false) || ! KinetixTeams::enabledFor($module)) {
                 continue;
@@ -283,6 +277,12 @@ class DoctorCommand extends Command
             .'stamped nor filtered. Publish the tag and run migrate.', $pending);
     }
 
+    /**
+     * The modules that still store one shared pool of rows. Both are
+     * platform-level catalogs where that is the point — but their routes are
+     * team-prefixed like everything else, which reads as isolation, so the
+     * distinction is stated rather than left to be discovered.
+     */
     protected function checkGlobalData(): void
     {
         if (! (bool) config('kinetix.teams', false)) {
@@ -290,16 +290,17 @@ class DoctorCommand extends Command
         }
 
         $global = array_keys(array_filter([
-            'API logs' => (bool) config('kinetix.api_logs.enabled', false),
+            'billing plans'     => (bool) config('kinetix.billing.enabled', false),
+            'confidential keys' => (bool) config('kinetix.confidential.enabled', false),
         ]));
 
         if ($global === []) {
             return;
         }
 
-        $this->warn_('Tenancy', count($global).' enabled module(s) store GLOBAL data', 'These have no '
-            .'team_id column: every team sees and edits the same rows, even though their routes are '
-            .'team-prefixed. Gate them behind a platform-admin role rather than a per-team one.', $global);
+        $this->ok('Tenancy', 'platform-wide by design: '.implode(', ', $global),
+            'These have no team_id: the rows are shared across tenants. Gate their management behind a '
+            .'platform-admin role rather than a per-team one.');
     }
 
     protected function checkFrontend(): void

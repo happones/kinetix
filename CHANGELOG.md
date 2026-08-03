@@ -13,6 +13,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.122.0] - 2026-08-02
+
+### Added
+
+- **API request logs are tenant-aware.** Rows carry paths, token names and
+  optionally request/response bodies, and were one shared pool: any team's
+  `viewKinetixApiLogs` holder read every tenant's traffic. Each row is now
+  attributed to the caller's team — resolved from a team segment when your API
+  route has one, otherwise from the **token holder's** `currentTeam`, which is
+  what a typical session-less token route resolves to — and the viewer scopes
+  strictly.
+
+  Unlike mail templates and announcements, `NULL` here is **not** a shared
+  default: a log belongs to exactly one tenant, so a NULL row is *unattributed*
+  and the scope fails closed rather than showing it to everyone. Rows written
+  before the migration therefore stop appearing inside a team's viewer — there
+  is no way to know which tenant they belonged to — and age out with
+  `kinetix:api-logs:prune`.
+
+### Changed
+
+- `kinetix:doctor` no longer warns about global data for modules that are now
+  scoped. It states the two that remain platform-wide **by design** (billing
+  plans, confidential keys) as an informational line, and covers
+  `kinetix_api_logs` in the missing-`team_id`-column check.
+
+### Upgrading
+
+```bash
+php artisan vendor:publish --tag=kinetix-api-logs-migrations --force
+php artisan migrate
+```
+
+Additive and idempotent; single-tenant apps are unaffected whether or not they
+run it (the column is only written while the module is team-scoped).
+
 ## [0.121.0] - 2026-08-02
 
 Closes the last gap from the v0.120.0 tenancy audit: the two modules that stored

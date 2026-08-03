@@ -163,34 +163,34 @@ class DoctorCommandTest extends TestCase
             ->assertSuccessful();
     }
 
-    public function test_modules_storing_global_data_are_flagged_under_teams(): void
+    public function test_platform_wide_modules_are_stated(): void
     {
-        config()->set('kinetix.api_logs.enabled', true);
+        config()->set('kinetix.billing.enabled', true);
 
         $this->artisan('kinetix:doctor')
-            ->expectsOutputToContain('store GLOBAL data')
-            ->expectsOutputToContain('API logs')
+            ->expectsOutputToContain('platform-wide by design: billing plans')
             ->assertSuccessful();
     }
 
-    public function test_team_scoped_modules_are_not_flagged_as_global(): void
+    public function test_tenant_aware_modules_are_not_listed_as_platform_wide(): void
     {
-        // Mail templates and announcements became tenant-aware in v0.121.0.
+        // These became tenant-aware in v0.121.0 / v0.122.0.
         config()->set('kinetix.mail_templates.enabled', true);
         config()->set('kinetix.announcements.enabled', true);
-
-        $this->artisan('kinetix:doctor')
-            ->doesntExpectOutputToContain('store GLOBAL data')
-            ->assertSuccessful();
-    }
-
-    public function test_global_data_is_not_flagged_without_teams(): void
-    {
-        config()->set('kinetix.teams', false);
         config()->set('kinetix.api_logs.enabled', true);
 
         $this->artisan('kinetix:doctor')
-            ->doesntExpectOutputToContain('store GLOBAL data')
+            ->doesntExpectOutputToContain('platform-wide by design')
+            ->assertSuccessful();
+    }
+
+    public function test_nothing_is_stated_without_teams(): void
+    {
+        config()->set('kinetix.teams', false);
+        config()->set('kinetix.billing.enabled', true);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('platform-wide by design')
             ->assertSuccessful();
     }
 

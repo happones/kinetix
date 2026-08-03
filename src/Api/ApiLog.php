@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Api;
 
+use Happones\Kinetix\Support\Concerns\ScopedToTeam;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -12,6 +13,7 @@ use Illuminate\Support\Carbon;
  * no updated_at, pruned by `kinetix:api-logs:prune`.
  *
  * @property int                       $id
+ * @property int|string|null           $team_id
  * @property int|null                  $user_id
  * @property int|null                  $token_id
  * @property string|null               $token_name
@@ -26,6 +28,13 @@ use Illuminate\Support\Carbon;
  */
 class ApiLog extends Model
 {
+    use ScopedToTeam;
+
+    public static function kinetixTeamModule(): string
+    {
+        return 'api_logs';
+    }
+
     public const UPDATED_AT = null;
 
     protected $table = 'kinetix_api_logs';
