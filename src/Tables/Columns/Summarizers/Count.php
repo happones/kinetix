@@ -12,6 +12,14 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class Count extends Summarizer
 {
+    /**
+     * @return array<string, string>
+     */
+    public function aggregateExpressions(string $column): array
+    {
+        return ['value' => 'count(*)'];
+    }
+
     protected function compute(Builder $query, string $column): mixed
     {
         return $query->count();

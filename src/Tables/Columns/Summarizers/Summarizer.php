@@ -138,6 +138,60 @@ class Summarizer
      * Compute and format this summarizer for the given (base) query + column.
      * Returns null when the summarizer is hidden.
      */
+    /**
+     * Whether this summarizer's value can be folded into the table's single
+     * aggregate query.
+     *
+     * A custom `query()` scope or `using()` callback changes the dataset (or
+     * bypasses SQL aggregation entirely), so those keep their own query. Every
+     * plain aggregate shares one scan.
+     */
+    public function isBatchable(): bool
+    {
+        return $this->scope === null
+            && $this->using === null
+            && $this->aggregateExpressions('x') !== [];
+    }
+
+    /**
+     * The SQL aggregates this summarizer needs, keyed by a local name.
+     *
+     * Empty (the base) means "not a plain aggregate" — see {@see isBatchable()}.
+     * `$column` arrives already quoted by the connection's grammar.
+     *
+     * @return array<string, string>
+     */
+    public function aggregateExpressions(string $column): array
+    {
+        return [];
+    }
+
+    /**
+     * Render from values already fetched by the batched aggregate query, keyed
+     * as in {@see aggregateExpressions()}.
+     *
+     * @param array<string, mixed> $values
+     */
+    public function summarizeFromValues(array $values, Builder $query): ?SummaryData
+    {
+        if ($this->isHiddenFor($query)) {
+            return null;
+        }
+
+        return new SummaryData($this->label, $this->applyAffixes($this->formatValues($values)));
+    }
+
+    /**
+     * Format the batched values into the displayed string. Single-aggregate
+     * summarizers read `value`; {@see Range} overrides for its min/max pair.
+     *
+     * @param array<string, mixed> $values
+     */
+    protected function formatValues(array $values): string
+    {
+        return $this->format($values['value'] ?? null);
+    }
+
     public function summarize(Builder $query, string $column): ?SummaryData
     {
         if ($this->scope !== null) {

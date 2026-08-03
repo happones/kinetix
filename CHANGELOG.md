@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.126.0] - 2026-08-02
+
+### Performance
+
+- **Column summaries now share a single aggregate query.** Each summarizer ran
+  its own — a footer with sum + average + count + range over one column was
+  **five** scans of the filtered set (Range counts twice, for min and max), and
+  columns multiplied it further. They are folded into one
+  `select sum(…), avg(…), min(…), max(…), count(*)`.
+
+  This mattered most exactly where it hurt: the tables big enough to want
+  `simplePaginated()` / `cursorPaginated()` were the ones paying N scans for
+  their footer, which undercut the point of dropping the `COUNT(*)`.
+
+  A summarizer with a `query()` scope or a `using()` callback measures a
+  different dataset, so it keeps its own query — the cost is `1 + (those)`.
+  Values, formatting and the hidden/visible rules are unchanged; the existing
+  summary tests pass untouched.
+
+### Added
+
+- `Summarizer::aggregateExpressions()` / `summarizeFromValues()` / `isBatchable()`
+  — the contract a custom summarizer implements to join the shared scan. Not
+  implementing it is safe: the summarizer simply runs its own query, as before.
+
 ## [0.125.0] - 2026-08-02
 
 ### Added

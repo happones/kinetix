@@ -11,6 +11,25 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class Average extends Summarizer
 {
+    /**
+     * @return array<string, string>
+     */
+    public function aggregateExpressions(string $column): array
+    {
+        return ['value' => "avg({$column})"];
+    }
+
+    /**
+     * An empty set averages to null; keep the pre-batching behaviour of showing
+     * a zero rather than a blank.
+     *
+     * @param array<string, mixed> $values
+     */
+    protected function formatValues(array $values): string
+    {
+        return $this->format($values['value'] ?? 0);
+    }
+
     protected function compute(Builder $query, string $column): mixed
     {
         return $query->avg($column) ?? 0;

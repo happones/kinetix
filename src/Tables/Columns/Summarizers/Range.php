@@ -50,6 +50,26 @@ class Range extends Summarizer
         return $this;
     }
 
+    /**
+     * `excludeNull` does not appear here on purpose: SQL's MIN/MAX already skip
+     * NULLs, so the `whereNotNull` it adds cannot change either value — which
+     * keeps Range foldable into the shared aggregate query.
+     *
+     * @return array<string, string>
+     */
+    public function aggregateExpressions(string $column): array
+    {
+        return ['min' => "min({$column})", 'max' => "max({$column})"];
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    protected function formatValues(array $values): string
+    {
+        return $this->renderRange($values['min'] ?? null, $values['max'] ?? null);
+    }
+
     protected function compute(Builder $query, string $column): mixed
     {
         return null; // Range resolves min/max directly in resolveValue().
@@ -61,9 +81,15 @@ class Range extends Summarizer
             $query->whereNotNull($column);
         }
 
-        $min = $query->min($column);
-        $max = $query->max($column);
+        return $this->renderRange($query->min($column), $query->max($column));
+    }
 
+    /**
+     * Shared by the per-summarizer and the batched paths so both render the
+     * range identically.
+     */
+    protected function renderRange(mixed $min, mixed $max): string
+    {
         if ($min === null && $max === null) {
             return '';
         }

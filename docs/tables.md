@@ -572,6 +572,31 @@ IconColumn::make('is_published')
 TextColumn::make('price')->summarize(Sum::make()->money('USD', divideBy: 100));
 ```
 
+### One scan, not one per summarizer
+
+Every plain aggregate is folded into a **single** query, across all columns:
+
+```php
+Table::make(Order::query())->columns([
+    TextColumn::make('amount')->summarize([Sum::make(), Average::make(), Range::make()]),
+    TextColumn::make('id')->summarize(Count::make()),
+]);
+```
+
+```sql
+-- one scan of the filtered set, not five
+select sum("amount"), avg("amount"), min("amount"), max("amount"), count(*) from "orders" where …
+```
+
+Two things opt a summarizer **out** of the shared query, because both change the
+dataset it measures:
+
+- `->query(fn ($q) => …)` — a narrower scope;
+- `->using(fn ($q) => …)` — a fully custom value.
+
+Those keep their own query, so the cost is `1 + (however many of those you
+declared)`. Everything else is free once the first scan is paid for.
+
 ### Including summaries in exports
 
 `ExportColumn` has the same `summarize()` method. When any export column declares
@@ -646,10 +671,14 @@ The payload reflects this: `pagination.total` and `pagination.lastPage` are
 `null`, and `pagination.hasMore` is the signal for whether a next page exists.
 Custom footers must read `hasMore` rather than comparing against `lastPage`.
 
-::: tip Summaries still aggregate
-Column summarizers run their own aggregate over the filtered set, so a table with
-both `simplePaginated()` and `->summarize()` still pays for a full scan. Drop the
-summaries too if the goal is a cheap page.
+::: tip Summaries add exactly one scan
+Column summarizers aggregate over the filtered set, so a table with both
+`simplePaginated()` and `->summarize()` still pays for **one** scan — every plain
+aggregate (sum, average, count, range) across every column is folded into a
+single query. A summarizer with its own `query()` scope or a `using()` callback
+has a different dataset, so it keeps its own query; the count you pay is
+`1 + (scoped summarizers)`. Drop the summaries entirely if the goal is a page
+with no scan at all.
 :::
 
 ### Deep pagination — `cursorPaginated()`

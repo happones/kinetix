@@ -11,6 +11,14 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class Sum extends Summarizer
 {
+    /**
+     * @return array<string, string>
+     */
+    public function aggregateExpressions(string $column): array
+    {
+        return ['value' => "sum({$column})"];
+    }
+
     protected function compute(Builder $query, string $column): mixed
     {
         return $query->sum($column);

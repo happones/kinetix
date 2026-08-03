@@ -829,7 +829,14 @@ class Table implements Arrayable, JsonSerializable
      */
     protected function computeSummaries(Builder $baseQuery): array
     {
+        // Every plain aggregate shares one scan. Previously each summarizer ran
+        // its own query, so a footer with sum + average + count over a filtered
+        // table scanned it three times — and that is precisely the table where
+        // the scan is expensive.
+        $values = $this->fetchBatchedAggregates($baseQuery);
+
         $summaries = [];
+        $index     = 0;
 
         foreach ($this->columns as $column) {
             if (! $column->hasSummarizers()) {
@@ -837,8 +844,14 @@ class Table implements Arrayable, JsonSerializable
             }
 
             $columnSummaries = [];
+
             foreach ($column->getSummarizers() as $summarizer) {
-                $result = $summarizer->summarize(clone $baseQuery, $column->getName());
+                $key = $index++;
+
+                $result = $summarizer->isBatchable()
+                    ? $summarizer->summarizeFromValues($values[$key] ?? [], $baseQuery)
+                    : $summarizer->summarize(clone $baseQuery, $column->getName());
+
                 if ($result !== null) {
                     $columnSummaries[] = $result;
                 }
@@ -850,6 +863,68 @@ class Table implements Arrayable, JsonSerializable
         }
 
         return [$summaries, $summaries !== []];
+    }
+
+    /**
+     * Run every batchable summarizer's aggregate in a single query.
+     *
+     * Returns the values keyed by the summarizer's position (the same order
+     * {@see computeSummaries()} walks), then by the summarizer's own local name.
+     *
+     * @param  Builder<covariant Model>         $baseQuery
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fetchBatchedAggregates(Builder $baseQuery): array
+    {
+        $grammar = $baseQuery->getQuery()->getGrammar();
+        $selects = [];
+        $map     = [];
+        $index   = 0;
+
+        foreach ($this->columns as $column) {
+            if (! $column->hasSummarizers()) {
+                continue;
+            }
+
+            foreach ($column->getSummarizers() as $summarizer) {
+                $key = $index++;
+
+                if (! $summarizer->isBatchable()) {
+                    continue;
+                }
+
+                foreach ($summarizer->aggregateExpressions($grammar->wrap($column->getName())) as $local => $expression) {
+                    $alias       = "kinetix_agg_{$key}_{$local}";
+                    $selects[]   = "{$expression} as {$alias}";
+                    $map[$alias] = [$key, $local];
+                }
+            }
+        }
+
+        if ($selects === []) {
+            return [];
+        }
+
+        // Aggregate off the BASE builder: no eager loads, and no columns/orders
+        // /limit from the paginated read, which would be invalid without a
+        // GROUP BY (Laravel's own aggregate() strips them for the same reason).
+        $query                     = (clone $baseQuery)->toBase();
+        $query->columns            = null;
+        $query->orders             = null;
+        $query->limit              = null;
+        $query->offset             = null;
+        $query->bindings['select'] = [];
+        $query->bindings['order']  = [];
+
+        $row = (array) ($query->selectRaw(implode(', ', $selects))->first() ?? []);
+
+        $values = [];
+
+        foreach ($map as $alias => [$key, $local]) {
+            $values[$key][$local] = $row[$alias] ?? null;
+        }
+
+        return $values;
     }
 
     /**
