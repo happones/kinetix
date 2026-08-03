@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +16,7 @@ return new class extends Migration
 
             // Nullable so the module works without teams (null = global scope).
             // No FK constraint: the host's teams schema is unknown to the package.
-            $table->unsignedBigInteger('team_id')->nullable()->index();
+            HostKeys::team($table)->nullable()->index();
             $table->string('key');
             $table->text('value')->nullable();
             $table->boolean('encrypted')->default(false);

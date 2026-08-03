@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -24,7 +25,7 @@ return new class extends Migration
         }
 
         Schema::table('kinetix_announcements', function (Blueprint $table): void {
-            $table->unsignedBigInteger('team_id')->nullable()->after('id')->index();
+            HostKeys::team($table)->nullable()->after('id')->index();
         });
     }
 

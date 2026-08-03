@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,16 +15,16 @@ return new class extends Migration
             $table->id();
 
             // null team = global scope. No FK: host teams schema is unknown.
-            $table->unsignedBigInteger('team_id')->nullable()->index();
+            HostKeys::team($table)->nullable()->index();
             $table->string('log_name')->nullable();
             $table->string('event')->nullable();
             $table->text('description')->nullable();
 
             // Polymorphic subject (the record that changed) + causer (who did it).
             $table->string('subject_type')->nullable();
-            $table->unsignedBigInteger('subject_id')->nullable();
+            HostKeys::morph($table, 'subject_id')->nullable();
             $table->string('causer_type')->nullable();
-            $table->unsignedBigInteger('causer_id')->nullable();
+            HostKeys::morph($table, 'causer_id')->nullable();
 
             // { old: {...}, attributes: {...} } diff (and any custom props).
             $table->json('properties')->nullable();

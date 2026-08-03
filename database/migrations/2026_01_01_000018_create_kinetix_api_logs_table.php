@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('kinetix_api_logs', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id')->nullable()->index();
+            HostKeys::user($table)->nullable()->index();
             $table->unsignedBigInteger('token_id')->nullable()->index();
             $table->string('token_name')->nullable();
             $table->string('method', 10);

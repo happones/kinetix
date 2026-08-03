@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('kinetix_tags', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('team_id')->nullable()->index();
+            HostKeys::team($table)->nullable()->index();
             $table->string('name');
             $table->string('slug');
             $table->timestamps();
@@ -23,7 +24,7 @@ return new class extends Migration
         Schema::create('kinetix_taggables', function (Blueprint $table) {
             $table->unsignedBigInteger('tag_id');
             $table->string('taggable_type');
-            $table->unsignedBigInteger('taggable_id');
+            HostKeys::morph($table, 'taggable_id');
 
             $table->index(['taggable_type', 'taggable_id']);
             $table->unique(['tag_id', 'taggable_type', 'taggable_id'], 'kinetix_taggables_unique');

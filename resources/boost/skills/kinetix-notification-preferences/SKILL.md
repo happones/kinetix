@@ -71,9 +71,11 @@ A type × channel checkbox matrix that persists each toggle.
 
 ## UUID / ULID Host Models
 
-The published migration types `user_id` as `unsignedBigInteger`. If the
-referenced model uses UUIDs or ULIDs, publish
-`--tag=kinetix-notification-preferences-migrations` and retype those columns
-(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
-type each column after the model it points to. Full recipe: the
-`kinetix-boost` skill, section "UUID / ULID Host Models".
+This feature's migration builds `user_id` with
+`Happones\Kinetix\Support\HostKeys`, which types each column after YOUR model
+at migrate time (`HasUlids` -> ulid, `HasUuids` -> uuid, string `$keyType` ->
+string, else bigint). Pin `kinetix.key_types.user|team` when detection cannot
+see the setup; morph ids follow `kinetix.key_types.morph` (default bigint) —
+set it when the referenced models use UUIDs/ULIDs. Apps migrated on an older
+Kinetix have bigint columns on disk and need their own ALTER migration. Full
+recipe: the `kinetix-boost` skill, section "UUID / ULID Host Models".

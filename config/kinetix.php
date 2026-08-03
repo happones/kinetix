@@ -247,6 +247,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Host-Model Key Types
+    |--------------------------------------------------------------------------
+    |
+    | The column type Kinetix migrations use for ids that reference YOUR models
+    | (user_id, team_id, morph ids). 'auto' inspects the model at migrate time
+    | (HasUlids → ulid, HasUuids → uuid, string $keyType → string, else
+    | bigint). Pin 'bigint' | 'uuid' | 'ulid' | 'string' explicitly when
+    | detection can't see your setup. Morph targets can be any model, so
+    | 'morph' has no auto mode and defaults to bigint.
+    |
+    */
+    'key_types' => [
+        'user'  => env('KINETIX_USER_KEY_TYPE', 'auto'),
+        'team'  => env('KINETIX_TEAM_KEY_TYPE', 'auto'),
+        'morph' => env('KINETIX_MORPH_KEY_TYPE', 'bigint'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Team Switcher (optional)
     |--------------------------------------------------------------------------
     |

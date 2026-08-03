@@ -13,6 +13,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Four fixes from a consuming-app field report.
+
+### Fixed
+
+- ⚠️ **(published) Migrations no longer hardcode `unsignedBigInteger` for
+  columns referencing YOUR models.** `membership.user_model` (and the auth
+  provider model) were always configurable, and nothing in Kinetix requires an
+  auto-increment PK — but every `user_id`/`team_id`/morph column shipped as
+  bigint, so UUID/ULID apps broke at runtime. All 21 affected migrations now
+  build those columns with `Happones\Kinetix\Support\HostKeys`, which types
+  each column after the app's model at migrate time (`HasUlids` → `ulid`,
+  `HasUuids` → `uuid`, string `$keyType` → `string`, else bigint; the team
+  model derives from the user's `teams` relation). New `kinetix.key_types`
+  config pins a type when detection can't see the setup; morph ids follow
+  `kinetix.key_types.morph` (default bigint) since a morph can target any
+  model. v0.133.0's manual-retype docs and skill notes are rewritten around
+  the automatic behaviour; apps that already migrated on bigint still need
+  their own `ALTER` path.
+- **`@tanstack/vue-virtual` is now a required peer** (and a core
+  `kinetix:install` dependency). It was flagged optional while
+  Comments/Kanban/MediaLibrary import it statically — any host compiling the
+  published components without it failed its build, and no dynamic-import
+  shape fixes that (a plain dynamic import still fails the host build when
+  missing; `/* @vite-ignore */` survives the build but never resolves at
+  runtime, even when installed). A peer that breaks the host's build is not
+  optional; `--tanstack` now covers only `@tanstack/vue-table`.
+- **`kinetix:upgrade` no longer reports upstream changes as "local edits".**
+  Drift was measured against the package's NEW sources, so after a version
+  jump every file changed upstream was flagged (the "113 published files had
+  local edits" noise on 0.119→0.132). Each publish now records a hash manifest
+  (`storage/app/kinetix-published-manifest.json`), and drift compares the disk
+  against what the last publish actually wrote — which is the difference
+  between "you edited this" and "the package shipped a new version". Without a
+  baseline (first run after this ships) nothing is claimed; the run records
+  one and says so.
+- **(published) Both membership role selects render the same labels.** The
+  provisioner headline-cased role slugs (`support-agent` → `Support Agent`)
+  while the member list's per-row select showed the raw slug on the same
+  screen. The helper is now shared (`roleLabel` in `useKinetixMembers`).
+
 ## [0.133.0] - 2026-08-03
 
 The accessibility manifest's remaining remediation (live-region announcements

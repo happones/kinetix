@@ -60,30 +60,32 @@ Activate this skill when:
 
 ## 3. UUID / ULID Host Models (users, teams, or any referenced model)
 
-Kinetix migrations type every column that references a HOST model
+Kinetix migrations build every column that references a HOST model
 (`user_id`, `team_id`, morph ids like `commentable_id`/`taggable_id`/
 `subject_id`/`causer_id`, and `invited_by`/`created_by_id`/`launched_by_id`)
-as `unsignedBigInteger`. **Before running `php artisan migrate` in an app
-whose `User`/`Team` (or commented/tagged/audited models) use UUIDs or
-ULIDs:**
+with `Happones\Kinetix\Support\HostKeys`, which **types the column after the
+app's model at migrate time**: `HasUlids` → `ulid`, `HasUuids` → `uuid`, a
+string `$keyType` → `string`, anything else → `unsignedBigInteger`. The team
+model derives from the user's `teams` relation. Mixed apps just work — each
+column follows the model it points to.
 
-1. Check the key type first — use the `database-schema` tool (or the model's
-   `HasUuids`/`HasUlids` trait / `$keyType` property). Do not assume bigint.
-2. Publish the feature's migrations (`php artisan vendor:publish
-   --tag=kinetix-<feature>-migrations`) — they are always published, never run
-   from `vendor/`, so they are the app's files to edit.
-3. Retype ONLY the columns pointing at UUID/ULID models:
-   `$table->unsignedBigInteger('user_id')` → `$table->uuid('user_id')` or
-   `$table->ulid('user_id')`. For morph pairs, retype the `*_id` half only.
-4. Type each column after the model it points to — mixed apps (bigint users +
-   UUID teams) retype only the matching columns.
-5. Do NOT touch columns pointing at Kinetix's own tables (`tag_id`,
-   `webhook_endpoint_id`, `parent_id`, …) — those stay `unsignedBigInteger`.
-6. No FK rewiring is needed (Kinetix uses plain indexed columns), EXCEPT
+What an agent must still do in a UUID/ULID app:
+
+1. Check the actual key types first — the `database-schema` tool, or the
+   model's `HasUuids`/`HasUlids` trait / `$keyType`. Never assume bigint.
+2. **Morph targets can't be detected.** If commented/tagged/audited models use
+   UUID/ULID keys, set `kinetix.key_types.morph` (`KINETIX_MORPH_KEY_TYPE`)
+   BEFORE `php artisan migrate`.
+3. If detection can't see the setup (unconventional auth provider, no `teams`
+   relation at migrate time), pin `kinetix.key_types.user` / `.team`
+   explicitly — a pinned value beats detection.
+4. Columns pointing at Kinetix's OWN tables (`tag_id`, `webhook_endpoint_id`,
+   `parent_id`, …) stay `unsignedBigInteger` — never retype them.
+5. No FK rewiring is needed (plain indexed columns), EXCEPT
    `kinetix-permission-team-migrations`, which adds real FKs to
    spatie/laravel-permission pivots — apply spatie's own UUID guidance there.
-7. If the tables are already migrated, write an `ALTER` migration in the app;
-   integer→UUID data conversion is manual.
+6. Tables migrated on an older Kinetix have bigint columns on disk: write an
+   `ALTER` migration in the app; integer→UUID data conversion is manual.
 
 The per-feature column list lives in the docs: Installation → "UUID / ULID
 primary keys on your models".

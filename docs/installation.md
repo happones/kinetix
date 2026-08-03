@@ -19,7 +19,7 @@ to any feature in the sidebar.
 | `@lucide/vue` | `^1.0` *(icons)* |
 | `@laravel/echo-vue` | `^2.3` *(only for broadcasting)* |
 | `@tanstack/vue-table` | `^8.0` *(only for client-side tables — `->clientSide()`)* |
-| `@tanstack/vue-virtual` | `^3.0` *(only for long-list virtualization — Comments / Kanban)* |
+| `@tanstack/vue-virtual` | `^3.0` *(required — Comments / Kanban / Media Library import it at build time)* |
 | shadcn-vue / Reka UI | any *(`components.json` present)* |
 
 ## 1. Install the package
@@ -156,8 +156,7 @@ php artisan kinetix:install
 # add chart/widget deps (@unovis/vue, @unovis/ts):
 php artisan kinetix:install --charts
 
-# add client-side table + list virtualization deps
-# (@tanstack/vue-table, @tanstack/vue-virtual):
+# add the client-side table dep (@tanstack/vue-table):
 php artisan kinetix:install --tanstack
 
 # add real-time notification deps (@laravel/echo-vue):
@@ -169,11 +168,11 @@ php artisan kinetix:install --provider
 
 It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are
 assumed from your starter kit): `pinia`, `vue-i18n`, `reka-ui`,
-`@internationalized/date`, `@lucide/vue`, `vue-sonner`. The `--charts`,
-`--tanstack` and `--broadcasting` flags add the optional, feature-specific
-packages (`--tanstack` covers `@tanstack/vue-table` for `->clientSide()` tables
-and `@tanstack/vue-virtual` for the long-list virtualization in Comments and
-Kanban).
+`@internationalized/date`, `@lucide/vue`, `vue-sonner` and
+`@tanstack/vue-virtual` (Comments/Kanban/Media Library import it at build time,
+so it is required, not optional). The `--charts`, `--tanstack` and
+`--broadcasting` flags add the optional, feature-specific packages
+(`--tanstack` covers `@tanstack/vue-table` for `->clientSide()` tables).
 
 > If you see a Vite error like *Failed to resolve import "@internationalized/date"*,
 > a required dependency is missing — run `php artisan kinetix:install` (or install
@@ -206,12 +205,12 @@ If you prefer to configure everything manually:
 ### 4.1 Install dependencies
 
 Install the core runtime dependencies (add `@unovis/vue @unovis/ts` for charts,
-`@tanstack/vue-table @tanstack/vue-virtual` for client-side tables + long-list
-virtualization, and `@laravel/echo-vue` for broadcasting):
+`@tanstack/vue-table` for client-side tables, and `@laravel/echo-vue` for
+broadcasting):
 
 ::: code-group
 ```bash [npm]
-npm install pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner
+npm install pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner @tanstack/vue-virtual
 ```
 ```bash [pnpm]
 pnpm add pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner
@@ -523,48 +522,48 @@ same prefix shows up in the list.
 ## UUID / ULID primary keys on your models
 
 Kinetix's own tables use auto-increment bigint primary keys — that part works
-the same whatever your app does. But the columns that **reference your models**
+the same whatever your app does. The columns that **reference your models**
 (`user_id`, `team_id`, the `causer`/`subject` morphs on activity, the
 `commentable`/`taggable` morphs, `invited_by`, `created_by_id`,
-`launched_by_id`) ship typed as `unsignedBigInteger` in the published
-migrations:
+`launched_by_id`) are built by `Happones\Kinetix\Support\HostKeys`, which
+**types them after your models at migrate time**:
 
 ```php
-$table->unsignedBigInteger('user_id')->index();
+HostKeys::user($table)->index();   // uuid / ulid / string / bigint — detected
+HostKeys::team($table)->nullable();
 ```
 
-If your `User`, `Team`, or any model you comment/tag/audit uses **UUIDs or
-ULIDs**, retype those columns **before running `php artisan migrate`** —
-migrations are always published into your app (never run from `vendor/`), so
-they are yours to edit:
+Detection (`kinetix.key_types.user` / `.team` = `'auto'`, the default) looks at
+the configured auth user model (and the user's `teams` relation for the team
+model): `HasUlids` → `ulid`, `HasUuids` → `uuid`, a string `$keyType` →
+`string`, anything else → `bigint`. Mixed apps just work — each column follows
+the model it points to.
 
-```php
-// UUID keys                              // ULID keys
-$table->uuid('user_id')->index();         $table->ulid('user_id')->index();
+Two cases still need a decision from you:
 
-// Morph pairs: retype only the *_id half —
-// the *_type string column stays as shipped.
-$table->string('commentable_type');
-$table->uuid('commentable_id');
-```
+- **Morph targets** (`commentable_id`, `taggable_id`, `subject_id`,
+  `causer_id`) can point at *any* model, so they can't be detected. They follow
+  `kinetix.key_types.morph` (`KINETIX_MORPH_KEY_TYPE`), default `bigint` — set
+  it to `uuid`/`ulid` when the models you comment/tag/audit use those keys.
+- **Detection can't see your setup?** Pin the type explicitly:
+  `KINETIX_USER_KEY_TYPE=uuid`, `KINETIX_TEAM_KEY_TYPE=ulid` — a pinned value
+  always beats detection.
 
-Three things make this low-risk:
+No foreign-key rewiring is needed — Kinetix stores these as plain indexed
+columns without DB-level constraints. The one exception is
+`kinetix-permission-team-migrations`, which adds real FKs to
+spatie/laravel-permission's pivot tables — there, follow spatie's own UUID
+guidance for those tables first.
 
-- **Type each column after the model it points to.** Mixed apps are fine — a
-  bigint `users` table with a UUID `teams` table just means `user_id` stays
-  `unsignedBigInteger` while `team_id` becomes `uuid`.
-- **No foreign-key rewiring.** Kinetix stores these as plain indexed columns
-  without DB-level constraints, so retyping the column is the whole job. The
-  one exception is `kinetix-permission-team-migrations`, which adds real FKs to
-  spatie/laravel-permission's pivot tables — there, follow spatie's own UUID
-  guidance for those tables first.
-- **Already migrated?** Write an `ALTER` migration of your own; converting
-  existing integer data to UUIDs is not automatic.
+**Already migrated on an older Kinetix?** Tables created before this behaviour
+shipped have `unsignedBigInteger` columns on disk; write an `ALTER` migration
+of your own — converting existing integer data to UUIDs is not automatic.
 
 ### Affected migrations by feature
 
 Publish tags follow `kinetix-<feature>-migrations`. Columns referencing YOUR
-models per feature:
+models per feature (all typed by `HostKeys` — morphs marked need
+`kinetix.key_types.morph` set for non-bigint targets):
 
 | Feature (tag) | Columns to retype |
 | --- | --- |
