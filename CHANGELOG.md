@@ -13,6 +13,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.131.0] - 2026-08-03
+
+Chart widgets and stat cards, retouched end to end: working tooltips, automatic
+interactive legends, a colorblind-validated theme-token palette with dedicated
+dark-mode steps, and table stat cards that support trend colors and sparklines.
+
+### Fixed
+
+- ⚠️ **(published) Chart tooltips never rendered.** unovis' `Tooltip` component
+  has no `template` prop, so the donut tooltip was silently dead, and
+  `Crosshair` without a template renders an empty string — line/area/bar
+  tooltips too. The XY tooltip now goes through the crosshair (with per-series
+  dots at the series' *visual* height), and the donut binds a per-segment
+  trigger; its tooltip also shows the slice's share of the total (e.g.
+  `Direct: 4200 · 41.2%`).
+- **(published) Axis/grid styling never applied.** The scoped
+  `.vis-axis-*` selectors don't reach unovis' emotion-generated class names, so
+  charts ran on library defaults — most visibly a glaring near-white grid in
+  dark mode. Styling now flows through unovis' own CSS custom properties, mapped
+  to the shadcn tokens (`--border`, `--muted-foreground`), so both modes derive
+  from the theme with no duplicate dark rules.
+- **(published) Stacked-area line overlays sat at raw values.** With multiple
+  series, unovis stacks the areas but the decorative `VisLine` overlays were
+  drawn at each series' raw value — floating mid-band instead of tracing the
+  band's top edge. Overlays (and crosshair dots) now use cumulative accessors
+  when stacking; non-stacked area charts render one translucent area per series.
+- **(published) Per-slice `backgroundColor` arrays were ignored** by pie/donut
+  and horizontal-bar charts; they now win over the theme palette, per slice.
+- **(published) Stat-card sparkline gradients used fixed element IDs**, so two
+  stats widgets on one page produced duplicate SVG IDs; colors were hardcoded
+  hex that ignored dark mode. See the sparkline entry under *Added*.
+- **(published) `useKinetixIcons` lacked names the docs advertise** — `book` and
+  `chart-bar` (both used in `Table::stats()` examples) resolved to nothing, and
+  `trending-down`, `percent`, `arrow-up-right`, `arrow-down-right`, `book-open`,
+  `chart-column` and `bar-chart` are now available too.
+- The gallery's `useKinetixHttp` stub was missing `xsrfToken`, which broke every
+  gallery page (and screenshot run) since the Precognition bridge landed.
+
+### Changed
+
+- ⚠️ **(published) Chart legends are automatic.** `ChartWidget::legend()`'s
+  default moved from off to **auto**: the legend shows whenever the chart has
+  two or more series/categories, since color is the only thing disambiguating
+  them. `legend(false)` forces it off, `legend()` forces it on. Legend entries
+  are now buttons that toggle their series — hiding one never repaints the
+  survivors (colors stay keyed to the original index), and the last visible
+  entry can't be hidden, so a chart never renders empty.
+
+### Added
+
+- ⚠️ **(published) Theme-token chart palette, validated for accessibility.**
+  Series colors resolve from `--chart-1`…`--chart-8` (the shadcn convention,
+  extended to 8 slots in `kinetix.css`), with **separately tuned light and dark
+  steps** — both validated for adjacent-pair colorblind separation and ≥3:1
+  contrast against their surface. The previous hardcoded palette failed
+  validation (pink vs rose were indistinguishable at ΔE 8.3 even with full color
+  vision). A new `useKinetixChartPalette` composable resolves the tokens at
+  runtime — accepting HSL-triplet or complete-color (`oklch(…)`/hex) values, so
+  a shadcn starter kit's existing `--chart-N` variables just work — and
+  re-resolves live when `html.dark` toggles, whichever toggle flips it.
+  Dataset `borderColor`/`backgroundColor` still win. Entrance animations now
+  respect `prefers-reduced-motion`, bars gained rounded corners and padding,
+  and donuts gained segment gaps + corner radius per the mark specs.
+- **(published) `KinetixSparkline`** — the stat-card sparkline, extracted into a
+  shared component used by both the stats-overview widget and table stat cards.
+  It inherits its tint from the status *tokens* via `currentColor` (stroke and
+  gradient fill), so it re-tints with dark mode and host re-skins; gradient IDs
+  are per-instance (`useId`), and the draw-in animation respects
+  `prefers-reduced-motion`.
+- **(published) `TableStat` trend presentation** — mirroring the `Stat` widget
+  API: `descriptionIcon()`, `descriptionColor()` (renders the description as a
+  colored chip) and `chart([...])` (a sparkline tinted by the trend color,
+  falling back to the card color). The card layout moved the description to its
+  own full-width row so chips and sparklines don't fight for space in narrow
+  grids.
+- Gallery specimens `stats-sparkline` and `table-stats`, with light/dark
+  screenshots wired into `docs/widgets.md` and `docs/tables.md`.
+- Tooling: husky `pre-commit` (lint-staged: pint + eslint + prettier on staged
+  files), `commit-msg` (commitlint, conventional commits) and `pre-push`
+  (vue-tsc + phpstan) hooks, installed via the `prepare` script.
+
 ## [0.130.1] - 2026-08-03
 
 A patch over v0.130.0, whose tagged commit had a red pipeline. **If you installed
