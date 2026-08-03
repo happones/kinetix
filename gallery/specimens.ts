@@ -210,6 +210,7 @@ import KinetixSpotlightTrigger from '@/components/KinetixSpotlightTrigger.vue';
 import KinetixAccessibilityPanel from '@/components/KinetixAccessibilityPanel.vue';
 import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
+import KinetixTableStats from '@/components/Table/KinetixTableStats.vue';
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
 import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
 import KinetixTimezonePicker from '@/components/KinetixTimezonePicker.vue';
@@ -620,6 +621,76 @@ const statsLinkWidget = {
     },
 };
 
+const statsSparklineWidget = {
+    id: 'stats-spark',
+    type: 'stats',
+    columnSpan: 12,
+    sort: 0,
+    title: null,
+    description: null,
+    data: {
+        stats: [
+            {
+                label: 'Revenue',
+                value: '$48.2K',
+                description: '+12.5% vs last month',
+                descriptionIcon: 'trending-up',
+                descriptionColor: 'success',
+                chart: [12, 18, 14, 22, 26, 24, 31],
+            },
+            {
+                label: 'Churn',
+                value: '2.4%',
+                description: '+0.8% vs last month',
+                descriptionIcon: 'trending-down',
+                descriptionColor: 'danger',
+                chart: [8, 7, 9, 10, 12, 13, 14],
+            },
+            {
+                label: 'Signups',
+                value: '1,204',
+                description: 'Flat vs last month',
+                descriptionColor: 'gray',
+                chart: [30, 31, 29, 30, 31, 30, 30],
+            },
+        ],
+    },
+};
+
+const tableStatsFixture = [
+    {
+        label: 'Total books',
+        value: '12,480',
+        icon: 'book',
+        color: 'info',
+        description: 'All time',
+    },
+    {
+        label: 'On loan',
+        value: '842',
+        description: '+12% vs last month',
+        descriptionIcon: 'trending-up',
+        descriptionColor: 'success',
+        chart: [610, 640, 700, 690, 760, 842],
+    },
+    {
+        label: 'Overdue',
+        value: '34',
+        description: '+5 this week',
+        descriptionIcon: 'trending-up',
+        descriptionColor: 'danger',
+        chart: [21, 24, 22, 27, 30, 34],
+        url: '#',
+    },
+    {
+        label: 'Reservations',
+        value: '128',
+        icon: 'users',
+        color: 'warning',
+        description: 'Waiting list',
+    },
+];
+
 const listWidget = {
     id: 'recent',
     type: 'list',
@@ -1002,6 +1073,20 @@ export const specimens: Specimen[] = [
         component: KinetixStatsOverviewWidget,
         width: 980,
         props: { widget: statsWidget },
+    },
+    {
+        name: 'stats-sparkline',
+        title: 'Stats overview — trend sparklines',
+        component: KinetixStatsOverviewWidget,
+        width: 980,
+        props: { widget: statsSparklineWidget },
+    },
+    {
+        name: 'table-stats',
+        title: 'Table stats — KPI cards with trends',
+        component: KinetixTableStats,
+        width: 980,
+        props: { stats: tableStatsFixture },
     },
     {
         name: 'stats-link-widget',

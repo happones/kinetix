@@ -736,9 +736,27 @@ both kinds costs two queries total, not one per card.
 | `icon('book')` | Lucide icon in the card's badge |
 | `color('success')` | Badge colour: `primary`, `info`, `success`, `warning`, `danger`, `gray` |
 | `description('This month')` | Secondary line under the value |
+| `descriptionIcon('trending-up')` | Lucide icon beside the description |
+| `descriptionColor('danger')` | Renders the description as a colored trend chip (same palette as `color()`) |
+| `chart([3, 5, 4, 8])` | Sparkline on the card, tinted by `descriptionColor` (falls back to `color`); shown when no `icon` is set |
 | `url('/books?…')` | Makes the whole card an Inertia link |
 | `numeric(2)` / `money('USD', divideBy: 100)` | Value formatting (same helpers as summarizers) |
 | `prefix()` / `suffix()` | Wrap the formatted value |
+
+Sparkline values are developer-provided — a trend series can't be folded into
+the card's single-row aggregate query, so fetch it yourself (and cache it) if
+the trend must be live:
+
+```php
+TableStat::make('On loan')
+    ->count()->where('status', 'loan')
+    ->description('+12% vs last month')
+    ->descriptionIcon('trending-up')
+    ->descriptionColor('success')
+    ->chart([610, 640, 700, 690, 760, 842]),
+```
+
+<Screenshot name="table-stats" alt="Table stat cards with icon badges, trend chips and sparklines" />
 
 ### Visibility and authorization
 

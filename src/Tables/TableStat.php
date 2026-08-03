@@ -65,6 +65,18 @@ class TableStat
 
     protected ?string $description = null;
 
+    protected ?string $descriptionIcon = null;
+
+    protected ?string $descriptionColor = null;
+
+    /**
+     * Sparkline series shown on the card (developer-provided; not derived from
+     * the aggregate query).
+     *
+     * @var array<int, float|int>
+     */
+    protected array $chart = [];
+
     protected ?string $url = null;
 
     /**
@@ -215,6 +227,41 @@ class TableStat
     public function description(string $description): static
     {
         $this->description = $description;
+
+        return $this;
+    }
+
+    /**
+     * Lucide icon shown beside the description (e.g. 'trending-up').
+     */
+    public function descriptionIcon(string $icon): static
+    {
+        $this->descriptionIcon = $icon;
+
+        return $this;
+    }
+
+    /**
+     * Render the description as a colored trend chip:
+     * primary, info, success, warning, danger, gray.
+     */
+    public function descriptionColor(string $color): static
+    {
+        $this->descriptionColor = $color;
+
+        return $this;
+    }
+
+    /**
+     * A sparkline drawn on the card, tinted by descriptionColor (falling back
+     * to the card color). Values are developer-provided — a trend series can't
+     * be folded into the card's single-row aggregate query.
+     *
+     * @param array<int, float|int> $chart
+     */
+    public function chart(array $chart): static
+    {
+        $this->chart = $chart;
 
         return $this;
     }
@@ -395,14 +442,7 @@ class TableStat
      */
     public function toData(mixed $value): TableStatData
     {
-        return new TableStatData(
-            label: $this->label,
-            value: $this->applyAffixes($this->format($value)),
-            icon: $this->icon,
-            color: $this->color,
-            description: $this->description,
-            url: $this->url,
-        );
+        return $this->toDataFromFormatted($this->applyAffixes($this->format($value)));
     }
 
     /**
@@ -416,6 +456,9 @@ class TableStat
             icon: $this->icon,
             color: $this->color,
             description: $this->description,
+            descriptionIcon: $this->descriptionIcon,
+            descriptionColor: $this->descriptionColor,
+            chart: $this->chart,
             url: $this->url,
         );
     }

@@ -20,10 +20,12 @@ import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
     statusBadgeClass,
     statusSoftClass,
+    statusTextClass,
 } from '@/composables/useKinetixStatusColor';
 import type { KinetixWidget, KinetixStat } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
+import KinetixSparkline from './widgets/KinetixSparkline.vue';
 
 const props = defineProps<{
     widget: KinetixWidget;
@@ -74,75 +76,13 @@ const getStatIcon = (iconName?: string) => {
 
 const getDescriptionColorClass = (color?: string) => statusSoftClass(color);
 
-const getSparklineColor = (color?: string) => {
-    if (color === 'success') {
-        return {
-            stroke: '#10b981',
-            fill: 'url(#sparkline-grad-success)',
-        };
-    }
-
-    if (color === 'danger') {
-        return {
-            stroke: '#f43f5e',
-            fill: 'url(#sparkline-grad-danger)',
-        };
-    }
-
-    if (color === 'warning') {
-        return {
-            stroke: '#f59e0b',
-            fill: 'url(#sparkline-grad-warning)',
-        };
-    }
-
-    if (color === 'info') {
-        return {
-            stroke: '#0ea5e9',
-            fill: 'url(#sparkline-grad-info)',
-        };
-    }
-
-    return {
-        stroke: '#737373',
-        fill: 'url(#sparkline-grad-gray)',
-    };
-};
-
-const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
-    if (!chart || chart.length < 2) {
-        return { line: '', area: '' };
-    }
-
-    const min = Math.min(...chart);
-    const max = Math.max(...chart);
-    const range = max - min === 0 ? 1 : max - min;
-    const padding = 4;
-    const usableHeight = height - padding * 2;
-
-    const points = chart.map((val, index) => {
-        const x = (index / (chart.length - 1)) * width;
-        const y = height - padding - ((val - min) / range) * usableHeight;
-
-        return { x, y };
-    });
-
-    const linePath = points
-        .map((p, i) => {
-            if (i === 0) {
-                return `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-            }
-
-            return `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-        })
-        .join(' ');
-
-    const last = points[points.length - 1];
-    const first = points[0];
-    const areaPath = `${linePath} L ${last.x.toFixed(1)} ${height} L ${first.x.toFixed(1)} ${height} Z`;
-
-    return { line: linePath, area: areaPath };
-};
+/**
+ * Sparklines inherit their color from the status TOKENS via `currentColor`
+ * (stroke + gradient stops), so they shift with light/dark mode and any host
+ * re-skin — no hardcoded hex.
+ */
+const sparklineColorClass = (color?: string) =>
+    statusTextClass(color, 'text-muted-foreground');
 </script>
 
 <template>
@@ -166,105 +106,6 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
             class="kinetix-stats-grid"
             :style="{ '--stats-cols': stats.length }"
         >
-            <!-- Gradients Definitions -->
-            <svg
-                style="width: 0; height: 0; position: absolute"
-                aria-hidden="true"
-            >
-                <defs>
-                    <linearGradient
-                        id="sparkline-grad-success"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                    >
-                        <stop
-                            offset="0%"
-                            stop-color="#10b981"
-                            stop-opacity="0.2"
-                        />
-                        <stop
-                            offset="100%"
-                            stop-color="#10b981"
-                            stop-opacity="0"
-                        />
-                    </linearGradient>
-                    <linearGradient
-                        id="sparkline-grad-danger"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                    >
-                        <stop
-                            offset="0%"
-                            stop-color="#f43f5e"
-                            stop-opacity="0.2"
-                        />
-                        <stop
-                            offset="100%"
-                            stop-color="#f43f5e"
-                            stop-opacity="0"
-                        />
-                    </linearGradient>
-                    <linearGradient
-                        id="sparkline-grad-warning"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                    >
-                        <stop
-                            offset="0%"
-                            stop-color="#f59e0b"
-                            stop-opacity="0.2"
-                        />
-                        <stop
-                            offset="100%"
-                            stop-color="#f59e0b"
-                            stop-opacity="0"
-                        />
-                    </linearGradient>
-                    <linearGradient
-                        id="sparkline-grad-info"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                    >
-                        <stop
-                            offset="0%"
-                            stop-color="#0ea5e9"
-                            stop-opacity="0.2"
-                        />
-                        <stop
-                            offset="100%"
-                            stop-color="#0ea5e9"
-                            stop-opacity="0"
-                        />
-                    </linearGradient>
-                    <linearGradient
-                        id="sparkline-grad-gray"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                    >
-                        <stop
-                            offset="0%"
-                            stop-color="#737373"
-                            stop-opacity="0.15"
-                        />
-                        <stop
-                            offset="100%"
-                            stop-color="#737373"
-                            stop-opacity="0"
-                        />
-                    </linearGradient>
-                </defs>
-            </svg>
-
             <Card
                 v-for="(stat, index) in stats"
                 :key="index"
@@ -322,41 +163,13 @@ const getSparklinePath = (chart?: number[], width = 120, height = 40) => {
                             />
                         </div>
 
-                        <!-- Sparkline Chart -->
+                        <!-- Sparkline Chart (colored by status token via currentColor) -->
                         <div
                             v-else-if="stat.chart && stat.chart.length >= 2"
                             class="mt-1 h-[40px] w-[120px] shrink-0"
+                            :class="sparklineColorClass(stat.descriptionColor)"
                         >
-                            <svg
-                                class="h-full w-full overflow-visible"
-                                viewBox="0 0 120 40"
-                            >
-                                <path
-                                    :d="
-                                        getSparklinePath(stat.chart, 120, 40)
-                                            .area
-                                    "
-                                    :fill="
-                                        getSparklineColor(stat.descriptionColor)
-                                            .fill
-                                    "
-                                    stroke="none"
-                                />
-                                <path
-                                    :d="
-                                        getSparklinePath(stat.chart, 120, 40)
-                                            .line
-                                    "
-                                    fill="none"
-                                    :stroke="
-                                        getSparklineColor(stat.descriptionColor)
-                                            .stroke
-                                    "
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
+                            <KinetixSparkline :data="stat.chart" />
                         </div>
                     </div>
 

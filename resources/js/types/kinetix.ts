@@ -733,7 +733,8 @@ export interface KinetixChartData {
     datasets?: KinetixChartDataset[];
     chartType?: string;
     stacked?: boolean;
-    legend?: boolean;
+    /** true/false forces the legend; null/absent = auto (shown for ≥ 2 entries). */
+    legend?: boolean | null;
     centerValue?: string | null;
     centerLabel?: string | null;
     metrics?: KinetixChartMetric[];
@@ -1082,6 +1083,11 @@ export interface KinetixTableStat {
     icon?: string | null;
     color?: string;
     description?: string | null;
+    descriptionIcon?: string | null;
+    /** Renders the description as a colored trend chip (success/danger/…). */
+    descriptionColor?: string | null;
+    /** Sparkline series, tinted by descriptionColor (falls back to color). */
+    chart?: number[];
     url?: string | null;
 }
 

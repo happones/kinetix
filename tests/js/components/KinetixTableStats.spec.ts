@@ -129,6 +129,86 @@ describe('KinetixTable stat cards', () => {
         expect(wrapper.text()).toContain('This month');
     });
 
+    it('renders a colored trend chip when descriptionColor is set', () => {
+        const wrapper = mountTable({
+            ...table,
+            stats: [
+                {
+                    label: 'Overdue',
+                    value: '34',
+                    description: '+12% vs last month',
+                    descriptionColor: 'danger',
+                    descriptionIcon: 'trending-up',
+                },
+            ],
+        });
+
+        const chip = wrapper.find('.kinetix-table-stats .rounded-full');
+        expect(chip.exists()).toBe(true);
+        expect(chip.classes()).toContain('text-destructive');
+        expect(chip.text()).toContain('+12% vs last month');
+        expect(chip.find('svg').exists()).toBe(true);
+    });
+
+    it('keeps an uncolored description as plain muted text', () => {
+        const wrapper = mountTable({
+            ...table,
+            stats: [
+                {
+                    label: 'Revenue',
+                    value: '$1,204',
+                    description: 'This month',
+                },
+            ],
+        });
+
+        expect(wrapper.text()).toContain('This month');
+        expect(
+            wrapper.find('.kinetix-table-stats .rounded-full').exists(),
+        ).toBe(false);
+    });
+
+    it('renders a sparkline tinted by the trend color', () => {
+        const wrapper = mountTable({
+            ...table,
+            stats: [
+                {
+                    label: 'Loans',
+                    value: '842',
+                    descriptionColor: 'success',
+                    chart: [3, 5, 4, 8, 9],
+                },
+            ],
+        });
+
+        const sparkline = wrapper.find('.kinetix-table-stats svg path');
+        expect(sparkline.exists()).toBe(true);
+        expect(wrapper.find('.text-success svg').exists()).toBe(true);
+    });
+
+    it('prefers the icon badge over the sparkline when both are set', () => {
+        const wrapper = mountTable({
+            ...table,
+            stats: [
+                {
+                    label: 'Loans',
+                    value: '842',
+                    icon: 'book',
+                    color: 'info',
+                    chart: [3, 5, 4],
+                },
+            ],
+        });
+
+        // One svg (the icon), no sparkline path pair.
+        expect(wrapper.find('.kinetix-table-stats .size-10 svg').exists()).toBe(
+            true,
+        );
+        expect(
+            wrapper.find('.kinetix-table-stats linearGradient').exists(),
+        ).toBe(false);
+    });
+
     it('renders a linked card as an anchor', () => {
         const wrapper = mountTable({
             ...table,

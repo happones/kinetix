@@ -16,12 +16,18 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 #[TypeScript]
 class TableStatData extends Data
 {
+    /**
+     * @param array<int, float|int> $chart
+     */
     public function __construct(
         public string $label,
         public string $value,
         public ?string $icon = null,
         public string $color = 'info',
         public ?string $description = null,
+        public ?string $descriptionIcon = null,
+        public ?string $descriptionColor = null,
+        public array $chart = [],
         public ?string $url = null,
     ) {}
 }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Donut } from '@unovis/ts';
 import {
     VisArea,
     VisAxis,
@@ -11,11 +12,8 @@ import {
     VisTooltip,
     VisXYContainer,
 } from '@unovis/vue';
-import type {
-    KinetixChartDataset,
-    KinetixChartPoint,
-    KinetixChartSlice,
-} from '@/types/kinetix';
+import { computed } from 'vue';
+import type { KinetixChartPoint, KinetixChartSlice } from '@/types/kinetix';
 
 /**
  * The `@unovis`-backed chart surface (pie/donut + line/area/bar). Split out of
@@ -23,21 +21,35 @@ import type {
  * `@unovis` bundle is code-split and only fetched when a chart actually renders
  * — pages with widgets but no chart never pay for it. Horizontal-bar and legend
  * rendering stay in the parent (plain CSS, no `@unovis`).
+ *
+ * Tooltip wiring quirk: unovis' `Tooltip` component has NO `template` prop —
+ * XY charts get their tooltip through `Crosshair`'s template, and the donut
+ * through a `triggers` map keyed by the segment selector.
  */
 /** A value read off a series point — numeric once the scale coerces it. */
 type ChartValue = number | string | null | undefined;
+type PointAccessor = (d: KinetixChartPoint | null) => ChartValue;
 
-defineProps<{
+const props = defineProps<{
     chartType: string;
     isCircular: boolean;
     chartData: KinetixChartPoint[];
     pieData: KinetixChartSlice[];
-    datasets: KinetixChartDataset[];
     labels: string[];
     stacked: boolean;
+    /** Animation duration; 0 under prefers-reduced-motion, undefined = library default. */
+    duration: number | undefined;
     xAccessor: (d: KinetixChartPoint | null) => number | undefined;
-    yAccessors: ((d: KinetixChartPoint | null) => ChartValue)[];
-    colorAccessor: (d: KinetixChartPoint | null, index: number) => string;
+    /** Raw per-series accessors (visible series only). */
+    yAccessors: PointAccessor[];
+    /**
+     * Accessors matching the series' VISUAL height — cumulative for stacked
+     * area/bar. Used for line overlays and crosshair circles.
+     */
+    visualAccessors: PointAccessor[];
+    /** Concrete series colors aligned with yAccessors. */
+    lineColors: string[];
+    /** Area fills (gradient urls) aligned with yAccessors. */
     areaColors: string[];
     groupedBarColors: string[];
     pieValueAccessor: (d: KinetixChartSlice | null) => ChartValue;
@@ -49,19 +61,39 @@ defineProps<{
     tooltipTemplate: (d: KinetixChartPoint | null) => string;
     pieTooltipTemplate: (d: KinetixChartSlice | null) => string;
 }>();
+
+/**
+ * Donut tooltips fire per-segment; unovis hands the arc datum, whose `.data`
+ * is the original slice.
+ */
+const donutTriggers = computed(() => ({
+    [Donut.selectors.segment]: (arc: { data?: KinetixChartSlice } | null) =>
+        props.pieTooltipTemplate(
+            arc?.data ?? (arc as KinetixChartSlice | null),
+        ),
+}));
+
+const crosshairColor = (_d: KinetixChartPoint | null, index: number): string =>
+    props.lineColors[index] ?? 'currentColor';
 </script>
 
 <template>
     <!-- Circular Charts (Pie/Donut) -->
-    <div v-if="isCircular" class="relative h-[300px] w-full">
-        <VisSingleContainer :data="pieData" height="300">
+    <div
+        v-if="isCircular"
+        class="kinetix-chart-canvas relative h-[300px] w-full"
+    >
+        <VisSingleContainer :data="pieData" height="300" :duration="duration">
             <VisDonut
                 :value="pieValueAccessor"
                 :id="pieLabelAccessor"
                 :arcWidth="arcWidthValue"
                 :color="pieColorAccessor"
+                :padAngle="0.02"
+                :cornerRadius="4"
+                :duration="duration"
             />
-            <VisTooltip :template="pieTooltipTemplate" />
+            <VisTooltip :triggers="donutTriggers" />
         </VisSingleContainer>
         <div
             v-if="centerValue"
@@ -77,20 +109,41 @@ defineProps<{
     </div>
 
     <!-- XY Charts (Line/Area/Bar) -->
-    <VisXYContainer v-else :data="chartData" height="300">
-        <template v-if="chartType === 'line' || chartType === 'area'">
+    <VisXYContainer
+        v-else
+        class="kinetix-chart-canvas"
+        :data="chartData"
+        height="300"
+        :duration="duration"
+    >
+        <!-- Stacked area: one Area with the accessor array (unovis stacks it). -->
+        <VisArea
+            v-if="chartType === 'area' && stacked"
+            :x="xAccessor"
+            :y="yAccessors"
+            :color="areaColors"
+            :duration="duration"
+        />
+        <!-- Overlaid area: one translucent Area per series, at raw values. -->
+        <template v-else-if="chartType === 'area'">
             <VisArea
-                v-if="chartType === 'area'"
-                :x="xAccessor"
-                :y="yAccessors"
-                :color="areaColors"
-            />
-            <VisLine
-                v-for="(_, index) in datasets"
-                :key="index"
+                v-for="(_, index) in yAccessors"
+                :key="`area-${index}`"
                 :x="xAccessor"
                 :y="yAccessors[index]"
-                :color="colorAccessor(null, index)"
+                :color="areaColors[index]"
+                :duration="duration"
+            />
+        </template>
+        <template v-if="chartType === 'line' || chartType === 'area'">
+            <!-- Line overlays sit at the series' VISUAL height (cumulative when stacked). -->
+            <VisLine
+                v-for="(_, index) in visualAccessors"
+                :key="`line-${index}`"
+                :x="xAccessor"
+                :y="visualAccessors[index]"
+                :color="lineColors[index]"
+                :duration="duration"
             />
         </template>
         <VisStackedBar
@@ -98,49 +151,62 @@ defineProps<{
             :x="xAccessor"
             :y="yAccessors"
             :color="groupedBarColors"
+            :roundedCorners="4"
+            :barPadding="0.2"
+            :duration="duration"
         />
         <VisGroupedBar
             v-else-if="chartType === 'bar'"
             :x="xAccessor"
             :y="yAccessors"
             :color="groupedBarColors"
+            :roundedCorners="4"
+            :barPadding="0.2"
+            :duration="duration"
         />
         <VisAxis
             type="x"
             :tickValues="chartData.map((d) => d.x)"
             :tickFormat="(tickVal: number) => labels[tickVal] || ''"
+            :duration="duration"
         />
-        <VisAxis type="y" />
-        <VisCrosshair />
-        <VisTooltip :template="tooltipTemplate" />
+        <VisAxis type="y" :duration="duration" />
+        <VisCrosshair
+            :template="tooltipTemplate"
+            :x="xAccessor"
+            :y="visualAccessors"
+            :color="crosshairColor"
+        />
+        <VisTooltip />
     </VisXYContainer>
 </template>
 
 <style scoped>
-:deep(.vis-axis-grid) {
-    stroke: #e2e8f0;
-    stroke-opacity: 0.15;
-}
-.dark :deep(.vis-axis-grid) {
-    stroke: #1e293b;
-    stroke-opacity: 0.2;
-}
-:deep(.vis-axis-tick),
-:deep(.vis-axis-line) {
-    stroke: #cbd5e1;
-    stroke-opacity: 0.3;
-}
-.dark :deep(.vis-axis-tick),
-.dark :deep(.vis-axis-line) {
-    stroke: #334155;
-    stroke-opacity: 0.4;
-}
-:deep(.vis-axis-tick-label) {
-    fill: #64748b;
-    font-size: 10px;
-    font-family: inherit;
-}
-.dark :deep(.vis-axis-tick-label) {
-    fill: #94a3b8;
+/*
+ * unovis surfaces are themed exclusively through its own CSS custom properties
+ * (its class names are emotion-generated, so element selectors don't reach
+ * them). The tooltip container is neutralized (our templates render a complete
+ * card); axis/grid/crosshair inherit the shadcn tokens, so dark mode needs no
+ * duplicate rules — the tokens themselves shift.
+ */
+.kinetix-chart-canvas {
+    --vis-tooltip-background-color: transparent;
+    --vis-tooltip-border-color: transparent;
+    --vis-tooltip-padding: 0;
+    --vis-tooltip-box-shadow: none;
+    --vis-crosshair-line-stroke-color: hsl(
+        var(--muted-foreground, 240 3.8% 46.1%)
+    );
+    --vis-crosshair-line-stroke-opacity: 0.4;
+    --vis-crosshair-circle-stroke-color: hsl(var(--background, 0 0% 100%));
+    --vis-crosshair-circle-stroke-width: 2px;
+    --vis-donut-segment-stroke-color: hsl(var(--card, 0 0% 100%));
+    --vis-axis-grid-color: hsl(var(--border, 240 5.9% 90%));
+    --vis-axis-tick-color: hsl(var(--border, 240 5.9% 90%));
+    --vis-axis-domain-color: hsl(var(--border, 240 5.9% 90%));
+    --vis-axis-tick-label-color: hsl(var(--muted-foreground, 240 3.8% 46.1%));
+    --vis-axis-label-color: hsl(var(--muted-foreground, 240 3.8% 46.1%));
+    --vis-axis-tick-label-font-size: 11px;
+    --vis-axis-font-family: inherit;
 }
 </style>

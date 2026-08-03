@@ -301,6 +301,34 @@ class TableStatsTest extends TestCase
         $this->assertSame('/books', $card->url);
     }
 
+    public function test_trend_presentation_reaches_the_payload(): void
+    {
+        [$stats] = $this->render([
+            TableStat::make('Overdue')
+                ->where('due_at', '<', now())
+                ->descriptionIcon('trending-up')
+                ->descriptionColor('danger')
+                ->description('+12% vs last month')
+                ->chart([3, 5, 4, 8, 9]),
+        ]);
+
+        $card = $stats[0];
+
+        $this->assertSame('trending-up', $card->descriptionIcon);
+        $this->assertSame('danger', $card->descriptionColor);
+        $this->assertSame('+12% vs last month', $card->description);
+        $this->assertSame([3, 5, 4, 8, 9], $card->chart);
+    }
+
+    public function test_trend_fields_default_empty(): void
+    {
+        [$stats] = $this->render([TableStat::make('Total')->count()]);
+
+        $this->assertNull($stats[0]->descriptionIcon);
+        $this->assertNull($stats[0]->descriptionColor);
+        $this->assertSame([], $stats[0]->chart);
+    }
+
     public function test_affixes_wrap_the_value(): void
     {
         [$stats] = $this->render([

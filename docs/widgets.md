@@ -383,6 +383,11 @@ Stat::make('Sales today', '$502.30')
 
 <Screenshot name="stats-link-widget" alt="Stat cards with a header trend badge and a 'View more' footer link" />
 
+Sparklines inherit the trend color (`descriptionColor`) from the theme's status
+tokens, so they re-tint with dark mode and any host re-skin:
+
+<Screenshot name="stats-sparkline" alt="Stat cards with colored trend sparklines" />
+
 ### 2. `ChartWidget`
 Interactive metrics charting backed by Unovis.
 - **Methods**:
@@ -390,10 +395,18 @@ Interactive metrics charting backed by Unovis.
   - `labels(array $labels)`: Category names list.
   - `datasets(array $datasets)`: Dataset configuration arrays.
   - `stacked(bool $on = true)`: stack multiple series (area is always stacked; `bar` becomes a stacked bar).
-  - `legend(bool $on = true)`: show a labelled color-swatch legend below the chart.
+  - `legend(bool $on = true)`: force the legend on or off. **Automatic by default** — shown whenever the chart has two or more series/categories. Legend entries are clickable and toggle their series (colors stay stable while toggling).
   - `centerLabel(string $value, ?string $caption = null)`: a big value + caption in the middle of a `pie`/`doughnut` (e.g. `('10.2K', 'Visitors')`).
   - `metric(string $label, string $value, ?string $badge = null, ?string $badgeColor = 'gray')`: a headline figure in the chart header (chain for several, e.g. DESKTOP / MOBILE totals).
   - `options(array $options)`: Custom chart properties payload.
+
+Charts ship with hover tooltips by default (a crosshair with per-series values
+on XY charts; per-segment value + share on pie/doughnut). Series colors resolve
+from the theme's `--chart-1`…`--chart-8` tokens (shadcn convention, shipped in
+`kinetix.css` with separate light/dark steps), so charts follow dark mode and
+any host re-skin automatically; a dataset's `borderColor`/`backgroundColor`
+(scalar or per-slice array) still wins. Entrance animations respect
+`prefers-reduced-motion`.
 
 ```php
 ChartWidget::make()->title('Total visitors')->chartType('area')->legend()

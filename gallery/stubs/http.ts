@@ -1070,3 +1070,7 @@ export async function kinetixFetch<T = unknown>(
 export function kinetixRoutePrefix(): string {
     return '_kinetix';
 }
+
+export function xsrfToken(): string {
+    return 'gallery-stub-token';
+}

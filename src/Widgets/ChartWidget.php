@@ -18,7 +18,11 @@ class ChartWidget extends Widget
 
     protected bool $stacked = false;
 
-    protected bool $legend = false;
+    /**
+     * Null = auto: the frontend shows the legend whenever the chart has two or
+     * more series/categories to disambiguate. `legend(false)` forces it off.
+     */
+    protected ?bool $legend = null;
 
     protected ?string $centerLabel = null;
 
@@ -52,7 +56,8 @@ class ChartWidget extends Widget
     }
 
     /**
-     * Show a legend of the dataset labels below the chart.
+     * Force the legend on or off. Without calling this, the legend is
+     * automatic: shown whenever the chart has two or more series/categories.
      */
     public function legend(bool $legend = true): static
     {

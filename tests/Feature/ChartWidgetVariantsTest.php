@@ -33,7 +33,15 @@ class ChartWidgetVariantsTest extends TestCase
         $data = ChartWidget::make()->chartType('line')->toArray()['data'];
 
         $this->assertFalse($data['stacked']);
-        $this->assertFalse($data['legend']);
+        // Null = auto: the frontend decides from the series count.
+        $this->assertNull($data['legend']);
         $this->assertNull($data['centerValue']);
+    }
+
+    public function test_legend_can_be_forced_off(): void
+    {
+        $data = ChartWidget::make()->chartType('line')->legend(false)->toArray()['data'];
+
+        $this->assertFalse($data['legend']);
     }
 }

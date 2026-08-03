@@ -42,6 +42,18 @@
     --warning-foreground: 0 0% 100%;
     --info: 200 98% 39%;
     --info-foreground: 0 0% 100%;
+
+    /* Categorical chart series colors (shadcn --chart-N convention, extended
+       to 8 slots). Validated for adjacent-pair colorblind separation and ≥3:1
+       contrast against a light surface — keep the ORDER if you re-skin. */
+    --chart-1: 221.2 83.2% 53.3%;
+    --chart-2: 161.4 93.5% 30.4%;
+    --chart-3: 32.1 94.6% 43.7%;
+    --chart-4: 262.1 83.3% 57.8%;
+    --chart-5: 346.8 77.2% 49.8%;
+    --chart-6: 191.6 91.4% 36.5%;
+    --chart-7: 85.9 78.4% 27.3%;
+    --chart-8: 293.4 69.5% 48.8%;
 }
 
 .dark {
@@ -72,6 +84,17 @@
     --warning-foreground: 26 83% 14%;
     --info: 198 93% 60%;
     --info-foreground: 204 80% 16%;
+
+    /* Chart series re-tuned for a dark surface (validated separately — dark
+       mode is a selection, not an automatic flip of the light steps). */
+    --chart-1: 217.2 91.2% 59.8%;
+    --chart-2: 161.4 93.5% 30.4%;
+    --chart-3: 32.1 94.6% 43.7%;
+    --chart-4: 258.3 89.5% 66.3%;
+    --chart-5: 349.7 89.2% 60.2%;
+    --chart-6: 191.6 91.4% 36.5%;
+    --chart-7: 84.8 85.2% 34.5%;
+    --chart-8: 292.2 84.1% 60.6%;
 }
 
 /* Tailwind v4: expose the tokens as color/radius utilities (bg-background, etc.). */
@@ -101,6 +124,14 @@
     --color-border: hsl(var(--border));
     --color-input: hsl(var(--input));
     --color-ring: hsl(var(--ring));
+    --color-chart-1: hsl(var(--chart-1));
+    --color-chart-2: hsl(var(--chart-2));
+    --color-chart-3: hsl(var(--chart-3));
+    --color-chart-4: hsl(var(--chart-4));
+    --color-chart-5: hsl(var(--chart-5));
+    --color-chart-6: hsl(var(--chart-6));
+    --color-chart-7: hsl(var(--chart-7));
+    --color-chart-8: hsl(var(--chart-8));
     --radius-md: var(--radius);
 }
 
