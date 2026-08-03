@@ -13,9 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Four fixes from a consuming-app field report.
+## [0.134.0] - 2026-08-03
+
+Five fixes: four from a consuming-app field report, plus the Tiptap driver's
+loading model — the same optional-import defect the report exposed for
+vue-virtual, found and fixed one component over.
 
 ### Fixed
+
+- ⚠️ **(published) The Tiptap rich-editor driver could never load in a
+  production build.** Its `import(/* @vite-ignore *​/ '@tiptap/core')` survived
+  the host's build but was left unresolved in the bundle — the browser cannot
+  resolve bare specifiers, so even apps WITH tiptap installed got the "install
+  tiptap" notice (verified with build probes). No import shape inside a
+  published component can be optional at build time AND resolvable at runtime,
+  so the engine is now **host-registered**: apps that want the driver call
+  `registerKinetixTiptap()` in their entry file with their own dynamic imports
+  (statically resolved by their build, still code-split). New
+  `useKinetixRichEditorEngine` composable, updated install notice in all seven
+  locales, docs with the registration snippet, and the gallery registering as
+  a real host.
 
 - ⚠️ **(published) Migrations no longer hardcode `unsignedBigInteger` for
   columns referencing YOUR models.** `membership.user_model` (and the auth
