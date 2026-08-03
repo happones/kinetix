@@ -41,20 +41,102 @@ class PublishedFiles
     }
 
     /**
-     * Published files whose host copy differs from the package's — i.e. local
-     * edits that the next `--force` publish will discard. Paths are relative to
-     * the project root for readable output.
+     * Where the hashes of the last publish are recorded. Lives in storage (not
+     * committed): drift detection is about edits on THIS machine's disk.
+     */
+    public static function manifestPath(): string
+    {
+        return storage_path('app/kinetix-published-manifest.json');
+    }
+
+    /**
+     * The hashes recorded by the last publish, or null when no baseline exists
+     * yet (fresh checkout, or first run after this feature shipped).
+     *
+     * @return array<string, string>|null relative target path => md5
+     */
+    public static function recordedHashes(): ?array
+    {
+        $path = static::manifestPath();
+
+        if (! File::exists($path)) {
+            return null;
+        }
+
+        $decoded = json_decode((string) File::get($path), true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Record the hashes of the published files as they exist on disk right
+     * now — called after a publish, so the manifest describes exactly what
+     * Kinetix wrote. The next drift check compares against THIS, which is what
+     * separates "you edited it" from "the package shipped a new version".
+     */
+    public static function record(): void
+    {
+        $hashes = [];
+
+        foreach (static::eachPublishedTarget() as $target) {
+            $hashes[static::relative($target)] = (string) md5_file($target);
+        }
+
+        File::ensureDirectoryExists(dirname(static::manifestPath()));
+        File::put(
+            static::manifestPath(),
+            (string) json_encode($hashes, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES),
+        );
+    }
+
+    /**
+     * Published files whose host copy differs from what the LAST PUBLISH wrote
+     * — i.e. genuine local edits that the next `--force` publish will discard.
+     *
+     * Comparing against the recorded baseline (not the package's new sources)
+     * is the point: after a `composer update`, every file changed UPSTREAM
+     * differs from the new sources, and reporting those as "local edits" turns
+     * a warning that should be rare into noise. Without a baseline (first run)
+     * nothing is claimed; the publish records one.
      *
      * @return array<int, string>
      */
     public static function drifted(): array
     {
+        $recorded = static::recordedHashes();
+
+        if ($recorded === null) {
+            return [];
+        }
+
         $drifted = [];
 
+        foreach (static::eachPublishedTarget() as $target) {
+            $relative = static::relative($target);
+            $baseline = $recorded[$relative] ?? null;
+
+            if ($baseline !== null && md5_file($target) !== $baseline) {
+                $drifted[] = $relative;
+            }
+        }
+
+        sort($drifted);
+
+        return $drifted;
+    }
+
+    /**
+     * Every mapped published file the host has actually adopted (exists on
+     * disk AND is still shipped by the package).
+     *
+     * @return iterable<int, string> absolute target paths
+     */
+    protected static function eachPublishedTarget(): iterable
+    {
         foreach (static::map() as [$source, $target]) {
             if (is_file($source)) {
-                if (static::differs($source, $target)) {
-                    $drifted[] = static::relative($target);
+                if (File::exists($target)) {
+                    yield $target;
                 }
 
                 continue;
@@ -67,15 +149,11 @@ class PublishedFiles
             foreach (File::allFiles($source) as $file) {
                 $hostPath = $target.'/'.$file->getRelativePathname();
 
-                if (static::differs($file->getPathname(), $hostPath)) {
-                    $drifted[] = static::relative($hostPath);
+                if (File::exists($hostPath)) {
+                    yield $hostPath;
                 }
             }
         }
-
-        sort($drifted);
-
-        return $drifted;
     }
 
     /**
@@ -123,12 +201,6 @@ class PublishedFiles
         return str_contains($contents, 'interface KinetixAction') && ! str_contains($contents, 'export * from')
             ? static::relative($path)
             : null;
-    }
-
-    protected static function differs(string $source, string $target): bool
-    {
-        // Only files the host has actually adopted are compared.
-        return File::exists($target) && md5_file($source) !== md5_file($target);
     }
 
     protected static function relative(string $path): string

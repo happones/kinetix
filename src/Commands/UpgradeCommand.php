@@ -31,7 +31,11 @@ class UpgradeCommand extends Command
     public function handle(): int
     {
         // Detect local edits BEFORE overwriting them, so they can be reported.
-        $drifted = PublishedFiles::drifted();
+        // Drift is measured against the manifest the last publish recorded —
+        // not against the new sources, which after a composer update would
+        // flag every upstream change as a "local edit".
+        $hadBaseline = PublishedFiles::recordedHashes() !== null;
+        $drifted     = PublishedFiles::drifted();
 
         $refreshed = [];
 
@@ -73,7 +77,15 @@ class UpgradeCommand extends Command
             return self::SUCCESS;
         }
 
+        // The publish just rewrote the adopted files; record their hashes so
+        // the NEXT run can tell local edits apart from upstream changes.
+        PublishedFiles::record();
+
         $this->info('Kinetix upgraded: '.implode(', ', $refreshed).'.');
+
+        if (! $hadBaseline) {
+            $this->line('  <fg=gray>Published-file baseline recorded — future upgrades will report local edits.</>');
+        }
 
         $this->reportOverwrittenEdits($drifted);
         $this->warnAboutDuplicateI18nBundles();
