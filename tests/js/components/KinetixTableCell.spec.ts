@@ -38,7 +38,9 @@ describe('KinetixTableCell progress mode', () => {
         // Verifies value is displayed
         expect(wrapper.text()).toContain('45 items');
         // Verifies the status text class is applied
-        expect(wrapper.find('span.text-sm').classes()).toContain('text-success');
+        expect(wrapper.find('span.text-sm').classes()).toContain(
+            'text-success',
+        );
         // Verifies progress bar width% is set
         const barFill = wrapper.find('.bg-muted div');
         expect(barFill.exists()).toBe(true);
@@ -76,7 +78,9 @@ describe('KinetixTableCell progress mode', () => {
         });
 
         expect(wrapper.text()).toContain('80');
-        expect(wrapper.find('span.text-sm').classes()).toContain('text-primary');
+        expect(wrapper.find('span.text-sm').classes()).toContain(
+            'text-primary',
+        );
         const barFill = wrapper.find('.bg-muted div');
         expect(barFill.attributes('style')).toContain('width: 80%;');
         expect(barFill.classes()).toContain('bg-primary');
@@ -86,7 +90,8 @@ describe('KinetixTableCell progress mode', () => {
 describe('KinetixTableCell view mode', () => {
     it('renders the custom component with props correctly', () => {
         const MockComponent = {
-            template: '<div>Mock Component {{ value }} with role {{ role }}</div>',
+            template:
+                '<div>Mock Component {{ value }} with role {{ role }}</div>',
             props: ['record', 'value', 'role'],
         };
 
@@ -125,6 +130,8 @@ describe('KinetixTableCell view mode', () => {
             },
         });
 
-        expect(wrapper.text()).toContain('Mock Component john-doe-url with role admin');
+        expect(wrapper.text()).toContain(
+            'Mock Component john-doe-url with role admin',
+        );
     });
 });

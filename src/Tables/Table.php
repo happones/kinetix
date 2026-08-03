@@ -21,6 +21,7 @@ use Happones\Kinetix\Tables\Columns\IconColumn;
 use Happones\Kinetix\Tables\Columns\ImageColumn;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Filters\Filter;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -85,6 +86,12 @@ class Table implements Arrayable, JsonSerializable
      * See {@see simplePaginated()}.
      */
     protected bool $simplePaginate = false;
+
+    /**
+     * Seek-based pagination (`WHERE key > …` instead of `OFFSET`).
+     * See {@see cursorPaginated()}.
+     */
+    protected bool $cursorPaginate = false;
 
     protected ?Closure $recordUrl = null;
 
@@ -350,6 +357,81 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Paginate by cursor — a seek (`WHERE (sort, id) > (…)`) instead of an
+     * `OFFSET`.
+     *
+     * `OFFSET n` makes the database walk and discard n rows, so page 5,000 of a
+     * large table is thousands of times more expensive than page 1. A cursor
+     * jumps straight to the row through the sort's index, so every page costs
+     * the same. It is the right mode for deep or infinite scrolling over big
+     * tables.
+     *
+     * What you give up: page numbers and jump-to-page. Navigation is prev/next
+     * only, and the URL carries an opaque `cursor=` instead of `page=2`, so a
+     * shared link points at a position in a result set rather than at a page.
+     *
+     * Kinetix appends the primary key to the sort so the ordering is **total**.
+     * Without that, paging a non-unique sort silently *skips rows* — the cursor
+     * is built from the ORDER BY columns, so on a tie it steps past the rest of
+     * the tied group. Sorts a cursor cannot express (a relation column, a custom
+     * `sortable(using:)` resolver) fall back to {@see simplePaginated()} for
+     * that request rather than paginating wrongly.
+     */
+    public function cursorPaginated(bool $cursor = true): static
+    {
+        $this->isPaginated    = true;
+        $this->cursorPaginate = $cursor;
+
+        return $this;
+    }
+
+    /**
+     * Whether the resolved query's ordering can be expressed as a cursor.
+     *
+     * The cursor encodes each ORDER BY column's value from the last row, so a
+     * subquery or raw order has nothing to encode — Laravel does not complain,
+     * it just paginates incorrectly.
+     *
+     * @param Builder<covariant Model> $query
+     */
+    protected function supportsCursorPagination(Builder $query): bool
+    {
+        foreach ($query->getQuery()->orders ?? [] as $order) {
+            if (! is_string($order['column'] ?? null)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Append the primary key to the ordering unless it is already there, making
+     * the sort total so the cursor cannot step over tied rows.
+     *
+     * @param Builder<covariant Model> $query
+     */
+    protected function ensureTotalOrder(Builder $query): void
+    {
+        $model  = $query->getModel();
+        $key    = $model->getKeyName();
+        $orders = $query->getQuery()->orders ?? [];
+
+        foreach ($orders as $order) {
+            $column = $order['column'] ?? null;
+
+            if ($column === $key || $column === $model->qualifyColumn($key)) {
+                return;
+            }
+        }
+
+        // Follow the last sort's direction so the sequence stays coherent.
+        $direction = $orders === [] ? 'asc' : ($orders[array_key_last($orders)]['direction'] ?? 'asc');
+
+        $query->orderBy($model->qualifyColumn($key), KinetixQuery::direction($direction));
+    }
+
+    /**
      * Render this table client-side: ship the full (capped) result set once and
      * let a TanStack-backed renderer handle search / sort / pagination in the
      * browser. Intended for small, fully-loadable datasets — for large data or
@@ -592,33 +674,54 @@ class Table implements Arrayable, JsonSerializable
         } elseif ($this->isPaginated) {
             $pageName = $this->queryPrefix.'page';
 
-            // Simple mode fetches perPage+1 rows to learn whether a next page
-            // exists, instead of running a COUNT(*) over the filtered set.
-            $paginator = $this->simplePaginate
-                ? $query->simplePaginate($perPage, ['*'], $pageName)
-                : $query->paginate($perPage, ['*'], $pageName);
+            // A cursor can only encode plain-column orders; anything else falls
+            // back to simple pagination rather than paginating wrongly.
+            $useCursor = $this->cursorPaginate && $this->supportsCursorPagination($query);
+
+            if ($useCursor) {
+                $this->ensureTotalOrder($query);
+            }
+
+            // Simple/cursor modes fetch perPage+1 rows to learn whether a next
+            // page exists, instead of running a COUNT(*) over the filtered set.
+            $paginator = match (true) {
+                $useCursor => $query->cursorPaginate($perPage, ['*'], $this->queryPrefix.'cursor'),
+                $this->simplePaginate,
+                $this->cursorPaginate => $query->simplePaginate($perPage, ['*'], $pageName),
+                default               => $query->paginate($perPage, ['*'], $pageName),
+            };
 
             foreach ($paginator->items() as $record) {
                 $records[] = $this->formatRecord($record);
             }
 
-            $pagination = $paginator instanceof LengthAwarePaginator
-                ? new TablePaginationData(
+            $pagination = match (true) {
+                $paginator instanceof CursorPaginator => new TablePaginationData(
                     perPage: $paginator->perPage(),
-                    currentPage: $paginator->currentPage(),
                     hasMore: $paginator->hasMorePages(),
+                    // A cursor has no page number and no offsets to report.
+                    currentPage: null,
+                    nextCursor: $paginator->nextCursor()?->encode(),
+                    prevCursor: $paginator->previousCursor()?->encode(),
+                    onFirstPage: $paginator->onFirstPage(),
+                ),
+                $paginator instanceof LengthAwarePaginator => new TablePaginationData(
+                    perPage: $paginator->perPage(),
+                    hasMore: $paginator->hasMorePages(),
+                    currentPage: $paginator->currentPage(),
                     total: $paginator->total(),
                     lastPage: $paginator->lastPage(),
                     from: $paginator->firstItem(),
                     to: $paginator->lastItem(),
-                )
-                : new TablePaginationData(
+                ),
+                default => new TablePaginationData(
                     perPage: $paginator->perPage(),
-                    currentPage: $paginator->currentPage(),
                     hasMore: $paginator->hasMorePages(),
+                    currentPage: $paginator->currentPage(),
                     from: $paginator->firstItem(),
                     to: $paginator->lastItem(),
-                );
+                ),
+            };
         } else {
             $items = $query->get();
 

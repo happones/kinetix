@@ -10,15 +10,18 @@ import { useI18n } from 'vue-i18n';
 import KinetixSelect from '../KinetixSelect.vue';
 
 interface PaginationData {
-    currentPage: number;
     perPage: number;
     hasMore: boolean;
-    /** Null when the table is simple-paginated (no COUNT(*) is run). */
+    /** Null in cursor mode: a cursor has no page number. */
+    currentPage: number | null;
+    /** Null when the table is simple- or cursor-paginated (no COUNT(*)). */
     total: number | null;
-    /** Null when the table is simple-paginated. */
     lastPage: number | null;
     from: number | null;
     to: number | null;
+    nextCursor?: string | null;
+    prevCursor?: string | null;
+    onFirstPage?: boolean | null;
 }
 
 const props = defineProps<{
@@ -28,27 +31,67 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'change-page', page: number): void;
+    /** Cursor mode: null rewinds to the first page. */
+    (e: 'change-cursor', cursor: string | null): void;
     (e: 'change-per-page', perPage: number): void;
 }>();
 
 const { t } = useI18n();
 
 /**
- * Simple pagination has no total and no last page, so the footer drops the
- * "showing x–y of N" line and the first/last jumps rather than rendering
- * placeholders for numbers the server deliberately did not compute.
+ * Cursor mode navigates by opaque seek positions: no page number, no offsets,
+ * no total. Simple mode keeps page numbers but has no total either. In both
+ * cases the footer omits what the server deliberately did not compute rather
+ * than rendering placeholders.
  */
+const isCursor = computed(() => props.pagination.currentPage === null);
+
 const isSimple = computed(
-    () => props.pagination.total === null || props.pagination.lastPage === null,
+    () => !isCursor.value && props.pagination.lastPage === null,
 );
 
-const isFirstPage = computed(() => props.pagination.currentPage <= 1);
+/** True in both count-free modes: no first/last jumps, no total. */
+const isCountFree = computed(() => isCursor.value || isSimple.value);
+
+const isFirstPage = computed(() =>
+    isCursor.value
+        ? (props.pagination.onFirstPage ?? !props.pagination.prevCursor)
+        : (props.pagination.currentPage ?? 1) <= 1,
+);
 
 const isLastPage = computed(() =>
-    isSimple.value
+    isCountFree.value
         ? !props.pagination.hasMore
         : props.pagination.currentPage === props.pagination.lastPage,
 );
+
+const goPrevious = (): void => {
+    if (isCursor.value) {
+        emit('change-cursor', props.pagination.prevCursor ?? null);
+
+        return;
+    }
+
+    emit('change-page', (props.pagination.currentPage ?? 1) - 1);
+};
+
+/** Only rendered when a last page is known, so the fallbacks never fire. */
+const goLast = (): void => {
+    emit(
+        'change-page',
+        props.pagination.lastPage ?? props.pagination.currentPage ?? 1,
+    );
+};
+
+const goNext = (): void => {
+    if (isCursor.value) {
+        emit('change-cursor', props.pagination.nextCursor ?? null);
+
+        return;
+    }
+
+    emit('change-page', (props.pagination.currentPage ?? 1) + 1);
+};
 
 const getPerPageOptions = (options?: number[]) => {
     const record: Record<string, string> = {};
@@ -68,7 +111,8 @@ const getPerPageOptions = (options?: number[]) => {
         class="sm:flex-row gap-4 px-6 py-4 flex flex-col items-center justify-between border-t border-border bg-muted/20"
     >
         <div class="text-xs font-medium text-muted-foreground">
-            <span v-if="isSimple && pagination.from !== null">
+            <span v-if="isCursor">&nbsp;</span>
+            <span v-else-if="isSimple && pagination.from !== null">
                 {{
                     t('kinetix.showing_range', {
                         from: pagination.from,
@@ -76,7 +120,7 @@ const getPerPageOptions = (options?: number[]) => {
                     })
                 }}
             </span>
-            <span v-else-if="!isSimple && (pagination.total ?? 0) > 0">
+            <span v-else-if="!isCountFree && (pagination.total ?? 0) > 0">
                 {{
                     t('kinetix.showing_records', {
                         from: pagination.from,
@@ -91,7 +135,7 @@ const getPerPageOptions = (options?: number[]) => {
         <div class="gap-4 flex items-center">
             <div class="gap-1 flex items-center">
                 <button
-                    v-if="!isSimple"
+                    v-if="!isCountFree"
                     type="button"
                     data-testid="page-first"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
@@ -105,12 +149,14 @@ const getPerPageOptions = (options?: number[]) => {
                     data-testid="page-prev"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                     :disabled="isFirstPage"
-                    @click="emit('change-page', pagination.currentPage - 1)"
+                    @click="goPrevious"
                 >
                     <ChevronLeft class="h-4 w-4" />
                 </button>
                 <span class="text-xs font-medium mx-2 text-muted-foreground">
-                    <template v-if="isSimple">
+                    <!-- A cursor has no page number to show. -->
+                    <template v-if="isCursor">&nbsp;</template>
+                    <template v-else-if="isSimple">
                         {{
                             t('kinetix.page_number', {
                                 current: pagination.currentPage,
@@ -131,22 +177,17 @@ const getPerPageOptions = (options?: number[]) => {
                     data-testid="page-next"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                     :disabled="isLastPage"
-                    @click="emit('change-page', pagination.currentPage + 1)"
+                    @click="goNext"
                 >
                     <ChevronRight class="h-4 w-4" />
                 </button>
                 <button
-                    v-if="!isSimple"
+                    v-if="!isCountFree"
                     type="button"
                     data-testid="page-last"
                     class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                     :disabled="isLastPage"
-                    @click="
-                        emit(
-                            'change-page',
-                            pagination.lastPage ?? pagination.currentPage,
-                        )
-                    "
+                    @click="goLast"
                 >
                     <ChevronsRight class="h-4 w-4" />
                 </button>

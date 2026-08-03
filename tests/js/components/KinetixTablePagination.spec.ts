@@ -44,6 +44,20 @@ const simple = {
     to: 20,
 };
 
+/** What a cursor-paginated table sends: no page number, no offsets, no total. */
+const cursor = {
+    currentPage: null,
+    perPage: 10,
+    hasMore: true,
+    total: null,
+    lastPage: null,
+    from: null,
+    to: null,
+    nextCursor: 'next-abc',
+    prevCursor: 'prev-xyz',
+    onFirstPage: false,
+};
+
 const render = (pagination: Record<string, unknown>) =>
     mount(KinetixTablePagination, {
         props: { pagination, paginationPageOptions: [10, 25] },
@@ -132,6 +146,77 @@ describe('KinetixTablePagination', () => {
             expect(
                 render({ ...simple, from: null, to: null }).text(),
             ).toContain('No results');
+        });
+    });
+
+    describe('cursor mode', () => {
+        it('renders neither a total nor a page number', () => {
+            const text = render(cursor).text();
+
+            expect(text).not.toContain('Showing');
+            expect(text).not.toContain('Page');
+        });
+
+        it('offers prev/next only — there is no last page to jump to', () => {
+            const wrapper = render(cursor);
+
+            expect(wrapper.find('[data-testid="page-first"]').exists()).toBe(
+                false,
+            );
+            expect(wrapper.find('[data-testid="page-last"]').exists()).toBe(
+                false,
+            );
+            expect(wrapper.find('[data-testid="page-prev"]').exists()).toBe(
+                true,
+            );
+            expect(wrapper.find('[data-testid="page-next"]').exists()).toBe(
+                true,
+            );
+        });
+
+        it('emits the next cursor rather than a page number', async () => {
+            const wrapper = render(cursor);
+
+            await wrapper.find('[data-testid="page-next"]').trigger('click');
+
+            expect(wrapper.emitted('change-cursor')?.[0]).toEqual(['next-abc']);
+            expect(wrapper.emitted('change-page')).toBeUndefined();
+        });
+
+        it('emits the previous cursor going back', async () => {
+            const wrapper = render(cursor);
+
+            await wrapper.find('[data-testid="page-prev"]').trigger('click');
+
+            expect(wrapper.emitted('change-cursor')?.[0]).toEqual(['prev-xyz']);
+        });
+
+        it('disables previous on the first page', () => {
+            const wrapper = render({
+                ...cursor,
+                onFirstPage: true,
+                prevCursor: null,
+            });
+
+            expect(
+                wrapper
+                    .find('[data-testid="page-prev"]')
+                    .attributes('disabled'),
+            ).toBeDefined();
+        });
+
+        it('disables next at the end of the set', () => {
+            const wrapper = render({
+                ...cursor,
+                hasMore: false,
+                nextCursor: null,
+            });
+
+            expect(
+                wrapper
+                    .find('[data-testid="page-next"]')
+                    .attributes('disabled'),
+            ).toBeDefined();
         });
     });
 });

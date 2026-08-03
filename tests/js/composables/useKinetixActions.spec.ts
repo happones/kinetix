@@ -55,7 +55,10 @@ describe('executeAction', () => {
     });
 
     it('resolves an inertiaVisit only when Inertia finishes', async () => {
-        await executeAction({ inertiaVisit: { method: 'delete' }, url: '/y' } as any);
+        await executeAction({
+            inertiaVisit: { method: 'delete' },
+            url: '/y',
+        } as any);
 
         expect(visit).toHaveBeenCalledWith(
             '/y',
@@ -64,9 +67,7 @@ describe('executeAction', () => {
     });
 
     it('opens external new-tab links with noopener,noreferrer', async () => {
-        const open = vi
-            .spyOn(window, 'open')
-            .mockImplementation(() => null);
+        const open = vi.spyOn(window, 'open').mockImplementation(() => null);
 
         await executeAction({
             url: 'https://ext.test',

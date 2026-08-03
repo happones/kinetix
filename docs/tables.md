@@ -605,6 +605,7 @@ Table-level methods control refresh, pagination, and row behavior:
 - `reorderable(string $column = 'sort_order')`: Enables drag-and-drop row reordering (a grip-handle column appears). The new order is persisted to the given integer column via a signed, token-guarded `tables/reorder` endpoint, and rows default to that order. See [Reordering rows](#reordering-rows).
 - `paginated(bool|array $options)`: Toggles pagination or sets the page-size options. Pass `false` to disable pagination (the full result set is rendered), or an array of integers to override the selectable per-page options (default `[5, 10, 25, 50]`).
 - `simplePaginated(bool $simple = true)`: Paginate **without counting** the result set. See [Large tables](#large-tables-simplepaginated).
+- `cursorPaginated(bool $cursor = true)`: Seek-based pagination — no `OFFSET`, constant cost at any depth. See [Deep pagination](#deep-pagination-cursorpaginated).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
 - `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
@@ -649,6 +650,59 @@ Custom footers must read `hasMore` rather than comparing against `lastPage`.
 Column summarizers run their own aggregate over the filtered set, so a table with
 both `simplePaginated()` and `->summarize()` still pays for a full scan. Drop the
 summaries too if the goal is a cheap page.
+:::
+
+### Deep pagination — `cursorPaginated()`
+
+`simplePaginated()` removes the count, but `OFFSET` remains: `LIMIT 10 OFFSET
+50000` makes the database walk and throw away 50,000 rows, so page 5,000 is
+thousands of times slower than page 1. A cursor **seeks** instead — `WHERE (sort,
+id) > (last values)` — which uses the sort's index and costs the same at any
+depth.
+
+```php
+Table::make(AuditEntry::query())->cursorPaginated();
+```
+
+| | `paginated()` | `simplePaginated()` | `cursorPaginated()` |
+|---|---|---|---|
+| `COUNT(*)` per page | ✅ | — | — |
+| Cost at page 5,000 | walks 50k rows | walks 50k rows | same as page 1 |
+| Navigation | any page | prev / next | prev / next |
+| URL | `?page=2` | `?page=2` | `?cursor=eyJpZCI6…` |
+
+#### The trap it avoids: skipped rows
+
+A cursor is built from the `ORDER BY` columns. Sort by something **non-unique**
+— `status`, a date, a name — and on a tie the next page resumes *after that
+value*, stepping over the rest of the tied group. Nothing errors; rows simply
+never appear. In a 6-row fixture sorted by a 2-value column, walking every page
+returns **4 rows**.
+
+Kinetix appends the primary key to the sort, making the ordering total, so the
+walk is complete. You don't have to do anything — but if you build cursor queries
+by hand elsewhere, add the tiebreaker yourself.
+
+#### Sorts a cursor can't express
+
+A relation column (`author.name`) sorts through a correlated subquery, and a
+custom `sortable(using: …)` resolver can order by anything. Neither has a value
+the cursor can encode. Rather than paginate wrongly, the table **falls back to
+`simplePaginated()` for that request** — the footer switches to page-based
+prev/next and everything keeps working.
+
+#### Payload
+
+`currentPage`, `total`, `lastPage`, `from` and `to` are all `null`; navigation
+runs off `nextCursor` / `prevCursor`, with `onFirstPage` and `hasMore` as the
+enable/disable signals. A custom footer must branch on
+`pagination.currentPage === null` to detect cursor mode.
+
+::: warning Shared links point at a position, not a page
+`?cursor=…` encodes the last row of the previous page under the ordering in
+effect when it was issued. Change the sort or the filters and that position is
+meaningless — Kinetix drops the cursor automatically whenever search, sort,
+filters or page size change, restarting from the first page.
 :::
 
 ---

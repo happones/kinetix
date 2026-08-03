@@ -52,3 +52,29 @@ describe('buildTableQuery', () => {
         expect(query.keep).toBe('1');
     });
 });
+
+describe('buildTableQuery — cursor pagination', () => {
+    it('owns the cursor key, so a stale one never survives a reload', () => {
+        const query = buildTableQuery(
+            'users_',
+            { cursor: 'new-cursor' },
+            '?users_cursor=stale&other_cursor=keep',
+        );
+
+        expect(query.users_cursor).toBe('new-cursor');
+        // A cursor belonging to another table on the page is untouched.
+        expect(query.other_cursor).toBe('keep');
+    });
+
+    it('drops the table cursor entirely when the reload omits it', () => {
+        // What a sort/filter change produces: the seek position is meaningless
+        // under a new ordering, so it must not linger in the URL.
+        const query = buildTableQuery(
+            'users_',
+            { sort: 'name', direction: 'asc' },
+            '?users_cursor=stale',
+        );
+
+        expect(query).not.toHaveProperty('users_cursor');
+    });
+});

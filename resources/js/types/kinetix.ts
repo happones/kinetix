@@ -923,15 +923,22 @@ export interface KinetixTableData {
     paginationPageOptions: number[];
     pagination: {
         perPage: number;
-        currentPage: number;
-        /** Whether a next page exists. The only reliable signal in simple mode. */
+        /** Present in every mode — prefer it over comparing currentPage/lastPage. */
         hasMore: boolean;
-        /** Null in simple mode — no COUNT(*) is run. */
+        /** Null in cursor mode: a cursor has no page number. */
+        currentPage: number | null;
+        /** Null in simple and cursor modes — no COUNT(*) is run. */
         total: number | null;
-        /** Null in simple mode. */
+        /** Null in simple and cursor modes. */
         lastPage: number | null;
+        /** Null in cursor mode — a seek has no offsets to report. */
         from: number | null;
         to: number | null;
+        /** Opaque seek positions; only cursor mode sets them. */
+        nextCursor: string | null;
+        prevCursor: string | null;
+        /** Cursor mode has no page number, so "can I go back" is explicit. */
+        onFirstPage: boolean | null;
     } | null;
     state: {
         search: string;

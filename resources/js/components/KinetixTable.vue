@@ -547,7 +547,10 @@ const { rows, onDragStart, onDragOver, onDrop } = useKinetixTableReorder({
             :pagination="table.pagination"
             :pagination-page-options="table.paginationPageOptions"
             @change-page="triggerReload({ page: $event })"
-            @change-per-page="triggerReload({ perPage: $event, page: 1 })"
+            @change-cursor="triggerReload({ cursor: $event })"
+            @change-per-page="
+                triggerReload({ perPage: $event, page: 1, cursor: null })
+            "
         />
 
         <!-- Confirmation modal for actions that require it -->

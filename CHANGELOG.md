@@ -13,6 +13,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.125.0] - 2026-08-02
+
+### Added
+
+- **`Table::cursorPaginated()`** — seek-based pagination. `simplePaginated()`
+  removed the `COUNT(*)`, but `OFFSET` remained: `LIMIT 10 OFFSET 50000` makes
+  the database walk and discard 50,000 rows, so deep pages get linearly slower.
+  A cursor seeks with `WHERE (sort, id) > (…)` through the sort's index, so every
+  page costs the same.
+
+  **It appends the primary key to the sort**, which is the part that matters.
+  A cursor is built from the `ORDER BY` columns, so a non-unique sort makes the
+  next page resume *after that value* and step over the rest of a tied group —
+  silently. In the test fixture, walking every page of a 6-row table sorted by a
+  2-value column returns **4 rows** without the tiebreaker and 6 with it. Nothing
+  errors either way, which is why this is enforced rather than documented.
+
+  Sorts a cursor cannot encode — a relation column (correlated subquery) or a
+  custom `sortable(using:)` resolver — **fall back to `simplePaginated()` for
+  that request** instead of paginating wrongly.
+- `pagination.nextCursor` / `prevCursor` / `onFirstPage` on the table payload.
+- The reload contract gained `cursor`. It is mutually exclusive with `page`, and
+  is dropped automatically whenever the search, sort, filters or page size change
+  — a cursor encodes a row under the ordering it was issued with, so resuming
+  from it after a re-sort would seek to a meaningless position.
+
+### Changed
+
+- ⚠️ **`TablePaginationData.currentPage` is now nullable** (`null` in cursor
+  mode — a cursor has no page number), joining `total` and `lastPage` from
+  v0.124.0. `from`/`to` are also null in cursor mode: a seek has no offsets.
+
+  A custom footer detects the mode by `pagination.currentPage === null` and
+  navigates with the cursors. The bundled footer renders prev/next only, with no
+  page indicator and no total. Tables using `paginated()` are unaffected.
+
 ## [0.124.0] - 2026-08-02
 
 Delivers the pagination work deferred from v0.123.0.

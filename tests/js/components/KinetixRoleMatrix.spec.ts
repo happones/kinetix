@@ -134,9 +134,9 @@ describe('KinetixRoleMatrix', () => {
         expect(bodyText()).toContain('Refund');
         expect(bodyText()).toContain('orders.refund');
 
-        const custom = [
-            ...document.body.querySelectorAll('tr td label'),
-        ].find((label) => label.textContent?.includes('Refund')) as HTMLElement;
+        const custom = [...document.body.querySelectorAll('tr td label')].find(
+            (label) => label.textContent?.includes('Refund'),
+        ) as HTMLElement;
         // reka's CheckboxRoot renders a role=checkbox button.
         custom.querySelector<HTMLElement>('[role="checkbox"]')?.click();
         await w.vm.$nextTick();
@@ -224,7 +224,13 @@ describe('KinetixRoleMatrix', () => {
             th.textContent?.trim(),
         );
         // Generic translations for canonical keys; customs are never columns.
-        expect(headers).toEqual(['Module', 'View all', 'View', 'Create', 'Edit']);
+        expect(headers).toEqual([
+            'Module',
+            'View all',
+            'View',
+            'Create',
+            'Edit',
+        ]);
         expect(headers).not.toContain('Change member role');
         expect(headers).not.toContain('View members');
         w.unmount();

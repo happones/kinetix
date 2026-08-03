@@ -14,16 +14,19 @@ export interface KinetixTableQueryParams {
     direction?: 'asc' | 'desc';
     perPage?: number;
     page?: number;
+    /** Cursor-paginated tables navigate by seek position, not page number. */
+    cursor?: string | null;
     filters?: Record<string, unknown>;
 }
 
-/** The five scalar query keys a table owns, before namespacing. */
+/** The scalar query keys a table owns, before namespacing. */
 const OWNED_SCALAR_KEYS = [
     'search',
     'sort',
     'direction',
     'perPage',
     'page',
+    'cursor',
 ] as const;
 
 /**
@@ -104,6 +107,21 @@ export function useKinetixTableQuery(
             ...params,
         };
 
+        // `page` and `cursor` are alternative positions in the same result set,
+        // so sending both would let a stale one decide. A cursor also encodes a
+        // row from the ordering it was issued under, so anything that changes
+        // the result set — search, sort, filters, page size — must drop it and
+        // restart, or the seek resumes from a meaningless position.
+        if (params.cursor !== undefined) {
+            delete merged.page;
+
+            if (params.cursor === null) {
+                delete merged.cursor; // back to the first page
+            }
+        } else {
+            delete merged.cursor;
+        }
+
         router.get(
             window.location.pathname,
             buildTableQuery(prefix, merged, window.location.search),
@@ -119,7 +137,7 @@ export function useKinetixTableQuery(
         }
 
         searchTimeout = setTimeout(() => {
-            triggerReload({ search: searchQuery.value, page: 1 });
+            triggerReload({ search: searchQuery.value, page: 1, cursor: null });
         }, debounce);
     };
 
