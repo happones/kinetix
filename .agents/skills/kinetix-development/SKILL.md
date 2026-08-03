@@ -37,6 +37,60 @@ This skill contains the conventions, requirements, and implementation patterns f
 - **new-york-v4 focus/shape tokens (REQUIRED on every interactive control)**: shadcn-vue new-york-v4 dropped the v3 focus ring (`focus-visible:ring-2 ring-ring ring-offset-2` / `focus:ring-1`) — use the v4 set: `outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]` + `aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40`, `shadow-xs` (not `shadow-sm`), `transition-[color,box-shadow]`/`transition-shadow`, and `dark:bg-input/30` on bordered inputs. **The token is `ring-[3px]`, NOT `ring-3`** (`ring-3` is not on Tailwind v4's ring scale → emits no ring). Switch v4: `h-[1.15rem] w-8` track + `size-4` thumb + `data-[state=checked]:translate-x-[calc(100%-2px)]` + `dark:data-[state=unchecked]:bg-input/80` / `dark:data-[state=*]:bg-foreground|primary-foreground` thumb. Checkbox `rounded-[4px] size-4` + icon `size-3.5`. Select item: check indicator on the RIGHT (`pr-8 pl-2`, `right-2`). Don't hardcode thumb colors (`bg-white`) — use `bg-background`/token.
 - **Non-Reka elements via parity primitives (REQUIRED)**: For Card/Button/Badge/Input/ScrollArea (built "from scratch", not Reka), use Kinetix's own primitives that mirror shadcn-vue **new-york-v4** EXACTLY — Card family + `ScrollArea`/`ScrollBar` (Reka ScrollArea*) in `components/primitives/*` (Card v4 structure: `flex flex-col gap-6 py-6` card + `px-6` sections + `data-slot`; use `cn` from `./primitives/cn`), and `composables/useShadcnVariants` (`buttonVariants`/`badgeVariants`/`inputClass`/`textareaClass`). The DateTimePicker time columns use `ScrollArea`. Import these via RELATIVE paths (`./primitives/Card.vue`) — `@/components/ui/*` would resolve to the CONSUMER's files post-publish. Do NOT re-hand-roll `rounded-xl border ... p-6` card markup; reuse the primitives. shadcn Badge is a `rounded-full` pill; Kinetix soft status badges (`useStatusColor`) are a separate Filament-style element. No new deps (`cn` is a local 4-line join, not clsx/tailwind-merge). **Settled decision (do not revisit): Kinetix is self-contained — it does NOT import or re-publish the host's `@/components/ui` shadcn-vue files, and it does NOT ship a parallel public UI kit (`KinetixButton` etc. do not exist; buttons/badges/inputs are token class strings).** shadcn-vue is copy-paste (not an npm pkg): the starter kit ships only a SUBSET, with variant/version drift, so importing host ui = hard build failures for the consumer. We reuse shadcn's *foundation* — the same tokens (→ pixel-identical look + dark mode) and the same headless lib (Reka UI, a real declared peer dep) — not its copied files. The `primitives/` are an internal implementation detail, not "the UI".
 
+### Accessibility Rules (REQUIRED — every component, no exceptions)
+
+Kinetix components must be fully operable by keyboard, screen reader and
+colorblind users out of the box. Reka UI supplies the base semantics for its
+primitives; everything Kinetix builds ON TOP must uphold these ten rules.
+WCAG 2.2 AA is the bar. A component PR that violates one of these is not done.
+
+1. **Every control has an accessible name.** Icon-only buttons/links get a
+   translated `aria-label` (`:aria-label="t('kinetix.…')"`) or an `sr-only`
+   text span; purely decorative icons/SVGs (including sparklines and status
+   dots) get `aria-hidden="true"`. Never ship a bare `<button><Icon /></button>`.
+2. **Color is never the only channel (colorblind-safe).** A status must always
+   pair its token color with an icon or text (`statusBadgeClass` chips carry
+   text; trend colors carry a trend icon). Categorical chart palettes MUST pass
+   the CVD validation used for `--chart-1..8` (adjacent-pair colorblind
+   separation, ≥3:1 contrast vs surface, light AND dark validated separately)
+   — and charts keep legend + tooltip + axis labels as secondary encoding.
+3. **Contrast is checked in BOTH themes.** Text ≥4.5:1 (large text ≥3:1),
+   interactive/graphical elements ≥3:1 — against the light surface AND the dark
+   surface independently; tokens shift between modes, so one passing mode
+   proves nothing about the other.
+4. **Keyboard-complete.** Every interaction reachable and operable by keyboard,
+   focus order matching visual order, the v4 `focus-visible` token set on every
+   control (already mandated above). Drag-and-drop (kanban, reorderable rows,
+   repeater) MUST offer a keyboard alternative (move up/down actions or menu) —
+   pointer-only interactions are a defect.
+5. **Modals/popovers manage focus.** Focus is trapped while open (Reka
+   Dialog/Popover or `useKinetixFocusTrap`), `Escape` closes, and focus returns
+   to the trigger on close. The scrim blocks interaction with the page behind.
+6. **Form errors are linked, not just painted.** An errored field gets
+   `aria-invalid="true"` AND `aria-describedby` pointing at the id of its error
+   text; helper text is referenced the same way. Errors are announced
+   (`role="alert"` or polite live region). Every field has a visible
+   `<KinetixLabel>` — placeholder-only labeling is forbidden.
+7. **Async outcomes are announced.** Table refreshes/filter results, action
+   completions, imports/exports and background failures announce through
+   `useKinetixAnnounce` (polite live region). Toasts never steal focus.
+8. **Tables expose their semantics.** Sortable headers are buttons with
+   `aria-sort` (`ascending`/`descending`/`none`) on the `<th>`; row-selection
+   checkboxes have per-row labels; pagination is a labeled `<nav>`.
+9. **Motion is always escapable.** Every animation/transition respects BOTH the
+   OS `prefers-reduced-motion` media query and the user's `kx-reduce-motion`
+   preference class (`motion-reduce:` utilities cover only the former — pair
+   them). Micro-interactions 150–300ms, animate `transform`/`opacity` only.
+10. **Layouts survive text scaling.** Components must not clip or overlap under
+    `kx-text-large`/`kx-text-x-large` and 200% browser zoom — no fixed heights
+    on text containers, truncation only with the full value available (tooltip
+    or wrap). Interactive targets meet WCAG 2.2's 24×24px minimum with spacing.
+
+When a new component's spec suite is written, assert the critical wiring from
+these rules (e.g. `aria-sort` flips with the sort state, the error id matches
+`aria-describedby`, the icon-only button has a name) — cheap tests that keep
+the manifest enforced instead of aspirational.
+
 ### Localization & Documentation Rules
 
 - **Shipped locales (v0.89.0)**: en, es, fr, pt, zh, ja, ru — EVERY new key must be added to all seven (`TranslationParityTest` enforces). Publishing is selective: `kinetix.translations.locales` (null = all; string 'en,ja' from env or array) drives `KinetixServiceProvider::translationPublishMap()` → per-locale dirs on the `kinetix-translations` tag (and therefore `kinetix:upgrade`). Tests `TranslationPublishTest`/`TranslationPublishAllTest` (reflection-clear `ServiceProvider::$publishes` statics before boot — they leak across tests).
