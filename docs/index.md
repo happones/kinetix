@@ -45,6 +45,10 @@ features:
     title: Search & Experience
     details: Cmd+K spotlight, conflict-safe keyboard shortcuts, accessibility preferences + screen-reader primitives, onboarding (checklist, empty states, product tour), real-time notifications & presence/online indicators, a "what's new" feed, dark-mode & language switchers, a searchable timezone picker, and dashboard stat/chart widgets.
     link: /spotlight
+  - icon: 🤖
+    title: AI-ready
+    details: Built to be developed with coding agents — an agent skill per module (46+, auto-published by kinetix:install into .claude/skills or wherever your agent looks), a dedicated Laravel Boost best-practices skill, and per-feature docs + tests that keep Claude Code, Codex & friends on rails.
+    link: /installation
 ---
 
 ## Quick Start

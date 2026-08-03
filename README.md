@@ -13,6 +13,7 @@
   <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/dt/happones/kinetix" alt="Total Downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/packagist/l/happones/kinetix" alt="License"></a>
   <a href="https://packagist.org/packages/happones/kinetix"><img src="https://img.shields.io/packagist/php-v/happones/kinetix" alt="PHP Version"></a>
+  <a href="#-ai-ready"><img src="https://img.shields.io/badge/AI--ready-agent%20skills%20%2B%20Laravel%20Boost-8b5cf6" alt="AI-ready"></a>
 </p>
 
 <p align="center">
@@ -42,6 +43,34 @@ experience, built from the ground up for the **Inertia + Vue** stack.
 Every module is **opt-in** (off by default, one config switch), and third-party
 packages are **optional** — each feature detects the package at runtime and
 falls back to a fully working built-in driver when it's absent.
+
+---
+
+## 🤖 AI-ready
+
+Kinetix is built to be **developed with coding agents, not just by hand** —
+whether that's Claude Code, Codex or any agent wired into
+[Laravel Boost](https://github.com/laravel/boost):
+
+- **An agent skill per module (46 and counting).** Every feature ships its own
+  skill (`kinetix-tables`, `kinetix-forms`, `kinetix-permissions`, …) teaching
+  the agent the module's fluent API, conventions and pitfalls — so it writes
+  Kinetix code the way the docs intend, without guessing.
+- **Installed automatically.** `php artisan kinetix:install` publishes the
+  skills into your project (default `.claude/skills`; point
+  `KINETIX_SKILLS_PATH` at `.agents/skills` or wherever your agent looks), and
+  `kinetix:upgrade` keeps them fresh on every release. Skills only load from
+  your project, never from `vendor/`.
+- **Laravel Boost, first-class.** A dedicated `kinetix-boost` skill wires
+  agents into Boost's tooling — `search-docs`, `database-schema`,
+  `database-query`, Pint/PHPStan — so they inspect real project state instead
+  of hallucinating it.
+- **Ground truth everywhere.** Every module has a dedicated docs guide,
+  translations and a test suite the agent can run — the same segmented,
+  per-feature documentation humans read is what keeps agents on rails.
+
+The result: point your agent at "add KPI cards above the books table" and it
+has the skill, the docs and the tests to do it right on the first pass.
 
 ---
 
