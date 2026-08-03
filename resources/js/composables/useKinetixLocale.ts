@@ -17,8 +17,14 @@ export function useKinetixLocale() {
     const locales = computed<KinetixLocaleOption[]>(
         () => state.value?.locales ?? [],
     );
-    const current = ref<string>(
-        state.value?.current ?? (i18nLocale.value as string),
+
+    // Derived from vue-i18n's own locale, which is a single ref per Vue app, so
+    // every switcher on the page reads the same value — a page with a header
+    // dropdown AND a settings select can't have them drift apart. A local ref
+    // here would be per-instance, and a module-level one would leak between
+    // requests under SSR.
+    const current = computed<string>(
+        () => (i18nLocale.value as string) || state.value?.current || 'en',
     );
     const saving = ref(false);
 
@@ -29,7 +35,6 @@ export function useKinetixLocale() {
 
         // Flip the SPA immediately for instant feedback…
         const previous = current.value;
-        current.value = code;
         i18nLocale.value = code;
         saving.value = true;
 
@@ -43,7 +48,6 @@ export function useKinetixLocale() {
             router.reload();
         } catch (error) {
             // Roll back the optimistic switch on failure.
-            current.value = previous;
             i18nLocale.value = previous;
 
             throw error;

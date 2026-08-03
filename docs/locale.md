@@ -1,10 +1,29 @@
 # Language Switcher
 
 A self-service **language switcher** for your Inertia app: list the locales you
-support and drop `<KinetixLanguageSwitcher />` in your header. The choice is
+support and drop `<KinetixLanguageSwitcher />` wherever it belongs. The choice is
 applied instantly in the SPA (vue-i18n), persisted in the session, and — with the
 optional migration — saved on the user so it follows them across devices. It
 works for guests too, so it can sit on the login screen or a setup wizard.
+
+It renders in **two shapes**, so the same state can be exposed in two very
+different places:
+
+| Variant | Shape | Use it in |
+| --- | --- | --- |
+| `dropdown` (default) | A `Languages` icon that opens a menu of locales | A header, navbar or toolbar — anywhere a labelled field would be out of place |
+| `select` | A labelled Select field | A settings page, profile form or onboarding step, among other fields |
+
+```vue
+<!-- header -->
+<KinetixLanguageSwitcher />
+
+<!-- settings page -->
+<KinetixLanguageSwitcher variant="select" />
+```
+
+Both drive the same state, so you can use **both at once** — switching in one
+updates the other immediately, with no page reload.
 
 <Screenshot name="language-switcher" alt="Language switcher dropdown" />
 
@@ -77,21 +96,75 @@ import KinetixLanguageSwitcher from '@/components/kinetix/KinetixLanguageSwitche
 </script>
 
 <template>
-    <!-- icon-only (default) -->
+    <!-- Dropdown (default): icon only -->
     <KinetixLanguageSwitcher />
 
-    <!-- show the active locale code beside the icon, e.g. "EN" -->
+    <!-- Dropdown: show the active locale code beside the icon, e.g. "EN" -->
     <KinetixLanguageSwitcher show-label />
+
+    <!-- Select: a labelled field for a settings form -->
+    <KinetixLanguageSwitcher variant="select" />
+
+    <!-- Select: your own label text -->
+    <KinetixLanguageSwitcher variant="select" label="Idioma" />
+
+    <!-- Select: no visible label (keeps an aria-label), e.g. in a tight toolbar -->
+    <KinetixLanguageSwitcher variant="select" :show-label="false" />
 </template>
 ```
 
-It renders a `Languages` icon that opens a dropdown of the supported locales, the
-active one marked with a check. Selecting a locale flips the SPA immediately and
-persists the choice (rolling back if the request fails). The locales come from
-the shared `kinetix_locale` Inertia prop — no extra wiring needed.
+### Props
 
-`useKinetixLocale()` exposes `{ locales, current, saving, setLocale }` for a
-custom UI.
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `variant` | `'dropdown' \| 'select'` | `'dropdown'` | Which shape to render |
+| `showLabel` | `boolean` | `false` for `dropdown`, `true` for `select` | Dropdown: show the active locale code beside the icon. Select: render the visible field label (an `aria-label` is used when off) |
+| `label` | `string \| null` | `null` | **Select only.** Overrides the label text (defaults to the translated `kinetix.language`) |
+
+Selecting a locale flips the SPA immediately and persists the choice, rolling
+back if the request fails. The locales come from the shared `kinetix_locale`
+Inertia prop — no extra wiring needed.
+
+### Both variants at once
+
+The two variants share their state through vue-i18n's own locale, so a header
+dropdown and a settings select stay in agreement without a page reload:
+
+```vue
+<AppHeader>
+    <KinetixLanguageSwitcher show-label />
+</AppHeader>
+
+<SettingsForm>
+    <!-- Switch here and the header updates immediately -->
+    <KinetixLanguageSwitcher variant="select" />
+</SettingsForm>
+```
+
+### A custom UI
+
+`useKinetixLocale()` exposes `{ locales, current, saving, setLocale }` if neither
+shape fits. `current` is derived from the active app language rather than held per
+instance, so anything built on it stays in sync with the shipped variants:
+
+```vue
+<script setup lang="ts">
+import { useKinetixLocale } from '@/composables/useKinetixLocale';
+
+const { locales, current, saving, setLocale } = useKinetixLocale();
+</script>
+
+<template>
+    <button
+        v-for="loc in locales"
+        :key="loc.code"
+        :disabled="saving || loc.code === current"
+        @click="setLocale(loc.code)"
+    >
+        {{ loc.label }}
+    </button>
+</template>
+```
 
 ::: tip Compiling the new locale
 The switcher only changes the active language — the matching translation messages
@@ -112,6 +185,15 @@ switch endpoint is **auth-optional** so it works before login:
 | `POST` | `{prefix}/locale` | `kinetix.locale.update` |
 
 Body: `{ "locale": "es" }`. Unsupported codes are rejected with `422`.
+
+::: tip Why this route has no `auth`
+It is the one Kinetix endpoint that is deliberately reachable by guests, so the
+switcher works on the login screen and in a setup wizard. It is safe because it
+only writes the session (and the authenticated user's own `locale` column), and
+the value must be one of the locales you configured — anything else is a `422`.
+`MiddlewareEnforcementTest` records it as an explicit exception so it can't be
+mistaken for an oversight.
+:::
 
 ---
 

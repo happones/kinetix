@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **(published) `KinetixLanguageSwitcher` renders in two shapes.** A new
+  `variant` prop picks between `dropdown` (default — the existing `Languages`
+  icon + menu, for a header or toolbar) and `select` (a labelled Select field,
+  for a settings page or profile form), so the same state can be exposed in two
+  very different places. The select variant is built on `KinetixSelect`, so it
+  inherits the keyboard navigation and styling of every other Select, and takes
+  `label` to override its text and `:show-label="false"` to keep only an
+  `aria-label`. Each shape lives in its own subcomponent under
+  `components/LanguageSwitcher/`.
+
+### Fixed
+
+- **Two language switchers on one page no longer drift apart.** `current` was a
+  per-instance `ref` seeded from the Inertia prop, so a header dropdown and a
+  settings select each held their own copy: switching in one left the other
+  showing the previous locale until a full page reload. It is now derived from
+  vue-i18n's locale — a single ref per Vue app, and still per-request under SSR,
+  unlike a module-level ref would be. This is what makes using both variants at
+  once work.
+
 ## [0.129.0] - 2026-08-03
 
 A hardening release from a full-package audit. Nothing here adds features; it

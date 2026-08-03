@@ -1,80 +1,61 @@
 <script setup lang="ts">
-import { Check, Languages } from '@lucide/vue';
-import {
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuPortal,
-    DropdownMenuRoot,
-    DropdownMenuTrigger,
-} from 'reka-ui';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 import { useKinetixLocale } from '@/composables/useKinetixLocale';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import LanguageDropdown from './LanguageSwitcher/LanguageDropdown.vue';
+import LanguageSelect from './LanguageSwitcher/LanguageSelect.vue';
 
 /**
- * A header language switcher (Languages icon → dropdown of supported locales).
- * Reads the locales from the shared `kinetix_locale` prop and switches the app
- * language instantly (vue-i18n) while persisting the choice server-side. Works
- * for guests too, so it can sit on the login screen.
+ * A self-service language switcher in two shapes:
+ *
+ * - `dropdown` (default) — a Languages icon opening a menu of locales. Compact,
+ *   for a header or toolbar.
+ * - `select` — a labelled Select field, for a settings or profile form.
+ *
+ * Both drive the same state, so several switchers can coexist on one page and
+ * stay in agreement. Switching flips the app language instantly (vue-i18n) and
+ * persists the choice server-side. Works for guests too, so it can sit on the
+ * login screen.
  */
 const props = withDefaults(
     defineProps<{
-        /** Show the active locale's code beside the icon (e.g. "EN"). */
+        /** Which shape to render. */
+        variant?: 'dropdown' | 'select';
+        /**
+         * Dropdown: show the active locale's code beside the icon ("EN").
+         * Select: render the visible field label. Defaults per variant —
+         * off for the dropdown, on for the select.
+         */
         showLabel?: boolean;
+        /** Select only: override the field label text. */
+        label?: string | null;
     }>(),
-    { showLabel: false },
+    { variant: 'dropdown', showLabel: undefined, label: null },
 );
 
-const { t } = useI18n();
 const { locales, current, saving, setLocale } = useKinetixLocale();
 
-const currentCode = computed(() => (current.value ?? '').toUpperCase());
+const isSelect = computed(() => props.variant === 'select');
+
+const showLabel = computed(() => props.showLabel ?? isSelect.value);
 </script>
 
 <template>
-    <DropdownMenuRoot>
-        <DropdownMenuTrigger
-            :class="
-                buttonVariants({
-                    variant: 'outline',
-                    size: props.showLabel ? 'sm' : 'icon-sm',
-                })
-            "
-            :disabled="saving"
-            :aria-label="t('kinetix.language')"
-        >
-            <Languages class="size-[1.2rem]" />
-            <span v-if="props.showLabel" class="text-sm font-medium">{{
-                currentCode
-            }}</span>
-            <span v-else class="sr-only">{{ t('kinetix.language') }}</span>
-        </DropdownMenuTrigger>
+    <LanguageSelect
+        v-if="isSelect"
+        :locales="locales"
+        :current="current"
+        :saving="saving"
+        :show-label="showLabel"
+        :label="props.label"
+        @select="setLocale"
+    />
 
-        <DropdownMenuPortal>
-            <DropdownMenuContent
-                align="end"
-                :side-offset="6"
-                class="rounded-lg p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-50 min-w-[9rem] border border-border bg-popover outline-none"
-            >
-                <DropdownMenuItem
-                    v-for="loc in locales"
-                    :key="loc.code"
-                    class="gap-2 px-3 py-2 text-sm flex w-full cursor-default items-center justify-between rounded-md text-left transition-colors outline-none select-none hover:bg-accent focus:bg-accent focus:text-accent-foreground"
-                    :class="
-                        loc.code === current
-                            ? 'text-foreground'
-                            : 'text-muted-foreground'
-                    "
-                    @click="setLocale(loc.code)"
-                >
-                    <span>{{ loc.label }}</span>
-                    <Check
-                        v-if="loc.code === current"
-                        class="size-4 text-primary"
-                    />
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenuPortal>
-    </DropdownMenuRoot>
+    <LanguageDropdown
+        v-else
+        :locales="locales"
+        :current="current"
+        :saving="saving"
+        :show-label="showLabel"
+        @select="setLocale"
+    />
 </template>
