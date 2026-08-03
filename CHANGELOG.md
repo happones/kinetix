@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.130.1] - 2026-08-03
+
+A patch over v0.130.0, whose tagged commit had a red pipeline. **If you installed
+v0.130.0, upgrade** — one of its two defects is in a published file.
+
+### Fixed
+
+- ⚠️ **(published) `resources/js/types/kinetix.ts` declared
+  `KinetixChartDataset` twice.** TypeScript merges same-name interfaces, and the
+  two declarations disagreed on `label`, `data`, `backgroundColor` and
+  `borderColor` — so an app that republished the types and ran `vue-tsc` got
+  TS2687/TS2717 errors in *its own* type check. Unified into one declaration that
+  is a superset of both: array colours and `borderWidth` from the older one,
+  optional/nullable `label` and mixed `data` from the newer, plus an index
+  signature (typed `unknown`, not `any`) for the widget's open `data` payload.
+- **`Table::getResolvedQuery()` no longer mutates the builder you passed to
+  `Table::make()`.** The request's search/sort/filters were applied to that very
+  instance, so reusing `$query` after rendering the table silently inherited the
+  table's filters, and rendering twice piled the same clauses on again. The table
+  now resolves onto a fresh builder; your own constraints are preserved and still
+  bound what the table's filters can reach.
+- `ExportImportSecurityTest` dispatched a real queued job, which failed under the
+  `testbench package:test` runner CI uses — its config bootstrapping ignores
+  `phpunit.xml`'s `QUEUE_CONNECTION=sync` and fell back to the database driver,
+  with no `jobs` table in the in-memory database. It fakes the queue now, which is
+  also the better assertion.
+
+### Added
+
+- `composer test:ci` and `npm run types:check` mirror the two CI commands that
+  differ from the obvious local ones (`testbench package:test` and `vue-tsc`), so
+  a green local run actually predicts a green pipeline.
+
 ## [0.130.0] - 2026-08-03
 
 ### Added
