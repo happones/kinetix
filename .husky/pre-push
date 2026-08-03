@@ -1,0 +1,5 @@
+# Testbench leaves a vendor symlink that breaks tooling traversal.
+rm -f vendor/orchestra/testbench-core/laravel/vendor
+
+npm run types:check
+vendor/bin/phpstan analyse --memory-limit=1G

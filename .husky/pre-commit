@@ -1,0 +1,4 @@
+# Testbench leaves a vendor symlink that breaks eslint's traversal.
+rm -f vendor/orchestra/testbench-core/laravel/vendor
+
+npx lint-staged

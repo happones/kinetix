@@ -18,9 +18,17 @@
         "gallery:dev": "vite --config vite.gallery.config.ts",
         "screenshots:messages": "php scripts/gen-gallery-messages.php",
         "screenshots": "npm run screenshots:messages && node scripts/screenshots.mjs",
-        "types:check": "vue-tsc --noEmit"
+        "types:check": "vue-tsc --noEmit",
+        "prepare": "husky"
+    },
+    "lint-staged": {
+        "*.php": "vendor/bin/pint",
+        "{resources/js/**/*.{js,ts,vue},eslint.config.js}": "eslint --fix",
+        "{resources/js,gallery,tests/js}/**/*": "prettier --write --ignore-unknown"
     },
     "devDependencies": {
+        "@commitlint/cli": "^21.2.1",
+        "@commitlint/config-conventional": "^21.2.0",
         "@eslint/js": "^9.19.0",
         "@inertiajs/vue3": "^3.0.0",
         "@internationalized/date": "^3.12.2",
@@ -47,6 +55,8 @@
         "eslint-plugin-import": "^2.32.0",
         "eslint-plugin-vue": "^9.32.0",
         "happy-dom": "^20.10.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^17.3.0",
         "mermaid": "^11.15.0",
         "pinia": "^2.3.1",
         "playwright": "^1.61.1",
