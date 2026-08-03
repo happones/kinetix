@@ -13,6 +13,7 @@ import {
     VisXYContainer,
 } from '@unovis/vue';
 import { computed } from 'vue';
+import { useKinetixChartSurfaceVars } from '@/composables/useKinetixChartPalette';
 import type { KinetixChartPoint, KinetixChartSlice } from '@/types/kinetix';
 
 /**
@@ -75,6 +76,11 @@ const donutTriggers = computed(() => ({
 
 const crosshairColor = (_d: KinetixChartPoint | null, index: number): string =>
     props.lineColors[index] ?? 'currentColor';
+
+// The unovis `--vis-*` color properties, resolved from theme tokens in JS —
+// a CSS `hsl(var(--border))` wrapping breaks (silently) on hosts whose tokens
+// are complete colors, e.g. the shadcn starter kit. See the composable.
+const surfaceVars = useKinetixChartSurfaceVars();
 </script>
 
 <template>
@@ -82,6 +88,7 @@ const crosshairColor = (_d: KinetixChartPoint | null, index: number): string =>
     <div
         v-if="isCircular"
         class="kinetix-chart-canvas relative h-[300px] w-full"
+        :style="surfaceVars"
     >
         <VisSingleContainer :data="pieData" height="300" :duration="duration">
             <VisDonut
@@ -112,6 +119,7 @@ const crosshairColor = (_d: KinetixChartPoint | null, index: number): string =>
     <VisXYContainer
         v-else
         class="kinetix-chart-canvas"
+        :style="surfaceVars"
         :data="chartData"
         height="300"
         :duration="duration"
@@ -185,27 +193,19 @@ const crosshairColor = (_d: KinetixChartPoint | null, index: number): string =>
 /*
  * unovis surfaces are themed exclusively through its own CSS custom properties
  * (its class names are emotion-generated, so element selectors don't reach
- * them). The tooltip container is neutralized (our templates render a complete
- * card); axis/grid/crosshair inherit the shadcn tokens, so dark mode needs no
- * duplicate rules — the tokens themselves shift.
+ * them). Only LITERAL values live here — every token-derived color is bound
+ * from JS as an inline style (`useKinetixChartSurfaceVars`), because a CSS
+ * `hsl(var(--border))` wrapping is invalid on hosts whose tokens are complete
+ * colors (the shadcn starter-kit convention) and gets dropped silently. The
+ * tooltip container is neutralized (our templates render a complete card).
  */
 .kinetix-chart-canvas {
     --vis-tooltip-background-color: transparent;
     --vis-tooltip-border-color: transparent;
     --vis-tooltip-padding: 0;
     --vis-tooltip-box-shadow: none;
-    --vis-crosshair-line-stroke-color: hsl(
-        var(--muted-foreground, 240 3.8% 46.1%)
-    );
     --vis-crosshair-line-stroke-opacity: 0.4;
-    --vis-crosshair-circle-stroke-color: hsl(var(--background, 0 0% 100%));
     --vis-crosshair-circle-stroke-width: 2px;
-    --vis-donut-segment-stroke-color: hsl(var(--card, 0 0% 100%));
-    --vis-axis-grid-color: hsl(var(--border, 240 5.9% 90%));
-    --vis-axis-tick-color: hsl(var(--border, 240 5.9% 90%));
-    --vis-axis-domain-color: hsl(var(--border, 240 5.9% 90%));
-    --vis-axis-tick-label-color: hsl(var(--muted-foreground, 240 3.8% 46.1%));
-    --vis-axis-label-color: hsl(var(--muted-foreground, 240 3.8% 46.1%));
     --vis-axis-tick-label-font-size: 11px;
     --vis-axis-font-family: inherit;
 }

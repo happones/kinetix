@@ -408,6 +408,14 @@ any host re-skin automatically; a dataset's `borderColor`/`backgroundColor`
 (scalar or per-slice array) still wins. Entrance animations respect
 `prefers-reduced-motion`.
 
+Token values may be HSL triplets (`221.2 83.2% 53.3%`, the kinetix.css style)
+or complete colors (`oklch(…)`/`hsl(…)`, the shadcn starter-kit style) — both
+work, for the series palette and for the axis/grid/crosshair surface alike.
+Note that a stock shadcn theme defines only `--chart-1`…`--chart-5`: a chart
+with six or more series falls back to Kinetix's validated palette for the
+remaining slots, so define `--chart-6`…`--chart-8` yourself if you want those
+on-brand too.
+
 ```php
 ChartWidget::make()->title('Total visitors')->chartType('area')->legend()
     ->labels(['Mon', 'Tue', 'Wed'])

@@ -1,7 +1,10 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
-import { useKinetixChartPalette } from '@/composables/useKinetixChartPalette';
+import {
+    useKinetixChartPalette,
+    useKinetixChartSurfaceVars,
+} from '@/composables/useKinetixChartPalette';
 
 const Probe = defineComponent({
     setup() {
@@ -10,6 +13,19 @@ const Probe = defineComponent({
         return () => h('div', palette.value.join(','));
     },
 });
+
+const SurfaceProbe = defineComponent({
+    setup() {
+        const vars = useKinetixChartSurfaceVars();
+
+        return () => h('div', JSON.stringify(vars.value));
+    },
+});
+
+const mockTokens = (tokens: Record<string, string>) =>
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+        getPropertyValue: (name: string) => tokens[name] ?? '',
+    } as unknown as CSSStyleDeclaration);
 
 afterEach(() => {
     document.documentElement.classList.remove('dark');
@@ -47,22 +63,10 @@ describe('useKinetixChartPalette', () => {
     });
 
     it('wraps HSL triplet tokens and passes complete colors through', async () => {
-        const styles = {
-            getPropertyValue: (name: string) => {
-                if (name === '--chart-1') {
-                    return '221.2 83.2% 53.3%';
-                }
-
-                if (name === '--chart-2') {
-                    return 'oklch(0.6 0.15 160)';
-                }
-
-                return '';
-            },
-        };
-        const spy = vi
-            .spyOn(window, 'getComputedStyle')
-            .mockReturnValue(styles as unknown as CSSStyleDeclaration);
+        const spy = mockTokens({
+            '--chart-1': '221.2 83.2% 53.3%',
+            '--chart-2': 'oklch(0.6 0.15 160)',
+        });
 
         const w = mount(Probe);
         await w.vm.$nextTick();
@@ -72,6 +76,62 @@ describe('useKinetixChartPalette', () => {
         expect(colors[1]).toBe('oklch(0.6 0.15 160)');
         // Undefined slots fall back per-slot.
         expect(colors[2]).toBe('#d97706');
+
+        spy.mockRestore();
+    });
+});
+
+describe('useKinetixChartSurfaceVars', () => {
+    it('passes complete-color tokens through unwrapped (starter-kit shape)', async () => {
+        const spy = mockTokens({
+            '--border': 'hsl(0 0% 92.8%)',
+            '--muted-foreground': 'oklch(0.552 0.016 285.938)',
+        });
+
+        const w = mount(SurfaceProbe);
+        await w.vm.$nextTick();
+        const vars = JSON.parse(w.text());
+
+        // No double hsl(hsl(…)) — the v0.131.0 regression.
+        expect(vars['--vis-axis-grid-color']).toBe('hsl(0 0% 92.8%)');
+        expect(vars['--vis-axis-tick-label-color']).toBe(
+            'oklch(0.552 0.016 285.938)',
+        );
+
+        spy.mockRestore();
+    });
+
+    it('wraps HSL-triplet tokens (kinetix.css shape)', async () => {
+        const spy = mockTokens({
+            '--border': '240 5.9% 90%',
+            '--card': '0 0% 100%',
+        });
+
+        const w = mount(SurfaceProbe);
+        await w.vm.$nextTick();
+        const vars = JSON.parse(w.text());
+
+        expect(vars['--vis-axis-grid-color']).toBe('hsl(240 5.9% 90%)');
+        expect(vars['--vis-donut-segment-stroke-color']).toBe('hsl(0 0% 100%)');
+
+        spy.mockRestore();
+    });
+
+    it('falls back per theme when a token is undefined', async () => {
+        const spy = mockTokens({});
+
+        const light = mount(SurfaceProbe);
+        await light.vm.$nextTick();
+        expect(JSON.parse(light.text())['--vis-axis-grid-color']).toBe(
+            'hsl(240 5.9% 90%)',
+        );
+
+        document.documentElement.classList.add('dark');
+        const dark = mount(SurfaceProbe);
+        await dark.vm.$nextTick();
+        expect(JSON.parse(dark.text())['--vis-axis-grid-color']).toBe(
+            'hsl(240 3.7% 15.9%)',
+        );
 
         spy.mockRestore();
     });
