@@ -1,6 +1,6 @@
 ---
 name: kinetix-boost
-description: Best practices for Kinetix development using Laravel Boost, including searching documentation, using database context tools, running PHPStan/Pint, and Laravel 13 / PHP 8.3+ requirements.
+description: Best practices for Kinetix development using Laravel Boost, including searching documentation, using database context tools, running PHPStan/Pint, Laravel 13 / PHP 8.3+ requirements, and adapting Kinetix migrations to UUID/ULID user, team, or morph-target models.
 license: MIT
 metadata:
   author: happones
@@ -57,3 +57,33 @@ Activate this skill when:
 ### C. Testing
 - Run tests via `composer test` to confirm everything remains green.
 - Do not add arbitrary debugger code, tinker scripts, or manual route files when unit/feature tests are available.
+
+## 3. UUID / ULID Host Models (users, teams, or any referenced model)
+
+Kinetix migrations type every column that references a HOST model
+(`user_id`, `team_id`, morph ids like `commentable_id`/`taggable_id`/
+`subject_id`/`causer_id`, and `invited_by`/`created_by_id`/`launched_by_id`)
+as `unsignedBigInteger`. **Before running `php artisan migrate` in an app
+whose `User`/`Team` (or commented/tagged/audited models) use UUIDs or
+ULIDs:**
+
+1. Check the key type first — use the `database-schema` tool (or the model's
+   `HasUuids`/`HasUlids` trait / `$keyType` property). Do not assume bigint.
+2. Publish the feature's migrations (`php artisan vendor:publish
+   --tag=kinetix-<feature>-migrations`) — they are always published, never run
+   from `vendor/`, so they are the app's files to edit.
+3. Retype ONLY the columns pointing at UUID/ULID models:
+   `$table->unsignedBigInteger('user_id')` → `$table->uuid('user_id')` or
+   `$table->ulid('user_id')`. For morph pairs, retype the `*_id` half only.
+4. Type each column after the model it points to — mixed apps (bigint users +
+   UUID teams) retype only the matching columns.
+5. Do NOT touch columns pointing at Kinetix's own tables (`tag_id`,
+   `webhook_endpoint_id`, `parent_id`, …) — those stay `unsignedBigInteger`.
+6. No FK rewiring is needed (Kinetix uses plain indexed columns), EXCEPT
+   `kinetix-permission-team-migrations`, which adds real FKs to
+   spatie/laravel-permission pivots — apply spatie's own UUID guidance there.
+7. If the tables are already migrated, write an `ALTER` migration in the app;
+   integer→UUID data conversion is manual.
+
+The per-feature column list lives in the docs: Installation → "UUID / ULID
+primary keys on your models".

@@ -111,3 +111,12 @@ Props: `provider`, `mode` (`login` | `link`), `label`, `branded`, `block`,
 bitbucket, facebook, x, apple, discord, twitch) resolved via `@/icons/brands`
 (`brandFor(key)`); unknown providers fall back to a generic glyph. Or link
 manually to `/{prefix}/connected-accounts/login/redirect/{provider}`.
+
+## UUID / ULID Host Models
+
+The published migration types `user_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-connected-accounts-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

@@ -63,3 +63,12 @@ Only allowlisted models can be commented on (unregistered types 404).
 Composer + threaded list (author avatar/initials, relative time, edited badge),
 inline reply, and edit/delete on the user's own comments. `useKinetixComments(type, id)`
 → `{ comments, loading, load, post, edit, remove }`. i18n `comment_*` (en/es/fr/pt).
+
+## UUID / ULID Host Models
+
+The published migration types `user_id` and `commentable_id` (the morph id half) as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-comments-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

@@ -56,3 +56,12 @@ default view loads automatically on first render. No extra wiring needed.
 - **Frontend**: `useKinetixSavedViews(viewKey)` →
   `{ views, loading, load, create, update, remove, setDefault }`. i18n
   `saved_view*` (en/es/fr/pt).
+
+## UUID / ULID Host Models
+
+The published migration types `user_id` and `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-saved-views-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

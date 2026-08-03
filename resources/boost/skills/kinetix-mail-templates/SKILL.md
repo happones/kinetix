@@ -54,3 +54,12 @@ plain text.
 
 > i18n note: never put literal `{{ }}` or `@` in vue-i18n translation strings —
 > both are reserved (nested placeholder / linked message) and crash compilation.
+
+## UUID / ULID Host Models
+
+The published migration types `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-mail-templates-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

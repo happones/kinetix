@@ -160,3 +160,12 @@ php artisan kinetix:report-runs:prune {--days=}
 
 Deletes the file + row for completed runs past `expires_at`, and the row
 alone for failed/cancelled runs older than `retention_days`.
+
+## UUID / ULID Host Models
+
+The published migration types `created_by_id`, `launched_by_id` and `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-reports-center-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

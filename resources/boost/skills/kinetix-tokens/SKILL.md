@@ -95,3 +95,12 @@ Route::middleware(['auth:sanctum', 'kinetix.api-log'])
 Lists tokens (name, scopes, last-used), create form with a `KinetixCheckbox`
 scope picker, copy-able reveal-once banner, revoke. `useKinetixTokens()` for a
 custom UI. All strings localized (`token_*`, en/es/fr/pt).
+
+## UUID / ULID Host Models
+
+The published migration types `user_id` and `team_id` (kinetix_api_logs) as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-api-logs-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

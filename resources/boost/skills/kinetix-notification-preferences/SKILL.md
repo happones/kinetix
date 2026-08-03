@@ -68,3 +68,12 @@ public function via(object $notifiable): array
 A type × channel checkbox matrix that persists each toggle.
 `useKinetixNotificationPreferences()` → `{ matrix, loading, load, set }`. i18n
 `notification_prefs_*` (en/es/fr/pt).
+
+## UUID / ULID Host Models
+
+The published migration types `user_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-notification-preferences-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

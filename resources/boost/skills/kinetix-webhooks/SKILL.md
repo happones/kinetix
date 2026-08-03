@@ -92,3 +92,12 @@ a test, inspect logs. `useKinetixWebhooks()` for a custom UI.
 Point an endpoint at a request catcher like **webhookcatcher.com** (or
 webhook.site) to inspect headers/signature/payload; for a local catcher set
 `KINETIX_WEBHOOKS_ALLOW_PRIVATE=true`.
+
+## UUID / ULID Host Models
+
+The published migration types `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-webhooks-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

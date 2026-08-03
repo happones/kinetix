@@ -97,3 +97,12 @@ Pure presentational; `icon` is any Kinetix icon name.
 
 i18n `onboarding_*` / `tour_*` (en/es/fr/pt). Tests: `OnboardingTest`,
 `useKinetixOnboarding.spec.ts`, `useKinetixTour.spec.ts`.
+
+## UUID / ULID Host Models
+
+The published migration types `user_id` and `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-onboarding-migrations (and kinetix-tours-migrations)` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

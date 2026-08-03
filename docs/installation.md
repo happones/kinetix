@@ -520,6 +520,77 @@ php artisan kinetix:routes --json       # machine-readable
 It also surfaces collisions: a route of yours that happens to live under the
 same prefix shows up in the list.
 
+## UUID / ULID primary keys on your models
+
+Kinetix's own tables use auto-increment bigint primary keys — that part works
+the same whatever your app does. But the columns that **reference your models**
+(`user_id`, `team_id`, the `causer`/`subject` morphs on activity, the
+`commentable`/`taggable` morphs, `invited_by`, `created_by_id`,
+`launched_by_id`) ship typed as `unsignedBigInteger` in the published
+migrations:
+
+```php
+$table->unsignedBigInteger('user_id')->index();
+```
+
+If your `User`, `Team`, or any model you comment/tag/audit uses **UUIDs or
+ULIDs**, retype those columns **before running `php artisan migrate`** —
+migrations are always published into your app (never run from `vendor/`), so
+they are yours to edit:
+
+```php
+// UUID keys                              // ULID keys
+$table->uuid('user_id')->index();         $table->ulid('user_id')->index();
+
+// Morph pairs: retype only the *_id half —
+// the *_type string column stays as shipped.
+$table->string('commentable_type');
+$table->uuid('commentable_id');
+```
+
+Three things make this low-risk:
+
+- **Type each column after the model it points to.** Mixed apps are fine — a
+  bigint `users` table with a UUID `teams` table just means `user_id` stays
+  `unsignedBigInteger` while `team_id` becomes `uuid`.
+- **No foreign-key rewiring.** Kinetix stores these as plain indexed columns
+  without DB-level constraints, so retyping the column is the whole job. The
+  one exception is `kinetix-permission-team-migrations`, which adds real FKs to
+  spatie/laravel-permission's pivot tables — there, follow spatie's own UUID
+  guidance for those tables first.
+- **Already migrated?** Write an `ALTER` migration of your own; converting
+  existing integer data to UUIDs is not automatic.
+
+### Affected migrations by feature
+
+Publish tags follow `kinetix-<feature>-migrations`. Columns referencing YOUR
+models per feature:
+
+| Feature (tag) | Columns to retype |
+| --- | --- |
+| `membership` | `user_id`, `team_id`, `invited_by` |
+| `settings` | `team_id` |
+| `activity` | `causer_id`, `subject_id` (morphs), `team_id` |
+| `webhooks` | `team_id` |
+| `onboarding` | `user_id`, `team_id` |
+| `wizards` | `user_id`, `team_id` |
+| `accessibility` | `user_id` |
+| `connected-accounts` | `user_id` |
+| `comments` | `user_id`, `commentable_id` (morph) |
+| `tags` | `taggable_id` (morph), `team_id` |
+| `notification-preferences` | `user_id` |
+| `saved-views` | `user_id`, `team_id` |
+| `announcements` | `user_id`, `team_id` |
+| `api-logs` | `user_id`, `team_id` |
+| `pdf` | `team_id` |
+| `reports-center` | `created_by_id`, `launched_by_id`, `team_id` |
+| `tours` | `user_id` |
+| `mail-templates` | `team_id` |
+| `permission-team` | spatie pivots — see spatie's UUID guide |
+
+Columns like `tag_id`, `webhook_endpoint_id` or `parent_id` point at
+**Kinetix's own bigint tables** and must stay `unsignedBigInteger`.
+
 ## Diagnostics — `kinetix:doctor`
 
 Most Kinetix misconfigurations fail **silently**: team scoping half-enabled, an

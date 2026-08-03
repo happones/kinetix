@@ -214,3 +214,12 @@ independent but complementary: **teams = where**, **roles/permissions = what**,
 **provisioning = the intersection** (adds a user to a team AND assigns a role).
 With Permissions enabled, grant the `members.*` abilities to a role; without it,
 define those gates in your app.
+
+## UUID / ULID Host Models
+
+The published migration types `user_id`, `team_id` and `invited_by` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-membership-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

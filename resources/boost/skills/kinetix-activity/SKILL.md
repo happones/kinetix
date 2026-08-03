@@ -100,3 +100,12 @@ Self-loading, paginated ("load more") timeline. Scope per record with
 Descriptions are composed from i18n (`activity_event_*`, `activity_by`,
 `activity_system`) so "Created by Jane" / "Actualizado por Mo" translate across
 en/es/fr/pt. For a custom UI use `useKinetixActivity().load(params)`.
+
+## UUID / ULID Host Models
+
+The published migration types `causer_id`, `subject_id` (morph halves) and `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-activity-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

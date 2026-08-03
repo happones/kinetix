@@ -276,3 +276,12 @@ flows compose `KinetixPermissionMatrix` (`v-model` of permission keys) with
   <KinetixRoleManager />
 </KinetixCan>
 ```
+
+## UUID / ULID Host Models
+
+`kinetix-permission-team-migrations` adds `team_id` columns AND real foreign
+keys to spatie/laravel-permission's pivot tables. On a UUID/ULID app, first
+apply spatie's own UUID guidance to the permission tables (their
+`model_morph_key` config + retyped pivots), then retype this migration's
+`team_id` to match your Team model's key. General recipe: the `kinetix-boost`
+skill, section "UUID / ULID Host Models".

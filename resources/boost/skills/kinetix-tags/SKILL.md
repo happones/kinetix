@@ -69,3 +69,12 @@ Tags are deduped by slug and team-scoped automatically when `kinetix.teams` is o
 Removable chips + autocomplete from existing tags + create-on-Enter; syncs each
 change. `useKinetixTags(type, id)` → `{ tags, loading, load, suggest, sync }`.
 i18n `tag_*` (en/es/fr/pt).
+
+## UUID / ULID Host Models
+
+The published migration types `taggable_id` (the morph id half) and `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-tags-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

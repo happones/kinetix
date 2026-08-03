@@ -38,3 +38,12 @@ $pdf = KinetixPdf::pdf('quote', $quote);        // binary, stored settings appli
 - Default layout = built-in generic document (`DocumentBuilder`, dompdf-safe inline CSS). Custom: override `html()` (PHP) or `view()` (Blade, receives settings/data/template).
 - Settings persist in `kinetix_pdf_templates` (publish `--tag=kinetix-pdf-migrations`), per team when team scoping applies. Endpoints gated by `viewKinetixPdf` (local-only default).
 - Drivers auto-detected: spatie/laravel-pdf → barryvdh/laravel-dompdf → dompdf/dompdf. Only DECLARED fields are read from requests (undeclared keys never reach the store/renderer).
+
+## UUID / ULID Host Models
+
+The published migration types `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-pdf-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

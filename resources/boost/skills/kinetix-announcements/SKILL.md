@@ -58,3 +58,12 @@ Levels: `info` (default) | `feature` | `fix`. Only entries with a past
 Megaphone trigger + unread badge; opening the popover lists the feed and marks it
 seen (clearing the badge). `useKinetixAnnouncements()` →
 `{ announcements, unread, loading, load, markSeen }`. i18n `announcements_*`.
+
+## UUID / ULID Host Models
+
+The published migration types `user_id` and `team_id` as `unsignedBigInteger`. If the
+referenced model uses UUIDs or ULIDs, publish
+`--tag=kinetix-announcements-migrations` and retype those columns
+(`$table->uuid(…)` / `$table->ulid(…)`) BEFORE `php artisan migrate` —
+type each column after the model it points to. Full recipe: the
+`kinetix-boost` skill, section "UUID / ULID Host Models".

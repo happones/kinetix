@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **(published) UUID / ULID host-model guidance, for humans and agents.**
+  Kinetix migrations type every column referencing a HOST model (`user_id`,
+  `team_id`, morph ids, `invited_by`/`created_by_id`/`launched_by_id`) as
+  `unsignedBigInteger`; on apps whose User/Team (or commented/tagged/audited
+  models) use UUIDs or ULIDs those columns must be retyped before migrating.
+  The recipe now lives in three layers: a dedicated installation-docs section
+  with the full feature → publish-tag → columns table (including the
+  spatie-pivot exception in `permission-team` and the "don't touch
+  Kinetix-internal ids" rule), a canonical step-by-step section in the
+  `kinetix-boost` agent skill (check the key type with `database-schema`
+  first, publish, retype only matching columns, mixed keys per column, ALTER
+  path for already-migrated apps), and a tailored note in each of the 18
+  affected feature skills naming its exact columns and tag. The development
+  skill now requires new features with host-model columns to ship both notes.
+
 - **(published) Every drag-and-drop surface now has a keyboard alternative**
   (accessibility manifest rule 4 — pointer-only interactions are a defect):
   - **Reorderable table rows**: the grip is now a focusable button —
