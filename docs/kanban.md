@@ -11,9 +11,9 @@ status column and the declared statuses can be written.
 ::: tip Dense columns virtualize automatically
 When a column holds more than ~40 cards, that column windows its card list via
 `@tanstack/vue-virtual` (only visible cards render); the column stays the drop
-target, so drag-and-drop is unaffected. Smaller columns render in full. Install
-the optional peer if your boards get dense: `npm install @tanstack/vue-virtual`
-(or `php artisan kinetix:install --tanstack`).
+target, so drag-and-drop is unaffected. Smaller columns render in full.
+`@tanstack/vue-virtual` is a required peer (installed by
+`php artisan kinetix:install`) — the board imports it at build time.
 :::
 
 ---

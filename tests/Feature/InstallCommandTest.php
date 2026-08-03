@@ -88,8 +88,10 @@ JS);
 
         $deps = json_decode(File::get($this->base.'/package.json'), true)['dependencies'];
 
-        // Core runtime deps the published components import.
-        foreach (['pinia', 'vue-i18n', 'reka-ui', '@internationalized/date', '@lucide/vue', 'vue-sonner'] as $dep) {
+        // Core runtime deps the published components import. vue-virtual is
+        // core: Comments/Kanban/MediaLibrary import it statically, so any app
+        // compiling the published components needs it at BUILD time.
+        foreach (['pinia', 'vue-i18n', 'reka-ui', '@internationalized/date', '@lucide/vue', 'vue-sonner', '@tanstack/vue-virtual'] as $dep) {
             $this->assertArrayHasKey($dep, $deps, "expected {$dep} to be added");
         }
 
@@ -97,7 +99,6 @@ JS);
         $this->assertArrayNotHasKey('@unovis/vue', $deps);
         $this->assertArrayNotHasKey('@laravel/echo-vue', $deps);
         $this->assertArrayNotHasKey('@tanstack/vue-table', $deps);
-        $this->assertArrayNotHasKey('@tanstack/vue-virtual', $deps);
 
         $this->assertTrue(File::exists($this->base.'/resources/js/stores/index.ts'));
         $this->assertStringContainsString('createPinia', File::get($this->base.'/resources/js/stores/index.ts'));

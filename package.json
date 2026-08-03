@@ -100,9 +100,6 @@
         "@tanstack/vue-table": {
             "optional": true
         },
-        "@tanstack/vue-virtual": {
-            "optional": true
-        },
         "@internationalized/date": {
             "optional": true
         },

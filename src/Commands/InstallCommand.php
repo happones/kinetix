@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Commands;
 
 use Happones\Kinetix\Support\ComposerHook;
+use Happones\Kinetix\Support\PublishedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -19,7 +20,7 @@ class InstallCommand extends Command
      */
     protected $signature = 'kinetix:install
         {--charts : Also install chart/widget dependencies (@unovis/vue, @unovis/ts)}
-        {--tanstack : Also install client-side table + list virtualization deps (@tanstack/vue-table, @tanstack/vue-virtual)}
+        {--tanstack : Also install the client-side table dep (@tanstack/vue-table)}
         {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}
         {--tours : Also install the product-tour renderer (driver.js)}
         {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}
@@ -67,6 +68,10 @@ class InstallCommand extends Command
             '@internationalized/date' => '^3.0.0',
             '@lucide/vue'             => '^1.0.0',
             'vue-sonner'              => '^2.0.0',
+            // Long-list virtualization (Comments / Kanban / Media Library).
+            // Those components import it statically, so any app compiling the
+            // published components needs it at build time — a required peer.
+            '@tanstack/vue-virtual' => '^3.0.0',
         ];
 
         // Opt-in, feature-specific dependencies.
@@ -75,12 +80,10 @@ class InstallCommand extends Command
             $dependencies['@unovis/ts']  = '^1.3.0';
         }
 
-        // Client-side (TanStack) tables and the long-list virtualization used by
-        // KinetixComments / KinetixKanban. Both are optional peers — only apps
-        // that opt into those features need them.
+        // Client-side (TanStack) tables — only apps that opt into
+        // `->clientSide()` need it.
         if ($this->option('tanstack')) {
-            $dependencies['@tanstack/vue-table']   = '^8.0.0';
-            $dependencies['@tanstack/vue-virtual'] = '^3.0.0';
+            $dependencies['@tanstack/vue-table'] = '^8.0.0';
         }
 
         if ($this->option('broadcasting')) {
@@ -248,6 +251,10 @@ JS;
         if ($this->option('provider')) {
             $this->scaffoldProvider();
         }
+
+        // Baseline the just-published files so `kinetix:upgrade` can tell
+        // local edits apart from upstream changes.
+        PublishedFiles::record();
 
         $this->info('Kinetix installation and configuration completed successfully!');
 
