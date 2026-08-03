@@ -2,7 +2,7 @@
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
-import { useKinetixMembers } from '@/composables/useKinetixMembers';
+import { roleLabel, useKinetixMembers } from '@/composables/useKinetixMembers';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
@@ -33,7 +33,7 @@ const rowKey = (member: KinetixMemberProvision): string | number =>
 
 /** KinetixSelect expects a `{ value: label }` record. */
 const roleOptions = computed<Record<string, string>>(() =>
-    Object.fromEntries(assignableRoles.value.map((r) => [r, r])),
+    Object.fromEntries(assignableRoles.value.map((r) => [r, roleLabel(r)])),
 );
 
 const STATUS_COLOR: Record<

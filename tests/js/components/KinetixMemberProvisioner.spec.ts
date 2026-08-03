@@ -88,4 +88,17 @@ describe('KinetixMemberProvisioner', () => {
 
         expect(wrapper.emitted('submit')).toBeUndefined();
     });
+
+    it('headline-cases role labels via the shared helper', async () => {
+        // Both membership selects (provisioner + member list) share this
+        // helper, so the same role never renders two different labels on the
+        // same screen.
+        const { roleLabel } = await import('@/composables/useKinetixMembers');
+
+        expect(roleLabel('support-agent')).toBe('Support Agent');
+        expect(roleLabel('billing_admin')).toBe('Billing Admin');
+
+        const wrapper = mountProvisioner(['support-agent']);
+        expect(wrapper.text()).toContain('Support Agent');
+    });
 });

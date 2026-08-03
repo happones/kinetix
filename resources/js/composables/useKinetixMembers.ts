@@ -12,6 +12,15 @@ interface MembersResponse {
 }
 
 /**
+ * Headline-case a role slug for display (`support-agent` → `Support Agent`).
+ * Shared by every role select in the membership UI, so the provisioner and the
+ * member list render the same labels on the same screen.
+ */
+export function roleLabel(name: string): string {
+    return name.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
  * CRUD for the admin-provisioned Membership module, talking to Kinetix's
  * `members` endpoints. The route prefix (incl. any team segment) comes from the
  * shared `kinetix_config`. `assignableRoles` is the server-enforced allow-list —
