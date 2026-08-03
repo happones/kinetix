@@ -51,6 +51,16 @@ features:
     link: /installation
 ---
 
+::: warning Pre-1.0 — under active development
+Kinetix does not yet have a release candidate for v1: APIs, published
+components and defaults may still change between minor versions. Pin your
+version and review the
+[changelog](https://github.com/happones/kinetix/blob/main/CHANGELOG.md) before
+upgrading. A **beta** and a **release candidate** on the road to **v1.0** will
+be announced shortly — [watch the repo](https://github.com/happones/kinetix)
+to stay posted.
+:::
+
 ## Quick Start
 
 Install the package:
