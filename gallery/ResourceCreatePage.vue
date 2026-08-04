@@ -24,35 +24,33 @@ const handleCancel = () => {};
             description="Add a new Post record."
         />
 
-        <div
-            class="rounded-xl p-4 shadow-sm sm:p-6 border border-border bg-card text-card-foreground"
-        >
-            <KinetixForm :form="form" @submit="handleSubmit">
-                <template #default>
-                    <div
-                        class="mt-6 gap-3 sm:flex-row sm:justify-end flex flex-col-reverse"
+        <!-- The form's own Section provides the card surface — no extra
+             wrapper, so schemas never render card-inside-card. -->
+        <KinetixForm :form="form" @submit="handleSubmit">
+            <template #default>
+                <div
+                    class="gap-3 sm:flex-row sm:justify-end flex w-full flex-col-reverse"
+                >
+                    <button
+                        type="button"
+                        :class="buttonVariants({ variant: 'outline' })"
+                        class="sm:w-auto w-full"
+                        :disabled="saving"
+                        @click="handleCancel"
                     >
-                        <button
-                            type="button"
-                            :class="buttonVariants({ variant: 'outline' })"
-                            class="sm:w-auto w-full"
-                            :disabled="saving"
-                            @click="handleCancel"
-                        >
-                            Cancel
-                        </button>
+                        Cancel
+                    </button>
 
-                        <button
-                            type="submit"
-                            :class="buttonVariants()"
-                            class="sm:w-auto w-full"
-                            :disabled="saving"
-                        >
-                            {{ saving ? 'Creating…' : 'Create Post' }}
-                        </button>
-                    </div>
-                </template>
-            </KinetixForm>
-        </div>
+                    <button
+                        type="submit"
+                        :class="buttonVariants()"
+                        class="sm:w-auto w-full"
+                        :disabled="saving"
+                    >
+                        {{ saving ? 'Creating…' : 'Create Post' }}
+                    </button>
+                </div>
+            </template>
+        </KinetixForm>
     </div>
 </template>

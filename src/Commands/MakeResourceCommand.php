@@ -246,7 +246,24 @@ class MakeResourceCommand extends Command
             File::makeDirectory($directory, 0755, true);
         }
 
-        $formFieldsStr      = implode("\n", $formFields);
+        $formFieldsStr = implode("\n", $formFields);
+
+        // Full mode: a Section provides the form's card surface (the
+        // scaffolded Create/Edit pages render the schema with no extra
+        // wrapper). Simple mode: the record MODAL is the surface, so fields
+        // stay bare — a Section there would nest card-in-modal.
+        if ($simple) {
+            $formSchemaStr = $formFieldsStr;
+            $sectionImport = '';
+        } else {
+            $indented      = (string) preg_replace('/^/m', '        ', $formFieldsStr);
+            $formSchemaStr = "                Section::make(__('Details'))\n"
+                ."                    ->schema([\n"
+                .$indented."\n"
+                .'                    ]),';
+            $sectionImport = "\nuse Happones\\Kinetix\\Forms\\Components\\Section;";
+        }
+
         $tableColumnsStr    = implode("\n", $tableColumns);
         $infolistEntriesStr = implode("\n", $infolistEntries !== [] ? $infolistEntries : ["                TextEntry::make('title'),"]);
 
@@ -347,7 +364,7 @@ use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Columns\ToggleColumn;
 use Happones\Kinetix\Forms\Form;
-use Happones\Kinetix\Forms\Components\Grid;
+use Happones\Kinetix\Forms\Components\Grid;{$sectionImport}
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Components\Toggle;
@@ -373,7 +390,7 @@ class {$resourceClass} extends Resource
     {
         return \$form
             ->schema([
-{$formFieldsStr}
+{$formSchemaStr}
             ]);
     }
 
@@ -725,34 +742,34 @@ const handleCancel = () => {
       description="Add a new {$modelName} record."
     />
 
-    <div class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-6">
-      <KinetixForm :form="form" @submit="handleSubmit">
-        <template #default>
-          <!-- Full-width stacked buttons on mobile (primary on top),
-               right-aligned row on desktop. -->
-          <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              :class="buttonVariants({ variant: 'outline' })"
-              class="w-full sm:w-auto"
-              :disabled="saving"
-              @click="handleCancel"
-            >
-              Cancel
-            </button>
+    <!-- The form's own Section provides the card surface — no extra wrapper,
+         so schemas never render card-inside-card. -->
+    <KinetixForm :form="form" @submit="handleSubmit">
+      <template #default>
+        <!-- Full-width stacked buttons on mobile (primary on top),
+             right-aligned row on desktop. -->
+        <div class="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            :class="buttonVariants({ variant: 'outline' })"
+            class="w-full sm:w-auto"
+            :disabled="saving"
+            @click="handleCancel"
+          >
+            Cancel
+          </button>
 
-            <button
-              type="submit"
-              :class="buttonVariants()"
-              class="w-full sm:w-auto"
-              :disabled="saving"
-            >
-              {{ saving ? 'Creating…' : 'Create {$modelName}' }}
-            </button>
-          </div>
-        </template>
-      </KinetixForm>
-    </div>
+          <button
+            type="submit"
+            :class="buttonVariants()"
+            class="w-full sm:w-auto"
+            :disabled="saving"
+          >
+            {{ saving ? 'Creating…' : 'Create {$modelName}' }}
+          </button>
+        </div>
+      </template>
+    </KinetixForm>
   </div>
 </template>
 VUE;
@@ -798,34 +815,34 @@ const handleCancel = () => {
       description="Update this {$modelName}'s details."
     />
 
-    <div class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-6">
-      <KinetixForm :form="form" @submit="handleSubmit">
-        <template #default>
-          <!-- Full-width stacked buttons on mobile (primary on top),
-               right-aligned row on desktop. -->
-          <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              :class="buttonVariants({ variant: 'outline' })"
-              class="w-full sm:w-auto"
-              :disabled="saving"
-              @click="handleCancel"
-            >
-              Cancel
-            </button>
+    <!-- The form's own Section provides the card surface — no extra wrapper,
+         so schemas never render card-inside-card. -->
+    <KinetixForm :form="form" @submit="handleSubmit">
+      <template #default>
+        <!-- Full-width stacked buttons on mobile (primary on top),
+             right-aligned row on desktop. -->
+        <div class="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            :class="buttonVariants({ variant: 'outline' })"
+            class="w-full sm:w-auto"
+            :disabled="saving"
+            @click="handleCancel"
+          >
+            Cancel
+          </button>
 
-            <button
-              type="submit"
-              :class="buttonVariants()"
-              class="w-full sm:w-auto"
-              :disabled="saving"
-            >
-              {{ saving ? 'Saving…' : 'Save changes' }}
-            </button>
-          </div>
-        </template>
-      </KinetixForm>
-    </div>
+          <button
+            type="submit"
+            :class="buttonVariants()"
+            class="w-full sm:w-auto"
+            :disabled="saving"
+          >
+            {{ saving ? 'Saving…' : 'Save changes' }}
+          </button>
+        </div>
+      </template>
+    </KinetixForm>
   </div>
 </template>
 VUE;

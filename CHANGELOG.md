@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`make-resource` pages no longer double-wrap the form in two cards.** The
+  Create/Edit page templates dropped their outer card — the form's schema owns
+  the surface instead: full-mode resources now scaffold
+  `Section::make(__('Details'))` around the fields (one card, Filament-style),
+  while `--simple` resources keep bare fields because the record MODAL is
+  already the surface (a Section there would recreate the nesting inside the
+  modal). The action row is `w-full`, so the mobile stacked buttons are
+  actually full-width now. Existing scaffolded apps are untouched.
+
 ## [0.136.0] - 2026-08-03
 
 Infolists join the responsive grid system, tour popovers finally follow the
