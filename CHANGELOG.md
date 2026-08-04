@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`make-resource` Create/Edit/Show pages scaffold a professional, on-theme
+  layout.** The old templates hand-rolled buttons with raw `indigo-*` /
+  `neutral-*` palette classes that ignored the host's theme (and the
+  package's own token rules), stretched forms edge-to-edge on desktop, and
+  used fixed paddings on mobile. The new templates: `KinetixPageHeader` on all
+  three pages, a `max-w-3xl` measure for forms (`max-w-5xl` for Show) with
+  `p-4 sm:p-6 lg:p-8` responsive padding, the shared `buttonVariants()`
+  buttons with a saving/disabled state wired to Inertia's request lifecycle,
+  and full-width stacked buttons on mobile (primary on top) that become a
+  right-aligned row on desktop. Verified with mobile/desktop screenshots via
+  the new `resource-create-page` / `resource-show-page` gallery mirrors.
+  Existing scaffolded pages in host apps are untouched — this shapes what NEW
+  `make-resource` runs generate.
+
 ### Fixed
 
 - ⚠️ **(published) Product-tour popovers now follow the active theme — dark

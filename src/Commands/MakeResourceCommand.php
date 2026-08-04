@@ -687,7 +687,10 @@ VUE;
             $createTemplate = <<<VUE
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
+import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 // `storeUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
@@ -699,9 +702,13 @@ const props = defineProps<{
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
+const saving = ref(false);
+
 const handleSubmit = (values: Record<string, any>) => {
   router.post(props.storeUrl, values, {
     preserveScroll: true,
+    onStart: () => (saving.value = true),
+    onFinish: () => (saving.value = false),
   });
 };
 
@@ -711,29 +718,36 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Create {$modelName}</h1>
-      <p class="text-sm text-neutral-500">Add a new record to the database.</p>
-    </div>
+  <!-- Forms read best at a constrained measure; padding scales with viewport. -->
+  <div class="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <KinetixPageHeader
+      heading="Create {$modelName}"
+      description="Add a new {$modelName} record."
+    />
 
-    <div class="bg-white dark:bg-neutral-950 border dark:border-neutral-800 rounded-xl shadow-sm p-6">
+    <div class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-6">
       <KinetixForm :form="form" @submit="handleSubmit">
         <template #default>
-          <div class="flex justify-end gap-3 mt-6">
+          <!-- Full-width stacked buttons on mobile (primary on top),
+               right-aligned row on desktop. -->
+          <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
+              :class="buttonVariants({ variant: 'outline' })"
+              class="w-full sm:w-auto"
+              :disabled="saving"
               @click="handleCancel"
-              class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
               Cancel
             </button>
-            
+
             <button
               type="submit"
-              class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              :class="buttonVariants()"
+              class="w-full sm:w-auto"
+              :disabled="saving"
             >
-              Create Record
+              {{ saving ? 'Creating…' : 'Create {$modelName}' }}
             </button>
           </div>
         </template>
@@ -746,7 +760,10 @@ VUE;
             $editTemplate = <<<VUE
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
+import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 // `updateUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
@@ -758,9 +775,13 @@ const props = defineProps<{
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
+const saving = ref(false);
+
 const handleSubmit = (values: Record<string, any>) => {
   router.put(props.updateUrl, values, {
     preserveScroll: true,
+    onStart: () => (saving.value = true),
+    onFinish: () => (saving.value = false),
   });
 };
 
@@ -770,29 +791,36 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">Edit {$modelName}</h1>
-      <p class="text-sm text-neutral-500">Modify the active record details.</p>
-    </div>
+  <!-- Forms read best at a constrained measure; padding scales with viewport. -->
+  <div class="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <KinetixPageHeader
+      heading="Edit {$modelName}"
+      description="Update this {$modelName}'s details."
+    />
 
-    <div class="bg-white dark:bg-neutral-950 border dark:border-neutral-800 rounded-xl shadow-sm p-6">
+    <div class="rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-6">
       <KinetixForm :form="form" @submit="handleSubmit">
         <template #default>
-          <div class="flex justify-end gap-3 mt-6">
+          <!-- Full-width stacked buttons on mobile (primary on top),
+               right-aligned row on desktop. -->
+          <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
+              :class="buttonVariants({ variant: 'outline' })"
+              class="w-full sm:w-auto"
+              :disabled="saving"
               @click="handleCancel"
-              class="px-4 py-2 text-sm font-semibold rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             >
               Cancel
             </button>
-            
+
             <button
               type="submit"
-              class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              :class="buttonVariants()"
+              class="w-full sm:w-auto"
+              :disabled="saving"
             >
-              Save Changes
+              {{ saving ? 'Saving…' : 'Save changes' }}
             </button>
           </div>
         </template>
@@ -822,7 +850,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="p-8 max-w-5xl mx-auto space-y-6">
+  <div class="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
     <KinetixPageHeader heading="{$modelName} details" :actions="actions" />
     <KinetixInfolist :infolist="infolist" />
   </div>

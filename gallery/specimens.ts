@@ -211,6 +211,8 @@ import KinetixAccessibilityPanel from '@/components/KinetixAccessibilityPanel.vu
 import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
 import KinetixTableStats from '@/components/Table/KinetixTableStats.vue';
+import ResourceCreatePage from './ResourceCreatePage.vue';
+import ResourceShowPage from './ResourceShowPage.vue';
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
 import KinetixPeriodFilter from '@/components/KinetixPeriodFilter.vue';
 import KinetixTimezonePicker from '@/components/KinetixTimezonePicker.vue';
@@ -1238,6 +1240,55 @@ export const specimens: Specimen[] = [
             schema: responsiveFormSchema,
             values: responsiveFormValues,
             errors: {},
+        },
+    },
+    {
+        name: 'resource-create-page',
+        title: 'Resource — scaffolded Create page',
+        component: ResourceCreatePage,
+        width: 1100,
+        props: {
+            form: {
+                schema: responsiveFormSchema,
+                data: responsiveFormValues,
+                rules: {},
+                operation: 'create',
+            },
+        },
+    },
+    {
+        name: 'resource-show-page',
+        title: 'Resource — scaffolded Show page',
+        component: ResourceShowPage,
+        width: 1100,
+        props: {
+            infolist,
+            actions: [
+                {
+                    name: 'edit',
+                    label: 'Edit',
+                    icon: 'edit',
+                    color: 'gray',
+                    viewType: 'button',
+                    shouldOpenInNewTab: false,
+                    shouldClose: false,
+                    shouldMarkAsRead: false,
+                    shouldMarkAsUnread: false,
+                    requiresConfirmation: false,
+                },
+                {
+                    name: 'delete',
+                    label: 'Delete',
+                    icon: 'trash',
+                    color: 'danger',
+                    viewType: 'button',
+                    shouldOpenInNewTab: false,
+                    shouldClose: false,
+                    shouldMarkAsRead: false,
+                    shouldMarkAsUnread: false,
+                    requiresConfirmation: true,
+                },
+            ],
         },
     },
     {
