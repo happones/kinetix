@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.135.0] - 2026-08-03
+
+Responsive by default: form grids collapse with Filament's semantics measured
+against the form's own width, and the table toolbar arranges itself.
+
 ### Added
 
 - ⚠️ **(published) Form grids are responsive, with Filament's semantics.**
