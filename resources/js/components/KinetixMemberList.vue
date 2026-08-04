@@ -135,7 +135,7 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
                     </span>
                 </div>
 
-                <div class="gap-2 flex items-center">
+                <div class="gap-2 min-w-0 flex flex-wrap items-center">
                     <span
                         class="px-2 py-0.5 text-xs font-semibold inline-flex items-center rounded-full"
                         :class="statusBadgeClass(STATUS_COLOR[member.status])"

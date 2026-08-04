@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ⚠️ **(published) Form grids are responsive, with Filament's semantics.**
+  `columns(int)` now means "N columns from `lg` up, ONE below" — so
+  `Grid::make(2)` finally collapses on narrow layouts instead of cramming two
+  columns into a phone. Both `columns()` and `columnSpan()` accept breakpoint
+  maps (`['default' => 1, 'sm' => 2, 'xl' => 3]`; keys
+  default/sm/md/lg/xl/2xl, values carry forward) on Grid, Section, Fieldset,
+  Tab and wizard Step. Breakpoints are measured against the **form's own
+  width** via CSS container queries — a two-column form inside a narrow modal
+  collapses even on a wide viewport — and spans clamp to the columns available
+  at each size, so a span can never overflow its grid. Implemented as inline
+  CSS variables consumed by static `@container` rules (Tailwind's JIT never
+  sees a dynamic class). New `useKinetixResponsiveGrid` composable + specs.
+- **(published) The table toolbar arranges itself.** New
+  `Table::toolbarLayout('auto'|'inline'|'stacked')` — the default `auto`
+  adapts to the TABLE's own width: narrow tables stack heading → full-width
+  search → a wrapping, right-aligned control row (saved views / actions /
+  filters / column toggle); wide tables inline everything on one row. Pin
+  `inline` or `stacked` to force one arrangement. Pagination's page label no
+  longer wraps mid-phrase on narrow footers. Verified with multi-width
+  screenshots (375/640/900) in the gallery's new `table-toolbar` and
+  `form-responsive` specimens.
+
+### Fixed
+
+- **(published) Member-list row controls overflowed the card on narrow
+  widths** (the "Resend"/"Remove" buttons escaped the border at ~375px); the
+  control cluster now wraps inside the card.
+
 ## [0.134.0] - 2026-08-03
 
 Five fixes: four from a consuming-app field report, plus the Tiptap driver's
