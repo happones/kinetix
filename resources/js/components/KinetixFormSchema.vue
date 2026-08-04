@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { Plus, Trash2, ChevronUp, ChevronDown } from '@lucide/vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
+import {
+    gridColumnVars,
+    resolveColumns,
+    SINGLE_COLUMN,
+    spanVars,
+} from '@/composables/useKinetixResponsiveGrid';
+import type { ResponsiveColumns } from '@/composables/useKinetixResponsiveGrid';
 import KinetixFormField from './Form/KinetixFormField.vue';
 import KinetixFormTabs from './KinetixFormTabs.vue';
 import KinetixFormWizard from './KinetixFormWizard.vue';
@@ -11,6 +19,11 @@ const props = defineProps<{
     schema: any[];
     values: Record<string, any>;
     errors: Record<string, string>;
+    /**
+     * The enclosing grid's per-breakpoint column counts — spans clamp against
+     * it so they never overflow. Defaults to a single column (the form root).
+     */
+    parentColumns?: ResponsiveColumns;
 }>();
 
 const { t } = useI18n();
@@ -19,17 +32,16 @@ const emit = defineEmits<{
     (e: 'update:value', name: string, value: any): void;
 }>();
 
-const getColumnSpan = (span: any) => {
-    if (span === 'full') {
-        return '1 / -1';
-    }
+const cols = computed<ResponsiveColumns>(
+    () => props.parentColumns ?? SINGLE_COLUMN,
+);
 
-    if (typeof span === 'number') {
-        return `span ${span} / span ${span}`;
-    }
+/** Per-breakpoint `--kx-span-*` vars for a schema node. */
+const colStyle = (comp: any): Record<string, string> =>
+    spanVars(comp.columnSpan, cols.value);
 
-    return undefined;
-};
+/** Per-breakpoint column counts for a grid-bearing node (grid/section/fieldset). */
+const gridOf = (comp: any): ResponsiveColumns => resolveColumns(comp.columns);
 
 // Inline-repeater add/remove/reorder/update, keyed by field name.
 const { itemsOf, addItem, removeItem, moveItem, updateItem } =
@@ -41,28 +53,33 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
 
 <template>
     <template v-for="(comp, index) in schema" :key="index">
-        <!-- Grid Layout -->
+        <!-- Grid Layout (host wrapper measures the grid's own width) -->
         <div
             v-if="comp.type === 'grid'"
-            class="gap-4 grid"
-            :style="{
-                gridTemplateColumns: `repeat(${comp.columns || 1}, minmax(0, 1fr))`,
-                gridColumn: getColumnSpan(comp.columnSpan),
-            }"
+            class="kinetix-col kinetix-grid-host"
+            :style="colStyle(comp)"
         >
-            <KinetixFormSchema
-                :schema="comp.schema"
-                :values="values"
-                :errors="errors"
-                @update:value="(name, val) => emit('update:value', name, val)"
-            />
+            <div
+                class="kinetix-grid gap-4 grid"
+                :style="gridColumnVars(gridOf(comp))"
+            >
+                <KinetixFormSchema
+                    :schema="comp.schema"
+                    :values="values"
+                    :errors="errors"
+                    :parent-columns="gridOf(comp)"
+                    @update:value="
+                        (name, val) => emit('update:value', name, val)
+                    "
+                />
+            </div>
         </div>
 
         <!-- Section Card Layout -->
         <div
             v-else-if="comp.type === 'section'"
-            class="rounded-xl shadow-sm border border-input bg-background"
-            :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+            class="kinetix-col rounded-xl shadow-sm border border-input bg-background"
+            :style="colStyle(comp)"
         >
             <div class="p-6 pb-4 border-b border-border">
                 <h3
@@ -77,17 +94,16 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                     {{ comp.description }}
                 </p>
             </div>
-            <div class="p-6">
+            <div class="p-6 kinetix-grid-host">
                 <div
-                    class="gap-4 grid"
-                    :style="{
-                        gridTemplateColumns: `repeat(${comp.columns || 1}, minmax(0, 1fr))`,
-                    }"
+                    class="kinetix-grid gap-4 grid"
+                    :style="gridColumnVars(gridOf(comp))"
                 >
                     <KinetixFormSchema
                         :schema="comp.schema"
                         :values="values"
                         :errors="errors"
+                        :parent-columns="gridOf(comp)"
                         @update:value="
                             (name, val) => emit('update:value', name, val)
                         "
@@ -99,8 +115,8 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         <!-- Fieldset Layout (labelled <fieldset>) -->
         <fieldset
             v-else-if="comp.type === 'fieldset'"
-            class="rounded-lg p-4 border border-border"
-            :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+            class="kinetix-col kinetix-grid-host rounded-lg p-4 border border-border"
+            :style="colStyle(comp)"
         >
             <legend
                 v-if="comp.heading"
@@ -109,15 +125,14 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                 {{ comp.heading }}
             </legend>
             <div
-                class="gap-4 grid"
-                :style="{
-                    gridTemplateColumns: `repeat(${comp.columns || 1}, minmax(0, 1fr))`,
-                }"
+                class="kinetix-grid gap-4 grid"
+                :style="gridColumnVars(gridOf(comp))"
             >
                 <KinetixFormSchema
                     :schema="comp.schema"
                     :values="values"
                     :errors="errors"
+                    :parent-columns="gridOf(comp)"
                     @update:value="
                         (name, val) => emit('update:value', name, val)
                     "
@@ -128,7 +143,8 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         <!-- Tabs Layout (Reka UI) -->
         <div
             v-else-if="comp.type === 'tabs'"
-            :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+            class="kinetix-col"
+            :style="colStyle(comp)"
         >
             <KinetixFormTabs
                 :tabs="comp.schema"
@@ -141,7 +157,8 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         <!-- Wizard Layout (multi-step) -->
         <div
             v-else-if="comp.type === 'wizard'"
-            :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+            class="kinetix-col"
+            :style="colStyle(comp)"
         >
             <KinetixFormWizard
                 :comp="comp"
@@ -154,8 +171,8 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         <!-- Split Layout (responsive flex row) -->
         <div
             v-else-if="comp.type === 'split'"
-            class="gap-4 md:flex-row flex flex-col [&>*]:flex-1"
-            :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
+            class="kinetix-col gap-4 md:flex-row flex flex-col [&>*]:flex-1"
+            :style="colStyle(comp)"
         >
             <KinetixFormSchema
                 :schema="comp.schema"
@@ -168,8 +185,8 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         <!-- Placeholder (read-only display) -->
         <div
             v-else-if="comp.type === 'placeholder'"
-            :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
-            class="space-y-1.5 flex flex-col"
+            :style="colStyle(comp)"
+            class="kinetix-col space-y-1.5 flex flex-col"
         >
             <KinetixLabel v-if="comp.label">{{ comp.label }}</KinetixLabel>
             <p class="text-sm text-muted-foreground">{{ comp.content }}</p>
@@ -178,8 +195,8 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         <!-- Standard Form Fields -->
         <div
             v-else
-            :style="{ gridColumn: getColumnSpan(comp.columnSpan) }"
-            class="space-y-1.5 flex flex-col"
+            :style="colStyle(comp)"
+            class="kinetix-col space-y-1.5 flex flex-col"
         >
             <!-- Label -->
             <KinetixLabel
@@ -300,3 +317,64 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         </div>
     </template>
 </template>
+
+<style>
+/*
+ * Responsive grid plumbing. Each grid-bearing node ships per-breakpoint CSS
+ * variables (inline, so Tailwind's JIT is never involved) and these static
+ * rules consume them inside @container queries — the breakpoints measure the
+ * grid's OWN width (its `.kinetix-grid-host` wrapper), so a two-column form
+ * collapses inside a narrow modal even on a wide viewport. Without a host
+ * ancestor (a standalone mount) only the base value applies, which is the
+ * single-column layout — the safe default.
+ */
+.kinetix-grid-host {
+    container-type: inline-size;
+}
+.kinetix-col {
+    grid-column: var(--kx-span-base, auto);
+}
+.kinetix-grid {
+    grid-template-columns: repeat(var(--kx-cols-base, 1), minmax(0, 1fr));
+}
+@container (min-width: 640px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-sm, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-sm, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 768px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-md, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-md, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 1024px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-lg, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-lg, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 1280px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-xl, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-xl, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 1536px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-2xl, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-2xl, 1), minmax(0, 1fr));
+    }
+}
+</style>

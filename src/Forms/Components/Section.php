@@ -19,7 +19,8 @@ class Section extends Component
      */
     protected array $schema = [];
 
-    protected int $columns = 1;
+    /** @var int|array<string, int> */
+    protected int|array $columns = 1;
 
     public function __construct(mixed $heading)
     {
@@ -50,7 +51,11 @@ class Section extends Component
         return $this;
     }
 
-    public function columns(int $columns): static
+    /**
+     * @param int|array<string, int> $columns int = N columns from `lg` up (Filament
+     *                                        parity); a breakpoint map sets each width.
+     */
+    public function columns(int|array $columns): static
     {
         $this->columns = $columns;
 

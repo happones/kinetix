@@ -95,4 +95,27 @@ class FormGridDefaultsTest extends TestCase
         $this->assertSame(2, $grid['columns']);
         $this->assertSame(1, $grid['schema'][0]['columnSpan']);
     }
+
+    public function test_columns_and_spans_accept_breakpoint_maps(): void
+    {
+        $grid = $this->render([
+            Grid::make(['default' => 1, 'sm' => 2, 'xl' => 3])->schema([
+                TextInput::make('street')->columnSpan(['sm' => 2]),
+            ]),
+        ]);
+
+        $this->assertSame(['default' => 1, 'sm' => 2, 'xl' => 3], $grid['columns']);
+        $this->assertSame(['sm' => 2], $grid['schema'][0]['columnSpan']);
+    }
+
+    public function test_section_columns_accept_breakpoint_maps(): void
+    {
+        $rendered = $this->render([
+            Section::make('Shipping')
+                ->columns(['sm' => 2, 'xl' => 3])
+                ->schema([TextInput::make('street')]),
+        ]);
+
+        $this->assertSame(['sm' => 2, 'xl' => 3], $rendered['columns']);
+    }
 }

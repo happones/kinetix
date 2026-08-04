@@ -131,3 +131,15 @@ PostForm::make()->validationUrl(route('posts.store'), 'post'); // or an explicit
 - **Select Option Mapping**: Use native Enum reflection mapping directly (e.g. `options(PostStatus::class)`) to easily bind Enums cast on models.
 - **Eager Refactoring**: Avoid complex inline HTML attributes, use `extraInputAttributes()` to inject Tailwind classes or custom settings cleanly.
 - **Role/permission-gated fields**: use `->authorize(string $ability, mixed $subject = null)` (Gate-based, same shorthand as `Action::authorize()`) alongside `->visible()`/`->hidden()`. Without an explicit `$subject`, a record-dependent ability defers to visible on `create` (no record yet) and is checked normally on `edit`. Unauthorized fields are dropped from validation, hydration, and the serialized payload — never rely on hiding a field client-side only.
+
+## Responsive Layout
+
+Grids are responsive by default with Filament semantics: `Grid::make(2)` /
+`->columns(2)` means 2 columns from `lg` up and ONE below — never assume a
+fixed column count on mobile. `columns()` and `columnSpan()` accept breakpoint
+maps (`['default' => 1, 'sm' => 2, 'xl' => 3]`, keys default/sm/md/lg/xl/2xl,
+values carry forward) on Grid/Section/Fieldset/Tab/Step. Breakpoints measure
+the FORM's own width (CSS container queries), so forms in modals collapse
+correctly; spans clamp to the available columns per breakpoint and can never
+overflow. `columnSpan('full')` spans the row at every size.
+

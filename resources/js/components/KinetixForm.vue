@@ -121,7 +121,7 @@ const onSubmit = (e: Event) => {
     <form @submit="onSubmit" class="space-y-6">
         <!-- 1-column root, like Filament: a field's default span of 1 is the
              full width, and Grid::make(2) opts into columns. -->
-        <div class="gap-4 grid grid-cols-1">
+        <div class="kinetix-form-root gap-4 grid grid-cols-1">
             <KinetixFormSchema
                 :schema="form.schema"
                 :values="formValues"
@@ -140,3 +140,14 @@ const onSubmit = (e: Event) => {
         </div>
     </form>
 </template>
+
+<style scoped>
+/*
+ * The root grid is the outermost container-query host: top-level sections and
+ * fields measure their breakpoints against the FORM's width (so a form inside
+ * a modal or a narrow pane collapses correctly, viewport regardless).
+ */
+.kinetix-form-root {
+    container-type: inline-size;
+}
+</style>

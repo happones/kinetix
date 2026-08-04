@@ -163,11 +163,39 @@ the row and now takes 1/12. Add `->columnSpanFull()` to those, or drop the `12`
 and let the new default do the work.
 :::
 
+#### Responsive columns & spans
+
+Grids are responsive by default, with Filament's semantics: **an int means
+"this many columns from `lg` up, one below"**, so `Grid::make(2)` collapses to
+a single column on narrow layouts with no annotation. Breakpoints are measured
+against the **form's own width** (CSS container queries), not the viewport — a
+two-column form inside a narrow modal or side pane collapses too.
+
+Both `columns()` and `columnSpan()` also take a breakpoint map
+(`default` · `sm 640` · `md 768` · `lg 1024` · `xl 1280` · `2xl 1536`); values
+carry forward through unspecified breakpoints, and spans are clamped to the
+columns available at each size so they can never overflow the grid:
+
+```php
+Section::make('Shipping')
+    ->columns(['default' => 1, 'sm' => 2, 'xl' => 3])
+    ->schema([
+        TextInput::make('street')->columnSpan(['sm' => 2]),
+        TextInput::make('number'),
+        Textarea::make('notes')->columnSpanFull(),
+    ]);
+```
+
+<Screenshot name="form-responsive" alt="Responsive form columns" />
+
+`columns()` accepts maps on `Grid`, `Section`, `Fieldset`, `Tab` and wizard
+`Step` alike.
+
 #### Tailwind Grid-Purge Prevention
-To ensure column layouts render correctly without depending on dynamic Tailwind compiler classes (which JIT compilers purge), Kinetix evaluates `columnSpan` parameters into inline CSS styles:
-- **`columnSpan(int)`**: Renders inline `grid-column: span X / span X`.
-- **`columnSpan('full')`**: Renders inline `grid-column: 1 / -1`.
-- **`columnSpanFull()`**: Filament-compatible shorthand for `columnSpan('full')`.
+To ensure column layouts render correctly without depending on dynamic Tailwind compiler classes (which JIT compilers purge), Kinetix evaluates `columns` / `columnSpan` parameters into inline CSS variables consumed by static `@container` rules:
+- **`columnSpan(int)`**: spans X columns at every size (clamped per breakpoint).
+- **`columnSpan('full')`** / **`columnSpanFull()`**: spans the whole row.
+- **`columnSpan([...])`** / **`columns([...])`**: per-breakpoint values.
 
 ### 2. Section Cards
 The `Section` component wraps nested elements in a clean visual container complete with title, description, and column layouts.

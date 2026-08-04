@@ -47,7 +47,8 @@ class FormFieldData extends Data
         public ?array $schema = null,
         public ?string $heading = null,
         public ?string $description = null,
-        public ?int $columns = null,
+        /** @var int|array<string, int>|null */
+        public int|array|null $columns = null,
         public ?string $icon = null,
         // Wizard step specific — accent color for its indicator once active/complete.
         public ?string $color = null,

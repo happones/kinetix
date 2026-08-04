@@ -157,6 +157,60 @@ describe('KinetixFormSchema', () => {
         expect(error.text()).toBe('The title is required.');
     });
 
+    it('emits responsive grid vars for breakpoint column maps', () => {
+        const wrapper = mountSchema(
+            [
+                {
+                    type: 'grid',
+                    columns: { default: 1, sm: 2, xl: 3 },
+                    columnSpan: 'full',
+                    schema: [
+                        {
+                            type: 'text-input',
+                            name: 'a',
+                            label: 'A',
+                            columnSpan: 2,
+                        },
+                    ],
+                },
+            ],
+            { a: '' },
+        );
+
+        const grid = wrapper.get('.kinetix-grid');
+        expect(grid.attributes('style')).toContain('--kx-cols-base: 1');
+        expect(grid.attributes('style')).toContain('--kx-cols-sm: 2');
+        expect(grid.attributes('style')).toContain('--kx-cols-xl: 3');
+
+        // The field's span clamps to the columns available per breakpoint.
+        const field = wrapper.get('.kinetix-grid .kinetix-col');
+        expect(field.attributes('style')).toContain(
+            '--kx-span-base: span 1 / span 1',
+        );
+        expect(field.attributes('style')).toContain(
+            '--kx-span-sm: span 2 / span 2',
+        );
+    });
+
+    it('int columns collapse below lg (Filament parity)', () => {
+        const wrapper = mountSchema(
+            [
+                {
+                    type: 'grid',
+                    columns: 2,
+                    columnSpan: 'full',
+                    schema: [{ type: 'text-input', name: 'a', label: 'A' }],
+                },
+            ],
+            { a: '' },
+        );
+
+        const grid = wrapper.get('.kinetix-grid');
+        expect(grid.attributes('style')).toContain('--kx-cols-base: 1');
+        expect(grid.attributes('style')).toContain('--kx-cols-md: 1');
+        expect(grid.attributes('style')).toContain('--kx-cols-lg: 2');
+    });
+
     it('leaves clean fields without error aria wiring', () => {
         const wrapper = mount(KinetixFormSchema, {
             props: {

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { schemaHasError } from '@/composables/useKinetixFormErrors';
+import {
+    gridColumnVars,
+    resolveColumns,
+} from '@/composables/useKinetixResponsiveGrid';
 import type { KinetixWizardStep } from '@/types/kinetix';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 import KinetixWizard from './KinetixWizard.vue';
@@ -116,20 +120,27 @@ function beforeNext(index: number): boolean {
         :before-next="beforeNext"
     >
         <template #default="{ index }">
-            <div
-                class="gap-4 grid"
-                :style="{
-                    gridTemplateColumns: `repeat(${comp.schema?.[index]?.columns || 1}, minmax(0, 1fr))`,
-                }"
-            >
-                <KinetixFormSchema
-                    :schema="comp.schema?.[index]?.schema ?? []"
-                    :values="values"
-                    :errors="errors"
-                    @update:value="
-                        (name, val) => emit('update:value', name, val)
+            <div class="kinetix-grid-host">
+                <div
+                    class="kinetix-grid gap-4 grid"
+                    :style="
+                        gridColumnVars(
+                            resolveColumns(comp.schema?.[index]?.columns),
+                        )
                     "
-                />
+                >
+                    <KinetixFormSchema
+                        :schema="comp.schema?.[index]?.schema ?? []"
+                        :values="values"
+                        :errors="errors"
+                        :parent-columns="
+                            resolveColumns(comp.schema?.[index]?.columns)
+                        "
+                        @update:value="
+                            (name, val) => emit('update:value', name, val)
+                        "
+                    />
+                </div>
             </div>
         </template>
     </KinetixWizard>

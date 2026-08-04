@@ -21,7 +21,8 @@ class Fieldset extends Component
      */
     protected array $schema = [];
 
-    protected int $columns = 1;
+    /** @var int|array<string, int> */
+    protected int|array $columns = 1;
 
     public function __construct(mixed $label = null)
     {
@@ -43,7 +44,8 @@ class Fieldset extends Component
         return $this;
     }
 
-    public function columns(int $columns): static
+    /** @param int|array<string, int> $columns */
+    public function columns(int|array $columns): static
     {
         $this->columns = $columns;
 

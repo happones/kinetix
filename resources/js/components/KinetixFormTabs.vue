@@ -3,6 +3,10 @@ import { TabsRoot, TabsList, TabsTrigger, TabsContent } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { schemaHasError } from '@/composables/useKinetixFormErrors';
 import { resolveIcon } from '@/composables/useKinetixIcons';
+import {
+    gridColumnVars,
+    resolveColumns,
+} from '@/composables/useKinetixResponsiveGrid';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 
 /**
@@ -82,18 +86,17 @@ watch(
             v-for="(tab, index) in props.tabs"
             :key="index"
             :value="String(index)"
-            class="mt-4 focus-visible:outline-none"
+            class="kinetix-grid-host mt-4 focus-visible:outline-none"
         >
             <div
-                class="gap-4 grid"
-                :style="{
-                    gridTemplateColumns: `repeat(${tab.columns || 1}, minmax(0, 1fr))`,
-                }"
+                class="kinetix-grid gap-4 grid"
+                :style="gridColumnVars(resolveColumns(tab.columns))"
             >
                 <KinetixFormSchema
                     :schema="tab.schema"
                     :values="values"
                     :errors="errors"
+                    :parent-columns="resolveColumns(tab.columns)"
                     @update:value="
                         (name, val) => emit('update:value', name, val)
                     "

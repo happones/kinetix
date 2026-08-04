@@ -14,14 +14,27 @@ class Grid extends Component
      */
     protected array $schema = [];
 
-    protected int $columns = 2;
+    /**
+     * Column count, or a breakpoint map measured against the FORM width
+     * (container queries): `['default' => 1, 'sm' => 2, 'xl' => 3]`. An int
+     * means "this many columns from `lg` up, one below" — Filament parity.
+     *
+     * @var int|array<string, int>
+     */
+    protected int|array $columns = 2;
 
-    public function __construct(int $columns = 2)
+    /**
+     * @param int|array<string, int> $columns
+     */
+    public function __construct(int|array $columns = 2)
     {
         $this->columns = $columns;
     }
 
-    public static function make(int $columns = 2): static
+    /**
+     * @param int|array<string, int> $columns
+     */
+    public static function make(int|array $columns = 2): static
     {
         return new static($columns);
     }
