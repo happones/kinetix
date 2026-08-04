@@ -986,13 +986,14 @@ export interface KinetixInfolistEntry {
     schema?: KinetixInfolistEntry[] | null;
     heading?: string | null;
     description?: string | null;
-    columns?: number | null;
+    columns?: number | Record<string, number> | null;
     actions?: KinetixAction[];
 }
 
 export interface KinetixInfolistData {
     schema: KinetixInfolistEntry[];
-    columns: number;
+    /** Column count, or a breakpoint map (default/sm/md/lg/xl/2xl). */
+    columns: number | Record<string, number>;
     operation: string;
 }
 

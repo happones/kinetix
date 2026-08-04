@@ -74,8 +74,19 @@ The `Infolist` instance exposes a small set of chainable setters:
 | Method | Description |
 |---|---|
 | `->record(?Model)` | Bind the model whose state the entries resolve against |
-| `->columns(int)` | Number of top-level grid columns (default `1`) |
+| `->columns(int\|array)` | Top-level grid columns (default `1`) — see the responsive note below |
 | `->operation(string)` | The operation context (default `'view'`), matched by entry `->visibleOn()` / `->hiddenOn()` |
+
+::: tip Responsive by default
+Infolist grids follow the same responsive system as [forms](/forms): an **int
+means "this many columns from `lg` up, one below"**, so a `columns(12)` section
+stacks on narrow layouts and spreads on wide ones. Every `columns()`
+(`Infolist`, `Section`, `Fieldset`, `Grid`, `Tab`) and every `columnSpan()`
+also accepts a breakpoint map (`['default' => 1, 'sm' => 2, 'xl' => 3]`), and
+breakpoints measure the **infolist's own width** via container queries — a
+record panel in a drawer collapses even on a wide viewport. Spans clamp to the
+columns available at each size.
+:::
 
 ### One-line rendering
 

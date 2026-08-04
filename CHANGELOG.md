@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ⚠️ **(published) Infolist grids joined the responsive system.** Same
+  contract as forms: `columns(int)` means "N columns from `lg` up, one below"
+  (a `columns(12)` section stacks on narrow layouts instead of squeezing
+  twelve tracks), `columns()` / `columnSpan()` accept breakpoint maps on
+  `Infolist`, `Section`, `Fieldset`, `Grid` and `Tab`, breakpoints measure the
+  infolist's own width via container queries, and spans clamp per breakpoint.
+  The grid CSS moved to a shared `kinetix-grid.css` imported by both forms and
+  infolists (previously it lived inside the form schema component, so an
+  infolist-only page would have shipped unstyled grid classes).
+
 ## [0.135.0] - 2026-08-03
 
 Responsive by default: form grids collapse with Filament's semantics measured

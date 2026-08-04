@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { Check, Circle, Copy, ExternalLink, Lock } from '@lucide/vue';
-import { onBeforeUnmount, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { requestConfidentialUnlock } from '@/composables/useKinetixConfidential';
 import { resolveIcon as resolveActionIcon } from '@/composables/useKinetixIcons';
+import {
+    gridColumnVars,
+    resolveColumns,
+    SINGLE_COLUMN,
+    spanVars,
+} from '@/composables/useKinetixResponsiveGrid';
+import type { ResponsiveColumns } from '@/composables/useKinetixResponsiveGrid';
 import {
     actionButtonVariant,
     buttonVariants,
@@ -14,6 +21,7 @@ import {
     statusTextClass,
 } from '@/composables/useKinetixStatusColor';
 import type { KinetixAction, KinetixInfolistEntry } from '@/types/kinetix';
+import './kinetix-grid.css';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 
@@ -22,9 +30,24 @@ const getTextColorClass = (color?: string | null) =>
 const getIconColorClass = (color?: string | null) =>
     statusTextClass(color, 'text-muted-foreground');
 
-defineProps<{
+const props = defineProps<{
     schema: KinetixInfolistEntry[];
+    /** The enclosing grid's per-breakpoint columns — spans clamp against it. */
+    parentColumns?: ResponsiveColumns;
 }>();
+
+const cols = computed<ResponsiveColumns>(
+    () => props.parentColumns ?? SINGLE_COLUMN,
+);
+
+/** Per-breakpoint `--kx-span-*` vars for an entry/layout node. */
+const colStyle = (entry: KinetixInfolistEntry): Record<string, string> =>
+    spanVars(entry.columnSpan, cols.value);
+
+/** Infolist layouts default to the fine-grained 12-column system. */
+const gridOf = (entry: {
+    columns?: number | Record<string, number> | null;
+}): ResponsiveColumns => resolveColumns(entry.columns ?? 12);
 
 const { t } = useI18n();
 
@@ -53,18 +76,6 @@ const setActiveTab = (entryIndex: number, tabIndex: number) => {
 // icons), falling back to a neutral circle for unknown non-empty names.
 const resolveIcon = (name?: string | null) =>
     name ? (resolveActionIcon(name) ?? Circle) : null;
-
-const getColumnSpan = (span: KinetixInfolistEntry['columnSpan']) => {
-    if (span === 'full') {
-        return '1 / -1';
-    }
-
-    if (typeof span === 'number') {
-        return `span ${span} / span ${span}`;
-    }
-
-    return undefined;
-};
 
 const isEmpty = (value: unknown) =>
     value === null || value === undefined || value === '';
@@ -104,23 +115,28 @@ onBeforeUnmount(() => {
 
 <template>
     <template v-for="(entry, index) in schema" :key="entry.name ?? index">
-        <!-- Grid layout -->
+        <!-- Grid layout (host wrapper measures the grid's own width) -->
         <div
             v-if="entry.type === 'grid'"
-            class="gap-4 grid"
-            :style="{
-                gridTemplateColumns: `repeat(${entry.columns || 12}, minmax(0, 1fr))`,
-                gridColumn: getColumnSpan(entry.columnSpan),
-            }"
+            class="kinetix-col kinetix-grid-host"
+            :style="colStyle(entry)"
         >
-            <KinetixInfolistEntries :schema="entry.schema || []" />
+            <div
+                class="kinetix-grid gap-4 grid"
+                :style="gridColumnVars(gridOf(entry))"
+            >
+                <KinetixInfolistEntries
+                    :schema="entry.schema || []"
+                    :parent-columns="gridOf(entry)"
+                />
+            </div>
         </div>
 
         <!-- Section card layout -->
         <div
             v-else-if="entry.type === 'section'"
-            class="rounded-xl shadow-sm border border-border bg-popover"
-            :style="{ gridColumn: getColumnSpan(entry.columnSpan) }"
+            class="kinetix-col rounded-xl shadow-sm border border-border bg-popover"
+            :style="colStyle(entry)"
         >
             <div
                 v-if="
@@ -182,14 +198,15 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
             </div>
-            <div class="p-6">
+            <div class="p-6 kinetix-grid-host">
                 <div
-                    class="gap-x-4 gap-y-5 grid"
-                    :style="{
-                        gridTemplateColumns: `repeat(${entry.columns || 12}, minmax(0, 1fr))`,
-                    }"
+                    class="kinetix-grid gap-x-4 gap-y-5 grid"
+                    :style="gridColumnVars(gridOf(entry))"
                 >
-                    <KinetixInfolistEntries :schema="entry.schema || []" />
+                    <KinetixInfolistEntries
+                        :schema="entry.schema || []"
+                        :parent-columns="gridOf(entry)"
+                    />
                 </div>
             </div>
         </div>
@@ -197,8 +214,8 @@ onBeforeUnmount(() => {
         <!-- Fieldset layout -->
         <fieldset
             v-else-if="entry.type === 'fieldset'"
-            class="rounded-xl px-5 pb-5 pt-2 border border-border"
-            :style="{ gridColumn: getColumnSpan(entry.columnSpan) }"
+            class="kinetix-col kinetix-grid-host rounded-xl px-5 pb-5 pt-2 border border-border"
+            :style="colStyle(entry)"
         >
             <legend
                 v-if="entry.heading"
@@ -207,20 +224,21 @@ onBeforeUnmount(() => {
                 {{ entry.heading }}
             </legend>
             <div
-                class="mt-2 gap-x-4 gap-y-5 grid"
-                :style="{
-                    gridTemplateColumns: `repeat(${entry.columns || 12}, minmax(0, 1fr))`,
-                }"
+                class="kinetix-grid mt-2 gap-x-4 gap-y-5 grid"
+                :style="gridColumnVars(gridOf(entry))"
             >
-                <KinetixInfolistEntries :schema="entry.schema || []" />
+                <KinetixInfolistEntries
+                    :schema="entry.schema || []"
+                    :parent-columns="gridOf(entry)"
+                />
             </div>
         </fieldset>
 
         <!-- Tabs layout -->
         <div
             v-else-if="entry.type === 'tabs'"
-            class="rounded-xl shadow-sm border border-border bg-popover"
-            :style="{ gridColumn: getColumnSpan(entry.columnSpan) }"
+            class="kinetix-col rounded-xl shadow-sm border border-border bg-popover"
+            :style="colStyle(entry)"
         >
             <div
                 role="tablist"
@@ -248,19 +266,20 @@ onBeforeUnmount(() => {
                     {{ tab.heading }}
                 </button>
             </div>
-            <div class="p-6">
+            <div class="p-6 kinetix-grid-host">
                 <template
                     v-for="(tab, tabIndex) in entry.schema || []"
                     :key="tabIndex"
                 >
                     <div
                         v-show="currentTab(index) === tabIndex"
-                        class="gap-x-4 gap-y-5 grid"
-                        :style="{
-                            gridTemplateColumns: `repeat(${tab.columns || 12}, minmax(0, 1fr))`,
-                        }"
+                        class="kinetix-grid gap-x-4 gap-y-5 grid"
+                        :style="gridColumnVars(gridOf(tab))"
                     >
-                        <KinetixInfolistEntries :schema="tab.schema || []" />
+                        <KinetixInfolistEntries
+                            :schema="tab.schema || []"
+                            :parent-columns="gridOf(tab)"
+                        />
                     </div>
                 </template>
             </div>
@@ -269,8 +288,8 @@ onBeforeUnmount(() => {
         <!-- Entry wrapper -->
         <div
             v-else
-            :style="{ gridColumn: getColumnSpan(entry.columnSpan) }"
-            class="min-w-0"
+            :style="colStyle(entry)"
+            class="kinetix-col min-w-0"
             :class="
                 entry.isInline
                     ? 'gap-4 flex items-center justify-between'

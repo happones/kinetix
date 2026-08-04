@@ -19,7 +19,8 @@ class Tab extends Component
      */
     protected array $schema = [];
 
-    protected int $columns = 12;
+    /** @var int|array<string, int> */
+    protected int|array $columns = 12;
 
     public function __construct(mixed $label)
     {
@@ -48,7 +49,8 @@ class Tab extends Component
         return $this;
     }
 
-    public function columns(int $columns): static
+    /** @param int|array<string, int> $columns */
+    public function columns(int|array $columns): static
     {
         $this->columns = $columns;
 

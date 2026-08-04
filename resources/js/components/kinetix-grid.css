@@ -1,0 +1,59 @@
+/*
+ * Responsive grid plumbing shared by forms and infolists. Grid-bearing nodes
+ * ship per-breakpoint CSS variables (inline, so Tailwind's JIT is never
+ * involved) and these static rules consume them inside @container queries —
+ * the breakpoints measure the grid's OWN width (its `.kinetix-grid-host`
+ * wrapper), so a multi-column layout collapses inside a narrow modal or pane
+ * even on a wide viewport. Without a host ancestor (a standalone mount) only
+ * the base value applies, which is the single-column layout — the safe
+ * default. See `useKinetixResponsiveGrid` for the variable contract.
+ */
+.kinetix-grid-host {
+    container-type: inline-size;
+}
+.kinetix-col {
+    grid-column: var(--kx-span-base, auto);
+}
+.kinetix-grid {
+    grid-template-columns: repeat(var(--kx-cols-base, 1), minmax(0, 1fr));
+}
+@container (min-width: 640px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-sm, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-sm, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 768px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-md, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-md, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 1024px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-lg, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-lg, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 1280px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-xl, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-xl, 1), minmax(0, 1fr));
+    }
+}
+@container (min-width: 1536px) {
+    .kinetix-col {
+        grid-column: var(--kx-span-2xl, auto);
+    }
+    .kinetix-grid {
+        grid-template-columns: repeat(var(--kx-cols-2xl, 1), minmax(0, 1fr));
+    }
+}

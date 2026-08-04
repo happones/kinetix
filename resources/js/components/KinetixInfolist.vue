@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import {
+    gridColumnVars,
+    resolveColumns,
+} from '@/composables/useKinetixResponsiveGrid';
 import type { KinetixInfolistData } from '@/types/kinetix';
+import './kinetix-grid.css';
 import KinetixInfolistEntries from './KinetixInfolistEntries.vue';
 
 defineProps<{
@@ -8,12 +13,15 @@ defineProps<{
 </script>
 
 <template>
-    <div
-        class="gap-4 grid"
-        :style="{
-            gridTemplateColumns: `repeat(${infolist.columns || 1}, minmax(0, 1fr))`,
-        }"
-    >
-        <KinetixInfolistEntries :schema="infolist.schema" />
+    <div class="kinetix-grid-host">
+        <div
+            class="kinetix-grid gap-4 grid"
+            :style="gridColumnVars(resolveColumns(infolist.columns))"
+        >
+            <KinetixInfolistEntries
+                :schema="infolist.schema"
+                :parent-columns="resolveColumns(infolist.columns)"
+            />
+        </div>
     </div>
 </template>

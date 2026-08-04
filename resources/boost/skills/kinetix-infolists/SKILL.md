@@ -82,3 +82,12 @@ public function show(User $user)
 - **Conditional closures**: Use `->visible(fn ($record) => ...)` and `->color(fn ($state) => ...)` to keep detail views dynamic; hidden entries are stripped before serialization.
 - **Role/permission-gated entries**: use `->authorize(string $ability, mixed $subject = null)` (Gate-based, same shorthand as `Action::authorize()`/Forms) alongside `->visible()`/`->hidden()` for sensitive fields (e.g. `TextEntry::make('salary')->authorize('viewFinancials')`). Unauthorized entries are omitted from the serialized payload entirely.
 - **Read-only by design**: Do not add inputs, validation, or two-way bindings to infolists — use Kinetix Forms for editable schemas.
+
+## Responsive Layout
+
+Infolist grids use the same responsive system as forms: `columns(int)` means
+"N columns from `lg` up, ONE below" (never assume a fixed column count on
+mobile), and `columns()` / `columnSpan()` accept breakpoint maps
+(`['default' => 1, 'sm' => 2, 'xl' => 3]`, keys default/sm/md/lg/xl/2xl) on
+Infolist/Section/Fieldset/Grid/Tab. Breakpoints measure the INFOLIST's own
+width (container queries); spans clamp to the available columns per breakpoint.

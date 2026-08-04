@@ -15,7 +15,8 @@ class InfolistData extends Data
      */
     public function __construct(
         public array $schema,
-        public int $columns = 1,
+        /** @var int|array<string, int> */
+        public int|array $columns = 1,
         public string $operation = 'view',
     ) {}
 }

@@ -3,6 +3,7 @@ import { Plus, Trash2, ChevronUp, ChevronDown } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
+import './kinetix-grid.css';
 import {
     gridColumnVars,
     resolveColumns,
@@ -317,64 +318,3 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         </div>
     </template>
 </template>
-
-<style>
-/*
- * Responsive grid plumbing. Each grid-bearing node ships per-breakpoint CSS
- * variables (inline, so Tailwind's JIT is never involved) and these static
- * rules consume them inside @container queries — the breakpoints measure the
- * grid's OWN width (its `.kinetix-grid-host` wrapper), so a two-column form
- * collapses inside a narrow modal even on a wide viewport. Without a host
- * ancestor (a standalone mount) only the base value applies, which is the
- * single-column layout — the safe default.
- */
-.kinetix-grid-host {
-    container-type: inline-size;
-}
-.kinetix-col {
-    grid-column: var(--kx-span-base, auto);
-}
-.kinetix-grid {
-    grid-template-columns: repeat(var(--kx-cols-base, 1), minmax(0, 1fr));
-}
-@container (min-width: 640px) {
-    .kinetix-col {
-        grid-column: var(--kx-span-sm, auto);
-    }
-    .kinetix-grid {
-        grid-template-columns: repeat(var(--kx-cols-sm, 1), minmax(0, 1fr));
-    }
-}
-@container (min-width: 768px) {
-    .kinetix-col {
-        grid-column: var(--kx-span-md, auto);
-    }
-    .kinetix-grid {
-        grid-template-columns: repeat(var(--kx-cols-md, 1), minmax(0, 1fr));
-    }
-}
-@container (min-width: 1024px) {
-    .kinetix-col {
-        grid-column: var(--kx-span-lg, auto);
-    }
-    .kinetix-grid {
-        grid-template-columns: repeat(var(--kx-cols-lg, 1), minmax(0, 1fr));
-    }
-}
-@container (min-width: 1280px) {
-    .kinetix-col {
-        grid-column: var(--kx-span-xl, auto);
-    }
-    .kinetix-grid {
-        grid-template-columns: repeat(var(--kx-cols-xl, 1), minmax(0, 1fr));
-    }
-}
-@container (min-width: 1536px) {
-    .kinetix-col {
-        grid-column: var(--kx-span-2xl, auto);
-    }
-    .kinetix-grid {
-        grid-template-columns: repeat(var(--kx-cols-2xl, 1), minmax(0, 1fr));
-    }
-}
-</style>

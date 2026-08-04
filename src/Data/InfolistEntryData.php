@@ -39,7 +39,8 @@ class InfolistEntryData extends Data
         public ?array $schema = null,
         public ?string $heading = null,
         public ?string $description = null,
-        public ?int $columns = null,
+        /** @var int|array<string, int>|null */
+        public int|array|null $columns = null,
         // Section header actions (array of ActionData).
         public ?array $actions = null,
     ) {}
