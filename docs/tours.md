@@ -109,11 +109,14 @@ const tours = useKinetixToursStore();
 
 ## 5. Theming
 
-The host passes `popoverClass: 'kinetix-tour-popover'`, and the published
-`kinetix.css` themes that class with your tokens (`--popover`, `--border`,
-`--primary`, `--radius`, …) — dark mode included, and a host app using
-driver.js for its own purposes stays unaffected. Override the class in your CSS
-to fine-tune.
+`<KinetixTours />` ships its own popover theme (scoped by
+`popoverClass: 'kinetix-tour-popover'`, so a host using driver.js for other
+purposes stays unaffected). Colors resolve through the Tailwind-level
+`--color-popover` / `--color-border` / `--color-primary` / … variables, which
+exist in **both** token conventions (kinetix.css HSL triplets and starter-kit
+complete colors) — so the popover follows the **active theme at that moment**:
+light, dark, or system (`html.dark` flips and every token shifts with it,
+mid-tour included). Override the class in your CSS to fine-tune.
 
 ## 6. Config reference
 

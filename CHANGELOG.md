@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- ⚠️ **(published) Product-tour popovers now follow the active theme — dark
+  mode included.** The `.kinetix-tour-popover` styles used raw
+  `var(--popover)` tokens, which on HSL-triplet hosts (the kinetix.css
+  convention) produce invalid colors that the browser drops silently — the
+  popover fell back to driver.js's white defaults even in dark mode. And the
+  block lived in `kinetix.css`, which starter-kit hosts don't import, so those
+  apps got no theming at all. The styles now ship WITH `<KinetixTours />`
+  itself and resolve through the Tailwind-level `--color-*` variables (defined
+  in both token conventions), so the popover tracks `html.dark` live —
+  system-theme changes apply even mid-tour. Verified with driver.js render
+  probes against both token shapes, light and dark.
+
 ### Added
 
 - ⚠️ **(published) Infolist grids joined the responsive system.** Same

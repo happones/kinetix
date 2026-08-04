@@ -142,3 +142,99 @@ onBeforeUnmount(() => {
     <!-- Renderless: driver.js owns the overlay/popover DOM. -->
     <slot />
 </template>
+
+<style>
+/*
+ * Product-tour popover (driver.js), shadcn-themed. Ships WITH the component
+ * (not kinetix.css) so every host that mounts <KinetixTours /> gets it, and
+ * colors resolve through the Tailwind-level `--color-*` variables — complete
+ * colors in BOTH token conventions (HSL triplets via kinetix.css's @theme,
+ * full colors in shadcn starter kits), so the popover follows the ACTIVE
+ * theme: flip `html.dark` and every token below shifts with it. Raw
+ * `var(--popover)` must not be used here — on triplet hosts it produces an
+ * invalid color that is silently dropped, leaving driver.js's white defaults
+ * even in dark mode.
+ *
+ * Scoped by `popoverClass: 'kinetix-tour-popover'`, so a host using driver.js
+ * for its own purposes is unaffected.
+ */
+.driver-popover.kinetix-tour-popover {
+    background-color: var(--color-popover, #fff);
+    color: var(--color-popover-foreground, #09090b);
+    border: 1px solid var(--color-border, #e4e4e7);
+    border-radius: calc(var(--radius, 0.625rem) + 4px);
+    box-shadow:
+        0 4px 6px -1px rgb(0 0 0 / 0.07),
+        0 10px 15px -3px rgb(0 0 0 / 0.08);
+    padding: 1rem;
+    max-width: 20rem;
+}
+.driver-popover.kinetix-tour-popover .driver-popover-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    color: inherit;
+}
+.driver-popover.kinetix-tour-popover .driver-popover-description {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--color-muted-foreground, #71717a);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-progress-text {
+    font-size: 0.6875rem;
+    color: var(--color-muted-foreground, #71717a);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-footer {
+    margin-top: 0.75rem;
+    gap: 0.375rem;
+}
+.driver-popover.kinetix-tour-popover .driver-popover-footer button {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1;
+    padding: 0.4375rem 0.75rem;
+    border-radius: calc(var(--radius, 0.625rem) - 2px);
+    border: 1px solid var(--color-border, #e4e4e7);
+    background-color: var(--color-background, #fff);
+    color: var(--color-foreground, #09090b);
+    text-shadow: none;
+    transition: background-color 120ms ease;
+}
+.driver-popover.kinetix-tour-popover .driver-popover-footer button:hover {
+    background-color: var(--color-accent, #f4f4f5);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-next-btn {
+    background-color: var(--color-primary, #18181b);
+    border-color: var(--color-primary, #18181b);
+    color: var(--color-primary-foreground, #fafafa);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-next-btn:hover {
+    background-color: color-mix(
+        in srgb,
+        var(--color-primary, #18181b) 90%,
+        transparent
+    );
+}
+.driver-popover.kinetix-tour-popover .driver-popover-close-btn {
+    color: var(--color-muted-foreground, #71717a);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-close-btn:hover {
+    color: var(--color-foreground, #09090b);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-arrow-side-top {
+    border-top-color: var(--color-popover, #fff);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-arrow-side-bottom {
+    border-bottom-color: var(--color-popover, #fff);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-arrow-side-left {
+    border-left-color: var(--color-popover, #fff);
+}
+.driver-popover.kinetix-tour-popover .driver-popover-arrow-side-right {
+    border-right-color: var(--color-popover, #fff);
+}
+</style>
