@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.136.0] - 2026-08-03
+
+Infolists join the responsive grid system, tour popovers finally follow the
+active theme (dark mode included), and `make-resource` scaffolds professional
+mobile-first pages.
+
 ### Changed
 
 - **`make-resource` Create/Edit/Show pages scaffold a professional, on-theme
