@@ -158,7 +158,9 @@ const getPerPageOptions = (options?: number[]) => {
                 >
                     <ChevronLeft class="h-4 w-4" aria-hidden="true" />
                 </button>
-                <span class="text-xs font-medium mx-2 text-muted-foreground">
+                <span
+                    class="text-xs font-medium mx-2 whitespace-nowrap text-muted-foreground"
+                >
                     <!-- A cursor has no page number to show. -->
                     <template v-if="isCursor">&nbsp;</template>
                     <template v-else-if="isSimple">

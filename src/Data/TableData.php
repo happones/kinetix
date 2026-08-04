@@ -47,6 +47,8 @@ class TableData extends Data
         public array $stats = [],
         public bool $reorderable = false,
         public ?string $savedViewsKey = null,
+        // Toolbar arrangement: 'auto' (container-adaptive) | 'inline' | 'stacked'.
+        public string $toolbarLayout = 'auto',
         // Client-side mode: full row set shipped, browser handles interactions.
         public bool $clientSide = false,
         // In-table modal CRUD wiring (simple resources). Null = disabled.

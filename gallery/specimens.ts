@@ -621,6 +621,140 @@ const statsLinkWidget = {
     },
 };
 
+// --- Responsive probes ---------------------------------------------------------
+
+/** A form exercising responsive columns + spans (resize to see it reflow). */
+const responsiveFormSchema = [
+    {
+        type: 'section',
+        heading: 'Shipping details',
+        description: 'Columns follow the FORM width: 1 → 2 (sm) → 3 (xl).',
+        columns: { default: 1, sm: 2, xl: 3 },
+        columnSpan: 'full',
+        schema: [
+            {
+                type: 'text-input',
+                name: 'street',
+                label: 'Street',
+                columnSpan: { default: 1, sm: 2, xl: 2 },
+                inputType: 'text',
+            },
+            { type: 'text-input', name: 'number', label: 'Number' },
+            { type: 'text-input', name: 'city', label: 'City' },
+            { type: 'text-input', name: 'state', label: 'State' },
+            { type: 'text-input', name: 'zip', label: 'ZIP code' },
+            {
+                type: 'textarea',
+                name: 'notes',
+                label: 'Delivery notes',
+                columnSpan: 'full',
+            },
+        ],
+    },
+];
+
+const responsiveFormValues = {
+    street: '',
+    number: '',
+    city: '',
+    state: '',
+    zip: '',
+    notes: '',
+};
+
+/** A table with the full toolbar: search + saved views + actions + filters + columns. */
+const toolbarTable = {
+    heading: 'Products',
+    description: 'Search, filters, column toggle and actions in one toolbar.',
+    poll: null,
+    isStriped: false,
+    model: 'token',
+    columns: [
+        col('name', { label: 'Name', isSearchable: true, isToggleable: true }),
+        col('category', { label: 'Category', isToggleable: true }),
+        col('status', { label: 'Status', isBadge: true, isToggleable: true }),
+    ],
+    filters: [
+        {
+            name: 'status',
+            label: 'Status',
+            default: null,
+            type: 'select',
+            options: { active: 'Active', archived: 'Archived' },
+        },
+        {
+            name: 'in_stock',
+            label: 'In stock',
+            default: null,
+            type: 'checkbox',
+        },
+    ],
+    recordActions: [],
+    toolbarActions: [
+        {
+            label: 'Create product',
+            icon: 'plus',
+            color: null,
+            type: 'button',
+            openUrlInNewTab: false,
+        },
+        {
+            label: 'Export',
+            icon: 'download',
+            color: 'gray',
+            type: 'button',
+            openUrlInNewTab: false,
+        },
+    ],
+    bulkActions: [],
+    footerActions: [],
+    records: [
+        {
+            name: 'Standing desk',
+            category: 'Furniture',
+            status: 'Active',
+            _c: 'success',
+        },
+        {
+            name: 'Laptop stand',
+            category: 'Accessories',
+            status: 'Active',
+            _c: 'success',
+        },
+        {
+            name: 'USB-C dock',
+            category: 'Electronics',
+            status: 'Archived',
+            _c: 'warning',
+        },
+    ].map((r, i) => ({
+        id: i + 1,
+        values: { name: r.name, category: r.category, status: r.status },
+        icons: {},
+        iconColors: {},
+        badgeColors: { status: r._c },
+        descriptions: {},
+        recordUrl: null,
+        actions: [],
+    })),
+    isPaginated: true,
+    paginationPageOptions: [10, 25],
+    pagination: {
+        perPage: 10,
+        hasMore: false,
+        currentPage: 1,
+        total: 3,
+        lastPage: 1,
+        from: 1,
+        to: 3,
+    },
+    state: { search: '', sort: '', direction: 'asc', filters: {}, perPage: 10 },
+    queryPrefix: '',
+    summaries: {},
+    hasSummaries: false,
+    savedViewsKey: 'App\\Models\\Product',
+};
+
 const statsSparklineWidget = {
     id: 'stats-spark',
     type: 'stats',
@@ -1087,6 +1221,24 @@ export const specimens: Specimen[] = [
         component: KinetixTableStats,
         width: 980,
         props: { stats: tableStatsFixture },
+    },
+    {
+        name: 'table-toolbar',
+        title: 'Table — full toolbar (search/actions/filters/columns)',
+        component: KinetixTable,
+        width: 960,
+        props: { table: toolbarTable },
+    },
+    {
+        name: 'form-responsive',
+        title: 'Form — responsive columns & spans',
+        component: KinetixFormSchema,
+        width: 960,
+        props: {
+            schema: responsiveFormSchema,
+            values: responsiveFormValues,
+            errors: {},
+        },
     },
     {
         name: 'stats-link-widget',

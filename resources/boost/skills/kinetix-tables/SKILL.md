@@ -127,3 +127,13 @@ IconColumn::make('is_published')
 - **Teams & Multi-Tenancy**: When routing under a `{current_team}` prefix, toggle `'teams' => true` in `config/kinetix.php` to ensure Kinetix's API endpoints match and closure actions inherit the active team parameters natively.
 - **Shadcn Checkboxes**: Always use `<KinetixCheckbox>` for table filters, column toggles, and editable checkbox cells to ensure consistent UI styling.
 - **Translations & Documentation**: Do not hardcode strings; always define them in translations and keep documentation updated for any new components or options.
+
+## Responsive Toolbar
+
+`Table::toolbarLayout('auto'|'inline'|'stacked')` — default `auto` adapts to
+the TABLE's own width (container queries): narrow tables stack heading /
+full-width search / wrapping control row; wide tables inline everything with
+right-aligned controls. Pin `inline` or `stacked` only when a host needs one
+arrangement at every width. Do not hand-roll toolbar arrangements in host
+code — the toolbar already adapts.
+

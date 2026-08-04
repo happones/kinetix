@@ -115,6 +115,12 @@ class Table implements Arrayable, JsonSerializable
     protected ?string $savedViewsKey = null;
 
     /**
+     * Toolbar arrangement: 'auto' adapts to the TABLE's own width (stacked
+     * below ~640px, inline above); 'inline' / 'stacked' pin one arrangement.
+     */
+    protected string $toolbarLayout = 'auto';
+
+    /**
      * When true, the full (capped) result set is shipped to the client and a
      * TanStack-backed renderer does search / sort / pagination in the browser —
      * no round-trip per interaction. Best for small, fully-loadable datasets.
@@ -606,6 +612,27 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Pin the toolbar arrangement. 'auto' (the default) stacks heading /
+     * full-width search / control row when the table itself is narrow and
+     * inlines everything on one row when it is wide; 'inline' or 'stacked'
+     * force one arrangement at every width.
+     *
+     * @param 'auto'|'inline'|'stacked' $layout
+     */
+    public function toolbarLayout(string $layout): static
+    {
+        if (! in_array($layout, ['auto', 'inline', 'stacked'], true)) {
+            throw new \InvalidArgumentException(
+                "Unsupported toolbar layout [{$layout}]. Allowed: auto, inline, stacked."
+            );
+        }
+
+        $this->toolbarLayout = $layout;
+
+        return $this;
+    }
+
+    /**
      * Read a request param using this table's prefix.
      */
     protected function param(string $key, mixed $default = null): mixed
@@ -856,6 +883,7 @@ class Table implements Arrayable, JsonSerializable
             stats: $stats,
             reorderable: $this->reorderColumn !== null,
             savedViewsKey: $this->savedViewsKey,
+            toolbarLayout: $this->toolbarLayout,
             clientSide: $this->clientSide,
             recordModals: $this->buildRecordModalsData(),
         );

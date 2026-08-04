@@ -799,6 +799,14 @@ Table-level methods control refresh, pagination, and row behavior:
 - `cursorPaginated(bool $cursor = true)`: Seek-based pagination — no `OFFSET`, constant cost at any depth. See [Deep pagination](#deep-pagination-cursorpaginated).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
+- `toolbarLayout(string $layout)`: Toolbar arrangement. The default `'auto'`
+  adapts to the **table's own width** (container queries): narrow tables stack
+  heading → full-width search → a wrapping row of controls (views / actions /
+  filters / columns), wide tables put everything on one row with the controls
+  right-aligned. Pass `'inline'` or `'stacked'` to pin one arrangement at every
+  width.
+
+<Screenshot name="table-toolbar" alt="Table toolbar with search, actions, filters and column toggle" />
 - `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
 
 ```php

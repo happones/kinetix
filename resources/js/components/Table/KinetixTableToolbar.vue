@@ -50,94 +50,203 @@ const hasToggleableColumns = computed<boolean>(() =>
 const forwardSetFilter = (name: string, value: unknown): void => {
     emit('set-filter', name, value);
 };
+
+/**
+ * Toolbar arrangement. 'auto' adapts to the TABLE's own width via container
+ * queries (stacked below ~640px, one row above); 'inline'/'stacked' pin one
+ * arrangement at every width (Table::toolbarLayout()).
+ */
+const layoutClass = computed<string>(() => {
+    const layout = props.table.toolbarLayout ?? 'auto';
+
+    if (layout === 'inline') {
+        return 'is-inline';
+    }
+
+    if (layout === 'stacked') {
+        return 'is-stacked';
+    }
+
+    return 'is-auto';
+});
 </script>
 
 <template>
-    <div
-        data-slot="card-header"
-        class="p-6 md:flex-row md:items-center gap-4 flex flex-col justify-between border-b border-border"
-    >
-        <div>
-            <h3
-                v-if="table.heading"
-                data-slot="card-title"
-                class="text-base font-semibold leading-none text-foreground"
+    <div class="kinetix-toolbar-host">
+        <div
+            data-slot="card-header"
+            class="kinetix-toolbar p-6 gap-4 border-b border-border"
+            :class="layoutClass"
+        >
+            <div
+                v-if="table.heading || table.description"
+                class="kinetix-toolbar-heading min-w-0"
             >
-                {{ table.heading }}
-            </h3>
-            <p
-                v-if="table.description"
-                data-slot="card-description"
-                class="text-xs mt-1 text-muted-foreground"
-            >
-                {{ table.description }}
-            </p>
-        </div>
-
-        <div class="gap-2 md:self-auto flex flex-wrap items-center self-end">
-            <!-- Search bar if any column is searchable -->
-            <div v-if="hasSearch" class="relative min-w-[200px]">
-                <Search
-                    class="left-3 top-2.5 h-4 w-4 absolute text-muted-foreground"
-                />
-                <input
-                    :value="searchQuery"
-                    type="text"
-                    :placeholder="t('kinetix.search_records')"
-                    class="pl-9 pr-4 py-2 text-sm rounded-lg w-full border border-border bg-muted/40 text-foreground transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    @input="
-                        emit(
-                            'update:searchQuery',
-                            ($event.target as HTMLInputElement).value,
-                        );
-                        emit('search-input');
-                    "
-                />
+                <h3
+                    v-if="table.heading"
+                    data-slot="card-title"
+                    class="text-base font-semibold leading-none text-foreground"
+                >
+                    {{ table.heading }}
+                </h3>
+                <p
+                    v-if="table.description"
+                    data-slot="card-description"
+                    class="text-xs mt-1 text-muted-foreground"
+                >
+                    {{ table.description }}
+                </p>
             </div>
 
-            <!-- Saved views (presets of search/filters/sort/columns) -->
-            <KinetixSavedViews
-                v-if="table.savedViewsKey"
-                :view-key="table.savedViewsKey"
-                :current-state="currentViewState"
-                @apply="emit('apply-view', $event)"
-            />
-
-            <!-- Custom header toolbar actions -->
-            <template v-for="(action, i) in table.toolbarActions" :key="i">
-                <KinetixActionDropdown
-                    v-if="action.type === 'group'"
-                    :group="action"
-                />
-                <button
-                    v-else
-                    :class="primaryActionClass(action)"
-                    @click="emit('action-click', action)"
-                >
-                    <component
-                        :is="resolveIcon(action.icon)"
-                        v-if="action.icon"
+            <div class="kinetix-toolbar-controls">
+                <!-- Search bar if any column is searchable -->
+                <div v-if="hasSearch" class="kinetix-toolbar-search relative">
+                    <Search
+                        class="left-3 top-2.5 h-4 w-4 absolute text-muted-foreground"
+                        aria-hidden="true"
                     />
-                    {{ action.label }}
-                </button>
-            </template>
+                    <input
+                        :value="searchQuery"
+                        type="search"
+                        :placeholder="t('kinetix.search_records')"
+                        class="pl-9 pr-4 py-2 text-sm rounded-lg w-full border border-border bg-muted/40 text-foreground transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        @input="
+                            emit(
+                                'update:searchQuery',
+                                ($event.target as HTMLInputElement).value,
+                            );
+                            emit('search-input');
+                        "
+                    />
+                </div>
 
-            <!-- Filters popover -->
-            <KinetixTableFilters
-                v-if="table.filters.length > 0"
-                :filters="table.filters"
-                :active-filters="activeFilters"
-                @set-filter="forwardSetFilter"
-                @clear="emit('clear-filters')"
-            />
+                <div class="kinetix-toolbar-buttons">
+                    <!-- Saved views (presets of search/filters/sort/columns) -->
+                    <KinetixSavedViews
+                        v-if="table.savedViewsKey"
+                        :view-key="table.savedViewsKey"
+                        :current-state="currentViewState"
+                        @apply="emit('apply-view', $event)"
+                    />
 
-            <!-- Columns toggler -->
-            <KinetixTableColumnToggle
-                v-if="hasToggleableColumns"
-                :columns="table.columns"
-                :is-column-visible="isColumnVisible"
-                @toggle="emit('toggle-column', $event)"
-            />
+                    <!-- Custom header toolbar actions -->
+                    <template
+                        v-for="(action, i) in table.toolbarActions"
+                        :key="i"
+                    >
+                        <KinetixActionDropdown
+                            v-if="action.type === 'group'"
+                            :group="action"
+                        />
+                        <button
+                            v-else
+                            :class="primaryActionClass(action)"
+                            @click="emit('action-click', action)"
+                        >
+                            <component
+                                :is="resolveIcon(action.icon)"
+                                v-if="action.icon"
+                            />
+                            {{ action.label }}
+                        </button>
+                    </template>
+
+                    <!-- Filters popover -->
+                    <KinetixTableFilters
+                        v-if="table.filters.length > 0"
+                        :filters="table.filters"
+                        :active-filters="activeFilters"
+                        @set-filter="forwardSetFilter"
+                        @clear="emit('clear-filters')"
+                    />
+
+                    <!-- Columns toggler -->
+                    <KinetixTableColumnToggle
+                        v-if="hasToggleableColumns"
+                        :columns="table.columns"
+                        :is-column-visible="isColumnVisible"
+                        @toggle="emit('toggle-column', $event)"
+                    />
+                </div>
+            </div>
         </div>
     </div>
 </template>
+
+<style scoped>
+/*
+ * Toolbar arrangement, measured against the TABLE's own width (container
+ * query) rather than the viewport — a table in a narrow pane stacks even on a
+ * wide screen. Base = stacked: heading, then a full-width search, then the
+ * control buttons wrapping in a row. Inline = everything on one row, heading
+ * left, controls right, search capped so buttons keep room.
+ */
+.kinetix-toolbar-host {
+    container-type: inline-size;
+}
+.kinetix-toolbar {
+    display: flex;
+    flex-direction: column;
+}
+.kinetix-toolbar-controls {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.kinetix-toolbar-search {
+    width: 100%;
+}
+.kinetix-toolbar-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+.kinetix-toolbar-buttons:empty {
+    display: none;
+}
+
+/* The one-row arrangement, shared by is-inline (always) and is-auto (wide). */
+.kinetix-toolbar.is-inline {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+.kinetix-toolbar.is-inline .kinetix-toolbar-controls {
+    margin-left: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+.kinetix-toolbar.is-inline .kinetix-toolbar-search {
+    width: auto;
+    min-width: 200px;
+    max-width: 20rem;
+    flex: 1 1 200px;
+}
+
+@container (min-width: 640px) {
+    .kinetix-toolbar.is-auto {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .kinetix-toolbar.is-auto .kinetix-toolbar-controls {
+        margin-left: auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    .kinetix-toolbar.is-auto .kinetix-toolbar-search {
+        width: auto;
+        min-width: 200px;
+        max-width: 20rem;
+        flex: 1 1 200px;
+    }
+}
+</style>

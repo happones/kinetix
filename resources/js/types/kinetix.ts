@@ -1045,6 +1045,8 @@ export interface KinetixTableData {
     stats?: KinetixTableStat[];
     reorderable?: boolean;
     savedViewsKey?: string | null;
+    /** Toolbar arrangement: 'auto' (container-adaptive) | 'inline' | 'stacked'. */
+    toolbarLayout?: 'auto' | 'inline' | 'stacked';
     /** When true, all rows are shipped and a TanStack renderer handles interactions client-side. */
     clientSide?: boolean;
     /** In-table modal CRUD wiring (simple resources). Null/absent = disabled. */
