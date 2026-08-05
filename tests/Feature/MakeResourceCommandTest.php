@@ -38,8 +38,17 @@ class MakeResourceCommandTest extends TestCase
         $this->assertFileExists($showPath);
 
         // Regression: $modelName was undefined in createVuePages → blank model name.
-        $this->assertStringContainsString('Create Post', File::get($createPath));
-        $this->assertStringContainsString('Edit Post', File::get($editPath));
+        $create = File::get($createPath);
+        $edit   = File::get($editPath);
+        $this->assertStringContainsString('Create Post', $create);
+        $this->assertStringContainsString('Edit Post', $edit);
+
+        // Submit/cancel go through the shared KinetixButton so the scaffold
+        // gets the same pending behaviour (spinner + disabled) as actions.
+        $this->assertStringContainsString('<KinetixButton', $create);
+        $this->assertStringContainsString(':loading="saving"', $create);
+        $this->assertStringContainsString('<KinetixButton', $edit);
+        $this->assertStringContainsString(':loading="saving"', $edit);
 
         // The Show page pairs a page header (Edit/Delete actions) with the infolist.
         $show = File::get($showPath);

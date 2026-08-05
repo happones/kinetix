@@ -705,9 +705,9 @@ VUE;
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import KinetixButton from '@/components/kinetix/KinetixButton.vue';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
 import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 // `storeUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
@@ -749,24 +749,24 @@ const handleCancel = () => {
         <!-- Full-width stacked buttons on mobile (primary on top),
              right-aligned row on desktop. -->
         <div class="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            :class="buttonVariants({ variant: 'outline' })"
+          <!-- KinetixButton owns the pending behaviour: `loading` disables the
+               button and shows a spinner, same as every Kinetix action button. -->
+          <KinetixButton
+            variant="outline"
             class="w-full sm:w-auto"
             :disabled="saving"
             @click="handleCancel"
           >
             Cancel
-          </button>
+          </KinetixButton>
 
-          <button
+          <KinetixButton
             type="submit"
-            :class="buttonVariants()"
             class="w-full sm:w-auto"
-            :disabled="saving"
+            :loading="saving"
           >
             {{ saving ? 'Creating…' : 'Create {$modelName}' }}
-          </button>
+          </KinetixButton>
         </div>
       </template>
     </KinetixForm>
@@ -778,9 +778,9 @@ VUE;
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import KinetixButton from '@/components/kinetix/KinetixButton.vue';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
 import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixBreadcrumb } from '@/types/kinetix';
 
 // `updateUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
@@ -822,24 +822,24 @@ const handleCancel = () => {
         <!-- Full-width stacked buttons on mobile (primary on top),
              right-aligned row on desktop. -->
         <div class="flex w-full flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            :class="buttonVariants({ variant: 'outline' })"
+          <!-- KinetixButton owns the pending behaviour: `loading` disables the
+               button and shows a spinner, same as every Kinetix action button. -->
+          <KinetixButton
+            variant="outline"
             class="w-full sm:w-auto"
             :disabled="saving"
             @click="handleCancel"
           >
             Cancel
-          </button>
+          </KinetixButton>
 
-          <button
+          <KinetixButton
             type="submit"
-            :class="buttonVariants()"
             class="w-full sm:w-auto"
-            :disabled="saving"
+            :loading="saving"
           >
             {{ saving ? 'Saving…' : 'Save changes' }}
-          </button>
+          </KinetixButton>
         </div>
       </template>
     </KinetixForm>

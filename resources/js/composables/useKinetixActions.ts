@@ -131,6 +131,9 @@ export function useActionConfirmation() {
     const pendingExtra = ref<Record<string, any>>({});
     const isConfirmOpen = ref(false);
     const processing = ref(false);
+    // Name of the action in flight, so the CLICKED button can show its
+    // spinner while its siblings only disable.
+    const processingAction = ref<string | null>(null);
 
     const run = async (
         action: KinetixAction,
@@ -141,6 +144,7 @@ export function useActionConfirmation() {
         }
 
         processing.value = true;
+        processingAction.value = action.name ?? null;
 
         try {
             await executeAction(action, extraData);
@@ -152,6 +156,7 @@ export function useActionConfirmation() {
             );
         } finally {
             processing.value = false;
+            processingAction.value = null;
         }
     };
 
@@ -206,6 +211,7 @@ export function useActionConfirmation() {
         pendingAction,
         isConfirmOpen,
         processing,
+        processingAction,
         requestAction,
         confirm,
         cancel,

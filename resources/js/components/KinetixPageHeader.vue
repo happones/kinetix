@@ -10,6 +10,7 @@ import {
 } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAction } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
+import KinetixButton from './KinetixButton.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import { cn } from './primitives/cn';
 
@@ -30,6 +31,7 @@ const {
     pendingAction,
     isConfirmOpen,
     processing,
+    processingAction,
     requestAction,
     confirm,
     cancel,
@@ -52,17 +54,16 @@ for (const action of props.actions) {
 const resolveIcon = (name?: string | null) =>
     name ? (resolveKinetixIcon(name) ?? Circle) : null;
 
-// shadcn-vue (new-york) button UI for page-level actions (create/edit/delete…).
-const actionClass = (action: KinetixAction) =>
+// shadcn-vue (new-york) link UI for `viewType: 'link'` actions; button-type
+// actions render through <KinetixButton> (shared pending/disabled behaviour).
+const linkActionClass = (action: KinetixAction) =>
     cn(
         buttonVariants({
-            variant:
-                action.viewType === 'link'
-                    ? 'link'
-                    : actionButtonVariant(action.color),
+            variant: 'link',
             size: actionButtonSize(action.size),
         }),
         'cursor-pointer',
+        processing.value ? 'pointer-events-none opacity-50' : '',
     );
 </script>
 
@@ -92,14 +93,11 @@ const actionClass = (action: KinetixAction) =>
                 />
 
                 <a
-                    v-else
-                    :href="
-                        action.viewType === 'link' && action.url
-                            ? action.url
-                            : undefined
-                    "
+                    v-else-if="action.viewType === 'link'"
+                    :href="action.url ?? undefined"
                     role="button"
-                    :class="actionClass(action)"
+                    :aria-disabled="processing || undefined"
+                    :class="linkActionClass(action)"
                     @click.prevent="requestAction(action)"
                 >
                     <component
@@ -114,6 +112,31 @@ const actionClass = (action: KinetixAction) =>
                         class="h-4 w-4"
                     />
                 </a>
+
+                <KinetixButton
+                    v-else
+                    :variant="actionButtonVariant(action.color)"
+                    :size="actionButtonSize(action.size)"
+                    :disabled="processing"
+                    :loading="processing && processingAction === action.name"
+                    @click="requestAction(action)"
+                >
+                    <template #icon>
+                        <component
+                            :is="resolveIcon(action.icon)"
+                            v-if="
+                                action.icon && action.iconPosition !== 'after'
+                            "
+                            class="h-4 w-4"
+                        />
+                    </template>
+                    {{ action.label }}
+                    <component
+                        :is="resolveIcon(action.icon)"
+                        v-if="action.icon && action.iconPosition === 'after'"
+                        class="h-4 w-4"
+                    />
+                </KinetixButton>
             </template>
 
             <slot />

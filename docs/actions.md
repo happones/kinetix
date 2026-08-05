@@ -297,9 +297,33 @@ defineProps<{ headerActions: KinetixAction[] }>();
 Both `KinetixTable.vue` and `KinetixPageHeader.vue` consume `@/composables/useKinetixActions`:
 
 - `executeAction(action)` — runs an action (dispatch / Inertia visit / new tab / navigation).
-- `useActionConfirmation()` — returns `{ pendingAction, isConfirmOpen, requestAction, confirm, cancel }` to gate actions behind the modal.
+- `useActionConfirmation()` — returns `{ pendingAction, isConfirmOpen, processing, processingAction, requestAction, confirm, cancel }` to gate actions behind the modal.
 
 Wire any new action-rendering component through this composable so behaviour stays consistent.
+
+### Pending state & double-click protection (automatic)
+
+Every action click is gated twice:
+
+1. **Logic:** `useActionConfirmation()` ignores clicks while an action is in
+   flight (`processing`), and awaits `httpRequest`/`inertiaVisit` actions — so
+   a double click on Export/Import can never queue two jobs, and confirmation
+   modals stay open (disabled) until the request resolves.
+2. **UI:** action buttons render through **`<KinetixButton>`** — the shared
+   base button. While `processing` is true every sibling action button
+   disables, and the **clicked** one (matched via `processingAction`, the
+   in-flight action's name) swaps its icon for a spinner.
+
+`KinetixButton` props: `variant`, `size`, `type` (default `button`), `loading`
+(disables + spinner, sets `aria-busy`), `disabled`. Slots: `icon` (replaced by
+the spinner while loading) and the default label slot. The
+`kinetix:make-resource` create/edit pages submit through it too
+(`:loading="saving"`), so scaffolded forms behave exactly like action buttons.
+Use it for any custom button that fires a request:
+
+```vue
+<KinetixButton :loading="saving" type="submit">Save</KinetixButton>
+```
 
 ---
 

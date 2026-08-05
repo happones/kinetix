@@ -22,6 +22,7 @@ import type {
     KinetixTableRecord,
 } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
+import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixForm from './KinetixForm.vue';
@@ -205,6 +206,7 @@ const {
     pendingAction,
     isConfirmOpen,
     processing: actionProcessing,
+    processingAction: actionProcessingName,
     requestAction,
     confirm: onConfirmAction,
     cancel: onCancelAction,
@@ -390,6 +392,8 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                 :active-filters="activeFilters"
                 :current-view-state="currentViewState"
                 :is-column-visible="isColumnVisible"
+                :processing="actionProcessing"
+                :processing-action="actionProcessingName"
                 @search-input="onSearchInput"
                 @apply-view="applyView"
                 @action-click="handleActionClick"
@@ -628,26 +632,29 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                         v-if="action.type === 'group'"
                         :group="action"
                     />
-                    <button
+                    <KinetixButton
                         v-else
-                        type="button"
+                        :variant="
+                            action.color
+                                ? actionButtonVariant(action.color)
+                                : 'default'
+                        "
+                        size="sm"
                         :disabled="actionProcessing"
-                        :class="
-                            buttonVariants({
-                                variant: action.color
-                                    ? actionButtonVariant(action.color)
-                                    : 'default',
-                                size: 'sm',
-                            })
+                        :loading="
+                            actionProcessing &&
+                            actionProcessingName === action.name
                         "
                         @click="handleActionClick(action)"
                     >
-                        <component
-                            :is="resolveIcon(action.icon)"
-                            v-if="action.icon"
-                        />
+                        <template #icon>
+                            <component
+                                :is="resolveIcon(action.icon)"
+                                v-if="action.icon"
+                            />
+                        </template>
                         {{ action.label }}
-                    </button>
+                    </KinetixButton>
                 </template>
             </div>
 

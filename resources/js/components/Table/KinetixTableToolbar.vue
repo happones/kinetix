@@ -3,12 +3,10 @@ import { Search } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { resolveIcon } from '@/composables/useKinetixIcons';
-import {
-    actionButtonVariant,
-    buttonVariants,
-} from '@/composables/useKinetixShadcnVariants';
+import { actionButtonVariant } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAction, KinetixTableData } from '@/types/kinetix';
 import KinetixActionDropdown from '../KinetixActionDropdown.vue';
+import KinetixButton from '../KinetixButton.vue';
 import KinetixSavedViews from '../KinetixSavedViews.vue';
 import KinetixTableColumnToggle from './KinetixTableColumnToggle.vue';
 import KinetixTableFilters from './KinetixTableFilters.vue';
@@ -19,6 +17,10 @@ const props = defineProps<{
     activeFilters: Record<string, unknown>;
     currentViewState: Record<string, unknown>;
     isColumnVisible: (name: string) => boolean;
+    /** True while any table action is in flight — disables every action button. */
+    processing?: boolean;
+    /** Name of the in-flight action — its button shows the spinner. */
+    processingAction?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -32,12 +34,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-
-const primaryActionClass = (action: { color?: string | null }): string =>
-    buttonVariants({
-        variant: action.color ? actionButtonVariant(action.color) : 'default',
-        size: 'sm',
-    });
 
 const hasSearch = computed<boolean>(() =>
     props.table.columns.some((c) => c.isSearchable),
@@ -138,17 +134,28 @@ const layoutClass = computed<string>(() => {
                             v-if="action.type === 'group'"
                             :group="action"
                         />
-                        <button
+                        <KinetixButton
                             v-else
-                            :class="primaryActionClass(action)"
+                            :variant="
+                                action.color
+                                    ? actionButtonVariant(action.color)
+                                    : 'default'
+                            "
+                            size="sm"
+                            :disabled="processing"
+                            :loading="
+                                processing && processingAction === action.name
+                            "
                             @click="emit('action-click', action)"
                         >
-                            <component
-                                :is="resolveIcon(action.icon)"
-                                v-if="action.icon"
-                            />
+                            <template #icon>
+                                <component
+                                    :is="resolveIcon(action.icon)"
+                                    v-if="action.icon"
+                                />
+                            </template>
                             {{ action.label }}
-                        </button>
+                        </KinetixButton>
                     </template>
 
                     <!-- Filters popover -->
