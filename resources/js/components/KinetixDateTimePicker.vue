@@ -9,10 +9,25 @@ import {
 import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import {
+    useKinetixTimezone,
+    zonedNow,
+    zonedTodayIso,
+} from '@/composables/useKinetixTimezone';
+import KinetixButton from './KinetixButton.vue';
 import KinetixCalendar from './KinetixCalendar.vue';
 import { cn } from './primitives/cn';
 import ScrollArea from './primitives/ScrollArea.vue';
 
+/**
+ * Date + time picker: calendar plus scrollable hour/minute (+ AM/PM) columns.
+ * Picking a date deliberately does NOT close the popover (unlike the pure
+ * DatePicker) — the user still has a time to choose; the footer's **Done** is
+ * the explicit dismissal, and **Now** jumps to the current date + time
+ * (rounded to `minuteStep`). With `confirm`, every click builds a DRAFT,
+ * Done becomes **Apply** (the only thing that emits), and dismissing any
+ * other way discards the draft.
+ */
 const { t } = useI18n();
 
 const props = withDefaults(
@@ -28,6 +43,14 @@ const props = withDefaults(
         placeholder?: string | null;
         locale?: string | null;
         minuteStep?: number;
+        /** Commit only on Apply; outside-click/Escape discards the draft. */
+        confirm?: boolean;
+        /**
+         * IANA timezone the Now preset (and the calendar's initial month)
+         * reads the clock in. Defaults to the app timezone Kinetix shares
+         * (`config('app.timezone')`), then the browser clock.
+         */
+        timezone?: string | null;
     }>(),
     {
         value: null,
@@ -37,6 +60,8 @@ const props = withDefaults(
         placeholder: null,
         locale: null,
         minuteStep: 5,
+        confirm: false,
+        timezone: null,
     },
 );
 
@@ -46,14 +71,22 @@ const emit = defineEmits<{
 
 const open = ref(false);
 const pad = (n: number) => String(n).padStart(2, '0');
+const effectiveTimezone = useKinetixTimezone(() => props.timezone);
 
-const datePart = computed(() =>
-    props.value ? props.value.slice(0, 10) : null,
-);
-const hour24 = computed(() => Number(props.value?.slice(11, 13) ?? '0') || 0);
-const minute = computed(() => Number(props.value?.slice(14, 16) ?? '0') || 0);
-const isPm = computed(() => hour24.value >= 12);
-const displayHour = computed(() => hour24.value % 12 || 12);
+// Local selection: what the popover shows/edits. In live mode every change
+// also emits; in confirm mode only Apply does.
+const selDate = ref<string | null>(null);
+const selHour = ref(0); // 24h
+const selMinute = ref(0);
+
+const seedFromValue = () => {
+    selDate.value = props.value ? props.value.slice(0, 10) : null;
+    selHour.value = Number(props.value?.slice(11, 13) ?? '0') || 0;
+    selMinute.value = Number(props.value?.slice(14, 16) ?? '0') || 0;
+};
+
+const isPm = computed(() => selHour.value >= 12);
+const displayHour = computed(() => selHour.value % 12 || 12);
 
 const hours = computed(() =>
     props.hour12
@@ -68,13 +101,15 @@ const minutes = computed(() =>
 );
 
 const formatted = computed(() => {
-    if (!props.value || !datePart.value) {
-        return props.value;
+    if (!props.value) {
+        return null;
     }
 
-    const [y, m, d] = datePart.value.split('-').map(Number);
+    const [y, m, d] = props.value.slice(0, 10).split('-').map(Number);
+    const h = Number(props.value.slice(11, 13)) || 0;
+    const min = Number(props.value.slice(14, 16)) || 0;
 
-    return new Date(y, m - 1, d, hour24.value, minute.value).toLocaleString(
+    return new Date(y, m - 1, d, h, min).toLocaleString(
         props.locale || undefined,
         {
             year: 'numeric',
@@ -87,37 +122,40 @@ const formatted = computed(() => {
     );
 });
 
-const todayIso = () => {
-    const now = new Date();
+const todayIso = () => zonedTodayIso(effectiveTimezone.value);
 
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-};
+const commit = () =>
+    emit(
+        'update:value',
+        `${selDate.value ?? todayIso()}T${pad(selHour.value)}:${pad(selMinute.value)}`,
+    );
 
-const emitParts = (date: string, h: number, m: number) =>
-    emit('update:value', `${date}T${pad(h)}:${pad(m)}`);
+const select = (date: string | null, h: number, m: number) => {
+    selDate.value = date ?? todayIso();
+    selHour.value = h;
+    selMinute.value = m;
 
-const onDateSelect = (date: string | null) => {
-    if (date) {
-        emitParts(date, hour24.value, minute.value);
+    if (!props.confirm) {
+        commit();
     }
 };
 
-const setHour24 = (h: number) =>
-    emitParts(datePart.value ?? todayIso(), h, minute.value);
+const onDateSelect = (date: string | null) => {
+    if (date) {
+        select(date, selHour.value, selMinute.value);
+    }
+};
+
+const setHour24 = (h: number) => select(selDate.value, h, selMinute.value);
 
 // In 12h mode the clicked hour is 1-12; map it to 24h keeping the AM/PM half.
 const setHour12 = (h: number) =>
-    emitParts(
-        datePart.value ?? todayIso(),
-        (h % 12) + (isPm.value ? 12 : 0),
-        minute.value,
-    );
+    select(selDate.value, (h % 12) + (isPm.value ? 12 : 0), selMinute.value);
 
-const setMinute = (m: number) =>
-    emitParts(datePart.value ?? todayIso(), hour24.value, m);
+const setMinute = (m: number) => select(selDate.value, selHour.value, m);
 
 const setMeridiem = (meridiem: 'AM' | 'PM') => {
-    const h = hour24.value;
+    const h = selHour.value;
     const next =
         meridiem === 'PM' && h < 12
             ? h + 12
@@ -125,16 +163,56 @@ const setMeridiem = (meridiem: 'AM' | 'PM') => {
               ? h - 12
               : h;
 
-    emitParts(datePart.value ?? todayIso(), next, minute.value);
+    select(selDate.value, next, selMinute.value);
 };
 
+/**
+ * Current date + time in the effective timezone (app timezone by default),
+ * rounded to the nearest `minuteStep`.
+ */
+const setNow = () => {
+    const now = zonedNow(effectiveTimezone.value);
+    let m = Math.round(now.minute / props.minuteStep) * props.minuteStep;
+    let h = now.hour;
+    let date = `${now.year}-${pad(now.month)}-${pad(now.day)}`;
+
+    if (m >= 60) {
+        m = 0;
+        h = h + 1;
+
+        if (h >= 24) {
+            // Rounding past midnight rolls the DATE too, not just the hour.
+            h = 0;
+            const next = new Date(now.year, now.month - 1, now.day + 1);
+            date = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+        }
+    }
+
+    select(date, h, m);
+    nextTick(() => {
+        centerInScrollParent(hourEl.value);
+        centerInScrollParent(minuteEl.value);
+    });
+};
+
+/** Done in live mode just dismisses; Apply in confirm mode is THE commit. */
+const done = () => {
+    if (props.confirm && selDate.value !== null) {
+        commit();
+    }
+
+    open.value = false;
+};
+
+// Mobile-first hit areas: ~40px tall touch rows (44px incl. gap), compact
+// squares from `sm:` up. touch-manipulation kills the 300ms tap delay.
 const timeBtn = (active: boolean) =>
     cn(
         buttonVariants({
             variant: active ? 'default' : 'ghost',
             size: 'icon-sm',
         }),
-        'sm:w-full aspect-square shrink-0',
+        'h-10 w-12 sm:h-8 sm:w-full shrink-0 touch-manipulation',
     );
 
 // Reveal the selected hour/minute in their scroll columns when the popover opens.
@@ -142,14 +220,14 @@ const hourEl = ref<HTMLElement | null>(null);
 const minuteEl = ref<HTMLElement | null>(null);
 
 const hourRef = (el: unknown, h: number) => {
-    const active = props.hour12 ? displayHour.value === h : hour24.value === h;
+    const active = props.hour12 ? displayHour.value === h : selHour.value === h;
 
     if (active && el) {
         hourEl.value = el as HTMLElement;
     }
 };
 const minuteRef = (el: unknown, m: number) => {
-    if (minute.value === m && el) {
+    if (selMinute.value === m && el) {
         minuteEl.value = el as HTMLElement;
     }
 };
@@ -177,11 +255,17 @@ const centerInScrollParent = (el: HTMLElement | null) => {
 };
 
 watch(open, (isOpen) => {
-    if (isOpen && datePart.value != null) {
-        nextTick(() => {
-            centerInScrollParent(hourEl.value);
-            centerInScrollParent(minuteEl.value);
-        });
+    if (isOpen) {
+        // (Re)seed the draft from the committed value — an abandoned confirm
+        // draft must not leak into the next opening.
+        seedFromValue();
+
+        if (selDate.value != null) {
+            nextTick(() => {
+                centerInScrollParent(hourEl.value);
+                centerInScrollParent(minuteEl.value);
+            });
+        }
     }
 });
 </script>
@@ -206,7 +290,7 @@ watch(open, (isOpen) => {
             :class="
                 cn(
                     buttonVariants({ variant: 'outline' }),
-                    'font-normal w-full justify-start text-left',
+                    'font-normal w-full touch-manipulation justify-start text-left',
                     !value && 'text-muted-foreground',
                 )
             "
@@ -220,83 +304,130 @@ watch(open, (isOpen) => {
                 :side-offset="4"
                 class="p-0 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-[var(--kinetix-z-popover,120)] w-auto rounded-md border border-border bg-popover outline-none"
             >
-                <div class="sm:flex">
-                    <KinetixCalendar
-                        class="border-0"
-                        :value="datePart"
-                        :locale="locale"
-                        @update:value="onDateSelect"
-                    />
-                    <div
-                        class="sm:border-t-0 sm:border-l flex h-[260px] divide-x divide-border border-t border-border"
-                    >
-                        <!-- Hours -->
-                        <ScrollArea class="h-full" type="always">
-                            <div class="gap-1 p-2 flex flex-col">
-                                <button
-                                    v-for="h in hours"
-                                    :key="`h-${h}`"
-                                    :ref="(el) => hourRef(el, h)"
-                                    type="button"
-                                    :class="
-                                        timeBtn(
-                                            datePart != null &&
-                                                (hour12
-                                                    ? displayHour === h
-                                                    : hour24 === h),
-                                        )
-                                    "
-                                    @click="
-                                        hour12 ? setHour12(h) : setHour24(h)
-                                    "
-                                >
-                                    {{ pad(h) }}
-                                </button>
-                            </div>
-                        </ScrollArea>
-                        <!-- Minutes -->
-                        <ScrollArea class="h-full" type="always">
-                            <div class="gap-1 p-2 flex flex-col">
-                                <button
-                                    v-for="m in minutes"
-                                    :key="`m-${m}`"
-                                    :ref="(el) => minuteRef(el, m)"
-                                    type="button"
-                                    :class="
-                                        timeBtn(
-                                            datePart != null && minute === m,
-                                        )
-                                    "
-                                    @click="setMinute(m)"
-                                >
-                                    {{ pad(m) }}
-                                </button>
-                            </div>
-                        </ScrollArea>
-                        <!-- AM/PM (12h only) -->
-                        <ScrollArea v-if="hour12" class="h-full">
-                            <div class="gap-1 p-2 flex flex-col">
-                                <button
-                                    v-for="meridiem in ['AM', 'PM']"
-                                    :key="meridiem"
-                                    type="button"
-                                    :class="
-                                        timeBtn(
-                                            datePart != null &&
-                                                ((meridiem === 'AM' && !isPm) ||
-                                                    (meridiem === 'PM' &&
-                                                        isPm)),
-                                        )
-                                    "
-                                    @click="
-                                        setMeridiem(meridiem as 'AM' | 'PM')
-                                    "
-                                >
-                                    {{ meridiem }}
-                                </button>
-                            </div>
-                        </ScrollArea>
+                <!-- Stacked on mobile the panel can exceed the viewport, so it
+                     caps at 80dvh and scrolls internally instead of clipping. -->
+                <div
+                    class="sm:max-h-none sm:overflow-visible max-h-[min(80dvh,560px)] overflow-y-auto"
+                >
+                    <div class="sm:flex">
+                        <KinetixCalendar
+                            class="border-0"
+                            :value="selDate"
+                            :timezone="timezone"
+                            :locale="locale"
+                            @update:value="onDateSelect"
+                        />
+                        <div
+                            class="sm:border-t-0 sm:border-l flex h-[260px] divide-x divide-border border-t border-border"
+                        >
+                            <!-- Hours -->
+                            <ScrollArea
+                                class="h-full"
+                                type="always"
+                                :aria-label="t('kinetix.picker_hours')"
+                            >
+                                <div class="gap-1 p-2 flex flex-col">
+                                    <button
+                                        v-for="h in hours"
+                                        :key="`h-${h}`"
+                                        :ref="(el) => hourRef(el, h)"
+                                        type="button"
+                                        :aria-pressed="
+                                            selDate != null &&
+                                            (hour12
+                                                ? displayHour === h
+                                                : selHour === h)
+                                        "
+                                        :class="
+                                            timeBtn(
+                                                selDate != null &&
+                                                    (hour12
+                                                        ? displayHour === h
+                                                        : selHour === h),
+                                            )
+                                        "
+                                        @click="
+                                            hour12 ? setHour12(h) : setHour24(h)
+                                        "
+                                    >
+                                        {{ pad(h) }}
+                                    </button>
+                                </div>
+                            </ScrollArea>
+                            <!-- Minutes -->
+                            <ScrollArea
+                                class="h-full"
+                                type="always"
+                                :aria-label="t('kinetix.picker_minutes')"
+                            >
+                                <div class="gap-1 p-2 flex flex-col">
+                                    <button
+                                        v-for="m in minutes"
+                                        :key="`m-${m}`"
+                                        :ref="(el) => minuteRef(el, m)"
+                                        type="button"
+                                        :aria-pressed="
+                                            selDate != null && selMinute === m
+                                        "
+                                        :class="
+                                            timeBtn(
+                                                selDate != null &&
+                                                    selMinute === m,
+                                            )
+                                        "
+                                        @click="setMinute(m)"
+                                    >
+                                        {{ pad(m) }}
+                                    </button>
+                                </div>
+                            </ScrollArea>
+                            <!-- AM/PM (12h only) -->
+                            <ScrollArea v-if="hour12" class="h-full">
+                                <div class="gap-1 p-2 flex flex-col">
+                                    <button
+                                        v-for="meridiem in ['AM', 'PM']"
+                                        :key="meridiem"
+                                        type="button"
+                                        :aria-pressed="
+                                            selDate != null &&
+                                            ((meridiem === 'AM' && !isPm) ||
+                                                (meridiem === 'PM' && isPm))
+                                        "
+                                        :class="
+                                            timeBtn(
+                                                selDate != null &&
+                                                    ((meridiem === 'AM' &&
+                                                        !isPm) ||
+                                                        (meridiem === 'PM' &&
+                                                            isPm)),
+                                            )
+                                        "
+                                        @click="
+                                            setMeridiem(meridiem as 'AM' | 'PM')
+                                        "
+                                    >
+                                        {{ meridiem }}
+                                    </button>
+                                </div>
+                            </ScrollArea>
+                        </div>
                     </div>
+                </div>
+
+                <!-- Footer: Now preset + explicit dismiss/commit -->
+                <div
+                    class="gap-2 p-2 flex items-center justify-between border-t border-border"
+                >
+                    <KinetixButton variant="ghost" size="sm" @click="setNow">
+                        {{ t('kinetix.picker_now') }}
+                    </KinetixButton>
+                    <KinetixButton size="sm" @click="done">
+                        {{
+                            confirm
+                                ? t('kinetix.apply')
+                                : t('kinetix.picker_done')
+                        }}
+                    </KinetixButton>
                 </div>
             </PopoverContent>
         </PopoverPortal>

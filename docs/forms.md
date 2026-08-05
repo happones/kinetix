@@ -516,7 +516,8 @@ DatePicker::make('published_at')->native();              // native input
 DateTimePicker::make('scheduled_at')
     ->label('Schedule Release')
     ->minuteStep(15)     // 15-minute increments
-    ->twelveHour();      // 12h clock with an AM/PM column
+    ->twelveHour()       // 12h clock with an AM/PM column
+    ->confirm();         // commit only via the Apply button (draft until then)
 ```
 
 | Method | Applies to | Description |
@@ -525,6 +526,54 @@ DateTimePicker::make('scheduled_at')
 | `->locale(string)` | both | BCP-47 calendar locale (`'es'`, `'fr'`, `'en-US'`) — **defaults to the application locale** (`app()->getLocale()`, `es_MX` → `es-MX`); also the default for `MonthPicker`/`WeekPicker`/`DateRangePicker` calendars and `NumberField` number formatting |
 | `->minuteStep(int)` | DateTimePicker | Minute granularity for the time column (default 5) |
 | `->twelveHour()` | DateTimePicker | 12-hour clock with an AM/PM column |
+| `->confirm()` | both | Explicit-commit variant: clicks build a **draft** inside the popover, the footer button becomes **Apply** (the only thing that emits), and dismissing any other way (outside click / Escape) discards the draft |
+| `->todayButton()` | DatePicker | Show a **Today** shortcut in a popover footer |
+| `->closeOnSelect(bool)` | DatePicker | Whether picking a date closes the popover (default `true` — the shadcn behavior); pass `false` to keep it open |
+
+#### Timezones: `app.timezone` by default, per-field override
+
+Picker values are **naive wall-time strings** (`Y-m-d`, `H:i`, `Y-m-dTH:i`)
+whose implicit timezone is Laravel's **`app.timezone`** — exactly what
+`Carbon::parse()` assumes when the value reaches the server. Everything that
+computes "now" client-side honors that: the **Today/Now presets** and the
+calendar's initial month read the clock **in the app timezone** (shared via
+`kinetix_config.timezone`), never the browser's — a viewer in Madrid using a
+Mexico City app gets Mexico City's today/now, not their own.
+
+Override it per field when one input means a different zone:
+
+```php
+DateTimePicker::make('scheduled_at')->timezone('America/Mexico_City');
+TimePicker::make('opens_at')->timezone('Asia/Tokyo');
+DatePicker::make('published_at')->timezone('UTC');
+```
+
+The standalone Vue components accept the same `timezone` prop (an IANA name);
+without it they use the shared app timezone, and outside an Inertia app they
+fall back to the browser clock. Invalid names never throw — they fall back
+too.
+
+> **What this is (and isn't).** The field stores wall time in the effective
+> timezone; with the default (`app.timezone`) that round-trips into Carbon and
+> your database with no conversion at all. A per-field `->timezone()` means
+> "this input's wall time is in *that* zone" — if it differs from
+> `app.timezone`, convert on save
+> (`Carbon::parse($value, 'Asia/Tokyo')->setTimezone(config('app.timezone'))`).
+> The pickers deliberately do **not** silently convert values between zones.
+
+#### Close behavior & the footer, by design
+
+- **`DatePicker` closes on select** (one decision = done — the shadcn default),
+  and shows no footer unless you opt into `->todayButton()` or `->confirm()`.
+- **`DateTimePicker` deliberately does NOT close on date select** — a time is
+  still pending. It always shows a footer: **Now** (current date + time,
+  rounded to `minuteStep`) and **Done**, the explicit dismissal a multi-part
+  picker needs (never rely on outside-click alone). Live mode commits every
+  click as it happens; `->confirm()` turns Done into **Apply** and defers the
+  commit to it.
+- On mobile the panel stacks (calendar above the time columns), caps at
+  `80dvh` with internal scrolling, and the time buttons grow to touch-size
+  (~40px rows) — desktop keeps the compact `sm:` layout.
 
 ---
 
@@ -543,7 +592,12 @@ TimePicker::make('opens_at');                       // 12h + AM/PM (default)
 TimePicker::make('opens_at')->twentyFourHour();     // 24h clock
 TimePicker::make('opens_at')->minuteStep(15);       // 15-minute increments
 TimePicker::make('opens_at')->native();             // native <input type="time">
+TimePicker::make('opens_at')->confirm();            // commit only via Apply
 ```
+
+Like `DateTimePicker`, the popover has a footer: **Now** (current time rounded
+to `minuteStep`) and **Done** — or **Apply** with `->confirm()`, which defers
+the commit to that button and discards the draft on any other dismissal.
 
 ---
 

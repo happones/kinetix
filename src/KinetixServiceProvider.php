@@ -1918,6 +1918,10 @@ class KinetixServiceProvider extends ServiceProvider
             return [
                 'database'     => (bool) config('kinetix.notifications.database', false),
                 'route_prefix' => $routePrefix,
+                // Laravel's app timezone — the implicit timezone of every naive
+                // date/time string the pickers produce. Their Today/Now presets
+                // ask the clock HERE, never in the browser's timezone.
+                'timezone' => (string) config('app.timezone', 'UTC'),
                 // The resolved team route key on its own, so the app can build
                 // its OWN team-prefixed links (useKinetixTeams().teamUrl()) —
                 // route_prefix is Kinetix's internal endpoint base, not a

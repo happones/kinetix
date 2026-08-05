@@ -86,6 +86,14 @@ class FormFieldData extends Data
         public ?string $dateLocale = null,
         public int $minuteStep = 5,
         public bool $hour12 = false,
+        /** Date/time pickers: commit only via the Apply button (draft until then). */
+        public bool $confirm = false,
+        /** DatePicker: show a Today shortcut in the popover footer. */
+        public bool $showToday = false,
+        /** DatePicker: whether picking a date closes the popover. */
+        public bool $closeOnSelect = true,
+        /** Date/time pickers: IANA timezone the Today/Now presets read the clock in. */
+        public ?string $timezone = null,
         // Native-style range bounds (date/month/week/year pickers).
         public ?string $minValue = null,
         public ?string $maxValue = null,

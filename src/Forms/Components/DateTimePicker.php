@@ -21,12 +21,39 @@ class DateTimePicker extends Field
         return 'datetime-picker';
     }
 
+    protected bool $confirm = false;
+
+    protected ?string $pickerTimezone = null;
+
+    /**
+     * IANA timezone the Now preset reads the clock in. Defaults to Laravel's
+     * `app.timezone` — the implicit timezone of every naive value this field
+     * stores.
+     */
+    public function timezone(string $timezone): static
+    {
+        $this->pickerTimezone = $timezone;
+
+        return $this;
+    }
+
     /**
      * Use a 12-hour clock with an AM/PM column instead of 24-hour.
      */
     public function twelveHour(bool $condition = true): static
     {
         $this->hour12 = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Commit only via an explicit Apply button: calendar/time clicks update a
+     * DRAFT inside the popover; dismissing without applying discards it.
+     */
+    public function confirm(bool $condition = true): static
+    {
+        $this->confirm = $condition;
 
         return $this;
     }
@@ -62,7 +89,7 @@ class DateTimePicker extends Field
     }
 
     /**
-     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool}
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, timezone: string}
      */
     protected function dateConfig(): array
     {
@@ -71,6 +98,8 @@ class DateTimePicker extends Field
             'locale'      => $this->dateLocale ?? KinetixLocale::bcp47(),
             'minuteStep'  => $this->minuteStep,
             'hour12'      => $this->hour12,
+            'confirm'     => $this->confirm,
+            'timezone'    => $this->pickerTimezone ?? (string) config('app.timezone', 'UTC'),
         ];
     }
 }

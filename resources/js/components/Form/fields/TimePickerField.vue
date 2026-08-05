@@ -15,6 +15,8 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :disabled="comp.isDisabled"
         :minute-step="comp.minuteStep"
         :hour12="comp.hour12"
+        :confirm="comp.confirm"
+        :timezone="comp.timezone"
         @update:value="emit('update', $event)"
     />
     <input

@@ -12,6 +12,7 @@ import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
+import { useKinetixTimezone, zonedNow } from '@/composables/useKinetixTimezone';
 import { cn } from './primitives/cn';
 
 /**
@@ -49,7 +50,9 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const selectedYear = computed(() => Number(props.value?.slice(0, 4)) || null);
 const selectedMonth = computed(() => Number(props.value?.slice(5, 7)) || null);
 
-const viewYear = ref(selectedYear.value ?? new Date().getFullYear());
+const viewYear = ref(
+    selectedYear.value ?? zonedNow(useKinetixTimezone().value).year,
+);
 watch(
     () => props.value,
     () => {

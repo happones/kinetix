@@ -65,6 +65,8 @@ export interface KinetixConfig {
     team_id: string | number | null;
     /** Database-mode fallback poll interval in ms (0 = polling off). */
     poll: number;
+    /** Laravel's app timezone — implicit timezone of naive picker values. */
+    timezone?: string | null;
     sound: { enabled: boolean; path: string };
     broadcasting: Record<string, unknown> | null;
 }
@@ -867,6 +869,14 @@ export interface KinetixTableFilter {
     maxValue?: string | null;
     minuteStep?: number;
     hour12?: boolean;
+    /** Date/time pickers: commit only via the Apply button (draft until then). */
+    confirm?: boolean;
+    /** DatePicker: show a Today shortcut in the popover footer. */
+    showToday?: boolean;
+    /** DatePicker: whether picking a date closes the popover (default true). */
+    closeOnSelect?: boolean;
+    /** Date/time pickers: IANA timezone the Today/Now presets read the clock in. */
+    timezone?: string | null;
     isSearchable?: boolean;
     searchToken?: string | null;
     weekStartsOn?: number | null;

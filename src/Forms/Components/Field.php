@@ -409,6 +409,10 @@ abstract class Field extends Component
             dateLocale: $this->dateConfig()['locale'],
             minuteStep: $this->dateConfig()['minuteStep'],
             hour12: $this->dateConfig()['hour12'],
+            confirm: (bool) ($this->dateConfig()['confirm'] ?? false),
+            showToday: (bool) ($this->dateConfig()['showToday'] ?? false),
+            closeOnSelect: (bool) ($this->dateConfig()['closeOnSelect'] ?? true),
+            timezone: $this->dateConfig()['timezone'] ?? null,
             isRequired: in_array('required', $this->getRules($record), true),
             minValue: $this->minValue,
             maxValue: $this->maxValue,
@@ -420,9 +424,10 @@ abstract class Field extends Component
     }
 
     /**
-     * Date/DateTime picker configuration. Overridden by DatePicker/DateTimePicker.
+     * Date/DateTime picker configuration. Overridden by DatePicker/DateTimePicker/
+     * TimePicker, which add the optional behavior keys.
      *
-     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool}
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm?: bool, showToday?: bool, closeOnSelect?: bool, timezone?: string}
      */
     protected function dateConfig(): array
     {

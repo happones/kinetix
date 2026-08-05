@@ -13,6 +13,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.141.0] - 2026-08-05
+
+The date/time pickers grow up: an explicit-commit `confirm` variant, Today/Now
+presets, a real way to dismiss the multi-part pickers, touch-sized mobile
+targets — and every "now" they compute finally respects Laravel's
+`app.timezone` instead of the browser clock, overridable per field.
+
+### Added
+
+- ⚠️ **(published) `DateTimePicker`/`TimePicker` popovers gain a footer: Now +
+  Done.** Picking a date in the datetime picker deliberately never closed the
+  popover (a time is still pending), but the only dismissal was an outside
+  click. **Done** is the explicit dismissal; **Now** jumps to the current
+  date/time rounded to `minuteStep` (carrying minutes into the hour, and past
+  midnight into the date).
+- **`->confirm()` — the explicit-commit variant** on `DatePicker`,
+  `DateTimePicker` and `TimePicker` (and a `confirm` prop on the Vue
+  components): every click builds a **draft** inside the popover, the footer
+  button becomes **Apply** — the only thing that emits — and dismissing any
+  other way (outside click / Escape) discards the draft. A test pins that an
+  abandoned draft never leaks into the next opening.
+- **`DatePicker->todayButton()`** (Today shortcut in a footer) and
+  **`->closeOnSelect(false)`** (keep the popover open after picking — the
+  default stays the shadcn close-on-select).
+- **Timezone correctness (`app.timezone`) with per-field override.** Picker
+  values are naive wall-time strings whose implicit timezone is Laravel's
+  `app.timezone` — but Today/Now (and the calendar's initial month, and the
+  Month/Year pickers' initial view) computed "now" with the **browser clock**:
+  a viewer in Madrid using a Mexico City app got presets shifted by hours, or
+  the wrong day around midnight. Kinetix now shares `app.timezone` via
+  `kinetix_config.timezone`, a new `zonedNow`/`zonedTodayIso` helper
+  (`useKinetixTimezone.ts`, Intl-based, DST-correct, never throws) reads the
+  clock in the **effective timezone** — per-field `->timezone('Asia/Tokyo')`
+  (or the Vue `timezone` prop) → `app.timezone` → browser fallback. The
+  pickers deliberately do **not** convert values between zones; the semantics
+  are documented in [Forms → Timezones](docs/forms.md).
+
+### Changed
+
+- ⚠️ **(published) Mobile touch targets + a11y on the time columns.**
+  Hour/minute/AM-PM buttons grow to ~40px rows on mobile (compact `sm:`
+  squares on desktop), triggers and buttons get `touch-manipulation` (no
+  300ms tap delay), the stacked datetime panel caps at `80dvh` with internal
+  scrolling instead of clipping, and the columns gain `aria-label`s with
+  `aria-pressed` on every option. Re-publish components.
+
 ## [0.140.0] - 2026-08-05
 
 Roles & membership hardening: the member-invite picker can finally offer the

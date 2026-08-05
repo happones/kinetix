@@ -63,8 +63,35 @@ class TimePicker extends Field
         return $this;
     }
 
+    protected bool $confirm = false;
+
+    protected ?string $pickerTimezone = null;
+
     /**
-     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool}
+     * IANA timezone the Now preset reads the clock in. Defaults to Laravel's
+     * `app.timezone` — the implicit timezone of every naive value this field
+     * stores.
+     */
+    public function timezone(string $timezone): static
+    {
+        $this->pickerTimezone = $timezone;
+
+        return $this;
+    }
+
+    /**
+     * Commit only via an explicit Apply button: column clicks update a DRAFT
+     * inside the popover; dismissing without applying discards it.
+     */
+    public function confirm(bool $condition = true): static
+    {
+        $this->confirm = $condition;
+
+        return $this;
+    }
+
+    /**
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, timezone: string}
      */
     protected function dateConfig(): array
     {
@@ -73,6 +100,8 @@ class TimePicker extends Field
             'locale'      => null,
             'minuteStep'  => $this->minuteStep,
             'hour12'      => $this->hour12,
+            'confirm'     => $this->confirm,
+            'timezone'    => $this->pickerTimezone ?? (string) config('app.timezone', 'UTC'),
         ];
     }
 }

@@ -12,6 +12,7 @@ import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
+import { useKinetixTimezone, zonedNow } from '@/composables/useKinetixTimezone';
 import { cn } from './primitives/cn';
 
 /**
@@ -47,7 +48,10 @@ const PAGE = 12;
 const selectedYear = computed(() => Number(props.value) || null);
 // Start the page on the decade containing the selected/current year.
 const pageStart = ref(
-    Math.floor((selectedYear.value ?? new Date().getFullYear()) / PAGE) * PAGE,
+    Math.floor(
+        (selectedYear.value ?? zonedNow(useKinetixTimezone().value).year) /
+            PAGE,
+    ) * PAGE,
 );
 watch(
     () => props.value,
