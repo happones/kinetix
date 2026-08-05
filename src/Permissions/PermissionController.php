@@ -136,6 +136,13 @@ class PermissionController
             $isGlobal ? null : $this->currentTeamId(),
             function () use ($name, $permissions): Role {
                 $role = $this->roleModel()::create(['name' => $name, 'guard_name' => $this->guard()]);
+
+                // spatie types create() as RoleContract|Role; the configured
+                // model must be an Eloquent Role for everything downstream.
+                if (! $role instanceof Role) {
+                    throw new \RuntimeException('The configured role model must extend '.Role::class);
+                }
+
                 $role->syncPermissions($permissions);
 
                 return $role;
@@ -148,6 +155,11 @@ class PermissionController
     /**
      * Run a callback with spatie's team id pinned (and restored after), so a
      * super-admin can create a GLOBAL role from inside a team context.
+     *
+     * @template TReturn
+     *
+     * @param  callable(): TReturn $callback
+     * @return TReturn
      */
     protected function withTeamId(int|string|null $teamId, callable $callback): mixed
     {
