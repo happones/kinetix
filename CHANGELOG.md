@@ -13,6 +13,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.140.0] - 2026-08-05
+
+Roles & membership hardening: the member-invite picker can finally offer the
+same roles the Roles UI manages (global + team custom), super-admins can create
+global roles from the editor, several guardrail and state-machine holes are
+closed, the members list reaches the package's UI standard, and the docs now
+cover the whole roles journey — spatie install to server-side enforcement.
+
+### Added
+
+- **`AssignableRoles` — the DB-backed allow-list resolver membership was
+  missing.** Point `kinetix.membership.assignable_roles` at
+  `Happones\Kinetix\Permissions\AssignableRoles::class` and the invite picker
+  offers the roles actually visible in the team — **the team's own roles PLUS
+  global (team-NULL) ones**, minus protected roles — matching the Roles UI's
+  visibility rule instead of a hardcoded config list. `::names($teamId,
+  except: [...])` withholds extra names; `::query($teamId)` exposes the raw
+  scope. The previously documented recipe (`where('team_id', $teamId)`)
+  silently dropped every global role, including the seeder presets — docs and
+  skill now show the correct shape.
+- ⚠️ **(published) Super-admins can create GLOBAL roles from the role editor.**
+  The create form gains a "Global role (all teams)" toggle (super-admin only —
+  anyone else sending `global: true` gets a 403); the role is created with a
+  NULL team id. A role's team still never changes after creation.
+- **Deleting a role in use is now blocked** (422) with the member count in the
+  message; the delete dialog shows a warning with the count before you try.
+  Previously the pivot rows cascaded away and members silently lost access.
+
+### Fixed
+
+- **`usersCount` no longer leaks cross-tenant totals.** Role member counts are
+  scoped to the current team's assignments (plus global ones) — a global role
+  showed the sum across every team in all three role UIs.
+- **The permission guard now checks the DELTA, both directions.** A limited
+  manager could strip abilities they don't hold from a more privileged role
+  (or rename any role); `update` now requires the actor to hold every
+  permission being **added or removed** (renames with no permission changes
+  stay allowed).
+- **Membership state machine:** role changes and resends on a REVOKED
+  provision are rejected (422) — `update()` used to silently re-grant a role
+  to a revoked member, and `resend()` could resurrect an active provision into
+  a duplicate-user crash at activation.
+- **Role assignment now pins spatie's team id whenever `permission.teams` is
+  on** — `withTeam()` keyed off Kinetix's membership flag, so
+  `membership.teams=false` + `permission.teams=true` assigned roles under a
+  stale/undefined registrar value (the public activation route has no team
+  middleware). `kinetix:doctor` also warns when the membership and permissions
+  team flags disagree.
+- ⚠️ **(published) `KinetixRoleManager` honors `isGlobal`** — the legacy
+  manager showed Edit/Delete on global roles to non-super-admins (toast-only
+  403) and had no Global badge; it now mirrors the matrix/overview gating.
+- **(published) `useKinetixCan` no longer throws outside a mounted Inertia
+  app** (component tests, SSR edges) — it denies instead.
+
+### Changed
+
+- ⚠️ **(published) `KinetixMemberList` reaches the package UI standard:**
+  `KinetixButton` with per-row pending spinners (double-click safe),
+  confirmation dialog on Remove, aria-labels carrying the member's email on
+  every row control, truncating stacked name/email, read-only role on revoked
+  rows, loading skeleton, client-side search + bounded rendering ("Show
+  more"), and the provisioner defaults its role once the async allow-list
+  arrives (submitting only an email was a silent no-op) with a pending submit
+  button.
+- **Docs — the full roles journey** (`permissions.md`): spatie install +
+  `HasRoles` as explicit setup steps, a "Bootstrap your first admin" section
+  (no more locking yourself out of the roles page), a new **"Enforcing on the
+  server"** section (registered ≠ enforced — middleware / policies / Gate,
+  the biggest security misunderstanding the old docs invited), the
+  "permissions from code, roles from the DB" contract stated outright,
+  refreshed config blocks (tri-state `teams`, `protected_roles`, discovery)
+  and cross-links. `membership.md` adds mail prerequisites (the activation
+  notification is `ShouldQueue` — **without a worker no invite is ever
+  sent**), the members page route + activation page path, route names for
+  rate limiting, and the existing-user role-assignment recipe.
+
 ## [0.139.0] - 2026-08-05
 
 ### Fixed
