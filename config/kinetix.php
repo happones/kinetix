@@ -181,6 +181,18 @@ return [
 
         'limit' => env('KINETIX_NOTIFICATIONS_LIMIT', 15),
 
+        // Database-mode fallback poll interval in milliseconds (0 disables it).
+        // Without Echo this is what makes new notifications appear (badge +
+        // toast) without a page navigation; with Echo it's redundant but
+        // harmless (partial reloads only).
+        'poll' => env('KINETIX_NOTIFICATIONS_POLL', 30000),
+
+        // Scope the bell per team: true/false wins, null inherits the global
+        // `kinetix.teams` switch. When on, the list shows only notifications
+        // stamped with the active team (Notification::team(), auto-stamped by
+        // the import/export jobs) plus unstamped global ones.
+        'teams' => env('KINETIX_NOTIFICATIONS_TEAMS'),
+
         'sound' => [
             'enabled' => env('KINETIX_NOTIFICATIONS_SOUND', true),
             'path'    => env('KINETIX_NOTIFICATIONS_SOUND_PATH', '/vendor/kinetix/notification.wav'),

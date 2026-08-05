@@ -64,6 +64,8 @@ return [
         'database'  => env('KINETIX_DATABASE_NOTIFICATIONS', false),
         'broadcast' => env('KINETIX_NOTIFICATIONS_BROADCAST', false),
         'limit'     => env('KINETIX_NOTIFICATIONS_LIMIT', 15),
+        'poll'      => env('KINETIX_NOTIFICATIONS_POLL', 30000),
+        'teams'     => env('KINETIX_NOTIFICATIONS_TEAMS'),
         'sound'    => [
             'enabled' => env('KINETIX_NOTIFICATIONS_SOUND', true),
             'path'    => env('KINETIX_NOTIFICATIONS_SOUND_PATH', '/vendor/kinetix/notification.wav'),
@@ -97,6 +99,8 @@ return [
 | `notifications.database` | `false` | Persist notifications to the database via Laravel's `database` channel |
 | `notifications.broadcast` | `false` | Broadcast system notifications (export/import done, etc.) in real time. Drives `Notification::shouldBroadcast()`; enable it (env `KINETIX_NOTIFICATIONS_BROADCAST`) when you wired up Echo/Reverb yourself instead of filling the `broadcasting.echo` block |
 | `notifications.limit` | `15` | Max unread notifications loaded per page request |
+| `notifications.poll` | `30000` | Database-mode fallback poll interval in **ms** (`0` disables). Without Echo, this is what makes new notifications appear — badge update **and** toast/sound for genuinely new unread items — without a page navigation. With Echo it's redundant but harmless (partial reloads only) |
+| `notifications.teams` | `null` | Scope the bell per team: `true`/`false` wins, `null` inherits the global `kinetix.teams` switch (see [Team-scoped notifications](#team-scoped-notifications)) |
 | `notifications.sound.enabled` | `true` | Play audio alert for incoming real-time notifications |
 | `notifications.sound.path` | `/vendor/kinetix/notification.wav` | Path to the audio file |
 | `broadcasting.echo` | `null` | Echo config for real-time WebSocket support |
@@ -144,6 +148,7 @@ Each is a shortcut for `->status('success'|'warning'|'danger'|'info')`, so you c
 | `->icon(?string)` | Icon name from `@lucide/vue` | `null` |
 | `->iconColor(?string)` | Color of the notification icon | `null` |
 | `->actions(array)` | Attach `Action` buttons/links (see [Actions](#actions)) | `[]` |
+| `->team(int\|string\|null)` | Stamp the team the notification belongs to (see [Team-scoped notifications](#team-scoped-notifications)) | `null` |
 
 ```php
 Notification::make()
@@ -202,6 +207,54 @@ Notification::make()
 ```
 
 This sends the notification to the `database` **and** `broadcast` channels simultaneously.
+
+### Polling (database-mode fallback)
+
+Without Echo, database notifications used to appear only on the next page
+navigation. The bell now **polls** on an interval (a partial Inertia reload of
+`kinetix_notifications` only) whenever database mode is on:
+
+- Configure with `kinetix.notifications.poll` (**milliseconds**, default
+  `30000`; `0` disables it). `usePoll` pauses in background tabs automatically.
+- A genuinely **new unread** notification found by a poll triggers the toast +
+  sound, exactly like a broadcast arrival. The initial page load stays silent —
+  persisted rows are old news.
+- If you run Echo/Reverb, polling is redundant; set
+  `KINETIX_NOTIFICATIONS_POLL=0` or just leave it (the reloads are cheap and
+  broadcast arrivals are deduplicated — nothing toasts twice).
+
+### Team-scoped notifications
+
+Route prefixing alone is **not** data isolation — team scoping filters the
+actual list. It follows the suite's tri-state convention:
+`kinetix.notifications.teams` set to `true`/`false` wins, `null` (default)
+inherits the global `kinetix.teams` switch.
+
+When on:
+
+- **Stamping:** `Notification::team($key)` stamps a team PRIMARY key into the
+  payload. Use `KinetixTeams::keyFor('notifications')` to resolve it — and
+  capture it **at dispatch time** when sending from a queued job (the worker
+  has no request). The built-in import/export jobs already do this
+  automatically.
+- **Filtering:** the bell lists only notifications stamped with the active team
+  **plus unstamped (global) ones** — so `team(null)` deliberately means
+  "visible in every team".
+- **Broadcast:** the Echo channel stays per-user (`App.Models.User.{id}` —
+  notifications are personal), so a notification for another team still
+  arrives at the socket; the component suppresses its toast/sound when the
+  stamp doesn't match the active team, and the server-filtered list ignores it.
+
+```php
+use Happones\Kinetix\Notifications\Notification;
+use Happones\Kinetix\Support\KinetixTeams;
+
+Notification::make()
+    ->title('Invoice approved')
+    ->team(KinetixTeams::keyFor('notifications'))
+    ->success()
+    ->sendToDatabase($user);
+```
 
 ---
 
@@ -287,7 +340,9 @@ Uncomment the `broadcasting.echo` section and fill in your credentials:
 
 ### 2. Install `@laravel/echo-vue`
 
-The host Laravel project must have `@laravel/echo-vue` installed (comes pre-installed in the Laravel starter kits):
+The host Laravel project must have `@laravel/echo-vue` installed —
+`kinetix:install` adds it automatically (the notifications component imports it
+at build time). If you skipped the installer:
 
 ```bash
 npm install @laravel/echo-vue

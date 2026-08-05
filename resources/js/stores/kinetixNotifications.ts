@@ -157,17 +157,40 @@ export const useNotificationsStore = defineStore('kinetixNotifications', () => {
         }
 
         if (isDatabaseMode.value) {
-            notifications.value = newNotifs.map((notif: any) => ({
-                id: notif.id,
-                title: notif.title,
-                description: notif.description,
-                status: notif.status || 'info',
-                duration: notif.duration,
-                created_at: notif.created_at,
-                read: notif.read ?? false,
-                actions: notif.actions || [],
-                type: notif.type,
-            }));
+            const mapped: KinetixNotification[] = newNotifs.map(
+                (notif: any) => ({
+                    id: notif.id,
+                    title: notif.title,
+                    description: notif.description,
+                    status: notif.status || 'info',
+                    duration: notif.duration,
+                    created_at: notif.created_at,
+                    read: notif.read ?? false,
+                    actions: notif.actions || [],
+                    type: notif.type,
+                    team: notif.team,
+                }),
+            );
+
+            // Toast items that appeared since the last sync (polling / partial
+            // reloads / broadcast-triggered refresh). The initial page load is
+            // deliberately silent — persisted rows are old news. Broadcast
+            // arrivals pre-register their id in `seenNotificationIds`, so they
+            // don't toast twice.
+            if (isInitialized.value) {
+                mapped.forEach((notif) => {
+                    if (
+                        !notif.read &&
+                        !seenNotificationIds.value.has(notif.id)
+                    ) {
+                        triggerToast(notif);
+                        playNotificationSound();
+                    }
+                });
+            }
+
+            mapped.forEach((notif) => seenNotificationIds.value.add(notif.id));
+            notifications.value = mapped;
 
             return;
         }

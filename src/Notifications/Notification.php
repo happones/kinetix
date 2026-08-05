@@ -28,6 +28,8 @@ class Notification
 
     protected mixed $recipient = null;
 
+    protected int|string|null $team = null;
+
     public function __construct()
     {
         $this->id = uniqid('kinetix_', true);
@@ -47,6 +49,19 @@ class Notification
     public function to(mixed $recipient): static
     {
         $this->recipient = $recipient;
+
+        return $this;
+    }
+
+    /**
+     * Stamp the team this notification belongs to (its PRIMARY key, e.g. from
+     * `KinetixTeams::keyFor('notifications')`). When notifications are
+     * team-scoped, the bell only lists notifications stamped with the active
+     * team — an unstamped (null) notification is global and shows everywhere.
+     */
+    public function team(int|string|null $team): static
+    {
+        $this->team = $team;
 
         return $this;
     }
@@ -206,6 +221,7 @@ class Notification
             iconColor: $this->iconColor,
             actions: $actionsData,
             created_at: now()->toIso8601String(),
+            team: $this->team,
         );
     }
 

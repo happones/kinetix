@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { usePage, router } from '@inertiajs/vue3';
+import { usePage, router, usePoll } from '@inertiajs/vue3';
 import { useEchoNotification } from '@laravel/echo-vue';
 import { storeToRefs } from 'pinia';
 import { computed, watch, onMounted, onUnmounted } from 'vue';
 import { useNotificationsStore } from '@/stores/kinetixNotifications';
-import type { KinetixAction, KinetixNotification } from '@/types/kinetix';
+import type {
+    KinetixAction,
+    KinetixNotification,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 import KinetixNotificationDrawer from './KinetixNotificationDrawer.vue';
 import KinetixNotificationTrigger from './KinetixNotificationTrigger.vue';
 
@@ -20,7 +24,7 @@ const props = withDefaults(
     },
 );
 
-const page = usePage();
+const page = usePage<KinetixSharedProps>();
 const store = useNotificationsStore();
 const {
     notifications,
@@ -53,12 +57,28 @@ const onBroadcastNotification = (notification: Record<string, unknown>) => {
             (notification.created_at as string) ?? new Date().toISOString(),
         actions: (notification.actions as KinetixAction[]) ?? [],
         type: notification.type as string | undefined,
+        team: notification.team as string | number | null | undefined,
     };
 
-    triggerToast(notif);
-    playNotificationSound();
+    // Team-scoped bell: the broadcast channel is per-user, so a notification
+    // stamped for another team still arrives here — don't toast it in the
+    // team the user is NOT looking at (the server-filtered list ignores it).
+    const activeTeamId = page.props.kinetix_config?.team_id;
+    const isOtherTeam =
+        notif.team != null &&
+        activeTeamId != null &&
+        String(notif.team) !== String(activeTeamId);
+
+    if (!isOtherTeam) {
+        triggerToast(notif);
+        playNotificationSound();
+    }
 
     if (isDatabaseMode.value) {
+        // Pre-register the id so the props sync below (and any poll that races
+        // it) doesn't toast the same notification a second time.
+        seenNotificationIds.value.add(notif.id);
+
         router.reload({
             only: ['kinetix_notifications'],
             onSuccess: () => {
@@ -71,7 +91,9 @@ const onBroadcastNotification = (notification: Record<string, unknown>) => {
         return;
     }
 
-    syncFromProps([notif]);
+    if (!isOtherTeam) {
+        syncFromProps([notif]);
+    }
 };
 
 // --- Real-time Echo listener ---
@@ -95,6 +117,37 @@ watch(
         }
 
         echoStop();
+    },
+    { immediate: true },
+);
+
+// --- Database-mode fallback polling (Inertia usePoll) -----------------------
+// Without Echo, this is what makes new database notifications appear (badge +
+// toast via the store's props sync) instead of waiting for the next visit.
+// Interval comes from `kinetix.notifications.poll` (ms, 0 = off); usePoll
+// pauses in background tabs and cleans up on unmount.
+const pollInterval = page.props.kinetix_config?.poll ?? 0;
+const poll = usePoll(
+    pollInterval || 60000,
+    { only: ['kinetix_notifications'] },
+    { autoStart: false },
+);
+
+const shouldPoll = computed(
+    () =>
+        isDatabaseMode.value && pollInterval > 0 && echoChannel.value !== null,
+);
+
+watch(
+    shouldPoll,
+    (active) => {
+        if (active) {
+            poll.start();
+
+            return;
+        }
+
+        poll.stop();
     },
     { immediate: true },
 );

@@ -21,7 +21,7 @@ class InstallCommand extends Command
     protected $signature = 'kinetix:install
         {--charts : Also install chart/widget dependencies (@unovis/vue, @unovis/ts)}
         {--tanstack : Also install the client-side table dep (@tanstack/vue-table)}
-        {--broadcasting : Also install real-time notification deps (@laravel/echo-vue)}
+        {--broadcasting : Deprecated no-op — @laravel/echo-vue is now always installed}
         {--tours : Also install the product-tour renderer (driver.js)}
         {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}
         {--skip-skills : Do not publish the bundled agent skills}';
@@ -72,6 +72,11 @@ class InstallCommand extends Command
             // Those components import it statically, so any app compiling the
             // published components needs it at build time — a required peer.
             '@tanstack/vue-virtual' => '^3.0.0',
+            // KinetixNotifications.vue imports it statically, so it's required
+            // at BUILD time even when broadcasting is never configured —
+            // without it the host's Vite build fails on the published
+            // component. Runtime stays inert until Echo is configured.
+            '@laravel/echo-vue' => '^2.3.0',
         ];
 
         // Opt-in, feature-specific dependencies.
@@ -86,6 +91,9 @@ class InstallCommand extends Command
             $dependencies['@tanstack/vue-table'] = '^8.0.0';
         }
 
+        // Kept for backwards compatibility: `@laravel/echo-vue` moved into the
+        // base dependency list above (the notifications component needs it at
+        // build time regardless), so the flag adds nothing extra today.
         if ($this->option('broadcasting')) {
             $dependencies['@laravel/echo-vue'] = '^2.3.0';
         }

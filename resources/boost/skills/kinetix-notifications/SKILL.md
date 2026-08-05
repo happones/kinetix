@@ -134,4 +134,6 @@ php artisan vendor:publish --tag=kinetix-components --force
 ## Best Practices
 
 - **Translations & Documentation**: Do not hardcode strings; always define them in translations and keep documentation updated for any new components or options.
+- **Polling fallback (database mode)**: without Echo the bell polls `kinetix_notifications` on `kinetix.notifications.poll` ms (default `30000`, `0` = off); a genuinely new unread item found by a poll toasts + plays the sound, the initial page load stays silent. Do not add ad-hoc `setInterval` reloads.
+- **Team scoping**: `kinetix.notifications.teams` is tri-state (`null` inherits the global `kinetix.teams`). Stamp with `->team(KinetixTeams::keyFor('notifications'))` — captured at DISPATCH time for queued jobs (the worker has no request; import/export jobs do this automatically). Unstamped notifications are global and show in every team. The Echo channel stays per-user; other-team toasts are suppressed client-side via `kinetix_config.team_id`.
 ```

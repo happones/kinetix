@@ -22,6 +22,7 @@ vi.mock('vue-sonner', () => ({
     },
 }));
 
+import { toast } from 'vue-sonner';
 import { useNotificationsStore } from '@/stores/kinetixNotifications';
 
 describe('notifications store — sendRequest (database mode)', () => {
@@ -68,5 +69,60 @@ describe('notifications store — sendRequest (database mode)', () => {
         });
 
         vi.unstubAllGlobals();
+    });
+});
+
+describe('notifications store — syncFromProps (database mode)', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia());
+        vi.clearAllMocks();
+    });
+
+    it('stays silent on the initial sync, then toasts only newly arrived unread items (polling)', () => {
+        const store = useNotificationsStore();
+
+        // Initial page load: persisted rows are old news — no toast.
+        store.syncFromProps([
+            {
+                id: 'a',
+                title: 'Old',
+                status: 'success',
+                read: false,
+                created_at: '2026-08-04T00:00:00Z',
+            },
+        ]);
+        expect(toast.success).not.toHaveBeenCalled();
+
+        // A later poll brings one genuinely new unread item, one already-seen
+        // item and one that arrived already read.
+        store.isInitialized = true;
+        store.syncFromProps([
+            {
+                id: 'b',
+                title: 'New',
+                status: 'success',
+                read: false,
+                created_at: '2026-08-04T00:01:00Z',
+            },
+            {
+                id: 'c',
+                title: 'Already read',
+                status: 'info',
+                read: true,
+                created_at: '2026-08-04T00:01:00Z',
+            },
+            {
+                id: 'a',
+                title: 'Old',
+                status: 'success',
+                read: false,
+                created_at: '2026-08-04T00:00:00Z',
+            },
+        ]);
+
+        expect(toast.success).toHaveBeenCalledTimes(1);
+        expect(toast.success).toHaveBeenCalledWith('New', expect.anything());
+        expect(toast.info).not.toHaveBeenCalled();
+        expect(store.notifications).toHaveLength(3);
     });
 });

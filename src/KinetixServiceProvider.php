@@ -1922,7 +1922,16 @@ class KinetixServiceProvider extends ServiceProvider
                 // its OWN team-prefixed links (useKinetixTeams().teamUrl()) —
                 // route_prefix is Kinetix's internal endpoint base, not a
                 // general-purpose URL builder.
-                'team'  => $teamKey,
+                'team' => $teamKey,
+                // The active team's PRIMARY key when notifications are
+                // team-scoped (matches the `team` stamp in notification
+                // payloads, which route keys don't). Null otherwise.
+                'team_id' => KinetixTeams::enabledFor('notifications')
+                    ? KinetixTeams::currentTeamKey()
+                    : null,
+                // Database-mode fallback refresh interval in ms (0 = off):
+                // without Echo, this is what keeps the bell live.
+                'poll'  => (int) config('kinetix.notifications.poll', 30000),
                 'sound' => [
                     'enabled' => (bool) config('kinetix.notifications.sound.enabled', true),
                     'path'    => config('kinetix.notifications.sound.path', '/vendor/kinetix/notification.wav'),
@@ -1936,8 +1945,25 @@ class KinetixServiceProvider extends ServiceProvider
             $limit      = (int) config('kinetix.notifications.limit', 15);
 
             if ($isDatabase && auth()->check()) {
-                return auth()->user()->notifications()
-                    ->latest()
+                $query = auth()->user()->notifications()->latest();
+
+                // Team-scoped bell: only notifications stamped with the active
+                // team (via Notification::team()) plus global unstamped ones.
+                // Route prefixing alone is NOT data isolation — this is the
+                // actual filter.
+                if (KinetixTeams::enabledFor('notifications')) {
+                    $teamKey = KinetixTeams::currentTeamKey();
+
+                    $query->where(function ($q) use ($teamKey): void {
+                        $q->whereNull('data->team');
+
+                        if ($teamKey !== null) {
+                            $q->orWhere('data->team', $teamKey);
+                        }
+                    });
+                }
+
+                return $query
                     ->take($limit)
                     ->get()
                     ->map(fn ($n) => array_merge($n->data, [

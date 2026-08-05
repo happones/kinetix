@@ -133,7 +133,7 @@ Each module ships with a dedicated `docs/<feature>.md` guide, translations
 | `inertiajs/inertia-laravel` | ^2 \| ^3 |
 | Vue | ^3.5 |
 | `@inertiajs/vue3` | ^3.0 |
-| `@laravel/echo-vue` | ^2.3 *(for broadcasting)* |
+| `@laravel/echo-vue` | ^2.3 *(required — `KinetixNotifications` imports it at build time; inert until Echo is configured)* |
 | `vue-i18n` | ^11.0 |
 | `vue-sonner` | ^2.0 |
 | `@lucide/vue` | ^1.0 |

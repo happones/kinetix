@@ -24,5 +24,7 @@ class NotificationData extends Data
         public array $actions,
         public string $created_at,
         public ?bool $read = null,
+        /** Team PRIMARY key the notification is scoped to; null = global. */
+        public int|string|null $team = null,
     ) {}
 }

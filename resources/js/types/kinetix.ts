@@ -44,6 +44,8 @@ export interface KinetixNotification {
     iconColor?: string;
     actions?: KinetixAction[];
     type?: string;
+    /** Team PRIMARY key the notification is scoped to; null/absent = global. */
+    team?: string | number | null;
 }
 
 /** Public-safe Kinetix runtime config shared with Inertia page props. */
@@ -56,6 +58,13 @@ export interface KinetixConfig {
      * Build app links with `useKinetixTeams().teamUrl()` rather than reading it.
      */
     team: string | number | null;
+    /**
+     * The active team's PRIMARY key when notifications are team-scoped
+     * (matches the `team` stamp on notification payloads); null otherwise.
+     */
+    team_id: string | number | null;
+    /** Database-mode fallback poll interval in ms (0 = polling off). */
+    poll: number;
     sound: { enabled: boolean; path: string };
     broadcasting: Record<string, unknown> | null;
 }

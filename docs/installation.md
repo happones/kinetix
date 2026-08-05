@@ -17,7 +17,7 @@ to any feature in the sidebar.
 | `vue-i18n` | `^11.0` |
 | `vue-sonner` | `^2.0` *(toasts)* |
 | `@lucide/vue` | `^1.0` *(icons)* |
-| `@laravel/echo-vue` | `^2.3` *(only for broadcasting)* |
+| `@laravel/echo-vue` | `^2.3` *(required — `KinetixNotifications` imports it at build time; inert until Echo is configured)* |
 | `@tanstack/vue-table` | `^8.0` *(only for client-side tables — `->clientSide()`)* |
 | `@tanstack/vue-virtual` | `^3.0` *(required — Comments / Kanban / Media Library import it at build time)* |
 | shadcn-vue / Reka UI | any *(`components.json` present)* |
@@ -159,20 +159,19 @@ php artisan kinetix:install --charts
 # add the client-side table dep (@tanstack/vue-table):
 php artisan kinetix:install --tanstack
 
-# add real-time notification deps (@laravel/echo-vue):
-php artisan kinetix:install --broadcasting
-
 # scaffold a dedicated App\Providers\KinetixServiceProvider:
 php artisan kinetix:install --provider
 ```
 
 It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are
 assumed from your starter kit): `pinia`, `vue-i18n`, `reka-ui`,
-`@internationalized/date`, `@lucide/vue`, `vue-sonner` and
-`@tanstack/vue-virtual` (Comments/Kanban/Media Library import it at build time,
-so it is required, not optional). The `--charts`, `--tanstack` and
-`--broadcasting` flags add the optional, feature-specific packages
-(`--tanstack` covers `@tanstack/vue-table` for `->clientSide()` tables).
+`@internationalized/date`, `@lucide/vue`, `vue-sonner`,
+`@tanstack/vue-virtual` (Comments/Kanban/Media Library import it at build time)
+and `@laravel/echo-vue` (`KinetixNotifications` imports it at build time; it
+stays inert until you configure Echo — the old `--broadcasting` flag is now a
+no-op). The `--charts` and `--tanstack` flags add the optional, feature-specific
+packages (`--tanstack` covers `@tanstack/vue-table` for `->clientSide()`
+tables).
 
 > If you see a Vite error like *Failed to resolve import "@internationalized/date"*,
 > a required dependency is missing — run `php artisan kinetix:install` (or install
@@ -204,19 +203,18 @@ If you prefer to configure everything manually:
 
 ### 4.1 Install dependencies
 
-Install the core runtime dependencies (add `@unovis/vue @unovis/ts` for charts,
-`@tanstack/vue-table` for client-side tables, and `@laravel/echo-vue` for
-broadcasting):
+Install the core runtime dependencies (add `@unovis/vue @unovis/ts` for charts
+and `@tanstack/vue-table` for client-side tables):
 
 ::: code-group
 ```bash [npm]
-npm install pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner @tanstack/vue-virtual
+npm install pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner @tanstack/vue-virtual @laravel/echo-vue
 ```
 ```bash [pnpm]
-pnpm add pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner
+pnpm add pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner @tanstack/vue-virtual @laravel/echo-vue
 ```
 ```bash [yarn]
-yarn add pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner
+yarn add pinia vue-i18n@11 reka-ui @internationalized/date @lucide/vue vue-sonner @tanstack/vue-virtual @laravel/echo-vue
 ```
 :::
 
@@ -270,8 +268,13 @@ createInertiaApp({
 
 ## 5. Mount the global components
 
-Add these once near the root of your Inertia layout so toasts, notifications and
-modals work app-wide:
+Kinetix ships a handful of **singleton hosts**: renderless (or near-renderless)
+components that must be mounted **once** in your layout so features work
+app-wide. In the Vue starter kit that file is
+`resources/js/layouts/app/AppSidebarLayout.vue` (the header pieces go in
+`resources/js/components/AppSidebarHeader.vue`).
+
+### Required for the core features
 
 ```vue
 <script setup lang="ts">
@@ -284,7 +287,7 @@ import KinetixFilePreview from "@/components/kinetix/KinetixFilePreview.vue";
 <template>
   <!-- ...your layout... -->
 
-  <!-- bell-icon dropdown; place it in your header -->
+  <!-- bell-icon drawer; place it in your header (AppSidebarHeader.vue) -->
   <KinetixNotifications />
 
   <!-- mount ONCE; replace any raw vue-sonner <Toaster> -->
@@ -301,6 +304,54 @@ import KinetixFilePreview from "@/components/kinetix/KinetixFilePreview.vue";
 toast. Use **`<KinetixToaster />`** (token-themed, dark-mode-safe) and remove any
 other `<Toaster>` your starter kit mounts. See [Notifications](/notifications).
 :::
+
+### Per-feature hosts (mount only what you use)
+
+Each of these is a mount-once host too — its feature silently does nothing
+until it's in the layout:
+
+| Component | Enables | Docs |
+|---|---|---|
+| `<KinetixSpotlight />` | `Cmd/Ctrl+K` command palette (owns the shortcut + dialog) | [Spotlight](/spotlight) |
+| `<KinetixShortcuts />` | `?` keyboard-shortcuts overlay | [Keyboard shortcuts](/keyboard-shortcuts) |
+| `<KinetixTours />` | Product tours (renderless driver.js host) | [Tours](/tours) |
+| `<KinetixCookieConsent />` | Cookie banner (renders nothing until enabled in config) | [Cookie consent](/cookie-consent) |
+| `<KinetixImpersonationBanner />` | "Return to your account" bar while impersonating | [Impersonation](/impersonation) |
+| `<KinetixConfidentialUnlock />` | Header widget for the confidential-fields reveal gate | [Confidential](/confidential) |
+| `<KinetixSkipLink />` | Skip-to-content link — place it **first** in the layout | [Accessibility](/accessibility) |
+| `<KinetixAnnouncements />` | "What's new" trigger for your header | [Announcements](/announcements) |
+
+Modal-style components (`KinetixSheet`, `KinetixConfirmModal`, the table record
+modals) are **not** hosts — they're prop-driven, self-teleporting, and need no
+layout placement.
+
+### Register the Vue plugins (directives)
+
+The publish also ships three plugins under `resources/js/plugins/`. Register the
+ones you use in `resources/js/app.ts` — without this, `v-can` /
+`v-kinetix-hotkey` are unknown directives and the accessibility preferences
+never apply:
+
+```ts
+import KinetixAccessibility from '@/plugins/kinetixAccessibility';
+import KinetixHotkeys from '@/plugins/kinetixHotkeys';
+import KinetixPermissions from '@/plugins/kinetixPermissions';
+
+createInertiaApp({
+  // ...
+  setup({ el, App, props, plugin }) {
+    createApp({ render: () => h(App, props) })
+      .use(plugin)
+      .use(KinetixAccessibility) // a11y prefs applied before mount (no flash)
+      .use(KinetixHotkeys)       // v-kinetix-hotkey + shortcut registry
+      .use(KinetixPermissions)   // v-can directive + $can
+      .mount(el);
+  },
+});
+```
+
+See [Accessibility](/accessibility), [Keyboard shortcuts](/keyboard-shortcuts)
+and [Permissions](/permissions) for what each plugin provides.
 
 ## 6. Build
 
