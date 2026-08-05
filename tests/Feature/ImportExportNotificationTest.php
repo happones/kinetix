@@ -14,6 +14,7 @@ use Happones\Kinetix\Imports\Jobs\ImportProcessor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Crypt;
@@ -134,6 +135,20 @@ class CustomMessageImporter extends NotifyWidgetImporter
 
 class ImportExportNotificationTest extends TestCase
 {
+    /**
+     * @param Application $app
+     */
+    protected function defineEnvironment($app): void
+    {
+        parent::defineEnvironment($app);
+
+        // KinetixLaravelNotification is ShouldQueue: run it inline so the
+        // database notification asserted below is written directly. The
+        // testbench `package:test` skeleton defaults to the database queue,
+        // which would require a `jobs` table this test doesn't create.
+        $app['config']->set('queue.default', 'sync');
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

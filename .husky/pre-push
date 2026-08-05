@@ -3,3 +3,11 @@ rm -f vendor/orchestra/testbench-core/laravel/vendor
 
 npm run types:check
 vendor/bin/phpstan analyse --memory-limit=1G
+
+# Full test suites, mirroring CI: testbench package:test (NOT plain phpunit —
+# its skeleton env differs and has caught green-local/red-CI drifts) + vitest.
+composer test:ci
+npm run test:unit
+
+# package:test leaves the symlink again; clean up so the next tool run works.
+rm -f vendor/orchestra/testbench-core/laravel/vendor
