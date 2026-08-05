@@ -392,6 +392,36 @@ Tailwind generates the `*-success` / `*-warning` / `*-info` utilities:
 
 `danger` maps to the built-in `destructive` token.
 
+### Z-index scale
+
+Everything Kinetix teleports to `<body>` sits on a three-layer CSS-variable
+scale, so overlays and the popovers opened from **inside** them stack
+correctly (a date picker inside a `KinetixSheet` must beat the sheet):
+
+| Variable | Default | Layer |
+|---|---|---|
+| `--kinetix-z-overlay` | `100` | Full-screen backdrops (dialog/sheet/drawer dimmers) |
+| `--kinetix-z-modal` | `100` | Dialog, sheet, drawer and lightbox **content** |
+| `--kinetix-z-popover` | `120` | Popper content: selects, comboboxes, date/time pickers, dropdowns, tooltips |
+
+The defaults are inlined as fallbacks (`z-[var(--kinetix-z-popover,120)]`),
+so nothing works differently if you never define the variables. Define them
+on `:root` only to re-stack Kinetix around your app's own layers — e.g. push
+the whole suite above a legacy `z-index: 500` header:
+
+```css
+:root {
+  --kinetix-z-overlay: 600;
+  --kinetix-z-modal: 600;
+  --kinetix-z-popover: 620;
+}
+```
+
+Keep `popover > modal ≥ overlay` — popovers open from inside modals and must
+clear them. (Reka UI copies the popper content's **computed** z-index onto its
+positioning wrapper, so the variables resolve correctly there too; you never
+need `!important` against Kinetix's own layers.)
+
 ## Configuration
 
 After publishing, edit `config/kinetix.php`. The most relevant keys:

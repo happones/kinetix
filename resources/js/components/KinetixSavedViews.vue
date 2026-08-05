@@ -95,7 +95,7 @@ async function onDelete(view: KinetixSavedView): Promise<void> {
             <DropdownMenuContent
                 align="start"
                 :side-offset="6"
-                class="rounded-lg p-1 shadow-lg z-50 min-w-[14rem] border border-border bg-popover outline-none"
+                class="rounded-lg p-1 shadow-lg z-[var(--kinetix-z-popover,120)] min-w-[14rem] border border-border bg-popover outline-none"
             >
                 <DropdownMenuItem
                     v-for="view in views"

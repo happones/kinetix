@@ -85,10 +85,10 @@ onBeforeUnmount(() => window.removeEventListener('kinetix:preview', onPreview));
     <DialogRoot v-model:open="open">
         <DialogPortal>
             <DialogOverlay
-                class="inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed z-50"
+                class="inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed z-[var(--kinetix-z-overlay,100)]"
             />
             <DialogContent
-                class="max-w-4xl rounded-xl shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 flex max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border border-border bg-popover text-popover-foreground outline-none"
+                class="max-w-4xl rounded-xl shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-[var(--kinetix-z-modal,100)] flex max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border border-border bg-popover text-popover-foreground outline-none"
             >
                 <div
                     class="gap-2 p-3 flex items-center justify-between border-b border-border"

@@ -234,7 +234,7 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                             <PopoverContent
                                 align="end"
                                 :side-offset="4"
-                                class="w-56 rounded-lg p-3 shadow-lg z-50 border border-border bg-popover outline-none"
+                                class="w-56 rounded-lg p-3 shadow-lg z-[var(--kinetix-z-popover,120)] border border-border bg-popover outline-none"
                             >
                                 <div
                                     class="text-xs font-bold pb-2 mb-2 tracking-wider border-b border-border text-foreground uppercase"

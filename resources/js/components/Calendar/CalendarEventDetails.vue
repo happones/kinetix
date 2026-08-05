@@ -44,7 +44,7 @@ const { t } = useI18n();
             >
                 <div
                     v-if="open && event"
-                    class="inset-0 p-4 fixed z-[100] flex items-center justify-center"
+                    class="inset-0 p-4 fixed z-[var(--kinetix-z-modal,100)] flex items-center justify-center"
                     role="dialog"
                     aria-modal="true"
                 >

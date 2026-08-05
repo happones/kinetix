@@ -56,7 +56,7 @@ const textSizeLabel = {
             <PopoverContent
                 align="end"
                 :side-offset="8"
-                class="w-72 rounded-lg p-4 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-50 border border-border bg-popover text-popover-foreground outline-none"
+                class="w-72 rounded-lg p-4 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-[var(--kinetix-z-popover,120)] border border-border bg-popover text-popover-foreground outline-none"
             >
                 <div class="space-y-4">
                     <p class="text-sm font-semibold text-foreground">

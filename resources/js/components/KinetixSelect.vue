@@ -83,7 +83,7 @@ const selectValue = computed(() => {
             <SelectContent
                 position="popper"
                 :side-offset="4"
-                class="max-h-96 shadow-md relative z-50 min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground"
+                class="max-h-96 shadow-md relative z-[var(--kinetix-z-popover,120)] min-w-[8rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground"
             >
                 <SelectViewport class="p-1">
                     <SelectItem

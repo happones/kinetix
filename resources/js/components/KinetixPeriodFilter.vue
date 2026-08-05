@@ -85,7 +85,7 @@ function select(key: KinetixPeriodKey): void {
             <DropdownMenuContent
                 align="end"
                 :side-offset="6"
-                class="rounded-lg p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-50 min-w-[10rem] border border-border bg-popover outline-none"
+                class="rounded-lg p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-[var(--kinetix-z-popover,120)] min-w-[10rem] border border-border bg-popover outline-none"
             >
                 <DropdownMenuItem
                     v-for="key in periods"

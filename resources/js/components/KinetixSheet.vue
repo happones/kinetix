@@ -116,7 +116,7 @@ const enterFromClass = computed(
     <Teleport v-if="isMounted" to="body">
         <div
             v-if="open"
-            class="inset-0 fixed z-[100]"
+            class="inset-0 fixed z-[var(--kinetix-z-modal,100)]"
             role="dialog"
             aria-modal="true"
             :aria-labelledby="title ? headingId : undefined"

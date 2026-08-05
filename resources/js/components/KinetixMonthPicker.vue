@@ -135,7 +135,7 @@ const select = (m: number) => {
             <PopoverContent
                 align="start"
                 :side-offset="4"
-                class="p-3 shadow-md z-50 w-auto rounded-md border border-border bg-popover outline-none"
+                class="p-3 shadow-md z-[var(--kinetix-z-popover,120)] w-auto rounded-md border border-border bg-popover outline-none"
             >
                 <div class="mb-2 flex items-center justify-between">
                     <button

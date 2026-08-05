@@ -99,9 +99,11 @@ function onSelect(item: unknown): void {
 <template>
     <DialogRoot :open="open" @update:open="onOpenChange">
         <DialogPortal>
-            <DialogOverlay class="inset-0 bg-black/50 fixed z-50" />
+            <DialogOverlay
+                class="inset-0 bg-black/50 fixed z-[var(--kinetix-z-overlay,100)]"
+            />
             <DialogContent
-                class="top-24 max-w-lg rounded-xl shadow-lg fixed left-1/2 z-50 w-full -translate-x-1/2 overflow-hidden border border-border bg-popover text-popover-foreground"
+                class="top-24 max-w-lg rounded-xl shadow-lg fixed left-1/2 z-[var(--kinetix-z-modal,100)] w-full -translate-x-1/2 overflow-hidden border border-border bg-popover text-popover-foreground"
             >
                 <VisuallyHidden>
                     <DialogTitle>{{

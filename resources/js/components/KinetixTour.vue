@@ -86,7 +86,7 @@ defineExpose({ start: tour.start, reset: tour.reset });
     <Teleport to="body">
         <div
             v-if="tour.active.value && tour.current.value"
-            class="inset-0 fixed z-[100]"
+            class="inset-0 fixed z-[var(--kinetix-z-modal,100)]"
             role="dialog"
             aria-modal="true"
         >

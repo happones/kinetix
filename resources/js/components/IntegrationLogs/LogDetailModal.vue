@@ -34,9 +34,11 @@ const { t } = useI18n();
 <template>
     <DialogRoot :open="open" @update:open="emit('update:open', $event)">
         <DialogPortal>
-            <DialogOverlay class="inset-0 bg-black/80 fixed z-50" />
+            <DialogOverlay
+                class="inset-0 bg-black/80 fixed z-[var(--kinetix-z-overlay,100)]"
+            />
             <DialogContent
-                class="max-w-2xl rounded-xl p-6 shadow-lg fixed top-1/2 left-1/2 z-50 max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-auto border border-border bg-card text-card-foreground outline-none"
+                class="max-w-2xl rounded-xl p-6 shadow-lg fixed top-1/2 left-1/2 z-[var(--kinetix-z-modal,100)] max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-auto border border-border bg-card text-card-foreground outline-none"
             >
                 <div class="mb-4 flex items-center justify-between">
                     <DialogTitle

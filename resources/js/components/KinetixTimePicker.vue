@@ -176,7 +176,7 @@ watch(open, (isOpen) => {
             <PopoverContent
                 align="start"
                 :side-offset="4"
-                class="p-0 shadow-md z-50 w-auto rounded-md border border-border bg-popover outline-none"
+                class="p-0 shadow-md z-[var(--kinetix-z-popover,120)] w-auto rounded-md border border-border bg-popover outline-none"
             >
                 <div class="flex h-[220px] divide-x divide-border">
                     <!-- Hours -->

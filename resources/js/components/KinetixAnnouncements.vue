@@ -62,7 +62,7 @@ function formatDate(value: string | null): string {
             <PopoverContent
                 align="end"
                 :side-offset="8"
-                class="w-80 rounded-lg shadow-lg z-50 border border-border bg-popover text-popover-foreground outline-none"
+                class="w-80 rounded-lg shadow-lg z-[var(--kinetix-z-popover,120)] border border-border bg-popover text-popover-foreground outline-none"
             >
                 <div class="px-4 py-3 border-b border-border">
                     <p class="text-sm font-semibold text-foreground">

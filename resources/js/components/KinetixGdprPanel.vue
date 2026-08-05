@@ -112,10 +112,10 @@ async function onConfirmDelete(): Promise<void> {
         <DialogRoot v-model:open="confirmOpen">
             <DialogPortal>
                 <DialogOverlay
-                    class="inset-0 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in fixed z-50"
+                    class="inset-0 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in fixed z-[var(--kinetix-z-overlay,100)]"
                 />
                 <DialogContent
-                    class="max-w-md rounded-lg p-6 shadow-lg fixed top-1/2 left-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 border border-border bg-card"
+                    class="max-w-md rounded-lg p-6 shadow-lg fixed top-1/2 left-1/2 z-[var(--kinetix-z-modal,100)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 border border-border bg-card"
                 >
                     <DialogTitle class="text-lg font-semibold text-foreground">
                         {{ t('kinetix.gdpr_delete_confirm_heading') }}

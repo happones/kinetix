@@ -59,7 +59,7 @@ const currentCode = computed(() => (props.current ?? '').toUpperCase());
             <DropdownMenuContent
                 align="end"
                 :side-offset="6"
-                class="rounded-lg p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-50 min-w-[9rem] border border-border bg-popover outline-none"
+                class="rounded-lg p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-[var(--kinetix-z-popover,120)] min-w-[9rem] border border-border bg-popover outline-none"
             >
                 <DropdownMenuItem
                     v-for="loc in props.locales"

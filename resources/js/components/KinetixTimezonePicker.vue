@@ -253,7 +253,7 @@ const triggerClass =
             <ComboboxContent
                 position="popper"
                 :side-offset="4"
-                class="max-h-96 shadow-md relative z-50 w-[--reka-combobox-trigger-width] min-w-[16rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground"
+                class="max-h-96 shadow-md relative z-[var(--kinetix-z-popover,120)] w-[--reka-combobox-trigger-width] min-w-[16rem] overflow-hidden rounded-md border border-border bg-popover text-popover-foreground"
             >
                 <div class="px-3 flex items-center border-b border-border">
                     <ComboboxInput

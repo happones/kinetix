@@ -42,9 +42,11 @@ function chips(keys: string): string[] {
 <template>
     <DialogRoot :open="open" @update:open="open = $event">
         <DialogPortal>
-            <DialogOverlay class="inset-0 bg-black/50 fixed z-50" />
+            <DialogOverlay
+                class="inset-0 bg-black/50 fixed z-[var(--kinetix-z-overlay,100)]"
+            />
             <DialogContent
-                class="max-w-md rounded-xl p-4 shadow-lg fixed top-1/4 left-1/2 z-50 w-full -translate-x-1/2 border border-border bg-popover text-popover-foreground"
+                class="max-w-md rounded-xl p-4 shadow-lg fixed top-1/4 left-1/2 z-[var(--kinetix-z-modal,100)] w-full -translate-x-1/2 border border-border bg-popover text-popover-foreground"
             >
                 <DialogTitle class="text-lg font-semibold text-foreground">
                     {{ t('kinetix.shortcuts_title') }}

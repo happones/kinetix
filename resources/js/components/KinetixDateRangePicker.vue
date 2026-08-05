@@ -135,7 +135,7 @@ const onCalendar = (range: Range) => {
             <PopoverContent
                 align="start"
                 :side-offset="4"
-                class="p-0 z-50 w-auto outline-none"
+                class="p-0 z-[var(--kinetix-z-popover,120)] w-auto outline-none"
             >
                 <KinetixRangeCalendar
                     :value="value"

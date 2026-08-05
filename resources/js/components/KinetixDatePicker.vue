@@ -115,7 +115,7 @@ const onCalendarSelect = (next: string | null) => {
             <PopoverContent
                 align="start"
                 :side-offset="4"
-                class="p-0 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-50 w-auto outline-none"
+                class="p-0 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-[var(--kinetix-z-popover,120)] w-auto outline-none"
             >
                 <KinetixCalendar
                     :value="value"

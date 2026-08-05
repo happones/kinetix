@@ -705,7 +705,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
             <Teleport v-if="isMounted" to="body">
                 <div
                     v-if="isRecordFormOpen"
-                    class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
+                    class="inset-0 bg-black/50 p-4 fixed z-[var(--kinetix-z-modal,100)] flex items-center justify-center"
                     @click.self="closeRecordForm"
                 >
                     <div
@@ -784,7 +784,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                 <!-- Simple-resource view modal (read-only infolist, server-resolved). -->
                 <div
                     v-if="isRecordInfolistOpen"
-                    class="inset-0 bg-black/50 p-4 fixed z-50 flex items-center justify-center"
+                    class="inset-0 bg-black/50 p-4 fixed z-[var(--kinetix-z-modal,100)] flex items-center justify-center"
                     @click.self="closeRecordInfolist"
                 >
                     <div

@@ -184,7 +184,7 @@ const { statusOf, stepDisabled, indicatorClass, stepKey } =
                         <TooltipPortal>
                             <TooltipContent
                                 :side-offset="6"
-                                class="px-3 py-1.5 text-sm shadow-md data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-50 max-w-[16rem] rounded-md border border-border bg-popover text-popover-foreground"
+                                class="px-3 py-1.5 text-sm shadow-md data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-[var(--kinetix-z-popover,120)] max-w-[16rem] rounded-md border border-border bg-popover text-popover-foreground"
                             >
                                 <p class="font-medium">{{ s.label }}</p>
                                 <p
