@@ -36,14 +36,24 @@ export function useKinetixRoles() {
     }
 
     async function save(role: KinetixRole): Promise<unknown> {
-        const body = { name: role.name, permissions: role.permissions };
+        const body: Record<string, unknown> = {
+            name: role.name,
+            permissions: role.permissions,
+        };
 
-        return role.id
-            ? kinetixFetch(`${base()}/roles/${role.id}`, {
-                  method: 'PUT',
-                  body,
-              })
-            : kinetixFetch(`${base()}/roles`, { method: 'POST', body });
+        if (role.id) {
+            return kinetixFetch(`${base()}/roles/${role.id}`, {
+                method: 'PUT',
+                body,
+            });
+        }
+
+        // Super-admin only: create as GLOBAL (team-NULL) — see the editor's toggle.
+        if (role.global) {
+            body.global = true;
+        }
+
+        return kinetixFetch(`${base()}/roles`, { method: 'POST', body });
     }
 
     async function remove(role: KinetixRole): Promise<unknown> {

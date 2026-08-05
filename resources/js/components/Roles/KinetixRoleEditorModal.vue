@@ -36,6 +36,11 @@ const props = defineProps<{
     role: KinetixRole | null;
     features: KinetixPermissionFeature[];
     saving?: boolean;
+    /**
+     * Offer a "Global role (all teams)" toggle on CREATE. Pass the viewer's
+     * super-admin flag — the server rejects the flag from anyone else.
+     */
+    canCreateGlobal?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -178,6 +183,7 @@ const permissionFor = (
 
 const draftName = ref('');
 const draftPermissions = ref<string[]>([]);
+const draftGlobal = ref(false);
 
 watch(
     () => props.open,
@@ -185,8 +191,14 @@ watch(
         if (open) {
             draftName.value = props.role?.name ?? '';
             draftPermissions.value = [...(props.role?.permissions ?? [])];
+            draftGlobal.value = false;
         }
     },
+);
+
+// Only a NEW role can be global — a role's team can't be changed afterwards.
+const offersGlobalToggle = computed<boolean>(
+    () => !props.role?.id && props.canCreateGlobal === true,
 );
 
 // Draft permissions mirrored as a Set so the per-cell `has()` check is O(1).
@@ -227,6 +239,9 @@ function submit(): void {
         id: props.role?.id ?? null,
         name: draftName.value.trim(),
         permissions: draftPermissions.value,
+        ...(offersGlobalToggle.value && draftGlobal.value
+            ? { global: true }
+            : {}),
     });
 }
 </script>
@@ -289,6 +304,25 @@ function submit(): void {
                             :class="inputClass"
                         />
                     </div>
+
+                    <!-- Super-admin only: create the role as GLOBAL (team-NULL,
+                         visible in every team). A role's team can't change
+                         later, so the toggle exists only on create. -->
+                    <label
+                        v-if="offersGlobalToggle"
+                        class="gap-2 text-sm flex cursor-pointer items-start text-foreground"
+                    >
+                        <KinetixCheckbox
+                            :model-value="draftGlobal"
+                            @update:model-value="draftGlobal = $event"
+                        />
+                        <span class="min-w-0">
+                            {{ t('kinetix.role_global_create_label') }}
+                            <span class="text-xs block text-muted-foreground">
+                                {{ t('kinetix.role_global_create_hint') }}
+                            </span>
+                        </span>
+                    </label>
 
                     <!-- Matrix: scrolls on its own; the header row and the
                          module column stay pinned so long catalogs keep their

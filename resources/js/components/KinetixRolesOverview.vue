@@ -411,6 +411,7 @@ async function confirmDelete(): Promise<void> {
             :role="editing"
             :features="features"
             :saving="saving"
+            :can-create-global="isSuperAdmin"
             @save="onSave"
         />
 
@@ -418,6 +419,7 @@ async function confirmDelete(): Promise<void> {
         <KinetixRoleDeleteDialog
             :open="deleteTarget !== null"
             :deleting="deleting"
+            :role="deleteTarget"
             @update:open="(v: boolean) => !v && (deleteTarget = null)"
             @confirm="confirmDelete"
         />

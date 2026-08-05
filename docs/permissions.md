@@ -27,11 +27,36 @@ php artisan kinetix:routes permissions   # filter
 
 ## Requirements
 
-To use this feature, you must have `spatie/laravel-permission` version 6 or superior installed:
+To use this feature, you must have `spatie/laravel-permission` version 6 or superior installed **and migrated**:
 
 ```bash
 composer require spatie/laravel-permission
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+php artisan migrate
 ```
+
+Then add spatie's `HasRoles` trait to your `User` model — every `hasRole()`,
+`assignRole()` and Gate check below depends on it:
+
+```php
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasRoles;
+}
+```
+
+> With teams enabled, `HasRoles` and Jetstream-style `HasTeams` both declare
+> `teams()` — see [§4 trait collision](#trait-collision-with-the-starter-kits-hasteams).
+
+::: tip Permissions come from code, roles come from the database
+There is deliberately **no `roles` key in the config**: permissions/features
+are declared in code (§1) and synced to the DB (§2), while **roles only exist
+as database rows** — created by the seeder (§6), the role-management UI, or
+tinker. If you're scanning the config block below looking for where to list
+your roles: that place doesn't exist.
+:::
 
 ---
 
@@ -44,18 +69,28 @@ Enable permissions in your `config/kinetix.php` file:
     // Enable the permissions registry & super-admin gate checks (opt-in)
     'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
 
-    // Enable multi-tenant/team support for permissions
-    'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
+    // Multi-tenant/team support: true/false wins, null (default) inherits
+    // the global `kinetix.teams` switch (one flag for the whole suite).
+    'teams'            => env('KINETIX_PERMISSIONS_TEAMS'),
 
     // Users with this role will bypass all Gate authorization checks
     'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
 
-    // Grant a team's OWNER every ability (see §3). true | closure | invokable
-    // class-string | null (off)
+    // Roles that can never be created, renamed, edited or deleted through
+    // the role-management UI. Defaults to [super_admin_role].
+    'protected_roles'  => null,
+
+    // Grant a team's OWNER every ability (see §3). true | [Class, 'method'] |
+    // invokable class-string | null (off)
     'owner_bypass'     => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
 
     // The guard permissions are registered under
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
+
+    // Directory (+ namespace) auto-scanned for `Resource` subclasses whose
+    // CRUD abilities register automatically. Null disables discovery.
+    'discover_path'      => app_path('Kinetix/Resources'),
+    'discover_namespace' => 'App\\Kinetix\\Resources',
 ],
 ```
 
@@ -89,6 +124,15 @@ By default, defining a feature name auto-registers the 5 standard CRUD abilities
 * `posts.create` (Create)
 * `posts.update` (Update)
 * `posts.delete` (Delete)
+
+::: danger Registered ≠ enforced
+Declaring `permissionFeature(): 'posts'` puts these five abilities in the
+**catalog** (grantable to roles, visible in the matrix, checkable with
+`can()`), but it does **not** protect your Post routes or controllers by
+itself. Nothing intercepts a request just because an ability with a matching
+name exists. You still enforce on the server — middleware, policy, or an
+explicit Gate check — see [Enforcing on the server](#enforcing-on-the-server).
+:::
 
 #### How Resources Are Registered (Auto-Discovery)
 
@@ -213,6 +257,52 @@ TextColumn::make('salary')->can('employees.viewSalary'),
 > record-bound *policy* ability (and defers when no record is available yet),
 > while `can()` checks a *permission key* against the authenticated user with
 > no subject and never defers. For field-level permissions, use `can()`.
+
+---
+
+## 1.5 Enforcing on the server
+
+Everything in §1 builds the *catalog*; enforcement is a separate, explicit
+step. All Kinetix checks flow through Laravel's **Gate** (spatie registers
+every permission there), so any standard mechanism works:
+
+**Route middleware** — the shortest path for whole pages/endpoints:
+
+```php
+// Laravel's can middleware (works for any registered ability):
+Route::get('posts', [PostController::class, 'index'])
+    ->middleware('can:posts.viewAny');
+
+// Or spatie's dedicated middleware (register the aliases per spatie's docs):
+Route::put('posts/{post}', [PostController::class, 'update'])
+    ->middleware('permission:posts.update');
+Route::get('admin', AdminController::class)
+    ->middleware('role:admin');
+```
+
+**Policies** — for per-record decisions; Kinetix Resources call them through
+their abilities, and `Gate::authorize()` works anywhere:
+
+```php
+public function update(Request $request, Post $post): RedirectResponse
+{
+    Gate::authorize('posts.update'); // or $this->authorize('update', $post)
+    // …
+}
+```
+
+**Inside Kinetix schemas** — actions take `->authorize('posts.update')`
+(see [Actions §9](actions.md)), form fields/columns take `->can('posts.update')`
+(stripped server-side, see §1.C), and tables/stat cards accept `->can()` too
+([Tables](tables.md)).
+
+> **Frontend checks are UX, not security.** `<KinetixCan>` / `v-can` (§5) only
+> hide markup. A hidden button's endpoint is still reachable with `curl` —
+> every mutation needs one of the server-side mechanisms above.
+
+> **Teams caveat:** with team scoping active, all of these evaluate against
+> the CURRENT team context set by the `kinetix.permissions.team` middleware
+> (§4). A route outside that middleware group checks global assignments only.
 
 ---
 
@@ -496,13 +586,19 @@ Under the hybrid teams schema a role's `team_id` is nullable:
 | | Created by | Visible in | Modifiable by |
 |---|---|---|---|
 | **Team role** (`team_id` set) | The role-management UI inside a team (the current team id is stamped automatically) | Its own team only | That team's `roles.manage` holders |
-| **Global role** (`team_id` NULL) | Seeders / console (no team context) — e.g. `KinetixRolesSeeder`'s `admin`/`editor`/`viewer` | Every team (marked with a *Global* badge in the UI) | **Super-admin only** — editing one would change privileges in every team |
+| **Global role** (`team_id` NULL) | Seeders / console (no team context) — e.g. `KinetixRolesSeeder`'s presets — or a **super-admin** checking *Global role (all teams)* in the role editor's create form | Every team (marked with a *Global* badge in the UI) | **Super-admin only** — editing one would change privileges in every team |
 
 The management endpoints are fully tenant-isolated: another team's roles never
 appear in the listing, and updating/deleting them by id is a 404 (their
 existence is not leaked). Creating — or renaming to — a name that already
 exists in scope (same team or global) is a validation error, never a silent
-takeover of that role's permissions.
+takeover of that role's permissions. A role's team can't change after
+creation — the global toggle only exists on create, and only for super-admins
+(anyone else sending `global: true` gets a 403).
+
+Member counts (`usersCount`) shown on the role cards are scoped the same way:
+the current team's assignments plus global ones — a global role never leaks
+how many users hold it in *other* teams.
 
 ::: tip The classic accident: a seeder that ran without team context
 `Role::create(['name' => 'admin'])` from a seeder or `tinker` has **no** team id,
@@ -636,10 +732,24 @@ grouped by feature, with search and per-feature select-all. Gate it behind the
 built-in `roles.manage` ability:
 
 ```vue
+<script setup lang="ts">
+// Components are NOT globally registered — import from the published path:
+import KinetixCan from '@/components/kinetix/KinetixCan.vue';
+import KinetixRoleManager from '@/components/kinetix/KinetixRoleManager.vue';
+</script>
+
 <KinetixCan permission="roles.manage">
   <KinetixRoleManager />
 </KinetixCan>
 ```
+
+The three drop-ins below (`KinetixRoleManager`, `KinetixRoleMatrix`,
+`KinetixRolesOverview`) take **no props** — they load the catalog and roles
+from the built-in endpoints themselves (via the `useKinetixRoleEditor`
+composable: load-on-mount, save/delete with toasts and refetch). For a fully
+custom flow, `<KinetixPermissionMatrix>` is the reusable picker — it *does*
+need props: `features` (fetch `GET {prefix}/permissions/features` yourself)
+and a `v-model` of permission keys.
 
 <Screenshot name="role-manager" alt="Role manager" />
 
@@ -724,14 +834,21 @@ super-admin**):
 - **Allowlist** — submitted permission keys are validated against the registry
   (`allPermissions()`), so an unknown or arbitrary key is rejected (`422`) before
   it can reach `syncPermissions()`.
-- **Grant only what you hold** — a manager can only assign permissions they
-  themselves have; granting one they lack is refused (`403`). The seeded `admin`
-  role (all permissions) and any super-admin can therefore grant anything, while
-  a limited `roles.manage`-only user cannot escalate.
+- **Grant only what you hold — in both directions** — a manager can only
+  **add or remove** permissions they themselves have; touching one they lack is
+  refused (`403`). The guard evaluates the *delta* against the role's current
+  permissions, so a limited manager can neither escalate a role nor strip a
+  more privileged role's abilities (a rename with no permission changes stays
+  allowed). The seeded `admin` role (all permissions) and any super-admin can
+  manage anything.
 - **Protected roles & self-lockout** — the roles in `permissions.protected_roles`
   (default: just the super-admin role) can't be created, renamed to, edited or
   deleted here; and any edit/delete that would revoke the actor's **own**
   `roles.manage` is rolled back (`403`).
+- **Roles in use can't be deleted** — deleting a role that still has members
+  (counted in the current team + global assignments) is a `422`; the delete
+  dialog shows the member count and the warning before you even try. Reassign
+  the members first.
 
 ```php
 // config/kinetix.php → permissions
@@ -761,6 +878,29 @@ Need a custom flow? Compose `KinetixPermissionMatrix` (the feature-grouped grid,
 php artisan kinetix:permissions:sync   # materialize permissions first
 php artisan db:seed --class="Happones\\Kinetix\\Permissions\\KinetixRolesSeeder"
 ```
+
+Run from the console (no team context), these presets are **global** roles —
+visible in every team, super-admin-only to modify (§4).
+
+### Bootstrap your first admin
+
+Nothing assigns a role automatically, and the role UI itself is gated by
+`roles.manage` — so without this step you're locked out of your own roles
+page. Assign the first admin once, from tinker or a seeder:
+
+```php
+// Teams OFF (or for a GLOBAL, all-teams super-admin):
+User::where('email', 'you@example.com')->first()->assignRole('super-admin');
+
+// Teams ON and you want it scoped to one team instead:
+app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($teamId);
+User::where('email', 'you@example.com')->first()->assignRole('admin');
+```
+
+> With teams active, `assignRole()` stamps whatever team id the registrar
+> currently holds — from a console command that's `null` (= global). That's
+> exactly right for a platform super-admin; for anything else, set the team id
+> first as shown.
 
 ---
 
@@ -795,3 +935,19 @@ What to get right for that to hold at scale:
 - **Octane / long-running workers.** The super-admin check memoizes per user
   object via a `WeakMap`, so it never leaks across requests; if a worker
   mutates a user's super-admin role mid-process, call `SuperAdmin::flush()`.
+
+---
+
+## Related docs
+
+- [Installation → Which modules scope data per team](installation.md) — the
+  tri-state `teams` inheritance and why a team-prefixed URL is **not** data
+  isolation by itself.
+- [Membership](membership.md) — inviting people **with** a role; its
+  `assignable_roles` allow-list intersects with the roles managed here (use
+  `AssignableRoles` so global + team roles stay in sync between both UIs).
+- [Resources](resources.md) — `permissionFeature()` / `registerPermissions()`.
+- [Actions §9](actions.md) — `->authorize()` on actions; [Tables](tables.md) —
+  `->can()` on columns and stat cards; [Forms](forms.md) — field-level `->can()`.
+- `php artisan kinetix:doctor` — flags the common misconfigurations on this
+  page (missing spatie teams flag, empty allow-lists, teams-flag mismatches).

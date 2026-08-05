@@ -67,6 +67,33 @@ export const i18n = createI18n({
                 save_failed: 'Could not save.',
                 deleted: 'Deleted.',
                 delete_failed: 'Could not delete.',
+                // roles: global toggle + delete-in-use warning
+                role_global_create_label: 'Global role (all teams)',
+                role_global_create_hint:
+                    'Visible in every team. Only super-admins can modify it later.',
+                role_delete_members_warning:
+                    'The {role} role is still assigned to {count} member(s). Deleting is blocked until they are reassigned.',
+                role_matrix_hint: 'Toggle permissions per module.',
+                role_matrix_module: 'Module',
+                // membership
+                members_title: 'Members',
+                member_email: 'Email',
+                member_role: 'Role',
+                member_provision: 'Add member',
+                member_resend: 'Resend',
+                member_revoke: 'Remove',
+                member_search: 'Search members…',
+                member_revoke_confirm:
+                    'Remove {email}? Their role will be removed and the member marked as revoked.',
+                member_status_pending: 'Pending',
+                member_status_active: 'Active',
+                member_status_revoked: 'Revoked',
+                member_provisioned: 'Invitation sent.',
+                member_provision_failed: 'Could not add member.',
+                member_role_updated: 'Role updated.',
+                member_revoked: 'Member removed.',
+                no_members: 'No members yet.',
+                show_more: 'Show more',
             },
         },
     },

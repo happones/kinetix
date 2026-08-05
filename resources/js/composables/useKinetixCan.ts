@@ -14,9 +14,11 @@ import type { KinetixSharedProps } from '@/types/kinetix';
 export function useKinetixCan() {
     const page = usePage<KinetixSharedProps>();
 
+    // `page?.props?.` — outside a mounted Inertia app (component tests, SSR
+    // edge cases) usePage yields no page; everything then denies, it never throws.
     const state = computed(
         () =>
-            page.props.kinetix_permissions ?? {
+            page?.props?.kinetix_permissions ?? {
                 enabled: false,
                 permissions: [] as string[],
                 roles: [] as string[],

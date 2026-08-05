@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { Globe } from '@lucide/vue';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useKinetixCan } from '@/composables/useKinetixCan';
 import { useKinetixRoleEditor } from '@/composables/useKinetixRoleEditor';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixRole } from '@/types/kinetix';
@@ -14,6 +16,12 @@ import KinetixRoleForm from './KinetixRoleForm.vue';
 const { features, roles, loading, saveRole, removeRole } =
     useKinetixRoleEditor();
 const { t } = useI18n();
+const { isSuperAdmin } = useKinetixCan();
+
+// Global (team-NULL) roles apply to every team — the server only lets a
+// super-admin modify them, so mirror that here (as the matrix/overview do).
+const canModify = (role: KinetixRole): boolean =>
+    !role.isGlobal || isSuperAdmin.value;
 
 const editing = ref<KinetixRole | null>(null);
 const confirmKey = ref<string | number | null>(null);
@@ -83,9 +91,20 @@ async function onDelete(role: KinetixRole): Promise<void> {
                 class="gap-2 p-3 flex items-center justify-between"
             >
                 <div class="min-w-0">
-                    <span class="text-sm font-medium text-foreground">{{
-                        role.name
-                    }}</span>
+                    <span class="gap-2 flex items-center">
+                        <span
+                            class="text-sm font-medium truncate text-foreground"
+                            >{{ role.name }}</span
+                        >
+                        <span
+                            v-if="role.isGlobal"
+                            class="gap-1 px-1.5 py-0.5 font-medium rounded inline-flex shrink-0 items-center bg-secondary text-[11px] text-secondary-foreground"
+                            :title="t('kinetix.role_global_hint')"
+                        >
+                            <Globe class="size-3" />
+                            {{ t('kinetix.role_global') }}
+                        </span>
+                    </span>
                     <span
                         class="gap-1.5 mt-0.5 text-xs flex flex-wrap text-muted-foreground"
                     >
@@ -109,7 +128,7 @@ async function onDelete(role: KinetixRole): Promise<void> {
                     </span>
                 </div>
 
-                <div class="gap-2 flex items-center">
+                <div v-if="canModify(role)" class="gap-2 flex items-center">
                     <template v-if="confirmKey === rowKey(role)">
                         <span class="text-xs text-muted-foreground">{{
                             t('kinetix.confirm_delete')

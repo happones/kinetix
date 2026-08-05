@@ -73,12 +73,37 @@ class PermissionController
 
         $roles = $this->visibleRoles()
             ->with('permissions')
-            ->withCount('users')
+            ->withCount(['users' => fn (Builder $query) => $this->scopeAssignmentsToTeam($query)])
             ->get()
             ->map(static fn ($role): RoleData => RoleData::fromModel($role))
             ->values();
 
         return response()->json($roles);
+    }
+
+    /**
+     * Constrain a role→users pivot query to the current team's assignments
+     * (plus global, team-NULL ones). Spatie's `Role::users()` relation is
+     * team-blind, so without this a GLOBAL role's `usersCount` would leak the
+     * total across every tenant.
+     */
+    protected function scopeAssignmentsToTeam(Builder $query): Builder
+    {
+        if (! $this->teamsActive()) {
+            return $query;
+        }
+
+        $pivot    = (string) config('permission.table_names.model_has_roles', 'model_has_roles');
+        $teamsKey = $this->teamsKey();
+        $teamId   = app(PermissionRegistrar::class)->getPermissionsTeamId();
+
+        return $query->where(function (Builder $inner) use ($pivot, $teamsKey, $teamId): void {
+            $inner->whereNull("{$pivot}.{$teamsKey}");
+
+            if ($teamId !== null) {
+                $inner->orWhere("{$pivot}.{$teamsKey}", $teamId);
+            }
+        });
     }
 
     public function store(Request $request): JsonResponse
@@ -94,14 +119,59 @@ class PermissionController
         $permissions = $request->input('permissions', []);
         $this->assertCanGrant($request->user(), $permissions);
 
+        // A GLOBAL (team-NULL) role applies to every team, so only a
+        // super-admin may create one — mirroring assertModifiable().
+        $isGlobal = $request->boolean('global');
+
+        if ($isGlobal && ! SuperAdmin::check($request->user())) {
+            abort(403, 'Only a super-admin can create a global role.');
+        }
+
         // create() (not findOrCreate) — an existing role, including a GLOBAL
         // one visible in every team, must never be silently re-synced through
         // the create endpoint. With spatie teams on, the current team id is
-        // stamped automatically, so UI-created roles are team-scoped.
-        $role = $this->roleModel()::create(['name' => $name, 'guard_name' => $this->guard()]);
-        $role->syncPermissions($permissions);
+        // stamped automatically, so UI-created roles are team-scoped unless
+        // `global` was requested (then the create runs with a NULL team id).
+        $role = $this->withTeamId(
+            $isGlobal ? null : $this->currentTeamId(),
+            function () use ($name, $permissions): Role {
+                $role = $this->roleModel()::create(['name' => $name, 'guard_name' => $this->guard()]);
+                $role->syncPermissions($permissions);
+
+                return $role;
+            },
+        );
 
         return response()->json(RoleData::fromModel($role->load('permissions')), 201);
+    }
+
+    /**
+     * Run a callback with spatie's team id pinned (and restored after), so a
+     * super-admin can create a GLOBAL role from inside a team context.
+     */
+    protected function withTeamId(int|string|null $teamId, callable $callback): mixed
+    {
+        if (! $this->teamsActive()) {
+            return $callback();
+        }
+
+        $registrar = app(PermissionRegistrar::class);
+        $previous  = $registrar->getPermissionsTeamId();
+
+        $registrar->setPermissionsTeamId($teamId);
+
+        try {
+            return $callback();
+        } finally {
+            $registrar->setPermissionsTeamId($previous);
+        }
+    }
+
+    protected function currentTeamId(): int|string|null
+    {
+        return $this->teamsActive()
+            ? app(PermissionRegistrar::class)->getPermissionsTeamId()
+            : null;
     }
 
     public function update(Request $request): JsonResponse
@@ -115,7 +185,18 @@ class PermissionController
         $this->assertModifiable($role, $request->user());
 
         if ($request->has('permissions')) {
-            $this->assertCanGrant($request->user(), $request->input('permissions', []));
+            // Guard the DELTA, not just what's being granted: a manager may
+            // only ADD or REMOVE abilities they themselves hold — otherwise
+            // `roles.manage` plus one permission would let them strip
+            // abilities they can't grant from a more privileged role.
+            $submitted = array_map(strval(...), (array) $request->input('permissions', []));
+            $current   = $role->permissions->pluck('name')->all();
+            $delta     = array_merge(
+                array_diff($submitted, $current),
+                array_diff($current, $submitted),
+            );
+
+            $this->assertCanGrant($request->user(), array_values($delta));
         }
 
         // The mutation runs inside a transaction that is rolled back if it would
@@ -145,6 +226,7 @@ class PermissionController
         $role = $this->resolveRole($request);
         $this->assertNotProtected($role->name);
         $this->assertModifiable($role, $request->user());
+        $this->assertNotInUse($role);
 
         DB::transaction(function () use ($role, $request): void {
             $role->delete();
@@ -152,6 +234,23 @@ class PermissionController
         });
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Deleting a role that still has members would silently strip their
+     * permissions (the pivot rows cascade away) — reject it instead. The
+     * count uses the same team scope as `usersCount`, so a global role in
+     * use only by OTHER teams can still be removed by a super-admin.
+     */
+    protected function assertNotInUse(Role $role): void
+    {
+        $count = $this->scopeAssignmentsToTeam($role->users()->getQuery())->count();
+
+        if ($count > 0) {
+            throw ValidationException::withMessages([
+                'role' => [(string) __('kinetix.permissions_role_in_use', ['role' => $role->name, 'count' => $count])],
+            ]);
+        }
     }
 
     // -------------------------------------------------------------------
@@ -250,6 +349,8 @@ class PermissionController
             'name'          => $name,
             'permissions'   => $partial ? ['sometimes', 'array'] : ['array'],
             'permissions.*' => ['string', Rule::in($this->registry->allPermissions())],
+            // Super-admin only: create the role as GLOBAL (team-NULL).
+            'global' => ['sometimes', 'boolean'],
         ];
     }
 

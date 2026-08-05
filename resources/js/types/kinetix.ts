@@ -318,6 +318,8 @@ export interface KinetixRole {
     usersCount?: number | null;
     /** With spatie teams active: a team-NULL role visible in every team (super-admin-only to modify). */
     isGlobal?: boolean;
+    /** Client-only, on CREATE: request a global (team-NULL) role — super-admin only. */
+    global?: boolean;
 }
 
 /** Impersonation state shared from the server (for the banner). */

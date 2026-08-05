@@ -374,7 +374,8 @@ return [
         'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
         'teams'            => env('KINETIX_PERMISSIONS_TEAMS'), // null = inherit kinetix.teams
         'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
-        // true | closure | invokable class-string | null (off)
+        // true | [Class, 'method'] | invokable class-string | null (off).
+        // (A closure works but breaks `config:cache` — prefer the callables.)
         'owner_bypass' => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
         'guard'        => env('KINETIX_PERMISSIONS_GUARD', 'web'),
 
