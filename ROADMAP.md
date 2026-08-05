@@ -12,7 +12,7 @@ overlap matrix.
 
 > This document is the current-state map of what's shipped plus what's on the
 > table next. Per-release detail lives in [`CHANGELOG.md`](CHANGELOG.md).
-> Current version: **v0.138.1** — 50+ modules.
+> Current version: **v0.139.0** — 50+ modules.
 
 ---
 

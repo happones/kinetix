@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.139.0] - 2026-08-05
+
+### Fixed
+
+- ⚠️ **(published) Popovers opened from inside a sheet or modal no longer
+  render behind it.** Every Kinetix popper portalled to `<body>` (selects,
+  comboboxes, date/time/month/week/year pickers, dropdowns, saved views,
+  filters, tooltips — 22 components) carried `z-50`, while `KinetixSheet`,
+  `KinetixConfirmModal`, `KinetixTour` and the calendar event modal teleport at
+  `z-[100]`; as siblings under `<body>` the number decides, so a date picker
+  inside a sheet form was unusable. All portalled layers now sit on a
+  documented **CSS-variable z-index scale** with inlined fallbacks:
+  `--kinetix-z-overlay` (backdrops, `100`), `--kinetix-z-modal`
+  (dialog/sheet/drawer/lightbox content, `100`) and `--kinetix-z-popover`
+  (popper content, `120` — above modals). Hosts can re-stack the whole suite
+  around their own layers by defining the variables on `:root`; without them
+  nothing changes except popovers now clearing overlays. A source-scan test
+  (`tests/js/zIndexScale.spec.ts`) fails any future component that hardcodes
+  `z-50`/`z-[100]` instead of picking from the scale. Documented in
+  [Installation → Z-index scale](docs/installation.md). Re-publish components.
+
 ## [0.138.1] - 2026-08-04
 
 ### Fixed
