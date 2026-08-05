@@ -122,6 +122,50 @@ abstract class Importer
         return null;
     }
 
+    /**
+     * Toast shown the moment the import is queued. Override to customize
+     * the message.
+     */
+    public function getStartedNotificationBody(): string
+    {
+        return (string) __('kinetix.import_started');
+    }
+
+    /**
+     * Title of the completion notification. `$failed` counts rows skipped
+     * because they failed validation or `importRow()` threw.
+     */
+    public function getCompletedNotificationTitle(int $imported, int $failed): string
+    {
+        return (string) __('kinetix.import_complete');
+    }
+
+    /**
+     * Body of the completion notification. Per-row failure details are
+     * appended automatically by the import job after this summary line.
+     */
+    public function getCompletedNotificationBody(int $imported, int $failed): string
+    {
+        return (string) __('kinetix.import_complete_body', [
+            'imported' => $imported,
+            'failed'   => $failed,
+        ]);
+    }
+
+    /**
+     * Title of the notification sent when the whole import job fails
+     * (unreadable file, DB outage — after all retries are exhausted).
+     */
+    public function getFailedNotificationTitle(): string
+    {
+        return (string) __('kinetix.import_failed_title');
+    }
+
+    public function getFailedNotificationBody(): string
+    {
+        return (string) __('kinetix.import_failed_body');
+    }
+
     public function hasDownloadableTemplate(): bool
     {
         return $this->downloadableTemplate;

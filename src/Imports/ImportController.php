@@ -8,6 +8,7 @@ use Happones\Kinetix\Data\ImportOptionsData;
 use Happones\Kinetix\Data\ImportPreviewData;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
 use Happones\Kinetix\Support\KinetixDisk;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -158,6 +159,9 @@ class ImportController
             $user?->getKey(),
             // The worker has no request — capture tenant/user context now.
             $importer->context($request),
+            // Team the import was started from, for the completion notification
+            // (null when notifications aren't team-scoped).
+            KinetixTeams::keyFor('notifications', $request),
         );
 
         // Use the connection's default queue unless the importer pins a specific
@@ -166,7 +170,10 @@ class ImportController
             $pending->onQueue($queue);
         }
 
-        return response()->json(['status' => 'queued']);
+        return response()->json([
+            'status'  => 'queued',
+            'message' => $importer->getStartedNotificationBody(),
+        ]);
     }
 
     /**

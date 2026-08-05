@@ -104,6 +104,9 @@ class ContactImporter extends Importer
 | `authorize(?Authenticatable $user): bool` | Override for custom authorization; enforced on every import endpoint |
 | `protected bool $downloadableTemplate = true` | Offer a "Download template" link in the import modal |
 | `protected ?string $templateFileName = null` | Template filename (null = studly class name, `ProductImporter.csv`) |
+| `getStartedNotificationBody(): string` | Toast shown when the import is queued (see [Notifications](#7-notifications-lifecycle--custom-messages)) |
+| `getCompletedNotificationTitle/Body(int $imported, int $failed): string` | Completion notification title/body |
+| `getFailedNotificationTitle/Body(): string` | Whole-job failure notification title/body |
 
 ### Authorization
 
@@ -328,10 +331,11 @@ The import itself is queued; the user gets a completion **notification** when it
 
 `ImportProcessor` reads the full file, maps each row by the chosen header indices, validates mapped columns against their `rules()`, calls `importRow()` per row inside chunked transactions, deletes the temp file, and finishes by sending a Kinetix notification:
 
-- `Import complete` — `:imported imported, :failed skipped` (status `success`, or `warning` if any rows were skipped).
+- `Import complete` — `:imported imported, :failed skipped` (status `success`, or `warning` if any rows were skipped). A row that fails validation or whose `importRow()` throws is **skipped, never fatal** — the first 10 failures are listed in the notification body with their row number and reason.
+- When any rows failed, the notification also carries a **Download failed rows** action: a CSV of **every** failed source row (row number, the original cells, and the reason), behind the same signed, user-bound, expiring download token exports use.
 - Sent via `broadcast()` when Echo is configured, otherwise persisted with `sendToDatabase()`.
 
-Customize the dispatch by overriding `queue()` and `chunkSize()`, or the whole per-row behaviour via `importRow()` / `resolveRecord()`.
+Customize the dispatch by overriding `queue()` and `chunkSize()`, the whole per-row behaviour via `importRow()` / `resolveRecord()`, and every notification message via the `get*Notification*` hooks (see [Notifications](#7-notifications-lifecycle--custom-messages)).
 
 ---
 
@@ -516,6 +520,9 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 | `export(?Model $recipient, array $parameters = []): void` | Dispatch the queued export + notify the recipient. `$parameters` (e.g. `['ids' => [...]]`) reach the exporter inside the job |
 | `parameter(string $key, $default = null)` | Read a runtime parameter inside `query()` (e.g. the selected `ids`) |
 | `withParameters(array): static` | Set parameters on an instance (used by the job; `export()` is the usual entry point) |
+| `getStartedNotificationBody(): string` | Toast shown when the export is queued (see [Notifications](#7-notifications-lifecycle--custom-messages)) |
+| `getCompletedNotificationTitle/Body(int $exported, int $failed): string` | Completion notification title/body |
+| `getFailedNotificationTitle/Body(): string` | Whole-job failure notification title/body |
 
 | `ExportColumn` method | Description |
 |---|---|
@@ -556,3 +563,71 @@ class InvoiceExporter extends Exporter
 > of the exported **data** belongs in the exporter's own `query()` (see the
 > importer's multi-tenancy section — the same "carry the context into the
 > queue" rule applies).
+
+---
+
+## 7. Notifications: lifecycle & custom messages
+
+Wiring an `ExportAction` / `ImportAction` to a class is all it takes — the full
+notification lifecycle is automatic:
+
+| Moment | Delivery | Default message |
+|---|---|---|
+| **Queued** | Local toast, immediately | "Export/Import queued. You will be notified when it finishes." |
+| **Completed** | Database notification (bell) — broadcast in real time when Echo is configured | "Export ready" + **Download** action / "Import complete — :imported imported, :failed skipped" |
+| **Completed with skipped rows** | Same, status `warning` | Export: ":count rows could not be exported and were skipped." Import: the first 10 failing rows with row number + reason, plus a **Download failed rows** action — a CSV of every failed row (number, original cells, reason) behind a signed, user-bound, expiring link |
+| **Job failed** (all retries exhausted) | Database notification, status `danger` | "Export/Import failed. Please try again." |
+
+Rows are **skipped, never fatal**: a record whose `mapRecord()` throws (export)
+or a row that fails validation / whose `importRow()` throws (import) is counted
+and reported, and the rest of the file still goes through.
+
+### Customizing every message
+
+Override the notification hooks on the exporter/importer — no other wiring:
+
+```php
+class ContactExporter extends Exporter
+{
+    // Toast shown the moment the action queues the export.
+    public function getStartedNotificationBody(): string
+    {
+        return 'Generating your contacts file…';
+    }
+
+    public function getCompletedNotificationTitle(int $exported, int $failed): string
+    {
+        return "Contacts export ready ({$exported} rows)";
+    }
+
+    public function getCompletedNotificationBody(int $exported, int $failed): string
+    {
+        return $failed > 0
+            ? "{$failed} contacts could not be exported."
+            : 'Your file is ready to download.';
+    }
+
+    public function getFailedNotificationTitle(): string { /* … */ }
+    public function getFailedNotificationBody(): string { /* … */ }
+}
+```
+
+`Importer` exposes the same five hooks (`$imported`/`$failed` instead of
+`$exported`/`$failed`). The import job appends the per-row failure detail after
+your `getCompletedNotificationBody()` line automatically.
+
+::: warning Completion notifications need the bell
+The queued toast is client-side and always works, but the **completion** and
+**failure** notifications are database notifications sent from the queue
+worker. For the user to see them you need:
+
+1. `KINETIX_DATABASE_NOTIFICATIONS=true` (renders them in the
+   `<KinetixNotifications />` bell — mount it in your layout, see
+   [Notifications](notifications.md)), Laravel's `notifications` table
+   (`php artisan make:notifications-table`), and a running queue worker.
+2. Optionally `KINETIX_NOTIFICATIONS_BROADCAST=true` + Echo/Reverb so they
+   arrive as a **live toast + sound** without a page visit — otherwise they
+   appear in the bell on the next navigation.
+
+With both flags off, completion notifications are persisted but never surfaced.
+:::

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Imports\Jobs;
 
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\ImportOptionsData;
+use Happones\Kinetix\Exports\DownloadToken;
+use Happones\Kinetix\Exports\FileWriter;
 use Happones\Kinetix\Imports\FileReader;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Notifications\Notification;
@@ -12,11 +15,13 @@ use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\File;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Throwable;
 
 class ImportProcessor implements ShouldQueue
@@ -34,6 +39,9 @@ class ImportProcessor implements ShouldQueue
      * @param array<string, int|null> $mapping        column name => source header index
      * @param class-string|null       $recipientClass
      * @param array<string, mixed>    $context        request context captured by Importer::context()
+     * @param int|string|null         $teamKey        captured at dispatch (the worker has no
+     *                                                request); stamps the notification when
+     *                                                notifications are team-scoped
      */
     public function __construct(
         protected string $importerClass,
@@ -43,6 +51,7 @@ class ImportProcessor implements ShouldQueue
         protected ?string $recipientClass = null,
         protected int|string|null $recipientId = null,
         protected array $context = [],
+        protected int|string|null $teamKey = null,
     ) {}
 
     /**
@@ -70,9 +79,13 @@ class ImportProcessor implements ShouldQueue
             return;
         }
 
+        /** @var Importer $importer */
+        $importer = (new $this->importerClass)->withContext($this->context);
+
         $notification = Notification::make()
-            ->title((string) __('kinetix.import_failed'))
-            ->body((string) __('kinetix.import_failed_body'))
+            ->title($importer->getFailedNotificationTitle())
+            ->body($importer->getFailedNotificationBody())
+            ->team($this->teamKey)
             ->danger();
 
         if (Notification::shouldBroadcast()) {
@@ -113,8 +126,13 @@ class ImportProcessor implements ShouldQueue
         /** @var array<int, string> $failures */
         $failures = [];
 
+        // Every failed source row (uncapped, unlike the $failures summary), so
+        // the user can download a CSV of exactly what was skipped and why.
+        /** @var array<int, array<int, mixed>> $failedRows */
+        $failedRows = [];
+
         foreach (array_chunk($rows, max(1, $importer->chunkSize())) as $chunk) {
-            DB::transaction(function () use ($chunk, $importer, $rules, &$imported, &$failed, &$failures, &$rowNumber): void {
+            DB::transaction(function () use ($chunk, $importer, $rules, &$imported, &$failed, &$failures, &$failedRows, &$rowNumber): void {
                 foreach ($chunk as $row) {
                     $rowNumber++;
                     $data = $this->mapRow($row);
@@ -124,7 +142,9 @@ class ImportProcessor implements ShouldQueue
 
                         if ($validator->fails()) {
                             $failed++;
-                            $this->recordFailure($failures, $rowNumber, (string) $validator->errors()->first());
+                            $reason = (string) $validator->errors()->first();
+                            $this->recordFailure($failures, $rowNumber, $reason);
+                            $failedRows[] = [$rowNumber, ...array_values($row), $reason];
 
                             continue;
                         }
@@ -136,6 +156,7 @@ class ImportProcessor implements ShouldQueue
                     } catch (Throwable $e) {
                         $failed++;
                         $this->recordFailure($failures, $rowNumber, $e->getMessage());
+                        $failedRows[] = [$rowNumber, ...array_values($row), $e->getMessage()];
                     }
                 }
             });
@@ -143,7 +164,58 @@ class ImportProcessor implements ShouldQueue
 
         Storage::disk($disk)->delete($this->path);
 
-        $this->notify($imported, $failed, $failures);
+        $failedRowsUrl = $failedRows !== []
+            ? $this->storeFailedRows($parsed['headers'], $failedRows)
+            : null;
+
+        $this->notify($importer, $imported, $failed, $failures, $failedRowsUrl);
+    }
+
+    /**
+     * Write the failed source rows (plus their reason) to a downloadable CSV
+     * and return a signed download URL bound to the recipient — so beyond the
+     * 10 rows quoted in the notification body, nothing is lost. Null when the
+     * import has no recipient (nobody could download it).
+     *
+     * @param array<int, string>            $headers
+     * @param array<int, array<int, mixed>> $failedRows
+     */
+    protected function storeFailedRows(array $headers, array $failedRows): ?string
+    {
+        if ($this->recipientClass === null || $this->recipientId === null) {
+            return null;
+        }
+
+        $disk = KinetixDisk::privateName();
+        // Stored under kinetix-exports so the existing token-guarded download
+        // endpoint (constrained to that directory) can serve it.
+        $directory  = 'kinetix-exports';
+        $storedName = Str::uuid()->toString().'.csv';
+
+        $tempPath = (string) tempnam(sys_get_temp_dir(), 'kinetix_import_failures_');
+        $writer   = new FileWriter($tempPath, 'csv');
+
+        if ($headers !== []) {
+            $writer->writeRow([
+                (string) __('kinetix.import_failures_row_heading'),
+                ...$headers,
+                (string) __('kinetix.import_failures_error_heading'),
+            ]);
+        }
+
+        foreach ($failedRows as $row) {
+            $writer->writeRow($row);
+        }
+
+        $writer->close();
+
+        Storage::disk($disk)->putFileAs($directory, new File($tempPath), $storedName);
+        @unlink($tempPath);
+
+        $downloadName = str(class_basename($this->importerClass))->kebab()->append('-failed-rows.csv')->toString();
+        $token        = DownloadToken::mint($disk, $directory.'/'.$storedName, $downloadName, $this->recipientId);
+
+        return route('kinetix.exports.download', ['token' => $token]);
     }
 
     /**
@@ -213,7 +285,7 @@ class ImportProcessor implements ShouldQueue
      *
      * @param array<int, string> $failures
      */
-    protected function notify(int $imported, int $failed, array $failures = []): void
+    protected function notify(Importer $importer, int $imported, int $failed, array $failures = [], ?string $failedRowsUrl = null): void
     {
         if ($this->recipientClass === null || $this->recipientId === null) {
             return;
@@ -225,10 +297,7 @@ class ImportProcessor implements ShouldQueue
             return;
         }
 
-        $body = __('kinetix.import_complete_body', [
-            'imported' => $imported,
-            'failed'   => $failed,
-        ]);
+        $body = $importer->getCompletedNotificationBody($imported, $failed);
 
         if ($failures !== []) {
             $body .= "\n".implode("\n", $failures);
@@ -239,9 +308,21 @@ class ImportProcessor implements ShouldQueue
         }
 
         $notification = Notification::make()
-            ->title((string) __('kinetix.import_complete'))
-            ->body((string) $body)
+            ->title($importer->getCompletedNotificationTitle($imported, $failed))
+            ->body($body)
+            ->team($this->teamKey)
             ->status($failed > 0 ? 'warning' : 'success');
+
+        if ($failedRowsUrl !== null) {
+            $notification->actions([
+                Action::make('downloadFailedRows')
+                    ->label((string) __('kinetix.download_failed_rows'))
+                    ->icon('download')
+                    ->color('gray')
+                    ->button()
+                    ->url($failedRowsUrl, true),
+            ]);
+        }
 
         if (Notification::shouldBroadcast()) {
             $notification->broadcast($recipient);

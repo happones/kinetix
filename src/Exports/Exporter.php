@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Exports;
 
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -149,6 +150,53 @@ abstract class Exporter
     }
 
     /**
+     * Toast shown the moment the export is queued (via ExportAction). Override
+     * to customize the message.
+     */
+    public function getStartedNotificationBody(): string
+    {
+        return (string) __('kinetix.export_started');
+    }
+
+    /**
+     * Title of the completion notification sent when the export finishes.
+     * `$failed` counts rows skipped because mapping them threw.
+     */
+    public function getCompletedNotificationTitle(int $exported, int $failed): string
+    {
+        return (string) __('kinetix.export_ready');
+    }
+
+    /**
+     * Body of the completion notification. The default mentions skipped rows
+     * when any failed; the download link is attached separately as an action.
+     */
+    public function getCompletedNotificationBody(int $exported, int $failed): string
+    {
+        $body = (string) __('kinetix.export_ready_body');
+
+        if ($failed > 0) {
+            $body .= ' '.__('kinetix.export_failed_rows', ['count' => $failed]);
+        }
+
+        return $body;
+    }
+
+    /**
+     * Title of the notification sent when the whole export job fails
+     * (after all retries are exhausted).
+     */
+    public function getFailedNotificationTitle(): string
+    {
+        return (string) __('kinetix.export_failed');
+    }
+
+    public function getFailedNotificationBody(): string
+    {
+        return (string) __('kinetix.export_failed_body');
+    }
+
+    /**
      * The header row (column headings).
      *
      * @return array<int, string>
@@ -275,6 +323,10 @@ abstract class Exporter
             $recipient !== null ? $recipient::class : null,
             $recipient?->getKey(),
             $parameters !== [] ? $parameters : $this->parameters,
+            // The worker has no request, so the team the export was started
+            // from must be captured now (null when notifications aren't
+            // team-scoped — the notification then stays global).
+            KinetixTeams::keyFor('notifications'),
         );
 
         // Only pin a specific queue when the exporter defines one; otherwise use

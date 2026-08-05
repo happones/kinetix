@@ -238,7 +238,10 @@ const startImport = async () => {
     errorMessage.value = null;
 
     try {
-        await kinetixFetch(`/${prefix.value}/imports/start`, {
+        const response = await kinetixFetch<{
+            status: string;
+            message?: string;
+        }>(`/${prefix.value}/imports/start`, {
             method: 'POST',
             body: {
                 importer: props.importer,
@@ -248,7 +251,9 @@ const startImport = async () => {
             },
         });
 
-        toast.success(t('kinetix.import_started'));
+        // The server message comes from Importer::getStartedNotificationBody(),
+        // so a customized importer message reaches the toast too.
+        toast.success(response?.message ?? t('kinetix.import_started'));
         preview.value = null;
         file.value = null;
     } catch (error: any) {

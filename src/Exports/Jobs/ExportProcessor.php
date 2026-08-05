@@ -36,12 +36,16 @@ class ExportProcessor implements ShouldQueue
      * @param class-string<Exporter> $exporterClass
      * @param class-string|null      $recipientClass
      * @param array<string, mixed>   $parameters
+     * @param int|string|null        $teamKey        captured at dispatch (the worker has no
+     *                                               request); stamps the notification when
+     *                                               notifications are team-scoped
      */
     public function __construct(
         protected string $exporterClass,
         protected ?string $recipientClass = null,
         protected int|string|null $recipientId = null,
         protected array $parameters = [],
+        protected int|string|null $teamKey = null,
     ) {}
 
     /**
@@ -65,9 +69,13 @@ class ExportProcessor implements ShouldQueue
             return;
         }
 
+        /** @var Exporter $exporter */
+        $exporter = new $this->exporterClass;
+
         $notification = Notification::make()
-            ->title((string) __('kinetix.export_failed'))
-            ->body((string) __('kinetix.export_failed_body'))
+            ->title($exporter->getFailedNotificationTitle())
+            ->body($exporter->getFailedNotificationBody())
+            ->team($this->teamKey)
             ->danger();
 
         if (Notification::shouldBroadcast()) {
@@ -96,9 +104,20 @@ class ExportProcessor implements ShouldQueue
         $writer = new FileWriter($tempPath, $format);
         $writer->writeRow($exporter->headings());
 
-        $exporter->resolveExportQuery()->chunk($exporter->chunkSize(), function ($records) use ($writer, $exporter): void {
+        $exported = 0;
+        $failed   = 0;
+
+        // A record whose mapping throws is skipped — one bad row must not cost
+        // the user the other N thousand. The completion notification reports
+        // how many were skipped.
+        $exporter->resolveExportQuery()->chunk($exporter->chunkSize(), function ($records) use ($writer, $exporter, &$exported, &$failed): void {
             foreach ($records as $record) {
-                $writer->writeRow($exporter->mapRecord($record));
+                try {
+                    $writer->writeRow($exporter->mapRecord($record));
+                    $exported++;
+                } catch (Throwable $e) {
+                    $failed++;
+                }
             }
         });
 
@@ -117,7 +136,7 @@ class ExportProcessor implements ShouldQueue
         $token        = DownloadToken::mint($disk, $relativePath, $downloadName, $this->recipientId);
         $url          = route('kinetix.exports.download', ['token' => $token]);
 
-        $this->notify($url);
+        $this->notify($exporter, $url, $exported, $failed);
     }
 
     /**
@@ -135,7 +154,7 @@ class ExportProcessor implements ShouldQueue
         return $recipient;
     }
 
-    protected function notify(string $url): void
+    protected function notify(Exporter $exporter, string $url, int $exported, int $failed): void
     {
         $recipient = $this->resolveRecipient();
 
@@ -144,9 +163,10 @@ class ExportProcessor implements ShouldQueue
         }
 
         $notification = Notification::make()
-            ->title((string) __('kinetix.export_ready'))
-            ->body((string) __('kinetix.export_ready_body'))
-            ->success()
+            ->title($exporter->getCompletedNotificationTitle($exported, $failed))
+            ->body($exporter->getCompletedNotificationBody($exported, $failed))
+            ->team($this->teamKey)
+            ->status($failed > 0 ? 'warning' : 'success')
             ->actions([
                 Action::make('download')
                     ->label((string) __('kinetix.download_export'))

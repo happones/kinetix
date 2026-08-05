@@ -31,13 +31,16 @@ class ExportAction extends Action
      */
     public function exporter(string $exporterClass): static
     {
+        /** @var Exporter $exporter */
+        $exporter = new $exporterClass;
+
         // Fire a background POST (not an Inertia visit, so the JSON response
         // won't trigger Inertia's modal). The exporter travels as a signed
         // token in the URL; the built-in exports/start endpoint queues it and
         // the user is notified with a download link when it finishes.
         $this->request(
             route('kinetix.exports.start', ['exporter' => $exporterClass::token()]),
-            ['method' => 'post', 'toast' => (string) __('kinetix.export_started')],
+            ['method' => 'post', 'toast' => $exporter->getStartedNotificationBody()],
         );
 
         return $this;
