@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { roleLabel } from '@/composables/useKinetixMembers';
-import {
-    buttonVariants,
-    inputClass,
-} from '@/composables/useKinetixShadcnVariants';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
+import KinetixButton from './KinetixButton.vue';
 import KinetixLabel from './KinetixLabel.vue';
 import KinetixSelect from './KinetixSelect.vue';
 
@@ -17,6 +15,8 @@ import KinetixSelect from './KinetixSelect.vue';
  */
 const props = defineProps<{
     assignableRoles: string[];
+    /** True while the parent's provision request is in flight. */
+    submitting?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -27,6 +27,18 @@ const { t } = useI18n();
 
 const email = ref('');
 const role = ref(props.assignableRoles[0] ?? '');
+
+// The allow-list arrives async (the parent loads it after mount), so default
+// the role once it lands — otherwise the select opens empty and a submit with
+// only the email filled is a silent no-op.
+watch(
+    () => props.assignableRoles,
+    (roles) => {
+        if (!role.value && roles.length > 0) {
+            role.value = roles[0];
+        }
+    },
+);
 
 /** KinetixSelect expects a `{ value: label }` record. */
 const roleOptions = computed<Record<string, string>>(() =>
@@ -78,8 +90,8 @@ function submit(): void {
             />
         </div>
 
-        <button type="submit" :class="buttonVariants()">
+        <KinetixButton type="submit" :loading="submitting">
             {{ t('kinetix.member_provision') }}
-        </button>
+        </KinetixButton>
     </form>
 </template>

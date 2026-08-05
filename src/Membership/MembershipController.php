@@ -91,6 +91,13 @@ class MembershipController
 
         $provision = $this->findProvision($request);
 
+        // Resend only makes sense for a pending (possibly expired) provision.
+        // Resurrecting an ACTIVE one would mint an activation link whose
+        // submit creates a duplicate user; a REVOKED member must be
+        // re-provisioned deliberately, not revived by a resend.
+        abort_if($provision->status === MemberProvisionStatus::Active, 422, 'This member is already active.');
+        abort_if($provision->status === MemberProvisionStatus::Revoked, 422, 'This member was revoked; provision them again instead.');
+
         $provision->update([
             'status'     => MemberProvisionStatus::Pending,
             'expires_at' => now()->addHours($this->expiryHours()),
@@ -106,6 +113,10 @@ class MembershipController
         Gate::authorize('members.update');
 
         $provision = $this->findProvision($request);
+
+        // A revoked member keeps their user_id for the audit trail, so a role
+        // change here would silently RE-GRANT them a role. Re-provision instead.
+        abort_if($provision->status === MemberProvisionStatus::Revoked, 422, 'This member was revoked; provision them again instead.');
 
         $validated = $request->validate(['role' => ['required', 'string']]);
         $this->assertAssignable($validated['role'], $provision->team_id);
@@ -335,10 +346,16 @@ class MembershipController
     /**
      * Run a callback with spatie's team id pinned to the provision's team, so
      * role (un)assignment lands in the right tenant scope, then restore it.
+     *
+     * Keyed off SPATIE's `permission.teams` — that flag alone decides whether
+     * pivot rows carry a team id. Keying off Kinetix's membership flag here
+     * mis-scoped writes when `membership.teams` was off but `permission.teams`
+     * on: the public activation route has no team middleware, so the registrar
+     * value would be stale/undefined and the role landed in the wrong tenant.
      */
     protected function withTeam(int|string|null $teamId, callable $callback): void
     {
-        if (! KinetixTeams::enabledFor('membership') || ! class_exists(PermissionRegistrar::class)) {
+        if (! class_exists(PermissionRegistrar::class) || ! (bool) config('permission.teams', false)) {
             $callback();
 
             return;

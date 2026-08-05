@@ -209,6 +209,15 @@ class DoctorCommand extends Command
             $this->warn_('Membership', 'assignable_roles is empty',
                 'No role can be assigned, so every provision attempt returns 422.');
         }
+
+        // Role tables scope by the PERMISSIONS flag; membership routes scope by
+        // the MEMBERSHIP flag. When they disagree, provisions and the roles they
+        // assign live in different tenancy models.
+        if ($teams !== KinetixTeams::enabledFor('permissions')) {
+            $this->warn_('Membership', 'membership.teams and permissions.teams disagree',
+                'Provisions are scoped by membership.teams while role rows are scoped by permissions.teams — '
+                .'role assignments may land in the wrong tenant. Align both flags (or leave both null to inherit kinetix.teams).');
+        }
     }
 
     /**

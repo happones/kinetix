@@ -151,21 +151,30 @@ class SyncProvisionedMember
     }
 }
 
+// Prefer the built-in resolver — it matches the Roles UI's visibility rule
+// (the team's roles PLUS global team-NULL ones, minus protected roles):
+//   'assignable_roles' => \Happones\Kinetix\Permissions\AssignableRoles::class,
+// To withhold extra names, wrap it:
 class AssignableRoles
 {
-    public function forTeam(int|string|null $teamId): array
+    public function __invoke(int|string|null $teamId): array
     {
-        return Role::where('team_id', $teamId)
-            ->whereNotIn('name', ['super-admin', 'admin'])
-            ->pluck('name')
-            ->all();
+        return \Happones\Kinetix\Permissions\AssignableRoles::names($teamId, except: ['admin']);
     }
 }
 ```
 
-An invokable class-string (`AssignableRoles::class`) works too. An array is read
-as a callback only when it is a `[class-string, method]` pair, so
-`['editor', 'viewer']` still means a list of role names.
+NEVER hand-write `where('team_id', $teamId)` here: it drops global (team-NULL)
+roles — exactly where `KinetixRolesSeeder`'s presets live — leaving the invite
+picker empty. The correct scope is `whereNull('team_id')->orWhere('team_id', $teamId)`
+(what `AssignableRoles::query()` returns). An array is read as a callback only
+when it is a `[class-string, method]` pair, so `['editor', 'viewer']` still
+means a list of role names.
+
+State machine: `update`/`resend` on a REVOKED provision and `resend` on an
+ACTIVE one are 422s — re-provision deliberately. The activation mail is
+`ShouldQueue`: without a running worker (or `QUEUE_CONNECTION=sync`) no invite
+email is ever sent while the UI reports success.
 
 ---
 

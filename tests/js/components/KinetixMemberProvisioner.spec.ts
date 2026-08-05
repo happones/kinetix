@@ -89,6 +89,36 @@ describe('KinetixMemberProvisioner', () => {
         expect(wrapper.emitted('submit')).toBeUndefined();
     });
 
+    it('defaults the role once the async allow-list arrives', async () => {
+        // The parent loads the allow-list after mount, so the provisioner
+        // starts with []. Without the watcher the select stayed empty and a
+        // submit with only the email filled was a silent no-op.
+        const wrapper = mountProvisioner([]);
+
+        await wrapper.setProps({ assignableRoles: ['editor', 'viewer'] });
+        await wrapper.get('input[type="email"]').setValue('late@example.com');
+        await wrapper.get('form').trigger('submit');
+
+        expect(wrapper.emitted('submit')?.[0]).toEqual([
+            'late@example.com',
+            'editor',
+        ]);
+    });
+
+    it('shows a pending submit button while submitting', () => {
+        const wrapper = mount(KinetixMemberProvisioner, {
+            props: { assignableRoles: ['editor'], submitting: true },
+            global: {
+                plugins: [i18n],
+                stubs: { KinetixSelect: KinetixSelectStub },
+            },
+        });
+
+        const button = wrapper.get('button[type="submit"]');
+        expect(button.attributes('disabled')).toBeDefined();
+        expect(wrapper.find('.animate-spin').exists()).toBe(true);
+    });
+
     it('headline-cases role labels via the shared helper', async () => {
         // Both membership selects (provisioner + member list) share this
         // helper, so the same role never renders two different labels on the

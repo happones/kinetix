@@ -63,16 +63,20 @@ Enable the module in `config/kinetix.php`:
     // Enable the provisioning module (opt-in)
     'enabled'           => env('KINETIX_MEMBERSHIP_ENABLED', false),
 
-    // Scope provisioning to the active team (bridges currentTeam, like permissions)
-    'teams'             => env('KINETIX_MEMBERSHIP_TEAMS', false),
+    // Scope provisioning to the active team: true/false wins, null (default)
+    // inherits the global `kinetix.teams` switch. Keep it in agreement with
+    // `permissions.teams` — provisions and the roles they assign should live
+    // in the same tenancy model (kinetix:doctor warns when they disagree).
+    'teams'             => env('KINETIX_MEMBERSHIP_TEAMS'),
 
     // The host's User model, created on activation
     'user_model'        => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
 
     // Roles an admin is allowed to assign while provisioning. Anything outside
     // this list is rejected server-side — this is how you guarantee
-    // "I add members but they never become admin". A static array, a closure,
-    // or an invokable class-string (see "Dynamic allow-list" below).
+    // "I add members but they never become admin". A static array, a
+    // [Class, 'method'] pair, or an invokable class-string (see "Dynamic
+    // allow-list" below for the recommended DB-backed resolver).
     'assignable_roles'  => ['editor', 'viewer'],
 
     // Hours an activation link stays valid
@@ -116,6 +120,26 @@ the callback forms below:
 'attach_member' => [\App\Kinetix\SyncProvisionedMember::class, 'attach'],
 ```
 :::
+
+### Mail prerequisites
+
+The activation link travels by email (`MemberActivationNotification`, an
+on-demand mail notification), so provisioning silently depends on two things
+the module can't set up for you:
+
+1. **A working mailer** — the usual `MAIL_*` env block. In local dev, point it
+   at Mailpit/log to see the links.
+2. **A running queue worker.** The notification `implements ShouldQueue`: with
+   `QUEUE_CONNECTION=database` (the starter-kit default) and **no worker
+   running, no email is ever sent** — while the admin sees a perfectly
+   successful "Invitation sent" toast. If you don't run workers, set
+   `QUEUE_CONNECTION=sync`.
+
+The email subject/body use the `kinetix.member_activation_*` translation keys
+(all locales), so brand or reword it by overriding those keys in your published
+lang files. For a fully custom email, extend
+`Happones\Kinetix\Membership\MemberActivationNotification` and rebind it in the
+container.
 
 ## 2.1 Callback options (`config:cache`-safe)
 
@@ -174,30 +198,48 @@ assigns config at runtime), but the callable array is the only form that survive
 ### Dynamic allow-list
 
 A config array covers a fixed catalog. If your teams create their own roles in
-the Roles UI, point `assignable_roles` at a **callback** instead — it receives the
-team key the provision belongs to and may return an array or a Collection of role
-names (or `Role` models):
+the Roles UI, point `assignable_roles` at the built-in resolver — the invite
+picker then offers exactly what the Roles screen shows, **the current team's
+roles PLUS global (team-NULL) ones**, minus the protected roles:
 
 ```php
-'assignable_roles' => [\App\Kinetix\AssignableRoles::class, 'forTeam'],
+'assignable_roles' => \Happones\Kinetix\Permissions\AssignableRoles::class,
 ```
 
+To withhold more names (e.g. keep `admin` promotion out of the invite flow),
+wrap it in your own invokable:
+
 ```php
-public function forTeam(int|string|null $teamId): array
+namespace App\Kinetix;
+
+use Happones\Kinetix\Permissions\AssignableRoles as KinetixAssignableRoles;
+
+class AssignableRoles
 {
-    return \Spatie\Permission\Models\Role::query()
-        ->where('team_id', $teamId)
-        ->whereNotIn('name', ['super-admin', 'admin'])
-        ->pluck('name')
-        ->all();
+    public function __invoke(int|string|null $teamId): array
+    {
+        return KinetixAssignableRoles::names($teamId, except: ['admin']);
+    }
 }
 ```
 
-It is resolved on every request that lists or validates roles, so a role created
-a second ago is immediately assignable — and it is still enforced twice
-(provision + activation), the security boundary is unchanged. At activation the
-callback receives the **provision's** team, since the signed activation URL
-carries no `{current_team}` segment.
+::: warning Rolling your own query? Don't drop the global roles
+A hand-written `where('team_id', $teamId)` silently excludes `team_id IS NULL`
+— which is exactly where `KinetixRolesSeeder`'s `admin`/`editor`/`viewer`
+presets live (seeded from the console = no team = global). The result is a
+role that's fully manageable in the Roles UI and **invisible in the invite
+picker**. The correct scope is the one `AssignableRoles::query()` gives you:
+
+```php
+->where(fn ($q) => $q->whereNull('team_id')->orWhere('team_id', $teamId))
+```
+:::
+
+The callback is resolved on every request that lists or validates roles, so a
+role created a second ago is immediately assignable — and it is still enforced
+twice (provision + activation), the security boundary is unchanged. At
+activation the callback receives the **provision's** team, since the signed
+activation URL carries no `{current_team}` segment.
 
 ::: tip A list of role names is still just a list
 An array is read as a callback **only** when it is a `[class-string, method]`
@@ -328,14 +370,33 @@ are needed:
 
 All components publish like the rest of Kinetix and read the same reactive
 `kinetix_permissions` prop, so you gate them with the same `{feature}.{ability}`
-keys. The role dropdown only ever offers roles in the server-enforced allow-list.
+keys. The role dropdown only ever offers roles in the server-enforced allow-list
+(with the [`AssignableRoles` resolver](#dynamic-allow-list): the team's roles
+plus global ones, minus protected roles).
 
 ### 7.1 Members directory
 
 `<KinetixMemberList>` is the drop-in screen: it embeds the provisioning form and
-lists members (pending / active / revoked) with resend, role change and revoke.
+lists members (pending / active / revoked) with search, per-row pending states,
+a confirm dialog on Remove, and role change / resend / revoke. Revoked rows show
+the role as read-only history — re-provision to bring someone back (the server
+rejects role changes and resends on revoked provisions with a 422).
+
+Register only the Inertia **page** route (the data flows through the built-in
+endpoints, exactly like the roles pages):
+
+```php
+// routes/web.php — plain:
+Route::middleware(['auth'])->get('members', fn () => inertia('Members/Index'))
+    ->name('members.index');
+
+// or team-routed:
+Route::middleware(['auth'])->get('{current_team}/members', fn () => inertia('Members/Index'))
+    ->name('members.index');
+```
 
 ```vue
+<!-- resources/js/pages/Members/Index.vue -->
 <script setup lang="ts">
 import { useKinetixCan } from "@/composables/useKinetixCan";
 import KinetixMemberList from "@/components/kinetix/KinetixMemberList.vue";
@@ -357,9 +418,11 @@ Need a custom layout? Compose the presentational
 
 ### 7.2 Activation page
 
-`<KinetixMemberActivation>` is the public set-password screen. Render it from the
-page named by `membership.activation_view` (default `Kinetix/MemberActivation`),
-forwarding the `email` and `action` props the controller passes:
+`<KinetixMemberActivation>` is the public set-password screen. Create the page
+file at **`resources/js/pages/Kinetix/MemberActivation.vue`** (that's what the
+default `membership.activation_view` resolves to — or change the config to any
+page you already have), forwarding the `email` and `action` props the
+controller passes:
 
 ```vue
 <script setup lang="ts">
@@ -406,6 +469,31 @@ You can adopt either module alone:
   endpoints with your own `members.*` gates; you lose the dynamic role matrix but
   the onboarding flow stands on its own.
 
+### Assigning a role to a user who already exists
+
+Kinetix ships no UI for "give this existing user a role" outside the members
+list — if you keep the starter kit's invitation flow, assign the role yourself
+where the user joins the team. **With teams active, pin spatie's team id
+first**: `assignRole()` stamps whatever the registrar currently holds, and in a
+listener/job that's undefined:
+
+```php
+use Spatie\Permission\PermissionRegistrar;
+
+$registrar = app(PermissionRegistrar::class);
+$previous  = $registrar->getPermissionsTeamId();
+$registrar->setPermissionsTeamId($team->getKey());
+
+try {
+    $user->assignRole('editor');   // resolves team + global roles by name
+} finally {
+    $registrar->setPermissionsTeamId($previous);
+}
+```
+
+(That try/finally is exactly what the built-in provisioning endpoints do
+internally on activation, role change and revoke.)
+
 Used together, you get the full B2B story: a closed directory where admins add
 people and hand them exactly the capabilities you allow — never owner, never
 admin, never a stray personal team.
@@ -418,7 +506,15 @@ admin, never a stray personal team.
   a plain incrementing id — validity is the signature plus the `pending` status.
 - **Don't leak existence** — provisioning re-uses `updateOrCreate`, so a repeat
   on a known email looks the same as a fresh one.
-- **Rate-limit** the activation and resend endpoints in your app.
+- **Rate-limit** the activation and resend endpoints in your app — the route
+  names are `kinetix.membership.activate.show` / `kinetix.membership.activate`
+  (public, signed) and `kinetix.membership.resend`; e.g. a
+  `RateLimiter::for()` keyed by IP applied via `->middleware('throttle:...')`
+  in a route group that wraps them, or globally with `kinetix.middleware`.
+- **State machine is enforced** — a revoked provision rejects role changes and
+  resends (422; re-provision deliberately instead), and resend on an active
+  member is a 422 too (an activation link for an existing user would try to
+  create a duplicate).
 - **The allow-list is enforced twice** — at provision time and again at
   activation, so a later config change can't be exploited by an old link.
 - **Audit** who provisioned/revoked whom (`invited_by`, timestamps) — this is a
