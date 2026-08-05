@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.138.1] - 2026-08-04
+
+### Fixed
+
+- **CI: the v0.138.0 import/export notification tests failed under
+  `testbench package:test`.** `KinetixLaravelNotification` is `ShouldQueue`,
+  and the testbench skeleton defaults to the database queue driver — the new
+  tests died with *no such table: jobs* while plain local `phpunit` (different
+  env) stayed green. The tests now pin `queue.default=sync` in their
+  environment so the notification is written inline.
+- **The pre-push hook now runs the full test suites.** It only ran `vue-tsc` +
+  PHPStan, which is how the red CI slipped through. It now also runs
+  `composer test:ci` (testbench `package:test`, mirroring CI — deliberately
+  not plain `phpunit`) and `npm run test:unit` (vitest).
+
 ## [0.138.0] - 2026-08-04
 
 Import/export reach Filament parity on notifications — customizable messages,
