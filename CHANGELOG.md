@@ -13,6 +13,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.138.0] - 2026-08-04
+
+Import/export reach Filament parity on notifications — customizable messages,
+skipped-row reporting and a downloadable failed-rows CSV — the notifications
+bell learns to poll without Echo and to scope per team, and every action
+button (scaffolded create/edit pages included) now renders through one shared
+base button with a real pending state.
+
+### Added
+
+- **Import/export notification lifecycle is automatic and fully customizable.**
+  Wiring a class to `ExportAction::exporter()` / `ImportAction::importer()`
+  gives the whole flow with no extra code: an immediate "queued" toast
+  (override `getStartedNotificationBody()` — the import endpoint now returns
+  it, so custom importer messages reach the modal's toast too), a completion
+  database notification — broadcast live when Echo is configured — built from
+  `getCompletedNotificationTitle/Body(int $done, int $failed)`, and a `danger`
+  notification when the job exhausts its retries
+  (`getFailedNotificationTitle/Body()`). Exports now **skip** records whose
+  `mapRecord()` throws instead of dying with the whole file, and the
+  notification downgrades to `warning` with the skipped count
+  (`export_failed_rows`). Covered by `ImportExportNotificationTest`.
+- **Failed import rows are downloadable as a CSV** (Filament parity). Beyond
+  the 10 failures quoted in the notification body, the completion notification
+  now carries a **Download failed rows** action — a CSV of *every* failed
+  source row (row number, original cells, reason) behind the same signed,
+  user-bound, expiring token the export downloads use. New keys
+  (`download_failed_rows`, `import_failures_*`, `import_failed_title`) in all
+  7 locales.
+- ⚠️ **(published) Notifications polling — the database-mode fallback.**
+  Without Echo, new database notifications used to appear only on the next
+  page navigation. `<KinetixNotifications />` now polls
+  `kinetix_notifications` via a partial reload on
+  `kinetix.notifications.poll` ms (default `30000`, `0` disables; pauses in
+  background tabs). A genuinely **new unread** item found by a poll triggers
+  the toast + sound — the initial page load stays silent, and broadcast
+  arrivals are deduplicated so nothing toasts twice. Re-publish components,
+  stores and types.
+- **Team-scoped notifications.** `kinetix.notifications.teams` follows the
+  suite's tri-state convention (`true`/`false` wins, `null` inherits the
+  global `kinetix.teams`). `Notification::team($key)` stamps a team PRIMARY
+  key into the payload — the import/export jobs capture it at dispatch time
+  automatically — and the bell then lists only the active team's notifications
+  plus unstamped global ones. The Echo channel stays per-user; a broadcast for
+  another team is suppressed client-side (new `kinetix_config.team_id`).
+- ⚠️ **(published) `KinetixButton` — the shared base button.** New component:
+  `buttonVariants` styling on the token contract with a built-in pending state
+  (`loading` disables the button, sets `aria-busy` and swaps the `icon` slot
+  for a spinner). Table toolbar actions, table footer actions and page-header
+  button actions all render through it — while any action is in flight its
+  siblings disable and the **clicked** button spins (new `processingAction` on
+  `useActionConfirmation()`). `kinetix:make-resource` Create/Edit pages now
+  scaffold it too (`:loading="saving"`), replacing the hand-rolled buttons, so
+  scaffolded forms get identical double-click protection and feedback.
+
+### Changed
+
+- **`@laravel/echo-vue` is now a core `kinetix:install` dependency.**
+  `KinetixNotifications.vue` imports it statically, so a host that installed
+  without `--broadcasting` hit a Vite build error the moment it mounted the
+  bell. The flag is now a deprecated no-op; runtime stays inert until Echo is
+  configured.
+- **`installation.md` § "Mount the global components" is now complete.** It
+  documents every mount-once host (Spotlight, Shortcuts, Tours, CookieConsent,
+  ImpersonationBanner, ConfidentialUnlock, SkipLink, Announcements — besides
+  the required four), the three Vue plugin registrations (`v-can`,
+  `v-kinetix-hotkey`, accessibility), and names the concrete starter-kit
+  layout files.
+
 ## [0.137.0] - 2026-08-03
 
 ### Changed
