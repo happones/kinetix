@@ -13,6 +13,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.146.0] - 2026-08-06
+
+### Added
+
+- **`kinetix:install` scaffolds `App\Providers\KinetixServiceProvider` by
+  default** and registers it in `bootstrap/providers.php` (idempotent; an
+  existing provider file is never overwritten). ALL Kinetix registration —
+  feature permissions, module content, gates — belongs there, never in
+  `AppServiceProvider`, and the stub's registrar-per-module convention
+  (`registerPermissions()` / `registerModules()` calling small
+  `App\Kinetix\*::register()` classes) keeps the provider itself from growing
+  into a thousand-line file. Opt out with `--skip-provider`; `--provider` is
+  now a deprecated no-op.
+- **`kinetix:make-resource --force`** — the generator now refuses to overwrite
+  existing Resource/Controller/Vue files (skip + warning) unless forced.
+
+### Changed
+
+- **`kinetix:make-resource` hardening pass (authorization + teams)**:
+  - The generated controller enforces the model policy on EVERY endpoint
+    (`viewAny`/`create`/`view`/`update`/`delete`/`restore`/`forceDelete`) via a
+    policy-if-exists `authorizeAction()` helper — the same contract the
+    built-in Kinetix surfaces use. The scaffolded `CreateAction` is gated with
+    `->authorize('create', Model::class)` (it has no record, so it rendered
+    for everyone). Next-steps output now puts the routes inside the `auth`
+    middleware group and tells you to create the policy.
+  - The generated resource overrides `permissionFeature()`, so its CRUD
+    abilities actually appear in the role matrix (discovery alone registered
+    ZERO abilities).
+  - Teams: the index goes through `Resource::getEloquentQuery()` (the single
+    scoping point) instead of an inline `where('team_id', …)`; create/update
+    flow through `mutateFormDataBeforeSave()` which stamps `team_id` on create
+    and **strips it on edit** (a forged payload could move a record to another
+    team); `--generate` excludes server-owned columns (`team_id`,
+    `sort_order`), the model's `$hidden` attributes and secret-shaped columns;
+    destroy/restore/force-delete redirect via `Resource::getUrl('index')`
+    (a bare `route()` throws under a team-prefixed group).
+  - `--soft-deletes` now delivers what it advertised: a `TrashedFilter` on the
+    table (deleted rows hidden by default), `RestoreAction`/`ForceDeleteAction`
+    per row (visible only on trashed records) — and the index no longer
+    blanket-applies `withTrashed()`.
+  - Scaffolded Create/Edit/Show pages share the Index page's frame (same
+    width and padding) instead of a narrower centered column.
+  - `--generate` warns when table introspection fails instead of silently
+    falling back to a placeholder schema.
+
+### Fixed
+
+- **(published) Grouped record actions work again**: `KinetixActionDropdown`
+  now accepts the row's `record` and emits `action-click` to its host, so a
+  scaffolded `ActionGroup([ViewAction, EditAction, DeleteAction])` opens the
+  view/edit/delete modals instead of dying silently (the dropdown had no
+  access to the record-modal handler). Wired through `KinetixTable` (rows +
+  footer), `KinetixDataTable`, the table toolbar, `KinetixPageHeader`, and
+  `KinetixInfolistEntries`; standalone use (no listener) keeps the internal
+  confirm-and-run path, now forwarding the record as extra data.
+- **`kinetix:make-resource --team` generated 404-ing record pages**: under
+  `Route::prefix('{current_team}')` every record route carries two required
+  parameters and Laravel injects them positionally, so the team segment landed
+  in `$record` and `findOrFail('{current_team}')` threw. Team-mode signatures
+  now lead with `string $current_team`.
+
 ## [0.145.0] - 2026-08-05
 
 ### Added
