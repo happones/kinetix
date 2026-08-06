@@ -13,6 +13,7 @@ use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Resources\RelationManager;
 use Happones\Kinetix\Tables\Columns\TextColumn;
+use Happones\Kinetix\Tables\Columns\TextInputColumn;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -32,7 +33,8 @@ class RtpProject extends Model
 
     public function tags()
     {
-        return $this->belongsToMany(RtpTag::class, 'rtp_project_tag', 'project_id', 'tag_id');
+        return $this->belongsToMany(RtpTag::class, 'rtp_project_tag', 'project_id', 'tag_id')
+            ->withPivot('role');
     }
 
     public function tasks()
@@ -91,6 +93,31 @@ class RtpTagsManager extends RelationManager
     {
         return $table->columns([
             TextColumn::make('name')->searchable()->sortable(),
+        ]);
+    }
+}
+
+class RtpPivotTagsManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    public function table(Table $table): Table
+    {
+        return $table->columns([
+            TextColumn::make('name'),
+            TextColumn::make('pivot.role')->searchable()->sortable(),
+        ]);
+    }
+}
+
+class RtpEditablePivotManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    public function table(Table $table): Table
+    {
+        return $table->columns([
+            TextInputColumn::make('pivot.role'),
         ]);
     }
 }
@@ -179,6 +206,7 @@ class RelationTableParityTest extends TestCase
             $table->increments('id');
             $table->unsignedInteger('project_id');
             $table->unsignedInteger('tag_id');
+            $table->string('role')->nullable();
             $table->timestamps();
         });
 
@@ -305,5 +333,47 @@ class RelationTableParityTest extends TestCase
         $allowed = RtpCreatableTasksManager::make($project)->toData();
         $this->assertCount(1, $allowed->table->toolbarActions);
         $this->assertSame('create', $allowed->table->toolbarActions[0]->name);
+    }
+
+    public function test_pivot_columns_display_sort_and_search(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+        $php     = RtpTag::create(['name' => 'php']);
+        $vue     = RtpTag::create(['name' => 'vue']);
+        $project->tags()->attach([
+            $php->id => ['role' => 'backend'],
+            $vue->id => ['role' => 'frontend'],
+        ]);
+
+        // Display: `pivot.role` resolves through a REAL hydrated Pivot model.
+        $records = RtpPivotTagsManager::make($project)->toData()->table->records;
+        $byName  = collect($records)->keyBy(fn ($r) => $r->values['name']);
+
+        $this->assertSame('backend', $byName['php']->values['pivot.role']);
+        $this->assertSame('frontend', $byName['vue']->values['pivot.role']);
+        // Row ids stay the RELATED keys even with pivot selects aboard.
+        $this->assertSame($php->id, $byName['php']->id);
+
+        // Sort: qualified against the JOINED pivot table.
+        request()->merge(['tags_sort' => 'pivot.role', 'tags_direction' => 'desc']);
+        $sorted = RtpPivotTagsManager::make($project)->toData()->table->records;
+        $this->assertSame('frontend', $sorted[0]->values['pivot.role']);
+
+        // Search: matches the pivot value, not the related model's columns.
+        request()->merge(['tags_search' => 'backend', 'tags_sort' => null]);
+        $found = RtpPivotTagsManager::make($project)->toData()->table->records;
+        $this->assertCount(1, $found);
+        $this->assertSame('php', $found[0]->values['name']);
+    }
+
+    public function test_an_editable_pivot_column_throws_at_serialize_time(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+        $project->tags()->attach(RtpTag::create(['name' => 'php'])->id);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Editable pivot columns are not supported');
+
+        RtpEditablePivotManager::make($project)->toData();
     }
 }

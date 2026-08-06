@@ -83,6 +83,16 @@ final class KinetixQuery
 
                 [$relation, $attribute] = static::splitRelation($column);
 
+                // A dotted name whose first segment is NOT a relation is a
+                // table-qualified column (e.g. a pivot column the Table
+                // translated to `pivot_table.role` against the joined query) —
+                // LIKE it directly instead of a whereHas that would throw.
+                if (! method_exists($group->getModel(), explode('.', $relation)[0])) {
+                    static::like($group, $column, $like, 'or');
+
+                    continue;
+                }
+
                 $group->orWhereHas(
                     $relation,
                     static fn (Builder $related) => static::like($related, $attribute, $like, 'and'),

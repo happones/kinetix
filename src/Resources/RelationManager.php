@@ -191,10 +191,37 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         $query    = $relation->getQuery();
 
         if ($relation instanceof BelongsToMany) {
-            $query->select($relation->getRelated()->qualifyColumn('*'));
+            // Mirror Laravel's own shouldSelect(): the related model's columns
+            // qualified (a pivot id/timestamp must never clobber them at
+            // hydration) plus the pivot keys and every withPivot() column,
+            // aliased under the accessor prefix so toData() can hydrate a real
+            // Pivot model — that's what makes `TextColumn::make('pivot.role')`
+            // resolve like any other dot column.
+            $accessor = $relation->getPivotAccessor();
+            $selects  = [$relation->getRelated()->qualifyColumn('*')];
+
+            foreach ($this->pivotColumnNames($relation) as $column) {
+                $selects[] = $relation->getTable().'.'.$column.' as '.$accessor.'_'.$column;
+            }
+
+            $query->select($selects);
         }
 
         return $query;
+    }
+
+    /**
+     * The pivot columns worth carrying: both keys + every withPivot() column.
+     *
+     * @return array<int, string>
+     */
+    protected function pivotColumnNames(BelongsToMany $relation): array
+    {
+        return array_values(array_unique([
+            $relation->getForeignPivotKeyName(),
+            $relation->getRelatedPivotKeyName(),
+            ...$relation->getPivotColumns(),
+        ]));
     }
 
     public function toData(): RelationManagerData
@@ -228,6 +255,10 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         // relationship (the captured where-scope can't express a BelongsToMany
         // membership — its equality lives on the pivot table).
         $table->writeRelation($this->parent::class, $this->parent->getKey(), static::$relationship);
+
+        if ($relation instanceof BelongsToMany) {
+            $this->wirePivotColumns($table, $relation);
+        }
 
         $this->rejectUnscopedBulkTransfers($table);
 
@@ -396,6 +427,53 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             createForm: $hasForm ? $createForm->toArray() : null,
             scope: 'relation',
         ));
+    }
+
+    /**
+     * Pivot columns for a BelongsToMany table: hands the Table the pivot
+     * metadata (so sort/search on `pivot.*` qualify against the JOINED pivot
+     * table) and hydrates a real Pivot model per record from the aliased
+     * selects — `TextColumn::make('pivot.role')` then resolves through
+     * `data_get()` like any other dot column, formatting/badges included.
+     *
+     * Editable `pivot.*` columns are refused loudly: the cell-update endpoint
+     * writes to the RELATED model, so an "edit" would create a junk
+     * `pivot.role` attribute on it instead of updating the pivot row.
+     */
+    protected function wirePivotColumns(Table $table, BelongsToMany $relation): void
+    {
+        $accessor = $relation->getPivotAccessor();
+
+        $table->pivotColumns($relation->getTable(), $accessor, $relation->getPivotColumns());
+
+        foreach ($table->getColumns() as $column) {
+            if ($column->isEditable() && str_starts_with($column->getName(), $accessor.'.')) {
+                throw new RuntimeException(
+                    'Editable pivot columns are not supported ('.static::class.'::'.$column->getName().'): '
+                    .'the inline-edit endpoint writes to the RELATED model, not the pivot row.'
+                );
+            }
+        }
+
+        $prefix = $accessor.'_';
+
+        $table->transformRecordsUsing(function (Model $record) use ($relation, $accessor, $prefix): Model {
+            $attributes = [];
+
+            foreach ($record->getAttributes() as $key => $value) {
+                if (str_starts_with($key, $prefix)) {
+                    $attributes[substr($key, strlen($prefix))] = $value;
+                }
+            }
+
+            foreach (array_keys($attributes) as $column) {
+                unset($record->{$prefix.$column});
+            }
+
+            $record->setRelation($accessor, $relation->newExistingPivot($attributes));
+
+            return $record;
+        });
     }
 
     /**

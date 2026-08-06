@@ -741,7 +741,9 @@ class Table implements Arrayable, JsonSerializable
 
         if ($search !== null && $search !== '') {
             KinetixQuery::search($query, (string) $search, array_values(array_map(
-                static fn (Column $column): string => $column->getName(),
+                // Pivot columns search against the JOINED pivot table —
+                // `pivot.role` is an accessor path, not a relation.
+                fn (Column $column): string => $this->translatePivotColumn($column->getName()),
                 array_filter($this->columns, static fn (Column $column): bool => $column->isSearchable()),
             )));
         }
@@ -806,6 +808,16 @@ class Table implements Arrayable, JsonSerializable
         $using = $column->getSortUsing();
         if ($using !== null) {
             $using($query, $direction);
+
+            return;
+        }
+
+        // Pivot columns order by the JOINED pivot table — the accessor is not
+        // a relation path, so the correlated-subquery branch can't handle it.
+        $pivotColumn = $this->translatePivotColumn((string) $sort);
+
+        if ($pivotColumn !== (string) $sort) {
+            $query->orderBy($pivotColumn, $direction);
 
             return;
         }
@@ -1054,6 +1066,72 @@ class Table implements Arrayable, JsonSerializable
         ];
 
         return $this;
+    }
+
+    /**
+     * Pivot metadata for a BelongsToMany relation table (internal —
+     * RelationManager sets it): the pivot table name, the accessor its columns
+     * are addressed through (`pivot.role`), and the declared withPivot columns.
+     * Lets sort/search on `pivot.*` columns qualify against the JOINED pivot
+     * table instead of treating the accessor as a relation path.
+     *
+     * @var array{table: string, accessor: string, columns: array<int, string>}|null
+     */
+    protected ?array $pivotMeta = null;
+
+    /**
+     * @param array<int, string> $columns
+     */
+    public function pivotColumns(string $pivotTable, string $accessor, array $columns): static
+    {
+        $this->pivotMeta = [
+            'table'    => $pivotTable,
+            'accessor' => $accessor,
+            'columns'  => $columns,
+        ];
+
+        return $this;
+    }
+
+    /**
+     * `pivot.role` → `pivot_table.role` when pivot metadata is configured;
+     * anything else passes through untouched.
+     */
+    protected function translatePivotColumn(string $name): string
+    {
+        if ($this->pivotMeta === null) {
+            return $name;
+        }
+
+        $prefix = $this->pivotMeta['accessor'].'.';
+
+        return str_starts_with($name, $prefix)
+            ? $this->pivotMeta['table'].'.'.substr($name, strlen($prefix))
+            : $name;
+    }
+
+    /**
+     * Per-record transformer applied before serialization (internal —
+     * RelationManager uses it to hydrate BelongsToMany pivot models from the
+     * aliased selects, so `data_get($record, 'pivot.role')` resolves).
+     */
+    protected ?Closure $recordTransformer = null;
+
+    public function transformRecordsUsing(?Closure $callback): static
+    {
+        $this->recordTransformer = $callback;
+
+        return $this;
+    }
+
+    /**
+     * The configured columns (pre-serialization).
+     *
+     * @return array<int, Column>
+     */
+    public function getColumns(): array
+    {
+        return $this->columns;
     }
 
     /**
@@ -1420,6 +1498,10 @@ class Table implements Arrayable, JsonSerializable
      */
     protected function formatRecord(Model $record): TableRowData
     {
+        if ($this->recordTransformer !== null) {
+            $record = ($this->recordTransformer)($record);
+        }
+
         $rowValues         = [];
         $rowIcons          = [];
         $rowIconColors     = [];

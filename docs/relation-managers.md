@@ -470,6 +470,38 @@ A fix in Table automatically fixes every manager. Notes that matter:
 - **The active tab lives in `?relation=`** (§3) and each table's state in its
   prefixed params — both survive reloads, modal saves, and shared links.
 
+## 7.8 Pivot columns (BelongsToMany)
+
+Declare the pivot columns on the relationship (`->withPivot('role')`) and
+address them through the pivot accessor, exactly like Filament:
+
+```php
+class MembersRelationManager extends RelationManager
+{
+    protected static string $relationship = 'members';   // belongsToMany(...)->withPivot('role')
+
+    public function table(Table $table): Table
+    {
+        return $table->columns([
+            TextColumn::make('name')->searchable(),
+            TextColumn::make('pivot.role')->badge()->searchable()->sortable(),
+        ]);
+    }
+}
+```
+
+- The manager selects the pivot columns aliased and hydrates a **real Pivot
+  model** per record, so `pivot.role` resolves like any other dot column —
+  formatting, badges and `formatStateUsing` all work, and row ids always stay
+  the RELATED model's keys.
+- **Sort and search qualify against the joined pivot table** — no ambiguous
+  columns, no fake relation lookups.
+- A custom accessor works too: `->as('membership')` → `membership.role`.
+- **Editable pivot columns throw at serialize time** (the inline-edit
+  endpoint writes to the related model, not the pivot row). Editing pivot
+  data — pivot fields in the attach modal / an edit-pivot action — is the
+  remaining piece, on the roadmap.
+
 ## 8. What's not supported (yet)
 
 So you don't discover it the hard way:
@@ -483,8 +515,9 @@ So you don't discover it the hard way:
   relation (a silent data-exposure surface). Bulk-export selected rows, or
   export from the related resource's own index. Relation-scoped export is
   on the roadmap.
-- **Pivot columns** (showing/editing pivot data in the table) — planned;
-  `getRelation()` already exposes the relationship object with its pivot.
+- **Editing pivot data** (pivot form fields in the attach modal, an
+  edit-pivot action, inline pivot cells) — displaying/sorting/searching
+  pivot columns works (§7.8); writing them is planned.
 - **Deferred/lazy managers** (Filament's `$isLazy`) — every manager
   serializes eagerly today; on pages with many heavy managers consider
   wrapping the `relations` prop in `Inertia::optional()` yourself.
