@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { resolveIcon } from '@/composables/useKinetixIcons';
-import {
-    statusBadgeClass,
-    statusSoftClass,
-} from '@/composables/useKinetixStatusColor';
+import { statusSoftClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixListItem, KinetixWidget } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
 
 /**
@@ -118,11 +116,10 @@ const emptyState = computed(() => props.widget.data?.emptyState ?? null);
                             class="text-sm font-semibold text-foreground"
                             >{{ item.value }}</span
                         >
-                        <span
+                        <KinetixBadge
                             v-if="item.badge"
-                            class="px-2 py-0.5 text-xs font-medium rounded-full"
-                            :class="statusBadgeClass(item.badgeColor as any)"
-                            >{{ item.badge }}</span
+                            :color="item.badgeColor"
+                            >{{ item.badge }}</KinetixBadge
                         >
                     </span>
                 </component>

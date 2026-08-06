@@ -16,14 +16,12 @@ import {
     actionButtonVariant,
     buttonVariants,
 } from '@/composables/useKinetixShadcnVariants';
-import {
-    statusBadgeClass as getBadgeColorClass,
-    statusTextClass,
-} from '@/composables/useKinetixStatusColor';
+import { statusTextClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixAction, KinetixInfolistEntry } from '@/types/kinetix';
 import './kinetix-grid.css';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
 const getTextColorClass = (color?: string | null) =>
     statusTextClass(color, 'text-foreground');
@@ -371,10 +369,10 @@ onBeforeUnmount(() => {
             </div>
 
             <!-- Badge text entry -->
-            <span
+            <KinetixBadge
                 v-else-if="entry.type === 'text' && entry.isBadge"
-                class="gap-1 px-2.5 py-0.5 text-xs font-medium inline-flex w-fit items-center rounded-full"
-                :class="getBadgeColorClass(entry.color)"
+                :color="entry.color"
+                class="gap-1 w-fit"
             >
                 <component
                     :is="resolveIcon(entry.icon)"
@@ -382,7 +380,7 @@ onBeforeUnmount(() => {
                     class="h-3 w-3"
                 />
                 {{ entry.state }}
-            </span>
+            </KinetixBadge>
 
             <!-- Linked / plain text entry -->
             <a

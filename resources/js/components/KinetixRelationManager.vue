@@ -5,8 +5,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
-import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import type {
     KinetixRelationManagerData,
     KinetixSharedProps,
@@ -15,6 +13,7 @@ import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixForm from './KinetixForm.vue';
 import KinetixTable from './KinetixTable.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
 
 /**
@@ -43,9 +42,6 @@ const props = withDefaults(
 
 const { t } = useI18n();
 const page = usePage<KinetixSharedProps>();
-
-const badgeClass = (color?: string | null): string =>
-    statusBadgeClass((color ?? 'gray') as KinetixStatusColor);
 
 // --- Record picker modal (BelongsToMany attach / HasMany associate) ---------
 
@@ -428,13 +424,12 @@ onBeforeUnmount(() => {
                 {{ manager.title }}
             </button>
             <template v-else>{{ manager.title }}</template>
-            <span
+            <KinetixBadge
                 v-if="manager.badge !== null && manager.badge !== undefined"
-                class="px-2 py-0.5 text-xs font-semibold inline-flex items-center rounded-full"
-                :class="badgeClass(manager.badgeColor)"
+                :color="manager.badgeColor"
             >
                 {{ manager.badge }}
-            </span>
+            </KinetixBadge>
         </h2>
 
         <div :id="sectionContentId" v-show="!isContentHidden" class="space-y-3">

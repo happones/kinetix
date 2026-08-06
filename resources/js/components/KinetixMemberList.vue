@@ -3,13 +3,13 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { roleLabel, useKinetixMembers } from '@/composables/useKinetixMembers';
-import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import type { KinetixMemberProvision } from '@/types/kinetix';
 import KinetixButton from './KinetixButton.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixMemberProvisioner from './KinetixMemberProvisioner.vue';
 import KinetixSelect from './KinetixSelect.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
 /**
  * Drop-in members directory for the admin-provisioned onboarding model — the
@@ -261,12 +261,9 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
                 </div>
 
                 <div class="gap-2 flex flex-wrap items-center">
-                    <span
-                        class="px-2 py-0.5 text-xs font-semibold inline-flex items-center rounded-full"
-                        :class="statusBadgeClass(STATUS_COLOR[member.status])"
-                    >
+                    <KinetixBadge :color="STATUS_COLOR[member.status]">
                         {{ statusLabel(member.status) }}
-                    </span>
+                    </KinetixBadge>
 
                     <!-- A revoked member's role is history, not an input: a role
                          change would silently re-grant it (the server rejects

@@ -66,7 +66,9 @@ describe('KinetixRelationManagers', () => {
 
         const wrapper = mountManagers([manager('posts'), manager('comments')]);
 
-        await wrapper.findAll('[role="tab"]')[1].trigger('click');
+        await wrapper
+            .findAll('[role="tab"]')[1]
+            .trigger('mousedown', { button: 0 });
 
         const params = new URLSearchParams(window.location.search);
         expect(params.get('relation')).toBe('comments');
@@ -114,7 +116,7 @@ describe('KinetixRelationManagers', () => {
         expect(wrapper.findAll('[data-test="table"]')).toHaveLength(1);
         expect(wrapper.get('[data-test="table"]').text()).toBe('posts_');
 
-        await tabs[1].trigger('click');
+        await tabs[1].trigger('mousedown', { button: 0 });
 
         expect(wrapper.get('[data-test="table"]').text()).toBe('comments_');
         expect(tabs[1].attributes('aria-selected')).toBe('true');

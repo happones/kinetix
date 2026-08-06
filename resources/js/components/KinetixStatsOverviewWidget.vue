@@ -18,13 +18,13 @@ import {
 import { computed } from 'vue';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
-    statusBadgeClass,
     statusSoftClass,
     statusTextClass,
 } from '@/composables/useKinetixStatusColor';
 import type { KinetixWidget, KinetixStat } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixSparkline from './widgets/KinetixSparkline.vue';
 
 const props = defineProps<{
@@ -122,12 +122,11 @@ const sparklineColorClass = (color?: string) =>
                                 >
                                     {{ stat.label }}
                                 </span>
-                                <span
+                                <KinetixBadge
                                     v-if="stat.badge"
-                                    class="gap-0.5 px-1.5 py-0.5 text-xs font-medium inline-flex shrink-0 items-center rounded-full"
-                                    :class="
-                                        statusBadgeClass(stat.badgeColor as any)
-                                    "
+                                    :color="stat.badgeColor"
+                                    size="sm"
+                                    class="gap-0.5 shrink-0"
                                 >
                                     <component
                                         :is="getStatIcon(stat.descriptionIcon)"
@@ -138,7 +137,7 @@ const sparklineColorClass = (color?: string) =>
                                         class="size-3"
                                     />
                                     {{ stat.badge }}
-                                </span>
+                                </KinetixBadge>
                             </span>
                             <span
                                 class="text-3xl font-bold mt-2 tracking-tight block text-foreground"

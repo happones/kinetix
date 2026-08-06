@@ -1,14 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronRight, X } from '@lucide/vue';
-import {
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogOverlay,
-    DialogPortal,
-    DialogRoot,
-    DialogTitle,
-} from 'reka-ui';
+import { Check, ChevronRight } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -18,6 +9,7 @@ import {
 import type { KinetixPermissionFeature, KinetixRole } from '@/types/kinetix';
 import KinetixCheckbox from '../KinetixCheckbox.vue';
 import KinetixLabel from '../KinetixLabel.vue';
+import KinetixModal from '../primitives/KinetixModal.vue';
 
 /**
  * The role editor dialog shared by `KinetixRoleMatrix` and
@@ -247,311 +239,262 @@ function submit(): void {
 </script>
 
 <template>
-    <DialogRoot
+    <KinetixModal
         :open="open"
+        :title="role ? t('kinetix.edit') : t('kinetix.create_role')"
+        :description="t('kinetix.role_matrix_hint')"
+        max-width="sm:max-w-2xl"
+        :processing="saving"
+        scroll-body
         @update:open="(value: boolean) => emit('update:open', value)"
     >
-        <DialogPortal>
-            <DialogOverlay
-                class="inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed z-[var(--kinetix-z-overlay,100)]"
-            />
-            <DialogContent
-                class="max-w-2xl rounded-xl p-6 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-[var(--kinetix-z-modal,100)] flex max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 flex-col border border-border bg-card text-card-foreground outline-none"
-            >
-                <form
-                    class="gap-4 min-h-0 flex flex-1 flex-col"
-                    @submit.prevent="submit"
-                >
-                    <div class="flex items-start justify-between">
-                        <div>
-                            <DialogTitle
-                                class="text-lg font-semibold tracking-tight leading-none"
-                            >
-                                {{
-                                    role
-                                        ? t('kinetix.edit')
-                                        : t('kinetix.create_role')
-                                }}
-                            </DialogTitle>
-                            <DialogDescription
-                                class="mt-1.5 text-sm text-muted-foreground"
-                            >
-                                {{ t('kinetix.role_matrix_hint') }}
-                            </DialogDescription>
-                        </div>
-                        <DialogClose
-                            :class="
-                                buttonVariants({
-                                    variant: 'ghost',
-                                    size: 'icon-sm',
-                                })
-                            "
-                        >
-                            <X class="h-4 w-4" />
-                        </DialogClose>
-                    </div>
+        <form
+            class="gap-4 min-h-0 flex h-full flex-col"
+            @submit.prevent="submit"
+        >
+            <div class="space-y-2">
+                <KinetixLabel for="kx-role-matrix-name">
+                    {{ t('kinetix.role_name') }}
+                </KinetixLabel>
+                <input
+                    id="kx-role-matrix-name"
+                    v-model="draftName"
+                    type="text"
+                    required
+                    maxlength="60"
+                    :class="inputClass"
+                />
+            </div>
 
-                    <div class="space-y-2">
-                        <KinetixLabel for="kx-role-matrix-name">
-                            {{ t('kinetix.role_name') }}
-                        </KinetixLabel>
-                        <input
-                            id="kx-role-matrix-name"
-                            v-model="draftName"
-                            type="text"
-                            required
-                            maxlength="60"
-                            :class="inputClass"
-                        />
-                    </div>
-
-                    <!-- Super-admin only: create the role as GLOBAL (team-NULL,
+            <!-- Super-admin only: create the role as GLOBAL (team-NULL,
                          visible in every team). A role's team can't change
                          later, so the toggle exists only on create. -->
-                    <label
-                        v-if="offersGlobalToggle"
-                        class="gap-2 text-sm flex cursor-pointer items-start text-foreground"
-                    >
-                        <KinetixCheckbox
-                            :model-value="draftGlobal"
-                            @update:model-value="draftGlobal = $event"
-                        />
-                        <span class="min-w-0">
-                            {{ t('kinetix.role_global_create_label') }}
-                            <span class="text-xs block text-muted-foreground">
-                                {{ t('kinetix.role_global_create_hint') }}
-                            </span>
-                        </span>
-                    </label>
+            <label
+                v-if="offersGlobalToggle"
+                class="gap-2 text-sm flex cursor-pointer items-start text-foreground"
+            >
+                <KinetixCheckbox
+                    :model-value="draftGlobal"
+                    @update:model-value="draftGlobal = $event"
+                />
+                <span class="min-w-0">
+                    {{ t('kinetix.role_global_create_label') }}
+                    <span class="text-xs block text-muted-foreground">
+                        {{ t('kinetix.role_global_create_hint') }}
+                    </span>
+                </span>
+            </label>
 
-                    <!-- Matrix: scrolls on its own; the header row and the
+            <!-- Matrix: scrolls on its own; the header row and the
                          module column stay pinned so long catalogs keep their
                          context while granting. -->
-                    <div
-                        class="rounded-lg min-h-0 flex-1 overflow-auto border border-border"
-                    >
-                        <table class="text-sm w-full">
-                            <thead>
-                                <tr>
-                                    <th
-                                        class="px-3 py-2 font-medium top-0 left-0 sticky z-30 border-b border-border bg-card text-left"
+            <div
+                class="rounded-lg min-h-0 flex-1 overflow-auto border border-border"
+            >
+                <table class="text-sm w-full">
+                    <thead>
+                        <tr>
+                            <th
+                                class="px-3 py-2 font-medium top-0 left-0 sticky z-30 border-b border-border bg-card text-left"
+                            >
+                                {{ t('kinetix.role_matrix_module') }}
+                            </th>
+                            <th
+                                v-for="column in abilityColumns"
+                                :key="column.key"
+                                class="px-2 py-2 text-xs font-medium top-0 sticky z-20 border-b border-border bg-card text-center whitespace-nowrap"
+                            >
+                                {{ column.label }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template
+                            v-for="section in groupedFeatures"
+                            :key="section.group ?? '__ungrouped'"
+                        >
+                            <!-- Section divider (Feature::group('HR')) -->
+                            <tr v-if="hasGroups && section.group">
+                                <td
+                                    :colspan="abilityColumns.length + 1"
+                                    class="px-3 py-1.5 text-xs font-semibold tracking-wide border-b border-border bg-muted/50 text-muted-foreground uppercase"
+                                >
+                                    {{ section.group }}
+                                </td>
+                            </tr>
+
+                            <template
+                                v-for="feature in section.features"
+                                :key="feature.name"
+                            >
+                                <tr
+                                    class="group border-b border-border last:border-0"
+                                >
+                                    <td
+                                        class="p-0 left-0 sticky z-10 bg-card group-hover:bg-muted"
                                     >
-                                        {{ t('kinetix.role_matrix_module') }}
-                                    </th>
-                                    <th
+                                        <span class="flex items-center">
+                                            <button
+                                                type="button"
+                                                class="px-3 py-2 font-medium text-sm min-w-0 flex-1 cursor-pointer text-left text-foreground select-none"
+                                                :title="
+                                                    t(
+                                                        'kinetix.role_matrix_hint',
+                                                    )
+                                                "
+                                                @click="toggleRow(feature)"
+                                            >
+                                                {{ feature.label }}
+                                            </button>
+                                            <!-- Custom abilities live INSIDE the row (full
+                                                         labels), never as shared columns. -->
+                                            <button
+                                                v-if="
+                                                    customAbilities(feature)
+                                                        .length > 0
+                                                "
+                                                type="button"
+                                                class="gap-0.5 mr-2 px-1.5 py-0.5 rounded font-medium inline-flex shrink-0 items-center bg-secondary text-[11px] text-secondary-foreground transition-colors hover:bg-secondary/80"
+                                                :aria-expanded="
+                                                    expanded.has(feature.name)
+                                                "
+                                                :aria-label="`${feature.label}: ${t('kinetix.role_custom_abilities')}`"
+                                                @click="
+                                                    toggleExpanded(feature.name)
+                                                "
+                                            >
+                                                <ChevronRight
+                                                    class="size-3 transition-transform"
+                                                    :class="
+                                                        expanded.has(
+                                                            feature.name,
+                                                        ) && 'rotate-90'
+                                                    "
+                                                />
+                                                {{
+                                                    customGrantedCount(feature)
+                                                }}/{{
+                                                    customAbilities(feature)
+                                                        .length
+                                                }}
+                                            </button>
+                                        </span>
+                                    </td>
+                                    <td
                                         v-for="column in abilityColumns"
                                         :key="column.key"
-                                        class="px-2 py-2 text-xs font-medium top-0 sticky z-20 border-b border-border bg-card text-center whitespace-nowrap"
+                                        class="px-2 py-2 text-center group-hover:bg-muted/50"
                                     >
-                                        {{ column.label }}
-                                    </th>
+                                        <button
+                                            v-if="
+                                                permissionFor(
+                                                    feature,
+                                                    column.key,
+                                                )
+                                            "
+                                            type="button"
+                                            class="size-6 inline-flex items-center justify-center rounded-md border transition-colors"
+                                            :class="
+                                                has(
+                                                    permissionFor(
+                                                        feature,
+                                                        column.key,
+                                                    ),
+                                                )
+                                                    ? 'border-primary bg-primary text-primary-foreground'
+                                                    : 'border-border text-transparent hover:border-primary/50'
+                                            "
+                                            :aria-pressed="
+                                                has(
+                                                    permissionFor(
+                                                        feature,
+                                                        column.key,
+                                                    ),
+                                                )
+                                            "
+                                            :aria-label="`${feature.label}: ${column.label}`"
+                                            @click="
+                                                toggle(
+                                                    permissionFor(
+                                                        feature,
+                                                        column.key,
+                                                    ),
+                                                )
+                                            "
+                                        >
+                                            <Check class="size-3.5" />
+                                        </button>
+                                        <span
+                                            v-else
+                                            class="text-muted-foreground/40"
+                                            >—</span
+                                        >
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                <template
-                                    v-for="section in groupedFeatures"
-                                    :key="section.group ?? '__ungrouped'"
+
+                                <!-- Expanded: the module's custom abilities with full labels -->
+                                <tr
+                                    v-if="expanded.has(feature.name)"
+                                    class="border-b border-border last:border-0"
                                 >
-                                    <!-- Section divider (Feature::group('HR')) -->
-                                    <tr v-if="hasGroups && section.group">
-                                        <td
-                                            :colspan="abilityColumns.length + 1"
-                                            class="px-3 py-1.5 text-xs font-semibold tracking-wide border-b border-border bg-muted/50 text-muted-foreground uppercase"
-                                        >
-                                            {{ section.group }}
-                                        </td>
-                                    </tr>
-
-                                    <template
-                                        v-for="feature in section.features"
-                                        :key="feature.name"
+                                    <td
+                                        :colspan="abilityColumns.length + 1"
+                                        class="px-4 py-2.5 bg-muted/30"
                                     >
-                                        <tr
-                                            class="group border-b border-border last:border-0"
+                                        <div
+                                            class="gap-x-6 gap-y-2 flex flex-wrap"
                                         >
-                                            <td
-                                                class="p-0 left-0 sticky z-10 bg-card group-hover:bg-muted"
+                                            <label
+                                                v-for="ability in customAbilities(
+                                                    feature,
+                                                )"
+                                                :key="ability.permission"
+                                                class="gap-2 text-sm flex cursor-pointer items-center text-foreground"
                                             >
-                                                <span class="flex items-center">
-                                                    <button
-                                                        type="button"
-                                                        class="px-3 py-2 font-medium text-sm min-w-0 flex-1 cursor-pointer text-left text-foreground select-none"
-                                                        :title="
-                                                            t(
-                                                                'kinetix.role_matrix_hint',
-                                                            )
-                                                        "
-                                                        @click="
-                                                            toggleRow(feature)
-                                                        "
-                                                    >
-                                                        {{ feature.label }}
-                                                    </button>
-                                                    <!-- Custom abilities live INSIDE the row (full
-                                                         labels), never as shared columns. -->
-                                                    <button
-                                                        v-if="
-                                                            customAbilities(
-                                                                feature,
-                                                            ).length > 0
-                                                        "
-                                                        type="button"
-                                                        class="gap-0.5 mr-2 px-1.5 py-0.5 rounded font-medium inline-flex shrink-0 items-center bg-secondary text-[11px] text-secondary-foreground transition-colors hover:bg-secondary/80"
-                                                        :aria-expanded="
-                                                            expanded.has(
-                                                                feature.name,
-                                                            )
-                                                        "
-                                                        :aria-label="`${feature.label}: ${t('kinetix.role_custom_abilities')}`"
-                                                        @click="
-                                                            toggleExpanded(
-                                                                feature.name,
-                                                            )
-                                                        "
-                                                    >
-                                                        <ChevronRight
-                                                            class="size-3 transition-transform"
-                                                            :class="
-                                                                expanded.has(
-                                                                    feature.name,
-                                                                ) && 'rotate-90'
-                                                            "
-                                                        />
-                                                        {{
-                                                            customGrantedCount(
-                                                                feature,
-                                                            )
-                                                        }}/{{
-                                                            customAbilities(
-                                                                feature,
-                                                            ).length
-                                                        }}
-                                                    </button>
-                                                </span>
-                                            </td>
-                                            <td
-                                                v-for="column in abilityColumns"
-                                                :key="column.key"
-                                                class="px-2 py-2 text-center group-hover:bg-muted/50"
-                                            >
-                                                <button
-                                                    v-if="
-                                                        permissionFor(
-                                                            feature,
-                                                            column.key,
-                                                        )
+                                                <KinetixCheckbox
+                                                    :model-value="
+                                                        has(ability.permission)
                                                     "
-                                                    type="button"
-                                                    class="size-6 inline-flex items-center justify-center rounded-md border transition-colors"
-                                                    :class="
-                                                        has(
-                                                            permissionFor(
-                                                                feature,
-                                                                column.key,
-                                                            ),
-                                                        )
-                                                            ? 'border-primary bg-primary text-primary-foreground'
-                                                            : 'border-border text-transparent hover:border-primary/50'
-                                                    "
-                                                    :aria-pressed="
-                                                        has(
-                                                            permissionFor(
-                                                                feature,
-                                                                column.key,
-                                                            ),
-                                                        )
-                                                    "
-                                                    :aria-label="`${feature.label}: ${column.label}`"
-                                                    @click="
+                                                    @update:model-value="
                                                         toggle(
-                                                            permissionFor(
-                                                                feature,
-                                                                column.key,
-                                                            ),
+                                                            ability.permission,
                                                         )
                                                     "
-                                                >
-                                                    <Check class="size-3.5" />
-                                                </button>
+                                                />
+                                                {{ ability.label }}
                                                 <span
-                                                    v-else
-                                                    class="text-muted-foreground/40"
-                                                    >—</span
+                                                    class="font-mono text-xs text-muted-foreground"
+                                                    >{{
+                                                        ability.permission
+                                                    }}</span
                                                 >
-                                            </td>
-                                        </tr>
+                                            </label>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
 
-                                        <!-- Expanded: the module's custom abilities with full labels -->
-                                        <tr
-                                            v-if="expanded.has(feature.name)"
-                                            class="border-b border-border last:border-0"
-                                        >
-                                            <td
-                                                :colspan="
-                                                    abilityColumns.length + 1
-                                                "
-                                                class="px-4 py-2.5 bg-muted/30"
-                                            >
-                                                <div
-                                                    class="gap-x-6 gap-y-2 flex flex-wrap"
-                                                >
-                                                    <label
-                                                        v-for="ability in customAbilities(
-                                                            feature,
-                                                        )"
-                                                        :key="
-                                                            ability.permission
-                                                        "
-                                                        class="gap-2 text-sm flex cursor-pointer items-center text-foreground"
-                                                    >
-                                                        <KinetixCheckbox
-                                                            :model-value="
-                                                                has(
-                                                                    ability.permission,
-                                                                )
-                                                            "
-                                                            @update:model-value="
-                                                                toggle(
-                                                                    ability.permission,
-                                                                )
-                                                            "
-                                                        />
-                                                        {{ ability.label }}
-                                                        <span
-                                                            class="font-mono text-xs text-muted-foreground"
-                                                            >{{
-                                                                ability.permission
-                                                            }}</span
-                                                        >
-                                                    </label>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="gap-2 flex justify-end">
-                        <button
-                            type="button"
-                            :class="buttonVariants({ variant: 'outline' })"
-                            :disabled="saving"
-                            @click="emit('update:open', false)"
-                        >
-                            {{ t('kinetix.cancel') }}
-                        </button>
-                        <button
-                            type="submit"
-                            :class="buttonVariants()"
-                            :disabled="saving"
-                        >
-                            {{ t('kinetix.save') }}
-                        </button>
-                    </div>
-                </form>
-            </DialogContent>
-        </DialogPortal>
-    </DialogRoot>
+            <div class="gap-2 flex justify-end">
+                <button
+                    type="button"
+                    :class="buttonVariants({ variant: 'outline' })"
+                    :disabled="saving"
+                    @click="emit('update:open', false)"
+                >
+                    {{ t('kinetix.cancel') }}
+                </button>
+                <button
+                    type="submit"
+                    :class="buttonVariants()"
+                    :disabled="saving"
+                >
+                    {{ t('kinetix.save') }}
+                </button>
+            </div>
+        </form>
+    </KinetixModal>
 </template>

@@ -2,11 +2,11 @@
 import { Copy } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
 import type {
     KinetixTableCellColumn,
     KinetixTableCellRecord,
 } from '@/types/kinetix';
+import KinetixBadge from '../../primitives/KinetixBadge.vue';
 
 const props = defineProps<{
     col: KinetixTableCellColumn;
@@ -33,14 +33,13 @@ const items = computed<unknown[]>(() => {
         class="group/copy gap-1 inline-flex flex-wrap items-center"
         :title="col.tooltip ?? undefined"
     >
-        <span
+        <KinetixBadge
             v-for="(item, i) in items"
             :key="i"
-            class="px-2 py-0.5 text-xs font-semibold inline-flex items-center rounded-full"
-            :class="statusBadgeClass(record.badgeColors[col.name])"
+            :color="record.badgeColors[col.name]"
         >
             {{ item }}
-        </span>
+        </KinetixBadge>
         <button
             v-if="col.isCopyable && record.values[col.name] != null"
             type="button"

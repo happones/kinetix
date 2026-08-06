@@ -2,7 +2,6 @@
 import { computed, defineAsyncComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixChartPalette } from '@/composables/useKinetixChartPalette';
-import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
 import type {
     KinetixChartData,
     KinetixChartDataset,
@@ -17,6 +16,7 @@ import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
 
 // The `@unovis` chart surface is code-split: only fetched when a chart with data
@@ -410,11 +410,11 @@ const pieTooltipTemplate = (d: KinetixChartSlice | null): string => {
                             class="gap-1.5 text-lg font-bold flex items-center justify-end text-foreground tabular-nums"
                         >
                             {{ metric.value }}
-                            <span
+                            <KinetixBadge
                                 v-if="metric.badge"
-                                class="px-1.5 py-0.5 text-xs font-medium rounded-full"
-                                :class="statusBadgeClass(metric.badgeColor)"
-                                >{{ metric.badge }}</span
+                                :color="metric.badgeColor"
+                                size="sm"
+                                >{{ metric.badge }}</KinetixBadge
                             >
                         </div>
                     </div>

@@ -6,7 +6,6 @@ import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
-import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import { useKinetixWebhooks } from '@/composables/useKinetixWebhooks';
 import type {
@@ -15,6 +14,7 @@ import type {
 } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixLabel from './KinetixLabel.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
 /**
  * Drop-in customer webhook dashboard: register/edit endpoints, pick subscribed
@@ -338,12 +338,9 @@ const logColor = (success: boolean): KinetixStatusColor =>
                         <span class="font-mono text-foreground">{{
                             log.event
                         }}</span>
-                        <span
-                            class="px-2 py-0.5 font-semibold inline-flex items-center rounded-full"
-                            :class="statusBadgeClass(logColor(log.success))"
-                        >
+                        <KinetixBadge :color="logColor(log.success)">
                             {{ log.statusCode ?? '—' }}
-                        </span>
+                        </KinetixBadge>
                     </div>
                 </div>
             </div>

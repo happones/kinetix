@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.163.0] - 2026-08-06
+
+The v4 congruence backlog from the v0.155 audit, all **(published)**:
+
+- **`primitives/KinetixBadge.vue`** — the badge/pill primitive (status-color
+  soft pill via `statusBadgeClass`, shadcn `variant` mode via the previously
+  unused `badgeVariants()`, `size="sm"` tab-badge size). Migrated the
+  hand-copied pill class strings across 9 components (relation manager
+  headings/tabs, table badge cells, infolist badges, member list, list/chart/
+  stats widgets, webhook logs); non-status pills (raw-palette tints, code
+  chips, dots) deliberately left as-is.
+- **3 modals onto the `KinetixModal` shell**: `KinetixRoleEditorModal`,
+  `KinetixRoleDeleteDialog`, `LogDetailModal`, `KinetixImportModal` — v4
+  overlay/panel animations, shared close button, focus trap and z-scale come
+  from the shell now. `KinetixFilePreview` stays on its own dialog BY DESIGN:
+  it is a lightbox (edge-to-edge body, custom zoom/download toolbar) that the
+  dialog shell cannot express — it already carries the v4 animation set.
+- **Relation manager tab strip on Reka Tabs** — `aria-controls` wiring and
+  roving tabindex (arrow-key navigation) come from the primitive; tab
+  activation still writes `?relation=` to the URL.
+- **Tour transitions**: the tour layer fades in/out, the tooltip zooms on
+  mount and glides between steps like the spotlight ring.
+
 ## [0.162.0] - 2026-08-06
 
 Metered usage + credits — the consumption backend the usage meters were

@@ -1,18 +1,8 @@
 <script setup lang="ts">
-import { X } from '@lucide/vue';
-import {
-    DialogClose,
-    DialogContent,
-    DialogOverlay,
-    DialogPortal,
-    DialogRoot,
-    DialogTitle,
-} from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import KinetixImporter from './KinetixImporter.vue';
-import { cn } from './primitives/cn';
+import KinetixModal from './primitives/KinetixModal.vue';
 
 /**
  * Global import dialog. Mount once in your layout:
@@ -49,40 +39,13 @@ onBeforeUnmount(() =>
 </script>
 
 <template>
-    <DialogRoot v-model:open="open">
-        <DialogPortal>
-            <DialogOverlay
-                class="inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed z-[var(--kinetix-z-overlay,100)]"
-            />
-            <DialogContent
-                class="max-w-3xl rounded-xl p-6 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-[var(--kinetix-z-modal,100)] max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-auto border border-border bg-card text-card-foreground outline-none"
-            >
-                <div class="mb-4 flex items-center justify-between">
-                    <DialogTitle
-                        class="text-lg font-semibold tracking-tight leading-none"
-                    >
-                        {{ t('kinetix.import') }}
-                    </DialogTitle>
-                    <DialogClose
-                        :class="
-                            cn(
-                                buttonVariants({
-                                    variant: 'ghost',
-                                    size: 'icon-sm',
-                                }),
-                            )
-                        "
-                    >
-                        <X class="h-4 w-4" />
-                    </DialogClose>
-                </div>
-
-                <KinetixImporter
-                    v-if="token"
-                    :importer="token"
-                    :template="template"
-                />
-            </DialogContent>
-        </DialogPortal>
-    </DialogRoot>
+    <KinetixModal
+        :open="open"
+        :title="t('kinetix.import')"
+        max-width="sm:max-w-3xl"
+        scroll-body
+        @update:open="open = $event"
+    >
+        <KinetixImporter v-if="token" :importer="token" :template="template" />
+    </KinetixModal>
 </template>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
+import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
-import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
-import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import type { KinetixRelationManagerData } from '@/types/kinetix';
 import KinetixRelationManager from './KinetixRelationManager.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
 /**
  * The relation managers HOST for a resource page — pass everything
@@ -169,39 +169,39 @@ watch(
 const activeTab = computed(
     () => tabs.value.find((tab) => tab.key === active.value) ?? tabs.value[0],
 );
-
-const badgeClass = (color?: string | null): string =>
-    statusBadgeClass((color ?? 'gray') as KinetixStatusColor);
 </script>
 
 <template>
     <div v-if="managers.length > 0">
         <!-- Several managers: auto-tabs -->
-        <div v-if="useTabs" class="space-y-4">
-            <div
-                role="tablist"
+        <!-- Reka Tabs: aria-controls wiring + roving tabindex (arrow-key
+             navigation) come from the primitive; activation still routes
+             through selectTab so ?relation= stays in the URL. -->
+        <TabsRoot
+            v-if="useTabs"
+            :model-value="active"
+            class="space-y-4"
+            @update:model-value="selectTab(String($event))"
+        >
+            <TabsList
                 class="h-9 rounded-lg p-1 gap-1 inline-flex max-w-full items-center overflow-x-auto bg-muted text-muted-foreground"
             >
-                <button
+                <TabsTrigger
                     v-for="tab in tabs"
                     :key="tab.key"
-                    type="button"
-                    role="tab"
-                    :aria-selected="tab.key === active"
-                    :data-state="tab.key === active ? 'active' : 'inactive'"
+                    :value="tab.key"
                     class="gap-1.5 px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex cursor-pointer touch-manipulation items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground"
-                    @click="selectTab(tab.key)"
                 >
                     {{ tab.title }}
-                    <span
+                    <KinetixBadge
                         v-if="tab.badge !== null && tab.badge !== undefined"
-                        class="px-1.5 py-0.5 font-semibold inline-flex items-center rounded-full text-[11px]"
-                        :class="badgeClass(tab.badgeColor)"
+                        size="sm"
+                        :color="tab.badgeColor"
                     >
                         {{ tab.badge }}
-                    </span>
-                </button>
-            </div>
+                    </KinetixBadge>
+                </TabsTrigger>
+            </TabsList>
 
             <div v-if="activeTab" :key="activeTab.key" role="tabpanel">
                 <!-- Plain tab: one manager, heading hidden (the tab shows it).
@@ -220,7 +220,7 @@ const badgeClass = (color?: string | null): string =>
                     />
                 </div>
             </div>
-        </div>
+        </TabsRoot>
 
         <!-- One manager (or tabs disabled): stacked sections -->
         <div v-else class="space-y-8">
