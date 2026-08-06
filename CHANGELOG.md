@@ -13,6 +13,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.149.0] - 2026-08-06
+
+Deep relation-manager audit: the manager's table is now a FULL Kinetix Table
+citizen — one fix in Table fixes every manager — with browser (Playwright)
+end-to-end coverage of the whole surface.
+
+### Fixed
+
+- **BelongsToMany relation tables were join-unsafe (P0)**: the raw relation
+  builder ran `SELECT *` across the pivot join, so a pivot with its own
+  `id`/timestamps clobbered the related model's columns at hydration — **row
+  ids could be PIVOT ids**, sending Edit/Delete/Detach to the wrong record.
+  The relation query now selects the related model's columns qualified.
+- **Search/sort 500'd on shared column names under the pivot join (P0)**:
+  `LIKE` and `orderBy` now qualify plain columns with the model's table.
+- **Inline cell edits and drag reorder were dead inside BelongsToMany
+  managers (P0)**: the captured write scope was pivot-qualified and fatal on
+  the endpoint's join-less query. The write descriptor now carries the
+  RELATION itself — record resolution for cell-update/reorder goes through
+  the parent's relationship for every relation type (foreign parents' ids
+  are dropped), covered by regression tests.
+- **`$readOnly` now strips footer actions too**, and footer actions
+  participate in the manager's wiring/guards (an `AttachAction` placed there
+  used to render as a dead button).
+- **A clicked header sort now WINS over any order the relation carries**
+  (`->orderBy()` on the relation, global scopes) — sorting was visibly inert
+  before; same for the reorderable manual order.
+- **(published)** The table's create/edit and view modals carry
+  `role="dialog"` + `aria-modal` + a label — they were unlabeled divs.
+
+### Added
+
+- **Toolbar/footer `ExportAction`/`ImportAction` inside a relation manager
+  now throw at serialize time**: they would operate on the WHOLE model, not
+  the parent's relation — a silent data-exposure surface. Bulk export of
+  selected rows remains supported.
+- **Permissions inheritance**: the Create modal action in a manager is
+  auto-gated with `create` on the RELATED model's own policy (the same
+  policy its resource uses — no separate permissions exist for managers);
+  Edit/View/Delete already checked per record. Explicit `->authorize(...)`
+  still wins.
+- **(published) The active manager tab lives in the URL** (`?relation=…`,
+  written client-side with zero round-trips): table reloads, modal saves and
+  shared links land on the tab the user was on.
+- **Playwright E2E** (`npm run test:e2e`): drives the gallery's new
+  `relation-managers` specimen in real Chromium — tabs, create modal from
+  the blueprint, row Edit through the relation endpoint, Dissociate confirm
+  + POST payload, `?relation=` persistence, and the Attach picker.
+- **`kinetix:make-relation-manager --attach / --associate`**: the stub always
+  ships the Filament-default Create header + grouped Edit/Delete modals; the
+  flags compose Attach/Detach or Associate/Dissociate with it, pre-wired.
+- **(published)** Table query-state polish: search/filter/per-page reloads
+  `replace` the history entry (Back no longer walks your keystrokes; page
+  changes still push); foreign multi-value query params survive reloads
+  (they were truncated to one value); saved-view keys are namespaced per
+  manager (`Model:prefix_`), so two managers over the same model — or the
+  model's own index — no longer share one view list.
+
 ## [0.148.0] - 2026-08-06
 
 ### Added
