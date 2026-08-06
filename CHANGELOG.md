@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.152.0] - 2026-08-06
+
+### Fixed
+
+- **Toasts rendered as unstyled plain text** (no container, animation, or
+  colors) on hosts missing the vue-sonner stylesheet — nothing imported it:
+  `<KinetixToaster />` only re-themes the CSS variables the stylesheet reads.
+  `kinetix:install` now adds `@import 'vue-sonner/style.css';` to
+  `resources/css/app.css` automatically — inserted after the LAST existing
+  `@import` (loading after Tailwind, the ordering KinetixToaster's variable
+  overrides expect) and never appended after rules, since CSS requires
+  imports first. Idempotent; a missing `app.css` degrades to a manual-step
+  warning. **Existing installs: re-run `php artisan kinetix:install`** (safe)
+  or add the import by hand.
+
+### Added
+
+- **The `kinetix_toast` protocol is now documented in the
+  `kinetix-notifications` skill**: both accepted shapes (`->with('kinetix_toast',
+  'Saved')` → success; `['type' => 'error', 'message' => …]` → explicit
+  variant), the per-flash uuid (identical consecutive messages both fire — no
+  client dedupe), the fallback rules (unknown type → success, no string
+  message → dropped), and the two hard prerequisites that read as "toasts
+  don't work" (`<KinetixToaster />` mounted once + the vue-sonner
+  stylesheet). Same guidance mirrored in docs/notifications.md and
+  docs/installation.md.
+
 ## [0.151.0] - 2026-08-06
 
 ### Added
