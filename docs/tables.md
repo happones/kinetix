@@ -850,6 +850,29 @@ Table-level methods control refresh, pagination, and row behavior:
 <Screenshot name="table-toolbar" alt="Table toolbar with search, actions, filters and column toggle" />
 - `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
 
+### Empty state
+
+When the table has no rows it renders a plain "No records found" line by
+default. Configure a real empty state — icon, heading, description and CTA
+actions — and the table renders the shared `<KinetixEmptyState>` card instead:
+
+```php
+Table::make(Widget::query())
+    ->columns([...])
+    ->emptyStateIcon('package')
+    ->emptyStateHeading(__('widgets.empty.heading'))
+    ->emptyStateDescription(__('widgets.empty.description'))
+    ->emptyStateActions([
+        CreateAction::make()->modal('create'),   // opens the same create modal
+    ]);
+```
+
+- Empty-state actions behave exactly like toolbar actions: modal actions open
+  their modals, routed/request actions run as usual, and **unauthorized
+  actions are dropped** server-side like on every other surface.
+- Inside a relation manager the empty state works unchanged (a `$readOnly`
+  manager strips its actions too).
+
 ```php
 Table::make(Post::query())
     ->poll('10s')

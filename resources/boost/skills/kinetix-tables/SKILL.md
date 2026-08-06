@@ -81,7 +81,10 @@ to `Model:queryPrefix`), `queryPrefix('tags_')` (multiple tables per page), `sta
 cards over the same filtered query), `recordModals(Resource::class)` (in-table modal CRUD for
 simple resources — NOT inside relation managers), `simplePaginated()` (no COUNT) /
 `cursorPaginated()` (seek), `clientSide()` (TanStack in-browser mode), `writeAbility('ability')` /
-`writeScope([...])` (inline-write policy + bounds), `toolbarLayout('auto'|'inline'|'stacked')`.
+`writeScope([...])` (inline-write policy + bounds), `toolbarLayout('auto'|'inline'|'stacked')`,
+`emptyStateHeading/Description/Icon/Actions()` (custom no-rows card via the shared
+`<KinetixEmptyState>`; actions behave like toolbar actions incl. `->modal()`, unauthorized ones
+dropped).
 
 
 ## UI reuse (DRY — REQUIRED)

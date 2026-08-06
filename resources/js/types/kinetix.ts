@@ -1092,6 +1092,8 @@ export interface KinetixTableData {
     clientSide?: boolean;
     /** In-table modal CRUD wiring (simple resources). Null/absent = disabled. */
     recordModals?: KinetixRecordModals | null;
+    /** Custom empty state (heading/description/icon/CTAs). Null = default text. */
+    emptyState?: KinetixTableEmptyState | null;
 }
 
 /**
@@ -1160,6 +1162,23 @@ export interface KinetixRelationManagerData {
      * requests the full payload by revisiting with `?relation=`.
      */
     deferred?: boolean;
+    /** Translated group label — managers sharing it render as ONE tab. */
+    group?: string | null;
+    /** The group's stable `?relation=` key (raw label, slugged). */
+    groupKey?: string | null;
+    /** The section shows a collapse toggle wherever its heading renders. */
+    collapsible?: boolean;
+    /** Start collapsed. */
+    collapsed?: boolean;
+}
+
+export interface KinetixTableEmptyState {
+    heading?: string | null;
+    description?: string | null;
+    /** Lucide icon name (shared resolveIcon map). */
+    icon?: string | null;
+    /** CTA actions rendered under the text (e.g. a Create modal action). */
+    actions: KinetixAction[];
 }
 
 export interface KinetixPlanData {

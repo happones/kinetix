@@ -9,6 +9,7 @@ use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\SummaryData;
 use Happones\Kinetix\Data\TableData;
+use Happones\Kinetix\Data\TableEmptyStateData;
 use Happones\Kinetix\Data\TablePaginationData;
 use Happones\Kinetix\Data\TableRowData;
 use Happones\Kinetix\Data\TableStatData;
@@ -357,6 +358,92 @@ class Table implements Arrayable, JsonSerializable
         $this->footerActions = $actions;
 
         return $this;
+    }
+
+    /**
+     * Custom empty state (heading / description / icon / CTA actions) rendered
+     * in place of the plain "No records found" line when the table has no
+     * rows. Actions behave exactly like toolbar actions — a
+     * `CreateAction::make()->modal('create')` opens the same create modal.
+     */
+    protected ?string $emptyStateHeading = null;
+
+    protected ?string $emptyStateDescription = null;
+
+    protected ?string $emptyStateIcon = null;
+
+    /** @var array<int, Action> */
+    protected array $emptyStateActions = [];
+
+    public function emptyStateHeading(string $heading): static
+    {
+        $this->emptyStateHeading = $heading;
+
+        return $this;
+    }
+
+    public function emptyStateDescription(string $description): static
+    {
+        $this->emptyStateDescription = $description;
+
+        return $this;
+    }
+
+    /**
+     * Lucide icon name (the shared resolveIcon map).
+     */
+    public function emptyStateIcon(string $icon): static
+    {
+        $this->emptyStateIcon = $icon;
+
+        return $this;
+    }
+
+    /**
+     * @param array<int, Action> $actions
+     */
+    public function emptyStateActions(array $actions): static
+    {
+        $this->emptyStateActions = $actions;
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, Action>
+     */
+    public function getEmptyStateActions(): array
+    {
+        return $this->emptyStateActions;
+    }
+
+    /**
+     * The serialized empty state, or null when nothing was configured
+     * (the frontend then renders the default "No records found" line).
+     * Unauthorized actions are dropped like on every other surface.
+     */
+    protected function buildEmptyStateData(): ?TableEmptyStateData
+    {
+        $actions = array_values(array_filter(array_map(
+            fn (Action $action) => $action->toData(),
+            $this->emptyStateActions,
+        )));
+
+        if (
+            $this->emptyStateHeading        === null
+            && $this->emptyStateDescription === null
+            && $this->emptyStateIcon        === null
+            && $actions                     === []
+        ) {
+            return null;
+        }
+
+        return new TableEmptyStateData(
+            heading: $this->emptyStateHeading,
+            description: $this->emptyStateDescription,
+            icon: $this->emptyStateIcon,
+            actions: $actions,
+        );
     }
 
     public function heading(string $heading): static
@@ -985,6 +1072,7 @@ class Table implements Arrayable, JsonSerializable
             toolbarLayout: $this->toolbarLayout,
             clientSide: $this->clientSide,
             recordModals: $this->buildRecordModalsData(),
+            emptyState: $this->buildEmptyStateData(),
         );
     }
 

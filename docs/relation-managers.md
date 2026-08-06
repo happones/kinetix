@@ -93,6 +93,8 @@ the modal ones in the same table.
 | `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label/search by. **Defaults to the primary key when unset — the picker then shows raw ids as labels, so always set it** — see §8/§9 |
 | `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk/footer actions |
 | `protected static $isLazy` | `true` defers the manager to its tab activation — only the tab stub serializes until then (see §12) |
+| `protected static $group` | Group label — managers sharing it render as ONE tab, stacked inside (see §3) |
+| `protected static $isCollapsible` / `$isCollapsed` | Collapse toggle on the section heading / start collapsed (see §3) |
 | `getRelation(): Relation` | The parent's relationship OBJECT (BelongsToMany keeps its pivot) |
 | `getRelationshipQuery(): Builder` | The parent-scoped Eloquent query |
 | `toData()` / `toArray()` | Serialize to `RelationManagerData` |
@@ -142,6 +144,44 @@ shared/bookmarked links all land on the tab the user was on. An unknown
 Pass `:tabs="false"` to force the stacked layout regardless of count, or use
 the single-section `<KinetixRelationManager :manager="relation" />` directly
 for a fully custom arrangement.
+
+### Groups (several managers, one tab)
+
+Managers sharing a `$group` label render as **one tab**, their sections
+stacked inside it (each with its own heading):
+
+```php
+class DocumentsRelationManager extends RelationManager
+{
+    protected static string $relationship = 'documents';
+
+    protected static ?string $group = 'Attachments';   // passed through __()
+}
+// A NotesRelationManager with the same $group joins the same tab.
+```
+
+- The tab's badge is the **sum of the members' numeric badges** (non-numeric
+  ones are ignored); its color comes from the first member that sets one.
+- The group's `?relation=` key is the RAW label slugged (`attachments`), so a
+  shared link survives locale switches — and a link naming a member's
+  relationship also lands on its group's tab.
+- **Lazy members compose**: opening the group tab loads every lazy member in
+  a single request (they revisit with the group key).
+
+### Collapsible sections
+
+Wherever a manager's heading renders (the stacked layout, or inside a group
+tab), `$isCollapsible` adds a collapse toggle to it; `$isCollapsed` starts
+the section closed (and implies collapsible):
+
+```php
+protected static bool $isCollapsible = true;
+protected static bool $isCollapsed = true;   // closed until opened
+```
+
+A **collapsed lazy** manager defers its load until it is actually expanded —
+sections nobody opens never run their queries. In a plain tab the heading is
+hidden (the tab shows it), so collapsing doesn't apply there.
 
 ### Badges (record counts on the tab)
 
@@ -641,8 +681,9 @@ So you don't discover it the hard way:
   — rejected with an exception: imported rows would not be attached to the
   parent. Import from the related resource's own index instead.
   (`ExportAction` IS supported — see §10.)
-- **Grouped/collapsible managers and custom empty states** — planned polish;
-  the flat auto-tabs host covers the common case.
+That's the whole list — groups, collapsible sections (§3), lazy loading
+(§12), pivot writes (§11), relation-scoped export (§10) and custom empty
+states ([Tables → Empty state](tables.md#empty-state)) all ship.
 
 ## 14. i18n
 

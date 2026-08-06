@@ -25,6 +25,7 @@ import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
+import KinetixEmptyState from './KinetixEmptyState.vue';
 import KinetixForm from './KinetixForm.vue';
 import KinetixInfolist from './KinetixInfolist.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
@@ -594,7 +595,8 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                             </td>
                         </tr>
 
-                        <!-- Empty State -->
+                        <!-- Empty State: the configured card (heading /
+                             description / icon / CTAs) or the default line. -->
                         <tr v-if="rows.length === 0">
                             <td
                                 :colspan="
@@ -603,9 +605,58 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                     (table.bulkActions.length > 0 ? 1 : 0) +
                                     (table.reorderable ? 1 : 0)
                                 "
-                                class="px-6 py-12 text-sm text-center text-muted-foreground"
+                                :class="
+                                    table.emptyState
+                                        ? 'p-4'
+                                        : 'px-6 py-12 text-sm text-center text-muted-foreground'
+                                "
                             >
-                                {{ t('kinetix.no_records_found') }}
+                                <KinetixEmptyState
+                                    v-if="table.emptyState"
+                                    :icon="table.emptyState.icon"
+                                    :title="
+                                        table.emptyState.heading ??
+                                        t('kinetix.no_records_found')
+                                    "
+                                    :description="table.emptyState.description"
+                                >
+                                    <template
+                                        v-for="(action, i) in table.emptyState
+                                            .actions"
+                                        :key="`empty-${i}`"
+                                    >
+                                        <KinetixButton
+                                            :variant="
+                                                action.color
+                                                    ? actionButtonVariant(
+                                                          action.color,
+                                                      )
+                                                    : 'default'
+                                            "
+                                            size="sm"
+                                            :disabled="actionProcessing"
+                                            :loading="
+                                                actionProcessing &&
+                                                actionProcessingName ===
+                                                    action.name
+                                            "
+                                            @click="handleActionClick(action)"
+                                        >
+                                            <template #icon>
+                                                <component
+                                                    :is="
+                                                        resolveIcon(action.icon)
+                                                    "
+                                                    v-if="action.icon"
+                                                />
+                                            </template>
+                                            {{ action.label }}
+                                        </KinetixButton>
+                                    </template>
+                                </KinetixEmptyState>
+                                <template v-else>
+                                    {{ t('kinetix.no_records_found') }}
+                                </template>
                             </td>
                         </tr>
                     </tbody>

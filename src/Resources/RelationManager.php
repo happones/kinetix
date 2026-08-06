@@ -71,6 +71,25 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     protected static bool $isLazy = false;
 
     /**
+     * Group label: managers sharing it render as ONE tab (their sections
+     * stacked inside, each with its own heading). Passed through `__()` for
+     * display; the raw value (slugged) is the group's stable `?relation=` key,
+     * so shared links survive locale switches.
+     */
+    protected static ?string $group = null;
+
+    /**
+     * Collapsible: the manager's section gets a collapse toggle wherever its
+     * heading renders (stacked layout / inside a group tab).
+     */
+    protected static bool $isCollapsible = false;
+
+    /**
+     * Start collapsed (implies collapsible).
+     */
+    protected static bool $isCollapsed = false;
+
+    /**
      * The related-model attribute the attach modal labels and searches by
      * (Filament's `recordTitleAttribute`). Required for `AttachAction`.
      */
@@ -246,17 +265,39 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         return static::$isLazy;
     }
 
+    public static function getGroup(): ?string
+    {
+        return static::$group !== null ? (string) __(static::$group) : null;
+    }
+
+    /**
+     * The group's stable tab key: the RAW `$group` value slugged (never the
+     * translation, so a shared `?relation=` link works in every locale).
+     */
+    public static function getGroupKey(): ?string
+    {
+        return static::$group !== null ? str(static::$group)->slug()->toString() : null;
+    }
+
     /**
      * Whether this manager should serialize its FULL payload: always for
      * eager managers; for lazy ones only when it is the active tab
-     * (`?relation=` matches). Deliberately never "first tab by default" —
-     * the point of lazy is that the initial page render runs none of the
-     * manager's queries, even when its tab starts active.
+     * (`?relation=` matches the relationship — or the group key, so opening
+     * a group tab loads ALL its lazy members in one request). Deliberately
+     * never "first tab by default" — the point of lazy is that the initial
+     * page render runs none of the manager's queries, even when its tab
+     * starts active.
      */
     protected function shouldSerializeTable(): bool
     {
-        return ! static::$isLazy
-            || request('relation') === static::$relationship;
+        if (! static::$isLazy) {
+            return true;
+        }
+
+        $active = request('relation');
+
+        return $active === static::$relationship
+            || (static::getGroupKey() !== null && $active === static::getGroupKey());
     }
 
     /**
@@ -274,6 +315,10 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             badge: $this->getBadge(),
             badgeColor: $this->getBadgeColor(),
             deferred: true,
+            group: static::getGroup(),
+            groupKey: static::getGroupKey(),
+            collapsible: static::$isCollapsible || static::$isCollapsed,
+            collapsed: static::$isCollapsed,
         );
     }
 
@@ -305,7 +350,8 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         }
 
         if (static::$readOnly) {
-            $table->recordActions([])->toolbarActions([])->bulkActions([])->footerActions([]);
+            $table->recordActions([])->toolbarActions([])->bulkActions([])
+                ->footerActions([])->emptyStateActions([]);
         }
 
         // Cell-update / drag-reorder writes resolve through the PARENT's
@@ -344,6 +390,10 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             badgeColor: $this->getBadgeColor(),
             descriptor: $descriptor,
             attachForm: $this->attachFormData,
+            group: static::getGroup(),
+            groupKey: static::getGroupKey(),
+            collapsible: static::$isCollapsible || static::$isCollapsed,
+            collapsed: static::$isCollapsed,
         );
     }
 
@@ -383,6 +433,7 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             ...$table->getRecordActions(),
             ...$table->getBulkActions(),
             ...$table->getFooterActions(),
+            ...$table->getEmptyStateActions(),
         ];
 
         foreach ($surfaces as $action) {

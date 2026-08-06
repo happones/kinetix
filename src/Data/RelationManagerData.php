@@ -34,5 +34,13 @@ class RelationManagerData extends Data
          * by revisiting with `?relation={relationship}`.
          */
         public bool $deferred = false,
+        /** Translated group label — managers sharing it render as ONE tab. */
+        public ?string $group = null,
+        /** The group's stable `?relation=` key (raw label, slugged). */
+        public ?string $groupKey = null,
+        /** The section shows a collapse toggle wherever its heading renders. */
+        public bool $collapsible = false,
+        /** Start collapsed. */
+        public bool $collapsed = false,
     ) {}
 }

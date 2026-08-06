@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.159.0] - 2026-08-06
+
+Relation managers: groups, collapsible sections and a table-level empty-state
+API — the last items of the relation-managers arc.
+
+- **Groups**: managers sharing `protected static ?string $group = '…'` render
+  as ONE tab, their sections stacked inside (each with its own heading). The
+  tab badge sums the members' numeric badges; the group's `?relation=` key is
+  the raw label slugged (locale-stable); opening the group tab loads all its
+  lazy members in one request **(published: `KinetixRelationManagers.vue`,
+  `KinetixRelationManager.vue`, `types/kinetix.ts`)**.
+- **Collapsible sections**: `$isCollapsible` adds a collapse toggle to the
+  manager's heading (stacked layout / group tabs); `$isCollapsed` starts
+  closed and implies collapsible. A collapsed lazy section defers its load
+  until expanded. No-op in a plain tab, where the heading is hidden.
+- **Table empty state** (all tables, not just managers):
+  `emptyStateHeading()/emptyStateDescription()/emptyStateIcon()/emptyStateActions()`
+  render the shared `<KinetixEmptyState>` card instead of the plain
+  "No records found" line **(published: `KinetixTable.vue`)**. Actions behave
+  like toolbar actions (`->modal()` included), unauthorized ones are dropped,
+  and a `$readOnly` manager strips them. New `TableEmptyStateData` DTO on
+  `TableData.emptyState`.
+- `kinetix:make-relation-manager` scaffolds commented `$group`/`$isCollapsible`
+  hints.
+
 ## [0.158.0] - 2026-08-06
 
 - Relation-scoped export: `ExportAction::make()->exporter(...)` now works in

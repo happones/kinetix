@@ -53,5 +53,7 @@ class TableData extends Data
         public bool $clientSide = false,
         // In-table modal CRUD wiring (simple resources). Null = disabled.
         public ?RecordModalsData $recordModals = null,
+        // Custom empty state (heading/description/icon/CTAs). Null = default text.
+        public ?TableEmptyStateData $emptyState = null,
     ) {}
 }

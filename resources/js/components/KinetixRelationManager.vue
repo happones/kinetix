@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { ChevronDown } from '@lucide/vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
@@ -302,12 +303,42 @@ function loadDeferred(): void {
     deferredRequested.value = true;
 
     router.reload({
-        data: { relation: props.manager.relationship },
+        // A group member requests its GROUP's key, so one revisit loads every
+        // lazy member of the group at once.
+        data: {
+            relation: props.manager.groupKey ?? props.manager.relationship,
+        },
         onError: () => {
             deferredRequested.value = false;
         },
     });
 }
+
+// --- Collapsible section ------------------------------------------------------
+
+const isSectionCollapsed = ref(!!props.manager.collapsed);
+
+// Collapsing only applies where the heading (the toggle) renders — a plain
+// tab hides the title, so a `$isCollapsed` manager must not start hidden
+// with no way to expand it.
+const isCollapsible = computed(
+    () => !!props.manager.collapsible && !props.hideTitle,
+);
+
+const sectionContentId = computed(
+    () => `kinetix-relation-content-${props.manager.relationship}`,
+);
+
+// A collapsed lazy section defers its load until it is actually expanded.
+watch(isSectionCollapsed, (collapsed) => {
+    if (!collapsed && isDeferred.value) {
+        loadDeferred();
+    }
+});
+
+const isContentHidden = computed(
+    () => isCollapsible.value && isSectionCollapsed.value,
+);
 
 // --- Event wiring (AttachAction / DetachAction dispatch these) --------------
 
@@ -350,7 +381,7 @@ const onDissociateRelation = (event: Event): void => {
 };
 
 onMounted(() => {
-    if (isDeferred.value) {
+    if (isDeferred.value && !isContentHidden.value) {
         loadDeferred();
     }
 
@@ -380,7 +411,23 @@ onBeforeUnmount(() => {
             v-if="!hideTitle"
             class="gap-2 text-lg font-semibold tracking-tight flex items-center text-foreground"
         >
-            {{ manager.title }}
+            <!-- Collapsible: the whole heading is the toggle. -->
+            <button
+                v-if="isCollapsible"
+                type="button"
+                class="gap-2 -m-1 p-1 flex cursor-pointer items-center rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                :aria-expanded="!isSectionCollapsed"
+                :aria-controls="sectionContentId"
+                @click="isSectionCollapsed = !isSectionCollapsed"
+            >
+                <ChevronDown
+                    class="size-4 text-muted-foreground transition-transform"
+                    :class="isSectionCollapsed ? '-rotate-90' : ''"
+                    aria-hidden="true"
+                />
+                {{ manager.title }}
+            </button>
+            <template v-else>{{ manager.title }}</template>
             <span
                 v-if="manager.badge !== null && manager.badge !== undefined"
                 class="px-2 py-0.5 text-xs font-semibold inline-flex items-center rounded-full"
@@ -390,15 +437,17 @@ onBeforeUnmount(() => {
             </span>
         </h2>
 
-        <!-- Lazy manager still loading: pulsing skeleton, replaced by the
-             real table when the ?relation= revisit lands. -->
-        <div v-if="isDeferred" class="space-y-3" aria-busy="true">
-            <span class="sr-only">{{ t('kinetix.relation_loading') }}</span>
-            <div class="h-9 animate-pulse w-64 rounded-md bg-muted"></div>
-            <div class="h-40 animate-pulse rounded-md bg-muted"></div>
-        </div>
+        <div :id="sectionContentId" v-show="!isContentHidden" class="space-y-3">
+            <!-- Lazy manager still loading: pulsing skeleton, replaced by the
+                 real table when the ?relation= revisit lands. -->
+            <div v-if="isDeferred" class="space-y-3" aria-busy="true">
+                <span class="sr-only">{{ t('kinetix.relation_loading') }}</span>
+                <div class="h-9 animate-pulse w-64 rounded-md bg-muted"></div>
+                <div class="h-40 animate-pulse rounded-md bg-muted"></div>
+            </div>
 
-        <KinetixTable v-else-if="manager.table" :table="manager.table" />
+            <KinetixTable v-else-if="manager.table" :table="manager.table" />
+        </div>
 
         <!-- Record picker modal (AttachAction / AssociateAction events) on the
              shared KinetixModal shell (shadcn v4 dialog line). -->

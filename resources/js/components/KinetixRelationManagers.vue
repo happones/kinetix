@@ -8,8 +8,7 @@ import KinetixRelationManager from './KinetixRelationManager.vue';
 
 /**
  * The relation managers HOST for a resource page — pass everything
- * `relationManagersFor()` returned and it picks the right layout, exactly
- * like Filament:
+ * `relationManagersFor()` returned and it picks the right layout:
  *
  * - one manager  → a plain section (heading + table);
  * - several      → an automatic TAB per manager (title + optional badge),
@@ -38,7 +37,67 @@ const props = withDefaults(
     },
 );
 
-const useTabs = computed(() => props.tabs && props.managers.length > 1);
+/**
+ * One rendered tab: a plain manager, or a GROUP of managers sharing
+ * `$group` (their sections stack inside the panel, each with its own
+ * heading). A group's badge is the sum of its members' numeric badges.
+ */
+interface ManagerTab {
+    key: string;
+    title: string;
+    badge: number | string | null;
+    badgeColor: string | null;
+    isGroup: boolean;
+    managers: KinetixRelationManagerData[];
+}
+
+const tabs = computed<ManagerTab[]>(() => {
+    const list: ManagerTab[] = [];
+    const byKey = new Map<string, ManagerTab>();
+
+    for (const manager of props.managers) {
+        const key = manager.groupKey ?? manager.relationship;
+        let tab = byKey.get(key);
+
+        if (!tab) {
+            tab = {
+                key,
+                title: manager.group ?? manager.title,
+                badge: null,
+                badgeColor: null,
+                isGroup: !!manager.groupKey,
+                managers: [],
+            };
+            byKey.set(key, tab);
+            list.push(tab);
+        }
+
+        tab.managers.push(manager);
+    }
+
+    for (const tab of list) {
+        if (!tab.isGroup) {
+            tab.badge = tab.managers[0].badge ?? null;
+            tab.badgeColor = tab.managers[0].badgeColor ?? null;
+
+            continue;
+        }
+
+        const numeric = tab.managers
+            .map((m) => m.badge)
+            .filter((b): b is number => typeof b === 'number');
+
+        tab.badge = numeric.length
+            ? numeric.reduce((sum, b) => sum + b, 0)
+            : null;
+        tab.badgeColor =
+            tab.managers.find((m) => m.badgeColor)?.badgeColor ?? null;
+    }
+
+    return list;
+});
+
+const useTabs = computed(() => props.tabs && tabs.value.length > 1);
 
 /** The `?relation=` query param persisting the active tab across reloads. */
 const TAB_PARAM = 'relation';
@@ -52,12 +111,18 @@ const tabFromUrl = (): string | null => {
         TAB_PARAM,
     );
 
-    return props.managers.some((m) => m.relationship === requested)
-        ? requested
-        : null;
+    // A group member's relationship also lands on its group's tab (lazy
+    // members revisit with their own relation param).
+    const tab = tabs.value.find(
+        (candidate) =>
+            candidate.key === requested ||
+            candidate.managers.some((m) => m.relationship === requested),
+    );
+
+    return tab?.key ?? null;
 };
 
-const active = ref(tabFromUrl() ?? props.managers[0]?.relationship ?? '');
+const active = ref(tabFromUrl() ?? tabs.value[0]?.key ?? '');
 
 /**
  * Write the active tab into the URL with a CLIENT-side history replace — no
@@ -94,17 +159,15 @@ const selectTab = (relationship: string): void => {
 // reload dropping a manager the record no longer allows).
 watch(
     () => props.managers,
-    (managers) => {
-        if (!managers.some((m) => m.relationship === active.value)) {
-            active.value = managers[0]?.relationship ?? '';
+    () => {
+        if (!tabs.value.some((tab) => tab.key === active.value)) {
+            active.value = tabs.value[0]?.key ?? '';
         }
     },
 );
 
-const activeManager = computed(
-    () =>
-        props.managers.find((m) => m.relationship === active.value) ??
-        props.managers[0],
+const activeTab = computed(
+    () => tabs.value.find((tab) => tab.key === active.value) ?? tabs.value[0],
 );
 
 const badgeClass = (color?: string | null): string =>
@@ -113,46 +176,49 @@ const badgeClass = (color?: string | null): string =>
 
 <template>
     <div v-if="managers.length > 0">
-        <!-- Several managers: auto-tabs (Filament-style) -->
+        <!-- Several managers: auto-tabs -->
         <div v-if="useTabs" class="space-y-4">
             <div
                 role="tablist"
                 class="h-9 rounded-lg p-1 gap-1 inline-flex max-w-full items-center overflow-x-auto bg-muted text-muted-foreground"
             >
                 <button
-                    v-for="manager in managers"
-                    :key="manager.relationship"
+                    v-for="tab in tabs"
+                    :key="tab.key"
                     type="button"
                     role="tab"
-                    :aria-selected="manager.relationship === active"
-                    :data-state="
-                        manager.relationship === active ? 'active' : 'inactive'
-                    "
+                    :aria-selected="tab.key === active"
+                    :data-state="tab.key === active ? 'active' : 'inactive'"
                     class="gap-1.5 px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex cursor-pointer touch-manipulation items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground"
-                    @click="selectTab(manager.relationship)"
+                    @click="selectTab(tab.key)"
                 >
-                    {{ manager.title }}
+                    {{ tab.title }}
                     <span
-                        v-if="
-                            manager.badge !== null &&
-                            manager.badge !== undefined
-                        "
+                        v-if="tab.badge !== null && tab.badge !== undefined"
                         class="px-1.5 py-0.5 font-semibold inline-flex items-center rounded-full text-[11px]"
-                        :class="badgeClass(manager.badgeColor)"
+                        :class="badgeClass(tab.badgeColor)"
                     >
-                        {{ manager.badge }}
+                        {{ tab.badge }}
                     </span>
                 </button>
             </div>
 
-            <div
-                v-if="activeManager"
-                :key="activeManager.relationship"
-                role="tabpanel"
-            >
-                <!-- Full manager (hidden heading — the tab already shows it),
-                     so the attach modal + detach listener ride along. -->
-                <KinetixRelationManager :manager="activeManager" hide-title />
+            <div v-if="activeTab" :key="activeTab.key" role="tabpanel">
+                <!-- Plain tab: one manager, heading hidden (the tab shows it).
+                     Group tab: members stacked, each with its own heading
+                     (and collapse toggle when collapsible). -->
+                <KinetixRelationManager
+                    v-if="!activeTab.isGroup"
+                    :manager="activeTab.managers[0]"
+                    hide-title
+                />
+                <div v-else class="space-y-8">
+                    <KinetixRelationManager
+                        v-for="manager in activeTab.managers"
+                        :key="manager.relationship"
+                        :manager="manager"
+                    />
+                </div>
             </div>
         </div>
 

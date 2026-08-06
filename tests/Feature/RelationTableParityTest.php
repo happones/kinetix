@@ -141,6 +141,36 @@ class RtpLazyTasksManager extends RelationManager
     }
 }
 
+class RtpGroupedTagsManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    protected static ?string $group = 'Team Data';
+
+    protected static bool $isCollapsible = true;
+
+    public function table(Table $table): Table
+    {
+        return $table->columns([TextColumn::make('name')]);
+    }
+}
+
+class RtpGroupedLazyTasksManager extends RelationManager
+{
+    protected static string $relationship = 'tasks';
+
+    protected static ?string $group = 'Team Data';
+
+    protected static bool $isLazy = true;
+
+    protected static bool $isCollapsed = true;
+
+    public function table(Table $table): Table
+    {
+        return $table->columns([TextColumn::make('title')]);
+    }
+}
+
 class RtpEditableUndeclaredPivotManager extends RelationManager
 {
     protected static string $relationship = 'tags';
@@ -511,6 +541,39 @@ class RelationTableParityTest extends TestCase
 
         $this->assertCount(1, $queries);
         $this->assertStringContainsString('count', strtolower((string) $queries->first()));
+    }
+
+    public function test_group_and_collapse_metadata_serialize_on_full_and_stub_payloads(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+
+        $full = RtpGroupedTagsManager::make($project)->toData();
+        $this->assertSame('Team Data', $full->group);
+        $this->assertSame('team-data', $full->groupKey);
+        $this->assertTrue($full->collapsible);
+        $this->assertFalse($full->collapsed);
+
+        // The lazy member's STUB still carries the group + collapse metadata,
+        // and `$isCollapsed` implies collapsible.
+        $stub = RtpGroupedLazyTasksManager::make($project)->toData();
+        $this->assertTrue($stub->deferred);
+        $this->assertSame('team-data', $stub->groupKey);
+        $this->assertTrue($stub->collapsible);
+        $this->assertTrue($stub->collapsed);
+    }
+
+    public function test_a_lazy_group_member_loads_when_the_group_key_is_active(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+        $project->tasks()->create(['title' => 'Alpha']);
+
+        // Opening the GROUP tab loads every lazy member in one request.
+        request()->merge(['relation' => 'team-data']);
+
+        $data = RtpGroupedLazyTasksManager::make($project)->toData();
+
+        $this->assertFalse($data->deferred);
+        $this->assertNotNull($data->table);
     }
 
     public function test_an_eager_manager_is_never_deferred(): void

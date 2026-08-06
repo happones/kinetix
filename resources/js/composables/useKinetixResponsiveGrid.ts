@@ -1,10 +1,10 @@
 /**
- * Responsive resolution for form grids (Filament-parity semantics, measured
+ * Responsive resolution for form grids (measured
  * against the FORM's own width via CSS container queries — a two-column grid
  * inside a narrow modal collapses even on a wide viewport).
  *
  * - `columns(2)` (an int) means "2 columns from `lg` up, 1 below" — exactly
- *   Filament's default. `columns(['sm' => 2, 'xl' => 3])` sets explicit
+ *   the default. `columns(['sm' => 2, 'xl' => 3])` sets explicit
  *   breakpoints; `default` (or `base`) is the below-`sm` value.
  * - `columnSpan(2)` applies at every size, clamped to the columns available at
  *   each breakpoint (a span can never overflow its grid). `'full'` spans the
@@ -58,7 +58,7 @@ export function resolveColumns(columns: ColumnsInput): ResponsiveColumns {
         return SINGLE_COLUMN;
     }
 
-    // Filament semantics: an int means "this many columns from lg up".
+    // An int means "this many columns from lg up".
     if (typeof columns === 'number' || typeof columns === 'string') {
         const count = Math.max(1, Number(columns) || 1);
 

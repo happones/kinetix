@@ -75,6 +75,10 @@ class MakeRelationManagerCommand extends GeneratorCommand
             // Lazy: serialize only the tab stub until the tab is opened.
             // protected static bool \$isLazy = true;
 
+            // Combine with other managers into one tab / add a collapse toggle.
+            // protected static ?string \$group = 'Attachments';
+            // protected static bool \$isCollapsible = true;
+
             {$titleAttr}
 
             /**
