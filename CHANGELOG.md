@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.154.0] - 2026-08-06
+
+### Changed
+
+- **(published) Modals follow the shadcn new-york-v4 Dialog line** — new
+  shared shell `primitives/KinetixModal.vue` replicating the v4 registry:
+  `bg-black/80` overlay and panel animating with fade + zoom-95 over 200ms,
+  `bg-background` panel (`rounded-lg border p-6 shadow-lg`), the v4 close
+  button, v4 header stack (centered mobile / left ≥sm) and footer stack
+  (column-reverse mobile / right-aligned row ≥sm) — on the Kinetix z-scale
+  and focus-trap. Migrated onto it: `KinetixConfirmModal` (every confirm
+  surface), the table's create/edit and view record modals, and the relation
+  manager attach/associate picker. `KinetixSheet` aligned to the v4 sheet
+  motion (500ms in / 300ms out, `bg-black/80` overlay).
+  Remaining hand-rolled overlays queued for the same migration:
+  `CalendarEventDetails`, `KinetixConfidentialUnlock`, `KinetixGdprPanel`,
+  `KinetixShortcuts` (`KinetixSpotlight` and `KinetixTour` keep bespoke
+  chrome by design).
+- **(published) DRY convention enforced for buttons**: `KinetixConfirmModal`'s
+  footer and the table pagination pagers no longer carry hand-copied shadcn
+  class strings — they use `<KinetixButton>` / `buttonVariants()`. The rule
+  is now REQUIRED in the `kinetix-tables`/`kinetix-resources`/`kinetix-forms`
+  skills: reuse `KinetixButton` (or `buttonVariants()` where a component
+  can't be used) and build modals on `KinetixModal` — a duplicated class
+  string is a bug that drifts when the base evolves.
+
 ## [0.153.0] - 2026-08-06
 
 Column-spectrum audit: every form field now has a display counterpart —
