@@ -1129,6 +1129,10 @@ return [
         // Inertia page component the bundled BillingController renders.
         'view' => env('KINETIX_BILLING_VIEW', 'Billing/Index'),
 
+        // Where the `kinetix.plan` middleware and the <KinetixPlanGate> upsell
+        // send users to upgrade (e.g. '/billing'). Null = plain 403 / no CTA.
+        'upgrade_url' => env('KINETIX_BILLING_UPGRADE_URL'),
+
         // Optionally resolve a different billable from the authenticated user
         // (e.g. fn ($user) => $user->currentTeam). Null = the user itself.
         'resolve_billable' => null,

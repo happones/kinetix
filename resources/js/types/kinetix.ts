@@ -181,6 +181,8 @@ export interface KinetixBillingState {
         /** The plan's nested features JSON (usage limits + capability flags). */
         features: Record<string, unknown>;
     } | null;
+    /** Where <KinetixPlanGate>'s upsell CTA sends users to upgrade. */
+    upgradeUrl?: string | null;
 }
 
 /** Cookie consent bar config shared via Inertia. */

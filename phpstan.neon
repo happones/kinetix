@@ -29,6 +29,11 @@ parameters:
             identifier: trait.unused
             path: src/Billing/Concerns/HasPlan.php
 
+        # Plan-limit trait added to the HOST's models — never used inside the package.
+        -
+            identifier: trait.unused
+            path: src/Billing/Concerns/EnforcesPlanLimits.php
+
         # Activity trait added to the host app's Eloquent models, not used in-package.
         -
             identifier: trait.unused

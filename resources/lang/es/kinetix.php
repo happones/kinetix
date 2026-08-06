@@ -117,6 +117,10 @@ return [
     'billing_subscription_cancelled' => 'Suscripción cancelada correctamente.',
     'billing_subscription_resumed'   => 'Suscripción reanudada correctamente.',
     'billing_feature_unavailable'    => 'Tu plan actual no incluye esta función.',
+    'plan_limit_reached'             => 'Has alcanzado el límite de :key de tu plan (:limit).',
+    'plan_locked_title'              => 'Se requiere mejorar el plan',
+    'plan_locked_body'               => 'Esta funcionalidad no está incluida en tu plan actual.',
+    'plan_upgrade'                   => 'Mejorar plan',
 
     // Etiquetas UI de facturación
     'billing_current_plan'             => 'Plan actual',

@@ -250,29 +250,67 @@ $user->hasReachedPlanLimit('usage.projects', 5);   // bool
 $user->remainingPlanLimit('usage.projects', 5);    // ?int — units left; null = unlimited
 ```
 
-Gate a route on a feature with the `plan.feature` middleware:
+The namespaced sugar reads the same structure without spelling the prefixes
+(`features: { capabilities: {...}, usage: {...} }` — the convention the usage
+meters already read):
 
 ```php
-Route::post('/api/tokens', ...)->middleware('plan.feature:capabilities.api');
+$user->planAllows('api');                  // canUseFeature('capabilities.api')
+$user->planLimit('projects');              // ?int — null = unlimited
+$user->isWithinPlanLimit('projects', 5);   // !hasReachedPlanLimit('usage.projects', 5)
 ```
 
-Enforce a usage limit before a write (there is no generic middleware for counts
-— only your app knows what to count):
+With no resolvable plan, **capabilities are denied** (fail closed) while
+**limits stay unlimited** (fail open) — gating features is opt-in per plan;
+blocking creation never is.
+
+### Gate routes on a capability
+
+Two middleware, one per style:
 
 ```php
-public function store(Request $request)
+// Dot-path, plain 403 when denied:
+Route::post('/api/tokens', ...)->middleware('plan.feature:capabilities.api');
+
+// Capability name, UPSELL-aware: a denied web request redirects to
+// `kinetix.billing.upgrade_url` (e.g. '/billing') with a flash message;
+// JSON requests (and a missing upgrade URL) get the 403.
+Route::post('/api/tokens', ...)->middleware('kinetix.plan:api');
+```
+
+```dotenv
+KINETIX_BILLING_UPGRADE_URL=/billing
+```
+
+### Enforce usage limits on creation (`EnforcesPlanLimits`)
+
+Add the trait to a model and creating past the plan's limit throws a
+`PlanLimitExceededException` (renders as a 403 with a translated message):
+
+```php
+class Project extends Model
 {
-    $team = $request->user()->currentTeam;
-
-    abort_if(
-        $team->hasReachedPlanLimit('usage.products', $team->products()->count()),
-        403,
-        'Your plan limit for products has been reached.',
-    );
-
-    // ...create the product.
+    use \Happones\Kinetix\Billing\Concerns\EnforcesPlanLimits;
 }
 ```
+
+- The `usage.*` key defaults to the plural snake-cased model name
+  (`Project` → `usage.projects`); override `planLimitKey()`.
+- The billable resolves exactly like every other billing surface
+  (`kinetix.billing.billable` / `resolve_billable` / team context); override
+  `planLimitBillable()`.
+- The count defaults to this model narrowed by the billable's conventional
+  foreign key (`team_id` / `user_id`) whenever the creating record carries
+  it; override `planLimitQuery()` for custom ownership shapes.
+- **Unlimited plans skip the COUNT entirely**, and a billing-less environment
+  (no billable, no `HasPlan`) skips the check — the model keeps working.
+- `$model->enforcePlanLimit()` runs the same check manually (e.g. before
+  rendering a "new record" form), and the exception carries `limitKey` +
+  `limit` for custom handling around bulk operations.
+
+For checks the trait can't express (cross-model counts, monthly quotas),
+`hasReachedPlanLimit()` + `abort_if` in the controller remains the manual
+escape hatch.
 
 ### Gate the UI by plan (frontend)
 
@@ -285,14 +323,16 @@ no controller wiring. `useKinetixPlan()` mirrors every backend helper:
 <script setup lang="ts">
 import { useKinetixPlan } from '@/composables/useKinetixPlan';
 
-const { plan, onPlan, canUseFeature, featureValue, hasReachedLimit, remaining } =
+const { plan, onPlan, allows, canUseFeature, featureValue, hasReachedLimit, remaining, upgradeUrl } =
     useKinetixPlan();
 
+allows('api');                               // sugar for canUseFeature('capabilities.api')
 canUseFeature('capabilities.api');           // show the API menu item?
 hasReachedLimit('usage.products', count);    // disable "Add product"?
 remaining('usage.products', count);          // "3 left on your plan" (null = unlimited)
 featureValue('usage.products');              // raw value
 onPlan('pro');                               // plan check
+upgradeUrl.value;                            // kinetix.billing.upgrade_url
 </script>
 ```
 
@@ -323,10 +363,31 @@ Or declaratively with `<KinetixPlanFeature>` — the billing twin of
 </KinetixPlanFeature>
 ```
 
+For a whole locked MODULE (a page section the plan doesn't include),
+`<KinetixPlanGate>` is `<KinetixPlanFeature>` with a built-in denied state — a
+lock card with an **Upgrade CTA** pointing at `kinetix.billing.upgrade_url`:
+
+```vue
+<!-- Locked module: lock card + "Upgrade plan" CTA when denied -->
+<KinetixPlanGate feature="capabilities.api">
+  <ApiTokensPanel />
+</KinetixPlanGate>
+
+<!-- Same for usage limits; #locked replaces the card entirely -->
+<KinetixPlanGate limit="usage.projects" :count="projects.length">
+  <NewProjectForm />
+  <template #locked><MyCustomUpsell /></template>
+</KinetixPlanGate>
+```
+
+Use `<KinetixPlanFeature>` when the denied state should render nothing (menu
+items, buttons); `<KinetixPlanGate>` when it should sell the upgrade.
+
 > **Display gating only.** The shared plan lets the SPA hide/disable UI, but the
 > server must still enforce every feature and limit on the write path
-> (`plan.feature` middleware, `hasReachedPlanLimit()` checks) — page props are
-> user-visible data, never authorization.
+> (`plan.feature` / `kinetix.plan:` middleware, `EnforcesPlanLimits`,
+> `hasReachedPlanLimit()` checks) — page props are user-visible data, never
+> authorization.
 
 ---
 

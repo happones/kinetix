@@ -117,6 +117,10 @@ return [
     'billing_subscription_cancelled' => 'Assinatura cancelada com sucesso.',
     'billing_subscription_resumed'   => 'Assinatura retomada com sucesso.',
     'billing_feature_unavailable'    => 'Seu plano atual não inclui este recurso.',
+    'plan_limit_reached'             => 'O limite de :key do seu plano (:limit) foi atingido.',
+    'plan_locked_title'              => 'Upgrade necessário',
+    'plan_locked_body'               => 'Este recurso não está incluído no seu plano atual.',
+    'plan_upgrade'                   => 'Fazer upgrade',
 
     // Rótulos de UI de cobrança
     'billing_current_plan'             => 'Plano atual',

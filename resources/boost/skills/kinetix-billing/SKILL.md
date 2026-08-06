@@ -48,7 +48,19 @@ $plan = Plan::create([
 
 $user->canUseFeature('capabilities.api');         // via HasPlan on the billable
 $user->hasReachedPlanLimit('usage.projects', 10); // null limit = unlimited
+
+// Namespaced sugar (features: { capabilities: {...}, usage: {...} }):
+$user->planAllows('api');                // capabilities are DENIED without a plan (fail closed)
+$user->planLimit('projects');            // ?int — null = unlimited (fail open)
+$user->isWithinPlanLimit('projects', 5);
 ```
+
+**Creation limits**: `use EnforcesPlanLimits` on a model → creating past the plan's
+`usage.{plural_snake_model}` limit throws `PlanLimitExceededException` (403, translated).
+Overridables: `planLimitKey()`, `planLimitBillable()` (defaults to the standard billable
+resolution), `planLimitQuery($billable)` (defaults to narrowing by the billable's conventional
+FK when the creating record carries it). Unlimited plans skip the COUNT; billing-less
+environments skip the check entirely. `$model->enforcePlanLimit()` runs it manually.
 
 ### 2. Orchestration
 
@@ -61,8 +73,15 @@ BillingManager::for($billable)->subscribe('pro', $paymentMethod, 'monthly');
 ### 3. Route gating
 
 ```php
-Route::post('/export', ...)->middleware('plan.feature:capabilities.api');
+Route::post('/export', ...)->middleware('plan.feature:capabilities.api'); // dot-path, plain 403
+Route::post('/export', ...)->middleware('kinetix.plan:api');              // capability, upsell-aware
 ```
+
+`kinetix.plan:` redirects denied WEB requests to `kinetix.billing.upgrade_url`
+(`KINETIX_BILLING_UPGRADE_URL`, e.g. `/billing`) with a flash toast; JSON (or no URL) → 403.
+Frontend: `<KinetixPlanGate feature="capabilities.api">` = `<KinetixPlanFeature>` with a built-in
+lock-card + Upgrade CTA denied state (`#locked` slot overrides); `useKinetixPlan()` adds
+`allows('api')` + `upgradeUrl`.
 
 ### 4. Metered usage progress
 

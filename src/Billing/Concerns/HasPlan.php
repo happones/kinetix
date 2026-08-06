@@ -98,4 +98,42 @@ trait HasPlan
     {
         return $this->currentPlan()?->remainingLimit($path, $count);
     }
+
+    // -- Plan-gating kit (capabilities.* / usage.* convention) ------------------
+
+    /**
+     * Whether the plan grants a CAPABILITY — sugar over the
+     * `features.capabilities.*` namespace, the same structure the usage
+     * meters read on the `usage.*` side:
+     *
+     *     features: { capabilities: { api: true }, usage: { projects: 10 } }
+     *
+     * With no resolvable plan, capabilities are DENIED (fail closed) while
+     * limits stay unlimited (fail open) — gating features is opt-in per plan,
+     * blocking creation never is.
+     */
+    public function planAllows(string $capability): bool
+    {
+        return $this->canUseFeature('capabilities.'.$capability);
+    }
+
+    /**
+     * The plan's limit for a `features.usage.*` key, or null when unlimited
+     * (no value on the plan, or no plan at all).
+     */
+    public function planLimit(string $key): ?int
+    {
+        $limit = $this->planFeature('usage.'.$key);
+
+        return $limit === null ? null : (int) $limit;
+    }
+
+    /**
+     * Whether a current usage count still fits the plan's `usage.*` limit.
+     * Unlimited (null) is always within.
+     */
+    public function isWithinPlanLimit(string $key, int $current): bool
+    {
+        return ! $this->hasReachedPlanLimit('usage.'.$key, $current);
+    }
 }

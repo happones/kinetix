@@ -14,6 +14,7 @@ use Happones\Kinetix\Api\ApiLogController;
 use Happones\Kinetix\Api\Middleware\LogApiRequest;
 use Happones\Kinetix\Billing\BillingManager;
 use Happones\Kinetix\Billing\BillingRoutes;
+use Happones\Kinetix\Billing\Middleware\EnsurePlanCapability;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
 use Happones\Kinetix\Commands\ApiLogsPruneCommand;
@@ -2111,6 +2112,8 @@ class KinetixServiceProvider extends ServiceProvider
                     'name'     => $plan->name,
                     'features' => (array) ($plan->features ?? []),
                 ],
+                // Where <KinetixPlanGate>'s upsell CTA sends users to upgrade.
+                'upgradeUrl' => config('kinetix.billing.upgrade_url'),
             ];
         });
 
@@ -2467,14 +2470,16 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register the optional Billing module: the `plan.feature` middleware alias
-     * and, when enabled, the bundled billing routes.
+     * Register the optional Billing module: the `plan.feature` (dot-path) and
+     * `kinetix.plan` (capability, upsell-aware) middleware aliases and, when
+     * enabled, the bundled billing routes.
      */
     protected function registerBilling(): void
     {
         /** @var Router $router */
         $router = $this->app['router'];
         $router->aliasMiddleware('plan.feature', PlanFeatureMiddleware::class);
+        $router->aliasMiddleware('kinetix.plan', EnsurePlanCapability::class);
 
         if (config('kinetix.billing.enabled', false) && config('kinetix.billing.auto_routes', false)) {
             BillingRoutes::register();

@@ -61,6 +61,16 @@ export function useKinetixPlan() {
 
     const onPlan = (slug: string): boolean => plan.value?.slug === slug;
 
+    /** Where the upsell CTA sends users (`kinetix.billing.upgrade_url`). */
+    const upgradeUrl = computed(() => state.value.upgradeUrl ?? null);
+
+    /**
+     * Capability sugar mirroring the backend's `planAllows()`:
+     * `allows('api')` === `canUseFeature('capabilities.api')`.
+     */
+    const allows = (capability: string): boolean =>
+        canUseFeature('capabilities.' + capability);
+
     /** Raw feature value at a dot-path (e.g. 'usage.products'), or fallback. */
     const featureValue = (path: string, fallback: unknown = null): unknown =>
         dataGet(plan.value?.features, path, fallback);
@@ -116,6 +126,8 @@ export function useKinetixPlan() {
         enabled,
         plan,
         onPlan,
+        upgradeUrl,
+        allows,
         featureValue,
         canUseFeature,
         hasReachedLimit,

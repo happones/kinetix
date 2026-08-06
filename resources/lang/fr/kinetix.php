@@ -117,6 +117,10 @@ return [
     'billing_subscription_cancelled' => 'Abonnement annulé avec succès.',
     'billing_subscription_resumed'   => 'Abonnement repris avec succès.',
     'billing_feature_unavailable'    => "Votre forfait actuel n'inclut pas cette fonctionnalité.",
+    'plan_limit_reached'             => 'La limite :key de votre forfait (:limit) est atteinte.',
+    'plan_locked_title'              => 'Mise à niveau requise',
+    'plan_locked_body'               => 'Cette fonctionnalité n\'est pas incluse dans votre forfait actuel.',
+    'plan_upgrade'                   => 'Mettre à niveau',
 
     // Libellés UI de facturation
     'billing_current_plan'             => 'Forfait actuel',

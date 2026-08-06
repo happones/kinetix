@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.160.0] - 2026-08-06
+
+Plan-gating kit: capabilities + limits enforcement wired end-to-end on the
+existing Billing plan foundation.
+
+- **Billable sugar** (HasPlan): `planAllows('api')` / `planLimit('projects')`
+  / `isWithinPlanLimit('projects', $count)` over the namespaced features
+  convention (`features: { capabilities: {...}, usage: {...} }`). No plan →
+  capabilities denied (fail closed), limits unlimited (fail open).
+- **`kinetix.plan:` middleware** — capability route gating with the upsell
+  pattern: denied web requests redirect to the new
+  `kinetix.billing.upgrade_url` config (`KINETIX_BILLING_UPGRADE_URL`) with a
+  flash toast; JSON (or no URL) gets the 403. The dot-path `plan.feature`
+  middleware is unchanged.
+- **`EnforcesPlanLimits` model trait** — creating past the plan's
+  `usage.{plural_snake_model}` limit throws `PlanLimitExceededException`
+  (403, translated); overridable key/billable/count-query; unlimited plans
+  skip the COUNT and billing-less environments skip the check.
+- **`<KinetixPlanGate>`** — `<KinetixPlanFeature>` with a built-in locked
+  state (lock card + Upgrade CTA to the upgrade URL; `#locked` slot
+  overrides) **(published)**; `useKinetixPlan()` gains `allows()` +
+  `upgradeUrl`; the `kinetix_billing` shared prop now carries `upgradeUrl`.
+  4 new translation keys ×7 locales.
+
 ## [0.159.0] - 2026-08-06
 
 Relation managers: groups, collapsible sections and a table-level empty-state

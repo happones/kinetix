@@ -117,6 +117,10 @@ return [
     'billing_subscription_cancelled' => 'Subscription cancelled successfully.',
     'billing_subscription_resumed'   => 'Subscription resumed successfully.',
     'billing_feature_unavailable'    => 'Your current plan does not include this feature.',
+    'plan_limit_reached'             => 'Your plan\'s :key limit of :limit has been reached.',
+    'plan_locked_title'              => 'Upgrade required',
+    'plan_locked_body'               => 'This feature is not included in your current plan.',
+    'plan_upgrade'                   => 'Upgrade plan',
 
     // Billing UI labels
     'billing_current_plan'             => 'Current plan',
