@@ -19,6 +19,10 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :locale="comp.dateLocale"
         :min-value="comp.minValue"
         :max-value="comp.maxValue"
+        :confirm="comp.confirm"
+        :show-today="comp.showToday"
+        :close-on-select="comp.closeOnSelect ?? true"
+        :timezone="comp.timezone"
         @update:value="emit('update', $event)"
     />
     <KinetixYearPicker
@@ -29,6 +33,10 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :placeholder="comp.placeholder"
         :min-value="comp.minValue"
         :max-value="comp.maxValue"
+        :confirm="comp.confirm"
+        :show-today="comp.showToday"
+        :close-on-select="comp.closeOnSelect ?? true"
+        :timezone="comp.timezone"
         @update:value="emit('update', $event)"
     />
     <KinetixWeekPicker
@@ -41,6 +49,10 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :week-starts-on="comp.weekStartsOn ?? 1"
         :min-value="comp.minValue"
         :max-value="comp.maxValue"
+        :confirm="comp.confirm"
+        :show-today="comp.showToday"
+        :close-on-select="comp.closeOnSelect ?? true"
+        :timezone="comp.timezone"
         @update:value="emit('update', $event)"
     />
 </template>

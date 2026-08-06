@@ -612,6 +612,14 @@ bounds (mapped to the native `min`/`max`).
 | `YearPicker` | `Y` (`"2026"`) | paginated year grid | `<input type="number">` |
 | `WeekPicker` | `o-\WW` (`"2026-W25"`) | calendar — clicking a day highlights its **whole week** | `<input type="week">` |
 
+All three share the picker behavior contract: **`->confirm()`** (draft +
+Apply-only commit), **`->todayButton()`** (a "This month" / "This year" /
+"This week" shortcut), **`->closeOnSelect(false)`**, and **`->timezone()`** —
+the current-period preset and the initial view read the clock in
+**`app.timezone`** by default, never the browser's (see
+[Timezones](#timezones-apptimezone-by-default-per-field-override)). The
+standalone Vue components accept the same props.
+
 <Screenshot name="month-picker" alt="Month picker" />
 
 <Screenshot name="year-picker" alt="Year picker" />

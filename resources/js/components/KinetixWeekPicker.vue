@@ -6,12 +6,17 @@ import {
     PopoverRoot,
     PopoverTrigger,
 } from 'reka-ui';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
+import {
+    useKinetixTimezone,
+    zonedTodayIso,
+} from '@/composables/useKinetixTimezone';
+import KinetixButton from './KinetixButton.vue';
 import KinetixWeekCalendar from './KinetixWeekCalendar.vue';
 import { cn } from './primitives/cn';
 
@@ -32,6 +37,18 @@ const props = withDefaults(
         /** 'o-\WW' bounds. */
         minValue?: string | null;
         maxValue?: string | null;
+        /** Whether picking a week closes the popover (default true). */
+        closeOnSelect?: boolean;
+        /** Show a "This week" shortcut in a popover footer. */
+        showToday?: boolean;
+        /** Commit only on Apply; outside-click/Escape discards the draft. */
+        confirm?: boolean;
+        /**
+         * IANA timezone the This-week preset (and the calendar's initial
+         * month) reads the clock in. Defaults to the app timezone Kinetix
+         * shares (`config('app.timezone')`), then the browser clock.
+         */
+        timezone?: string | null;
     }>(),
     {
         value: null,
@@ -42,6 +59,10 @@ const props = withDefaults(
         weekStartsOn: 1,
         minValue: null,
         maxValue: null,
+        closeOnSelect: true,
+        showToday: false,
+        confirm: false,
+        timezone: null,
     },
 );
 
@@ -50,6 +71,21 @@ const emit = defineEmits<{ (e: 'update:value', value: string | null): void }>();
 const { t } = useI18n();
 const open = ref(false);
 const pad = (n: number) => String(n).padStart(2, '0');
+const effectiveTimezone = useKinetixTimezone(() => props.timezone);
+
+// Confirm mode edits a DRAFT the calendar highlights; live mode passes the
+// committed value straight through.
+const draft = ref<string | null>(null);
+const currentValue = computed(() =>
+    props.confirm ? draft.value : props.value,
+);
+const hasFooter = computed(() => props.confirm || props.showToday);
+
+watch(open, (isOpen) => {
+    if (isOpen) {
+        draft.value = props.value;
+    }
+});
 
 /** ISO week string ("o-\WW") for a 'Y-m-d' date. */
 const isoWeek = (dateStr: string): string => {
@@ -83,7 +119,7 @@ const weekToMonday = (week: string): string | null => {
     return monday.toISOString().slice(0, 10);
 };
 
-const calendarValue = computed(() => weekToMonday(props.value ?? ''));
+const calendarValue = computed(() => weekToMonday(currentValue.value ?? ''));
 
 const formatted = computed(() => {
     if (!props.value || !props.value.includes('-W')) {
@@ -100,7 +136,28 @@ const onDaySelect = (day: string | null) => {
         return;
     }
 
+    if (props.confirm) {
+        draft.value = isoWeek(day);
+
+        return;
+    }
+
     emit('update:value', isoWeek(day));
+
+    if (props.closeOnSelect) {
+        open.value = false;
+    }
+};
+
+/** Current ISO week in the effective timezone (app timezone by default). */
+const setThisWeek = () => onDaySelect(zonedTodayIso(effectiveTimezone.value));
+
+/** Confirm mode's ONLY commit path. */
+const apply = () => {
+    if (draft.value !== null) {
+        emit('update:value', draft.value);
+    }
+
     open.value = false;
 };
 </script>
@@ -144,10 +201,30 @@ const onDaySelect = (day: string | null) => {
             >
                 <KinetixWeekCalendar
                     :value="calendarValue"
+                    :timezone="timezone"
                     :locale="locale"
                     :week-starts-on="weekStartsOn"
                     @update:value="onDaySelect"
                 />
+
+                <!-- Footer: This-week shortcut and/or the confirm-mode Apply -->
+                <div
+                    v-if="hasFooter"
+                    class="gap-2 p-2 flex items-center justify-between border-t border-border"
+                >
+                    <KinetixButton
+                        v-if="showToday"
+                        variant="ghost"
+                        size="sm"
+                        @click="setThisWeek"
+                    >
+                        {{ t('kinetix.picker_this_week') }}
+                    </KinetixButton>
+                    <span v-else />
+                    <KinetixButton v-if="confirm" size="sm" @click="apply">
+                        {{ t('kinetix.apply') }}
+                    </KinetixButton>
+                </div>
             </PopoverContent>
         </PopoverPortal>
     </PopoverRoot>

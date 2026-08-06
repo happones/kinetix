@@ -13,6 +13,7 @@ import {
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTimezone, zonedNow } from '@/composables/useKinetixTimezone';
+import KinetixButton from './KinetixButton.vue';
 import { cn } from './primitives/cn';
 
 /**
@@ -28,6 +29,18 @@ const props = withDefaults(
         /** 'Y' bounds. */
         minValue?: string | null;
         maxValue?: string | null;
+        /** Whether picking a year closes the popover (default true). */
+        closeOnSelect?: boolean;
+        /** Show a "This year" shortcut in a popover footer. */
+        showToday?: boolean;
+        /** Commit only on Apply; outside-click/Escape discards the draft. */
+        confirm?: boolean;
+        /**
+         * IANA timezone the This-year preset (and the initial page) reads the
+         * clock in. Defaults to the app timezone Kinetix shares
+         * (`config('app.timezone')`), then the browser clock.
+         */
+        timezone?: string | null;
     }>(),
     {
         value: null,
@@ -36,6 +49,10 @@ const props = withDefaults(
         placeholder: null,
         minValue: null,
         maxValue: null,
+        closeOnSelect: true,
+        showToday: false,
+        confirm: false,
+        timezone: null,
     },
 );
 
@@ -43,14 +60,22 @@ const emit = defineEmits<{ (e: 'update:value', value: string | null): void }>();
 
 const { t } = useI18n();
 const open = ref(false);
+const effectiveTimezone = useKinetixTimezone(() => props.timezone);
+
+// Confirm mode edits a DRAFT the grid highlights; live mode passes the
+// committed value straight through.
+const draft = ref<string | null>(null);
+const currentValue = computed(() =>
+    props.confirm ? draft.value : props.value,
+);
+const hasFooter = computed(() => props.confirm || props.showToday);
 
 const PAGE = 12;
-const selectedYear = computed(() => Number(props.value) || null);
+const selectedYear = computed(() => Number(currentValue.value) || null);
 // Start the page on the decade containing the selected/current year.
 const pageStart = ref(
     Math.floor(
-        (selectedYear.value ?? zonedNow(useKinetixTimezone().value).year) /
-            PAGE,
+        (selectedYear.value ?? zonedNow(effectiveTimezone.value).year) / PAGE,
     ) * PAGE,
 );
 watch(
@@ -61,6 +86,14 @@ watch(
         }
     },
 );
+watch(open, (isOpen) => {
+    if (isOpen) {
+        draft.value = props.value != null ? String(props.value) : null;
+        const year =
+            Number(props.value) || zonedNow(effectiveTimezone.value).year;
+        pageStart.value = Math.floor(year / PAGE) * PAGE;
+    }
+});
 
 const years = computed(() =>
     Array.from({ length: PAGE }, (_, i) => pageStart.value + i),
@@ -75,7 +108,43 @@ const select = (y: number) => {
         return;
     }
 
+    if (props.confirm) {
+        draft.value = String(y);
+
+        return;
+    }
+
     emit('update:value', String(y));
+
+    if (props.closeOnSelect) {
+        open.value = false;
+    }
+};
+
+/** Current year in the effective timezone (app timezone by default). */
+const setThisYear = () => {
+    const year = zonedNow(effectiveTimezone.value).year;
+    pageStart.value = Math.floor(year / PAGE) * PAGE;
+
+    if (props.confirm) {
+        draft.value = String(year);
+
+        return;
+    }
+
+    emit('update:value', String(year));
+
+    if (props.closeOnSelect) {
+        open.value = false;
+    }
+};
+
+/** Confirm mode's ONLY commit path. */
+const apply = () => {
+    if (draft.value !== null) {
+        emit('update:value', draft.value);
+    }
+
     open.value = false;
 };
 </script>
@@ -168,6 +237,25 @@ const select = (y: number) => {
                     >
                         {{ y }}
                     </button>
+                </div>
+
+                <!-- Footer: This-year shortcut and/or the confirm-mode Apply -->
+                <div
+                    v-if="hasFooter"
+                    class="gap-2 pt-2 mt-2 flex items-center justify-between border-t border-border"
+                >
+                    <KinetixButton
+                        v-if="showToday"
+                        variant="ghost"
+                        size="sm"
+                        @click="setThisYear"
+                    >
+                        {{ t('kinetix.picker_this_year') }}
+                    </KinetixButton>
+                    <span v-else />
+                    <KinetixButton v-if="confirm" size="sm" @click="apply">
+                        {{ t('kinetix.apply') }}
+                    </KinetixButton>
                 </div>
             </PopoverContent>
         </PopoverPortal>

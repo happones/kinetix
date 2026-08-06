@@ -7,7 +7,10 @@ namespace Happones\Kinetix\Tests\Unit;
 use Happones\Kinetix\Forms\Components\DatePicker;
 use Happones\Kinetix\Forms\Components\DateRangePicker;
 use Happones\Kinetix\Forms\Components\DateTimePicker;
+use Happones\Kinetix\Forms\Components\MonthPicker;
 use Happones\Kinetix\Forms\Components\TimePicker;
+use Happones\Kinetix\Forms\Components\WeekPicker;
+use Happones\Kinetix\Forms\Components\YearPicker;
 use Happones\Kinetix\Tests\TestCase;
 
 /**
@@ -55,6 +58,24 @@ class PickerConfigTest extends TestCase
         $this->assertTrue($data->showToday);
         $this->assertFalse($data->closeOnSelect);
         $this->assertSame('Asia/Tokyo', $data->timezone);
+    }
+
+    public function test_period_pickers_serialize_the_same_behavior_flags(): void
+    {
+        foreach ([MonthPicker::class, WeekPicker::class, YearPicker::class] as $picker) {
+            $data = $picker::make('period')
+                ->confirm()
+                ->todayButton()
+                ->closeOnSelect(false)
+                ->timezone('Asia/Tokyo')
+                ->toData('create');
+
+            $this->assertNotNull($data, $picker);
+            $this->assertTrue($data->confirm, $picker);
+            $this->assertTrue($data->showToday, $picker);
+            $this->assertFalse($data->closeOnSelect, $picker);
+            $this->assertSame('Asia/Tokyo', $data->timezone, $picker);
+        }
     }
 
     public function test_pickers_default_their_timezone_to_the_app_timezone(): void

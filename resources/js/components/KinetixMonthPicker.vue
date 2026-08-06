@@ -13,6 +13,7 @@ import {
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTimezone, zonedNow } from '@/composables/useKinetixTimezone';
+import KinetixButton from './KinetixButton.vue';
 import { cn } from './primitives/cn';
 
 /**
@@ -29,6 +30,18 @@ const props = withDefaults(
         /** 'Y-m' bounds. */
         minValue?: string | null;
         maxValue?: string | null;
+        /** Whether picking a month closes the popover (default true). */
+        closeOnSelect?: boolean;
+        /** Show a "This month" shortcut in a popover footer. */
+        showToday?: boolean;
+        /** Commit only on Apply; outside-click/Escape discards the draft. */
+        confirm?: boolean;
+        /**
+         * IANA timezone the This-month preset (and the initial year view)
+         * reads the clock in. Defaults to the app timezone Kinetix shares
+         * (`config('app.timezone')`), then the browser clock.
+         */
+        timezone?: string | null;
     }>(),
     {
         value: null,
@@ -38,6 +51,10 @@ const props = withDefaults(
         locale: null,
         minValue: null,
         maxValue: null,
+        closeOnSelect: true,
+        showToday: false,
+        confirm: false,
+        timezone: null,
     },
 );
 
@@ -46,12 +63,25 @@ const emit = defineEmits<{ (e: 'update:value', value: string | null): void }>();
 const { t } = useI18n();
 const open = ref(false);
 const pad = (n: number) => String(n).padStart(2, '0');
+const effectiveTimezone = useKinetixTimezone(() => props.timezone);
 
-const selectedYear = computed(() => Number(props.value?.slice(0, 4)) || null);
-const selectedMonth = computed(() => Number(props.value?.slice(5, 7)) || null);
+// Confirm mode edits a DRAFT the grid highlights; live mode passes the
+// committed value straight through.
+const draft = ref<string | null>(null);
+const currentValue = computed(() =>
+    props.confirm ? draft.value : props.value,
+);
+const hasFooter = computed(() => props.confirm || props.showToday);
+
+const selectedYear = computed(
+    () => Number(currentValue.value?.slice(0, 4)) || null,
+);
+const selectedMonth = computed(
+    () => Number(currentValue.value?.slice(5, 7)) || null,
+);
 
 const viewYear = ref(
-    selectedYear.value ?? zonedNow(useKinetixTimezone().value).year,
+    selectedYear.value ?? zonedNow(effectiveTimezone.value).year,
 );
 watch(
     () => props.value,
@@ -61,6 +91,14 @@ watch(
         }
     },
 );
+watch(open, (isOpen) => {
+    if (isOpen) {
+        draft.value = props.value;
+        viewYear.value =
+            Number(props.value?.slice(0, 4)) ||
+            zonedNow(effectiveTimezone.value).year;
+    }
+});
 
 const monthLabels = computed(() =>
     Array.from({ length: 12 }, (_, i) =>
@@ -98,7 +136,43 @@ const select = (m: number) => {
         return;
     }
 
+    if (props.confirm) {
+        draft.value = monthValue(m);
+
+        return;
+    }
+
     emit('update:value', monthValue(m));
+
+    if (props.closeOnSelect) {
+        open.value = false;
+    }
+};
+
+/** Current month in the effective timezone (app timezone by default). */
+const setThisMonth = () => {
+    const now = zonedNow(effectiveTimezone.value);
+    viewYear.value = now.year;
+
+    if (props.confirm) {
+        draft.value = `${now.year}-${pad(now.month)}`;
+
+        return;
+    }
+
+    emit('update:value', `${now.year}-${pad(now.month)}`);
+
+    if (props.closeOnSelect) {
+        open.value = false;
+    }
+};
+
+/** Confirm mode's ONLY commit path. */
+const apply = () => {
+    if (draft.value !== null) {
+        emit('update:value', draft.value);
+    }
+
     open.value = false;
 };
 </script>
@@ -190,6 +264,25 @@ const select = (m: number) => {
                     >
                         {{ label }}
                     </button>
+                </div>
+
+                <!-- Footer: This-month shortcut and/or the confirm-mode Apply -->
+                <div
+                    v-if="hasFooter"
+                    class="gap-2 pt-2 mt-2 flex items-center justify-between border-t border-border"
+                >
+                    <KinetixButton
+                        v-if="showToday"
+                        variant="ghost"
+                        size="sm"
+                        @click="setThisMonth"
+                    >
+                        {{ t('kinetix.picker_this_month') }}
+                    </KinetixButton>
+                    <span v-else />
+                    <KinetixButton v-if="confirm" size="sm" @click="apply">
+                        {{ t('kinetix.apply') }}
+                    </KinetixButton>
                 </div>
             </PopoverContent>
         </PopoverPortal>
