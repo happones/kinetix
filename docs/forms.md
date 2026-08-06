@@ -649,7 +649,20 @@ use Happones\Kinetix\Forms\Components\DateRangePicker;
 DateRangePicker::make('period')->numberOfMonths(2);
 DateRangePicker::make('period')->minValue('2026-01-01')->maxValue('2026-12-31');
 DateRangePicker::make('period')->native();   // two native <input type="date">
+
+// Same behavior variants as the other pickers:
+DateRangePicker::make('period')->confirm();            // commit only via Apply
+DateRangePicker::make('period')->todayButton();        // Today (from = to = today)
+DateRangePicker::make('period')->closeOnSelect(false); // stay open when complete
+DateRangePicker::make('period')->timezone('America/Mexico_City');
 ```
+
+By default the popover closes once **both** ends are picked; `->confirm()`
+switches to the draft + **Apply** contract, `->todayButton()` adds a Today
+shortcut, and — like every picker — "today" is read in **`app.timezone`**
+(overridable per field with `->timezone()`), never the browser clock. See
+[Timezones](#timezones-apptimezone-by-default-per-field-override) and
+[Close behavior](#close-behavior--the-footer-by-design) above.
 
 Persist `{from,to}` to a JSON-cast column, or split it in a `dehydrateStateUsing()`
 callback. As a **table filter**, use `DateRangeFilter` (see

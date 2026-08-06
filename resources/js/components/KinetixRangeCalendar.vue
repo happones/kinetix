@@ -17,6 +17,10 @@ import {
     RangeCalendarRoot,
 } from 'reka-ui';
 import { computed } from 'vue';
+import {
+    useKinetixTimezone,
+    zonedTodayIso,
+} from '@/composables/useKinetixTimezone';
 
 const props = withDefaults(
     defineProps<{
@@ -27,6 +31,12 @@ const props = withDefaults(
         fixedWeeks?: boolean;
         minValue?: string | null;
         maxValue?: string | null;
+        /**
+         * IANA timezone whose "today" decides the initially displayed month
+         * when there is no value. Defaults to the app timezone Kinetix shares
+         * (`config('app.timezone')`), then the browser clock.
+         */
+        timezone?: string | null;
     }>(),
     {
         value: null,
@@ -36,6 +46,7 @@ const props = withDefaults(
         fixedWeeks: false,
         minValue: null,
         maxValue: null,
+        timezone: null,
     },
 );
 
@@ -74,12 +85,22 @@ const range = computed({
         });
     },
 });
+
+// With no value, open on "today" AS THE APP TIMEZONE SEES IT — around
+// midnight the browser's month can differ from the app's.
+const effectiveTimezone = useKinetixTimezone(() => props.timezone);
+const initialPlaceholder = computed<DateValue | undefined>(
+    () =>
+        toDateValue(props.value?.from ?? undefined) ??
+        toDateValue(zonedTodayIso(effectiveTimezone.value)),
+);
 </script>
 
 <template>
     <RangeCalendarRoot
         v-slot="{ grid, weekDays }"
         v-model="range"
+        :default-placeholder="initialPlaceholder"
         :number-of-months="numberOfMonths"
         :locale="locale || undefined"
         :weekday-format="weekdayFormat || undefined"

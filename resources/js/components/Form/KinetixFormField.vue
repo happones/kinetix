@@ -143,6 +143,10 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
             fixedWeeks: c.fixedWeeks,
             minValue: c.minValue,
             maxValue: c.maxValue,
+            confirm: c.confirm,
+            showToday: c.showToday,
+            closeOnSelect: c.closeOnSelect ?? true,
+            timezone: c.timezone,
         }),
     },
     radio: {

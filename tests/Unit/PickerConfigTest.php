@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Unit;
 
 use Happones\Kinetix\Forms\Components\DatePicker;
+use Happones\Kinetix\Forms\Components\DateRangePicker;
 use Happones\Kinetix\Forms\Components\DateTimePicker;
 use Happones\Kinetix\Forms\Components\TimePicker;
 use Happones\Kinetix\Tests\TestCase;
@@ -40,6 +41,22 @@ class PickerConfigTest extends TestCase
         $this->assertTrue($data->closeOnSelect);
     }
 
+    public function test_date_range_picker_serializes_the_same_behavior_flags(): void
+    {
+        $data = DateRangePicker::make('period')
+            ->confirm()
+            ->todayButton()
+            ->closeOnSelect(false)
+            ->timezone('Asia/Tokyo')
+            ->toData('create');
+
+        $this->assertNotNull($data);
+        $this->assertTrue($data->confirm);
+        $this->assertTrue($data->showToday);
+        $this->assertFalse($data->closeOnSelect);
+        $this->assertSame('Asia/Tokyo', $data->timezone);
+    }
+
     public function test_pickers_default_their_timezone_to_the_app_timezone(): void
     {
         config()->set('app.timezone', 'America/Mexico_City');
@@ -47,6 +64,10 @@ class PickerConfigTest extends TestCase
         $this->assertSame(
             'America/Mexico_City',
             DatePicker::make('published_at')->toData('create')?->timezone,
+        );
+        $this->assertSame(
+            'America/Mexico_City',
+            DateRangePicker::make('period')->toData('create')?->timezone,
         );
         $this->assertSame(
             'America/Mexico_City',
