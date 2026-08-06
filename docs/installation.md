@@ -159,8 +159,8 @@ php artisan kinetix:install --charts
 # add the client-side table dep (@tanstack/vue-table):
 php artisan kinetix:install --tanstack
 
-# scaffold a dedicated App\Providers\KinetixServiceProvider:
-php artisan kinetix:install --provider
+# skip the App\Providers\KinetixServiceProvider scaffold (created by default):
+php artisan kinetix:install --skip-provider
 ```
 
 It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are
@@ -172,6 +172,12 @@ stays inert until you configure Echo — the old `--broadcasting` flag is now a
 no-op). The `--charts` and `--tanstack` flags add the optional, feature-specific
 packages (`--tanstack` covers `@tanstack/vue-table` for `->clientSide()`
 tables).
+
+It also wires the pieces components depend on: vue-i18n + Pinia registration in
+`app.ts`, the `kinetix:upgrade` composer hook, formatter ignores for the
+published paths, **and `@import 'vue-sonner/style.css';` in
+`resources/css/app.css`** — without that import, toasts render as unstyled
+plain text (no container, animation, or colors).
 
 > If you see a Vite error like *Failed to resolve import "@internationalized/date"*,
 > a required dependency is missing — run `php artisan kinetix:install` (or install

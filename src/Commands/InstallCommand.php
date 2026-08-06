@@ -254,6 +254,7 @@ JS;
         }
 
         $this->registerUpgradeHook();
+        $this->ensureSonnerStylesheet();
         $this->protectPublishedPathsFromFormatters();
         $this->gitignoreGeneratedOutput();
 
@@ -399,6 +400,51 @@ JS;
             }
         }
         PHP;
+    }
+
+    /**
+     * Toasts need vue-sonner's stylesheet or they render as unstyled plain
+     * text (no container, no animation, no colors) — and nothing else imports
+     * it: `<KinetixToaster />` only re-themes the variables the stylesheet
+     * reads. Appended AFTER the host's own imports so it loads after Tailwind,
+     * exactly the ordering KinetixToaster's CSS-variable overrides expect.
+     * Idempotent.
+     */
+    protected function ensureSonnerStylesheet(): void
+    {
+        $path = resource_path('css/app.css');
+
+        if (! File::exists($path)) {
+            $this->warn("resources/css/app.css not found — add `@import 'vue-sonner/style.css';` to your main stylesheet manually (toasts render unstyled without it).");
+
+            return;
+        }
+
+        $existing = (string) File::get($path);
+
+        if (str_contains($existing, 'vue-sonner/style.css')) {
+            return;
+        }
+
+        // CSS requires @import before any other rule, so it can't just be
+        // appended: insert AFTER the last existing @import (loading after
+        // Tailwind, the ordering KinetixToaster's variable overrides expect),
+        // or at the very top when there are none.
+        $import = "@import 'vue-sonner/style.css'; /* Kinetix toasts — without this they render unstyled */";
+        $lines  = preg_split('/\R/', $existing) ?: [];
+
+        $lastImport = -1;
+        foreach ($lines as $i => $line) {
+            if (str_starts_with(trim($line), '@import')) {
+                $lastImport = $i;
+            }
+        }
+
+        array_splice($lines, $lastImport + 1, 0, [$import]);
+
+        File::put($path, implode("\n", $lines));
+
+        $this->info("Added `@import 'vue-sonner/style.css';` to resources/css/app.css (toast container/animation styles).");
     }
 
     /**

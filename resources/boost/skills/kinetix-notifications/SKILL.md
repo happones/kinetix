@@ -98,6 +98,39 @@ php artisan kinetix:send-notification "Alert Title" "Alert description message" 
 
 ---
 
+## Server-flashed toasts (`kinetix_toast` protocol)
+
+Any controller redirect can fire a themed toast with zero client wiring —
+`<KinetixToaster />` watches the `kinetix_toast` shared prop. The watcher
+accepts exactly two shapes:
+
+```php
+// 1. Short string → success toast (the common case):
+return back()->with('kinetix_toast', __('kinetix.record_created'));
+
+// 2. Structured array → explicit variant ('success'|'error'|'info'|'warning'):
+return back()->with('kinetix_toast', ['type' => 'error', 'message' => __('app.sync_failed')]);
+```
+
+Rules that matter:
+
+- **The server stamps a uuid per flash**, so the same message twice in a row
+  still fires twice — never add your own dedupe.
+- An unknown `type` falls back to `success`; a payload without a string
+  `message` is dropped silently.
+- The Kinetix record endpoints (simple-resource modals, relation-manager
+  modal CRUD) and `kinetix:make-resource` controllers already flash it with
+  the generic `kinetix.record_created` / `record_updated` / `record_deleted`
+  / `record_restored` / `record_force_deleted` keys — customize by editing
+  the `->with('kinetix_toast', …)` line, never by adding a second toast
+  mechanism.
+- **Two hard prerequisites** (each fails as "toasts don't show" / "toasts
+  render as unstyled plain text"): `<KinetixToaster />` mounted exactly once
+  in the layout, and `@import 'vue-sonner/style.css';` in
+  `resources/css/app.css` **after** the Tailwind import (`kinetix:install`
+  adds it; verify in older installs — without the stylesheet the toast is
+  plain text with no container, animation, or colors).
+
 ## Layout Integration
 
 Publish components:

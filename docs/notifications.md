@@ -453,6 +453,12 @@ withDefaults(defineProps<{ breadcrumbs?: BreadcrumbItem[] }>(), { breadcrumbs: (
 
 Toasts are rendered by `vue-sonner`, which needs a `<Toaster>` mounted once. **Use Kinetix's `<KinetixToaster />`** (not a raw `vue-sonner` `<Toaster>`): it styles toasts with shadcn semantic tokens so they read correctly in **dark mode** — a plain Toaster uses its own light-theme colors, so under `.dark` the text comes out dark-gray with no contrast.
 
+> **The vue-sonner stylesheet is required.** Without
+> `@import 'vue-sonner/style.css';` in `resources/css/app.css` (after the
+> Tailwind import), toasts render as **unstyled plain text** — no container,
+> no animation, no colors. `kinetix:install` adds the import automatically;
+> if you installed before v0.152, add it manually.
+
 > **Mount it exactly once, and remove any other `<Toaster>`.** vue-sonner uses a single global toast queue, so *every* mounted Toaster renders *every* toast. If your starter kit already mounts a raw `<Toaster>` (e.g. a shadcn `Sonner.vue`), that one will render the toast with light-theme colors — replace it with `<KinetixToaster />`, don't add alongside.
 
 ```vue

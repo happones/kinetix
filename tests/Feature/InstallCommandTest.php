@@ -256,6 +256,52 @@ JS);
         $this->assertSame($first, File::get($this->base.'/.prettierignore'));
     }
 
+    public function test_the_sonner_stylesheet_import_is_added_after_the_last_import(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "@import 'tailwindcss';\n\nbody { color: red; }\n");
+
+        $this->runInstaller();
+
+        $css = File::get($this->base.'/resources/css/app.css');
+
+        // Inserted AFTER tailwind (KinetixToaster's variable overrides expect
+        // that ordering) but BEFORE any rule — @import must precede rules.
+        $this->assertMatchesRegularExpression(
+            "/@import 'tailwindcss';\n@import 'vue-sonner\/style\.css';.*\n\nbody/s",
+            $css,
+        );
+
+        // Idempotent.
+        $this->runInstaller();
+        $this->assertSame(1, substr_count(File::get($this->base.'/resources/css/app.css'), 'vue-sonner/style.css'));
+    }
+
+    public function test_a_stylesheet_with_no_imports_gets_the_import_at_the_top(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "body { color: red; }\n");
+
+        $this->runInstaller();
+
+        $this->assertStringStartsWith(
+            "@import 'vue-sonner/style.css';",
+            File::get($this->base.'/resources/css/app.css'),
+        );
+    }
+
+    public function test_a_missing_stylesheet_does_not_break_the_install(): void
+    {
+        $this->seedEntryFile('ts');
+
+        $tester = $this->runInstaller();
+
+        $this->assertStringContainsString('add `@import', $tester->getDisplay());
+        $this->assertFalse(File::exists($this->base.'/resources/css/app.css'));
+    }
+
     public function test_provider_is_scaffolded_and_registered_by_default(): void
     {
         $this->seedEntryFile('ts');
