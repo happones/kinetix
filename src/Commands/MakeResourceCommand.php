@@ -117,6 +117,9 @@ class MakeResourceCommand extends Command
         $this->line('2. Create the model policy — without one, every ability check is skipped');
         $this->line('   and any authenticated user gets full CRUD:');
         $this->line("   php artisan make:policy {$modelName}Policy --model={$modelName}");
+        $this->line('   With kinetix permissions enabled, DELEGATE each ability to the matrix');
+        $this->line("   (never `return true;`): \$user->can('{$pluralSlug}.update') — plus your");
+        $this->line('   team boundary, e.g. $user->belongsToTeam($record->team).');
         $this->line("3. The resource registers '{$pluralSlug}' CRUD abilities in the role matrix");
         $this->line('   (permissionFeature). Sync them into spatie/laravel-permission with:');
         $this->line('   php artisan kinetix:permissions:sync');

@@ -296,6 +296,52 @@ public function update(Request $request, Post $post): RedirectResponse
 (stripped server-side, see §1.C), and tables/stat cards accept `->can()` too
 ([Tables](tables.md)).
 
+### Model policies MUST delegate to the matrix
+
+With the permissions module enabled, **every model policy should delegate its
+abilities to `$user->can('{feature}.{ability}')`** instead of returning static
+booleans. The role matrix only has effect where a policy consults it — a
+policy method hard-coding `return true;` silently ignores every permission an
+admin toggles, which surfaces as "permissions don't work". The standard
+pattern:
+
+```php
+class PostPolicy
+{
+    public function viewAny(User $user): bool
+    {
+        return $user->can('posts.viewAny');
+    }
+
+    public function update(User $user, Post $post): bool
+    {
+        // Tenancy boundary first, capability second. The explicit owner
+        // clause keeps the policy correct even with owner_bypass off.
+        return $user->belongsToTeam($post->team)
+            && ($user->ownsTeam($post->team) || $user->can('posts.update'));
+    }
+}
+```
+
+Two responsibilities, deliberately split: the **policy owns the tenancy
+boundary** (`belongsToTeam` — a permission never encodes which team a record
+belongs to), and the **matrix owns the capability** (`can('posts.update')`).
+This same policy then governs the resource's pages, its tables, the record
+modals, and any relation manager over the model — no separate permissions
+exist anywhere.
+
+> **`owner_bypass` and policies.** With `owner_bypass` on, the team owner
+> passes `$user->can('{feature}.{ability}')` for every REGISTERED ability
+> (Kinetix's `Gate::before` is scoped to registry keys on purpose) — **but
+> model policies still run**, so the bypass can never cross the tenancy
+> boundary into another team's records. Keep the explicit
+> `$user->ownsTeam(...)` clause anyway: it keeps the policy correct when the
+> bypass is off, and documents intent.
+
+`kinetix:doctor` audits this: it flags synced features whose policy still
+returns static `true`s, and registered features whose model has **no policy
+at all** (where the matrix silently enforces nothing).
+
 > **Frontend checks are UX, not security.** `<KinetixCan>` / `v-can` (§5) only
 > hide markup. A hidden button's endpoint is still reachable with `curl` —
 > every mutation needs one of the server-side mechanisms above.

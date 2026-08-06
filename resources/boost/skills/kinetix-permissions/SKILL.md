@@ -64,6 +64,38 @@ fails silently:
    the app can't deploy. Use `[OwnerBypass::class, 'check']` or an invokable
    class-string — both are resolved through the container.
 
+## Policy ↔ permission binding (REQUIRED)
+
+**If `kinetix.permissions.enabled = true`, every model policy MUST delegate
+its abilities to the matrix** — `$user->can('{feature}.{ability}')` — instead
+of returning static booleans. Kinetix's enforcement flows through Laravel's
+Gate: the role matrix only has EFFECT where a policy consults it, so a policy
+method hard-coding `return true;` silently ignores every permission the admin
+toggles ("permissions don't work"). The standard pattern per ability:
+
+```php
+public function update(User $user, Post $post): bool
+{
+    // Tenancy boundary first, capability second. The owner clause makes the
+    // policy correct even when owner_bypass is off.
+    return $user->belongsToTeam($post->team)
+        && ($user->ownsTeam($post->team) || $user->can('posts.update'));
+}
+```
+
+- The **policy owns the tenancy boundary** (`belongsToTeam`) — permissions
+  never encode which team a record belongs to.
+- **`owner_bypass` semantics**: when on, the team OWNER passes
+  `$user->can('{feature}.{ability}')` for every REGISTERED ability (a scoped
+  `Gate::before` on registry keys) — but **model policies still run**, so the
+  bypass can never cross the tenancy boundary. Keep the explicit
+  `$user->ownsTeam(...)` clause anyway: it keeps the policy correct with the
+  bypass off, and reads as intent.
+- Class-level abilities (`viewAny`, `create`) have no record:
+  `return $user->can('posts.viewAny');`.
+- `kinetix:doctor` flags synced features whose policy still returns static
+  `true`s, and registered features whose model has no policy at all.
+
 ## Configuration
 
 Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, default off):

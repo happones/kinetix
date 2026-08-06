@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
 use Happones\Kinetix\Support\ConfigCallback;
@@ -12,8 +13,10 @@ use Happones\Kinetix\Support\PublishedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -43,6 +46,7 @@ class DoctorCommand extends Command
         $this->checkRouting();
         $this->checkModules();
         $this->checkPermissions();
+        $this->checkPolicyDelegation();
         $this->checkRoles();
         $this->checkMembership();
         $this->checkConfigCallbacks();
@@ -144,6 +148,118 @@ class DoctorCommand extends Command
         if (TeamOwner::enabled()) {
             $this->ok('Permissions', 'owner bypass on — grants registry abilities only, policies still run');
         }
+    }
+
+    /**
+     * The role matrix only has EFFECT where a model policy delegates to it —
+     * a policy method that hard-codes `return true;` silently ignores every
+     * permission the admin toggles, which reads as "permissions don't work".
+     * Flags each resource whose feature is synced into the permissions table
+     * while its policy still returns static `true`s (and resources with no
+     * policy at all, where nothing enforces the matrix).
+     */
+    protected function checkPolicyDelegation(): void
+    {
+        if (! config('kinetix.permissions.enabled', false) || ! class_exists(PermissionRegistrar::class)) {
+            return;
+        }
+
+        $registry = app(PermissionRegistry::class);
+
+        foreach ($registry->resolvedResourceClasses() as $resourceClass) {
+            $feature = $resourceClass::permissionFeature();
+
+            if ($feature === null) {
+                continue;
+            }
+
+            $modelClass = $resourceClass::getModel();
+            $policy     = Gate::getPolicyFor($modelClass);
+
+            if ($policy === null) {
+                $this->warn_(
+                    'Permissions',
+                    "'{$feature}' abilities are registered but ".class_basename($modelClass).' has NO policy — the role matrix has no effect on it',
+                    'php artisan make:policy '.class_basename($modelClass).'Policy --model='.class_basename($modelClass)
+                    ." — then delegate each ability to \$user->can('{$feature}.{ability}')",
+                );
+
+                continue;
+            }
+
+            if (! $this->featureSynced($feature)) {
+                continue;
+            }
+
+            $static = $this->staticTruePolicyMethods($policy);
+
+            if ($static !== []) {
+                $this->warn_(
+                    'Permissions',
+                    "'{$feature}' permissions are synced, but ".class_basename($policy::class).' returns a static true for: '.implode(', ', $static),
+                    "Delegate to the matrix instead — e.g. return \$user->belongsToTeam(\$record->team) && (\$user->ownsTeam(\$record->team) || \$user->can('{$feature}.update'));",
+                );
+            }
+        }
+    }
+
+    /**
+     * Whether the feature's `{feature}.{ability}` permissions exist in the
+     * spatie table. Unreachable DB (no migrations yet) counts as not synced.
+     */
+    protected function featureSynced(string $feature): bool
+    {
+        try {
+            return Permission::query()
+                ->where('name', 'like', $feature.'.%')
+                ->exists();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Policy CRUD methods whose entire body is `return true;`.
+     *
+     * @return array<int, string>
+     */
+    protected function staticTruePolicyMethods(object $policy): array
+    {
+        $static = [];
+
+        foreach (['viewAny', 'view', 'create', 'update', 'delete', 'restore', 'forceDelete'] as $ability) {
+            if (! method_exists($policy, $ability)) {
+                continue;
+            }
+
+            $method = new \ReflectionMethod($policy, $ability);
+            $file   = $method->getFileName();
+
+            if ($file === false || $method->getStartLine() === false || $method->getEndLine() === false) {
+                continue;
+            }
+
+            $lines  = array_slice(file($file) ?: [], $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1);
+            $source = implode('', $lines);
+
+            $open  = strpos($source, '{');
+            $close = strrpos($source, '}');
+
+            if ($open === false || $close === false || $close <= $open) {
+                continue;
+            }
+
+            $body = substr($source, $open + 1, $close - $open - 1);
+            $body = (string) preg_replace('!/\*.*?\*/!s', '', $body);
+            $body = (string) preg_replace('!//[^\n]*!', '', $body);
+            $body = (string) preg_replace('/\s+/', '', $body);
+
+            if ($body === 'returntrue;') {
+                $static[] = $ability;
+            }
+        }
+
+        return $static;
     }
 
     protected function checkRoles(): void

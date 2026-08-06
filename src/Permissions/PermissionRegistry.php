@@ -109,6 +109,20 @@ class PermissionRegistry
     }
 
     /**
+     * Every Resource class whose permissions have been registered (explicit
+     * `resource()` calls + discovery). Used by `kinetix:doctor` to cross-check
+     * each resource's model POLICY against the registered abilities.
+     *
+     * @return array<int, class-string<resource>>
+     */
+    public function resolvedResourceClasses(): array
+    {
+        $this->resolveResources();
+
+        return array_keys($this->resolved);
+    }
+
+    /**
      * All features, with resource-derived ones resolved.
      *
      * @return array<string, Feature>
