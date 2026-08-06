@@ -9,8 +9,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class ColorColumn extends Column
 {
-    protected bool $isCopyable = false;
-
     protected function getType(): string
     {
         return 'color';
@@ -37,19 +35,5 @@ class ColorColumn extends Column
         }
 
         return $value;
-    }
-
-    public function copyable(bool $condition = true): static
-    {
-        $this->isCopyable = $condition;
-
-        return $this;
-    }
-
-    protected function getExtraData(): array
-    {
-        return [
-            'isCopyable' => $this->isCopyable,
-        ];
     }
 }

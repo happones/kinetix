@@ -1503,6 +1503,7 @@ class Table implements Arrayable, JsonSerializable
         }
 
         $rowValues         = [];
+        $rowUrls           = [];
         $rowIcons          = [];
         $rowIconColors     = [];
         $rowBadgeColors    = [];
@@ -1527,11 +1528,17 @@ class Table implements Arrayable, JsonSerializable
             if ($column instanceof TextColumn) {
                 $rowDescriptions[$colName] = [
                     'text'     => $column->getDescription($record),
-                    'position' => $column->toArray()['descriptionPosition'] ?? 'below',
+                    'position' => $column->getDescriptionPosition(),
                 ];
 
-                if ($column->toArray()['isBadge'] ?? false) {
+                if ($column->isBadgeColumn()) {
                     $rowBadgeColors[$colName] = $column->getBadgeColor($record);
+                }
+
+                $url = $column->getUrl($record);
+
+                if ($url !== null) {
+                    $rowUrls[$colName] = $url;
                 }
             }
 
@@ -1570,6 +1577,7 @@ class Table implements Arrayable, JsonSerializable
             progress: $rowProgress,
             progressColors: $rowProgressColors,
             viewProps: $rowViewProps,
+            urls: $rowUrls,
         );
     }
 

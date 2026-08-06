@@ -26,15 +26,30 @@ const description = computed<KinetixTableCellDescription | null>(
 </script>
 
 <template>
-    <div class="flex flex-col">
+    <div class="flex flex-col" :title="col.tooltip ?? undefined">
         <span
             v-if="description?.position === 'above'"
             class="mb-0.5 text-[11px] text-muted-foreground"
         >
             {{ description?.text }}
         </span>
-        <span class="group/copy gap-1.5 inline-flex items-center">
-            {{ record.values[col.name] }}
+        <span
+            class="group/copy gap-1.5 inline-flex items-center"
+            :class="col.wrap ? 'break-words whitespace-normal' : ''"
+        >
+            <!-- html(): the value is trusted (sanitize user content server-side). -->
+            <span v-if="col.isHtml" v-html="record.values[col.name]" />
+            <a
+                v-else-if="record.urls?.[col.name]"
+                :href="record.urls[col.name] ?? undefined"
+                :target="col.openUrlInNewTab ? '_blank' : undefined"
+                :rel="col.openUrlInNewTab ? 'noopener noreferrer' : undefined"
+                class="font-medium text-info hover:underline"
+                @click.stop
+            >
+                {{ record.values[col.name] }}
+            </a>
+            <template v-else>{{ record.values[col.name] }}</template>
             <button
                 v-if="col.isCopyable && record.values[col.name] != null"
                 type="button"

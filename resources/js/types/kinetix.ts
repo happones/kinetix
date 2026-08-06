@@ -932,7 +932,7 @@ export interface KinetixTableCellColumn {
     alignment?: 'left' | 'center' | 'right' | null;
     isCircular?: boolean;
     isPreviewable?: boolean;
-    size?: number | null;
+    size?: number | string | null;
     isCopyable?: boolean;
     isConfidential?: boolean;
     options?: Record<string, string> | null;
@@ -940,6 +940,14 @@ export interface KinetixTableCellColumn {
     placeholder?: string | null;
     numberConfig?: Record<string, unknown> | null;
     view?: string | null;
+    /** Static hover tooltip (title attribute). */
+    tooltip?: string | null;
+    /** TextColumn: render the value as (trusted) HTML. */
+    isHtml?: boolean | null;
+    /** TextColumn: allow multi-line wrapping. */
+    wrap?: boolean | null;
+    /** TextColumn: open the per-record cell link in a new tab. */
+    openUrlInNewTab?: boolean | null;
 }
 
 /** A per-column description rendered above or below a cell's value. */
@@ -959,6 +967,8 @@ export interface KinetixTableCellRecord {
     progress: Record<string, number | null>;
     progressColors: Record<string, string | null>;
     viewProps: Record<string, Record<string, any>>;
+    /** Per-column cell links (TextColumn::url()). */
+    urls?: Record<string, string | null>;
 }
 
 export interface KinetixImportColumn {

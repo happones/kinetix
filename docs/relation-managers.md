@@ -15,9 +15,9 @@ graph LR
     D --> V[KinetixRelationManager.vue → KinetixTable]
 ```
 
-- The relation query comes from `$parent->{relationship}()->getQuery()`, so all the parent's foreign-key constraints are applied automatically.
+- The relation query comes from `$parent->{relationship}()` — qualified and pivot-aliased for BelongsToMany (§10/§11), so all the parent's foreign-key constraints are applied automatically.
 - The table is given a `queryPrefix` of `"{relationship}_"`, so its params become `posts_search`, `posts_page`, etc. — never colliding with the main table or sibling managers.
-- Record/toolbar **Actions** (edit, delete, create, attach) are ordinary Kinetix `Action`s pointing at routes you define scoped to the parent + related record.
+- Actions are **modal-first**: `->modal('create'|'edit'|'view'|'delete')` with the manager's own `form()`/`infolist()` (§6), plus auto-wired Attach/Detach (§8) and Associate/Dissociate (§9) — zero routes. Routed actions (`->url()`, `->inertiaVisit()`) remain an option for full pages.
 
 ---
 
@@ -26,15 +26,28 @@ graph LR
 ```php
 namespace App\Kinetix\RelationManagers;
 
+use Happones\Kinetix\Actions\ActionGroup;
+use Happones\Kinetix\Actions\CreateAction;
+use Happones\Kinetix\Actions\DeleteAction;
+use Happones\Kinetix\Actions\EditAction;
+use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Resources\RelationManager;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tables\Columns\TextColumn;
-use Happones\Kinetix\Actions\Action;
 
 class PostsRelationManager extends RelationManager
 {
     protected static string $relationship = 'posts';
     protected static ?string $title = 'Blog posts'; // optional; defaults to "Posts"
+
+    // The create/edit MODALS render this schema (§6) — no routes, no parent FK.
+    public function form(Form $form): Form
+    {
+        return $form->schema([
+            TextInput::make('title')->required(),
+        ]);
+    }
 
     public function table(Table $table): Table
     {
@@ -44,19 +57,22 @@ class PostsRelationManager extends RelationManager
                 TextColumn::make('status')->badge(),
                 TextColumn::make('created_at')->date(),
             ])
-            ->recordActions([
-                Action::make('edit')->icon('edit')->url(fn ($post) => route('posts.edit', $post)),
-                Action::make('delete')->icon('trash')->color('danger')
-                    ->requiresConfirmation('Delete this post?')
-                    ->inertiaVisit(fn ($post) => route('posts.destroy', $post), ['method' => 'delete']),
-            ])
             ->toolbarActions([
-                Action::make('create')->label('New post')->icon('plus')
-                    ->url(fn () => route('posts.create')),
+                CreateAction::make()->modal('create'),
+            ])
+            ->recordActions([
+                ActionGroup::make([
+                    EditAction::make()->modal('edit'),
+                    DeleteAction::make()->modal('delete'),
+                ]),
             ]);
     }
 }
 ```
+
+Prefer full pages for a relation? Ordinary routed `Action`s
+(`->url(fn ($post) => route('posts.edit', $post))`) still compose freely with
+the modal ones in the same table.
 
 ### API
 
@@ -72,8 +88,10 @@ class PostsRelationManager extends RelationManager
 | `::make(?Model $parent)` | Bind the parent record |
 | `canViewForRecord(Model $parent, string $page): bool` | Record/user-aware gating (Filament analogue) — see §4 |
 | `getBadge(): int\|string\|null` | Badge next to the title / on the tab (e.g. a count) — see §3 |
-| `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label/search by — see §7.5/§7.6 |
-| `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk actions |
+| `getBadgeColor(): ?string` | Accessor for `$badgeColor` |
+| `isVisibleOn(string $page): bool` | Page-level visibility (`'edit'` \| `'view'`) — see §4 |
+| `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label/search by. **Defaults to the primary key when unset — the picker then shows raw ids as labels, so always set it** — see §8/§9 |
+| `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk/footer actions |
 | `getRelation(): Relation` | The parent's relationship OBJECT (BelongsToMany keeps its pivot) |
 | `getRelationshipQuery(): Builder` | The parent-scoped Eloquent query |
 | `toData()` / `toArray()` | Serialize to `RelationManagerData` |
@@ -318,7 +336,11 @@ That's the whole implementation — render the manager on the parent page as in
   record also drops its pivot row.
 - **Authorization**: the PARENT's `update` policy gates every endpoint
   (touching children is editing the parent), plus the CHILD model's own
-  policy (`view`/`create`/`update`/`delete`) when it has one.
+  policy (`view`/`create`/`update`/`delete`) when it has one. The Create
+  toolbar button is auto-gated with `->authorize('create', Related::class)`
+  unless you configured your own rule.
+- `->modal('delete')` needs NO `form()`/`infolist()` — only create/edit
+  require the form and view the infolist.
 - Works for `HasMany`, `MorphMany`, and `BelongsToMany`. Misconfiguration
   fails loudly at serialize time: `->modal('create')` without `form()` (or
   `->modal('view')` without `infolist()`) throws.
@@ -364,7 +386,7 @@ Two more rules for team apps:
   `team_id` (creating through `$parent->posts()->create(...)` inherits the
   parent FK but NOT other tenant columns).
 
-## 7.5 BelongsToMany: attach & detach
+## 8. BelongsToMany: attach & detach
 
 For a `BelongsToMany` manager, drop in `AttachAction` / `DetachAction` — the
 manager wires them to its own **signed descriptor** (parent + relation, bound
@@ -402,10 +424,10 @@ class TagsRelationManager extends RelationManager
   the parent). Non-`BelongsToMany` relations with these actions throw at
   serialize time instead of rendering dead buttons.
 - **Read-only variant**: `protected static bool $readOnly = true;` strips all
-  record/toolbar/bulk actions from the rendered table, whatever `table()`
-  configured.
+  record/toolbar/bulk/footer actions from the rendered table, whatever
+  `table()` configured.
 
-## 7.6 HasMany / MorphMany: associate & dissociate
+## 9. HasMany / MorphMany: associate & dissociate
 
 The `HasMany`/`MorphMany` counterpart of attach/detach — re-parenting by
 foreign key (Filament's Associate/Dissociate):
@@ -437,18 +459,18 @@ class TasksRelationManager extends RelationManager
 - **Dissociate** confirms first and **nulls the foreign key** — the related
   records are never deleted. The lookup is relation-scoped, so another
   parent's record ids are ignored.
-- Same security contract as attach/detach (§7.5): signed descriptor +
+- Same security contract as attach/detach (§8): signed descriptor +
   parent `update` policy. On a `BelongsToMany` relation these actions throw
   at serialize time — use Attach/Detach there.
 
-## 7.7 Full Table parity & permissions inheritance
+## 10. Full Table parity & permissions inheritance
 
 The manager's table IS a Kinetix Table — search box, filters, column
 visibility toggle, sorting (a clicked header **wins over any order the
 relation itself carries**), pagination/per-page, bulk actions, KPI stat
 cards, summaries, saved views (namespaced per manager, never shared with the
 related model's own index), polling and striped rows all work, with every
-query param namespaced by the relationship (`tags_search`, `tags_page`, …).
+query param namespaced by the relationship (`tags_search`, `tags_page`, `tags_cursor`, …).
 A fix in Table automatically fixes every manager. Notes that matter:
 
 - **BelongsToMany is join-safe**: the relation query selects the related
@@ -470,7 +492,7 @@ A fix in Table automatically fixes every manager. Notes that matter:
 - **The active tab lives in `?relation=`** (§3) and each table's state in its
   prefixed params — both survive reloads, modal saves, and shared links.
 
-## 7.8 Pivot columns (BelongsToMany)
+## 11. Pivot columns (BelongsToMany)
 
 Declare the pivot columns on the relationship (`->withPivot('role')`) and
 address them through the pivot accessor, exactly like Filament:
@@ -502,7 +524,7 @@ class MembersRelationManager extends RelationManager
   data — pivot fields in the attach modal / an edit-pivot action — is the
   remaining piece, on the roadmap.
 
-## 8. What's not supported (yet)
+## 12. What's not supported (yet)
 
 So you don't discover it the hard way:
 
@@ -511,20 +533,21 @@ So you don't discover it the hard way:
   and flag actions with `->modal()` (§6) — the manager wires the
   parent-bound endpoints itself.
 - **Toolbar/footer `ExportAction` / `ImportAction`** — rejected with an
-  exception: they would run against the WHOLE model, not the parent's
-  relation (a silent data-exposure surface). Bulk-export selected rows, or
-  export from the related resource's own index. Relation-scoped export is
-  on the roadmap.
+  exception, **including inside an `ActionGroup`**: they would run against
+  the WHOLE model, not the parent's relation (a silent data-exposure
+  surface). Bulk-export selected rows, or export from the related resource's
+  own index. Relation-scoped export is on the roadmap.
 - **Editing pivot data** (pivot form fields in the attach modal, an
   edit-pivot action, inline pivot cells) — displaying/sorting/searching
-  pivot columns works (§7.8); writing them is planned.
+  pivot columns works (§11), and an editable `pivot.*` column throws at
+  serialize time; writing pivot data is planned.
 - **Deferred/lazy managers** (Filament's `$isLazy`) — every manager
   serializes eagerly today; on pages with many heavy managers consider
   wrapping the `relations` prop in `Inertia::optional()` yourself.
 - **Grouped/collapsible managers and custom empty states** — planned polish;
   the flat auto-tabs host covers the common case.
 
-## 9. i18n
+## 13. i18n
 
 `protected static ?string $title` passes through `__()`, so a translation key
 works out of the box:

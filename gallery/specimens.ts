@@ -544,6 +544,352 @@ const relationManagers = [
     },
 ];
 
+// --- Column showcase fixtures (one specimen per column type) -----------------
+// Rendered by `npm run screenshots` into docs/public/screenshots and embedded
+// per column section in docs/tables.md, so users SEE each column.
+const AVATAR = (bg: string, initials: string) =>
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="${bg}"/><text x="40" y="50" font-family="sans-serif" font-size="30" fill="white" text-anchor="middle">${initials}</text></svg>`,
+    );
+
+const columnShowcase = (
+    columns: Array<Record<string, unknown>>,
+    records: Array<{
+        values: Record<string, unknown>;
+        icons?: Record<string, string>;
+        iconColors?: Record<string, string>;
+        badgeColors?: Record<string, string>;
+        descriptions?: Record<string, unknown>;
+        progress?: Record<string, number>;
+        progressColors?: Record<string, string>;
+        viewProps?: Record<string, unknown>;
+    }>,
+) => ({
+    heading: null,
+    description: null,
+    poll: null,
+    isStriped: false,
+    model: 'token',
+    columns,
+    filters: [],
+    recordActions: [],
+    toolbarActions: [],
+    bulkActions: [],
+    footerActions: [],
+    records: records.map((r, i) => ({
+        id: i + 1,
+        values: r.values,
+        icons: r.icons ?? {},
+        iconColors: r.iconColors ?? {},
+        badgeColors: r.badgeColors ?? {},
+        descriptions: r.descriptions ?? {},
+        progress: r.progress ?? {},
+        progressColors: r.progressColors ?? {},
+        viewProps: r.viewProps ?? {},
+        recordUrl: null,
+        actions: [],
+    })),
+    isPaginated: false,
+    paginationPageOptions: [10],
+    pagination: null,
+    state: { search: '', sort: '', direction: 'asc', filters: {}, perPage: 10 },
+    queryPrefix: '',
+    summaries: {},
+    hasSummaries: false,
+    savedViewsKey: null,
+});
+
+const columnSpecimens = [
+    {
+        name: 'column-text',
+        title: 'TextColumn — plain, badge, description, money, dates',
+        table: columnShowcase(
+            [
+                col('customer', { label: 'Customer' }),
+                col('plan', { label: 'Plan', isBadge: true }),
+                col('tags', { label: 'Tags', isBadge: true }),
+                col('mrr', { label: 'MRR', alignment: 'right' }),
+                col('renews_at', { label: 'Renews' }),
+            ],
+            [
+                {
+                    values: {
+                        customer: 'Acme Inc.',
+                        plan: 'Pro',
+                        tags: ['saas', 'priority'],
+                        mrr: '$249.00',
+                        renews_at: 'Jul 9, 2026',
+                    },
+                    badgeColors: { plan: 'success', tags: 'info' },
+                    descriptions: {
+                        customer: { text: 'ada@acme.dev', position: 'below' },
+                    },
+                },
+                {
+                    values: {
+                        customer: 'Globex',
+                        plan: 'Trial',
+                        tags: ['onboarding'],
+                        mrr: '$0.00',
+                        renews_at: 'Aug 2, 2026',
+                    },
+                    badgeColors: { plan: 'warning', tags: 'info' },
+                    descriptions: {
+                        customer: { text: 'ceo@globex.io', position: 'below' },
+                    },
+                },
+                {
+                    values: {
+                        customer: 'Initech',
+                        plan: 'Churned',
+                        tags: ['winback', 'legacy'],
+                        mrr: '—',
+                        renews_at: '—',
+                    },
+                    badgeColors: { plan: 'gray', tags: 'gray' },
+                    descriptions: {
+                        customer: { text: 'ops@initech.co', position: 'below' },
+                    },
+                },
+            ],
+        ),
+    },
+    {
+        name: 'column-icon',
+        title: 'IconColumn — boolean + mapped icons/colors',
+        table: columnShowcase(
+            [
+                col('feature', { label: 'Feature' }),
+                col('enabled', {
+                    label: 'Enabled',
+                    type: 'icon',
+                    alignment: 'center',
+                }),
+                col('health', {
+                    label: 'Health',
+                    type: 'icon',
+                    alignment: 'center',
+                }),
+            ],
+            [
+                {
+                    values: {
+                        feature: 'Broadcasting',
+                        enabled: true,
+                        health: 'ok',
+                    },
+                    icons: { enabled: 'check-circle', health: 'activity' },
+                    iconColors: { enabled: 'success', health: 'success' },
+                },
+                {
+                    values: {
+                        feature: 'Legacy import',
+                        enabled: false,
+                        health: 'warn',
+                    },
+                    icons: { enabled: 'x-circle', health: 'alert-triangle' },
+                    iconColors: { enabled: 'danger', health: 'warning' },
+                },
+            ],
+        ),
+    },
+    {
+        name: 'column-image',
+        title: 'ImageColumn — circular avatars',
+        table: columnShowcase(
+            [
+                col('avatar', {
+                    label: '',
+                    type: 'image',
+                    size: 40,
+                    isCircular: true,
+                }),
+                col('name', { label: 'Member' }),
+                col('role', { label: 'Role', isBadge: true }),
+            ],
+            [
+                {
+                    values: {
+                        avatar: AVATAR('%236366f1', 'AL'),
+                        name: 'Ada Lovelace',
+                        role: 'Owner',
+                    },
+                    badgeColors: { role: 'primary' },
+                },
+                {
+                    values: {
+                        avatar: AVATAR('%2310b981', 'GH'),
+                        name: 'Grace Hopper',
+                        role: 'Admin',
+                    },
+                    badgeColors: { role: 'info' },
+                },
+            ],
+        ),
+    },
+    {
+        name: 'column-color',
+        title: 'ColorColumn — swatches',
+        table: columnShowcase(
+            [
+                col('label', { label: 'Label' }),
+                col('color', {
+                    label: 'Color',
+                    type: 'color',
+                    isCopyable: true,
+                }),
+            ],
+            [
+                { values: { label: 'Brand', color: '#6366f1' } },
+                { values: { label: 'Success', color: '#10b981' } },
+                { values: { label: 'Danger', color: '#ef4444' } },
+            ],
+        ),
+    },
+    {
+        name: 'column-select',
+        title: 'SelectColumn — inline dropdown editing',
+        table: columnShowcase(
+            [
+                col('order', { label: 'Order' }),
+                col('status', {
+                    label: 'Status',
+                    type: 'select-input',
+                    options: {
+                        pending: 'Pending',
+                        paid: 'Paid',
+                        shipped: 'Shipped',
+                    },
+                }),
+            ],
+            [
+                { values: { order: '#1042', status: 'paid' } },
+                { values: { order: '#1043', status: 'pending' } },
+            ],
+        ),
+    },
+    {
+        name: 'column-toggle',
+        title: 'ToggleColumn — inline boolean switch',
+        table: columnShowcase(
+            [
+                col('article', { label: 'Article' }),
+                col('published', {
+                    label: 'Published',
+                    type: 'toggle-input',
+                    alignment: 'center',
+                }),
+            ],
+            [
+                { values: { article: 'Launch announcement', published: true } },
+                { values: { article: 'Draft roadmap', published: false } },
+            ],
+        ),
+    },
+    {
+        name: 'column-text-input',
+        title: 'TextInputColumn — inline text editing',
+        table: columnShowcase(
+            [
+                col('product', { label: 'Product' }),
+                col('sku', {
+                    label: 'SKU',
+                    type: 'text-input',
+                    placeholder: 'SKU-000',
+                }),
+            ],
+            [
+                { values: { product: 'Standing desk', sku: 'DSK-104' } },
+                { values: { product: 'Laptop stand', sku: '' } },
+            ],
+        ),
+    },
+    {
+        name: 'column-checkbox',
+        title: 'CheckboxColumn — inline checkbox',
+        table: columnShowcase(
+            [
+                col('task', { label: 'Task' }),
+                col('done', {
+                    label: 'Done',
+                    type: 'checkbox-input',
+                    alignment: 'center',
+                }),
+            ],
+            [
+                { values: { task: 'Ship the audit', done: true } },
+                { values: { task: 'Write the changelog', done: false } },
+            ],
+        ),
+    },
+    {
+        name: 'column-number-input',
+        title: 'NumberInputColumn — steppers + currency',
+        table: columnShowcase(
+            [
+                col('product', { label: 'Product' }),
+                col('stock', {
+                    label: 'Stock',
+                    type: 'number-input',
+                    numberConfig: {
+                        min: 0,
+                        max: 999,
+                        step: 1,
+                        decimals: 0,
+                        format: null,
+                        currency: null,
+                    },
+                }),
+                col('price', {
+                    label: 'Price',
+                    type: 'number-input',
+                    numberConfig: {
+                        min: 0,
+                        max: null,
+                        step: 0.5,
+                        decimals: 2,
+                        format: 'currency',
+                        currency: 'USD',
+                    },
+                }),
+            ],
+            [
+                {
+                    values: {
+                        product: 'Standing desk',
+                        stock: 12,
+                        price: 349.5,
+                    },
+                },
+                { values: { product: 'USB-C dock', stock: 3, price: 89 } },
+            ],
+        ),
+    },
+    {
+        name: 'column-progress',
+        title: 'ProgressColumn — value + bar with status colors',
+        table: columnShowcase(
+            [
+                col('warehouse', { label: 'Warehouse' }),
+                col('capacity', { label: 'Capacity', type: 'progress' }),
+            ],
+            [
+                {
+                    values: { warehouse: 'Berlin', capacity: 128 },
+                    progress: { capacity: 32 },
+                    progressColors: { capacity: 'success' },
+                },
+                {
+                    values: { warehouse: 'Austin', capacity: 462 },
+                    progress: { capacity: 92 },
+                    progressColors: { capacity: 'danger' },
+                },
+            ],
+        ),
+    },
+];
+
 const wizardSteps = [
     { key: 'account', label: 'Account', icon: 'user' },
     { key: 'plan', label: 'Plan', icon: 'credit-card' },
@@ -2818,6 +3164,13 @@ export const specimens: Specimen[] = [
         },
     },
 
+    ...columnSpecimens.map((spec) => ({
+        name: spec.name,
+        title: spec.title,
+        component: KinetixTable,
+        width: 720,
+        props: { table: spec.table },
+    })),
     {
         name: 'relation-managers',
         title: 'Relation managers — tabs, modal CRUD, pickers',

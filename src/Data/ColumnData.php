@@ -26,7 +26,7 @@ class ColumnData extends Data
         public ?bool $isCopyable = null,
         // ImageColumn specific
         public ?bool $isCircular = null,
-        public ?int $size = null,
+        public int|string|null $size = null,
         public ?bool $isPreviewable = null,
         // SelectColumn specific
         public ?array $options = null,
@@ -45,5 +45,13 @@ class ColumnData extends Data
         public bool $hasSummary = false,
         // ViewColumn specific
         public ?string $view = null,
+        // Shared: static hover tooltip (title attribute).
+        public ?string $tooltip = null,
+        // TextColumn: render the value as (trusted) HTML.
+        public ?bool $isHtml = null,
+        // TextColumn: allow multi-line wrapping in the cell.
+        public ?bool $wrap = null,
+        // TextColumn: per-record cell links (urls ride in TableRowData).
+        public ?bool $openUrlInNewTab = null,
     ) {}
 }

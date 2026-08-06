@@ -12,7 +12,7 @@ metadata:
 
 Activate this skill when:
 - Designing database list grids for model directories.
-- Registering column types (`TextColumn`, `IconColumn`, `ImageColumn`, `ColorColumn`) to format model values.
+- Registering column types (`TextColumn`, `IconColumn`, `ImageColumn`, `ColorColumn`, `ProgressColumn`, `ViewColumn`) to format model values.
 - Creating inline cell editors (`SelectColumn`, `ToggleColumn`, `TextInputColumn`, `CheckboxColumn`, `NumberInputColumn` (steppers + decimal/percent/currency)).
 - Adding footer **summaries** with `Column::summarize(Sum/Average/Count/Range/custom)` (also `ExportColumn::summarize()` to append a totals row to exports).
 - Appending query filters: `Filter` (checkbox), `SelectFilter`, `MultiSelectFilter` (whereIn), `TernaryFilter` (boolean tri-state), `DateFilter`, `DateTimeFilter`, `DateRangeFilter` (with optional `->calendar()` shadcn/Reka range calendar), `NumberRangeFilter`, `MonthFilter`/`YearFilter`/`WeekFilter`, `AddressFilter` (OR-LIKE text search across `->columns([...])`).
@@ -22,6 +22,62 @@ Activate this skill when:
 - Styling table rows with custom CSS background status classes.
 - **Sorting by relationship columns**: `TextColumn::make('author.name')->sortable()` sorts via a correlated subquery (BelongsTo/HasOne). The sort key is allowlisted to defined sortable columns. Custom/multi-column sort: `->sortable(using: fn (Builder $q, string $dir) => $q->orderBy(...))`.
 - **Client-side (TanStack) mode**: `Table::make(...)->clientSide()` ships the full (capped, default 500) row set once and a TanStack engine does search/sort/pagination in-browser — no round-trip. Same PHP API; `<KinetixTable>` lazy-loads the renderer only when `clientSide` is set. Needs the optional peer `@tanstack/vue-table`. Best for small datasets; omits server-only features (interactive filters, saved views, polling, reorder, bulk actions) — keep the default server-driven mode for those or for large data.
+
+
+## Choosing a column (decision table)
+
+Pick by the DATA and whether it should be editable inline — do not default everything to `TextColumn`:
+
+| Data | Read-only | Inline-editable |
+|---|---|---|
+| Text / slug / phone / email | `TextColumn` (`->limit()`, `->wrap()`, `->copyable()`) | `TextInputColumn` |
+| Boolean | `IconColumn->boolean()` (custom `trueIcon/falseIcon/trueColor/falseColor`) | `ToggleColumn` (switch) or `CheckboxColumn` (plain box) |
+| Enum / status | `TextColumn->badge()` — auto-resolves `HasLabel`/`HasColor`/BackedEnum | `SelectColumn->options(Enum::class)` |
+| Number / Slider value | `TextColumn->numeric($decimals)` | `NumberInputColumn` (min/max/step, `->currency()`/`->percent()`) |
+| Money | `TextColumn->money('USD', divideBy: 100)` | `NumberInputColumn->currency('USD')` |
+| Date / datetime | `TextColumn->date()` / `->dateTime()` (localized isoFormat) | `TextInputColumn->type('date')` |
+| Array (TagsInput / CheckboxList / multi-Select / JSON cast) | `TextColumn->badge()` = one pill per item; `->separator(', ')` = imploded text | — |
+| RichEditor HTML | `TextColumn->html()` (trusted!) or `->html()->limit(n)` (tags stripped, then cut) | — |
+| Color | `ColorColumn` (`->copyable()`) | — |
+| Image / avatar / SignaturePad | `ImageColumn` (`->circular()`, `->disk('s3')`, `->preview()`) | — |
+| 0–100 metric / capacity / quota | `ProgressColumn` (`->maxValue()`, `->color(fn …)`) | — |
+| Rating | `TextColumn->formatStateUsing(fn ($v) => str_repeat('★', (int) $v))` — no dedicated column | — |
+| Link per cell | `TextColumn->url(fn ($record) => …)` (whole ROW: `Table::recordUrl()`) | — |
+| Anything bespoke | `ViewColumn->view('MyCell')->props(fn ($record) => …)` | your component emits its own updates |
+| KeyValue / Repeater | `->formatStateUsing()` into a summary string, or `ViewColumn` | — |
+
+## Shared column properties (all types)
+
+`label(__(…))`, `searchable()`, `sortable(bool, ?Closure $using)`, `alignment('left|center|right')`,
+`toggleable($hidden = false)`, `tooltip('static hover text')`, `copyable()` (rendered on
+TextColumn plain + badge and ColorColumn), `state(fn ($record) => …)` / `formatStateUsing()`,
+`summarize(Sum|Average|Count|Range|custom)`.
+
+**Security-relevant:** `visible()/hidden()/can('ability')` GATE the column — a gated column is
+stripped from headers, row payloads, the sort allowlist AND the signed editable-columns list, so
+`->can('posts.viewCost')` genuinely hides the data from unauthorized users, not just the pixels.
+
+## Tables inside relation managers
+
+The manager's table is a full Table (search/sort/filters/columns/bulk/reorder all work, params
+namespaced `{relationship}_…`). Rules that differ:
+- **Pivot columns** (BelongsToMany): declare `->withPivot('role')` on the relationship, then
+  `TextColumn::make('pivot.role')` displays/sorts/searches (custom `->as('membership')` accessor
+  supported). **Editable `pivot.*` columns THROW at serialize time** — the cell-update endpoint
+  writes to the RELATED model, not the pivot row.
+- Toolbar/footer `ExportAction`/`ImportAction` inside a manager THROW (they'd cover the whole
+  model). Bulk export of selected rows is fine.
+- See the **kinetix-resources** skill for the manager itself (modal CRUD, attach/detach).
+
+## Table builder surface (one-liners)
+
+`heading()/description()`, `striped()`, `poll('10s')`, `recordUrl(fn)`, `stickyActions()`,
+`reorderable('sort_order')` (drag + persisted), `saveViews(?key)` (per-user presets; key defaults
+to `Model:queryPrefix`), `queryPrefix('tags_')` (multiple tables per page), `stats([...])` (KPI
+cards over the same filtered query), `recordModals(Resource::class)` (in-table modal CRUD for
+simple resources — NOT inside relation managers), `simplePaginated()` (no COUNT) /
+`cursorPaginated()` (seek), `clientSide()` (TanStack in-browser mode), `writeAbility('ability')` /
+`writeScope([...])` (inline-write policy + bounds), `toolbarLayout('auto'|'inline'|'stacked')`.
 
 ## Documentation
 

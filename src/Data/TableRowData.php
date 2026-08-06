@@ -20,6 +20,7 @@ class TableRowData extends Data
      * @param array<string, array<string, mixed>>                       $viewProps
      * @param array<string, array{text: string|null, position: string}> $descriptions
      * @param array<int, ActionData>                                    $actions
+     * @param array<string, string|null>                                $urls
      */
     public function __construct(
         public mixed $id,
@@ -33,5 +34,6 @@ class TableRowData extends Data
         public array $progress = [],
         public array $progressColors = [],
         public array $viewProps = [],
+        public array $urls = [],
     ) {}
 }

@@ -32,9 +32,57 @@ class IconColumn extends Column
         return 'icon';
     }
 
+    protected string $trueIcon = 'check-circle';
+
+    protected string $falseIcon = 'x-circle';
+
+    protected string $trueColor = 'success';
+
+    protected string $falseColor = 'danger';
+
+    protected ?int $size = null;
+
     public function boolean(): static
     {
         $this->isBoolean = true;
+
+        return $this;
+    }
+
+    public function trueIcon(string $icon): static
+    {
+        $this->trueIcon = $icon;
+
+        return $this;
+    }
+
+    public function falseIcon(string $icon): static
+    {
+        $this->falseIcon = $icon;
+
+        return $this;
+    }
+
+    public function trueColor(string $color): static
+    {
+        $this->trueColor = $color;
+
+        return $this;
+    }
+
+    public function falseColor(string $color): static
+    {
+        $this->falseColor = $color;
+
+        return $this;
+    }
+
+    /**
+     * Icon size in pixels (defaults to 20 on the frontend).
+     */
+    public function size(int $size): static
+    {
+        $this->size = $size;
 
         return $this;
     }
@@ -75,7 +123,7 @@ class IconColumn extends Column
         }
 
         if ($this->isBoolean) {
-            return (bool) $state ? 'check-circle' : 'x-circle';
+            return (bool) $state ? $this->trueIcon : $this->falseIcon;
         }
 
         foreach ($this->options as $icon => $condition) {
@@ -103,7 +151,7 @@ class IconColumn extends Column
         }
 
         if ($this->isBoolean) {
-            return (bool) $state ? 'success' : 'danger';
+            return (bool) $state ? $this->trueColor : $this->falseColor;
         }
 
         foreach ($this->colors as $color => $condition) {
@@ -117,5 +165,12 @@ class IconColumn extends Column
         }
 
         return 'gray';
+    }
+
+    protected function getExtraData(): array
+    {
+        return [
+            'size' => $this->size,
+        ];
     }
 }

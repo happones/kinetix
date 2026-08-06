@@ -28,6 +28,19 @@ class TextColumn extends Column
 
     protected string $descriptionPosition = 'below'; // below, above
 
+    protected ?string $separator = null;
+
+    protected bool $isHtml = false;
+
+    protected bool $wrap = false;
+
+    /** @var array{decimals: int, locale: string|null}|null */
+    protected ?array $numericConfig = null;
+
+    protected string|Closure|null $url = null;
+
+    protected bool $openUrlInNewTab = false;
+
     protected function getType(): string
     {
         return 'text';
@@ -74,6 +87,81 @@ class TextColumn extends Column
         return $this;
     }
 
+    /**
+     * Glue for ARRAY states (a TagsInput/CheckboxList/multi-Select attribute,
+     * a JSON cast): plain text implodes with it. A `->badge()` column ignores
+     * the glue and renders one pill PER item instead.
+     */
+    public function separator(string $separator = ', '): static
+    {
+        $this->separator = $separator;
+
+        return $this;
+    }
+
+    /**
+     * Render the value as HTML (e.g. a RichEditor attribute). The value is
+     * trusted as-is — sanitize user-generated content server-side. Combined
+     * with `limit()`, tags are stripped BEFORE truncating so the cut can
+     * never break markup mid-tag.
+     */
+    public function html(bool $condition = true): static
+    {
+        $this->isHtml = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Localized decimal formatting via intl (mirrors `money()` — resolves the
+     * argument locale, then `->locale()`, then the app locale).
+     */
+    public function numeric(int $decimals = 0, ?string $locale = null): static
+    {
+        $this->numericConfig = ['decimals' => $decimals, 'locale' => $locale];
+
+        return $this;
+    }
+
+    /**
+     * Turn the cell value into a link (per record via a Closure). Unlike
+     * `Table::recordUrl()` — the whole ROW — this links just this column.
+     */
+    public function url(string|Closure $url, bool $openUrlInNewTab = false): static
+    {
+        $this->url             = $url;
+        $this->openUrlInNewTab = $openUrlInNewTab;
+
+        return $this;
+    }
+
+    public function openUrlInNewTab(bool $condition = true): static
+    {
+        $this->openUrlInNewTab = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Let long values wrap onto multiple lines instead of the table's default
+     * single-line nowrap cells.
+     */
+    public function wrap(bool $condition = true): static
+    {
+        $this->wrap = $condition;
+
+        return $this;
+    }
+
+    public function getUrl(Model $record): ?string
+    {
+        if ($this->url === null) {
+            return null;
+        }
+
+        return $this->url instanceof Closure ? ($this->url)($record) : $this->url;
+    }
+
     public function getState(Model $record): mixed
     {
         $value = parent::getState($record);
@@ -97,12 +185,76 @@ class TextColumn extends Column
         // Apply money formatting (localized intl currency).
         $value = $this->formatMoneyValue($value);
 
-        // Apply string limits
+        // Localized decimal formatting (numeric()).
+        if ($this->numericConfig !== null && is_numeric($value)) {
+            $value = $this->formatNumericValue($value);
+        }
+
+        // Array states (TagsInput, CheckboxList, multi-Select, JSON casts):
+        // badges render one pill per item; plain text implodes — otherwise
+        // Vue would JSON-stringify the array into the cell.
+        if (is_array($value)) {
+            $items = array_map(
+                static fn (mixed $item): string => is_scalar($item) || $item instanceof \Stringable
+                    ? (string) $item
+                    : (string) json_encode($item),
+                $value,
+            );
+
+            return $this->isBadge
+                ? array_values($items)
+                : implode($this->separator ?? ', ', $items);
+        }
+
+        // Apply string limits. HTML strips tags FIRST so the cut can never
+        // break markup mid-tag (a truncated value downgrades to plain text).
         if ($this->limit !== null && is_string($value)) {
+            if ($this->isHtml) {
+                $value = strip_tags($value);
+            }
+
             $value = str($value)->limit($this->limit)->toString();
         }
 
         return $value;
+    }
+
+    /**
+     * Localized decimal formatting via intl NumberFormatter.
+     */
+    protected function formatNumericValue(mixed $value): string
+    {
+        $config = $this->numericConfig ?? ['decimals' => 0, 'locale' => null];
+        $locale = $config['locale']    ?? $this->dateLocale ?? app()->getLocale();
+
+        if (! class_exists(\NumberFormatter::class)) {
+            return number_format((float) $value, $config['decimals']);
+        }
+
+        $formatter = new \NumberFormatter($locale, \NumberFormatter::DECIMAL);
+        $formatter->setAttribute(\NumberFormatter::MIN_FRACTION_DIGITS, $config['decimals']);
+        $formatter->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, $config['decimals']);
+
+        return (string) $formatter->format((float) $value);
+    }
+
+    /**
+     * Whether this column renders badges (serialization + hosts read this
+     * instead of round-tripping toArray()).
+     */
+    public function isBadgeColumn(): bool
+    {
+        return $this->isBadge;
+    }
+
+    public function getDescriptionPosition(): string
+    {
+        return $this->descriptionPosition;
+    }
+
+    public function isWrapped(): bool
+    {
+        return $this->wrap;
     }
 
     /**
@@ -145,6 +297,9 @@ class TextColumn extends Column
             'isBadge'             => $this->isBadge,
             'descriptionPosition' => $this->descriptionPosition,
             'isConfidential'      => $this->isConfidential,
+            'isHtml'              => $this->isHtml ?: null,
+            'wrap'                => $this->wrap ?: null,
+            'openUrlInNewTab'     => $this->openUrlInNewTab ?: null,
         ];
     }
 }

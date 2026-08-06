@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { CheckCircle2, Edit3, Eye, Plus, Trash2, XCircle } from '@lucide/vue';
 import { computed } from 'vue';
 import type { Component } from 'vue';
+import { resolveIcon } from '@/composables/useKinetixIcons';
 import { statusTextClass } from '@/composables/useKinetixStatusColor';
 import type {
     KinetixTableCellColumn,
@@ -13,30 +13,30 @@ const props = defineProps<{
     record: KinetixTableCellRecord;
 }>();
 
-const STANDARD_ICONS: Record<string, Component> = {
-    edit: Edit3,
-    delete: Trash2,
-    view: Eye,
-    create: Plus,
-    plus: Plus,
-    check: CheckCircle2,
-    'check-circle': CheckCircle2,
-    x: XCircle,
-    'x-circle': XCircle,
-};
-
+// The shared Kinetix icon map — any name IconColumn::options() declares works,
+// not just a hardcoded handful.
 const icon = computed<Component | null>(() => {
     const name = props.record.icons[props.col.name];
 
-    return name ? (STANDARD_ICONS[name.toLowerCase()] ?? null) : null;
+    return name ? (resolveIcon(name) ?? null) : null;
+});
+
+const sizePx = computed(() => {
+    const size = props.col.size;
+
+    return typeof size === 'number' && size > 0 ? `${size}px` : undefined;
 });
 </script>
 
 <template>
-    <div class="inline-flex items-center justify-center">
+    <div
+        class="inline-flex items-center justify-center"
+        :title="col.tooltip ?? undefined"
+    >
         <component
             :is="icon"
             class="h-5 w-5"
+            :style="sizePx ? { width: sizePx, height: sizePx } : undefined"
             :class="
                 statusTextClass(
                     record.iconColors[col.name],

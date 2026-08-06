@@ -183,7 +183,8 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
     ```
 - `alignment(string $alignment)`: Sets horizontal alignment (`left`, `center`, `right`).
 - `toggleable(bool $isToggleable = true, bool $isToggledHiddenByDefault = false)`: Allows users to hide/show the column.
-- `copyable(bool $condition = true)`: Shows a click-to-copy button on the cell (on hover) that copies its value to the clipboard. Works on any column type.
+- `copyable(bool $condition = true)`: Shows a click-to-copy button on the cell (on hover) that copies its value to the clipboard. Rendered on `TextColumn` (plain **and** badge) and `ColorColumn`.
+- `tooltip(string $tooltip)`: Static hover tooltip (title attribute) — column caveats, units, definitions. Per-record dynamic text belongs in `description()`.
 - `formatStateUsing(Closure $callback)`: Formats the value dynamically on the backend before serialization.
 - `state(Closure|mixed $state)`: Overrides how the raw cell value is resolved — a Closure (`fn ($record) => …`) or a constant — instead of reading the attribute named after the column. `formatStateUsing()` still runs afterwards. Filament-compatible (alias: `getStateUsing()`):
   ```php
@@ -191,6 +192,9 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
   ```
 
 ### 1. `TextColumn`
+
+<Screenshot name="column-text" alt="TextColumn: plain text with description, status badges, tag pills, aligned money and dates" />
+
 Displays text strings with additional formatting structures:
 - `badge()`: Wraps the value in a rounded badge.
 - `badgeColor(string|Closure $color)`: Sets status colors (`success`, `danger`, `warning`, `info`, `gray`).
@@ -201,14 +205,30 @@ Displays text strings with additional formatting structures:
 - `money(string $currency = 'USD', int $divideBy = 1, ?string $locale = null)`: Formats as **localized currency** via intl (`$1,234.50` in `en`, `1.234,50 €` in `de`). `$divideBy` converts minor units (`100` for cents); the locale resolves from the argument, then the column `->locale()`, then the app locale. Filament-compatible.
 - `limit(int $limit)`: Truncates text.
 - `description(string|Closure $description, string $position = 'below')`: Displays secondary description lines.
+- `separator(string $separator = ', ')`: Glue for **array states** (a `TagsInput`/`CheckboxList`/multi-`Select` attribute, a JSON cast) — plain text implodes with it. A `->badge()` column ignores the glue and renders **one pill per item** instead (arrays never leak raw JSON into the cell either way).
+- `numeric(int $decimals = 0, ?string $locale = null)`: Localized decimal formatting via intl (`1,234.50` in `en`, `1.234,50` in `de`) — the read-only counterpart of `NumberField`/`Slider` values. Locale resolves like `money()`.
+- `html(bool $condition = true)`: Render the value as HTML (a `RichEditor` attribute). **The value is trusted as-is — sanitize user-generated content server-side.** Combined with `limit()`, tags are stripped BEFORE truncating so the cut never breaks markup mid-tag.
+- `url(string|Closure $url, bool $openUrlInNewTab = false)`: Turns the cell value into a link, per record (`->url(fn (Post $p) => route('posts.show', $p))`). Unlike `Table::recordUrl()` (the whole row), this links just this column. `openUrlInNewTab()` also exists standalone.
+- `wrap(bool $condition = true)`: Lets long values wrap onto multiple lines instead of the table's single-line nowrap default.
+
+> **Rating recipe** — no dedicated column needed:
+> `TextColumn::make('score')->formatStateUsing(fn ($v) => str_repeat('★', (int) $v) . str_repeat('☆', 5 - (int) $v))`.
 
 ### 2. `IconColumn`
+
+<Screenshot name="column-icon" alt="IconColumn: boolean checkmarks and mapped status icons with colors" />
+
 Displays an icon based on value states:
 - `boolean()`: Helper to automatically show checkmark circles for `true` and cross circles for `false`.
-- `options(array $options)`: Maps icon names to conditional statements or values.
+- `trueIcon()` / `falseIcon()` / `trueColor()` / `falseColor()`: Customize the boolean pair (`->boolean()->trueIcon('shield-check')->falseColor('gray')`).
+- `options(array $options)`: Maps icon names to conditional statements or values. Any name from the shared Kinetix icon map works.
 - `colors(array $colors)`: Maps color labels to statements or values.
+- `size(int $size)`: Icon size in pixels (default 20).
 
 ### 3. `ImageColumn`
+
+<Screenshot name="column-image" alt="ImageColumn: circular avatar thumbnails" />
+
 Displays image thumbnail previews:
 - `circular()`: Renders image as a circle.
 - `square()`: Renders image as rounded square (default).
@@ -218,25 +238,43 @@ Displays image thumbnail previews:
 - `preview()`: Makes the thumbnail clickable to open a zoomable lightbox. Requires `<KinetixFilePreview />` mounted once in the layout (see [Actions → File actions](actions.md)).
 
 ### 4. `ColorColumn`
+
+<Screenshot name="column-color" alt="ColorColumn: color swatches with hex values" />
+
 Displays visual color swatch blocks:
 - `copyable()`: Allows users to click on the color swatch to copy the hex code to their clipboard.
 
 ### 5. `SelectColumn` (Editable)
+
+<Screenshot name="column-select" alt="SelectColumn: inline dropdown editing" />
+
 Renders a dropdown selector in the cell:
 - `options(array|Closure $options)`: Array of key-value option values.
 
 ### 6. `ToggleColumn` (Editable)
+
+<Screenshot name="column-toggle" alt="ToggleColumn: inline boolean switches" />
+
 Renders a switch button inside the cell to edit boolean properties instantly.
 
 ### 7. `TextInputColumn` (Editable)
+
+<Screenshot name="column-text-input" alt="TextInputColumn: inline text editing" />
+
 Renders an inline text box:
 - `type(string $type)`: Input field type (text, number, email, date).
 - `placeholder(string $placeholder)`: Default placeholder.
 
 ### 8. `CheckboxColumn` (Editable)
+
+<Screenshot name="column-checkbox" alt="CheckboxColumn: inline checkboxes" />
+
 Renders a standard checkbox toggle inside the cell.
 
 ### 9. `NumberInputColumn` (Editable)
+
+<Screenshot name="column-number-input" alt="NumberInputColumn: inline steppers with currency formatting" />
+
 Renders an inline numeric input with increment/decrement steppers (Reka UI
 NumberField). Supports `min()` / `max()` / `step()`, `decimals()`, and the
 `percent()` / `currency()` formats — mirroring the [`NumberField`](/forms#numberfield)
@@ -250,6 +288,9 @@ NumberInputColumn::make('price')->currency('USD');
 ```
 
 ### 10. `ProgressColumn`
+
+<Screenshot name="column-progress" alt="ProgressColumn: value with a colored progress bar" />
+
 Displays numeric/quantity values with a supporting progress bar. Very useful for stock tracking, capacities, goals, etc.:
 - `progress(int|float|string|Closure $progress)`: Defines the progress percentage (0 to 100). Can be a number, a string representing another column name, or a closure.
 - `maxValue(int|float|string|Closure $maxValue)`: Dynamically computes percentage if no explicit progress is specified (`($value / $maxValue) * 100`).

@@ -65,6 +65,20 @@ abstract class Column
         return $this;
     }
 
+    protected ?string $tooltip = null;
+
+    /**
+     * Static tooltip shown on hover over the cell (title attribute) — column
+     * caveats, units, definitions. Per-record dynamic text belongs in
+     * `description()` instead.
+     */
+    public function tooltip(string $tooltip): static
+    {
+        $this->tooltip = $tooltip;
+
+        return $this;
+    }
+
     public function label(string $label): static
     {
         $this->label = $label;
@@ -236,6 +250,10 @@ abstract class Column
             numberConfig: $extra['numberConfig']               ?? null,
             hasSummary: $this->hasSummarizers(),
             view: $extra['view'] ?? null,
+            tooltip: $this->tooltip,
+            isHtml: $extra['isHtml']                   ?? null,
+            wrap: $extra['wrap']                       ?? null,
+            openUrlInNewTab: $extra['openUrlInNewTab'] ?? null,
         );
     }
 
