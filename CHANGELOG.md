@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.150.0] - 2026-08-06
+
+### Added
+
+- **Policy ↔ permission delegation doctrine** — the missing guidance that made
+  the role matrix look broken when policies hard-coded `return true;`:
+  - `docs/permissions.md` §1.5 and the `kinetix-permissions` skill now carry a
+    REQUIRED section: with the permissions module enabled, every model policy
+    delegates its abilities to `$user->can('{feature}.{ability}')`, with the
+    standard pattern splitting responsibilities — the policy owns the tenancy
+    boundary (`$user->belongsToTeam($record->team)`), the matrix owns the
+    capability, and an explicit `$user->ownsTeam(...)` clause keeps the policy
+    correct with `owner_bypass` off.
+  - **`owner_bypass` semantics documented precisely**: it grants the team
+    owner every REGISTERED ability (a `Gate::before` scoped to registry keys)
+    — model policies still run, so it can never cross the tenancy boundary.
+  - **`kinetix:doctor` audits the binding**: flags features whose permissions
+    are synced in the DB while the model policy still returns static `true`s
+    (naming the offending methods), and registered features whose model has
+    NO policy at all — where the matrix silently enforces nothing.
+  - `kinetix:make-resource` next-steps now spell out the delegation pattern.
+
 ## [0.149.0] - 2026-08-06
 
 Deep relation-manager audit: the manager's table is now a FULL Kinetix Table
