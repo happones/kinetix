@@ -65,6 +65,15 @@ trait HasAuthorization
      * stripped from schemas, validation rules, state AND row payloads, so the
      * gated data never leaves the server.
      */
+    /**
+     * Whether authorize() was configured — containers (relation managers) use
+     * this to add a default policy gate without overriding an explicit one.
+     */
+    public function hasAuthorization(): bool
+    {
+        return $this->authorizeUsing !== null;
+    }
+
     public function can(string $ability): static
     {
         $this->canAbility = $ability;

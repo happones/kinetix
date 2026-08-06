@@ -100,6 +100,13 @@ final class KinetixQuery
      */
     protected static function like(Builder $query, string $column, string $value, string $boolean): void
     {
+        // Qualify plain columns with the model's table: under a joined base
+        // query (a BelongsToMany relation table joins its pivot) a bare shared
+        // name (`id`, `created_at`) is ambiguous SQL and 500s on search.
+        if (! str_contains($column, '.')) {
+            $column = $query->getModel()->qualifyColumn($column);
+        }
+
         $sql = $query->getQuery()->getGrammar()->wrap($column)." like ? escape '".self::LIKE_ESCAPE."'";
 
         $query->whereRaw($sql, [$value], $boolean);

@@ -42,6 +42,52 @@ const mountManagers = (
     });
 
 describe('KinetixRelationManagers', () => {
+    it('activates the tab named by ?relation= in the URL', () => {
+        window.history.replaceState(null, '', '/records/1/edit?relation=tags');
+
+        const wrapper = mountManagers([
+            manager('posts'),
+            manager('comments'),
+            manager('tags'),
+        ]);
+
+        const activeTab = wrapper
+            .findAll('[role="tab"]')
+            .find((t) => t.attributes('aria-selected') === 'true');
+        expect(activeTab?.text()).toContain('Tags');
+        expect(wrapper.get('[data-test="table"]').text()).toBe('tags_');
+
+        wrapper.unmount();
+        window.history.replaceState(null, '', '/');
+    });
+
+    it('writes the selected tab into the URL so reloads and back() land on it', async () => {
+        window.history.replaceState(null, '', '/records/1/edit?posts_page=2');
+
+        const wrapper = mountManagers([manager('posts'), manager('comments')]);
+
+        await wrapper.findAll('[role="tab"]')[1].trigger('click');
+
+        const params = new URLSearchParams(window.location.search);
+        expect(params.get('relation')).toBe('comments');
+        // Foreign table params survive the client-side replace.
+        expect(params.get('posts_page')).toBe('2');
+
+        wrapper.unmount();
+        window.history.replaceState(null, '', '/');
+    });
+
+    it('ignores an unknown ?relation= value and falls back to the first tab', () => {
+        window.history.replaceState(null, '', '/records/1/edit?relation=nope');
+
+        const wrapper = mountManagers([manager('posts'), manager('comments')]);
+
+        expect(wrapper.get('[data-test="table"]').text()).toBe('posts_');
+
+        wrapper.unmount();
+        window.history.replaceState(null, '', '/');
+    });
+
     it('renders a single manager as a plain section (no tabs)', () => {
         const wrapper = mountManagers([manager('posts')]);
 

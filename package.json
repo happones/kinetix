@@ -19,7 +19,8 @@
         "screenshots:messages": "php scripts/gen-gallery-messages.php",
         "screenshots": "npm run screenshots:messages && node scripts/screenshots.mjs",
         "types:check": "vue-tsc --noEmit",
-        "prepare": "husky"
+        "prepare": "husky",
+        "test:e2e": "node scripts/e2e-relation-managers.mjs"
     },
     "lint-staged": {
         "*.php": "vendor/bin/pint",

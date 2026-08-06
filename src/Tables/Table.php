@@ -300,6 +300,16 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * The configured footer actions (pre-serialization).
+     *
+     * @return array<int, mixed>
+     */
+    public function getFooterActions(): array
+    {
+        return $this->footerActions;
+    }
+
+    /**
      * Set actions displayed in the table toolbar header.
      *
      * @param array<int, Action> $actions
@@ -666,7 +676,13 @@ class Table implements Arrayable, JsonSerializable
      */
     public function saveViews(?string $key = null): static
     {
-        $this->savedViewsKey = $key ?? $this->getModelClass();
+        // Namespace the default by queryPrefix: a relation manager's table and
+        // the model's own index (or two managers over the same related model)
+        // must not share one saved-view list. An explicit $key still wins.
+        $this->savedViewsKey = $key
+            ?? ($this->queryPrefix !== ''
+                ? $this->getModelClass().':'.$this->queryPrefix
+                : $this->getModelClass());
 
         return $this;
     }
@@ -765,7 +781,10 @@ class Table implements Arrayable, JsonSerializable
 
         if ($sort === null || $sort === '') {
             if ($this->reorderColumn !== null) {
-                $query->orderBy($this->reorderColumn);
+                // The base query often ships its own order (a relation's
+                // ->orderBy(), a global scope) — it would outrank the manual
+                // order and make drag positions appear to "not stick".
+                $query->reorder()->orderBy($this->reorderColumn);
             }
 
             return;
@@ -779,6 +798,11 @@ class Table implements Arrayable, JsonSerializable
             return;
         }
 
+        // A user-chosen sort must WIN: without reorder(), any order already on
+        // the base query (relations commonly carry one) stays primary and the
+        // clicked header changes nothing visible.
+        $query->reorder();
+
         $using = $column->getSortUsing();
         if ($using !== null) {
             $using($query, $direction);
@@ -787,7 +811,10 @@ class Table implements Arrayable, JsonSerializable
         }
 
         if (! str_contains((string) $sort, '.')) {
-            $query->orderBy((string) $sort, $direction);
+            // Qualified: under a joined base query (a BelongsToMany relation
+            // table joins the pivot) a bare shared column name (`id`,
+            // `created_at`) is ambiguous and 500s.
+            $query->orderBy($query->getModel()->qualifyColumn((string) $sort), $direction);
 
             return;
         }
@@ -998,12 +1025,35 @@ class Table implements Arrayable, JsonSerializable
             'reorder'  => $this->reorderColumn,
             'resource' => $this->recordModalsResource,
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
+            'relation' => $this->writeRelation,
             'ability'  => $this->writeAbility,
             'user'     => auth()->id(),
             'expires'  => is_numeric($ttl) && (int) $ttl > 0
                 ? now()->getTimestamp() + ((int) $ttl * 60)
                 : null,
         ]);
+    }
+
+    /**
+     * Relation binding for the write endpoints (internal — RelationManager
+     * sets it). When present, cell-update/reorder resolve records through the
+     * PARENT's relationship instead of the captured where-scope: the captured
+     * scope can't express a BelongsToMany membership (its equality lives on
+     * the pivot table, which the write endpoint's join-less query lacks).
+     *
+     * @var array{parent: class-string, key: mixed, name: string}|null
+     */
+    protected ?array $writeRelation = null;
+
+    public function writeRelation(string $parentClass, mixed $parentKey, string $relationship): static
+    {
+        $this->writeRelation = [
+            'parent' => $parentClass,
+            'key'    => $parentKey,
+            'name'   => $relationship,
+        ];
+
+        return $this;
     }
 
     /**
@@ -1028,11 +1078,27 @@ class Table implements Arrayable, JsonSerializable
 
         $scope = [];
 
+        $ownTable = $this->queryOrModel->getModel()->getTable();
+
         foreach ($this->queryOrModel->getQuery()->wheres as $where) {
             $type   = $where['type']   ?? null;
             $column = $where['column'] ?? null;
 
             if (! is_string($column)) {
+                continue;
+            }
+
+            // A column qualified to ANOTHER table (a BelongsToMany relation
+            // qualifies its parent constraint to the PIVOT) is meaningless —
+            // and fatal SQL — on the write endpoint's join-less model query.
+            // Drop it ONLY when writeRelation() carries the real scope;
+            // otherwise keep it and let the endpoint fail closed rather than
+            // silently widening writes to the whole model.
+            if (
+                $this->writeRelation !== null
+                && str_contains($column, '.')
+                && ! str_starts_with($column, "{$ownTable}.")
+            ) {
                 continue;
             }
 

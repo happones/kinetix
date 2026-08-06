@@ -56,12 +56,20 @@ export function buildTableQuery(
         OWNED_SCALAR_KEYS.some((k) => key === `${prefix}${k}`) ||
         key.startsWith(`${prefix}filters`);
 
+    // getAll(): a foreign MULTI-VALUE param (another table's array filter,
+    // `posts_filters[tags][]=1&…[]=2`) must survive as an array — forEach
+    // last-wins would silently truncate it to one value.
+    const params = new URLSearchParams(currentSearch);
     const preserved: Record<string, unknown> = {};
-    new URLSearchParams(currentSearch).forEach((value, key) => {
-        if (!ownsKey(key)) {
-            preserved[key] = value;
+
+    for (const key of new Set(params.keys())) {
+        if (ownsKey(key)) {
+            continue;
         }
-    });
+
+        const values = params.getAll(key);
+        preserved[key] = values.length > 1 ? values : values[0];
+    }
 
     return { ...preserved, ...own };
 }
@@ -122,10 +130,23 @@ export function useKinetixTableQuery(
             delete merged.cursor;
         }
 
+        // Refinements (search/filters/per-page/sort) REPLACE the history entry
+        // — otherwise every debounced keystroke pushes one and Back walks the
+        // whole typing history. A pure page/cursor change still pushes, so
+        // Back steps through pages like normal pagination. (Refinements also
+        // reset `page`, so presence of `page` alone doesn't make navigation.)
+        const isRefinement = (
+            ['search', 'filters', 'perPage', 'sort', 'direction'] as const
+        ).some((key) => params[key] !== undefined);
+
         router.get(
             window.location.pathname,
             buildTableQuery(prefix, merged, window.location.search),
-            { preserveState: true, preserveScroll: true },
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: isRefinement,
+            },
         );
     };
 

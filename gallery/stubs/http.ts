@@ -1058,11 +1058,54 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
             savedViewsKey: null,
         },
     },
+    {
+        match: /\/tables\/relations\/record\/resolve$/,
+        data: {
+            form: {
+                schema: [{ type: 'text-input', name: 'title', label: 'Title' }],
+                data: { title: 'Ship the audit' },
+                rules: {},
+                operation: 'edit',
+            },
+            infolist: {
+                columns: 1,
+                schema: [
+                    {
+                        type: 'text',
+                        name: 'title',
+                        label: 'Title',
+                        state: 'Ship the audit',
+                    },
+                ],
+            },
+        },
+    },
+    {
+        match: /\/tables\/relations\/(attachable|associable)$/,
+        data: {
+            options: [
+                { id: 1, label: 'php' },
+                { id: 2, label: 'vue' },
+            ],
+        },
+    },
+    {
+        match: /\/tables\/relations\/(attach|detach|associate|dissociate)$/,
+        data: { status: 'success' },
+    },
 ];
 
 export async function kinetixFetch<T = unknown>(
     url: string,
+    init?: { method?: string; body?: unknown },
 ): Promise<T | null> {
+    // Recorded so browser (Playwright) assertions can verify which endpoint a
+    // click actually fired, with what payload.
+    const g = globalThis as unknown as {
+        __kinetixCalls?: Array<{ url: string; body: unknown }>;
+    };
+    (g.__kinetixCalls ??= []).push({ url, body: init?.body ?? null });
+
     const hit = fixtures.find((f) => f.match.test(url));
     return (hit ? (hit.data as T) : null) ?? null;
 }

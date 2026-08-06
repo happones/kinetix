@@ -254,7 +254,13 @@ php artisan kinetix:make-relation-manager {name} [options]
 |---|---|
 | `name` | The relation manager class name (e.g. `PostsRelationManager`) |
 | `--relationship=` | The parent relationship method name (defaults to `items`) |
+| `--attach` | BelongsToMany: add `AttachAction` (toolbar) + `DetachAction` (row) alongside the default Create |
+| `--associate` | HasMany/MorphMany: add `AssociateAction` (toolbar) + `DissociateAction` (row) alongside the default Create |
 | `--force` | Overwrite the class if it already exists |
+
+The stub always ships the Filament-default header: `CreateAction` opening the
+create **modal**, plus grouped Edit/Delete row actions — `--attach` /
+`--associate` compose the transfer actions with it rather than replacing it.
 
 The generated class extends `RelationManager`, sets `$relationship` and `$visibleOn` (`['edit', 'view']`), and stubs a `table()` method:
 

@@ -10,6 +10,8 @@ use Happones\Kinetix\Actions\AssociateAction;
 use Happones\Kinetix\Actions\AttachAction;
 use Happones\Kinetix\Actions\DetachAction;
 use Happones\Kinetix\Actions\DissociateAction;
+use Happones\Kinetix\Actions\ExportAction;
+use Happones\Kinetix\Actions\ImportAction;
 use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\RelationManagerData;
 use Happones\Kinetix\Forms\Form;
@@ -175,10 +177,24 @@ abstract class RelationManager implements Arrayable, JsonSerializable
 
     /**
      * The Eloquent query for the parent's related records.
+     *
+     * BelongsToMany joins the pivot table, and the raw relation builder has no
+     * select — `SELECT *` across the join lets pivot columns clobber the
+     * related model's at hydration (a pivot `id` overwrites the record's id, so
+     * row actions would hit the WRONG record; `withTimestamps()` overwrites
+     * `created_at`). Laravel's own get()/paginate() qualify the select the same
+     * way; the Table calls the builder directly, so it's qualified here.
      */
     public function getRelationshipQuery(): Builder
     {
-        return $this->getRelation()->getQuery();
+        $relation = $this->getRelation();
+        $query    = $relation->getQuery();
+
+        if ($relation instanceof BelongsToMany) {
+            $query->select($relation->getRelated()->qualifyColumn('*'));
+        }
+
+        return $query;
     }
 
     public function toData(): RelationManagerData
@@ -205,8 +221,15 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         }
 
         if (static::$readOnly) {
-            $table->recordActions([])->toolbarActions([])->bulkActions([]);
+            $table->recordActions([])->toolbarActions([])->bulkActions([])->footerActions([]);
         }
+
+        // Cell-update / drag-reorder writes resolve through the PARENT's
+        // relationship (the captured where-scope can't express a BelongsToMany
+        // membership — its equality lives on the pivot table).
+        $table->writeRelation($this->parent::class, $this->parent->getKey(), static::$relationship);
+
+        $this->rejectUnscopedBulkTransfers($table);
 
         $wantsAttachDetach = $this->wireAttachDetach($table, $relation);
         $wantsAssociate    = $this->wireAssociateDissociate($table, $relation);
@@ -261,7 +284,14 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     {
         $flat = [];
 
-        foreach ([...$table->getToolbarActions(), ...$table->getRecordActions(), ...$table->getBulkActions()] as $action) {
+        $surfaces = [
+            ...$table->getToolbarActions(),
+            ...$table->getRecordActions(),
+            ...$table->getBulkActions(),
+            ...$table->getFooterActions(),
+        ];
+
+        foreach ($surfaces as $action) {
             if ($action instanceof ActionGroup) {
                 $flat = [...$flat, ...$action->getActions()];
 
@@ -274,6 +304,31 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         }
 
         return $flat;
+    }
+
+    /**
+     * A toolbar/footer ExportAction or ImportAction inside a relation manager
+     * would run against the WHOLE model — the export query and the importer
+     * know nothing about the parent relationship, so "export these comments"
+     * would ship every comment in the database and an import would create
+     * unattached rows. Refuse loudly instead of shipping a data-exposure
+     * surface. (A BULK export of selected rows is id-narrowed and stays fine.)
+     */
+    protected function rejectUnscopedBulkTransfers(Table $table): void
+    {
+        foreach ([...$table->getToolbarActions(), ...$table->getFooterActions()] as $action) {
+            $candidates = $action instanceof ActionGroup ? $action->getActions() : [$action];
+
+            foreach ($candidates as $candidate) {
+                if ($candidate instanceof ExportAction || $candidate instanceof ImportAction) {
+                    throw new RuntimeException(
+                        class_basename($candidate::class).' is not supported inside a relation manager ('
+                        .static::class.'): it would operate on the WHOLE model, not the parent\'s relation. '
+                        .'Use a bulk export of selected rows, or export from the related resource\'s own index.'
+                    );
+                }
+            }
+        }
     }
 
     /**
@@ -300,6 +355,18 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     protected function wireRecordModals(Table $table, Relation $relation, string $descriptor, array $modes): void
     {
         $related = $relation->getRelated();
+
+        // Permissions are INHERITED from the related model's own policy — a
+        // ProductPolicy written for the Products resource governs the manager
+        // too, no separate permissions exist. Edit/View/Delete already check
+        // view/update/delete per record (their constructors set it); Create
+        // has no record, so gate it against the class here unless the manager
+        // configured its own rule.
+        foreach ($this->allTableActions($table) as $action) {
+            if ($action->getModalMode() === 'create' && ! $action->hasAuthorization()) {
+                $action->authorize('create', $related::class);
+            }
+        }
 
         /** @var Form $createForm */
         $createForm  = $this->form(Form::make(new $related)->operation('create'))->fill();

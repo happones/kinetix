@@ -708,6 +708,14 @@ const moveRowKeyboard = (index: number, delta: number): void => {
             <Teleport v-if="isMounted" to="body">
                 <div
                     v-if="isRecordFormOpen"
+                    role="dialog"
+                    aria-modal="true"
+                    :aria-label="
+                        recordLabel ||
+                        (isRecordEditing
+                            ? t('kinetix.edit')
+                            : t('kinetix.create'))
+                    "
                     class="inset-0 bg-black/50 p-4 fixed z-[var(--kinetix-z-modal,100)] flex items-center justify-center"
                     @click.self="closeRecordForm"
                 >
@@ -787,6 +795,9 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                 <!-- Simple-resource view modal (read-only infolist, server-resolved). -->
                 <div
                     v-if="isRecordInfolistOpen"
+                    role="dialog"
+                    aria-modal="true"
+                    :aria-label="recordLabel || t('kinetix.view')"
                     class="inset-0 bg-black/50 p-4 fixed z-[var(--kinetix-z-modal,100)] flex items-center justify-center"
                     @click.self="closeRecordInfolist"
                 >

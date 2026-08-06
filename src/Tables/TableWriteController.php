@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tables;
 use Happones\Kinetix\Resources\Resource;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -162,7 +163,7 @@ class TableWriteController
      * Decrypt and validate the table's signed descriptor, returning either the
      * normalized payload or the JSON error response to send back.
      *
-     * @return array{model: class-string<Model>, columns: array<int, string>, reorder: string|null, resource: class-string<\Happones\Kinetix\Resources\Resource>|null, scope: array<array-key, mixed>, ability: string|null}|JsonResponse
+     * @return array{model: class-string<Model>, columns: array<int, string>, reorder: string|null, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}|JsonResponse
      */
     protected function descriptor(Request $request): array|JsonResponse
     {
@@ -218,9 +219,10 @@ class TableWriteController
             $resource = null;
         }
 
-        $columns = $payload['columns'] ?? [];
-        $scope   = $payload['scope']   ?? [];
-        $ability = $payload['ability'] ?? null;
+        $columns  = $payload['columns']  ?? [];
+        $scope    = $payload['scope']    ?? [];
+        $ability  = $payload['ability']  ?? null;
+        $relation = $payload['relation'] ?? null;
 
         return [
             'model'    => $modelClass,
@@ -228,6 +230,7 @@ class TableWriteController
             'reorder'  => is_string($payload['reorder'] ?? null) ? $payload['reorder'] : null,
             'resource' => $resource,
             'scope'    => is_array($scope) ? $scope : [],
+            'relation' => is_array($relation) ? $relation : null,
             'ability'  => is_string($ability) ? $ability : null,
         ];
     }
@@ -256,11 +259,21 @@ class TableWriteController
      * table belongs to one, otherwise the model narrowed by the simple where
      * clauses captured when the descriptor was minted.
      *
-     * @param  array{model: class-string<Model>, resource: class-string<\Happones\Kinetix\Resources\Resource>|null, scope: array<array-key, mixed>} $descriptor
+     * @param  array{model: class-string<Model>, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation?: array<string, mixed>|null} $descriptor
      * @return Builder<Model>
      */
     protected function baseQuery(array $descriptor): Builder
     {
+        // A relation-bound table (a relation manager) resolves records through
+        // the PARENT's relationship — the one scope a captured where-list
+        // can't express for BelongsToMany (its equality lives on the pivot
+        // table, unknown to a join-less model query).
+        $relation = $descriptor['relation'] ?? null;
+
+        if (is_array($relation)) {
+            return $this->relationQuery($relation, $descriptor['model']);
+        }
+
         $resource = $descriptor['resource'];
 
         $query = $resource !== null
@@ -282,6 +295,50 @@ class TableWriteController
         }
 
         return $query;
+    }
+
+    /**
+     * The parent-bound query for a relation table's writes. Everything is
+     * validated against the signed descriptor — the client named nothing.
+     *
+     * @param  array<string, mixed> $relation
+     * @param  class-string<Model>  $modelClass
+     * @return Builder<Model>
+     */
+    protected function relationQuery(array $relation, string $modelClass): Builder
+    {
+        $parentClass  = $relation['parent'] ?? null;
+        $relationName = $relation['name']   ?? null;
+
+        abort_unless(
+            is_string($parentClass) && class_exists($parentClass) && is_subclass_of($parentClass, Model::class),
+            400,
+            'Invalid parent model.',
+        );
+        abort_unless(
+            is_string($relationName) && $relationName !== '' && method_exists($parentClass, $relationName),
+            400,
+            'Invalid relation.',
+        );
+
+        $parent = $parentClass::query()->whereKey($relation['key'] ?? null)->first();
+        abort_if($parent === null, 404, (string) __('kinetix.table_record_not_found'));
+
+        $relationObject = $parent->{$relationName}();
+
+        abort_unless(
+            $relationObject instanceof Relation,
+            400,
+            'Invalid relation.',
+        );
+
+        $related = $relationObject->getRelated();
+
+        abort_unless($related::class === $modelClass, 400, 'Relation model mismatch.');
+
+        // Qualified select: BelongsToMany joins the pivot, and a bare * would
+        // let pivot columns clobber the related model's at hydration.
+        return $relationObject->getQuery()->select($related->qualifyColumn('*'));
     }
 
     /**

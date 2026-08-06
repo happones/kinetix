@@ -115,6 +115,12 @@ exactly like Filament:
   `queryPrefix`, switching tabs never clobbers another manager's
   search/sort/page state — and it survives in the URL.
 
+**The active tab is part of the URL** (`?relation=<relationship>`, written
+with a client-side history replace — no server round-trip): table reloads
+(search/sort/filter/pagination), modal saves (their `back()` redirect), and
+shared/bookmarked links all land on the tab the user was on. An unknown
+`?relation=` value falls back to the first tab.
+
 Pass `:tabs="false"` to force the stacked layout regardless of count, or use
 the single-section `<KinetixRelationManager :manager="relation" />` directly
 for a fully custom arrangement.
@@ -435,6 +441,35 @@ class TasksRelationManager extends RelationManager
   parent `update` policy. On a `BelongsToMany` relation these actions throw
   at serialize time — use Attach/Detach there.
 
+## 7.7 Full Table parity & permissions inheritance
+
+The manager's table IS a Kinetix Table — search box, filters, column
+visibility toggle, sorting (a clicked header **wins over any order the
+relation itself carries**), pagination/per-page, bulk actions, KPI stat
+cards, summaries, saved views (namespaced per manager, never shared with the
+related model's own index), polling and striped rows all work, with every
+query param namespaced by the relationship (`tags_search`, `tags_page`, …).
+A fix in Table automatically fixes every manager. Notes that matter:
+
+- **BelongsToMany is join-safe**: the relation query selects the related
+  model's columns qualified, so a pivot with its own `id`/timestamps can
+  never clobber the record's (row actions always target the RELATED record),
+  and search/sort are table-qualified against the join.
+- **Inline cell edits and drag reorder are parent-bound**: the write
+  descriptor carries the relation itself, so record resolution happens
+  THROUGH the parent's relationship — another parent's ids are dropped, for
+  every relation type including BelongsToMany.
+- **Permissions are inherited, never re-declared**: the related model's own
+  policy (the same one its resource uses) governs the manager. Edit/View/
+  Delete check `update`/`view`/`delete` per record; the Create modal action
+  is auto-gated with `create` on the related class (pass your own
+  `->authorize(...)` to override); the parent-bound endpoints re-check both
+  the PARENT's `update` policy and the child's ability server-side. Under
+  team-scoped spatie permissions the endpoints run inside the team-aware
+  middleware group, so team roles apply.
+- **The active tab lives in `?relation=`** (§3) and each table's state in its
+  prefixed params — both survive reloads, modal saves, and shared links.
+
 ## 8. What's not supported (yet)
 
 So you don't discover it the hard way:
@@ -443,8 +478,18 @@ So you don't discover it the hard way:
   exception; you don't need it: declare `form()`/`infolist()` on the manager
   and flag actions with `->modal()` (§6) — the manager wires the
   parent-bound endpoints itself.
+- **Toolbar/footer `ExportAction` / `ImportAction`** — rejected with an
+  exception: they would run against the WHOLE model, not the parent's
+  relation (a silent data-exposure surface). Bulk-export selected rows, or
+  export from the related resource's own index. Relation-scoped export is
+  on the roadmap.
 - **Pivot columns** (showing/editing pivot data in the table) — planned;
   `getRelation()` already exposes the relationship object with its pivot.
+- **Deferred/lazy managers** (Filament's `$isLazy`) — every manager
+  serializes eagerly today; on pages with many heavy managers consider
+  wrapping the `relations` prop in `Inertia::optional()` yourself.
+- **Grouped/collapsible managers and custom empty states** — planned polish;
+  the flat auto-tabs host covers the common case.
 
 ## 9. i18n
 

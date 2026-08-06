@@ -254,6 +254,7 @@ import KinetixTableWidget from '@/components/KinetixTableWidget.vue';
 import KinetixWidgetsGrid from '@/components/KinetixWidgetsGrid.vue';
 import KinetixKanban from '@/components/KinetixKanban.vue';
 import KinetixEventCalendar from '@/components/KinetixEventCalendar.vue';
+import KinetixRelationManagers from '@/components/KinetixRelationManagers.vue';
 
 export interface Specimen {
     name: string;
@@ -365,6 +366,183 @@ const col = (name: string, extra: Record<string, unknown> = {}) => ({
     type: 'text',
     ...extra,
 });
+
+// --- Relation managers fixture (tabs + modal CRUD + pickers) -----------------
+// Drives the Playwright E2E (scripts/e2e-relation-managers.mjs): a tasks
+// manager with modal create/edit + dissociate, and a tags manager with
+// attach/detach — the exact wiring `RelationManager::toData()` serializes.
+const rmAction = (extra: Record<string, unknown>) => ({
+    color: null,
+    icon: null,
+    viewType: 'button',
+    openUrlInNewTab: false,
+    requiresConfirmation: false,
+    ...extra,
+});
+
+const rmTable = (
+    prefix: string,
+    columns: string[],
+    rows: Array<Record<string, string>>,
+    extra: Record<string, unknown> = {},
+) => ({
+    heading: null,
+    description: null,
+    poll: null,
+    isStriped: false,
+    model: 'token',
+    columns: columns.map((c) => col(c, { isSearchable: c === columns[0] })),
+    filters: [],
+    recordActions: [],
+    toolbarActions: [],
+    bulkActions: [],
+    footerActions: [],
+    records: rows.map((r, i) => ({
+        id: i + 1,
+        values: r,
+        icons: {},
+        iconColors: {},
+        badgeColors: {},
+        descriptions: {},
+        recordUrl: null,
+        actions: [],
+    })),
+    isPaginated: false,
+    paginationPageOptions: [10],
+    pagination: null,
+    state: { search: '', sort: '', direction: 'asc', filters: {}, perPage: 10 },
+    queryPrefix: prefix,
+    summaries: {},
+    hasSummaries: false,
+    savedViewsKey: null,
+    ...extra,
+});
+
+const rmTasksRowActions = [
+    {
+        type: 'group',
+        name: 'row',
+        label: null,
+        icon: null,
+        actions: [
+            rmAction({
+                type: 'action',
+                name: 'edit',
+                label: 'Edit',
+                modal: 'edit',
+            }),
+            rmAction({
+                type: 'action',
+                name: 'delete',
+                label: 'Delete',
+                modal: 'delete',
+                color: 'danger',
+            }),
+            rmAction({
+                type: 'action',
+                name: 'dissociate',
+                label: 'Dissociate',
+                color: 'danger',
+                requiresConfirmation: true,
+                modalHeading: 'Dissociate this record?',
+                dispatchEvent: 'dissociate-relation',
+                dispatchData: { relationship: 'tasks' },
+            }),
+        ],
+    },
+];
+
+const relationManagers = [
+    {
+        title: 'Tasks',
+        relationship: 'tasks',
+        badge: 2,
+        badgeColor: 'primary',
+        descriptor: 'demo-tasks-descriptor',
+        table: rmTable(
+            'tasks_',
+            ['title', 'status'],
+            [
+                { title: 'Ship the audit', status: 'Open' },
+                { title: 'Fix the pivot select', status: 'Done' },
+            ],
+            {
+                toolbarActions: [
+                    rmAction({
+                        type: 'action',
+                        name: 'create',
+                        label: 'New task',
+                        icon: 'plus',
+                        modal: 'create',
+                    }),
+                    rmAction({
+                        type: 'action',
+                        name: 'associate',
+                        label: 'Associate',
+                        icon: 'link',
+                        color: 'gray',
+                        dispatchEvent: 'open-associate',
+                        dispatchData: { relationship: 'tasks' },
+                    }),
+                ],
+                recordActions: rmTasksRowActions,
+                records: [
+                    { title: 'Ship the audit', status: 'Open' },
+                    { title: 'Fix the pivot select', status: 'Done' },
+                ].map((r, i) => ({
+                    id: i + 1,
+                    values: r,
+                    icons: {},
+                    iconColors: {},
+                    badgeColors: {},
+                    descriptions: {},
+                    recordUrl: null,
+                    actions: rmTasksRowActions,
+                })),
+                recordModals: {
+                    enabled: true,
+                    token: 'demo-tasks-descriptor',
+                    source: 'server',
+                    hasForm: true,
+                    hasInfolist: true,
+                    scope: 'relation',
+                    createForm: {
+                        schema: [
+                            {
+                                type: 'text-input',
+                                name: 'title',
+                                label: 'Title',
+                            },
+                        ],
+                        data: { title: '' },
+                        rules: {},
+                        operation: 'create',
+                    },
+                },
+            },
+        ),
+    },
+    {
+        title: 'Tags',
+        relationship: 'tags',
+        badge: 1,
+        badgeColor: 'gray',
+        descriptor: 'demo-tags-descriptor',
+        table: rmTable('tags_', ['name'], [{ name: 'php' }], {
+            toolbarActions: [
+                rmAction({
+                    type: 'action',
+                    name: 'attach',
+                    label: 'Attach',
+                    icon: 'link',
+                    color: 'gray',
+                    dispatchEvent: 'open-attach',
+                    dispatchData: { relationship: 'tags' },
+                }),
+            ],
+        }),
+    },
+];
 
 const wizardSteps = [
     { key: 'account', label: 'Account', icon: 'user' },
@@ -2638,5 +2816,13 @@ export const specimens: Specimen[] = [
                 hasSummaries: true,
             },
         },
+    },
+
+    {
+        name: 'relation-managers',
+        title: 'Relation managers — tabs, modal CRUD, pickers',
+        component: KinetixRelationManagers,
+        width: 1100,
+        props: { managers: relationManagers },
     },
 ];
