@@ -122,7 +122,7 @@ describe('KinetixSheet', () => {
     it('closes when the overlay is clicked', async () => {
         const w = await mountSheet();
         const overlay = document.body.querySelector(
-            '[role="dialog"] .bg-black\\/50',
+            '[role="dialog"] .bg-black\\/80',
         ) as HTMLElement;
         overlay.click();
         await nextTick();

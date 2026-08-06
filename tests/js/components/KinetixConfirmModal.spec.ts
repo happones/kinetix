@@ -70,8 +70,10 @@ describe('KinetixConfirmModal', () => {
         const heading = document.body.querySelector('h2')!;
         expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
 
+        // The panel is the focus-trapped element (the overlay lives OUTSIDE
+        // the dialog since the shared KinetixModal shell).
         const panel = document.body.querySelector(
-            '[role="dialog"] > div + div',
+            '[role="dialog"] [tabindex="-1"]',
         );
         expect(panel?.contains(document.activeElement)).toBe(true);
         w.unmount();

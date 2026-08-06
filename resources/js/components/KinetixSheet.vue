@@ -128,13 +128,13 @@ const enterFromClass = computed(
                 leave-to-class="opacity-0"
                 appear
             >
-                <div class="inset-0 bg-black/50 absolute" @click="close" />
+                <div class="inset-0 bg-black/80 absolute" @click="close" />
             </Transition>
 
             <Transition
-                enter-active-class="transition-transform duration-300 ease-out"
+                enter-active-class="transition-transform duration-500 ease-in-out"
                 :enter-from-class="enterFromClass"
-                leave-active-class="transition-transform duration-200 ease-in"
+                leave-active-class="transition-transform duration-300 ease-in-out"
                 :leave-to-class="enterFromClass"
                 appear
             >

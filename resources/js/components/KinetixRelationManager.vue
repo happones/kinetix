@@ -13,6 +13,7 @@ import type {
 import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixTable from './KinetixTable.vue';
+import KinetixModal from './primitives/KinetixModal.vue';
 
 /**
  * One relation manager: heading (+ optional badge) and the related-records
@@ -291,83 +292,69 @@ onBeforeUnmount(() => {
 
         <KinetixTable :table="manager.table" />
 
-        <!-- Record picker modal (AttachAction / AssociateAction events) -->
-        <Teleport to="body">
-            <div
-                v-if="isAttachOpen"
-                class="inset-0 p-4 fixed z-[var(--kinetix-z-modal,100)] flex items-center justify-center"
-                role="dialog"
-                aria-modal="true"
-            >
-                <div
-                    class="inset-0 bg-black/50 backdrop-blur-sm absolute"
-                    @click="isAttachOpen = false"
+        <!-- Record picker modal (AttachAction / AssociateAction events) on the
+             shared KinetixModal shell (shadcn v4 dialog line). -->
+        <KinetixModal
+            :open="isAttachOpen"
+            :title="`${t(picker[pickerMode].title)} — ${manager.title}`"
+            max-width="sm:max-w-md"
+            :processing="attaching"
+            scroll-body
+            @update:open="(value) => !value && (isAttachOpen = false)"
+        >
+            <div class="space-y-3">
+                <input
+                    v-model="attachSearch"
+                    type="search"
+                    :placeholder="t('kinetix.search_records')"
+                    :aria-label="t('kinetix.search_records')"
+                    class="px-3 py-2 text-sm w-full rounded-md border border-border bg-muted/40 text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    @input="onAttachSearch"
                 />
 
-                <div
-                    class="max-w-md rounded-xl p-5 shadow-lg relative w-full border border-border bg-card text-card-foreground"
-                >
-                    <h3 class="text-lg font-semibold tracking-tight">
-                        {{ t(picker[pickerMode].title) }} — {{ manager.title }}
-                    </h3>
-
-                    <input
-                        v-model="attachSearch"
-                        type="search"
-                        :placeholder="t('kinetix.search_records')"
-                        :aria-label="t('kinetix.search_records')"
-                        class="mt-3 px-3 py-2 text-sm w-full rounded-md border border-border bg-muted/40 text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                        @input="onAttachSearch"
-                    />
-
-                    <div class="mt-3 max-h-64 space-y-1 overflow-y-auto">
-                        <p
-                            v-if="attachLoading"
-                            class="py-4 text-sm text-center text-muted-foreground"
-                        >
-                            …
-                        </p>
-                        <p
-                            v-else-if="attachOptions.length === 0"
-                            class="py-4 text-sm text-center text-muted-foreground"
-                        >
-                            {{ t(picker[pickerMode].empty) }}
-                        </p>
-                        <label
-                            v-for="option in attachOptions"
-                            :key="option.id"
-                            class="gap-2 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-md hover:bg-accent"
-                        >
-                            <KinetixCheckbox
-                                :model-value="attachSelected.has(option.id)"
-                                @update:model-value="
-                                    toggleAttachOption(option.id)
-                                "
-                            />
-                            <span class="min-w-0 truncate">{{
-                                option.label
-                            }}</span>
-                        </label>
-                    </div>
-
-                    <div class="mt-4 gap-2 flex justify-end">
-                        <KinetixButton
-                            variant="outline"
-                            :disabled="attaching"
-                            @click="isAttachOpen = false"
-                        >
-                            {{ t('kinetix.cancel') }}
-                        </KinetixButton>
-                        <KinetixButton
-                            :loading="attaching"
-                            :disabled="attachSelected.size === 0"
-                            @click="submitAttach"
-                        >
-                            {{ t(picker[pickerMode].title) }}
-                        </KinetixButton>
-                    </div>
+                <div class="max-h-64 space-y-1 overflow-y-auto">
+                    <p
+                        v-if="attachLoading"
+                        class="py-4 text-sm text-center text-muted-foreground"
+                    >
+                        …
+                    </p>
+                    <p
+                        v-else-if="attachOptions.length === 0"
+                        class="py-4 text-sm text-center text-muted-foreground"
+                    >
+                        {{ t(picker[pickerMode].empty) }}
+                    </p>
+                    <label
+                        v-for="option in attachOptions"
+                        :key="option.id"
+                        class="gap-2 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-md hover:bg-accent"
+                    >
+                        <KinetixCheckbox
+                            :model-value="attachSelected.has(option.id)"
+                            @update:model-value="toggleAttachOption(option.id)"
+                        />
+                        <span class="min-w-0 truncate">{{ option.label }}</span>
+                    </label>
                 </div>
             </div>
-        </Teleport>
+
+            <template #footer>
+                <KinetixButton
+                    variant="outline"
+                    :disabled="attaching"
+                    @click="isAttachOpen = false"
+                >
+                    {{ t('kinetix.cancel') }}
+                </KinetixButton>
+                <KinetixButton
+                    :loading="attaching"
+                    :disabled="attachSelected.size === 0"
+                    @click="submitAttach"
+                >
+                    {{ t(picker[pickerMode].title) }}
+                </KinetixButton>
+            </template>
+        </KinetixModal>
     </section>
 </template>

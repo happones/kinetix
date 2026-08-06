@@ -71,7 +71,7 @@ describe('z-index scale (published components)', () => {
         expect(read('KinetixSheet.vue')).toContain(
             'z-[var(--kinetix-z-modal,100)]',
         );
-        expect(read('KinetixConfirmModal.vue')).toContain(
+        expect(read('primitives/KinetixModal.vue')).toContain(
             'z-[var(--kinetix-z-modal,100)]',
         );
         expect(read('KinetixSelect.vue')).toContain(

@@ -7,6 +7,7 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import KinetixSelect from '../KinetixSelect.vue';
 
 interface PaginationData {
@@ -37,6 +38,11 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+// DRY: the shared shadcn button recipe — never re-write button classes.
+const pagerButtonClass =
+    buttonVariants({ variant: 'outline', size: 'icon-sm' }) +
+    ' text-muted-foreground';
 
 /**
  * Cursor mode navigates by opaque seek positions: no page number, no offsets,
@@ -142,7 +148,7 @@ const getPerPageOptions = (options?: number[]) => {
                     type="button"
                     data-testid="page-first"
                     :aria-label="t('kinetix.first_page')"
-                    class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                    :class="pagerButtonClass"
                     :disabled="isFirstPage"
                     @click="emit('change-page', 1)"
                 >
@@ -152,7 +158,7 @@ const getPerPageOptions = (options?: number[]) => {
                     type="button"
                     data-testid="page-prev"
                     :aria-label="t('kinetix.previous_page')"
-                    class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                    :class="pagerButtonClass"
                     :disabled="isFirstPage"
                     @click="goPrevious"
                 >
@@ -183,7 +189,7 @@ const getPerPageOptions = (options?: number[]) => {
                     type="button"
                     data-testid="page-next"
                     :aria-label="t('kinetix.next_page')"
-                    class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                    :class="pagerButtonClass"
                     :disabled="isLastPage"
                     @click="goNext"
                 >
@@ -194,7 +200,7 @@ const getPerPageOptions = (options?: number[]) => {
                     type="button"
                     data-testid="page-last"
                     :aria-label="t('kinetix.last_page')"
-                    class="text-sm font-medium [&_svg:not([class*='size-'])]:size-4 shadow-xs size-8 inline-flex shrink-0 items-center justify-center rounded-md border bg-background whitespace-nowrap text-muted-foreground transition-all outline-none hover:bg-accent hover:text-accent-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                    :class="pagerButtonClass"
                     :disabled="isLastPage"
                     @click="goLast"
                 >

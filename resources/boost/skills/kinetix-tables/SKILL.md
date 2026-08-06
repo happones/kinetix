@@ -79,6 +79,27 @@ simple resources — NOT inside relation managers), `simplePaginated()` (no COUN
 `cursorPaginated()` (seek), `clientSide()` (TanStack in-browser mode), `writeAbility('ability')` /
 `writeScope([...])` (inline-write policy + bounds), `toolbarLayout('auto'|'inline'|'stacked')`.
 
+
+## UI reuse (DRY — REQUIRED)
+
+Never re-write a component's classes to imitate an existing Kinetix component:
+
+- **Buttons**: use `<KinetixButton variant="…" size="…" :loading :disabled>` —
+  it owns the shadcn recipe plus the pending contract (loading → disabled +
+  spinner + aria-busy). Map an action's status color with
+  `actionButtonVariant(color)`. Only when a component genuinely can't be used
+  (a `<DropdownMenuTrigger>`, a link) compose classes with
+  `buttonVariants({ variant, size })` from `useKinetixShadcnVariants` — never
+  a hand-copied class string.
+- **Modals**: build on `primitives/KinetixModal.vue` (the shadcn new-york-v4
+  dialog shell: overlay/panel animation, header/footer stacks, close button,
+  focus trap, Kinetix z-scale) — never a hand-rolled Teleport + overlay div.
+- **Checkboxes/selects/inputs**: `<KinetixCheckbox>`, `<KinetixSelect>`, the
+  form field components.
+
+A duplicated class string is a bug: when the base component evolves, the copy
+silently drifts.
+
 ## Documentation
 
 For full details, reference the [Kinetix Tables Documentation](https://happones.github.io/kinetix/tables).
