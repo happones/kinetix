@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.151.0] - 2026-08-06
+
+### Added
+
+- **Pivot columns in BelongsToMany relation managers** (Filament parity — the
+  last documented relation-manager gap): declare `->withPivot('role')` on the
+  relationship and address it as `TextColumn::make('pivot.role')` —
+  displaying, **sorting and searching** included:
+  - The manager mirrors Laravel's own select contract: the related model's
+    columns qualified plus the pivot keys and every `withPivot()` column
+    aliased, then hydrates a **real Pivot model** per record — `pivot.role`
+    resolves through `data_get()` like any other dot column, so badges,
+    `formatStateUsing()` and descriptions all work. Row ids always stay the
+    RELATED model's keys.
+  - Sort and search on `pivot.*` columns qualify against the JOINED pivot
+    table (no ambiguous columns, no fake `whereHas('pivot')`); a custom
+    accessor (`->as('membership')` → `membership.role`) is honored.
+  - **Editable pivot columns throw at serialize time** — the inline-edit
+    endpoint writes to the related model, so an "edit" would corrupt it
+    instead of updating the pivot row. Writing pivot data (attach-modal pivot
+    fields, edit-pivot action) is the remaining piece on the roadmap.
+  - `KinetixQuery::search()` learned to LIKE a table-qualified dotted column
+    directly when its first segment isn't a relation (previously an
+    exception-bound `whereHas`).
+
 ## [0.150.0] - 2026-08-06
 
 ### Added
