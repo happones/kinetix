@@ -1123,6 +1123,8 @@ export interface KinetixRelationManagerData {
     badge?: number | string | null;
     /** Kinetix status color for the badge (primary, gray, success…). */
     badgeColor?: string | null;
+    /** Signed attach/detach descriptor (BelongsToMany managers only). */
+    descriptor?: string | null;
 }
 
 export interface KinetixPlanData {

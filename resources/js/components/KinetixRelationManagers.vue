@@ -4,7 +4,6 @@ import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import type { KinetixRelationManagerData } from '@/types/kinetix';
 import KinetixRelationManager from './KinetixRelationManager.vue';
-import KinetixTable from './KinetixTable.vue';
 
 /**
  * The relation managers HOST for a resource page — pass everything
@@ -94,7 +93,9 @@ const badgeClass = (color?: string | null): string =>
                 :key="activeManager.relationship"
                 role="tabpanel"
             >
-                <KinetixTable :table="activeManager.table" />
+                <!-- Full manager (hidden heading — the tab already shows it),
+                     so the attach modal + detach listener ride along. -->
+                <KinetixRelationManager :manager="activeManager" hide-title />
             </div>
         </div>
 

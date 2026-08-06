@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Resources;
 
+use Happones\Kinetix\Actions\AttachAction;
+use Happones\Kinetix\Actions\DetachAction;
 use Happones\Kinetix\Data\RelationManagerData;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
 use RuntimeException;
 
@@ -39,6 +43,18 @@ abstract class RelationManager implements Arrayable, JsonSerializable
      * color: primary, gray, success, warning, danger, info).
      */
     protected static ?string $badgeColor = null;
+
+    /**
+     * Read-only: the table renders with NO record/toolbar/bulk actions,
+     * whatever `table()` configured.
+     */
+    protected static bool $readOnly = false;
+
+    /**
+     * The related-model attribute the attach modal labels and searches by
+     * (Filament's `recordTitleAttribute`). Required for `AttachAction`.
+     */
+    protected static ?string $recordTitleAttribute = null;
 
     protected ?Model $parent = null;
 
@@ -137,6 +153,8 @@ abstract class RelationManager implements Arrayable, JsonSerializable
 
     public function toData(): RelationManagerData
     {
+        $relation = $this->getRelation();
+
         $table = $this->table(
             Table::make($this->getRelationshipQuery())->queryPrefix(static::$relationship.'_')
         );
@@ -153,13 +171,62 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             );
         }
 
+        if (static::$readOnly) {
+            $table->recordActions([])->toolbarActions([])->bulkActions([]);
+        }
+
+        $descriptor = $this->wireAttachDetach($table, $relation);
+
         return new RelationManagerData(
             title: static::getTitle(),
             relationship: static::$relationship,
             table: $table->toData(),
             badge: $this->getBadge(),
             badgeColor: $this->getBadgeColor(),
+            descriptor: $descriptor,
         );
+    }
+
+    /**
+     * BelongsToMany managers get a signed descriptor (parent + relation,
+     * user-bound, expiring) and their Attach/Detach actions are wired to this
+     * manager's browser events. Attach/Detach on any other relation type is a
+     * misconfiguration, so it throws instead of rendering dead buttons.
+     */
+    protected function wireAttachDetach(Table $table, Relation $relation): ?string
+    {
+        $attachDetach = array_filter(
+            [...$table->getToolbarActions(), ...$table->getRecordActions(), ...$table->getBulkActions()],
+            static fn (mixed $action): bool => $action instanceof AttachAction || $action instanceof DetachAction,
+        );
+
+        if (! $relation instanceof BelongsToMany) {
+            if ($attachDetach !== []) {
+                throw new RuntimeException(
+                    'AttachAction/DetachAction require a BelongsToMany relation — '
+                    .static::class.'::$relationship is a '.class_basename($relation).'.'
+                );
+            }
+
+            return null;
+        }
+
+        foreach ($attachDetach as $action) {
+            $action->forRelationship(static::$relationship);
+        }
+
+        $ttl = config('kinetix.tables.token_ttl', 1440);
+
+        return Crypt::encrypt([
+            'parent'   => $this->parent::class,
+            'key'      => $this->parent->getKey(),
+            'relation' => static::$relationship,
+            'title'    => static::$recordTitleAttribute,
+            'user'     => auth()->id(),
+            'expires'  => is_numeric($ttl) && (int) $ttl > 0
+                ? now()->getTimestamp() + ((int) $ttl * 60)
+                : null,
+        ]);
     }
 
     /**

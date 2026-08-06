@@ -18,5 +18,7 @@ class RelationManagerData extends Data
         public int|string|null $badge = null,
         /** Kinetix status color for the badge (primary, gray, success…). */
         public ?string $badgeColor = null,
+        /** Signed attach/detach descriptor (BelongsToMany managers only). */
+        public ?string $descriptor = null,
     ) {}
 }

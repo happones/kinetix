@@ -94,6 +94,13 @@ export const i18n = createI18n({
                 member_revoked: 'Member removed.',
                 no_members: 'No members yet.',
                 show_more: 'Show more',
+                // relation managers (attach/detach)
+                attach: 'Attach',
+                detach: 'Detach',
+                attached: 'Attached.',
+                detached: 'Detached.',
+                attach_none_found: 'No records to attach.',
+                search_records: 'Search records...',
                 // pickers
                 apply: 'Apply',
                 calendar_today: 'Today',

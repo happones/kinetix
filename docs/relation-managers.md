@@ -70,6 +70,8 @@ class PostsRelationManager extends RelationManager
 | `::make(?Model $parent)` | Bind the parent record |
 | `canViewForRecord(Model $parent, string $page): bool` | Record/user-aware gating (Filament analogue) — see §4 |
 | `getBadge(): int\|string\|null` | Badge next to the title / on the tab (e.g. a count) — see §3 |
+| `protected static $recordTitleAttribute` | Related-model attribute the attach modal labels/searches by — see §7 |
+| `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk actions |
 | `getRelation(): Relation` | The parent's relationship OBJECT (BelongsToMany keeps its pivot) |
 | `getRelationshipQuery(): Builder` | The parent-scoped Eloquent query |
 | `toData()` / `toArray()` | Serialize to `RelationManagerData` |
@@ -314,6 +316,47 @@ Two more rules for team apps:
   `team_id` (creating through `$parent->posts()->create(...)` inherits the
   parent FK but NOT other tenant columns).
 
+## 7.5 BelongsToMany: attach & detach
+
+For a `BelongsToMany` manager, drop in `AttachAction` / `DetachAction` — the
+manager wires them to its own **signed descriptor** (parent + relation, bound
+to the current user, expiring) automatically:
+
+```php
+use Happones\Kinetix\Actions\AttachAction;
+use Happones\Kinetix\Actions\DetachAction;
+
+class TagsRelationManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    // The related-model attribute the attach modal labels + searches by.
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([TextColumn::make('name')])
+            ->toolbarActions([AttachAction::make()])
+            ->recordActions([DetachAction::make()]);   // also works in bulkActions()
+    }
+}
+```
+
+- **Attach** opens a modal listing the related records **not yet attached**
+  (searchable on `$recordTitleAttribute`, capped at 50); attaching uses
+  `syncWithoutDetaching`, validating ids against the related model.
+- **Detach** confirms first and removes **pivot rows only** — the related
+  records are never deleted. Row and bulk both work.
+- **Security**: every request re-validates the signed descriptor (user-bound,
+  expiring), loads the parent, and — when the parent model has a policy —
+  requires `update` on the PARENT (attaching/detaching children is editing
+  the parent). Non-`BelongsToMany` relations with these actions throw at
+  serialize time instead of rendering dead buttons.
+- **Read-only variant**: `protected static bool $readOnly = true;` strips all
+  record/toolbar/bulk actions from the rendered table, whatever `table()`
+  configured.
+
 ## 8. What's not supported (yet)
 
 So you don't discover it the hard way:
@@ -323,11 +366,10 @@ So you don't discover it the hard way:
   relationship, so create would not stamp the parent FK and update/delete
   could reach records outside the relation. Use row actions pointing at your
   own nested routes (§6).
-- **BelongsToMany attach/detach actions** (Filament's
-  `AttachAction`/`DetachAction`) and pivot columns — planned;
-  `getRelation()` already exposes the relationship object.
-- **Read-only mode** — omit write actions from the manager's `table()` per
-  page instead.
+- **Pivot columns** (showing/editing pivot data in the table) — planned;
+  `getRelation()` already exposes the relationship object with its pivot.
+- **AssociateAction/DissociateAction** (HasMany re-parenting) — use row
+  actions on your own routes meanwhile.
 
 ## 9. i18n
 

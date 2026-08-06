@@ -102,6 +102,7 @@ use Happones\Kinetix\ReportsCenter\ReportRunController;
 use Happones\Kinetix\ReportsCenter\ReportRunDispatcher;
 use Happones\Kinetix\ReportsCenter\ReportScheduleController;
 use Happones\Kinetix\ReportsCenter\ReportTypeController;
+use Happones\Kinetix\Resources\RelationManagerController;
 use Happones\Kinetix\SavedViews\SavedViewController;
 use Happones\Kinetix\SavedViews\SavedViewManager;
 use Happones\Kinetix\Sessions\BrowserSessionManager;
@@ -2335,6 +2336,12 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('table-repeater', [TableRepeaterController::class, 'store'])->name('kinetix.table-repeater.store');
                 Route::put('table-repeater', [TableRepeaterController::class, 'update'])->name('kinetix.table-repeater.update');
                 Route::delete('table-repeater', [TableRepeaterController::class, 'destroy'])->name('kinetix.table-repeater.destroy');
+
+                // Relation manager BelongsToMany attach/detach, guarded by the
+                // manager's signed descriptor + the parent's `update` policy.
+                Route::post('relations/attachable', [RelationManagerController::class, 'attachable'])->name('kinetix.relations.attachable');
+                Route::post('relations/attach', [RelationManagerController::class, 'attach'])->name('kinetix.relations.attach');
+                Route::post('relations/detach', [RelationManagerController::class, 'detach'])->name('kinetix.relations.detach');
 
                 // Simple-resource in-table modal CRUD (Table::recordModals()).
                 // `resolve` returns a fresh form/infolist (XHR/JSON); the rest

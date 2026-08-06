@@ -95,5 +95,7 @@ export async function kinetixFetch<T = unknown>(
 export function kinetixRoutePrefix(page: {
     props: KinetixSharedProps;
 }): string {
-    return page.props.kinetix_config?.route_prefix ?? '_kinetix';
+    // `page?.props?.` — outside a mounted Inertia app (component tests, SSR
+    // edges) usePage yields no page; fall back to the default prefix.
+    return page?.props?.kinetix_config?.route_prefix ?? '_kinetix';
 }

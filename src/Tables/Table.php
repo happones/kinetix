@@ -269,6 +269,37 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * The configured record actions (pre-serialization). Relation managers
+     * use this to wire Attach/Detach actions to their signed descriptor.
+     *
+     * @return array<int, mixed>
+     */
+    public function getRecordActions(): array
+    {
+        return $this->recordActions;
+    }
+
+    /**
+     * The configured toolbar actions (pre-serialization).
+     *
+     * @return array<int, mixed>
+     */
+    public function getToolbarActions(): array
+    {
+        return $this->toolbarActions;
+    }
+
+    /**
+     * The configured bulk actions (pre-serialization).
+     *
+     * @return array<int, mixed>
+     */
+    public function getBulkActions(): array
+    {
+        return $this->bulkActions;
+    }
+
+    /**
      * Set actions displayed in the table toolbar header.
      *
      * @param array<int, Action> $actions

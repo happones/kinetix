@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import KinetixRelationManagers from '@/components/KinetixRelationManagers.vue';
 import type { KinetixRelationManagerData } from '@/types/kinetix';
 import { i18n } from './i18n';
@@ -88,5 +88,55 @@ describe('KinetixRelationManagers', () => {
 
         expect(wrapper.find('section').exists()).toBe(false);
         expect(wrapper.find('[role="tablist"]').exists()).toBe(false);
+    });
+
+    it('opens the attach modal only for the manager the event targets', async () => {
+        // The modal loads attachable options on open — stub the transport.
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({
+                ok: true,
+                status: 200,
+                text: () => Promise.resolve(JSON.stringify({ options: [] })),
+            } as unknown as Response),
+        );
+        document.cookie = 'XSRF-TOKEN=test-token';
+
+        const wrapper = mount(KinetixRelationManagers, {
+            attachTo: document.body,
+            props: {
+                managers: [
+                    manager('posts', { descriptor: 'signed-posts' }),
+                    manager('tags', { descriptor: 'signed-tags' }),
+                ],
+            },
+            global: {
+                plugins: [i18n],
+                stubs: { KinetixTable: TableStub },
+            },
+        });
+
+        // Active tab is "posts": an event for ANOTHER relationship must not open it.
+        window.dispatchEvent(
+            new CustomEvent('kinetix:open-attach', {
+                detail: { relationship: 'tags' },
+            }),
+        );
+        await wrapper.vm.$nextTick();
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+        window.dispatchEvent(
+            new CustomEvent('kinetix:open-attach', {
+                detail: { relationship: 'posts' },
+            }),
+        );
+        await wrapper.vm.$nextTick();
+
+        expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+        expect(document.body.textContent).toContain('Attach');
+
+        wrapper.unmount();
+        document.body.innerHTML = '';
+        vi.unstubAllGlobals();
     });
 });
