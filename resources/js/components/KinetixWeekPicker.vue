@@ -197,7 +197,7 @@ const apply = () => {
             <PopoverContent
                 align="start"
                 :side-offset="4"
-                class="p-0 z-[var(--kinetix-z-popover,120)] w-auto outline-none"
+                class="p-0 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[var(--kinetix-z-popover,120)] w-auto origin-(--reka-popover-content-transform-origin) outline-none"
             >
                 <KinetixWeekCalendar
                     :value="calendarValue"

@@ -17,6 +17,7 @@ import {
     RangeCalendarRoot,
 } from 'reka-ui';
 import { computed } from 'vue';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import {
     useKinetixTimezone,
     zonedTodayIso,
@@ -111,13 +112,19 @@ const initialPlaceholder = computed<DateValue | undefined>(
     >
         <RangeCalendarHeader class="flex items-center justify-between">
             <RangeCalendarPrev
-                class="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                :class="
+                    buttonVariants({ variant: 'ghost', size: 'icon-sm' }) +
+                    ' text-muted-foreground'
+                "
             >
                 <ChevronLeft class="h-4 w-4" />
             </RangeCalendarPrev>
             <RangeCalendarHeading class="text-sm font-medium text-foreground" />
             <RangeCalendarNext
-                class="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                :class="
+                    buttonVariants({ variant: 'ghost', size: 'icon-sm' }) +
+                    ' text-muted-foreground'
+                "
             >
                 <ChevronRight class="h-4 w-4" />
             </RangeCalendarNext>

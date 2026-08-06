@@ -315,7 +315,7 @@ describe('KinetixEventCalendar', () => {
                 ?.trigger('click');
             await nextTick();
 
-            const panel = document.body.querySelector('.shadow-2xl');
+            const panel = document.body.querySelector('.shadow-lg');
             expect(panel?.className).toContain('left-0');
         });
     });
@@ -509,7 +509,7 @@ describe('KinetixEventCalendar', () => {
                 ?.trigger('click');
             await nextTick();
 
-            const panel = document.body.querySelector('.shadow-2xl');
+            const panel = document.body.querySelector('.shadow-lg');
             expect(panel?.textContent).toContain('Edit');
             expect(panel?.textContent).toContain('Delete');
         });

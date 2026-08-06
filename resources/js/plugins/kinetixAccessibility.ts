@@ -17,6 +17,14 @@ const A11Y_CSS = `
   animation-duration: .001ms !important; animation-iteration-count: 1 !important;
   transition-duration: .001ms !important; scroll-behavior: auto !important;
 }
+/* The OS-level setting is honored WITHOUT any Kinetix preference toggled --
+   tw-animate-css ships no reduced-motion guard of its own. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; scroll-behavior: auto !important;
+  }
+}
 .kx-text-large { font-size: 112.5%; }
 .kx-text-x-large { font-size: 125%; }
 .kx-underline-links a { text-decoration: underline !important; }

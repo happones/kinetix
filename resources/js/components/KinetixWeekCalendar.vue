@@ -17,6 +17,7 @@ import {
     CalendarRoot,
 } from 'reka-ui';
 import { computed } from 'vue';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import {
     useKinetixTimezone,
     zonedTodayIso,
@@ -128,13 +129,19 @@ const inWeek = (date: DateValue): boolean => {
     >
         <CalendarHeader class="flex items-center justify-between">
             <CalendarPrev
-                class="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                :class="
+                    buttonVariants({ variant: 'ghost', size: 'icon-sm' }) +
+                    ' text-muted-foreground'
+                "
             >
                 <ChevronLeft class="h-4 w-4" />
             </CalendarPrev>
             <CalendarHeading class="text-sm font-medium text-foreground" />
             <CalendarNext
-                class="h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent"
+                :class="
+                    buttonVariants({ variant: 'ghost', size: 'icon-sm' }) +
+                    ' text-muted-foreground'
+                "
             >
                 <ChevronRight class="h-4 w-4" />
             </CalendarNext>

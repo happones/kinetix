@@ -302,7 +302,7 @@ watch(open, (isOpen) => {
             <PopoverContent
                 align="start"
                 :side-offset="4"
-                class="p-0 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 z-[var(--kinetix-z-popover,120)] w-auto rounded-md border border-border bg-popover outline-none"
+                class="p-0 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[var(--kinetix-z-popover,120)] w-auto rounded-md border border-border bg-popover outline-none"
             >
                 <!-- Stacked on mobile the panel can exceed the viewport, so it
                      caps at 80dvh and scrolls internally instead of clipping. -->

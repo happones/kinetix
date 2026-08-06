@@ -54,17 +54,13 @@ describe('KinetixSheet', () => {
 
     it('defaults to the right side', async () => {
         await mountSheet();
-        const panel = document.body.querySelector(
-            '[role="dialog"] .shadow-2xl',
-        );
+        const panel = document.body.querySelector('[role="dialog"] .shadow-lg');
         expect(panel?.className).toContain('right-0');
     });
 
     it('slides from the requested side', async () => {
         await mountSheet({ side: 'left' });
-        const panel = document.body.querySelector(
-            '[role="dialog"] .shadow-2xl',
-        );
+        const panel = document.body.querySelector('[role="dialog"] .shadow-lg');
         expect(panel?.className).toContain('left-0');
     });
 
@@ -94,9 +90,7 @@ describe('KinetixSheet', () => {
         expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
         expect(heading.id).not.toBe('');
 
-        const panel = document.body.querySelector(
-            '[role="dialog"] .shadow-2xl',
-        );
+        const panel = document.body.querySelector('[role="dialog"] .shadow-lg');
         expect(panel?.contains(document.activeElement)).toBe(true);
     });
 

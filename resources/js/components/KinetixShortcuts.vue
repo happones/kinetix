@@ -43,12 +43,14 @@ function chips(keys: string): string[] {
     <DialogRoot :open="open" @update:open="open = $event">
         <DialogPortal>
             <DialogOverlay
-                class="inset-0 bg-black/50 fixed z-[var(--kinetix-z-overlay,100)]"
+                class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 inset-0 bg-black/80 fixed z-[var(--kinetix-z-overlay,100)]"
             />
             <DialogContent
-                class="max-w-md rounded-xl p-4 shadow-lg fixed top-1/4 left-1/2 z-[var(--kinetix-z-modal,100)] w-full -translate-x-1/2 border border-border bg-popover text-popover-foreground"
+                class="max-w-md rounded-lg p-4 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/4 left-1/2 z-[var(--kinetix-z-modal,100)] w-full -translate-x-1/2 border bg-background text-foreground duration-200"
             >
-                <DialogTitle class="text-lg font-semibold text-foreground">
+                <DialogTitle
+                    class="text-lg font-semibold leading-none text-foreground"
+                >
                     {{ t('kinetix.shortcuts_title') }}
                 </DialogTitle>
                 <DialogDescription class="sr-only">

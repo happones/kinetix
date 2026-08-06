@@ -30,7 +30,7 @@ onMounted(() => {
         >
             <div
                 v-if="isOpen"
-                class="inset-0 bg-black/40 backdrop-blur-sm fixed z-[var(--kinetix-z-overlay,100)]"
+                class="inset-0 bg-black/50 fixed z-[var(--kinetix-z-overlay,100)]"
                 @click="store.closeDrawer"
             ></div>
         </Transition>
@@ -46,7 +46,7 @@ onMounted(() => {
         >
             <div
                 v-if="isOpen"
-                class="inset-y-0 right-0 max-w-md shadow-2xl fixed z-[var(--kinetix-z-modal,100)] flex w-full flex-col border-l bg-popover"
+                class="inset-y-0 right-0 max-w-md shadow-lg fixed z-[var(--kinetix-z-modal,100)] flex w-full flex-col border-l bg-background"
             >
                 <!-- Header -->
                 <div

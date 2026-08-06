@@ -37,10 +37,8 @@ const { t } = useI18n();
         <!-- ===== Event details: modal ===== -->
         <Teleport v-if="isMounted && eventDisplay === 'modal'" to="body">
             <Transition
-                enter-active-class="transition-opacity duration-150"
-                enter-from-class="opacity-0"
-                leave-active-class="transition-opacity duration-150"
-                leave-to-class="opacity-0"
+                enter-active-class="animate-in fade-in-0 zoom-in-95 duration-200"
+                leave-active-class="animate-out fade-out-0 zoom-out-95 duration-200"
             >
                 <div
                     v-if="open && event"
@@ -49,12 +47,12 @@ const { t } = useI18n();
                     aria-modal="true"
                 >
                     <div
-                        class="inset-0 bg-black/50 backdrop-blur-sm absolute"
+                        class="inset-0 bg-black/80 absolute"
                         @click="emit('close')"
                     />
 
                     <div
-                        class="max-w-sm rounded-xl shadow-2xl p-6 relative w-full border border-border bg-popover"
+                        class="max-w-sm rounded-lg shadow-lg p-6 gap-4 relative grid w-full border bg-background"
                     >
                         <button
                             type="button"

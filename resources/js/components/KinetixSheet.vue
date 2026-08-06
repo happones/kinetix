@@ -141,7 +141,7 @@ const enterFromClass = computed(
                 <div
                     ref="panelEl"
                     tabindex="-1"
-                    class="p-6 shadow-2xl absolute flex flex-col overflow-y-auto border-border bg-background outline-none"
+                    class="p-6 shadow-lg absolute flex flex-col overflow-y-auto border-border bg-background outline-none"
                     :class="[positionClass, sizeClass]"
                 >
                     <div class="mb-4 flex items-start justify-between">

@@ -84,16 +84,18 @@ async function onLock(): Promise<void> {
         <DialogRoot v-model:open="dialogOpen">
             <DialogPortal>
                 <DialogOverlay
-                    class="inset-0 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in fixed z-[var(--kinetix-z-overlay,100)]"
+                    class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 inset-0 bg-black/80 fixed z-[var(--kinetix-z-overlay,100)]"
                 />
                 <DialogContent
-                    class="max-w-sm rounded-lg p-6 shadow-lg fixed top-1/2 left-1/2 z-[var(--kinetix-z-modal,100)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 border border-border bg-card"
+                    class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 rounded-lg p-6 shadow-lg gap-4 sm:max-w-sm fixed top-[50%] left-[50%] z-[var(--kinetix-z-modal,100)] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] border bg-background duration-200"
                 >
-                    <DialogTitle class="text-lg font-semibold text-foreground">
+                    <DialogTitle
+                        class="text-lg font-semibold leading-none text-foreground"
+                    >
                         {{ t('kinetix.confidential_unlock') }}
                     </DialogTitle>
 
-                    <div class="mt-4 space-y-2">
+                    <div class="space-y-2">
                         <KinetixLabel for="kinetix-confidential-password">{{
                             t('kinetix.confidential_password_label')
                         }}</KinetixLabel>
@@ -114,7 +116,9 @@ async function onLock(): Promise<void> {
                         {{ error }}
                     </p>
 
-                    <div class="mt-6 gap-2 flex justify-end">
+                    <div
+                        class="gap-2 sm:flex-row sm:justify-end flex flex-col-reverse"
+                    >
                         <button
                             type="button"
                             :class="

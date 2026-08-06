@@ -83,12 +83,12 @@ const humanSize = computed<string>(() => {
 
         <GripVertical
             v-if="reorderable"
-            class="left-1 top-1 size-4 text-white/80 drop-shadow absolute cursor-grab opacity-0 transition-opacity group-hover:opacity-100"
+            class="left-1 top-1 size-4 text-white/80 drop-shadow absolute cursor-grab opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
         />
         <button
             v-if="!disabled"
             type="button"
-            class="right-1 top-1 size-6 bg-black/50 text-white absolute flex items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive"
+            class="right-1 top-1 size-6 bg-black/50 text-white absolute flex items-center justify-center rounded-full opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-destructive focus-visible:opacity-100"
             :aria-label="t('kinetix.remove')"
             @click.stop="emit('remove')"
         >

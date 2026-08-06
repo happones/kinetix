@@ -179,6 +179,13 @@ published paths, **and `@import 'vue-sonner/style.css';` in
 `resources/css/app.css`** — without that import, toasts render as unstyled
 plain text (no container, animation, or colors).
 
+> **Animations require `tw-animate-css`.** Kinetix surfaces (modals, menus,
+> popovers, tooltips) animate with the shadcn `animate-in`/`animate-out`
+> utilities, provided by `tw-animate-css` — the Laravel Vue starter kit ships
+> it (`@import 'tw-animate-css';` in `app.css`). On a non-starter-kit host,
+> add it (`npm i tw-animate-css`) or the surfaces appear/disappear with no
+> motion (functionally fine, visually flat).
+
 > If you see a Vite error like *Failed to resolve import "@internationalized/date"*,
 > a required dependency is missing — run `php artisan kinetix:install` (or install
 > the package listed above manually).

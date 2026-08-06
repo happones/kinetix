@@ -100,10 +100,10 @@ function onSelect(item: unknown): void {
     <DialogRoot :open="open" @update:open="onOpenChange">
         <DialogPortal>
             <DialogOverlay
-                class="inset-0 bg-black/50 fixed z-[var(--kinetix-z-overlay,100)]"
+                class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 inset-0 bg-black/80 fixed z-[var(--kinetix-z-overlay,100)]"
             />
             <DialogContent
-                class="top-24 max-w-lg rounded-xl shadow-lg fixed left-1/2 z-[var(--kinetix-z-modal,100)] w-full -translate-x-1/2 overflow-hidden border border-border bg-popover text-popover-foreground"
+                class="top-24 max-w-lg rounded-lg shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-1/2 z-[var(--kinetix-z-modal,100)] w-full -translate-x-1/2 overflow-hidden border border-border bg-popover text-popover-foreground duration-200"
             >
                 <VisuallyHidden>
                     <DialogTitle>{{

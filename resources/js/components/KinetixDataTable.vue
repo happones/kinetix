@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { Search, SlidersHorizontal } from '@lucide/vue';
-import {
-    PopoverContent,
-    PopoverPortal,
-    PopoverRoot,
-    PopoverTrigger,
-} from 'reka-ui';
+import { Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
@@ -23,9 +17,9 @@ import type {
     KinetixTableRecord,
 } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
-import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixTableCell from './Table/KinetixTableCell.vue';
+import KinetixTableColumnToggle from './Table/KinetixTableColumnToggle.vue';
 import KinetixTableHead from './Table/KinetixTableHead.vue';
 import KinetixTablePagination from './Table/KinetixTablePagination.vue';
 
@@ -45,8 +39,6 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
-
-const showColumns = ref(false);
 
 // Column visibility (local; client-side has no server round-trip).
 const visibleColumnNames = ref<Set<string>>(
@@ -215,58 +207,14 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                     </button>
                 </template>
 
-                <!-- Column visibility -->
-                <div v-if="table.columns.some((c) => c.isToggleable)">
-                    <PopoverRoot v-model:open="showColumns">
-                        <PopoverTrigger as-child>
-                            <button
-                                :class="
-                                    buttonVariants({
-                                        variant: 'outline',
-                                        size: 'sm',
-                                    })
-                                "
-                            >
-                                <SlidersHorizontal class="h-3.5 w-3.5" />
-                                {{ t('kinetix.columns') }}
-                            </button>
-                        </PopoverTrigger>
-                        <PopoverPortal>
-                            <PopoverContent
-                                align="end"
-                                :side-offset="4"
-                                class="w-56 rounded-lg p-3 shadow-lg z-[var(--kinetix-z-popover,120)] border border-border bg-popover outline-none"
-                            >
-                                <div
-                                    class="text-xs font-bold pb-2 mb-2 tracking-wider border-b border-border text-foreground uppercase"
-                                >
-                                    {{ t('kinetix.toggle_columns') }}
-                                </div>
-                                <div class="space-y-2 max-h-60 overflow-y-auto">
-                                    <div
-                                        v-for="col in table.columns.filter(
-                                            (c) => c.isToggleable,
-                                        )"
-                                        :key="col.name"
-                                        class="gap-2 py-0.5 rounded px-1.5 flex items-center hover:bg-accent"
-                                    >
-                                        <KinetixCheckbox
-                                            :id="'col-' + col.name"
-                                            :checked="isColumnVisible(col.name)"
-                                            @change="toggleColumn(col.name)"
-                                        />
-                                        <label
-                                            :for="'col-' + col.name"
-                                            class="text-xs py-1 flex-1 cursor-pointer text-foreground select-none"
-                                        >
-                                            {{ col.label }}
-                                        </label>
-                                    </div>
-                                </div>
-                            </PopoverContent>
-                        </PopoverPortal>
-                    </PopoverRoot>
-                </div>
+                <!-- Column visibility (shared component — DRY, keeps the
+                     v4 animation set in ONE place). -->
+                <KinetixTableColumnToggle
+                    v-if="table.columns.some((c) => c.isToggleable)"
+                    :columns="table.columns"
+                    :is-column-visible="isColumnVisible"
+                    @toggle="toggleColumn"
+                />
             </div>
         </div>
 

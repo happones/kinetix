@@ -95,7 +95,7 @@ async function onDelete(view: KinetixSavedView): Promise<void> {
             <DropdownMenuContent
                 align="start"
                 :side-offset="6"
-                class="rounded-lg p-1 shadow-lg z-[var(--kinetix-z-popover,120)] min-w-[14rem] border border-border bg-popover outline-none"
+                class="p-1 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[var(--kinetix-z-popover,120)] max-h-(--reka-dropdown-menu-content-available-height) min-w-[14rem] origin-(--reka-dropdown-menu-content-transform-origin) overflow-y-auto rounded-md border border-border bg-popover outline-none"
             >
                 <DropdownMenuItem
                     v-for="view in views"
@@ -118,7 +118,7 @@ async function onDelete(view: KinetixSavedView): Promise<void> {
                         :class="
                             view.isDefault
                                 ? 'text-amber-400'
-                                : 'text-muted-foreground opacity-0 group-hover:opacity-100'
+                                : 'text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100'
                         "
                         :aria-label="t('kinetix.saved_view_default')"
                         @click.stop="onDefault(view)"
@@ -130,7 +130,7 @@ async function onDelete(view: KinetixSavedView): Promise<void> {
                     </button>
                     <button
                         type="button"
-                        class="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+                        class="shrink-0 text-muted-foreground opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
                         :aria-label="t('kinetix.saved_view_delete')"
                         @click.stop="onDelete(view)"
                     >

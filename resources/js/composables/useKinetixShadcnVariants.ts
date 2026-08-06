@@ -133,3 +133,23 @@ export const inputClass =
 /** shadcn-vue new-york-v4 textarea field classes. */
 export const textareaClass =
     'border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
+
+/**
+ * shadcn-vue new-york-v4 floating-surface recipes (single source of truth —
+ * never hand-copy these into a component). The animation set is the full v4
+ * contract: fade + zoom on open/close plus a directional slide from the
+ * anchored side. Each consumer adds its OWN reka viewport vars, since their
+ * names are per-primitive, e.g.
+ * `max-h-(--reka-select-content-available-height) origin-(--reka-select-content-transform-origin)`.
+ */
+export const popoverAnimationClass =
+    'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2';
+
+/** v4 popover panel (calendar/pickers/filters hosts add their own padding). */
+export const popoverContentClass = `bg-popover text-popover-foreground ${popoverAnimationClass} z-[var(--kinetix-z-popover,120)] rounded-md border shadow-md outline-none`;
+
+/** v4 dropdown/select menu panel (list surfaces: min width + tight padding). */
+export const menuContentClass = `${popoverContentClass} min-w-[8rem] overflow-x-hidden overflow-y-auto p-1`;
+
+/** v4 tooltip: inverted surface, small balanced text. */
+export const tooltipContentClass = `bg-foreground text-background ${popoverAnimationClass} z-[var(--kinetix-z-popover,120)] w-fit rounded-md px-3 py-1.5 text-xs text-balance`;

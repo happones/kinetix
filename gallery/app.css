@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 /* Scan the Kinetix component source so their utility classes are generated. */
 @source '../resources/js';

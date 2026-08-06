@@ -44,7 +44,7 @@ const items = computed<unknown[]>(() => {
         <button
             v-if="col.isCopyable && record.values[col.name] != null"
             type="button"
-            class="text-muted-foreground opacity-0 transition-opacity group-hover/copy:opacity-100 hover:text-foreground"
+            class="text-muted-foreground opacity-0 transition-opacity group-focus-within/copy:opacity-100 group-hover/copy:opacity-100 hover:text-foreground focus-visible:opacity-100"
             :title="t('kinetix.copy')"
             @click.stop="
                 emit('copy-to-clipboard', items.map(String).join(', '))
