@@ -322,13 +322,18 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         $wantsAttachDetach = $this->wireAttachDetach($table, $relation);
         $wantsAssociate    = $this->wireAssociateDissociate($table, $relation);
         $modalModes        = $this->collectModalModes($table);
+        $exportActions     = $this->collectExportActions($table, $relation);
 
-        $descriptor = ($wantsAttachDetach || $wantsAssociate || $modalModes !== [])
+        $descriptor = ($wantsAttachDetach || $wantsAssociate || $modalModes !== [] || $exportActions !== [])
             ? $this->mintDescriptor()
             : null;
 
         if ($modalModes !== [] && $descriptor !== null) {
             $this->wireRecordModals($table, $relation, $descriptor, $modalModes);
+        }
+
+        foreach ($exportActions as $exportAction) {
+            $exportAction->scopeToRelation((string) $descriptor);
         }
 
         return new RelationManagerData(
@@ -396,12 +401,10 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     }
 
     /**
-     * A toolbar/footer ExportAction or ImportAction inside a relation manager
-     * would run against the WHOLE model — the export query and the importer
-     * know nothing about the parent relationship, so "export these comments"
-     * would ship every comment in the database and an import would create
-     * unattached rows. Refuse loudly instead of shipping a data-exposure
-     * surface. (A BULK export of selected rows is id-narrowed and stays fine.)
+     * An ImportAction inside a relation manager would create UNATTACHED rows —
+     * the importer knows nothing about the parent relationship. Refuse loudly
+     * instead of shipping a foot-gun. (Exports ARE supported: they are wired
+     * to the parent's relationship — see {@see collectExportActions()}.)
      */
     protected function rejectUnscopedBulkTransfers(Table $table): void
     {
@@ -409,15 +412,54 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             $candidates = $action instanceof ActionGroup ? $action->getActions() : [$action];
 
             foreach ($candidates as $candidate) {
-                if ($candidate instanceof ExportAction || $candidate instanceof ImportAction) {
+                if ($candidate instanceof ImportAction) {
                     throw new RuntimeException(
-                        class_basename($candidate::class).' is not supported inside a relation manager ('
-                        .static::class.'): it would operate on the WHOLE model, not the parent\'s relation. '
-                        .'Use a bulk export of selected rows, or export from the related resource\'s own index.'
+                        'ImportAction is not supported inside a relation manager ('
+                        .static::class.'): imported rows would not be attached to the parent. '
+                        .'Import from the related resource\'s own index instead.'
                     );
                 }
             }
         }
+    }
+
+    /**
+     * The ExportActions across the table's surfaces, validated for relation
+     * scoping: each must be wired to an exporter (a bare request/url export
+     * can't be scoped) whose model IS the relation's related model. They are
+     * scoped after the descriptor is minted — the export then runs THROUGH
+     * the parent's relationship (ids of a bulk export narrow further).
+     *
+     * @return array<int, ExportAction>
+     */
+    protected function collectExportActions(Table $table, Relation $relation): array
+    {
+        $exportActions = array_values(array_filter(
+            $this->allTableActions($table),
+            static fn (Action $action): bool => $action instanceof ExportAction,
+        ));
+
+        $related = $relation->getRelated()::class;
+
+        foreach ($exportActions as $action) {
+            $exporterClass = $action->getExporterClass();
+
+            if ($exporterClass === null) {
+                throw new RuntimeException(
+                    'An ExportAction inside a relation manager ('.static::class.') must be wired via '
+                    .'->exporter(): a custom request/url export cannot be scoped to the parent\'s relation.'
+                );
+            }
+
+            if ($exporterClass::getModel() !== $related) {
+                throw new RuntimeException(
+                    class_basename($exporterClass).' exports '.$exporterClass::getModel().' but '
+                    .static::class." manages {$related} — the exporter's model must match the relation."
+                );
+            }
+        }
+
+        return $exportActions;
     }
 
     /**

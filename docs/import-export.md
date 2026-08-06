@@ -450,6 +450,11 @@ public function query(): \Illuminate\Database\Eloquent\Builder
 
 > Note: the toolbar `ExportAction` exports the **exporter's `query()`**, not the table's *current* on-screen filters (those live only in the browser's query string). Scope what's exported in the exporter's `query()` / via parameters. The manual recipe below shows full control when you need it (e.g. a custom route reading filter values).
 
+**Inside a relation manager** the same action is automatically **scoped to the
+parent's relationship** — the export intersects your `query()` with the
+relation's keys, so it ships only the parent's related records. See
+[Relation Managers → Relation-scoped export](/relation-managers#relation-scoped-export).
+
 ### Recipe (manual): export from a table — toolbar (all) + bulk (selected)
 
 When you need full control (custom route, applying the table's filters, extra options), wire it yourself: one **Export** button in the table toolbar that exports the whole table, and the **same** action as a bulk action that exports only the selected rows. The bulk invocation sends the selected `ids`; the exporter scopes its query to them.

@@ -494,7 +494,26 @@ A fix in Table automatically fixes every manager. Notes that matter:
 - **The active tab lives in `?relation=`** (§3) and each table's state in its
   prefixed params — both survive reloads, modal saves, and shared links.
 
-## 11. Pivot columns (BelongsToMany)
+### Relation-scoped export
+
+`ExportAction` works in a manager's toolbar, footer and bulk actions, and is
+automatically **scoped to the parent's relationship**:
+
+```php
+->toolbarActions([
+    ExportAction::make()->exporter(TaskExporter::class),
+])
+```
+
+- The manager wires its signed descriptor into the export-start URL; the
+  endpoint validates it (user-bound, expiring, parent `view` policy) and the
+  queued export **intersects** the exporter's own `query()` with the
+  relation's keys — tenant scoping in `query()` still applies in full, and a
+  bulk export's selected ids narrow further on top.
+- The exporter's `$model` must be the relation's related model, and the
+  action must be wired via `->exporter()` — anything else throws at
+  serialize time.
+- A parent deleted between queueing and running exports zero rows.
 
 Declare the pivot columns on the relationship (`->withPivot('role')`) and
 address them through the pivot accessor:
@@ -618,11 +637,10 @@ So you don't discover it the hard way:
   exception; you don't need it: declare `form()`/`infolist()` on the manager
   and flag actions with `->modal()` (§6) — the manager wires the
   parent-bound endpoints itself.
-- **Toolbar/footer `ExportAction` / `ImportAction`** — rejected with an
-  exception, **including inside an `ActionGroup`**: they would run against
-  the WHOLE model, not the parent's relation (a silent data-exposure
-  surface). Bulk-export selected rows, or export from the related resource's
-  own index. Relation-scoped export is on the roadmap.
+- **`ImportAction`** (toolbar/footer, **including inside an `ActionGroup`**)
+  — rejected with an exception: imported rows would not be attached to the
+  parent. Import from the related resource's own index instead.
+  (`ExportAction` IS supported — see §10.)
 - **Grouped/collapsible managers and custom empty states** — planned polish;
   the flat auto-tabs host covers the common case.
 

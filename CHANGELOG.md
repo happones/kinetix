@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.158.0] - 2026-08-06
+
+- Relation-scoped export: `ExportAction::make()->exporter(...)` now works in
+  a relation manager's toolbar, footer and bulk actions — the manager wires
+  its signed descriptor into the export-start URL, the endpoint validates it
+  (user-bound, expiring, parent `view` policy, exporter model must match the
+  related model) and the queued export intersects the exporter's own
+  `query()` with the relation's keys, so tenant scoping still applies and a
+  bulk export's ids narrow further. A parent deleted before the job runs
+  exports zero rows.
+- **Breaking (fail-loud only):** an ExportAction inside a manager without
+  `->exporter()`, or with an exporter for a different model, throws at
+  serialize time (previously EVERY toolbar/footer export threw).
+  `ImportAction` inside a manager still throws.
+
 ## [0.157.0] - 2026-08-06
 
 - Lazy relation managers: `protected static bool $isLazy = true` defers a

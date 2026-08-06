@@ -9,6 +9,7 @@ use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Actions\CreateAction;
 use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Actions\ExportAction;
+use Happones\Kinetix\Actions\ImportAction;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Resources\RelationManager;
@@ -172,9 +173,22 @@ class RtpFooterExportManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        // No ->exporter(): a bare export can't be relation-scoped.
         return $table
             ->columns([TextColumn::make('title')])
             ->footerActions([ExportAction::make('export')]);
+    }
+}
+
+class RtpFooterImportManager extends RelationManager
+{
+    protected static string $relationship = 'tasks';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([TextColumn::make('title')])
+            ->footerActions([ImportAction::make('import')]);
     }
 }
 
@@ -338,14 +352,24 @@ class RelationTableParityTest extends TestCase
         $this->assertSame([], $data->table->footerActions);
     }
 
-    public function test_an_export_action_inside_a_manager_throws_at_serialize_time(): void
+    public function test_an_export_action_without_an_exporter_throws_at_serialize_time(): void
     {
         $project = RtpProject::create(['name' => 'Kinetix']);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('not supported inside a relation manager');
+        $this->expectExceptionMessage('must be wired via ->exporter()');
 
         RtpFooterExportManager::make($project)->toData();
+    }
+
+    public function test_an_import_action_inside_a_manager_throws_at_serialize_time(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('ImportAction is not supported inside a relation manager');
+
+        RtpFooterImportManager::make($project)->toData();
     }
 
     public function test_the_create_modal_action_inherits_the_child_models_policy(): void

@@ -8,6 +8,14 @@ use Happones\Kinetix\Exports\Exporter;
 
 class ExportAction extends Action
 {
+    /**
+     * The exporter this action was wired to (needed to re-wire the start URL
+     * when a relation manager scopes the export to its parent).
+     *
+     * @var class-string<Exporter>|null
+     */
+    protected ?string $exporterClass = null;
+
     public static function make(string $name = 'export'): static
     {
         return new static($name);
@@ -31,6 +39,8 @@ class ExportAction extends Action
      */
     public function exporter(string $exporterClass): static
     {
+        $this->exporterClass = $exporterClass;
+
         /** @var Exporter $exporter */
         $exporter = new $exporterClass;
 
@@ -44,5 +54,37 @@ class ExportAction extends Action
         );
 
         return $this;
+    }
+
+    /**
+     * @return class-string<Exporter>|null
+     */
+    public function getExporterClass(): ?string
+    {
+        return $this->exporterClass;
+    }
+
+    /**
+     * Scope the export to a relation manager's parent relationship (internal —
+     * RelationManager wires it): the signed descriptor travels in the start
+     * URL, the endpoint validates it, and the export query is narrowed to the
+     * parent's related records on top of the exporter's own query().
+     */
+    public function scopeToRelation(string $descriptor): static
+    {
+        if ($this->exporterClass === null) {
+            return $this;
+        }
+
+        /** @var Exporter $exporter */
+        $exporter = new $this->exporterClass;
+
+        return $this->request(
+            route('kinetix.exports.start', [
+                'exporter' => $this->exporterClass::token(),
+                'relation' => $descriptor,
+            ]),
+            ['method' => 'post', 'toast' => $exporter->getStartedNotificationBody()],
+        );
     }
 }

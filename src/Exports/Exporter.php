@@ -105,8 +105,9 @@ abstract class Exporter
 
     /**
      * The query actually exported: {@see query()} automatically narrowed to the
-     * selected `ids` when the export was triggered from a bulk action. This is
-     * what the processor runs, so a bulk export of N selected rows exports
+     * selected `ids` when the export was triggered from a bulk action, and to
+     * the parent's related records when it came from a relation manager. This
+     * is what the processor runs, so a bulk export of N selected rows exports
      * exactly those N — no need to read `parameter('ids')` in your `query()`.
      */
     public function resolveExportQuery(): Builder
@@ -120,7 +121,51 @@ abstract class Exporter
             $query->whereKey($ids);
         }
 
+        $relation = $this->parameter('relation');
+
+        if (is_array($relation)) {
+            $this->applyRelationScope($query, $relation);
+        }
+
         return $query;
+    }
+
+    /**
+     * Narrow the export to a relation manager's parent relationship (validated
+     * server-side when the export was started): the query is INTERSECTED with
+     * the relation's keys via a sub-select, so the exporter's own query()
+     * boundary (e.g. tenant scoping) still applies in full. A parent deleted
+     * between start and run exports zero rows rather than falling open.
+     *
+     * @param Builder<Model>       $query
+     * @param array<string, mixed> $relation
+     */
+    protected function applyRelationScope(Builder $query, array $relation): void
+    {
+        $parentClass  = $relation['parent'] ?? null;
+        $relationName = $relation['name']   ?? null;
+
+        $parent = is_string($parentClass)
+            && class_exists($parentClass)
+            && is_subclass_of($parentClass, Model::class)
+            && is_string($relationName)
+            && method_exists($parentClass, $relationName)
+                ? $parentClass::query()->whereKey($relation['key'] ?? null)->first()
+                : null;
+
+        if ($parent === null) {
+            $query->whereKey([]);
+
+            return;
+        }
+
+        $relationObject = $parent->{$relationName}();
+        $related        = $relationObject->getRelated();
+
+        $query->whereIn(
+            $query->getModel()->getQualifiedKeyName(),
+            $relationObject->getQuery()->select($related->getQualifiedKeyName()),
+        );
     }
 
     /**

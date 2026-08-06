@@ -66,8 +66,11 @@ namespaced `{relationship}_…`). Rules that differ:
   supported). **Editable `pivot.*` columns** (`TextInputColumn`, `SelectColumn`, …) write straight
   to the pivot row via `updateExistingPivot` — model events don't fire for them, and an editable
   pivot column NOT declared in `withPivot()` throws at serialize time.
-- Toolbar/footer `ExportAction`/`ImportAction` inside a manager THROW (they'd cover the whole
-  model). Bulk export of selected rows is fine.
+- `ExportAction` inside a manager is **relation-scoped**: wire it via `->exporter()` (a bare
+  request/url export throws) with an exporter whose `$model` IS the related model (mismatch
+  throws); the queued export intersects the exporter's `query()` with the relation's keys, so
+  tenant scoping still applies and bulk ids narrow further. `ImportAction` inside a manager
+  THROWS (rows would not be attached to the parent).
 - See the **kinetix-resources** skill for the manager itself (modal CRUD, attach/detach).
 
 ## Table builder surface (one-liners)
