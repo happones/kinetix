@@ -262,6 +262,8 @@ return [
     'save_failed'                      => '保存できませんでした。',
     'action_failed'                    => '操作を完了できませんでした。',
     'record_created'                   => 'レコードを作成しました。',
+    'record_restored'                  => 'レコードを復元しました。',
+    'record_force_deleted'             => 'レコードを完全に削除しました。',
     'record_updated'                   => 'レコードを更新しました。',
     'record_deleted'                   => 'レコードを削除しました。',
     'deleted'                          => '削除しました。',

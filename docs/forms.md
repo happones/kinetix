@@ -1244,6 +1244,14 @@ Server (and live) validation errors are **rendered and revealed automatically**,
 
 This is fully recursive — a wizard inside a tab inside a section resolves correctly, because each container independently reveals the child holding an error. Live (per-field) validation never yanks focus off the field being edited, since its error is already in the active panel.
 
+**Submitted values survive a failed validation round-trip.** When a submit
+comes back with errors, the controller reran and re-serialized the form from
+the ORIGINAL record (edit) or the blank blueprint (create) — `KinetixForm`
+detects the error bag and keeps the user's typed values instead of syncing
+from the incoming props, so a cleared required field stays cleared and a
+half-filled create form keeps its input. The next error-free render (a
+successful save) syncs normally.
+
 ```mermaid
 graph TD
     A[Controller / Precognition returns errors] --> B[KinetixForm merges Inertia + live errors]

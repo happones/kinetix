@@ -144,6 +144,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\PermissionRegistrar;
@@ -1942,6 +1943,34 @@ class KinetixServiceProvider extends ServiceProvider
                     'path'    => config('kinetix.notifications.sound.path', '/vendor/kinetix/notification.wav'),
                 ],
                 'broadcasting' => $this->getBroadcastingConfig(),
+            ];
+        });
+
+        // One-shot toast flashed by a controller (`->with('kinetix_toast', …)`).
+        // Accepts a plain string (→ success) or ['type' => …, 'message' => …];
+        // the uuid lets the client fire the SAME message twice in a row.
+        // <KinetixToaster /> watches this prop and shows the toast.
+        Inertia::share('kinetix_toast', function () {
+            $toast = session('kinetix_toast');
+
+            if ($toast === null) {
+                return null;
+            }
+
+            if (is_string($toast)) {
+                $toast = ['type' => 'success', 'message' => $toast];
+            }
+
+            if (! is_array($toast) || ! is_string($toast['message'] ?? null)) {
+                return null;
+            }
+
+            return [
+                'type' => in_array($toast['type'] ?? null, ['success', 'error', 'info', 'warning'], true)
+                    ? $toast['type']
+                    : 'success',
+                'message' => $toast['message'],
+                'id'      => (string) Str::uuid(),
             ];
         });
 

@@ -469,6 +469,27 @@ import KinetixToaster from '@/components/kinetix/KinetixToaster.vue';
 
 It forwards all `vue-sonner` Toaster props (`position`, `richColors`, `duration`, `expand`, …). The styling **redefines the CSS variables vue-sonner reads** (`--normal-bg`/`--normal-text`/`--normal-border` → `--popover`/`--popover-foreground`/`--border`) rather than overriding classes — class overrides lose the CSS-specificity battle when `vue-sonner/style.css` loads after Tailwind, which is the usual cause of a stubbornly white toast in dark mode. Since those tokens flip with `.dark`, the toast follows your theme automatically — no `theme` prop wiring needed.
 
+### Server-flashed toasts (`kinetix_toast`)
+
+`<KinetixToaster />` also watches the `kinetix_toast` flash prop, so ANY
+controller redirect can fire a toast — no client wiring:
+
+```php
+// A plain string → success toast. Customize the message freely.
+return redirect($url)->with('kinetix_toast', __('kinetix.record_created'));
+
+// Or pick the variant explicitly:
+return back()->with('kinetix_toast', ['type' => 'error', 'message' => __('app.sync_failed')]);
+```
+
+The Kinetix record endpoints (simple-resource modals, relation-manager modal
+CRUD) and the `kinetix:make-resource` scaffolded controllers already flash it
+on every create/update/delete/restore, using the generic
+`kinetix.record_created` / `record_updated` / `record_deleted` /
+`record_restored` / `record_force_deleted` messages — edit the scaffolded
+`->with('kinetix_toast', …)` lines to customize per resource. The server
+stamps a uuid per flash, so the same message twice in a row still fires.
+
 ---
 
 ## Artisan Commands

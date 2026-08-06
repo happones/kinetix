@@ -83,7 +83,9 @@ class RecordModalController
 
         $resource::getEloquentQuery()->create($data);
 
-        return back()->with('message', (string) __('kinetix.record_created'));
+        return back()
+            ->with('message', (string) __('kinetix.record_created'))
+            ->with('kinetix_toast', (string) __('kinetix.record_created'));
     }
 
     /**
@@ -107,7 +109,9 @@ class RecordModalController
 
         $record->update($data);
 
-        return back()->with('message', (string) __('kinetix.record_updated'));
+        return back()
+            ->with('message', (string) __('kinetix.record_updated'))
+            ->with('kinetix_toast', (string) __('kinetix.record_updated'));
     }
 
     /**
@@ -122,7 +126,9 @@ class RecordModalController
 
         $record->delete();
 
-        return back()->with('message', (string) __('kinetix.record_deleted'));
+        return back()
+            ->with('message', (string) __('kinetix.record_deleted'))
+            ->with('kinetix_toast', (string) __('kinetix.record_deleted'));
     }
 
     /**

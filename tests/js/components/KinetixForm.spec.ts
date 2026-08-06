@@ -61,4 +61,97 @@ describe('KinetixForm', () => {
             { email: 'me@example.com' },
         ]);
     });
+
+    // A failed validation round-trip reruns the controller, which re-serializes
+    // the form from the ORIGINAL record — the incoming props must not overwrite
+    // what the user just submitted.
+    it('keeps the submitted values after a failed validation round-trip (edit: cleared field must NOT refill from the record)', async () => {
+        page.props.errors = {};
+
+        const wrapper = mount(KinetixForm, {
+            props: {
+                form: { ...form, data: { email: 'original@example.com' } },
+            },
+            global: { plugins: [i18n] },
+        });
+
+        // The user clears the required field and submits.
+        await wrapper.get('input').setValue('');
+        await wrapper.get('form').trigger('submit');
+
+        // Error-back: errors arrive AND the controller reran, shipping the
+        // record's original data again in the same render.
+        page.props.errors = { email: 'The email is required.' };
+        await wrapper.setProps({
+            form: { ...form, data: { email: 'original@example.com' } },
+        });
+        await nextTick();
+
+        expect((wrapper.get('input').element as HTMLInputElement).value).toBe(
+            '',
+        );
+        expect(wrapper.text()).toContain('The email is required.');
+    });
+
+    it('keeps the typed values after a failed create submit (blank blueprint must NOT wipe the input)', async () => {
+        page.props.errors = {};
+
+        const wrapper = mount(KinetixForm, {
+            props: {
+                form: {
+                    ...form,
+                    schema: [
+                        { type: 'text-input', name: 'email', label: 'Email' },
+                        { type: 'text-input', name: 'name', label: 'Name' },
+                    ],
+                    data: { email: '', name: '' },
+                },
+            },
+            global: { plugins: [i18n] },
+        });
+
+        const inputs = wrapper.findAll('input');
+        await inputs[1].setValue('Ada Lovelace');
+        await wrapper.get('form').trigger('submit');
+
+        // Error-back re-ships the blank create blueprint.
+        page.props.errors = { email: 'The email is required.' };
+        await wrapper.setProps({
+            form: {
+                ...form,
+                schema: [
+                    { type: 'text-input', name: 'email', label: 'Email' },
+                    { type: 'text-input', name: 'name', label: 'Name' },
+                ],
+                data: { email: '', name: '' },
+            },
+        });
+        await nextTick();
+
+        expect(
+            (wrapper.findAll('input')[1].element as HTMLInputElement).value,
+        ).toBe('Ada Lovelace');
+    });
+
+    it('re-syncs from props once an error-free render arrives (successful save)', async () => {
+        page.props.errors = {};
+
+        const wrapper = mount(KinetixForm, {
+            props: { form: { ...form, data: { email: 'old@example.com' } } },
+            global: { plugins: [i18n] },
+        });
+
+        await wrapper.get('input').setValue('new@example.com');
+
+        // Successful save: fresh props, empty error bag → sync.
+        page.props.errors = {};
+        await wrapper.setProps({
+            form: { ...form, data: { email: 'saved@example.com' } },
+        });
+        await nextTick();
+
+        expect((wrapper.get('input').element as HTMLInputElement).value).toBe(
+            'saved@example.com',
+        );
+    });
 });

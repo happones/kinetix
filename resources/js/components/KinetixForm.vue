@@ -75,10 +75,20 @@ const errors = computed<Record<string, string>>(() => {
     return merged;
 });
 
-// Keep values in sync if the form data changes externally.
+// Keep values in sync if the form data changes externally — EXCEPT on a
+// failed-validation round-trip. There the controller reran and re-serialized
+// the form from the ORIGINAL record (edit) or the blank blueprint (create),
+// so syncing would overwrite exactly what the user just submitted: a cleared
+// required field would silently refill from the record, and a create form
+// would wipe itself. When the incoming render carries validation errors, the
+// user's values stay; the next error-free render syncs again.
 watch(
     () => props.form.data,
     (newData) => {
+        if (Object.keys(serverErrors.value).length > 0) {
+            return;
+        }
+
         formValues.value = { ...newData };
     },
     { deep: true },

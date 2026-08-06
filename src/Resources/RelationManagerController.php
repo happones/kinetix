@@ -90,7 +90,9 @@ class RelationManagerController
         // the related record AND attaches it in one step.
         $relation->create($form->getState((array) $request->input('data', [])));
 
-        return back()->with('message', (string) __('kinetix.record_created'));
+        return back()
+            ->with('message', (string) __('kinetix.record_created'))
+            ->with('kinetix_toast', (string) __('kinetix.record_created'));
     }
 
     public function updateRecord(Request $request): RedirectResponse
@@ -107,7 +109,9 @@ class RelationManagerController
 
         $record->update($form->getState((array) $request->input('data', [])));
 
-        return back()->with('message', (string) __('kinetix.record_updated'));
+        return back()
+            ->with('message', (string) __('kinetix.record_updated'))
+            ->with('kinetix_toast', (string) __('kinetix.record_updated'));
     }
 
     public function destroyRecord(Request $request): RedirectResponse
@@ -126,7 +130,9 @@ class RelationManagerController
 
         $record->delete();
 
-        return back()->with('message', (string) __('kinetix.record_deleted'));
+        return back()
+            ->with('message', (string) __('kinetix.record_deleted'))
+            ->with('kinetix_toast', (string) __('kinetix.record_deleted'));
     }
 
     // -- BelongsToMany attach/detach ------------------------------------------

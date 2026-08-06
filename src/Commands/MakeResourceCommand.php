@@ -580,7 +580,7 @@ PHP;
 
         // getUrl() keeps the {current_team} segment — a bare route() call
         // throws under a team-prefixed group (missing required parameter).
-        return redirect({$resourceClass}::getUrl('index'))->with('message', 'Record restored successfully.');
+        return redirect({$resourceClass}::getUrl('index'))->with('kinetix_toast', __('kinetix.record_restored'));
     }
 
     public function forceDelete({$teamParam}string \$id)
@@ -590,7 +590,7 @@ PHP;
 
         \$record->forceDelete();
 
-        return redirect({$resourceClass}::getUrl('index'))->with('message', 'Record permanently deleted.');
+        return redirect({$resourceClass}::getUrl('index'))->with('kinetix_toast', __('kinetix.record_force_deleted'));
     }
 PHP;
         }
@@ -705,8 +705,9 @@ class {$modelName}Controller extends Controller
 
         // Destination configurable on the resource — getRedirectUrlAfterCreate()
         // (defaults to the index).
+        // The toast message — customize freely; <KinetixToaster /> shows it.
         return redirect({$resourceClass}::getRedirectUrlAfterCreate(\$record))
-            ->with('message', 'Record created successfully.');
+            ->with('kinetix_toast', __('kinetix.record_created'));
     }
 
     public function show({$teamParam}string \$record)
@@ -767,7 +768,7 @@ class {$modelName}Controller extends Controller
         // Destination configurable on the resource — getRedirectUrlAfterSave()
         // (defaults to staying on the edit page).
         return redirect({$resourceClass}::getRedirectUrlAfterSave(\$record))
-            ->with('message', 'Record updated successfully.');
+            ->with('kinetix_toast', __('kinetix.record_updated'));
     }
 
     public function destroy({$teamParam}string \$record)
@@ -779,7 +780,7 @@ class {$modelName}Controller extends Controller
 
         // getUrl() keeps the {current_team} segment — a bare route() call
         // throws under a team-prefixed group (missing required parameter).
-        return redirect({$resourceClass}::getUrl('index'))->with('message', 'Record deleted successfully.');
+        return redirect({$resourceClass}::getUrl('index'))->with('kinetix_toast', __('kinetix.record_deleted'));
     }
 {$softDeletesMethods}{$authorizeHelper}
 }

@@ -262,6 +262,8 @@ return [
     'save_failed'                      => '无法保存。',
     'action_failed'                    => '无法完成该操作。',
     'record_created'                   => '记录创建成功。',
+    'record_restored'                  => '记录已成功恢复。',
+    'record_force_deleted'             => '记录已永久删除。',
     'record_updated'                   => '记录更新成功。',
     'record_deleted'                   => '记录删除成功。',
     'deleted'                          => '已删除。',

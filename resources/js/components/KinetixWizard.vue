@@ -110,6 +110,22 @@ const { hasError, stepKey } = useKinetixWizardStatus({
 
 const currentKey = computed(() => stepKey(currentStep.value, current.value));
 
+// Same contract as form Tabs/Wizard: when validation errors arrive, reveal
+// the first step carrying one — but never yank the user off a step that
+// already has an error (they're likely fixing it). Errored steps bypass
+// linear gating (see goTo), so the jump is always legal.
+watch(
+    () => [...props.errorSteps],
+    (steps) => {
+        if (steps.length === 0 || steps.includes(current.value)) {
+            return;
+        }
+
+        setStep(Math.min(...steps));
+    },
+    { deep: true },
+);
+
 // variant → indicator component. Resolving by lookup keeps the container free
 // of the ~6-branch indicator chain; `default`/`gradient` and any unknown
 // variant fall back to the circles-and-connectors indicator.

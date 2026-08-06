@@ -217,4 +217,28 @@ describe('KinetixWizard', () => {
             .find((b) => b.text().includes('Profile'))!;
         expect(profilePill.attributes('disabled')).toBeDefined();
     });
+
+    // Same contract as the form Tabs/Wizard layouts: arriving errors reveal
+    // the step that holds them instead of failing invisibly on another step.
+    it('auto-jumps to the first errored step when validation errors arrive', async () => {
+        const wrapper = mountWizard({ errorSteps: [] });
+        expect(wrapper.find('#panel-a').exists()).toBe(true);
+
+        await wrapper.setProps({ errorSteps: [1] });
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('#panel-b').exists()).toBe(true);
+        expect(wrapper.emitted('step-change')?.at(-1)).toEqual([1]);
+    });
+
+    it('does not yank the user off a step that already holds an error', async () => {
+        const wrapper = mountWizard({ errorSteps: [0] });
+        expect(wrapper.find('#panel-a').exists()).toBe(true);
+
+        // A new error appears on step 1 while step 0 still has one — stay put.
+        await wrapper.setProps({ errorSteps: [0, 1] });
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.find('#panel-a').exists()).toBe(true);
+    });
 });

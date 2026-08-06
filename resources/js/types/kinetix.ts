@@ -77,6 +77,15 @@ export interface KinetixConfig {
  */
 export interface KinetixSharedProps {
     kinetix_config?: KinetixConfig;
+    /**
+     * One-shot toast flashed by a controller (`->with('kinetix_toast', …)`);
+     * <KinetixToaster /> watches it. The uuid dedupes repeated messages.
+     */
+    kinetix_toast?: {
+        type: 'success' | 'error' | 'info' | 'warning';
+        message: string;
+        id: string;
+    } | null;
     kinetix_notifications?: KinetixNotification[];
     kinetix_permissions?: KinetixPermissionState;
     kinetix_impersonation?: KinetixImpersonationState;

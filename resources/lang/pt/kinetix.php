@@ -288,6 +288,8 @@ return [
     'save_failed'                 => 'Não foi possível salvar.',
     'action_failed'               => 'Não foi possível concluir a ação.',
     'record_created'              => 'Registro criado com sucesso.',
+    'record_restored'             => 'Registro restaurado com sucesso.',
+    'record_force_deleted'        => 'Registro excluído permanentemente.',
     'record_updated'              => 'Registro atualizado com sucesso.',
     'record_deleted'              => 'Registro excluído com sucesso.',
     'deleted'                     => 'Excluído.',
