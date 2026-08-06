@@ -56,6 +56,20 @@ try {
   const createInput = createDialog.locator("input").first();
   await createInput.waitFor({ state: "visible" });
   assert.equal(await createInput.inputValue(), "", "create form starts blank");
+
+  // The v4 close button must anchor INSIDE the panel (regression: without
+  // `relative` on the panel it anchored to the viewport and "disappeared").
+  const panelBox = await createDialog.locator('[tabindex="-1"]').boundingBox();
+  const closeBox = await createDialog
+    .getByRole("button", { name: /close/i })
+    .boundingBox();
+  assert.ok(panelBox && closeBox, "panel and close button render");
+  assert.ok(
+    closeBox.x >= panelBox.x &&
+      closeBox.x + closeBox.width <= panelBox.x + panelBox.width &&
+      closeBox.y >= panelBox.y,
+    "close button sits inside the panel",
+  );
   await createDialog.getByRole("button", { name: "Cancel" }).click();
   await createDialog.waitFor({ state: "hidden" });
 

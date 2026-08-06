@@ -123,10 +123,15 @@ const { headingId } = useKinetixFocusTrap({
                 :aria-labelledby="headingId"
                 @click.self="close"
             >
+                <!-- `relative` matters: in the v4 registry the panel itself is
+                     the fixed element, so the close button's absolute top-4
+                     right-4 anchors to it. Here the panel sits inside a fixed
+                     flex wrapper — without relative, the button anchors to the
+                     VIEWPORT and visually disappears. -->
                 <div
                     ref="panelEl"
                     tabindex="-1"
-                    class="rounded-lg p-6 shadow-lg gap-4 grid w-full max-w-[calc(100%-2rem)] border bg-background outline-none"
+                    class="rounded-lg p-6 shadow-lg gap-4 relative grid w-full max-w-[calc(100%-2rem)] border bg-background outline-none"
                     :class="[
                         maxWidth,
                         scrollBody
