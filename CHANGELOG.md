@@ -13,6 +13,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.153.0] - 2026-08-06
+
+Column-spectrum audit: every form field now has a display counterpart —
+without a single new column class — plus rendered screenshots of every column
+type in the docs.
+
+### Added
+
+- **(published) `TextColumn` covers the field spectrum**:
+  - **Array states** (`TagsInput`, `CheckboxList`, multi-`Select`, JSON
+    casts): `->badge()` renders **one pill per item**; plain text implodes
+    with `->separator(', ')` — arrays never leak raw JSON into a cell again.
+  - `->html()` for `RichEditor` attributes (trusted as-is — sanitize
+    user-generated content server-side); with `->limit()`, tags are stripped
+    BEFORE truncating so the cut never breaks markup mid-tag.
+  - `->numeric($decimals, $locale)` — localized intl decimal formatting, the
+    read-only counterpart of `NumberField`/`Slider`.
+  - `->url(fn ($record) => …, openUrlInNewTab: true)` — per-cell links
+    (row-level stays `Table::recordUrl()`); `->wrap()` for multi-line values.
+  - Rating recipe documented (`formatStateUsing` + stars) — deliberately no
+    dedicated column.
+- **(published) `tooltip()` on every column** (static hover title).
+- **(published) `IconColumn`**: `trueIcon()/falseIcon()/trueColor()/falseColor()`
+  for custom boolean pairs, `size()`, and the cell now resolves through the
+  FULL shared icon map (it silently rendered nothing for any name outside a
+  hardcoded handful).
+- **(published) `copyable()` works on badge cells too** (it claimed "any
+  column type" but rendered only on plain text and color swatches).
+- **A rendered screenshot of every column type** in
+  [Tables → Column Builders](docs/tables.md) (light + dark), generated from
+  new gallery specimens via `npm run screenshots`.
+- **`kinetix-tables` skill rewritten for agents**: a "Choosing a column"
+  decision table (data type × read-only/editable → the right column), the
+  shared-properties block leading with `can()`'s data-hiding guarantee, the
+  relation-manager/pivot rules (editable `pivot.*` throws), and a one-liner
+  Table-builder surface list (`recordModals`, `stats`, `reorderable`,
+  `saveViews`, `cursorPaginated`, …) that was entirely missing.
+
+### Fixed
+
+- `ColumnData::size` typed `int|string|null` (an `ImageColumn::size('lg')`
+  no longer breaks serialization); `ColorColumn` no longer shadows the base
+  `copyable()`; `formatRecord()` stops round-tripping a full `toArray()` per
+  cell for badge/description lookups (hot-path getters instead).
+- **`docs/relation-managers.md` freshness pass**: §1 no longer claims actions
+  need routes (modal-first since v0.147); the §2 example uses the modal
+  convention; broken §7.5–§7.8 numbering promoted to real sections (§8–§11);
+  API table gained `getBadgeColor()`/`isVisibleOn()` and warns that an unset
+  `$recordTitleAttribute` makes pickers show raw ids; `$readOnly` documents
+  the footer strip; the export refusal notes it unwraps `ActionGroup`s.
+
 ## [0.152.0] - 2026-08-06
 
 ### Fixed
