@@ -815,6 +815,49 @@ Specs live in `tests/js/` (430+ specs for components and composables). The `@` a
 
 ---
 
+## 🚀 Built with Kinetix
+
+Real products shipped on Kinetix — attractive tools for devs, built end to end
+with this package:
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://webhookcatcher.com">
+        <img src="https://raw.githubusercontent.com/happones/kinetix/main/docs/public/showcase/webhookcatcher.png" width="72" height="72" alt="WebhookCatcher" />
+        <br>
+        <b>WebhookCatcher</b>
+      </a>
+      <br>
+      <sub>Debug and monitor your webhooks in real time — free and
+      registration-free. Capture and inspect every request to optimize your
+      integrations.</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="https://pokkeri.com">
+        <img src="https://raw.githubusercontent.com/happones/kinetix/main/docs/public/showcase/pokkeri.png" width="72" height="72" alt="Pokkeri" />
+        <br>
+        <b>Pokkeri</b>
+      </a>
+      <br>
+      <sub>A complete Scrum ecosystem for high-performing teams — Planning
+      Poker, realtime Kanban, backlog, reports and retrospectives in one
+      platform.</sub>
+    </td>
+  </tr>
+</table>
+
+> Built something with Kinetix? Open a PR to add it here.
+
+## ☕ Support Kinetix
+
+Kinetix is free and open source. If it saves you time, consider fueling its
+development:
+
+<a href="https://buymeacoffee.com/happones">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="48">
+</a>
+
 ## Contributing
 
 Contributions, bug reports, and feature requests are welcome. Please open an issue or submit a pull request on GitHub.

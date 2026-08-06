@@ -90,3 +90,78 @@ npm run build
 That's it — start with [Resources](/resources) to scaffold your first CRUD, or
 jump to any feature in the sidebar. For the full installation, theming and
 configuration reference, see the [README on GitHub](https://github.com/happones/kinetix#readme).
+
+## Built with Kinetix
+
+Real products shipped on Kinetix — attractive tools for devs, built end to end
+with this package:
+
+<div class="kx-showcase">
+  <a class="kx-showcase-card" href="https://webhookcatcher.com" target="_blank" rel="noopener">
+    <img src="/showcase/webhookcatcher.png" width="56" height="56" alt="WebhookCatcher" />
+    <div>
+      <strong>WebhookCatcher</strong>
+      <p>Debug and monitor your webhooks in real time — free and registration-free. Capture and inspect every request to optimize your integrations.</p>
+    </div>
+  </a>
+  <a class="kx-showcase-card" href="https://pokkeri.com" target="_blank" rel="noopener">
+    <img src="/showcase/pokkeri.png" width="56" height="56" alt="Pokkeri" />
+    <div>
+      <strong>Pokkeri</strong>
+      <p>A complete Scrum ecosystem for high-performing teams — Planning Poker, realtime Kanban, backlog, reports and retrospectives in one platform.</p>
+    </div>
+  </a>
+</div>
+
+## Support Kinetix
+
+Kinetix is free and open source. If it saves you time, consider fueling its
+development:
+
+<a class="kx-bmc" href="https://buymeacoffee.com/happones" target="_blank" rel="noopener">
+  <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="44" />
+</a>
+
+<style>
+.kx-showcase {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+.kx-showcase-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 18px;
+    border: 1px solid var(--vp-c-divider);
+    border-radius: 12px;
+    background: var(--vp-c-bg-soft);
+    text-decoration: none !important;
+    color: inherit;
+    transition: border-color 0.2s, background 0.2s;
+}
+.kx-showcase-card:hover {
+    border-color: var(--vp-c-brand-1);
+}
+.kx-showcase-card img {
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+.kx-showcase-card strong {
+    color: var(--vp-c-text-1);
+}
+.kx-showcase-card p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--vp-c-text-2);
+}
+.kx-bmc {
+    display: inline-block;
+    margin-top: 12px;
+}
+.kx-bmc img {
+    border-radius: 8px;
+}
+</style>
