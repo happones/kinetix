@@ -69,6 +69,14 @@ abstract class RelationManager implements Arrayable, JsonSerializable
 
     protected ?Model $parent = null;
 
+    /**
+     * Serialized pivot form for the attach modal, captured while wiring the
+     * table's AttachAction (null when the action declares no form).
+     *
+     * @var array<string, mixed>|null
+     */
+    protected ?array $attachFormData = null;
+
     public function __construct(?Model $parent = null)
     {
         $this->parent = $parent;
@@ -281,6 +289,7 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             badge: $this->getBadge(),
             badgeColor: $this->getBadgeColor(),
             descriptor: $descriptor,
+            attachForm: $this->attachFormData,
         );
     }
 
@@ -436,9 +445,11 @@ abstract class RelationManager implements Arrayable, JsonSerializable
      * selects — `TextColumn::make('pivot.role')` then resolves through
      * `data_get()` like any other dot column, formatting/badges included.
      *
-     * Editable `pivot.*` columns are refused loudly: the cell-update endpoint
-     * writes to the RELATED model, so an "edit" would create a junk
-     * `pivot.role` attribute on it instead of updating the pivot row.
+     * Editable `pivot.*` columns write through the relation-bound cell-update
+     * endpoint, which routes them to `updateExistingPivot()` on the pivot row
+     * (never the related model) — but ONLY for `withPivot()` columns, so an
+     * editable column outside that list is refused loudly here instead of
+     * 403ing at edit time.
      */
     protected function wirePivotColumns(Table $table, BelongsToMany $relation): void
     {
@@ -447,10 +458,16 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         $table->pivotColumns($relation->getTable(), $accessor, $relation->getPivotColumns());
 
         foreach ($table->getColumns() as $column) {
-            if ($column->isEditable() && str_starts_with($column->getName(), $accessor.'.')) {
+            $name = $column->getName();
+
+            if (! $column->isEditable() || ! str_starts_with($name, $accessor.'.')) {
+                continue;
+            }
+
+            if (! in_array(substr($name, strlen($accessor) + 1), $relation->getPivotColumns(), true)) {
                 throw new RuntimeException(
-                    'Editable pivot columns are not supported ('.static::class.'::'.$column->getName().'): '
-                    .'the inline-edit endpoint writes to the RELATED model, not the pivot row.'
+                    'Editable pivot column '.static::class.'::'.$name.' is not a withPivot() column — '
+                    .'the cell-update endpoint can only write pivot columns the relationship declares.'
                 );
             }
         }
@@ -502,9 +519,61 @@ abstract class RelationManager implements Arrayable, JsonSerializable
 
         foreach ($attachDetach as $action) {
             $action->forRelationship(static::$relationship);
+
+            if ($action instanceof AttachAction && $action->getForm() !== []) {
+                $this->attachFormData = $this->buildAttachForm($action, $relation)->fill()->toArray();
+            }
         }
 
         return true;
+    }
+
+    /**
+     * The pivot form an AttachAction declared, validated against the relation:
+     * every field must be a `withPivot()` column, or the attach endpoint would
+     * silently drop its state (it writes ONLY pivot columns to the pivot row).
+     */
+    protected function buildAttachForm(AttachAction $action, BelongsToMany $relation): Form
+    {
+        $form = Form::make()->schema($action->getForm())->operation('create');
+
+        $pivotColumns = $relation->getPivotColumns();
+
+        foreach (array_keys($form->getFields()) as $name) {
+            if (! in_array($name, $pivotColumns, true)) {
+                throw new RuntimeException(
+                    'AttachAction form field "'.$name.'" ('.static::class.') is not a pivot column — '
+                    .'declare it in the relationship\'s withPivot() so the attach endpoint can write it.'
+                );
+            }
+        }
+
+        return $form;
+    }
+
+    /**
+     * The attach modal's pivot form, rebuilt server-side from the manager's own
+     * table — the attach endpoint validates the submitted pivot data against
+     * THIS, never against anything the client sent. Null when the table's
+     * AttachAction declares no form (or the relation is not BelongsToMany).
+     */
+    public function getAttachForm(): ?Form
+    {
+        $relation = $this->getRelation();
+
+        if (! $relation instanceof BelongsToMany) {
+            return null;
+        }
+
+        $table = $this->table(Table::make($this->getRelationshipQuery()));
+
+        foreach ($this->allTableActions($table) as $action) {
+            if ($action instanceof AttachAction && $action->getForm() !== []) {
+                return $this->buildAttachForm($action, $relation);
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -122,6 +122,20 @@ class RtpEditablePivotManager extends RelationManager
     }
 }
 
+class RtpEditableUndeclaredPivotManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    public function table(Table $table): Table
+    {
+        // `created_at` exists on the pivot TABLE but not in withPivot() —
+        // the cell-update endpoint could never write it.
+        return $table->columns([
+            TextInputColumn::make('pivot.created_at'),
+        ]);
+    }
+}
+
 class RtpReorderableTasksManager extends RelationManager
 {
     protected static string $relationship = 'tasks';
@@ -366,14 +380,55 @@ class RelationTableParityTest extends TestCase
         $this->assertSame('php', $found[0]->values['name']);
     }
 
-    public function test_an_editable_pivot_column_throws_at_serialize_time(): void
+    public function test_an_editable_pivot_column_writes_the_pivot_row_not_the_related_model(): void
+    {
+        $user    = RtpUser::create([]);
+        $project = RtpProject::create(['name' => 'Kinetix']);
+        $tag     = RtpTag::create(['name' => 'php']);
+        $project->tags()->attach($tag->id, ['role' => 'backend']);
+
+        $this->actingAs($user);
+        $data = RtpEditablePivotManager::make($project)->toData();
+
+        $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $data->table->model,
+            'recordId' => $tag->id,
+            'column'   => 'pivot.role',
+            'value'    => 'frontend',
+        ])->assertOk();
+
+        // The pivot row changed; the related model has no `role` column and
+        // never sees the write.
+        $this->assertSame('frontend', $project->tags()->first()->pivot->role);
+        $this->assertSame('php', $tag->fresh()->name);
+    }
+
+    public function test_a_pivot_cell_write_for_an_unattached_record_is_a_404(): void
+    {
+        $user    = RtpUser::create([]);
+        $project = RtpProject::create(['name' => 'Kinetix']);
+        $project->tags()->attach(RtpTag::create(['name' => 'php'])->id, ['role' => 'backend']);
+        $loose = RtpTag::create(['name' => 'vue']); // exists, NOT attached
+
+        $this->actingAs($user);
+        $data = RtpEditablePivotManager::make($project)->toData();
+
+        $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $data->table->model,
+            'recordId' => $loose->id,
+            'column'   => 'pivot.role',
+            'value'    => 'smuggled',
+        ])->assertNotFound();
+    }
+
+    public function test_an_editable_pivot_column_outside_with_pivot_throws_at_serialize_time(): void
     {
         $project = RtpProject::create(['name' => 'Kinetix']);
         $project->tags()->attach(RtpTag::create(['name' => 'php'])->id);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Editable pivot columns are not supported');
+        $this->expectExceptionMessage('is not a withPivot() column');
 
-        RtpEditablePivotManager::make($project)->toData();
+        RtpEditableUndeclaredPivotManager::make($project)->toData();
     }
 }

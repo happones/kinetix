@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.156.0] - 2026-08-06
+
+Writing pivot data in BelongsToMany relation managers — the three
+Filament-parity paths. Every write is restricted to `withPivot()` columns.
+
+### Added
+
+- **Pivot fields in the attach modal**: `AttachAction::make()->form([...])`
+  renders the fields below the record picker **(published:
+  `KinetixRelationManager.vue`)**; the attach endpoint revalidates against
+  the manager's own form server-side and writes the state to the pivot row
+  of every attached record. A form field that is not a `withPivot()` column
+  throws at serialize time. Validation errors render inline
+  (`kinetixFetch` now carries the 422 error bag on its thrown error —
+  **published: `useKinetixHttp.ts`**).
+- **Pivot fields in the manager's `form()`**: plain-named fields matching
+  `withPivot()` columns fill from the pivot row on edit and are routed back
+  to it on save (`updateExistingPivot`); on create, BelongsToMany passes
+  them as the attach's pivot data. When a pivot column and a related
+  attribute share a name, the pivot wins (the Filament rule). The view
+  modal resolves `pivot.*` infolist entries.
+- **Inline-editable pivot cells**: editable `pivot.*` columns
+  (`TextInputColumn`, `SelectColumn`, …) no longer throw — the relation-bound
+  cell-update endpoint routes them to `updateExistingPivot` on the pivot
+  row. Only `withPivot()` columns are writable (an undeclared editable pivot
+  column still throws at serialize time), and record scoping/authorization
+  apply unchanged. Note: pivot writes go through the query builder, so
+  Eloquent model events don't fire for them.
+
+### Changed
+
+- A **dotted editable column on a relation-less table is now rejected
+  (403)** by the cell-update endpoint instead of being written as a literal
+  `pivot.x` attribute on the model.
+
 ## [0.155.0] - 2026-08-06
 
 Full shadcn new-york-v4 congruence sweep across every floating surface —

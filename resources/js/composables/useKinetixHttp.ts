@@ -59,8 +59,11 @@ export async function kinetixFetch<T = unknown>(
     });
 
     if (!response.ok) {
-        // Surface the server's error message (e.g. validation) when present.
+        // Surface the server's error message (e.g. validation) when present,
+        // and carry the per-field validation bag so callers can render
+        // inline errors instead of just a toast.
         let message = `HTTP error! status: ${response.status}`;
+        let errors: Record<string, string[]> | undefined;
 
         try {
             const payload = await response.clone().json();
@@ -72,11 +75,18 @@ export async function kinetixFetch<T = unknown>(
             ) {
                 message = payload.message;
             }
+
+            if (payload && typeof payload.errors === 'object') {
+                errors = payload.errors;
+            }
         } catch {
             // non-JSON error body — keep the status message
         }
 
-        throw new Error(message);
+        throw Object.assign(new Error(message), {
+            status: response.status,
+            errors,
+        });
     }
 
     if (response.status === 204) {

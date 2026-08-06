@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Actions;
 
+use Happones\Kinetix\Forms\Components\Component;
+
 /**
  * Toolbar action for a relation manager's BelongsToMany table: opens the
  * attach modal (search + multi-select of not-yet-attached records). The
@@ -13,6 +15,15 @@ namespace Happones\Kinetix\Actions;
  */
 class AttachAction extends Action
 {
+    /**
+     * Pivot fields the attach modal renders below the record picker
+     * (Filament's `AttachAction::form()`). Every field name must be a
+     * `withPivot()` column — the manager throws at serialize time otherwise.
+     *
+     * @var array<int, Component>
+     */
+    protected array $form = [];
+
     public static function make(string $name = 'attach'): static
     {
         return new static($name);
@@ -25,6 +36,28 @@ class AttachAction extends Action
         $this->label((string) __('kinetix.attach'))
             ->icon('link')
             ->color('gray');
+    }
+
+    /**
+     * Pivot fields to collect when attaching (e.g. `TextInput::make('role')`).
+     * The validated state is written to the pivot row of every record the
+     * picker attaches.
+     *
+     * @param array<int, Component> $components
+     */
+    public function form(array $components): static
+    {
+        $this->form = $components;
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, Component>
+     */
+    public function getForm(): array
+    {
+        return $this->form;
     }
 
     /**

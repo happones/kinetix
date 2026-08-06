@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Columns\TextColumn;
+use Happones\Kinetix\Tables\Columns\TextInputColumn;
 use Happones\Kinetix\Tables\Columns\ToggleColumn;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
@@ -184,6 +185,26 @@ class TableWriteSecurityTest extends TestCase
 
         $this->assertSame(1, $a->fresh()->position);
         $this->assertSame(2, $b->fresh()->position);
+    }
+
+    public function test_a_dotted_column_on_a_relation_less_table_cannot_be_written(): void
+    {
+        $widget = ScopedWidget::create(['team_id' => 1, 'name' => 'Mine']);
+
+        // A dotted editable column can only mean a pivot column of a
+        // relation-bound table; without a relation in the descriptor it must
+        // be rejected — never written as a literal `pivot.x` attribute.
+        $token = Table::make(ScopedWidget::query()->where('team_id', 1))
+            ->columns([TextInputColumn::make('pivot.role')])
+            ->toData()
+            ->model;
+
+        $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $token,
+            'recordId' => $widget->id,
+            'column'   => 'pivot.role',
+            'value'    => 'junk',
+        ])->assertForbidden();
     }
 
     public function test_the_models_policy_is_enforced_on_a_cell_edit(): void

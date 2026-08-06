@@ -12,6 +12,7 @@ import type {
 } from '@/types/kinetix';
 import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
+import KinetixForm from './KinetixForm.vue';
 import KinetixTable from './KinetixTable.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
 
@@ -81,6 +82,52 @@ const relationsUrl = computed(
     () => `/${kinetixRoutePrefix(page)}/tables/relations`,
 );
 
+// --- Attach pivot form (AttachAction::form()) --------------------------------
+
+// Cloned per open so edits/errors never leak into the shipped blueprint.
+const attachFormDto = ref<any>(null);
+
+// Unique per manager: the footer submit button targets it via the native
+// `form` attribute (the button lives outside the <form> element).
+const attachFormId = computed(
+    () => `kinetix-attach-pivot-${props.manager.relationship}`,
+);
+
+const showPivotForm = computed(
+    () => pickerMode.value === 'attach' && !!attachFormDto.value,
+);
+
+/**
+ * KinetixForm renders `page.props.errors`; the attach endpoint is a fetch, so
+ * its 422 bag never lands there on its own. Written manually on failure —
+ * and cleared on open so a cancelled attempt doesn't haunt the next one.
+ */
+const setPageErrors = (errors: Record<string, string[]>): void => {
+    // `page?.props?.` — outside a mounted Inertia app (component tests, SSR
+    // edges) usePage yields no page; there is no bag to write then.
+    const props = page?.props as
+        | { errors?: Record<string, string> }
+        | undefined;
+
+    if (!props) {
+        return;
+    }
+
+    const bag = (props.errors ??= {});
+
+    for (const [field, messages] of Object.entries(errors)) {
+        bag[field] = Array.isArray(messages) ? messages[0] : String(messages);
+    }
+};
+
+const clearPageErrors = (): void => {
+    const bag = page?.props?.errors as Record<string, string> | undefined;
+
+    for (const key of Object.keys(bag ?? {})) {
+        delete bag![key];
+    }
+};
+
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function loadAttachable(): Promise<void> {
@@ -135,12 +182,13 @@ function toggleAttachOption(id: number | string): void {
     attachSelected.value = next;
 }
 
-async function submitAttach(): Promise<void> {
+async function submitAttach(pivot?: Record<string, any>): Promise<void> {
     if (!props.manager.descriptor || attachSelected.value.size === 0) {
         return;
     }
 
     attaching.value = true;
+    clearPageErrors();
 
     try {
         await kinetixFetch(
@@ -150,6 +198,7 @@ async function submitAttach(): Promise<void> {
                 body: {
                     descriptor: props.manager.descriptor,
                     ids: Array.from(attachSelected.value),
+                    ...(pivot ? { pivot } : {}),
                 },
             },
         );
@@ -158,11 +207,19 @@ async function submitAttach(): Promise<void> {
         isAttachOpen.value = false;
         router.reload();
     } catch (e) {
-        toast.error(
-            e instanceof Error && e.message
-                ? e.message
-                : t('kinetix.action_failed'),
-        );
+        // Validation problems render inline under the pivot fields; anything
+        // else (expired descriptor, forbidden) only has a message to show.
+        const errors = (e as { errors?: Record<string, string[]> }).errors;
+
+        if (errors && Object.keys(errors).length > 0) {
+            setPageErrors(errors);
+        } else {
+            toast.error(
+                e instanceof Error && e.message
+                    ? e.message
+                    : t('kinetix.action_failed'),
+            );
+        }
     } finally {
         attaching.value = false;
     }
@@ -172,6 +229,14 @@ function openAttach(mode: PickerMode = 'attach'): void {
     pickerMode.value = mode;
     attachSelected.value = new Set();
     attachSearch.value = '';
+    clearPageErrors();
+    attachFormDto.value =
+        mode === 'attach' && props.manager.attachForm
+            ? {
+                  ...props.manager.attachForm,
+                  data: { ...(props.manager.attachForm.data ?? {}) },
+              }
+            : null;
     isAttachOpen.value = true;
     void loadAttachable();
 }
@@ -337,6 +402,19 @@ onBeforeUnmount(() => {
                         <span class="min-w-0 truncate">{{ option.label }}</span>
                     </label>
                 </div>
+
+                <!-- Pivot fields (AttachAction::form()) — written to the pivot
+                     row of every attached record. The footer's submit button
+                     targets this form via the native `form` attribute. -->
+                <KinetixForm
+                    v-if="showPivotForm"
+                    :id="attachFormId"
+                    :form="attachFormDto"
+                    class="pt-3 border-t border-border"
+                    @submit="(values) => submitAttach(values)"
+                >
+                    <template #default><span class="hidden"></span></template>
+                </KinetixForm>
             </div>
 
             <template #footer>
@@ -348,9 +426,19 @@ onBeforeUnmount(() => {
                     {{ t('kinetix.cancel') }}
                 </KinetixButton>
                 <KinetixButton
+                    v-if="showPivotForm"
+                    type="submit"
+                    :form="attachFormId"
                     :loading="attaching"
                     :disabled="attachSelected.size === 0"
-                    @click="submitAttach"
+                >
+                    {{ t(picker[pickerMode].title) }}
+                </KinetixButton>
+                <KinetixButton
+                    v-else
+                    :loading="attaching"
+                    :disabled="attachSelected.size === 0"
+                    @click="submitAttach()"
                 >
                     {{ t(picker[pickerMode].title) }}
                 </KinetixButton>

@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tables;
 use Happones\Kinetix\Resources\Resource;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -86,8 +87,50 @@ class TableWriteController
             ], 403);
         }
 
+        // A dotted column can only be a pivot column of a relation-bound table
+        // (`pivot.role`): route it to the pivot row — writing it as a literal
+        // attribute would just create junk on the related model.
+        if (str_contains($column, '.')) {
+            return $this->pivotCellUpdate($descriptor, $record, $column, $request->input('value'));
+        }
+
         $record->{$column} = $request->input('value');
         $record->save();
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Write one pivot column of one attached record via the parent's
+     * BelongsToMany relationship. Allowed only when the descriptor is
+     * relation-bound, the accessor segment matches the relation's pivot
+     * accessor, and the column is declared in withPivot() — anything else is
+     * rejected exactly like a non-editable column.
+     *
+     * @param array{model: class-string<Model>, relation: array<string, mixed>|null} $descriptor
+     */
+    protected function pivotCellUpdate(array $descriptor, Model $record, string $column, mixed $value): JsonResponse
+    {
+        $relation = $descriptor['relation'];
+
+        $relationObject = is_array($relation)
+            ? $this->resolveRelation($relation, $descriptor['model'])
+            : null;
+
+        [$accessor, $pivotColumn] = explode('.', $column, 2);
+
+        if (
+            ! $relationObject instanceof BelongsToMany
+            || $accessor !== $relationObject->getPivotAccessor()
+            || ! in_array($pivotColumn, $relationObject->getPivotColumns(), true)
+        ) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => __('kinetix.table_column_not_editable'),
+            ], 403);
+        }
+
+        $relationObject->updateExistingPivot($record->getKey(), [$pivotColumn => $value]);
 
         return response()->json(['status' => 'success']);
     }
@@ -307,6 +350,23 @@ class TableWriteController
      */
     protected function relationQuery(array $relation, string $modelClass): Builder
     {
+        $relationObject = $this->resolveRelation($relation, $modelClass);
+
+        // Qualified select: BelongsToMany joins the pivot, and a bare * would
+        // let pivot columns clobber the related model's at hydration.
+        return $relationObject->getQuery()->select($relationObject->getRelated()->qualifyColumn('*'));
+    }
+
+    /**
+     * Rebuild the parent's relationship object from the signed descriptor,
+     * validating every part of it. A FRESH relation per call — its internal
+     * query builder is mutable, so a shared instance would accumulate clauses.
+     *
+     * @param array<string, mixed> $relation
+     * @param class-string<Model>  $modelClass
+     */
+    protected function resolveRelation(array $relation, string $modelClass): Relation
+    {
         $parentClass  = $relation['parent'] ?? null;
         $relationName = $relation['name']   ?? null;
 
@@ -332,13 +392,9 @@ class TableWriteController
             'Invalid relation.',
         );
 
-        $related = $relationObject->getRelated();
+        abort_unless($relationObject->getRelated()::class === $modelClass, 400, 'Relation model mismatch.');
 
-        abort_unless($related::class === $modelClass, 400, 'Relation model mismatch.');
-
-        // Qualified select: BelongsToMany joins the pivot, and a bare * would
-        // let pivot columns clobber the related model's at hydration.
-        return $relationObject->getQuery()->select($related->qualifyColumn('*'));
+        return $relationObject;
     }
 
     /**

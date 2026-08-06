@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Actions\AttachAction;
 use Happones\Kinetix\Actions\DetachAction;
+use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Resources\RelationManager;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Table;
@@ -27,7 +28,8 @@ class RmaProject extends Model
 
     public function tags()
     {
-        return $this->belongsToMany(RmaTag::class, 'rma_project_tag', 'project_id', 'tag_id');
+        return $this->belongsToMany(RmaTag::class, 'rma_project_tag', 'project_id', 'tag_id')
+            ->withPivot('role');
     }
 
     public function notes()
@@ -109,6 +111,42 @@ class NotesWithAttachManager extends RelationManager
     }
 }
 
+class PivotFormTagsManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([TextColumn::make('name')])
+            ->toolbarActions([
+                AttachAction::make()->form([
+                    TextInput::make('role')->required(),
+                ]),
+            ]);
+    }
+}
+
+class BadPivotFormTagsManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([TextColumn::make('name')])
+            ->toolbarActions([
+                AttachAction::make()->form([
+                    TextInput::make('nope'),
+                ]),
+            ]);
+    }
+}
+
 class RelationAttachDetachTest extends TestCase
 {
     protected function setUp(): void
@@ -128,6 +166,7 @@ class RelationAttachDetachTest extends TestCase
         Schema::create('rma_project_tag', function (Blueprint $table) {
             $table->unsignedInteger('project_id');
             $table->unsignedInteger('tag_id');
+            $table->string('role')->nullable();
         });
 
         Schema::create('rma_notes', function (Blueprint $table) {
@@ -256,6 +295,67 @@ class RelationAttachDetachTest extends TestCase
             'descriptor' => $this->descriptorFor($project, $user),
             'ids'        => [$tag->id],
         ])->assertForbidden();
+    }
+
+    public function test_attach_form_pivot_fields_serialize_validate_and_write(): void
+    {
+        $user    = RmaUser::create([]);
+        $project = RmaProject::create(['name' => 'Kinetix']);
+        $php     = RmaTag::create(['name' => 'php']);
+        $vue     = RmaTag::create(['name' => 'vue']);
+
+        $this->actingAs($user);
+        $data = PivotFormTagsManager::make($project)->toData();
+
+        // The pivot form ships with the manager so the attach modal can render it.
+        $this->assertNotNull($data->attachForm);
+        $this->assertArrayHasKey('role', $data->attachForm['data'] ?? []);
+
+        // Missing required pivot data → 422, nothing attached.
+        $this->postJson(route('kinetix.relations.attach'), [
+            'descriptor' => $data->descriptor,
+            'ids'        => [$php->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('role');
+        $this->assertSame(0, $project->tags()->count());
+
+        // The validated state lands on the pivot row of EVERY attached record.
+        $this->postJson(route('kinetix.relations.attach'), [
+            'descriptor' => $data->descriptor,
+            'ids'        => [$php->id, $vue->id],
+            'pivot'      => ['role' => 'writer'],
+        ])->assertOk()->assertJson(['attached' => 2]);
+
+        $this->assertSame(
+            ['writer', 'writer'],
+            $project->tags()->pluck('rma_project_tag.role')->all(),
+        );
+    }
+
+    public function test_attach_pivot_data_is_ignored_without_a_form(): void
+    {
+        $user    = RmaUser::create([]);
+        $project = RmaProject::create(['name' => 'Kinetix']);
+        $tag     = RmaTag::create(['name' => 'php']);
+
+        // TagsManager's AttachAction declares no form — submitted pivot data
+        // must never reach the pivot row.
+        $this->postJson(route('kinetix.relations.attach'), [
+            'descriptor' => $this->descriptorFor($project, $user),
+            'ids'        => [$tag->id],
+            'pivot'      => ['role' => 'smuggled'],
+        ])->assertOk();
+
+        $this->assertNull($project->tags()->first()->pivot->role);
+    }
+
+    public function test_an_attach_form_field_outside_with_pivot_throws(): void
+    {
+        $project = RmaProject::create(['name' => 'Kinetix']);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('is not a pivot column');
+
+        BadPivotFormTagsManager::make($project)->toData();
     }
 
     public function test_attach_action_on_a_non_belongs_to_many_relation_throws(): void

@@ -63,8 +63,9 @@ The manager's table is a full Table (search/sort/filters/columns/bulk/reorder al
 namespaced `{relationship}_…`). Rules that differ:
 - **Pivot columns** (BelongsToMany): declare `->withPivot('role')` on the relationship, then
   `TextColumn::make('pivot.role')` displays/sorts/searches (custom `->as('membership')` accessor
-  supported). **Editable `pivot.*` columns THROW at serialize time** — the cell-update endpoint
-  writes to the RELATED model, not the pivot row.
+  supported). **Editable `pivot.*` columns** (`TextInputColumn`, `SelectColumn`, …) write straight
+  to the pivot row via `updateExistingPivot` — model events don't fire for them, and an editable
+  pivot column NOT declared in `withPivot()` throws at serialize time.
 - Toolbar/footer `ExportAction`/`ImportAction` inside a manager THROW (they'd cover the whole
   model). Bulk export of selected rows is fine.
 - See the **kinetix-resources** skill for the manager itself (modal CRUD, attach/detach).

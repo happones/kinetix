@@ -41,7 +41,8 @@ class RmcProject extends Model
 
     public function tags()
     {
-        return $this->belongsToMany(RmcTag::class, 'rmc_project_tag', 'project_id', 'tag_id');
+        return $this->belongsToMany(RmcTag::class, 'rmc_project_tag', 'project_id', 'tag_id')
+            ->withPivot('role');
     }
 }
 
@@ -154,6 +155,40 @@ class TagsCrudManager extends RelationManager
     }
 }
 
+class PivotTagsCrudManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    public function form(Form $form): Form
+    {
+        // `role` matches a withPivot() column: it fills from and writes to the
+        // pivot row; `name` stays on the related model.
+        return $form->schema([
+            TextInput::make('name')->required(),
+            TextInput::make('role'),
+        ]);
+    }
+
+    public function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist->schema([
+            TextEntry::make('name'),
+            TextEntry::make('pivot.role'),
+        ]);
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([TextColumn::make('name')])
+            ->toolbarActions([CreateAction::make()->modal('create')])
+            ->recordActions([
+                ViewAction::make()->modal('view'),
+                EditAction::make()->modal('edit'),
+            ]);
+    }
+}
+
 class FormlessTasksManager extends RelationManager
 {
     protected static string $relationship = 'tasks';
@@ -203,6 +238,7 @@ class RelationRecordCrudTest extends TestCase
         Schema::create('rmc_project_tag', function (Blueprint $table) {
             $table->unsignedInteger('project_id');
             $table->unsignedInteger('tag_id');
+            $table->string('role')->nullable();
         });
 
         Schema::create('users', function (Blueprint $table) {
@@ -422,6 +458,81 @@ class RelationRecordCrudTest extends TestCase
         // The other parent's record is untouched (relation-scoped lookup).
         $this->assertSame($other->id, (int) $foreign->fresh()->project_id);
         $this->assertNotNull($task->fresh());
+    }
+
+    public function test_edit_form_fills_pivot_columns_from_the_pivot_row(): void
+    {
+        $user    = RmcUser::create([]);
+        $project = RmcProject::create(['name' => 'Kinetix']);
+        $tag     = RmcTag::create(['name' => 'php']);
+        $project->tags()->attach($tag->id, ['role' => 'writer']);
+
+        $descriptor = $this->descriptorFor(PivotTagsCrudManager::class, $project, $user);
+
+        $form = $this->postJson(route('kinetix.relations.record.resolve'), [
+            'token' => $descriptor,
+            'mode'  => 'edit',
+            'id'    => $tag->id,
+        ])->assertOk()->json('form');
+
+        $this->assertSame('php', $form['data']['name'] ?? null);
+        $this->assertSame('writer', $form['data']['role'] ?? null);
+    }
+
+    public function test_update_splits_pivot_state_between_record_and_pivot_row(): void
+    {
+        $user    = RmcUser::create([]);
+        $project = RmcProject::create(['name' => 'Kinetix']);
+        $tag     = RmcTag::create(['name' => 'php']);
+        $project->tags()->attach($tag->id, ['role' => 'writer']);
+
+        $descriptor = $this->descriptorFor(PivotTagsCrudManager::class, $project, $user);
+
+        $this->put(route('kinetix.relations.record.update'), [
+            'token' => $descriptor,
+            'id'    => $tag->id,
+            'data'  => ['name' => 'php8', 'role' => 'admin'],
+        ])->assertRedirect();
+
+        // `name` landed on the related model; `role` on the pivot row — a
+        // `role` column doesn't even exist on rmc_tags, so a leak would 500.
+        $this->assertSame('php8', $tag->fresh()->name);
+        $this->assertSame('admin', $project->tags()->first()->pivot->role);
+    }
+
+    public function test_store_on_a_belongs_to_many_writes_pivot_fields_to_the_pivot_row(): void
+    {
+        $user    = RmcUser::create([]);
+        $project = RmcProject::create(['name' => 'Kinetix']);
+
+        $descriptor = $this->descriptorFor(PivotTagsCrudManager::class, $project, $user);
+
+        $this->post(route('kinetix.relations.record.store'), [
+            'token' => $descriptor,
+            'data'  => ['name' => 'vue', 'role' => 'reviewer'],
+        ])->assertRedirect();
+
+        $attached = $project->tags()->first();
+        $this->assertSame('vue', $attached->name);
+        $this->assertSame('reviewer', $attached->pivot->role);
+    }
+
+    public function test_view_infolist_resolves_pivot_entries(): void
+    {
+        $user    = RmcUser::create([]);
+        $project = RmcProject::create(['name' => 'Kinetix']);
+        $tag     = RmcTag::create(['name' => 'php']);
+        $project->tags()->attach($tag->id, ['role' => 'writer']);
+
+        $descriptor = $this->descriptorFor(PivotTagsCrudManager::class, $project, $user);
+
+        $infolist = $this->postJson(route('kinetix.relations.record.resolve'), [
+            'token' => $descriptor,
+            'mode'  => 'view',
+            'id'    => $tag->id,
+        ])->assertOk()->json('infolist');
+
+        $this->assertStringContainsString('writer', json_encode($infolist));
     }
 
     public function test_modal_actions_without_a_form_throw_at_serialize_time(): void

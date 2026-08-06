@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 
@@ -51,7 +52,7 @@ class RelationManagerController
             return response()->json(['form' => $form->toArray()]);
         }
 
-        $record = $this->findRelated($relation, $request->input('id'));
+        $record = $this->hydratePivot($relation, $this->findRelated($relation, $request->input('id')));
 
         if ($mode === 'view') {
             $this->authorizeChild($related::class, 'view', $record);
@@ -86,9 +87,14 @@ class RelationManagerController
         $form = $manager->form(Form::make(new $related)->operation('create'));
         $form->validate((array) $request->input('data', []));
 
+        [$attributes, $pivot] = $this->splitPivotState($relation, $form->getState((array) $request->input('data', [])));
+
         // HasMany/MorphMany stamp the FK (+ morph type); BelongsToMany creates
-        // the related record AND attaches it in one step.
-        $relation->create($form->getState((array) $request->input('data', [])));
+        // the related record AND attaches it in one step — form fields matching
+        // withPivot() columns land on the pivot row, not the related model.
+        $relation instanceof BelongsToMany
+            ? $relation->create($attributes, $pivot)
+            : $relation->create($attributes);
 
         return back()
             ->with('message', (string) __('kinetix.record_created'))
@@ -107,7 +113,13 @@ class RelationManagerController
         $form = $manager->form(Form::make($record)->operation('edit'));
         $form->validate((array) $request->input('data', []));
 
-        $record->update($form->getState((array) $request->input('data', [])));
+        [$attributes, $pivot] = $this->splitPivotState($relation, $form->getState((array) $request->input('data', [])));
+
+        $record->update($attributes);
+
+        if ($pivot !== [] && $relation instanceof BelongsToMany) {
+            $relation->updateExistingPivot($record->getKey(), $pivot);
+        }
 
         return back()
             ->with('message', (string) __('kinetix.record_updated'))
@@ -158,18 +170,34 @@ class RelationManagerController
 
     public function attach(Request $request): JsonResponse
     {
-        [$relation] = $this->resolve($request, 'belongsToMany');
+        [$relation, $payload, $parent] = $this->resolve($request, 'belongsToMany');
 
         /** @var BelongsToMany<Model, Model> $relation */
         $ids = $this->ids($request);
         abort_if($ids === [], 422, 'Nothing to attach.');
+
+        // Pivot data is validated against the manager's OWN attach form,
+        // rebuilt server-side — with no form declared, submitted pivot data is
+        // ignored entirely. The same validated state is written to the pivot
+        // row of every record being attached.
+        $pivot      = [];
+        $attachForm = $this->manager($payload, $parent)->getAttachForm();
+
+        if ($attachForm !== null) {
+            $attachForm->validate((array) $request->input('pivot', []));
+
+            $pivot = Arr::only(
+                $attachForm->getState((array) $request->input('pivot', [])),
+                $relation->getPivotColumns(),
+            );
+        }
 
         // Only ids that actually exist on the related model — attach() would
         // happily insert pivot rows for ghosts on DBs without FK enforcement.
         $related = $relation->getRelated();
         $valid   = $related->newQuery()->whereKey($ids)->pluck($related->getKeyName())->all();
 
-        $relation->syncWithoutDetaching($valid);
+        $relation->syncWithoutDetaching($pivot === [] ? $valid : array_fill_keys($valid, $pivot));
 
         return response()->json(['status' => 'success', 'attached' => count($valid)]);
     }
@@ -316,6 +344,51 @@ class RelationManagerController
         $column = $payload['title'] ?? null;
 
         return is_string($column) && $column !== '' ? $column : $related->getKeyName();
+    }
+
+    /**
+     * Overlay the record's pivot row so the manager's form/infolist can read
+     * it: pivot columns become attributes on a throwaway clone (a plain form
+     * field named after a `withPivot()` column fills from the pivot — pivot
+     * wins over a same-named related attribute, the Filament rule) and a real
+     * Pivot model is set under the accessor so `pivot.x` infolist entries
+     * resolve through `data_get()` like table columns do.
+     */
+    protected function hydratePivot(Relation $relation, Model $record): Model
+    {
+        if (! $relation instanceof BelongsToMany || $relation->getPivotColumns() === []) {
+            return $record;
+        }
+
+        $row = $relation->newPivotStatementForId($record->getKey())->first();
+
+        if ($row === null) {
+            return $record;
+        }
+
+        $attributes = Arr::only((array) $row, $relation->getPivotColumns());
+
+        return (clone $record)
+            ->forceFill($attributes)
+            ->setRelation($relation->getPivotAccessor(), $relation->newExistingPivot((array) $row));
+    }
+
+    /**
+     * Split a validated form state into related-model attributes and pivot
+     * data: fields named after `withPivot()` columns belong to the pivot row.
+     *
+     * @param  array<string, mixed>                                    $state
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    protected function splitPivotState(Relation $relation, array $state): array
+    {
+        if (! $relation instanceof BelongsToMany || $relation->getPivotColumns() === []) {
+            return [$state, []];
+        }
+
+        $pivotColumns = $relation->getPivotColumns();
+
+        return [Arr::except($state, $pivotColumns), Arr::only($state, $pivotColumns)];
     }
 
     /**

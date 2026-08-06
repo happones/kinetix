@@ -415,7 +415,9 @@ class TagsRelationManager extends RelationManager
 
 - **Attach** opens a modal listing the related records **not yet attached**
   (searchable on `$recordTitleAttribute`, capped at 50); attaching uses
-  `syncWithoutDetaching`, validating ids against the related model.
+  `syncWithoutDetaching`, validating ids against the related model. Give the
+  action a `->form([...])` of pivot fields to collect pivot data while
+  attaching — see §11.
 - **Detach** confirms first and removes **pivot rows only** — the related
   records are never deleted. Row and bulk both work.
 - **Security**: every request re-validates the signed descriptor (user-bound,
@@ -519,10 +521,55 @@ class MembersRelationManager extends RelationManager
 - **Sort and search qualify against the joined pivot table** — no ambiguous
   columns, no fake relation lookups.
 - A custom accessor works too: `->as('membership')` → `membership.role`.
-- **Editable pivot columns throw at serialize time** (the inline-edit
-  endpoint writes to the related model, not the pivot row). Editing pivot
-  data — pivot fields in the attach modal / an edit-pivot action — is the
-  remaining piece, on the roadmap.
+
+### Writing pivot data
+
+All three Filament-parity write paths work, and all of them only ever touch
+columns declared in `withPivot()`:
+
+**Pivot fields in the attach modal** — give the `AttachAction` a form; the
+validated state is written to the pivot row of every record the picker
+attaches:
+
+```php
+->toolbarActions([
+    AttachAction::make()->form([
+        TextInput::make('role')->required(),
+    ]),
+])
+```
+
+A form field that is **not** a `withPivot()` column throws at serialize time
+(the endpoint could never write it). The endpoint revalidates against the
+manager's own form server-side — submitted pivot data is ignored entirely
+when no form is declared.
+
+**Pivot fields in the edit/create modal** — add plain-named fields matching
+`withPivot()` columns to the manager's `form()`; they fill from the pivot row
+on edit and are routed to it on save (`updateExistingPivot`), while the rest
+of the state goes to the related model. On create, BelongsToMany passes them
+as the attach's pivot data. When a pivot column and a related attribute share
+a name, **the pivot wins** — same rule as Filament:
+
+```php
+public function form(Form $form): Form
+{
+    return $form->schema([
+        TextInput::make('name')->required(), // related model
+        TextInput::make('role'),             // withPivot('role') → pivot row
+    ]);
+}
+```
+
+The view modal resolves `pivot.*` infolist entries too
+(`TextEntry::make('pivot.role')`).
+
+**Inline pivot cells** — editable columns on the pivot accessor
+(`TextInputColumn::make('pivot.role')`, `SelectColumn`, …) write through the
+relation-bound cell-update endpoint straight to the pivot row; the related
+model never sees the value. An editable pivot column outside `withPivot()`
+throws at serialize time. Note pivot writes go through the query builder
+(`updateExistingPivot`), so Eloquent model events don't fire for them.
 
 ## 12. What's not supported (yet)
 
@@ -537,10 +584,6 @@ So you don't discover it the hard way:
   the WHOLE model, not the parent's relation (a silent data-exposure
   surface). Bulk-export selected rows, or export from the related resource's
   own index. Relation-scoped export is on the roadmap.
-- **Editing pivot data** (pivot form fields in the attach modal, an
-  edit-pivot action, inline pivot cells) — displaying/sorting/searching
-  pivot columns works (§11), and an editable `pivot.*` column throws at
-  serialize time; writing pivot data is planned.
 - **Deferred/lazy managers** (Filament's `$isLazy`) — every manager
   serializes eagerly today; on pages with many heavy managers consider
   wrapping the `relations` prop in `Inertia::optional()` yourself.

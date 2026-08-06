@@ -37,6 +37,10 @@ const i18n = createI18n({
                 no_records: 'No results',
                 results_count: '{count} results',
                 action_failed: 'Action failed',
+                attach: 'Attach',
+                attached: 'Records attached.',
+                attach_none_found: 'No records found',
+                search_records: 'Search records',
             },
         },
     },
@@ -209,6 +213,105 @@ describe('relation manager row actions carry the record end-to-end', () => {
         expect(JSON.parse((init as RequestInit).body as string)).toEqual({
             descriptor: 'signed-descriptor',
             ids: [7],
+        });
+
+        wrapper.unmount();
+    });
+
+    it('the attach picker renders the pivot form and posts its values with the ids', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(
+                new Response(
+                    JSON.stringify({ options: [{ id: 3, label: 'php' }] }),
+                    {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                    },
+                ),
+            )
+            .mockResolvedValueOnce(
+                new Response(
+                    JSON.stringify({ status: 'success', attached: 1 }),
+                    {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                    },
+                ),
+            );
+        vi.stubGlobal('fetch', fetchMock);
+        document.cookie = 'XSRF-TOKEN=test-token';
+
+        const wrapper = mount(KinetixRelationManager, {
+            props: {
+                manager: {
+                    title: 'Tags',
+                    relationship: 'tags',
+                    table,
+                    descriptor: 'signed-descriptor',
+                    attachForm: {
+                        schema: [
+                            { type: 'text-input', name: 'role', label: 'Role' },
+                        ],
+                        data: { role: '' },
+                        rules: {},
+                        operation: 'create',
+                    },
+                } as any,
+            },
+            global: { plugins: [i18n], stubs: { KinetixTable: true } },
+            attachTo: document.body,
+        });
+
+        window.dispatchEvent(
+            new CustomEvent('kinetix:open-attach', {
+                detail: { relationship: 'tags' },
+            }),
+        );
+
+        // The modal loads the attachable options first.
+        await vi.waitFor(() => {
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        });
+        await vi.waitFor(() => {
+            expect(
+                document.body.querySelector('[role="checkbox"]'),
+            ).not.toBeNull();
+        });
+
+        // Select the option and fill the pivot field.
+        (
+            document.body.querySelector('[role="checkbox"]') as HTMLElement
+        ).click();
+        await nextTick();
+
+        const form = document.body.querySelector(
+            'form#kinetix-attach-pivot-tags',
+        ) as HTMLFormElement;
+        expect(form).not.toBeNull();
+
+        const roleInput = form.querySelector('input') as HTMLInputElement;
+        expect(roleInput).not.toBeNull();
+        roleInput.value = 'writer';
+        roleInput.dispatchEvent(new Event('input', { bubbles: true }));
+        await nextTick();
+
+        // The footer button submits the form via its `form` attribute; firing
+        // the form's own submit is the same code path.
+        form.dispatchEvent(
+            new Event('submit', { bubbles: true, cancelable: true }),
+        );
+
+        await vi.waitFor(() => {
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        });
+
+        const [url, init] = fetchMock.mock.calls[1];
+        expect(String(url)).toBe('/acme/_kinetix/tables/relations/attach');
+        expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+            descriptor: 'signed-descriptor',
+            ids: [3],
+            pivot: { role: 'writer' },
         });
 
         wrapper.unmount();

@@ -20,5 +20,12 @@ class RelationManagerData extends Data
         public ?string $badgeColor = null,
         /** Signed attach/detach descriptor (BelongsToMany managers only). */
         public ?string $descriptor = null,
+        /**
+         * Serialized pivot form the attach modal renders below the record
+         * picker (AttachAction::form()).
+         *
+         * @var array<string, mixed>|null
+         */
+        public ?array $attachForm = null,
     ) {}
 }

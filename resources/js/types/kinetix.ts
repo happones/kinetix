@@ -1149,6 +1149,11 @@ export interface KinetixRelationManagerData {
     badgeColor?: string | null;
     /** Signed attach/detach descriptor (BelongsToMany managers only). */
     descriptor?: string | null;
+    /**
+     * Serialized pivot form the attach modal renders below the record picker
+     * (AttachAction::form()).
+     */
+    attachForm?: Record<string, any> | null;
 }
 
 export interface KinetixPlanData {
