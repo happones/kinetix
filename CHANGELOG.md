@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.143.0] - 2026-08-05
+
+### Added
+
+- **`MonthPicker`, `WeekPicker` and `YearPicker` join the picker behavior
+  contract** — all seven date/time pickers now share the exact same variants:
+  - **`->confirm()`** — grid/calendar clicks build a **draft** (the highlight
+    follows it), the footer's **Apply** is the only commit path, and any other
+    dismissal discards the draft.
+  - **`->todayButton()`** — current-period shortcuts with proper labels:
+    **This month** / **This week** / **This year** (new i18n keys in all 7
+    locales); the shortcut also repositions the view (visible year / decade
+    page / calendar month).
+  - **`->closeOnSelect(bool)`** — keep the popover open after picking.
+  - **`->timezone(string)`** — the current-period preset AND the initial view
+    (month grid's year, year grid's decade page, week calendar's month via
+    `default-placeholder`) read the clock in the effective timezone:
+    per-field override → `app.timezone` → browser fallback.
+  - Same props on the standalone Vue components; `<KinetixWeekCalendar>` gains
+    the `timezone` prop. Re-publish components.
+- **README + docs landing: "Built with Kinetix" showcase and "Support
+  Kinetix".** Cards for [WebhookCatcher](https://webhookcatcher.com)
+  (real-time webhook debugging, free and registration-free) and
+  [Pokkeri](https://pokkeri.com) (a complete Scrum ecosystem — Planning
+  Poker, realtime Kanban, backlog, reports and retrospectives), both built
+  with Kinetix, plus a Buy Me a Coffee button. Docs cards are theme-aware
+  (VitePress CSS variables); logos live under `docs/public/showcase/`.
+
 ## [0.142.0] - 2026-08-05
 
 ### Added
