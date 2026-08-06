@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.145.0] - 2026-08-05
+
+### Added
+
+- **BelongsToMany attach/detach for relation managers** (the Filament
+  `AttachAction`/`DetachAction` parity gap):
+  - **`AttachAction::make()`** (toolbar) opens an attach modal listing the
+    related records **not yet attached** — searchable on the manager's new
+    `protected static ?string $recordTitleAttribute`, capped at 50 — and
+    attaches via `syncWithoutDetaching`, validating ids against the related
+    model (no ghost pivot rows).
+  - **`DetachAction::make()`** (row or bulk) confirms first and removes
+    **pivot rows only** — related records are never deleted.
+  - Both are **auto-wired by the manager**: `toData()` mints a signed
+    descriptor (parent + relation, bound to the current user, expiring — the
+    proven TableRepeater contract) and scopes the actions' browser events to
+    its own relationship, so several managers on one page never cross. New
+    team-prefixed endpoints (`tables/relations/attachable|attach|detach`)
+    re-validate the descriptor and — when the parent model has a policy —
+    require **`update` on the PARENT**. Attach/Detach on a
+    non-`BelongsToMany` relation throws at serialize time instead of
+    rendering dead buttons.
+  - New i18n keys (`attach`, `detach`, `attached`, `detached`,
+    `detach_confirm`, `attach_none_found`) in all 7 locales; `link`/`unlink`
+    icons added to the resolver.
+- **`protected static bool $readOnly`** on relation managers — renders the
+  table with NO record/toolbar/bulk actions, whatever `table()` configured.
+
+### Fixed
+
+- **(published) `kinetixRoutePrefix` no longer throws outside a mounted
+  Inertia app** (component tests, SSR edges) — it falls back to the default
+  prefix, matching `useKinetixCan`'s defensive contract.
+
 ## [0.144.0] - 2026-08-05
 
 Relation managers grow up: automatic tabs when a resource declares several
