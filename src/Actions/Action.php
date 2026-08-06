@@ -438,6 +438,11 @@ class Action
         return $this;
     }
 
+    public function getModalMode(): ?string
+    {
+        return $this->modalMode;
+    }
+
     /**
      * Convert the action to ActionData, or null when hidden/unauthorized.
      */

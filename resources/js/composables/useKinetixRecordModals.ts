@@ -53,8 +53,15 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
 
     const enabled = computed(() => !!options.config()?.enabled);
 
-    const resolveUrl = () => `/${options.routePrefix()}/tables/record/resolve`;
-    const submitUrl = () => `/${options.routePrefix()}/tables/record`;
+    // Relation-scoped modals (a relation manager's table) go through the
+    // parent-bound endpoints; everything else uses the simple-resource ones.
+    const base = () =>
+        options.config()?.scope === 'relation'
+            ? `/${options.routePrefix()}/tables/relations/record`
+            : `/${options.routePrefix()}/tables/record`;
+
+    const resolveUrl = () => `${base()}/resolve`;
+    const submitUrl = () => base();
 
     const token = () => options.config()?.token ?? '';
 

@@ -575,6 +575,25 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Pre-built record-modals descriptor (internal). RelationManager sets this
+     * so its tables get modal CRUD scoped to the PARENT relationship instead of
+     * a resource query — {@see buildRecordModalsData()} then ships it as-is.
+     */
+    protected ?RecordModalsData $presetRecordModalsData = null;
+
+    public function setRecordModalsData(?RecordModalsData $data): static
+    {
+        $this->presetRecordModalsData = $data;
+
+        return $this;
+    }
+
+    public function getRecordModalsSource(): ?string
+    {
+        return $this->recordModalsSource;
+    }
+
+    /**
      * KPI cards shown above the table — counts, sums and averages over the same
      * dataset the table lists.
      *
@@ -1039,6 +1058,10 @@ class Table implements Arrayable, JsonSerializable
      */
     protected function buildRecordModalsData(): ?RecordModalsData
     {
+        if ($this->presetRecordModalsData !== null) {
+            return $this->presetRecordModalsData;
+        }
+
         $resource = $this->recordModalsResource;
 
         if ($resource === null) {

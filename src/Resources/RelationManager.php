@@ -4,14 +4,23 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Resources;
 
+use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Actions\ActionGroup;
+use Happones\Kinetix\Actions\AssociateAction;
 use Happones\Kinetix\Actions\AttachAction;
 use Happones\Kinetix\Actions\DetachAction;
+use Happones\Kinetix\Actions\DissociateAction;
+use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\RelationManagerData;
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
@@ -72,6 +81,27 @@ abstract class RelationManager implements Arrayable, JsonSerializable
      * Configure the table that lists the related records.
      */
     abstract public function table(Table $table): Table;
+
+    /**
+     * The form the manager's create/edit MODALS render (the Filament
+     * convention: a relation manager owns its own form). Override it to enable
+     * `CreateAction::make()->modal('create')` / `EditAction::make()->modal('edit')`
+     * on the table — created records are bound to the parent server-side, so
+     * the schema never needs a parent select or foreign-key field.
+     */
+    public function form(Form $form): Form
+    {
+        return $form;
+    }
+
+    /**
+     * The read-only detail the manager's View modal renders. Override it to
+     * enable `ViewAction::make()->modal('view')` on the table.
+     */
+    public function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist;
+    }
 
     public static function getTitle(): string
     {
@@ -162,12 +192,15 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         // recordModals() resolves records through the RESOURCE's query, not
         // through this parent's relationship — its create endpoint would not
         // stamp the parent FK and its update/delete would reach ANY record of
-        // the resource. Refuse the combination instead of shipping the hole.
+        // the resource. Refuse the combination: relation managers get modal
+        // CRUD by declaring form()/infolist() on the MANAGER and flagging
+        // actions with ->modal('create'|'edit'|'view'|'delete').
         if ($table->getRecordModalsResource() !== null) {
             throw new RuntimeException(
                 'recordModals() is not supported inside a relation manager ('.static::class.'): '
                 .'the modal endpoints resolve through the resource query, not the parent relationship. '
-                .'Use row actions pointing at your own routes instead.'
+                .'Declare form()/infolist() on the manager and use ->modal() actions instead — '
+                .'the manager wires the parent-bound endpoints automatically.'
             );
         }
 
@@ -175,7 +208,17 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             $table->recordActions([])->toolbarActions([])->bulkActions([]);
         }
 
-        $descriptor = $this->wireAttachDetach($table, $relation);
+        $wantsAttachDetach = $this->wireAttachDetach($table, $relation);
+        $wantsAssociate    = $this->wireAssociateDissociate($table, $relation);
+        $modalModes        = $this->collectModalModes($table);
+
+        $descriptor = ($wantsAttachDetach || $wantsAssociate || $modalModes !== [])
+            ? $this->mintDescriptor()
+            : null;
+
+        if ($modalModes !== [] && $descriptor !== null) {
+            $this->wireRecordModals($table, $relation, $descriptor, $modalModes);
+        }
 
         return new RelationManagerData(
             title: static::getTitle(),
@@ -188,45 +231,166 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     }
 
     /**
-     * BelongsToMany managers get a signed descriptor (parent + relation,
-     * user-bound, expiring) and their Attach/Detach actions are wired to this
-     * manager's browser events. Attach/Detach on any other relation type is a
-     * misconfiguration, so it throws instead of rendering dead buttons.
+     * Signed descriptor: parent + relation + manager, bound to the user it was
+     * minted for and expiring — the contract every relation endpoint
+     * (record CRUD, attach/detach, associate/dissociate) re-validates.
      */
-    protected function wireAttachDetach(Table $table, Relation $relation): ?string
+    protected function mintDescriptor(): string
     {
-        $attachDetach = array_filter(
-            [...$table->getToolbarActions(), ...$table->getRecordActions(), ...$table->getBulkActions()],
-            static fn (mixed $action): bool => $action instanceof AttachAction || $action instanceof DetachAction,
-        );
-
-        if (! $relation instanceof BelongsToMany) {
-            if ($attachDetach !== []) {
-                throw new RuntimeException(
-                    'AttachAction/DetachAction require a BelongsToMany relation — '
-                    .static::class.'::$relationship is a '.class_basename($relation).'.'
-                );
-            }
-
-            return null;
-        }
-
-        foreach ($attachDetach as $action) {
-            $action->forRelationship(static::$relationship);
-        }
-
         $ttl = config('kinetix.tables.token_ttl', 1440);
 
         return Crypt::encrypt([
             'parent'   => $this->parent::class,
             'key'      => $this->parent->getKey(),
             'relation' => static::$relationship,
+            'manager'  => static::class,
             'title'    => static::$recordTitleAttribute,
             'user'     => auth()->id(),
             'expires'  => is_numeric($ttl) && (int) $ttl > 0
                 ? now()->getTimestamp() + ((int) $ttl * 60)
                 : null,
         ]);
+    }
+
+    /**
+     * Every action across the table's surfaces, with groups flattened.
+     *
+     * @return array<int, Action>
+     */
+    protected function allTableActions(Table $table): array
+    {
+        $flat = [];
+
+        foreach ([...$table->getToolbarActions(), ...$table->getRecordActions(), ...$table->getBulkActions()] as $action) {
+            if ($action instanceof ActionGroup) {
+                $flat = [...$flat, ...$action->getActions()];
+
+                continue;
+            }
+
+            if ($action instanceof Action) {
+                $flat[] = $action;
+            }
+        }
+
+        return $flat;
+    }
+
+    /**
+     * The distinct ->modal() modes declared across the table's actions.
+     *
+     * @return array<int, string>
+     */
+    protected function collectModalModes(Table $table): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn (Action $action): ?string => $action->getModalMode(),
+            $this->allTableActions($table),
+        ))));
+    }
+
+    /**
+     * Enable in-table modal CRUD for the ->modal() actions the table declared:
+     * ships a RecordModalsData scoped to the RELATION endpoint (create binds to
+     * the parent server-side; edit/view/delete resolve through the
+     * relationship). Requires form() for create/edit and infolist() for view.
+     *
+     * @param array<int, string> $modes
+     */
+    protected function wireRecordModals(Table $table, Relation $relation, string $descriptor, array $modes): void
+    {
+        $related = $relation->getRelated();
+
+        /** @var Form $createForm */
+        $createForm  = $this->form(Form::make(new $related)->operation('create'))->fill();
+        $hasForm     = $createForm->getFields()                                        !== [];
+        $hasInfolist = $this->infolist(Infolist::make(new $related))->toData()->schema !== [];
+
+        if (in_array('view', $modes, true) && ! $hasInfolist) {
+            throw new RuntimeException(
+                static::class." uses ->modal('view') but declares no infolist() — override infolist() on the manager."
+            );
+        }
+
+        if (array_intersect(['create', 'edit'], $modes) !== [] && ! $hasForm) {
+            throw new RuntimeException(
+                static::class." uses ->modal('create'|'edit') but declares no form() — override form() on the manager."
+            );
+        }
+
+        $source = (string) config('kinetix.tables.record_source', 'server');
+
+        $table->setRecordModalsData(new RecordModalsData(
+            enabled: true,
+            token: $descriptor,
+            source: $source === 'row' ? 'row' : 'server',
+            hasForm: $hasForm,
+            hasInfolist: $hasInfolist,
+            createForm: $hasForm ? $createForm->toArray() : null,
+            scope: 'relation',
+        ));
+    }
+
+    /**
+     * BelongsToMany managers get their Attach/Detach actions wired to this
+     * manager's browser events. Attach/Detach on any other relation type is a
+     * misconfiguration, so it throws instead of rendering dead buttons.
+     * Returns whether any were wired (→ the descriptor is needed).
+     */
+    protected function wireAttachDetach(Table $table, Relation $relation): bool
+    {
+        $attachDetach = array_filter(
+            $this->allTableActions($table),
+            static fn (Action $action): bool => $action instanceof AttachAction || $action instanceof DetachAction,
+        );
+
+        if ($attachDetach === []) {
+            return false;
+        }
+
+        if (! $relation instanceof BelongsToMany) {
+            throw new RuntimeException(
+                'AttachAction/DetachAction require a BelongsToMany relation — '
+                .static::class.'::$relationship is a '.class_basename($relation).'.'
+            );
+        }
+
+        foreach ($attachDetach as $action) {
+            $action->forRelationship(static::$relationship);
+        }
+
+        return true;
+    }
+
+    /**
+     * HasMany/MorphMany managers get their Associate/Dissociate actions wired
+     * to this manager's browser events (re-parenting by foreign key). Any other
+     * relation type throws instead of rendering dead buttons.
+     * Returns whether any were wired (→ the descriptor is needed).
+     */
+    protected function wireAssociateDissociate(Table $table, Relation $relation): bool
+    {
+        $associateDissociate = array_filter(
+            $this->allTableActions($table),
+            static fn (Action $action): bool => $action instanceof AssociateAction || $action instanceof DissociateAction,
+        );
+
+        if ($associateDissociate === []) {
+            return false;
+        }
+
+        if (! $relation instanceof HasMany && ! $relation instanceof MorphMany) {
+            throw new RuntimeException(
+                'AssociateAction/DissociateAction require a HasMany/MorphMany relation — '
+                .static::class.'::$relationship is a '.class_basename($relation).'.'
+            );
+        }
+
+        foreach ($associateDissociate as $action) {
+            $action->forRelationship(static::$relationship);
+        }
+
+        return true;
     }
 
     /**

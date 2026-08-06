@@ -100,6 +100,11 @@ export const i18n = createI18n({
                 attached: 'Attached.',
                 detached: 'Detached.',
                 attach_none_found: 'No records to attach.',
+                associate: 'Associate',
+                dissociate: 'Dissociate',
+                associated: 'Records associated.',
+                dissociated: 'Records dissociated.',
+                associate_none_found: 'No records to associate.',
                 search_records: 'Search records...',
                 // pickers
                 apply: 'Apply',

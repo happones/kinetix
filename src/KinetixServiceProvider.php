@@ -2342,6 +2342,18 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('relations/attachable', [RelationManagerController::class, 'attachable'])->name('kinetix.relations.attachable');
                 Route::post('relations/attach', [RelationManagerController::class, 'attach'])->name('kinetix.relations.attach');
                 Route::post('relations/detach', [RelationManagerController::class, 'detach'])->name('kinetix.relations.detach');
+                Route::post('relations/associable', [RelationManagerController::class, 'associable'])->name('kinetix.relations.associable');
+                Route::post('relations/associate', [RelationManagerController::class, 'associate'])->name('kinetix.relations.associate');
+                Route::post('relations/dissociate', [RelationManagerController::class, 'dissociate'])->name('kinetix.relations.dissociate');
+
+                // Relation-manager modal CRUD: `record` returns a fresh
+                // form/infolist (XHR/JSON); the rest persist THROUGH the
+                // parent relationship and redirect back (Inertia) so the
+                // hosting page reloads with fresh data.
+                Route::post('relations/record/resolve', [RelationManagerController::class, 'record'])->name('kinetix.relations.record.resolve');
+                Route::post('relations/record', [RelationManagerController::class, 'storeRecord'])->name('kinetix.relations.record.store');
+                Route::put('relations/record', [RelationManagerController::class, 'updateRecord'])->name('kinetix.relations.record.update');
+                Route::delete('relations/record', [RelationManagerController::class, 'destroyRecord'])->name('kinetix.relations.record.destroy');
 
                 // Simple-resource in-table modal CRUD (Table::recordModals()).
                 // `resolve` returns a fresh form/infolist (XHR/JSON); the rest

@@ -67,10 +67,12 @@ class PostsRelationManager extends RelationManager
 | `protected static $visibleOn` | Pages the manager appears on (`['edit', 'view']` by default) |
 | `protected static $badgeColor` | Status color for the badge (primary, gray, success…) |
 | `table(Table $table): Table` | Configure columns/filters/actions (the table is pre-scoped + prefixed) |
+| `form(Form $form): Form` | Schema for the create/edit **modals** — enables `->modal('create'\|'edit')` actions; never needs a parent FK field (see §6) |
+| `infolist(Infolist $infolist): Infolist` | Read-only detail for the View **modal** — enables `->modal('view')` (see §6) |
 | `::make(?Model $parent)` | Bind the parent record |
 | `canViewForRecord(Model $parent, string $page): bool` | Record/user-aware gating (Filament analogue) — see §4 |
 | `getBadge(): int\|string\|null` | Badge next to the title / on the tab (e.g. a count) — see §3 |
-| `protected static $recordTitleAttribute` | Related-model attribute the attach modal labels/searches by — see §7 |
+| `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label/search by — see §7.5/§7.6 |
 | `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk actions |
 | `getRelation(): Relation` | The parent's relationship OBJECT (BelongsToMany keeps its pivot) |
 | `getRelationshipQuery(): Builder` | The parent-scoped Eloquent query |
@@ -220,19 +222,26 @@ Relation managers rely on the same `Table::queryPrefix('posts_')` mechanism you 
 
 ---
 
-## 6. Recipe: full CRUD inside a relation manager
+## 6. Modal CRUD (create / edit / view / delete) — the Filament convention
 
-A complete "Posts of this User" panel with **create** (toolbar), **edit/delete** (per row), all scoped to the parent. CRUD is wired through ordinary `Action`s pointing at nested routes.
-
-**1. The relation manager** — table + actions (the query is auto-scoped to `$user->posts()`):
+Relation managers get full CRUD **in modals** with zero routes and zero
+controllers: declare a `form()` (and optionally an `infolist()`) on the
+MANAGER — exactly Filament's convention — and flag the table's actions with
+`->modal(...)`. The manager wires everything else automatically.
 
 ```php
 namespace App\Kinetix\RelationManagers;
 
-use App\Models\Post;
-use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Actions\ActionGroup;
+use Happones\Kinetix\Actions\CreateAction;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
+use Happones\Kinetix\Actions\ViewAction;
+use Happones\Kinetix\Forms\Components\Select;
+use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Infolists\Components\TextEntry;
+use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Resources\RelationManager;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Table;
@@ -241,44 +250,77 @@ class PostsRelationManager extends RelationManager
 {
     protected static string $relationship = 'posts';
 
+    /**
+     * The form the create/edit modals render. NOTE: no `user_id` field —
+     * created records are bound to the parent server-side (through the
+     * relationship), so a parent select / FK field is never needed and a
+     * forged one is ignored.
+     */
+    public function form(Form $form): Form
+    {
+        return $form->schema([
+            TextInput::make('title')->required(),
+            Select::make('status')->options([
+                'draft' => 'Draft', 'published' => 'Published',
+            ]),
+        ]);
+    }
+
+    /** Read-only detail for the View modal (optional). */
+    public function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist->schema([
+            TextEntry::make('title'),
+            TextEntry::make('status')->badge(),
+        ]);
+    }
+
     public function table(Table $table): Table
     {
-        // $this->parent is the User; the query is constrained to its posts.
         return $table
             ->columns([
                 TextColumn::make('title')->searchable()->sortable(),
                 TextColumn::make('status')->badge(),
             ])
             ->toolbarActions([
-                Action::make('create')->label('New post')->icon('plus')
-                    ->url(fn () => route('users.posts.create', $this->parent)),
+                CreateAction::make()->modal('create'),
             ])
             ->recordActions([
-                EditAction::make()->url(fn (Post $post) => route('users.posts.edit', [$this->parent, $post])),
-                DeleteAction::make()->inertiaVisit(
-                    fn (Post $post) => route('users.posts.destroy', [$this->parent, $post]),
-                    ['method' => 'delete'],
-                ),
+                ActionGroup::make([
+                    ViewAction::make()->modal('view'),
+                    EditAction::make()->modal('edit'),
+                    DeleteAction::make()->modal('delete'),
+                ]),
             ]);
     }
 }
 ```
 
-**2. Nested routes** for the relation's CRUD:
+That's the whole implementation — render the manager on the parent page as in
+§3 and the modals just work, at any scale, on any project.
 
-```php
-Route::prefix('users/{user}')->name('users.posts.')->group(function () {
-    Route::get('posts/create', [UserPostController::class, 'create'])->name('create');
-    Route::post('posts', [UserPostController::class, 'store'])->name('store');
-    Route::get('posts/{post}/edit', [UserPostController::class, 'edit'])->name('edit');
-    Route::put('posts/{post}', [UserPostController::class, 'update'])->name('update');
-    Route::delete('posts/{post}', [UserPostController::class, 'destroy'])->name('destroy');
-});
-```
+**How it stays safe (the contract):**
 
-**3. Render it on the parent's edit page** (see §3) — the create/edit actions navigate to the nested form pages, and `delete` issues a scoped Inertia `DELETE`. After a mutation, redirect back to the parent edit page and the relation table refreshes.
+- Every request carries the manager's **signed descriptor** (parent model +
+  key + relationship + manager class, bound to the user it was minted for,
+  expiring per `kinetix.tables.token_ttl`). The client never names a class.
+- **Create goes THROUGH the relationship** — `HasMany`/`MorphMany` stamp the
+  foreign key (and morph type); `BelongsToMany` creates the record **and**
+  attaches it. A submitted FK is ignored.
+- **Edit/View/Delete resolve THROUGH the relationship** — another parent's
+  record id 404s, exactly like the table itself. Deleting a `BelongsToMany`
+  record also drops its pivot row.
+- **Authorization**: the PARENT's `update` policy gates every endpoint
+  (touching children is editing the parent), plus the CHILD model's own
+  policy (`view`/`create`/`update`/`delete`) when it has one.
+- Works for `HasMany`, `MorphMany`, and `BelongsToMany`. Misconfiguration
+  fails loudly at serialize time: `->modal('create')` without `form()` (or
+  `->modal('view')` without `infolist()`) throws.
 
-> Route binding is respected: passing the models to `route(...)` uses each model's `getRouteKey()` (so slug/uuid keys work). Authorize per row with `EditAction::make()->authorize('update')`, etc. — unauthorized actions are dropped from the payload.
+> Prefer full pages over modals for a relation? Wire ordinary `Action`s at
+> your own nested routes (`->url(...)` / `->inertiaVisit(...)`) — modals and
+> routed actions compose freely in the same table. Authorize per row with
+> `EditAction::make()->authorize('update')`, etc.
 
 ---
 
@@ -357,19 +399,52 @@ class TagsRelationManager extends RelationManager
   record/toolbar/bulk actions from the rendered table, whatever `table()`
   configured.
 
+## 7.6 HasMany / MorphMany: associate & dissociate
+
+The `HasMany`/`MorphMany` counterpart of attach/detach — re-parenting by
+foreign key (Filament's Associate/Dissociate):
+
+```php
+use Happones\Kinetix\Actions\AssociateAction;
+use Happones\Kinetix\Actions\DissociateAction;
+
+class TasksRelationManager extends RelationManager
+{
+    protected static string $relationship = 'tasks';
+
+    protected static ?string $recordTitleAttribute = 'title';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([TextColumn::make('title')])
+            ->toolbarActions([AssociateAction::make()])
+            ->recordActions([DissociateAction::make()]);   // also works in bulkActions()
+    }
+}
+```
+
+- **Associate** opens a modal listing the related records **not owned by any
+  parent** (foreign key `NULL` — Filament's default scope), searchable on
+  `$recordTitleAttribute`; associating stamps the FK (and morph type)
+  server-side via the relationship.
+- **Dissociate** confirms first and **nulls the foreign key** — the related
+  records are never deleted. The lookup is relation-scoped, so another
+  parent's record ids are ignored.
+- Same security contract as attach/detach (§7.5): signed descriptor +
+  parent `update` policy. On a `BelongsToMany` relation these actions throw
+  at serialize time — use Attach/Detach there.
+
 ## 8. What's not supported (yet)
 
 So you don't discover it the hard way:
 
-- **`recordModals()` inside a relation manager** — rejected with an exception:
-  the modal endpoints resolve through the *resource* query, not the parent
-  relationship, so create would not stamp the parent FK and update/delete
-  could reach records outside the relation. Use row actions pointing at your
-  own nested routes (§6).
+- **`recordModals()` inside a relation manager** — rejected with an
+  exception; you don't need it: declare `form()`/`infolist()` on the manager
+  and flag actions with `->modal()` (§6) — the manager wires the
+  parent-bound endpoints itself.
 - **Pivot columns** (showing/editing pivot data in the table) — planned;
   `getRelation()` already exposes the relationship object with its pivot.
-- **AssociateAction/DissociateAction** (HasMany re-parenting) — use row
-  actions on your own routes meanwhile.
 
 ## 9. i18n
 

@@ -135,7 +135,7 @@ onBeforeUnmount(() => {
         <!-- Section card layout -->
         <div
             v-else-if="entry.type === 'section'"
-            class="kinetix-col rounded-xl shadow-sm border border-border bg-popover"
+            class="kinetix-col rounded-xl shadow-sm border border-border bg-card text-card-foreground"
             :style="colStyle(entry)"
         >
             <div
@@ -147,26 +147,31 @@ onBeforeUnmount(() => {
                 class="p-6 pb-4 border-b border-border"
             >
                 <div class="gap-4 flex items-start justify-between">
-                    <div class="min-w-0">
-                        <div class="gap-2 flex items-center">
+                    <div class="gap-3 min-w-0 flex items-start">
+                        <span
+                            v-if="entry.icon"
+                            class="h-9 w-9 mt-0.5 rounded-lg flex shrink-0 items-center justify-center border border-border bg-muted/60"
+                            aria-hidden="true"
+                        >
                             <component
                                 :is="resolveIcon(entry.icon)"
-                                v-if="entry.icon"
                                 class="h-4 w-4 text-muted-foreground"
                             />
+                        </span>
+                        <div class="min-w-0">
                             <h3
                                 v-if="entry.heading"
                                 class="font-semibold tracking-tight leading-none text-foreground"
                             >
                                 {{ entry.heading }}
                             </h3>
+                            <p
+                                v-if="entry.description"
+                                class="text-sm mt-1.5 text-muted-foreground"
+                            >
+                                {{ entry.description }}
+                            </p>
                         </div>
-                        <p
-                            v-if="entry.description"
-                            class="text-sm mt-1.5 text-muted-foreground"
-                        >
-                            {{ entry.description }}
-                        </p>
                     </div>
 
                     <!-- Section header actions -->
@@ -240,7 +245,7 @@ onBeforeUnmount(() => {
         <!-- Tabs layout -->
         <div
             v-else-if="entry.type === 'tabs'"
-            class="kinetix-col rounded-xl shadow-sm border border-border bg-popover"
+            class="kinetix-col rounded-xl shadow-sm border border-border bg-card text-card-foreground"
             :style="colStyle(entry)"
         >
             <div
@@ -309,7 +314,7 @@ onBeforeUnmount(() => {
             <!-- Empty placeholder -->
             <span
                 v-if="isEmpty(entry.state)"
-                class="text-sm text-muted-foreground"
+                class="text-sm text-muted-foreground/70 italic"
             >
                 {{ entry.placeholder ?? '—' }}
             </span>
@@ -330,7 +335,7 @@ onBeforeUnmount(() => {
                 v-else-if="entry.type === 'image'"
                 :src="String(entry.state)"
                 :alt="entry.label ?? ''"
-                class="border border-border object-cover"
+                class="shadow-sm object-cover ring-1 ring-border"
                 :class="entry.isCircular ? 'rounded-full' : 'rounded-lg'"
                 :style="{
                     width: `${entry.size || 96}px`,
@@ -368,7 +373,7 @@ onBeforeUnmount(() => {
             <!-- Badge text entry -->
             <span
                 v-else-if="entry.type === 'text' && entry.isBadge"
-                class="gap-1 px-2 py-0.5 text-xs font-medium inline-flex w-fit items-center rounded-md"
+                class="gap-1 px-2.5 py-0.5 text-xs font-medium inline-flex w-fit items-center rounded-full"
                 :class="getBadgeColorClass(entry.color)"
             >
                 <component
@@ -404,7 +409,10 @@ onBeforeUnmount(() => {
                     class="h-3.5 w-3.5"
                     :class="getIconColorClass(entry.color)"
                 />
-                <span class="text-sm" :class="getTextColorClass(entry.color)">
+                <span
+                    class="text-sm font-medium leading-relaxed break-words"
+                    :class="getTextColorClass(entry.color)"
+                >
                     {{ entry.state }}
                 </span>
                 <button

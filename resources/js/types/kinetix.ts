@@ -1089,6 +1089,11 @@ export interface KinetixRecordModals {
     hasInfolist: boolean;
     /** Blueprint form DTO for an instant create modal (no round-trip). */
     createForm?: Record<string, any> | null;
+    /**
+     * 'resource' → the simple-resource record endpoint; 'relation' → the
+     * relation-manager record endpoint (CRUD bound to the parent record).
+     */
+    scope?: 'resource' | 'relation';
 }
 
 /** A computed column summary (sum/average/count/range/custom). */

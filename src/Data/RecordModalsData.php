@@ -25,14 +25,19 @@ class RecordModalsData extends Data
      */
     public function __construct(
         public bool $enabled,
-        // Signed descriptor: encrypted { model, resource }. Sent with every
+        // Signed descriptor. Resource scope: encrypted { model, resource }.
+        // Relation scope: the relation manager's descriptor (parent + relation
+        // + manager, user-bound, expiring). Sent with every
         // resolve/store/update/destroy request so the endpoint can trust the
-        // model + resource without the client naming them.
+        // target without the client naming it.
         public string $token,
         // 'server' (fetch the fresh record) | 'row' (prefill from the loaded row).
         public string $source = 'server',
         public bool $hasForm = false,
         public bool $hasInfolist = false,
         public ?array $createForm = null,
+        // 'resource' → the simple-resource record endpoint; 'relation' → the
+        // relation-manager record endpoint (parent-bound CRUD).
+        public string $scope = 'resource',
     ) {}
 }

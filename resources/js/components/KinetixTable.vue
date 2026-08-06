@@ -818,9 +818,11 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                     class="h-24 animate-pulse rounded-md bg-muted"
                                 ></div>
                             </div>
+                            <!-- The modal IS the surface — no card-in-modal. -->
                             <KinetixInfolist
                                 v-else-if="recordInfolist"
                                 :infolist="recordInfolist"
+                                :surface="false"
                             />
                         </div>
                     </div>

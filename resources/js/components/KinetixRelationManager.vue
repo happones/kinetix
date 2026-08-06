@@ -16,10 +16,13 @@ import KinetixTable from './KinetixTable.vue';
 
 /**
  * One relation manager: heading (+ optional badge) and the related-records
- * table. Hosts the BelongsToMany attach modal and the detach listener when
- * the manager ships a signed `descriptor` — `AttachAction`/`DetachAction`
- * dispatch `kinetix:open-attach` / `kinetix:detach-relation` events carrying
- * this manager's relationship, so several managers on one page never cross.
+ * table. When the manager ships a signed `descriptor` it also hosts the
+ * record-picker modal (BelongsToMany attach / HasMany associate) and the
+ * detach/dissociate listeners — the actions dispatch
+ * `kinetix:open-attach|open-associate|detach-relation|dissociate-relation`
+ * events carrying this manager's relationship, so several managers on one
+ * page never cross. Modal CRUD (create/edit/view/delete) needs nothing here:
+ * the table's own record modals post to the relation-scoped endpoint.
  *
  * For SEVERAL managers prefer `<KinetixRelationManagers :managers="…" />`
  * (auto-tabs); it renders this component per tab with `hideTitle`.
@@ -41,10 +44,12 @@ const page = usePage<KinetixSharedProps>();
 const badgeClass = (color?: string | null): string =>
     statusBadgeClass((color ?? 'gray') as KinetixStatusColor);
 
-// --- Attach modal (BelongsToMany only) -------------------------------------
+// --- Record picker modal (BelongsToMany attach / HasMany associate) ---------
 
 type AttachOption = { id: number | string; label: string };
+type PickerMode = 'attach' | 'associate';
 
+const pickerMode = ref<PickerMode>('attach');
 const isAttachOpen = ref(false);
 const attachOptions = ref<AttachOption[]>([]);
 const attachSelected = ref<Set<number | string>>(new Set());
@@ -52,6 +57,24 @@ const attachSearch = ref('');
 const attachLoading = ref(false);
 const attaching = ref(false);
 const detaching = ref(false);
+
+// Endpoint + copy per picker mode; the modal itself is shared.
+const picker = {
+    attach: {
+        options: 'attachable',
+        submit: 'attach',
+        title: 'kinetix.attach',
+        done: 'kinetix.attached',
+        empty: 'kinetix.attach_none_found',
+    },
+    associate: {
+        options: 'associable',
+        submit: 'associate',
+        title: 'kinetix.associate',
+        done: 'kinetix.associated',
+        empty: 'kinetix.associate_none_found',
+    },
+} as const;
 
 const relationsUrl = computed(
     () => `/${kinetixRoutePrefix(page)}/tables/relations`,
@@ -68,7 +91,7 @@ async function loadAttachable(): Promise<void> {
 
     try {
         const response = await kinetixFetch<{ options: AttachOption[] }>(
-            `${relationsUrl.value}/attachable`,
+            `${relationsUrl.value}/${picker[pickerMode.value].options}`,
             {
                 method: 'POST',
                 body: {
@@ -119,15 +142,18 @@ async function submitAttach(): Promise<void> {
     attaching.value = true;
 
     try {
-        await kinetixFetch(`${relationsUrl.value}/attach`, {
-            method: 'POST',
-            body: {
-                descriptor: props.manager.descriptor,
-                ids: Array.from(attachSelected.value),
+        await kinetixFetch(
+            `${relationsUrl.value}/${picker[pickerMode.value].submit}`,
+            {
+                method: 'POST',
+                body: {
+                    descriptor: props.manager.descriptor,
+                    ids: Array.from(attachSelected.value),
+                },
             },
-        });
+        );
 
-        toast.success(t('kinetix.attached'));
+        toast.success(t(picker[pickerMode.value].done));
         isAttachOpen.value = false;
         router.reload();
     } catch (e) {
@@ -141,16 +167,20 @@ async function submitAttach(): Promise<void> {
     }
 }
 
-function openAttach(): void {
+function openAttach(mode: PickerMode = 'attach'): void {
+    pickerMode.value = mode;
     attachSelected.value = new Set();
     attachSearch.value = '';
     isAttachOpen.value = true;
     void loadAttachable();
 }
 
-// --- Detach (row / bulk) ----------------------------------------------------
+// --- Detach / dissociate (row / bulk) ----------------------------------------
 
-async function detach(ids: Array<number | string>): Promise<void> {
+async function removeRelation(
+    endpoint: 'detach' | 'dissociate',
+    ids: Array<number | string>,
+): Promise<void> {
     if (!props.manager.descriptor || ids.length === 0 || detaching.value) {
         return;
     }
@@ -158,12 +188,18 @@ async function detach(ids: Array<number | string>): Promise<void> {
     detaching.value = true;
 
     try {
-        await kinetixFetch(`${relationsUrl.value}/detach`, {
+        await kinetixFetch(`${relationsUrl.value}/${endpoint}`, {
             method: 'POST',
             body: { descriptor: props.manager.descriptor, ids },
         });
 
-        toast.success(t('kinetix.detached'));
+        toast.success(
+            t(
+                endpoint === 'detach'
+                    ? 'kinetix.detached'
+                    : 'kinetix.dissociated',
+            ),
+        );
         router.reload();
     } catch (e) {
         toast.error(
@@ -178,38 +214,62 @@ async function detach(ids: Array<number | string>): Promise<void> {
 
 // --- Event wiring (AttachAction / DetachAction dispatch these) --------------
 
-const onOpenAttach = (event: Event): void => {
+const forThisManager = (event: Event): boolean =>
+    ((event as CustomEvent).detail ?? {}).relationship ===
+    props.manager.relationship;
+
+const eventIds = (event: Event): Array<number | string> => {
     const detail = (event as CustomEvent).detail ?? {};
 
-    if (detail.relationship === props.manager.relationship) {
-        openAttach();
-    }
-};
-
-const onDetachRelation = (event: Event): void => {
-    const detail = (event as CustomEvent).detail ?? {};
-
-    if (detail.relationship !== props.manager.relationship) {
-        return;
-    }
-
-    const ids: Array<number | string> = Array.isArray(detail.ids)
+    return Array.isArray(detail.ids)
         ? detail.ids
         : detail.record?.id != null
           ? [detail.record.id]
           : [];
+};
 
-    void detach(ids);
+const onOpenAttach = (event: Event): void => {
+    if (forThisManager(event)) {
+        openAttach('attach');
+    }
+};
+
+const onOpenAssociate = (event: Event): void => {
+    if (forThisManager(event)) {
+        openAttach('associate');
+    }
+};
+
+const onDetachRelation = (event: Event): void => {
+    if (forThisManager(event)) {
+        void removeRelation('detach', eventIds(event));
+    }
+};
+
+const onDissociateRelation = (event: Event): void => {
+    if (forThisManager(event)) {
+        void removeRelation('dissociate', eventIds(event));
+    }
 };
 
 onMounted(() => {
     window.addEventListener('kinetix:open-attach', onOpenAttach);
+    window.addEventListener('kinetix:open-associate', onOpenAssociate);
     window.addEventListener('kinetix:detach-relation', onDetachRelation);
+    window.addEventListener(
+        'kinetix:dissociate-relation',
+        onDissociateRelation,
+    );
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener('kinetix:open-attach', onOpenAttach);
+    window.removeEventListener('kinetix:open-associate', onOpenAssociate);
     window.removeEventListener('kinetix:detach-relation', onDetachRelation);
+    window.removeEventListener(
+        'kinetix:dissociate-relation',
+        onDissociateRelation,
+    );
 });
 </script>
 
@@ -231,7 +291,7 @@ onBeforeUnmount(() => {
 
         <KinetixTable :table="manager.table" />
 
-        <!-- Attach modal (opened by AttachAction's browser event) -->
+        <!-- Record picker modal (AttachAction / AssociateAction events) -->
         <Teleport to="body">
             <div
                 v-if="isAttachOpen"
@@ -248,7 +308,7 @@ onBeforeUnmount(() => {
                     class="max-w-md rounded-xl p-5 shadow-lg relative w-full border border-border bg-card text-card-foreground"
                 >
                     <h3 class="text-lg font-semibold tracking-tight">
-                        {{ t('kinetix.attach') }} — {{ manager.title }}
+                        {{ t(picker[pickerMode].title) }} — {{ manager.title }}
                     </h3>
 
                     <input
@@ -271,7 +331,7 @@ onBeforeUnmount(() => {
                             v-else-if="attachOptions.length === 0"
                             class="py-4 text-sm text-center text-muted-foreground"
                         >
-                            {{ t('kinetix.attach_none_found') }}
+                            {{ t(picker[pickerMode].empty) }}
                         </p>
                         <label
                             v-for="option in attachOptions"
@@ -303,7 +363,7 @@ onBeforeUnmount(() => {
                             :disabled="attachSelected.size === 0"
                             @click="submitAttach"
                         >
-                            {{ t('kinetix.attach') }}
+                            {{ t(picker[pickerMode].title) }}
                         </KinetixButton>
                     </div>
                 </div>

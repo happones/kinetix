@@ -323,6 +323,23 @@ class MakeResourceCommand extends Command
         $tableColumnsStr    = implode("\n", $tableColumns);
         $infolistEntriesStr = implode("\n", $infolistEntries !== [] ? $infolistEntries : ["                TextEntry::make('title'),"]);
 
+        // Full mode: the Show page renders the infolist standalone, so a
+        // Section (heading + two-column grid) gives it a proper card with
+        // hierarchy — mirroring the form. Simple mode: the View MODAL is the
+        // surface, so entries stay bare.
+        if ($simple) {
+            $infolistSchemaStr     = $infolistEntriesStr;
+            $infolistSectionImport = '';
+        } else {
+            $indentedEntries   = (string) preg_replace('/^/m', '        ', $infolistEntriesStr);
+            $infolistSchemaStr = "                InfolistSection::make(__('Details'))\n"
+                ."                    ->columns(2)\n"
+                ."                    ->schema([\n"
+                .$indentedEntries."\n"
+                .'                    ]),';
+            $infolistSectionImport = "\nuse Happones\\Kinetix\\Infolists\\Components\\Section as InfolistSection;";
+        }
+
         // Actions live on the table config (single source of truth). Simple mode
         // opens in-table modals; full mode navigates to the scaffolded pages via
         // Action::route() — which auto-hides a button when its route isn't
@@ -463,7 +480,7 @@ use Happones\Kinetix\Forms\Components\Textarea;
 use Happones\Kinetix\Forms\Components\DateTimePicker;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Infolists\Components\TextEntry;
-use Happones\Kinetix\Infolists\Components\IconEntry;{$teamImports}
+use Happones\Kinetix\Infolists\Components\IconEntry;{$infolistSectionImport}{$teamImports}
 
 class {$resourceClass} extends Resource
 {
@@ -491,7 +508,7 @@ class {$resourceClass} extends Resource
     {
         return \$infolist
             ->schema([
-{$infolistEntriesStr}
+{$infolistSchemaStr}
             ]);
     }{$permissionHook}{$teamHooks}
 }

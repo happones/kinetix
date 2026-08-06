@@ -53,6 +53,14 @@ class ActionGroup
         return $this;
     }
 
+    /**
+     * @return array<int, Action>
+     */
+    public function getActions(): array
+    {
+        return $this->actions;
+    }
+
     public function label(string $label): static
     {
         $this->label = $label;
