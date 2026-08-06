@@ -13,6 +13,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.147.0] - 2026-08-06
+
+### Added
+
+- **Relation managers: full modal CRUD, the Filament convention** — declare
+  `form()` (and optionally `infolist()`) on the MANAGER and flag table actions
+  with `->modal('create'|'edit'|'view'|'delete')`; the manager wires the
+  parent-bound endpoints automatically. No routes, no controllers, no parent
+  select/FK field in the schema:
+  - **Create goes THROUGH the relationship** — `HasMany`/`MorphMany` stamp
+    the foreign key (and morph type), `BelongsToMany` creates **and**
+    attaches; a forged FK in the payload is ignored.
+  - **Edit/View/Delete resolve THROUGH the relationship** — another parent's
+    record id 404s; deleting a `BelongsToMany` record also drops its pivot
+    row.
+  - Guarded by the manager's signed descriptor (parent + relation + manager
+    class, user-bound, expiring), the PARENT's `update` policy, and the CHILD
+    model's own policy when it has one. `->modal()` without the matching
+    `form()`/`infolist()` throws at serialize time.
+  - `kinetix:make-relation-manager` scaffolds the new convention.
+- **`AssociateAction` / `DissociateAction`** (HasMany/MorphMany — Filament
+  parity): Associate opens a picker of records **not owned by any parent**
+  (FK `NULL`, searchable on `$recordTitleAttribute`) and re-parents them
+  server-side; Dissociate confirms and nulls the FK (relation-scoped — other
+  parents' ids are ignored), never deleting records. Same descriptor + parent
+  `update` policy contract as attach/detach; wrong relation type throws.
+  New i18n keys in all 7 locales.
+
+### Changed
+
+- **(published) Infolists got the shadcn look**: sections render on `bg-card`
+  with an icon chip in the header; values gain weight (`font-medium`) against
+  muted labels; badges are pills; images carry a ring + shadow; empty
+  placeholders are italic. `KinetixInfolist` now gives a BARE schema (no
+  layout nodes) a card surface automatically so detail pages never render
+  floating label/value pairs — hosts that own the surface (the table's View
+  modal) pass `:surface="false"`.
+- **`kinetix:make-resource` Show page**: the scaffolded full-mode `infolist()`
+  wraps its entries in a two-column `Section` (heading + card), mirroring the
+  form — the Show page stops looking bare out of the box.
+
 ## [0.146.0] - 2026-08-06
 
 ### Added
