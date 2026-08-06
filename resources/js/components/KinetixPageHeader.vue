@@ -90,6 +90,7 @@ const linkActionClass = (action: KinetixAction) =>
                 <KinetixActionDropdown
                     v-if="action.type === 'group'"
                     :group="action"
+                    @action-click="(a: KinetixAction) => requestAction(a)"
                 />
 
                 <a

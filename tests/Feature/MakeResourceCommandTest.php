@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 
 class MakeResourceDummy extends Model
 {
@@ -97,7 +98,8 @@ class MakeResourceCommandTest extends TestCase
         $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
         $this->assertStringContainsString('->recordModals(static::class)', $resource);
         $this->assertStringContainsString('ActionGroup::make([', $resource);
-        $this->assertStringContainsString("CreateAction::make()->modal('create')", $resource);
+        // Create has no record, so it must be gated explicitly against the class.
+        $this->assertStringContainsString("CreateAction::make()->authorize('create', Post::class)->modal('create')", $resource);
         $this->assertStringContainsString("ViewAction::make()->modal('view')", $resource);
         $this->assertStringContainsString("EditAction::make()->modal('edit')", $resource);
         $this->assertStringContainsString("DeleteAction::make()->modal('delete')", $resource);
@@ -206,7 +208,7 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringContainsString("ViewAction::make()->route('posts.show')", $resource);
         $this->assertStringContainsString("EditAction::make()->route('posts.edit')", $resource);
         $this->assertStringContainsString("DeleteAction::make()->route('posts.destroy', method: 'delete')", $resource);
-        $this->assertStringContainsString("CreateAction::make()->route('posts.create')", $resource);
+        $this->assertStringContainsString("CreateAction::make()->authorize('create', Post::class)->route('posts.create')", $resource);
 
         exec('php -l '.escapeshellarg($resourcePath).' 2>&1', $out, $code);
         $this->assertSame(0, $code, "Generated full resource has a syntax error:\n".implode("\n", $out));
@@ -255,19 +257,165 @@ class MakeResourceCommandTest extends TestCase
         File::delete($controllerPath);
     }
 
-    public function test_team_option_scopes_the_controller_to_the_current_team(): void
+    public function test_team_scoping_lives_only_in_the_resource_not_the_controller(): void
     {
         $this->artisan('kinetix:make-resource', ['name' => 'Post', '--team' => true])
             ->assertSuccessful();
 
+        // The resource's getEloquentQuery() is the SINGLE scoping point; the
+        // controller re-implementing the scope inline would silently diverge
+        // from what show/edit/update/destroy resolve.
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        $this->assertStringContainsString('public function index()', $controller);
+        $this->assertStringContainsString('$query = PostResource::getEloquentQuery();', $controller);
+        $this->assertStringNotContainsString("where('team_id'", $controller);
+        $this->assertStringNotContainsString('KinetixTeams', $controller);
+        $this->assertStringNotContainsString('currentTeam->id', $controller);
+
+        // Under Route::prefix('{current_team}') every record route carries TWO
+        // required params, injected POSITIONALLY — without a leading
+        // $current_team argument the team segment lands in $record and
+        // findOrFail('{team}') 404s.
+        $this->assertStringContainsString('public function show(string $current_team, string $record)', $controller);
+        $this->assertStringContainsString('public function edit(string $current_team, string $record)', $controller);
+        $this->assertStringContainsString('public function update(Request $request, string $current_team, string $record)', $controller);
+        $this->assertStringContainsString('public function destroy(string $current_team, string $record)', $controller);
+
+        // Writes flow through the resource's save hook (which stamps team_id on
+        // create and strips it on edit) instead of an inline array_merge.
+        $this->assertStringContainsString("Post::create(PostResource::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'create'))", $controller);
+        $this->assertStringContainsString("\$record->update(PostResource::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'edit', \$record))", $controller);
+
+        $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString("where('team_id', KinetixTeams::currentTeamKey())", $resource);
+        // A submitted team_id must never move the record to another team.
+        $this->assertStringContainsString("unset(\$data['team_id']);", $resource);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_controller_enforces_the_model_policy_when_one_exists(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--soft-deletes' => true])
+            ->assertSuccessful();
+
         $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
 
-        $this->assertStringContainsString('public function index(Request $request)', $controller);
-        $this->assertStringContainsString("where('team_id', KinetixTeams::currentTeamKey())", $controller);
-        $this->assertStringContainsString("'team_id' => KinetixTeams::currentTeamKey()", $controller);
-        // …and the generated file imports it, or it would not even parse.
-        $this->assertStringContainsString('use Happones\\Kinetix\\Support\\KinetixTeams;', $controller);
-        $this->assertStringNotContainsString('currentTeam->id', $controller);
+        // Policy-if-exists on EVERY endpoint — the same contract the built-in
+        // Kinetix surfaces (record modals, table writes) enforce.
+        $this->assertStringContainsString('protected function authorizeAction(string $ability, mixed $target): void', $controller);
+        $this->assertStringContainsString('Gate::getPolicyFor(Post::class)', $controller);
+        $this->assertStringContainsString("\$this->authorizeAction('viewAny', Post::class);", $controller);
+        $this->assertStringContainsString("\$this->authorizeAction('create', Post::class);", $controller);
+        $this->assertStringContainsString("\$this->authorizeAction('view', \$record);", $controller);
+        $this->assertStringContainsString("\$this->authorizeAction('update', \$record);", $controller);
+        $this->assertStringContainsString("\$this->authorizeAction('delete', \$record);", $controller);
+        $this->assertStringContainsString("\$this->authorizeAction('restore', \$record);", $controller);
+        $this->assertStringContainsString("\$this->authorizeAction('forceDelete', \$record);", $controller);
+
+        // Simple mode gets the same viewAny gate on its single endpoint.
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true, '--force' => true])
+            ->assertSuccessful();
+
+        $simple = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        $this->assertStringContainsString("\$this->authorizeAction('viewAny', Post::class);", $simple);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_resource_registers_its_permission_feature(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
+
+        // Without this hook the resource is discovered but registers ZERO
+        // abilities — the role matrix would never show it.
+        $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString('public static function permissionFeature(): ?string', $resource);
+        $this->assertStringContainsString("return 'posts';", $resource);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_soft_deletes_wires_the_trashed_filter_and_row_actions(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--soft-deletes' => true])
+            ->assertSuccessful();
+
+        // The TrashedFilter drives trashed visibility (blank = active only);
+        // Restore/ForceDelete appear per row only when the record is trashed —
+        // so the restore/force-delete routes are reachable from the UI.
+        $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString('TrashedFilter::make(),', $resource);
+        $this->assertStringContainsString("RestoreAction::make()->route('posts.restore', method: 'post')", $resource);
+        $this->assertStringContainsString("ForceDeleteAction::make()->route('posts.force-delete', method: 'delete')", $resource);
+
+        // The controller must NOT blanket-apply withTrashed on the index — the
+        // filter owns it (deleted rows hidden by default, Filament parity).
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        $this->assertStringNotContainsString('$query = $query->withTrashed();', $controller);
+
+        // Team-safe redirects: route('posts.index') throws under a
+        // team-prefixed group (missing {current_team}); getUrl() fills it.
+        $this->assertStringContainsString("redirect(PostResource::getUrl('index'))", $controller);
+        $this->assertStringNotContainsString("redirect()->route('posts.index')", $controller);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_generate_excludes_server_owned_and_secret_columns(): void
+    {
+        Schema::create('posts', function ($table) {
+            $table->id();
+            $table->string('title');
+            $table->string('password');
+            $table->string('api_token');
+            $table->string('webhook_secret');
+            $table->unsignedBigInteger('team_id');
+            $table->integer('sort_order');
+            $table->timestamps();
+        });
+
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--generate' => true])
+            ->assertSuccessful();
+
+        $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+
+        $this->assertStringContainsString("TextInput::make('title')", $resource);
+        // team_id is server-owned (a form field would let a submit reassign the
+        // record); sort_order belongs to reordering; secrets never render.
+        foreach (['team_id', 'sort_order', 'password', 'api_token', 'webhook_secret'] as $excluded) {
+            $this->assertStringNotContainsString("'{$excluded}'", $resource);
+        }
+
+        Schema::drop('posts');
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
+    }
+
+    public function test_existing_files_are_not_overwritten_without_force(): void
+    {
+        $resourcePath = app_path('Kinetix/Resources/PostResource.php');
+        File::ensureDirectoryExists(dirname($resourcePath));
+        File::put($resourcePath, '<?php // customized');
+
+        $this->artisan('kinetix:make-resource', ['name' => 'Post'])->assertSuccessful();
+        $this->assertSame('<?php // customized', File::get($resourcePath));
+
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--force' => true])->assertSuccessful();
+        $this->assertStringContainsString('class PostResource extends Resource', File::get($resourcePath));
 
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
         File::deleteDirectory(app_path('Kinetix'));
@@ -282,6 +430,9 @@ class MakeResourceCommandTest extends TestCase
 
         $this->assertStringContainsString('public function index()', $controller);
         $this->assertStringNotContainsString('currentTeam', $controller);
+        // Single-param routes → single-param signatures.
+        $this->assertStringContainsString('public function show(string $record)', $controller);
+        $this->assertStringNotContainsString('$current_team', $controller);
 
         File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
         File::deleteDirectory(app_path('Kinetix'));

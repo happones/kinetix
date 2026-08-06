@@ -213,11 +213,22 @@ php artisan kinetix:make-resource {ModelName} [options]
 |---|---|
 | `--simple` | Creates a single-page resource whose table hosts create/edit/view/delete **modals** (Kinetix-owned CRUD) — the page is just `<KinetixTable :table>`. See [§4.2](#_2-simple-resource-simple). |
 | `--reorderable` | Adds `->reorderable('sort_order')` to the generated table (drag handles + persisted order). Ensure the model's table has an integer `sort_order` column. |
-| `--soft-deletes` | Automatically adds soft delete filters (`withTrashed`) and registers restore/force-delete controller actions. |
-| `--generate` | Reflects database table column data types to automatically populate the resource's Form, Table **and Infolist** schemas. |
-| `--team` | Team-aware scaffold: routes nested under the `{current_team}` segment, and the resource's `getEloquentQuery()` / `mutateFormDataBeforeSave()` scope reads/writes to `currentTeam` and stamp `team_id` on create. Auto-enabled when `kinetix.teams` is `true`. Adjust the `team_id` column/scope to your schema. |
+| `--soft-deletes` | Wires a `TrashedFilter` on the table (deleted rows hidden by default, revealable per filter), `RestoreAction`/`ForceDeleteAction` per row (visible only on trashed records), and the restore/force-delete controller endpoints. |
+| `--generate` | Reflects database table column data types to automatically populate the resource's Form, Table **and Infolist** schemas. Server-owned columns (`team_id`, `sort_order`), the model's `$hidden` attributes, and secret-shaped columns (`password`, `*_token`, `*_secret`) are excluded. |
+| `--team` | Team-aware scaffold: routes nested under the `{current_team}` segment, and the resource's `getEloquentQuery()` / `mutateFormDataBeforeSave()` scope reads/writes to the current team, stamp `team_id` on create, and strip it on edit. Auto-enabled when `kinetix.teams` is `true`. Adjust the `team_id` column/scope to your schema. |
+| `--force` | Overwrite existing scaffold files. Without it, files that already exist are skipped with a warning. |
 
-> **Teams scope.** Kinetix's own endpoints (inline edits, imports, uploads, exports) already prefix with `{current_team}` when `kinetix.teams` is on. Your **resource's** routes and query scoping are *not* automatic — use `--team` so the generated controller filters by the current team and the routes nest under the team segment.
+> **Teams scope.** Kinetix's own endpoints (inline edits, imports, uploads, exports) already prefix with `{current_team}` when `kinetix.teams` is on. Your **resource's** routes and query scoping are *not* automatic — use `--team` so the resource's `getEloquentQuery()` filters by the current team and the routes nest under the team segment. The prefix alone only namespaces URLs; row isolation lives in the query.
+
+> **Authorization.** The generated controller enforces the model policy on
+> every endpoint (`viewAny`/`create`/`view`/`update`/`delete`/`restore`/`forceDelete`)
+> using the same *policy-if-exists* contract as the built-in Kinetix surfaces:
+> with a policy registered the ability is enforced; **without one every check
+> is skipped** — create it right after scaffolding
+> (`php artisan make:policy {Model}Policy --model={Model}`) and register the
+> routes inside your `auth` middleware group. The generated resource also
+> overrides `permissionFeature()`, so its CRUD abilities appear in the role
+> matrix automatically (sync with `php artisan kinetix:permissions:sync`).
 
 ### Example CLI Executions
 ```bash
@@ -787,6 +798,17 @@ No frontend change is needed for the team segment: the generated pages submit
 and cancel through server-resolved props (`storeUrl` / `updateUrl` /
 `cancelUrl`, built with `Resource::getUrl()`), and row/toolbar actions declared
 with `->route()` auto-fill `current_team` per record.
+
+> **Controller signatures under the team prefix.** Every record route inside
+> `Route::prefix('{current_team}')` carries **two** required parameters, and
+> Laravel injects them **positionally** — the record methods must accept the
+> team segment first (`--team` scaffolds this):
+> ```php
+> public function show(string $current_team, string $record) { /* … */ }
+> public function update(Request $request, string $current_team, string $record) { /* … */ }
+> ```
+> With a single `$record` argument the `{current_team}` value lands in
+> `$record` and `findOrFail()` 404s on every detail page.
 
 ---
 

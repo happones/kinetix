@@ -198,6 +198,7 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                     <KinetixActionDropdown
                         v-if="action.type === 'group'"
                         :group="action"
+                        @action-click="handleActionClick"
                     />
                     <button
                         v-else
@@ -339,6 +340,8 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                                     <KinetixActionDropdown
                                         v-if="action.type === 'group'"
                                         :group="action"
+                                        :record="record"
+                                        @action-click="handleActionClick"
                                     />
                                     <button
                                         v-else

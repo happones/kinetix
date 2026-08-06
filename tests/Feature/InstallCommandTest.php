@@ -256,21 +256,12 @@ JS);
         $this->assertSame($first, File::get($this->base.'/.prettierignore'));
     }
 
-    public function test_provider_is_not_scaffolded_without_the_flag(): void
-    {
-        $this->seedEntryFile('ts');
-
-        $this->runInstaller();
-
-        $this->assertFalse(File::exists($this->base.'/app/Providers/KinetixServiceProvider.php'));
-    }
-
-    public function test_provider_flag_scaffolds_and_registers_the_provider(): void
+    public function test_provider_is_scaffolded_and_registered_by_default(): void
     {
         $this->seedEntryFile('ts');
         $this->seedBootstrapProviders();
 
-        $this->runInstaller(['--provider' => true]);
+        $this->runInstaller();
 
         $providerPath = $this->base.'/app/Providers/KinetixServiceProvider.php';
         $this->assertTrue(File::exists($providerPath));
@@ -278,9 +269,39 @@ JS);
         $provider = File::get($providerPath);
         $this->assertStringContainsString('namespace App\\Providers;', $provider);
         $this->assertStringContainsString('class KinetixServiceProvider extends ServiceProvider', $provider);
+        $this->assertStringContainsString('registerPermissions', $provider);
+        $this->assertStringContainsString('registerModules', $provider);
 
         $bootstrap = File::get($this->base.'/bootstrap/providers.php');
         $this->assertStringContainsString('App\\Providers\\KinetixServiceProvider::class', $bootstrap);
+    }
+
+    public function test_skip_provider_flag_opts_out_of_the_scaffold(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->seedBootstrapProviders();
+
+        $this->runInstaller(['--skip-provider' => true]);
+
+        $this->assertFalse(File::exists($this->base.'/app/Providers/KinetixServiceProvider.php'));
+        $this->assertStringNotContainsString(
+            'KinetixServiceProvider',
+            File::get($this->base.'/bootstrap/providers.php'),
+        );
+    }
+
+    public function test_an_existing_provider_file_is_never_overwritten(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->seedBootstrapProviders();
+
+        $providerPath = $this->base.'/app/Providers/KinetixServiceProvider.php';
+        File::ensureDirectoryExists(dirname($providerPath));
+        File::put($providerPath, '<?php // customized by the host');
+
+        $this->runInstaller();
+
+        $this->assertSame('<?php // customized by the host', File::get($providerPath));
     }
 
     public function test_provider_scaffold_is_idempotent(): void
@@ -288,8 +309,8 @@ JS);
         $this->seedEntryFile('ts');
         $this->seedBootstrapProviders();
 
-        $this->runInstaller(['--provider' => true]);
-        $this->runInstaller(['--provider' => true]);
+        $this->runInstaller();
+        $this->runInstaller();
 
         $bootstrap = File::get($this->base.'/bootstrap/providers.php');
         $this->assertSame(1, substr_count($bootstrap, 'App\\Providers\\KinetixServiceProvider::class'));

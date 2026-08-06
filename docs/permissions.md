@@ -184,7 +184,7 @@ public static function registerPermissions(PermissionRegistry $registry): void
 
 ### B. Explicit Feature Permissions
 
-For features, modules, or settings that don't belong to a Resource, register them in your `AppServiceProvider` (or a dedicated service provider) using the `KinetixPermissions` facade:
+For features, modules, or settings that don't belong to a Resource, register them in `App\Providers\KinetixServiceProvider` — `kinetix:install` scaffolds it and registers it in `bootstrap/providers.php` by default (see [Installation](./installation.md)) — using the `KinetixPermissions` facade:
 
 ```php
 namespace App\Providers;
@@ -192,7 +192,7 @@ namespace App\Providers;
 use Happones\Kinetix\Permissions\KinetixPermissions;
 use Illuminate\Support\ServiceProvider;
 
-class AppServiceProvider extends ServiceProvider
+class KinetixServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {

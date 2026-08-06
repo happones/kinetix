@@ -17,6 +17,28 @@ Activate this skill when:
 - Scoping operations under tenant/team parameters (e.g. `{current_team}/posts`).
 - Managing a parent record's related records (hasMany/belongsToMany) on its edit/show page via **Relation Managers**.
 
+## Security & teams rules (REQUIRED)
+
+- **Policy-if-exists on every endpoint.** Resource controllers must enforce the
+  model policy per action (`viewAny`/`create`/`view`/`update`/`delete`/`restore`/`forceDelete`);
+  `kinetix:make-resource` scaffolds an `authorizeAction()` helper for this.
+  Without a policy every check is skipped — create it
+  (`make:policy {Model}Policy --model={Model}`) and keep routes in the `auth` group.
+- **One scoping point.** All reads and record resolution go through
+  `{Resource}::getEloquentQuery()` (`->findOrFail($id)` — never implicit
+  route-model binding, never an inline `where('team_id', …)` in the controller).
+- **Writes go through the resource's save hook.**
+  `{Model}::create({Resource}::mutateFormDataBeforeSave($form->getState(...), 'create'))`
+  and `$record->update(...->mutateFormDataBeforeSave(..., 'edit', $record))` — the
+  hook stamps `team_id` on create and strips it on edit. `team_id` never
+  belongs in a form schema.
+- **Team-safe redirects.** Use `{Resource}::getUrl('index')`, never
+  `route('x.index')` — the bare route call throws under a `{current_team}` prefix.
+- **Gate Create explicitly.** `CreateAction::make()->authorize('create', {Model}::class)`
+  — it has no record, so it renders for everyone otherwise.
+- **Register permissions.** Override `permissionFeature()` (return the slug) so the
+  resource's CRUD abilities appear in the role matrix; sync with `kinetix:permissions:sync`.
+
 ## Documentation
 
 For component details, reference:

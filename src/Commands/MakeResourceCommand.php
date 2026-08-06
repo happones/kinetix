@@ -22,7 +22,8 @@ class MakeResourceCommand extends Command
                             {--soft-deletes : Add soft delete filters, columns, and actions}
                             {--team : Scaffold team-aware routes & queries (auto-enabled when kinetix.teams is true)}
                             {--reorderable : Enable drag-and-drop row reordering (persists to a `sort_order` integer column)}
-                            {--generate : Read database table columns to automatically populate form and table schemas}';
+                            {--generate : Read database table columns to automatically populate form and table schemas}
+                            {--force : Overwrite existing scaffold files}';
 
     /**
      * The console command description.
@@ -63,7 +64,7 @@ class MakeResourceCommand extends Command
         [$formFields, $tableColumns, $infolistEntries] = $this->getSchemaDefinitions($modelClass, $generate, $softDeletes);
 
         // 1. Create PHP Resource Class
-        $this->createResourceClass($modelName, $resourceClass, $formFields, $tableColumns, $infolistEntries, $teams, $simple, $reorderable, $pluralSlug);
+        $this->createResourceClass($modelName, $resourceClass, $formFields, $tableColumns, $infolistEntries, $teams, $simple, $reorderable, $pluralSlug, $softDeletes);
 
         // 2. Create Resource Controller
         $this->createController($modelName, $resourceClass, $pluralName, $pluralSlug, $simple, $softDeletes, $teams);
@@ -73,21 +74,26 @@ class MakeResourceCommand extends Command
 
         $this->info("\nKinetix Resource [{$modelName}] scaffolded successfully!");
         $this->comment('Next steps:');
-        $this->line('1. Add the resource route to your routes/web.php file:');
+        $this->line('1. Register the routes in routes/web.php — inside your auth middleware');
+        $this->line('   group (the controller enforces the model policy per action, but the');
+        $this->line('   routes must never be public):');
 
         $controllerRef = "\\App\\Http\\Controllers\\Kinetix\\{$modelName}Controller::class";
 
         // Simple resources are single-page: create/edit/view/delete run through
         // Kinetix's own signed record endpoint (Table::recordModals()), so only
         // the index route is needed.
-        $indent = $teams ? '       ' : '   ';
+        $indent = $teams ? '           ' : '       ';
         $emit   = function (string $line) use ($indent): void {
             $this->line($indent.$line);
         };
 
+        $this->line("   Route::middleware('auth')->group(function () {");
+
         if ($teams) {
-            $this->line('   // Team-aware: nest under the {current_team} segment Kinetix uses.');
-            $this->line("   Route::prefix('{current_team}')->group(function () {");
+            $this->line('       // The {current_team} prefix only namespaces URLs — row isolation');
+            $this->line("       // lives in {$resourceClass}::getEloquentQuery().");
+            $this->line("       Route::prefix('{current_team}')->group(function () {");
         }
 
         if ($simple) {
@@ -103,10 +109,40 @@ class MakeResourceCommand extends Command
         }
 
         if ($teams) {
-            $this->line('   });');
+            $this->line('       });');
+        }
+
+        $this->line('   });');
+
+        $this->line('2. Create the model policy — without one, every ability check is skipped');
+        $this->line('   and any authenticated user gets full CRUD:');
+        $this->line("   php artisan make:policy {$modelName}Policy --model={$modelName}");
+        $this->line("3. The resource registers '{$pluralSlug}' CRUD abilities in the role matrix");
+        $this->line('   (permissionFeature). Sync them into spatie/laravel-permission with:');
+        $this->line('   php artisan kinetix:permissions:sync');
+
+        if ($teams) {
+            $this->line('4. Make sure the model has a fillable `team_id` column (indexed) — if it');
+            $this->line("   isn't fillable, the create stamp is silently dropped and rows are");
+            $this->line('   created with no team.');
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Write a scaffold file, refusing to overwrite existing work unless --force.
+     */
+    protected function writeScaffoldFile(string $path, string $contents, string $label): void
+    {
+        if (File::exists($path) && ! $this->option('force')) {
+            $this->warn("Skipped {$label} — the file already exists (use --force to overwrite).");
+
+            return;
+        }
+
+        File::put($path, $contents);
+        $this->line("Created {$label}");
     }
 
     /**
@@ -162,13 +198,28 @@ class MakeResourceCommand extends Command
                 }
             }
 
+            // Server-owned columns never belong in a user-editable schema:
+            // `team_id` is stamped by the resource (a form field here would let
+            // a submit reassign the record to another team) and `sort_order`
+            // belongs to drag-and-drop reordering.
+            $serverOwned = ['id', 'created_at', 'updated_at', 'deleted_at', 'team_id', 'sort_order'];
+            $hidden      = $model->getHidden();
+
             foreach ($columns as $column) {
                 $colName    = $column['name'];
                 $colType    = strtolower($column['type_name'] ?? 'string');
                 $isNullable = $column['nullable'] ?? true;
 
-                // Skip IDs and timestamps
-                if (in_array($colName, ['id', 'created_at', 'updated_at', 'deleted_at'], true)) {
+                if (in_array($colName, $serverOwned, true)) {
+                    continue;
+                }
+
+                // Secrets stay out of forms, tables, and infolists entirely.
+                if (
+                    in_array($colName, $hidden, true)
+                    || $colName === 'password'
+                    || Str::endsWith($colName, ['_token', '_secret'])
+                ) {
                     continue;
                 }
 
@@ -217,6 +268,10 @@ class MakeResourceCommand extends Command
                 $infolistEntries[] = "                TextEntry::make('title'),";
             }
         } catch (\Exception $e) {
+            // A silent fallback would make a --generate run against a missing
+            // or misnamed table look successful.
+            $this->warn("Could not introspect the table for --generate ({$e->getMessage()}); falling back to a placeholder `title` field.");
+
             $formFields[]      = "                TextInput::make('title')->required(),";
             $tableColumns[]    = "                TextColumn::make('title')->searchable()->sortable(),";
             $infolistEntries[] = "                TextEntry::make('title'),";
@@ -237,7 +292,8 @@ class MakeResourceCommand extends Command
         bool $teams = false,
         bool $simple = false,
         bool $reorderable = false,
-        string $pluralSlug = ''
+        string $pluralSlug = '',
+        bool $softDeletes = false
     ): void {
         $directory = app_path('Kinetix/Resources');
         $filePath  = "{$directory}/{$resourceClass}.php";
@@ -273,35 +329,47 @@ class MakeResourceCommand extends Command
         // registered, so nothing renders as a dead link.
         $reorderableChain = $reorderable ? "\n            ->reorderable()" : '';
 
+        // Soft deletes: the TrashedFilter drives trashed visibility (blank =
+        // active only, matching the SoftDeletes global scope), and Restore /
+        // ForceDelete appear per row only when the record is trashed.
+        $trashedFilterChain = $softDeletes
+            ? "\n            ->filters([\n                TrashedFilter::make(),\n            ])"
+            : '';
+        $softDeleteRowActions = $softDeletes
+            ? "\n                    RestoreAction::make()->route('{$pluralSlug}.restore', method: 'post'),\n                    ForceDeleteAction::make()->route('{$pluralSlug}.force-delete', method: 'delete'),"
+            : '';
+
         // Row actions are grouped into a shadcn-style "⋯" dropdown by default;
         // the empty group auto-hides when every child is unauthorized/unrouted.
+        // View/Edit/Delete/Restore/ForceDelete check the model policy per record
+        // out of the box; Create must be gated explicitly (it has no record).
         if ($simple) {
             $tableActions = <<<PHP
 
-            ->recordModals(static::class){$reorderableChain}
+            ->recordModals(static::class){$reorderableChain}{$trashedFilterChain}
             ->toolbarActions([
-                CreateAction::make()->modal('create'),
+                CreateAction::make()->authorize('create', {$modelName}::class)->modal('create'),
             ])
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make()->modal('view'),
                     EditAction::make()->modal('edit'),
-                    DeleteAction::make()->modal('delete'),
+                    DeleteAction::make()->modal('delete'),{$softDeleteRowActions}
                 ]),
             ]);
 PHP;
         } else {
             $tableActions = <<<PHP
-{$reorderableChain}
+{$reorderableChain}{$trashedFilterChain}
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make()->route('{$pluralSlug}.show'),
                     EditAction::make()->route('{$pluralSlug}.edit'),
-                    DeleteAction::make()->route('{$pluralSlug}.destroy', method: 'delete'),
+                    DeleteAction::make()->route('{$pluralSlug}.destroy', method: 'delete'),{$softDeleteRowActions}
                 ]),
             ])
             ->toolbarActions([
-                CreateAction::make()->route('{$pluralSlug}.create'),
+                CreateAction::make()->authorize('create', {$modelName}::class)->route('{$pluralSlug}.create'),
             ]);
 PHP;
         }
@@ -332,19 +400,42 @@ PHP;
     }
 
     /**
-     * Stamps the owning team on create. `team_id` is server-owned: it is never
-     * part of the form schema, so a submitted value can't reassign the record.
+     * `team_id` is server-owned: the generator keeps it out of the form schema,
+     * it is stamped here on create, and any submitted value is stripped on edit
+     * — so a forged payload can never reassign the record to another team.
      */
     public static function mutateFormDataBeforeSave(array \$data, string \$operation, ?\Illuminate\Database\Eloquent\Model \$record = null): array
     {
         if (\$operation === 'create') {
             \$data['team_id'] = KinetixTeams::currentTeamKey();
+        } else {
+            unset(\$data['team_id']);
         }
 
         return \$data;
     }
 PHP;
         }
+
+        $softDeleteImports = $softDeletes
+            ? "\nuse Happones\Kinetix\Actions\ForceDeleteAction;\nuse Happones\Kinetix\Actions\RestoreAction;\nuse Happones\Kinetix\Tables\Filters\TrashedFilter;"
+            : '';
+
+        // Without this hook the resource is discovered but registers ZERO
+        // abilities — the role matrix would never show it.
+        $permissionHook = <<<PHP
+
+
+    /**
+     * Registers `{$pluralSlug}` CRUD abilities (viewAny/view/create/update/delete)
+     * in the Kinetix permission catalog — the role matrix picks them up
+     * automatically. Return null to opt out.
+     */
+    public static function permissionFeature(): ?string
+    {
+        return '{$pluralSlug}';
+    }
+PHP;
 
         $template = <<<PHP
 <?php
@@ -358,7 +449,7 @@ use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Actions\CreateAction;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
-use Happones\Kinetix\Actions\ViewAction;
+use Happones\Kinetix\Actions\ViewAction;{$softDeleteImports}
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tables\Columns\TextColumn;
@@ -402,12 +493,11 @@ class {$resourceClass} extends Resource
             ->schema([
 {$infolistEntriesStr}
             ]);
-    }{$teamHooks}
+    }{$permissionHook}{$teamHooks}
 }
 PHP;
 
-        File::put($filePath, $template);
-        $this->line("Created PHP Resource class: [app/Kinetix/Resources/{$resourceClass}.php]");
+        $this->writeScaffoldFile($filePath, $template, "PHP Resource class: [app/Kinetix/Resources/{$resourceClass}.php]");
     }
 
     /**
@@ -429,58 +519,71 @@ PHP;
             File::makeDirectory($directory, 0755, true);
         }
 
-        // Team-aware index signature, base query, and create expression. The
-        // tenant comes from KinetixTeams (the `{current_team}` segment, with a
-        // membership check) — not `$user->currentTeam`, which ignores the URL.
-        // Adjust the `team_id` column to match your application's team schema.
-        $indexParams = $teams ? 'Request $request' : '';
-        $indexQuery  = $teams
-            ? "{$modelName}::where('team_id', KinetixTeams::currentTeamKey())"
-            : "{$modelName}::query()";
-        $createExpr = $teams
-            ? "{$modelName}::create(array_merge(\$form->getState(\$request->all()), ['team_id' => KinetixTeams::currentTeamKey()]))"
-            : "{$modelName}::create(\$form->getState(\$request->all()))";
-
-        $softDeletesTraits  = '';
         $softDeletesMethods = '';
         $routePrefix        = $pluralSlug;
+
+        // Under a team-prefixed group every record route carries TWO required
+        // parameters ({current_team}, then the record). Laravel injects route
+        // params POSITIONALLY, so without a leading $current_team argument the
+        // team segment lands in $record and findOrFail('{team}') 404s.
+        $teamParam = $teams ? 'string $current_team, ' : '';
+
+        // Policy-if-exists gate, matching every built-in Kinetix surface
+        // (record modals, table writes, action serialization): with a policy
+        // registered the ability is enforced; without one the check is skipped
+        // — hence the loud "create the policy" next-step.
+        $authorizeHelper = <<<PHP
+
+
+    /**
+     * Policy-if-exists, the same contract every built-in Kinetix surface uses:
+     * when a policy is registered for {$modelName} the ability is enforced,
+     * otherwise the check is skipped. Create one to lock this controller down:
+     * `php artisan make:policy {$modelName}Policy --model={$modelName}`.
+     */
+    protected function authorizeAction(string \$ability, mixed \$target): void
+    {
+        if (Gate::getPolicyFor({$modelName}::class) !== null) {
+            Gate::authorize(\$ability, \$target);
+        }
+    }
+PHP;
 
         if ($softDeletes) {
             $softDeletesMethods = <<<PHP
 
-    public function restore(Request \$request, \$id)
+    public function restore({$teamParam}string \$id)
     {
         // Through the resource's SCOPED query — an out-of-scope (e.g. another
         // team's) id must 404, exactly like show/edit/update/destroy.
         \$record = {$resourceClass}::getEloquentQuery()->onlyTrashed()->findOrFail(\$id);
+        \$this->authorizeAction('restore', \$record);
+
         \$record->restore();
 
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record restored successfully.');
+        // getUrl() keeps the {current_team} segment — a bare route() call
+        // throws under a team-prefixed group (missing required parameter).
+        return redirect({$resourceClass}::getUrl('index'))->with('message', 'Record restored successfully.');
     }
 
-    public function forceDelete(Request \$request, \$id)
+    public function forceDelete({$teamParam}string \$id)
     {
         \$record = {$resourceClass}::getEloquentQuery()->withTrashed()->findOrFail(\$id);
+        \$this->authorizeAction('forceDelete', \$record);
+
         \$record->forceDelete();
 
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record permanently deleted.');
+        return redirect({$resourceClass}::getUrl('index'))->with('message', 'Record permanently deleted.');
     }
 PHP;
         }
 
-        // Only the team-aware base query references the tenant resolver.
-        $teamsImport = $teams ? "\nuse Happones\Kinetix\Support\KinetixTeams;" : '';
-
         if ($simple) {
             // Simple controller: a single index page. Columns, in-table modals
             // (create/edit/view/delete) and reorder are all declared on the
-            // resource's table() — the controller just supplies the scoped query.
-            // The model + Request are only referenced by the soft-delete
-            // restore/forceDelete methods; omit the imports otherwise.
-            $modelImport   = $softDeletes ? "\nuse App\Models\\{$modelName};" : '';
-            $requestImport = $softDeletes ? "\nuse Illuminate\Http\Request;" : '';
-            $withTrashed   = $softDeletes ? "\n        \$query = \$query->withTrashed();" : '';
-
+            // resource's table() — the controller just supplies the scoped
+            // query. Modal writes are authorized by Kinetix's record endpoint
+            // against the same policy.
             $template = <<<PHP
 <?php
 
@@ -489,26 +592,30 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Kinetix;
 
 use App\Http\Controllers\Controller;
-use App\Kinetix\Resources\\{$resourceClass};{$modelImport}
-use Happones\Kinetix\Tables\Table;{$teamsImport}{$requestImport}
+use App\Kinetix\Resources\\{$resourceClass};
+use App\Models\\{$modelName};
+use Happones\Kinetix\Tables\Table;
+use Illuminate\Support\Facades\Gate;
 
 class {$modelName}Controller extends Controller
 {
     public function index()
     {
+        \$this->authorizeAction('viewAny', {$modelName}::class);
+
         // getEloquentQuery() scopes reads (and the modal endpoint's writes) —
         // e.g. to the current team. Edits fetch a FRESH copy from the server by
         // default; switch to the loaded row with
         // ->recordModals({$resourceClass}::class, 'row') on the resource, or the
         // `kinetix.tables.record_source` config.
-        \$query = {$resourceClass}::getEloquentQuery();{$withTrashed}
+        \$query = {$resourceClass}::getEloquentQuery();
 
         return inertia('Kinetix/{$pluralName}/Index', [
             'table' => {$resourceClass}::table(Table::make(\$query))->toArray(),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
-{$softDeletesMethods}
+{$softDeletesMethods}{$authorizeHelper}
 }
 PHP;
         } else {
@@ -528,19 +635,20 @@ use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
-use Happones\Kinetix\Tables\Table;{$teamsImport}
+use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class {$modelName}Controller extends Controller
 {
-    public function index({$indexParams})
+    public function index()
     {
-        \$query = {$indexQuery};
-PHP;
-            if ($softDeletes) {
-                $template .= "\n        \$query = \$query->withTrashed();";
-            }
-            $template .= <<<PHP
+        \$this->authorizeAction('viewAny', {$modelName}::class);
+
+        // The resource's query is the single scoping point (team isolation
+        // lives there) — never rebuild the scope inline, or the listing
+        // diverges from what show/edit/update/destroy resolve.
+        \$query = {$resourceClass}::getEloquentQuery();
 
         // Columns + row/toolbar actions (View / Edit / Delete / Create) are
         // declared on the resource's table(); here we just render the query.
@@ -552,6 +660,8 @@ PHP;
 
     public function create()
     {
+        \$this->authorizeAction('create', {$modelName}::class);
+
         \$form = {$resourceClass}::form(Form::make(new {$modelName}()))->fill();
 
         // URLs are resolved server-side (getUrl() fills the `{current_team}`
@@ -566,10 +676,15 @@ PHP;
 
     public function store(Request \$request)
     {
+        \$this->authorizeAction('create', {$modelName}::class);
+
         \$form = {$resourceClass}::form(Form::make(new {$modelName}()));
         \$form->validate(\$request->all());
 
-        \$record = {$createExpr};
+        // Through the resource's save hook — it stamps server-owned columns
+        // (e.g. team_id on a team-aware resource), so customizing the hook
+        // applies to these pages AND the in-table modal endpoint alike.
+        \$record = {$modelName}::create({$resourceClass}::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'create'));
 
         // Destination configurable on the resource — getRedirectUrlAfterCreate()
         // (defaults to the index).
@@ -577,12 +692,13 @@ PHP;
             ->with('message', 'Record created successfully.');
     }
 
-    public function show(string \$record)
+    public function show({$teamParam}string \$record)
     {
         // Resolve through the resource's SCOPED query — implicit route-model
         // binding would fetch by id alone, letting a team-prefixed URL render
         // another team's record. Out-of-scope ids 404 here instead.
         \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+        \$this->authorizeAction('view', \$record);
 
         // Read-only detail: the resource's infolist() plus Edit/Delete actions
         // rendered in the page header (KinetixPageHeader) for quick redirects.
@@ -601,9 +717,10 @@ PHP;
         ]);
     }
 
-    public function edit(string \$record)
+    public function edit({$teamParam}string \$record)
     {
         \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+        \$this->authorizeAction('update', \$record);
 
         \$form = {$resourceClass}::form(Form::make(\$record))->fill(\$record);
 
@@ -618,14 +735,17 @@ PHP;
         ]);
     }
 
-    public function update(Request \$request, string \$record)
+    public function update(Request \$request, {$teamParam}string \$record)
     {
         \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+        \$this->authorizeAction('update', \$record);
 
         \$form = {$resourceClass}::form(Form::make(\$record));
         \$form->validate(\$request->all());
 
-        \$record->update(\$form->getState(\$request->all()));
+        // The save hook also strips server-owned columns on edit (a submitted
+        // team_id can never move the record to another team).
+        \$record->update({$resourceClass}::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'edit', \$record));
 
         // Destination configurable on the resource — getRedirectUrlAfterSave()
         // (defaults to staying on the edit page).
@@ -633,21 +753,23 @@ PHP;
             ->with('message', 'Record updated successfully.');
     }
 
-    public function destroy(string \$record)
+    public function destroy({$teamParam}string \$record)
     {
         \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+        \$this->authorizeAction('delete', \$record);
 
         \$record->delete();
 
-        return redirect()->route('{$routePrefix}.index')->with('message', 'Record deleted successfully.');
+        // getUrl() keeps the {current_team} segment — a bare route() call
+        // throws under a team-prefixed group (missing required parameter).
+        return redirect({$resourceClass}::getUrl('index'))->with('message', 'Record deleted successfully.');
     }
-{$softDeletesMethods}
+{$softDeletesMethods}{$authorizeHelper}
 }
 PHP;
         }
 
-        File::put($filePath, $template);
-        $this->line("Created PHP Controller: [app/Http/Controllers/Kinetix/{$modelName}Controller.php]");
+        $this->writeScaffoldFile($filePath, $template, "PHP Controller: [app/Http/Controllers/Kinetix/{$modelName}Controller.php]");
     }
 
     /**
@@ -695,8 +817,7 @@ defineProps<{
 </template>
 VUE;
 
-            File::put("{$directory}/Index.vue", $indexTemplate);
-            $this->line("Created Vue Page: [resources/js/pages/Kinetix/{$pluralName}/Index.vue] (Simple mode)");
+            $this->writeScaffoldFile("{$directory}/Index.vue", $indexTemplate, "Vue Page: [resources/js/pages/Kinetix/{$pluralName}/Index.vue] (Simple mode)");
         } else {
             // Create distinct multi-page views
             $indexTemplate = <<<'VUE'
@@ -755,8 +876,9 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <!-- Forms read best at a constrained measure; padding scales with viewport. -->
-  <div class="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+  <!-- Same width and padding as the Index page, so the resource's pages
+       share one visual frame. -->
+  <div class="flex h-full min-w-0 flex-1 flex-col gap-6 rounded-xl p-4">
     <KinetixPageHeader
       heading="Create {$modelName}"
       description="Add a new {$modelName} record."
@@ -834,8 +956,9 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <!-- Forms read best at a constrained measure; padding scales with viewport. -->
-  <div class="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+  <!-- Same width and padding as the Index page, so the resource's pages
+       share one visual frame. -->
+  <div class="flex h-full min-w-0 flex-1 flex-col gap-6 rounded-xl p-4">
     <KinetixPageHeader
       heading="Edit {$modelName}"
       description="Update this {$modelName}'s details."
@@ -900,7 +1023,9 @@ defineProps<{
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
+  <!-- Same width and padding as the Index page, so the resource's pages
+       share one visual frame. -->
+  <div class="flex h-full min-w-0 flex-1 flex-col gap-6 rounded-xl p-4">
     <KinetixPageHeader heading="{$modelName} details" :actions="actions" />
     <KinetixInfolist :infolist="infolist" />
     <KinetixRelationManagers v-if="relations?.length" :managers="relations" />
@@ -908,11 +1033,10 @@ defineProps<{
 </template>
 VUE;
 
-            File::put("{$directory}/Index.vue", $indexTemplate);
-            File::put("{$directory}/Create.vue", $createTemplate);
-            File::put("{$directory}/Edit.vue", $editTemplate);
-            File::put("{$directory}/Show.vue", $showTemplate);
-            $this->line("Created Vue Pages: Index, Create, Edit, Show in [resources/js/pages/Kinetix/{$pluralName}/]");
+            $this->writeScaffoldFile("{$directory}/Index.vue", $indexTemplate, "Vue Page: [resources/js/pages/Kinetix/{$pluralName}/Index.vue]");
+            $this->writeScaffoldFile("{$directory}/Create.vue", $createTemplate, "Vue Page: [resources/js/pages/Kinetix/{$pluralName}/Create.vue]");
+            $this->writeScaffoldFile("{$directory}/Edit.vue", $editTemplate, "Vue Page: [resources/js/pages/Kinetix/{$pluralName}/Edit.vue]");
+            $this->writeScaffoldFile("{$directory}/Show.vue", $showTemplate, "Vue Page: [resources/js/pages/Kinetix/{$pluralName}/Show.vue]");
         }
     }
 }

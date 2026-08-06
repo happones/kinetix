@@ -556,6 +556,8 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                         <KinetixActionDropdown
                                             v-if="action.type === 'group'"
                                             :group="action"
+                                            :record="record"
+                                            @action-click="handleActionClick"
                                         />
                                         <button
                                             v-else
@@ -631,6 +633,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                     <KinetixActionDropdown
                         v-if="action.type === 'group'"
                         :group="action"
+                        @action-click="handleActionClick"
                     />
                     <KinetixButton
                         v-else

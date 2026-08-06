@@ -7,17 +7,27 @@ import {
     DropdownMenuItem,
     DropdownMenuPortal,
 } from 'reka-ui';
-import { ref } from 'vue';
+import { computed, getCurrentInstance, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { resolveIcon as resolveKinetixIcon } from '@/composables/useKinetixIcons';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { statusInteractiveTextClass } from '@/composables/useKinetixStatusColor';
-import type { KinetixAction } from '@/types/kinetix';
+import type { KinetixAction, KinetixTableRecord } from '@/types/kinetix';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 
-defineProps<{
+const props = defineProps<{
     group: KinetixAction;
+    /** Row context — grouped record actions forward it on every item click. */
+    record?: KinetixTableRecord;
+}>();
+
+const emit = defineEmits<{
+    (
+        e: 'action-click',
+        action: KinetixAction,
+        record?: KinetixTableRecord,
+    ): void;
 }>();
 
 const { t } = useI18n();
@@ -32,6 +42,15 @@ const {
 
 const isOpen = ref(false);
 
+// A host that listens owns execution: record modals (view/edit/delete),
+// the surface-wide processing guard, and its own confirm modal. The internal
+// confirm-and-run path only serves standalone use (no listener bound) —
+// otherwise a grouped modal action would die here silently, since this
+// component has no access to useKinetixRecordModals. The instance is captured
+// during setup: getCurrentInstance() is null once handlers run.
+const instance = getCurrentInstance();
+const hasHostHandler = computed(() => !!instance?.vnode.props?.onActionClick);
+
 // No name → the dropdown trigger's default (vertical ellipsis); unknown → Circle.
 const resolveIcon = (name?: string | null) =>
     name ? (resolveKinetixIcon(name) ?? Circle) : MoreVertical;
@@ -40,7 +59,13 @@ const getItemColorClass = (color?: string | null) =>
     statusInteractiveTextClass(color);
 
 const onItemClick = (action: KinetixAction) => {
-    requestAction(action);
+    if (hasHostHandler.value) {
+        emit('action-click', action, props.record);
+
+        return;
+    }
+
+    requestAction(action, props.record ? { record: props.record } : {});
 };
 </script>
 

@@ -23,7 +23,8 @@ class InstallCommand extends Command
         {--tanstack : Also install the client-side table dep (@tanstack/vue-table)}
         {--broadcasting : Deprecated no-op — @laravel/echo-vue is now always installed}
         {--tours : Also install the product-tour renderer (driver.js)}
-        {--provider : Scaffold a dedicated App\Providers\KinetixServiceProvider and register it}
+        {--provider : Deprecated no-op — the provider is now scaffolded by default}
+        {--skip-provider : Do not scaffold App\Providers\KinetixServiceProvider}
         {--skip-skills : Do not publish the bundled agent skills}';
 
     /**
@@ -256,7 +257,7 @@ JS;
         $this->protectPublishedPathsFromFormatters();
         $this->gitignoreGeneratedOutput();
 
-        if ($this->option('provider')) {
+        if (! $this->option('skip-provider')) {
             $this->scaffoldProvider();
         }
 
@@ -294,8 +295,9 @@ JS;
     /**
      * Scaffold a dedicated `App\Providers\KinetixServiceProvider` (the Filament
      * pattern: keep all Kinetix registration out of AppServiceProvider) and
-     * register it in bootstrap/providers.php. Idempotent — skips an existing
-     * provider file and a provider already listed.
+     * register it in bootstrap/providers.php. Runs by default on every install
+     * (`--skip-provider` opts out). Idempotent — skips an existing provider
+     * file and a provider already listed.
      */
     protected function scaffoldProvider(): void
     {
@@ -330,7 +332,8 @@ JS;
     /**
      * The dedicated-provider stub. Resources under app/Kinetix/Resources are
      * auto-discovered, so the stub only shows the non-resource surface and the
-     * "registrar class per module" convention.
+     * "registrar class per module" convention that keeps this file — and
+     * AppServiceProvider — from growing into a thousand-line dump.
      */
     protected function providerStub(): string
     {
@@ -341,49 +344,59 @@ JS;
 
         namespace App\Providers;
 
-        use Happones\Kinetix\Permissions\KinetixPermissions;
         use Illuminate\Support\ServiceProvider;
 
         /**
-         * Dedicated home for all Kinetix registration, keeping AppServiceProvider
-         * lean. Prefer one small "registrar" class per module (a class that just
-         * declares/returns its content) and call it from boot().
+         * Dedicated home for ALL Kinetix registration — feature permissions, module
+         * content, gates — keeping AppServiceProvider lean. As modules grow, don't
+         * let this file grow with them: keep each module's content in its own small
+         * registrar class under app/Kinetix (a class that only declares its
+         * content, nothing else) and call it from boot() below.
          */
         class KinetixServiceProvider extends ServiceProvider
         {
             public function boot(): void
             {
                 $this->registerPermissions();
-                // $this->registerModules();
+                $this->registerModules();
             }
 
             /**
              * Resources under app/Kinetix/Resources are auto-discovered (see
-             * config/kinetix.php `permissions.discover_path`). Declare here only the
-             * non-resource features/abilities your app needs.
+             * config/kinetix.php `permissions.discover_path`) — never list them
+             * here. Declare only the NON-resource features/abilities your app
+             * gates on:
+             *
+             *     use Happones\Kinetix\Permissions\KinetixPermissions;
+             *
+             *     KinetixPermissions::feature('configuration')
+             *         ->label('Configuration')
+             *         ->abilities([
+             *             'viewAny' => 'View business data',
+             *             'update'  => 'Update business data',
+             *         ]);
              */
             protected function registerPermissions(): void
             {
-                // KinetixPermissions::feature('configuration')
-                //     ->label('Configuration')
-                //     ->abilities([
-                //         'viewAny' => 'View business data',
-                //         'update'  => 'Update business data',
-                //     ]);
+                //
             }
 
             /**
-             * Register optional Kinetix module content. Keep each module's content
-             * in its own registrar class, then call it here:
+             * Optional Kinetix module content — one registrar class per module,
+             * each a plain class with a static register() that only declares its
+             * content through the module's facade:
              *
+             *     \App\Kinetix\SpotlightSources::register();  // KinetixSpotlight::register([...])
+             *     \App\Kinetix\ScheduledReports::register();  // KinetixReports::register(...)
+             *     \App\Kinetix\GeneratedReports::register();  // KinetixReportsCenter::register(...)
+             *     \App\Kinetix\PdfTemplates::register();      // KinetixPdf::register(...)
              *     \App\Kinetix\WebhookEvents::register();
              *     \App\Kinetix\OnboardingSteps::register();
-             *     \App\Kinetix\SpotlightLinks::register();
              */
-            // protected function registerModules(): void
-            // {
-            //     //
-            // }
+            protected function registerModules(): void
+            {
+                //
+            }
         }
         PHP;
     }

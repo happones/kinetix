@@ -177,25 +177,40 @@ tables).
 > a required dependency is missing — run `php artisan kinetix:install` (or install
 > the package listed above manually).
 
-### A dedicated service provider (recommended)
+### A dedicated service provider (default)
 
 Kinetix registration (feature permissions, module content, gates) grows over
-time. Rather than piling it into `AppServiceProvider`, keep it in a dedicated
-provider — the Filament pattern. `--provider` scaffolds
+time. Rather than piling it into `AppServiceProvider`, it belongs in a
+dedicated provider — the Filament pattern. `kinetix:install` scaffolds
 `app/Providers/KinetixServiceProvider.php` and registers it in
-`bootstrap/providers.php` (idempotent — safe to re-run):
+`bootstrap/providers.php` **by default** (idempotent — safe to re-run, and an
+existing provider file is never overwritten). Opt out with:
 
 ```bash
-php artisan kinetix:install --provider
+php artisan kinetix:install --skip-provider
 ```
 
-Resources under `app/Kinetix/Resources` are auto-discovered (see
-[Permissions](./permissions.md)), so the provider only holds your non-resource
-features and module content. Keep each module's content in its own small
-"registrar" class (a class that just declares/returns its content) and call it
-from the provider's `boot()` — e.g. `WebhookEvents::register()`,
-`OnboardingSteps::register()`. This keeps `AppServiceProvider` limited to
-framework-level defaults.
+Every piece of Kinetix registration goes in that provider — never in
+`AppServiceProvider`. Resources under `app/Kinetix/Resources` are
+auto-discovered (see [Permissions](./permissions.md)), so the provider only
+holds your non-resource features and module content. And to keep the provider
+itself from growing into a thousand-line file, keep each module's content in
+its own small "registrar" class under `app/Kinetix` (a class that just
+declares/returns its content) and call it from the provider's `boot()`:
+
+```php
+protected function registerModules(): void
+{
+    \App\Kinetix\SpotlightSources::register();  // KinetixSpotlight::register([...])
+    \App\Kinetix\ScheduledReports::register();  // KinetixReports::register(...)
+    \App\Kinetix\PdfTemplates::register();      // KinetixPdf::register(...)
+    \App\Kinetix\WebhookEvents::register();
+    \App\Kinetix\OnboardingSteps::register();
+}
+```
+
+This keeps `AppServiceProvider` limited to framework-level defaults and gives
+every module a single, predictable home.
 
 ::: details Manual Installation & Configuration
 

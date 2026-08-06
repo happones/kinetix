@@ -133,6 +133,9 @@ const layoutClass = computed<string>(() => {
                         <KinetixActionDropdown
                             v-if="action.type === 'group'"
                             :group="action"
+                            @action-click="
+                                (a: KinetixAction) => emit('action-click', a)
+                            "
                         />
                         <KinetixButton
                             v-else
