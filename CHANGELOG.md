@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.142.0] - 2026-08-05
+
+### Added
+
+- **`DateRangePicker` reaches full parity with the other pickers** (v0.141.0's
+  variants + timezone correctness):
+  - **`->confirm()`** — calendar clicks build a **draft**; the footer's
+    **Apply** button is the only commit path, and any other dismissal
+    (outside click / Escape) discards the draft.
+  - **`->todayButton()`** — a Today shortcut setting `from = to = today`.
+  - **`->closeOnSelect(bool)`** — whether completing the range closes the
+    popover (default `true`, the existing behavior).
+  - **`->timezone(string)`** — Today (and the range calendar's initial month)
+    read the clock in the effective timezone: per-field override →
+    `app.timezone` (serialized by default) → browser fallback.
+  - Same props (`confirm` / `showToday` / `closeOnSelect` / `timezone`) on the
+    standalone `<KinetixDateRangePicker>`, a `timezone` prop on
+    `<KinetixRangeCalendar>` (timezone-aware initial month via
+    `default-placeholder`), and `touch-manipulation` on the trigger.
+    Re-publish components.
+
 ## [0.141.0] - 2026-08-05
 
 The date/time pickers grow up: an explicit-commit `confirm` variant, Today/Now
