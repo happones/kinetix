@@ -22,7 +22,7 @@ Activate this skill when:
 
 ## Documentation
 
-For full details, reference the [Kinetix Forms Documentation](file:///home/happones/Plugins/Php/kinetix/docs/forms.md).
+For full details, reference the [Kinetix Forms Documentation](https://happones.github.io/kinetix/forms).
 
 ## Localizing labels
 

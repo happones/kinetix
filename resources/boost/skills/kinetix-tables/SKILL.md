@@ -25,7 +25,7 @@ Activate this skill when:
 
 ## Documentation
 
-For full details, reference the [Kinetix Tables Documentation](file:///home/happones/Plugins/Php/kinetix/docs/tables.md).
+For full details, reference the [Kinetix Tables Documentation](https://happones.github.io/kinetix/tables).
 
 ## Localizing labels
 

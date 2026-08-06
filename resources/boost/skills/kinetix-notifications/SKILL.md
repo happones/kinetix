@@ -21,7 +21,7 @@ Activate this skill when:
 
 ## Documentation
 
-For full details, reference the [Kinetix Notifications Documentation](file:///home/happones/Plugins/Php/kinetix/docs/notifications.md).
+For full details, reference the [Kinetix Notifications Documentation](https://happones.github.io/kinetix/notifications).
 
 ## Basic Usage
 

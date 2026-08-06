@@ -263,13 +263,14 @@ class TableWriteController
     {
         $resource = $descriptor['resource'];
 
-        if ($resource !== null) {
-            return $resource::getEloquentQuery();
-        }
+        $query = $resource !== null
+            ? $resource::getEloquentQuery()
+            : $descriptor['model']::query();
 
-        $modelClass = $descriptor['model'];
-        $query      = $modelClass::query();
-
+        // The captured scope narrows EVEN a resource-backed query. A relation
+        // manager's table captures the parent FK here; replacing it with the
+        // bare resource query would silently widen writes from "this parent's
+        // children" to "any record of the resource".
         foreach ($descriptor['scope'] as $column => $value) {
             if (! is_string($column)) {
                 continue;

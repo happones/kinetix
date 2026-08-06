@@ -14,5 +14,9 @@ class RelationManagerData extends Data
         public string $title,
         public string $relationship,
         public TableData $table,
+        /** Badge next to the title / on the tab (e.g. a record count). */
+        public int|string|null $badge = null,
+        /** Kinetix status color for the badge (primary, gray, success…). */
+        public ?string $badgeColor = null,
     ) {}
 }

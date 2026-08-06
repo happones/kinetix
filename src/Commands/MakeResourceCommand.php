@@ -450,7 +450,9 @@ PHP;
 
     public function restore(Request \$request, \$id)
     {
-        \$record = {$modelName}::onlyTrashed()->findOrFail(\$id);
+        // Through the resource's SCOPED query — an out-of-scope (e.g. another
+        // team's) id must 404, exactly like show/edit/update/destroy.
+        \$record = {$resourceClass}::getEloquentQuery()->onlyTrashed()->findOrFail(\$id);
         \$record->restore();
 
         return redirect()->route('{$routePrefix}.index')->with('message', 'Record restored successfully.');
@@ -458,7 +460,7 @@ PHP;
 
     public function forceDelete(Request \$request, \$id)
     {
-        \$record = {$modelName}::withTrashed()->findOrFail(\$id);
+        \$record = {$resourceClass}::getEloquentQuery()->withTrashed()->findOrFail(\$id);
         \$record->forceDelete();
 
         return redirect()->route('{$routePrefix}.index')->with('message', 'Record permanently deleted.');
@@ -575,8 +577,13 @@ PHP;
             ->with('message', 'Record created successfully.');
     }
 
-    public function show({$modelName} \$record)
+    public function show(string \$record)
     {
+        // Resolve through the resource's SCOPED query — implicit route-model
+        // binding would fetch by id alone, letting a team-prefixed URL render
+        // another team's record. Out-of-scope ids 404 here instead.
+        \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+
         // Read-only detail: the resource's infolist() plus Edit/Delete actions
         // rendered in the page header (KinetixPageHeader) for quick redirects.
         return inertia('Kinetix/{$pluralName}/Show', [
@@ -586,24 +593,35 @@ PHP;
                 EditAction::make()->route('{$routePrefix}.edit'),
                 DeleteAction::make()->route('{$routePrefix}.destroy', method: 'delete'),
             ], \$record),
+            // Relation managers declared on the resource (auto-tabs when >1).
+            'relations' => collect({$resourceClass}::relationManagersFor('view', \$record))
+                ->map(fn (string \$manager) => \$manager::make(\$record)->toData())
+                ->values(),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('show', \$record),
         ]);
     }
 
-    public function edit({$modelName} \$record)
+    public function edit(string \$record)
     {
+        \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+
         \$form = {$resourceClass}::form(Form::make(\$record))->fill(\$record);
 
         return inertia('Kinetix/{$pluralName}/Edit', [
             'form' => \$form->toArray(),
             'updateUrl' => {$resourceClass}::getUrl('update', \$record),
             'cancelUrl' => {$resourceClass}::getUrl('index'),
+            'relations' => collect({$resourceClass}::relationManagersFor('edit', \$record))
+                ->map(fn (string \$manager) => \$manager::make(\$record)->toData())
+                ->values(),
             'breadcrumbs' => {$resourceClass}::breadcrumbs('edit', \$record),
         ]);
     }
 
-    public function update(Request \$request, {$modelName} \$record)
+    public function update(Request \$request, string \$record)
     {
+        \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+
         \$form = {$resourceClass}::form(Form::make(\$record));
         \$form->validate(\$request->all());
 
@@ -615,8 +633,10 @@ PHP;
             ->with('message', 'Record updated successfully.');
     }
 
-    public function destroy({$modelName} \$record)
+    public function destroy(string \$record)
     {
+        \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
+
         \$record->delete();
 
         return redirect()->route('{$routePrefix}.index')->with('message', 'Record deleted successfully.');
@@ -781,14 +801,20 @@ import { ref } from 'vue';
 import KinetixButton from '@/components/kinetix/KinetixButton.vue';
 import KinetixForm from '@/components/kinetix/KinetixForm.vue';
 import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
-import type { KinetixBreadcrumb } from '@/types/kinetix';
+import KinetixRelationManagers from '@/components/kinetix/KinetixRelationManagers.vue';
+import type {
+  KinetixBreadcrumb,
+  KinetixRelationManagerData,
+} from '@/types/kinetix';
 
 // `updateUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
 // team-scoped routes ({current_team}) work with no client-side team handling.
+// `relations` are the resource's relation managers (auto-tabs when more than one).
 const props = defineProps<{
   form: any;
   updateUrl: string;
   cancelUrl: string;
+  relations?: KinetixRelationManagerData[];
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
 
@@ -843,6 +869,9 @@ const handleCancel = () => {
         </div>
       </template>
     </KinetixForm>
+
+    <!-- Relation managers declared on the resource (auto-tabs when >1). -->
+    <KinetixRelationManagers v-if="relations?.length" :managers="relations" />
   </div>
 </template>
 VUE;
@@ -851,17 +880,21 @@ VUE;
 <script setup lang="ts">
 import KinetixInfolist from '@/components/kinetix/KinetixInfolist.vue';
 import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
+import KinetixRelationManagers from '@/components/kinetix/KinetixRelationManagers.vue';
 import type {
   KinetixAction,
   KinetixBreadcrumb,
   KinetixInfolistData,
+  KinetixRelationManagerData,
 } from '@/types/kinetix';
 
 // `actions` (Edit / Delete) render top-right in the header for quick redirects;
-// `infolist` is the resource's read-only detail schema.
+// `infolist` is the resource's read-only detail schema; `relations` are the
+// resource's relation managers (auto-tabs when more than one).
 defineProps<{
   infolist: KinetixInfolistData;
   actions: KinetixAction[];
+  relations?: KinetixRelationManagerData[];
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
 </script>
@@ -870,6 +903,7 @@ defineProps<{
   <div class="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
     <KinetixPageHeader heading="{$modelName} details" :actions="actions" />
     <KinetixInfolist :infolist="infolist" />
+    <KinetixRelationManagers v-if="relations?.length" :managers="relations" />
   </div>
 </template>
 VUE;

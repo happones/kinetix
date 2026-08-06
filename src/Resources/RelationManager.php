@@ -9,6 +9,7 @@ use Happones\Kinetix\Tables\Table;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use JsonSerializable;
 use RuntimeException;
 
@@ -20,7 +21,8 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     protected static string $relationship;
 
     /**
-     * Optional heading; defaults to a humanized relationship name.
+     * Optional heading; passed through `__()` so a translation key works.
+     * Defaults to a humanized relationship name.
      */
     protected static ?string $title = null;
 
@@ -31,6 +33,12 @@ abstract class RelationManager implements Arrayable, JsonSerializable
      * @var array<int, string>
      */
     protected static array $visibleOn = ['edit', 'view'];
+
+    /**
+     * Badge color shown next to the title / on the tab (a Kinetix status
+     * color: primary, gray, success, warning, danger, info).
+     */
+    protected static ?string $badgeColor = null;
 
     protected ?Model $parent = null;
 
@@ -51,7 +59,9 @@ abstract class RelationManager implements Arrayable, JsonSerializable
 
     public static function getTitle(): string
     {
-        return static::$title ?? (string) str(static::$relationship)->headline();
+        return static::$title !== null
+            ? (string) __(static::$title)
+            : (string) str(static::$relationship)->headline();
     }
 
     public static function getRelationship(): string
@@ -61,7 +71,8 @@ abstract class RelationManager implements Arrayable, JsonSerializable
 
     /**
      * Whether this relation manager should be shown on the given page
-     * ('edit' | 'view'). Override for per-record logic if needed.
+     * ('edit' | 'view'). Page-level only — for per-record / per-user gating
+     * override {@see canViewForRecord()}.
      */
     public static function isVisibleOn(string $page): bool
     {
@@ -69,15 +80,59 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     }
 
     /**
-     * The Eloquent query for the parent's related records.
+     * Whether this relation manager should be shown for the given PARENT
+     * record on the given page — the Filament `canViewForRecord()` analogue.
+     * Defaults to the page-level visibility; override for record- or
+     * user-level logic:
+     *
+     *     public static function canViewForRecord(Model $parent, string $page): bool
+     *     {
+     *         return parent::canViewForRecord($parent, $page)
+     *             && Gate::allows('viewComments', $parent);
+     *     }
      */
-    public function getRelationshipQuery(): Builder
+    public static function canViewForRecord(Model $parent, string $page): bool
+    {
+        return static::isVisibleOn($page);
+    }
+
+    /**
+     * Badge shown next to the title / on the tab (e.g. a record count).
+     * Return null (the default) for no badge:
+     *
+     *     public function getBadge(): int|string|null
+     *     {
+     *         return $this->getRelationshipQuery()->count();
+     *     }
+     */
+    public function getBadge(): int|string|null
+    {
+        return null;
+    }
+
+    public function getBadgeColor(): ?string
+    {
+        return static::$badgeColor;
+    }
+
+    /**
+     * The parent's relationship OBJECT (BelongsToMany keeps its pivot).
+     */
+    public function getRelation(): Relation
     {
         if ($this->parent === null) {
             throw new RuntimeException('A parent record is required to resolve '.static::class.'.');
         }
 
-        return $this->parent->{static::$relationship}()->getQuery();
+        return $this->parent->{static::$relationship}();
+    }
+
+    /**
+     * The Eloquent query for the parent's related records.
+     */
+    public function getRelationshipQuery(): Builder
+    {
+        return $this->getRelation()->getQuery();
     }
 
     public function toData(): RelationManagerData
@@ -86,10 +141,24 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             Table::make($this->getRelationshipQuery())->queryPrefix(static::$relationship.'_')
         );
 
+        // recordModals() resolves records through the RESOURCE's query, not
+        // through this parent's relationship — its create endpoint would not
+        // stamp the parent FK and its update/delete would reach ANY record of
+        // the resource. Refuse the combination instead of shipping the hole.
+        if ($table->getRecordModalsResource() !== null) {
+            throw new RuntimeException(
+                'recordModals() is not supported inside a relation manager ('.static::class.'): '
+                .'the modal endpoints resolve through the resource query, not the parent relationship. '
+                .'Use row actions pointing at your own routes instead.'
+            );
+        }
+
         return new RelationManagerData(
             title: static::getTitle(),
             relationship: static::$relationship,
             table: $table->toData(),
+            badge: $this->getBadge(),
+            badgeColor: $this->getBadgeColor(),
         );
     }
 

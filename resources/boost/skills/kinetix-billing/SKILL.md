@@ -19,7 +19,7 @@ Activate this skill when:
 
 ## Documentation
 
-Full reference: [Kinetix Billing Documentation](file:///home/happones/Plugins/Php/kinetix/docs/billing.md).
+Full reference: [Kinetix Billing Documentation](https://happones.github.io/kinetix/billing).
 
 ## Key Rules
 

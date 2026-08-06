@@ -534,6 +534,16 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * The resource class record modals resolve through, when enabled.
+     * Relation managers use this to REJECT the combination (the modal
+     * endpoints bypass the parent relationship).
+     */
+    public function getRecordModalsResource(): ?string
+    {
+        return $this->recordModalsResource;
+    }
+
+    /**
      * KPI cards shown above the table — counts, sums and averages over the same
      * dataset the table lists.
      *

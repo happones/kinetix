@@ -20,7 +20,7 @@ Activate this skill when:
 
 ## Documentation
 
-For full details, reference the [Kinetix Infolists Documentation](file:///home/happones/Plugins/Php/kinetix/docs/infolists.md).
+For full details, reference the [Kinetix Infolists Documentation](https://happones.github.io/kinetix/infolists).
 
 ## Localizing labels
 

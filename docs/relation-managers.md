@@ -63,9 +63,14 @@ class PostsRelationManager extends RelationManager
 | Member | Description |
 |---|---|
 | `protected static $relationship` | The relationship **method name** on the parent (required) |
-| `protected static $title` | Heading (defaults to a humanized relationship name) |
+| `protected static $title` | Heading — passed through `__()`, so a translation key works (defaults to a humanized relationship name) |
+| `protected static $visibleOn` | Pages the manager appears on (`['edit', 'view']` by default) |
+| `protected static $badgeColor` | Status color for the badge (primary, gray, success…) |
 | `table(Table $table): Table` | Configure columns/filters/actions (the table is pre-scoped + prefixed) |
 | `::make(?Model $parent)` | Bind the parent record |
+| `canViewForRecord(Model $parent, string $page): bool` | Record/user-aware gating (Filament analogue) — see §4 |
+| `getBadge(): int\|string\|null` | Badge next to the title / on the tab (e.g. a count) — see §3 |
+| `getRelation(): Relation` | The parent's relationship OBJECT (BelongsToMany keeps its pivot) |
 | `getRelationshipQuery(): Builder` | The parent-scoped Eloquent query |
 | `toData()` / `toArray()` | Serialize to `RelationManagerData` |
 
@@ -86,24 +91,41 @@ return inertia('Users/Edit', [
 
 ```vue
 <script setup lang="ts">
-import KinetixRelationManager from '@/components/kinetix/KinetixRelationManager.vue';
+import KinetixRelationManagers from '@/components/kinetix/KinetixRelationManagers.vue';
 import type { KinetixRelationManagerData } from '@/types/kinetix';
 
 defineProps<{ relations: KinetixRelationManagerData[] }>();
 </script>
 
 <template>
-    <div class="space-y-8">
-        <KinetixRelationManager
-            v-for="relation in relations"
-            :key="relation.relationship"
-            :manager="relation"
-        />
-    </div>
+    <KinetixRelationManagers :managers="relations" />
 </template>
 ```
 
-`KinetixRelationManager.vue` renders the title and the embedded `KinetixTable`. Because each table carries its own `queryPrefix`, searching/sorting/paginating one manager leaves the others untouched, and unrelated query params on the page are preserved across reloads.
+`<KinetixRelationManagers>` is the host and picks the layout automatically,
+exactly like Filament:
+
+- **one manager** → a plain section (heading + table);
+- **several** → an automatic **tab per manager** (title + optional badge),
+  rendering only the active one. Because each table carries its own
+  `queryPrefix`, switching tabs never clobbers another manager's
+  search/sort/page state — and it survives in the URL.
+
+Pass `:tabs="false"` to force the stacked layout regardless of count, or use
+the single-section `<KinetixRelationManager :manager="relation" />` directly
+for a fully custom arrangement.
+
+### Badges (record counts on the tab)
+
+Override `getBadge()` — the value renders next to the title and on the tab
+(pair it with `protected static ?string $badgeColor = 'primary';`):
+
+```php
+public function getBadge(): int|string|null
+{
+    return $this->getRelationshipQuery()->count();
+}
+```
 
 ---
 
@@ -162,15 +184,31 @@ $relations = array_map(
 );
 ```
 
-For per-record logic (Filament's `canViewForRecord`), override `isVisibleOn()` on
-the manager:
+For per-record / per-user logic (Filament's `canViewForRecord`), override
+`canViewForRecord()` — it receives the PARENT record, and
+`relationManagersFor($page, $record)` filters through it whenever you pass the
+record:
 
 ```php
-public static function isVisibleOn(string $page): bool
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
+
+public static function canViewForRecord(Model $parent, string $page): bool
 {
-    return $page === 'view'; // or inspect the page + any context you pass in
+    return parent::canViewForRecord($parent, $page)
+        && Gate::allows('viewComments', $parent);
 }
 ```
+
+```php
+// Controller: pass the record so record/user-aware gating applies.
+'relations' => collect(UserResource::relationManagersFor('view', $user))
+    ->map(fn (string $manager) => $manager::make($user)->toData())
+    ->values(),
+```
+
+(`isVisibleOn()` remains the page-level filter and the fallback when no record
+is passed.)
 
 ---
 
@@ -239,3 +277,66 @@ Route::prefix('users/{user}')->name('users.posts.')->group(function () {
 **3. Render it on the parent's edit page** (see §3) — the create/edit actions navigate to the nested form pages, and `delete` issues a scoped Inertia `DELETE`. After a mutation, redirect back to the parent edit page and the relation table refreshes.
 
 > Route binding is respected: passing the models to `route(...)` uses each model's `getRouteKey()` (so slug/uuid keys work). Authorize per row with `EditAction::make()->authorize('update')`, etc. — unauthorized actions are dropped from the payload.
+
+---
+
+## 7. Teams / multi-tenancy
+
+Relation managers scope **transitively**: the table query is
+`$parent->{relationship}()`, so the children are exactly as isolated as the
+parent record you resolved. That makes parent resolution the whole ballgame:
+
+::: danger Resolve the parent through the resource's scoped query
+Implicit route-model binding (`public function edit(Post $record)`) fetches by
+id alone — a team-prefixed URL like `/team-a/posts/{id-from-team-b}/edit`
+would happily render team B's record, and every relation manager on that page
+would then list team B's children. Resolve through the resource instead, so
+out-of-scope ids 404:
+
+```php
+public function edit(string $record)
+{
+    $record = PostResource::getEloquentQuery()->findOrFail($record);
+    // …
+}
+```
+
+`kinetix:make-resource` scaffolds exactly this (and the same for
+show/update/destroy/restore/forceDelete).
+:::
+
+Two more rules for team apps:
+
+- **Nested CRUD routes must re-scope the parent too** — apply the same
+  `getEloquentQuery()` resolution (or `->scopeBindings()` + an ownership
+  check) in the nested controllers from §6.
+- **Stamp the team on created children** when the child table has its own
+  `team_id` (creating through `$parent->posts()->create(...)` inherits the
+  parent FK but NOT other tenant columns).
+
+## 8. What's not supported (yet)
+
+So you don't discover it the hard way:
+
+- **`recordModals()` inside a relation manager** — rejected with an exception:
+  the modal endpoints resolve through the *resource* query, not the parent
+  relationship, so create would not stamp the parent FK and update/delete
+  could reach records outside the relation. Use row actions pointing at your
+  own nested routes (§6).
+- **BelongsToMany attach/detach actions** (Filament's
+  `AttachAction`/`DetachAction`) and pivot columns — planned;
+  `getRelation()` already exposes the relationship object.
+- **Read-only mode** — omit write actions from the manager's `table()` per
+  page instead.
+
+## 9. i18n
+
+`protected static ?string $title` passes through `__()`, so a translation key
+works out of the box:
+
+```php
+protected static ?string $title = 'app.relation_managers.posts';
+```
+
+The default (no title) is the headlined relationship name; the table chrome
+(search, pagination, empty state…) is already translated in all 7 locales.

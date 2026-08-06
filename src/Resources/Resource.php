@@ -138,15 +138,19 @@ abstract class Resource
 
     /**
      * The relation manager classes that should appear on the given page
-     * ('edit' | 'view'), filtered by each manager's `isVisibleOn()`.
+     * ('edit' | 'view'). With a parent `$record`, each manager's
+     * `canViewForRecord()` decides (record/user-aware); without one it falls
+     * back to the page-level `isVisibleOn()`.
      *
      * @return array<int, class-string<RelationManager>>
      */
-    public static function relationManagersFor(string $page): array
+    public static function relationManagersFor(string $page, ?Model $record = null): array
     {
         return array_values(array_filter(
             static::relationManagers(),
-            static fn (string $relationManager): bool => $relationManager::isVisibleOn($page),
+            static fn (string $relationManager): bool => $record !== null
+                ? $relationManager::canViewForRecord($record, $page)
+                : $relationManager::isVisibleOn($page),
         ));
     }
 

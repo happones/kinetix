@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Columns\ToggleColumn;
 use Happones\Kinetix\Tables\Table;
@@ -39,6 +41,22 @@ class ScopedWidgetPolicy
     public function update(ScopedWidgetUser $user, ScopedWidget $widget): bool
     {
         return $widget->team_id === $user->team_id;
+    }
+}
+
+/** Deliberately UNscoped resource query — the captured scope must still win. */
+class UnscopedWidgetResource extends \Happones\Kinetix\Resources\Resource
+{
+    protected static ?string $model = ScopedWidget::class;
+
+    public static function table(Table $table): Table
+    {
+        return $table;
+    }
+
+    public static function form(Form $form): Form
+    {
+        return $form;
     }
 }
 
@@ -104,6 +122,38 @@ class TableWriteSecurityTest extends TestCase
         ]);
 
         $response->assertNotFound();
+        $this->assertFalse($foreign->fresh()->is_active);
+    }
+
+    public function test_a_resource_backed_descriptor_still_honors_the_captured_scope(): void
+    {
+        // A relation manager's table captures the parent FK as its scope while
+        // ALSO carrying a resource (recordModals). The write path must
+        // intersect both — resolving through the bare resource query would
+        // widen writes from "this parent's children" to "any record".
+        $mine    = ScopedWidget::create(['team_id' => 1, 'name' => 'Mine']);
+        $foreign = ScopedWidget::create(['team_id' => 2, 'name' => 'Theirs']);
+
+        $token = Table::make(ScopedWidget::query()->where('team_id', 1))
+            ->columns([ToggleColumn::make('is_active')])
+            ->recordModals(UnscopedWidgetResource::class)
+            ->toData()
+            ->model;
+
+        $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $token,
+            'recordId' => $mine->id,
+            'column'   => 'is_active',
+            'value'    => true,
+        ])->assertOk();
+
+        $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $token,
+            'recordId' => $foreign->id,
+            'column'   => 'is_active',
+            'value'    => true,
+        ])->assertNotFound();
+
         $this->assertFalse($foreign->fresh()->is_active);
     }
 

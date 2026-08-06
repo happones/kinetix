@@ -50,6 +50,20 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringContainsString('<KinetixButton', $edit);
         $this->assertStringContainsString(':loading="saving"', $edit);
 
+        // Relation managers are wired into Edit/Show (auto-tabs when >1).
+        $show = File::get($showPath);
+        $this->assertStringContainsString('<KinetixRelationManagers', $edit);
+        $this->assertStringContainsString('<KinetixRelationManagers', $show);
+
+        // Record resolution goes through the resource's SCOPED query — never
+        // implicit route-model binding, which would fetch by id alone and let
+        // a team-prefixed URL render another team's record.
+        $controller = File::get(app_path('Http/Controllers/Kinetix/PostController.php'));
+        $this->assertStringContainsString('PostResource::getEloquentQuery()->findOrFail($record)', $controller);
+        $this->assertStringNotContainsString('public function edit(Post $record)', $controller);
+        $this->assertStringContainsString("relationManagersFor('edit', \$record)", $controller);
+        $this->assertStringContainsString("relationManagersFor('view', \$record)", $controller);
+
         // The Show page pairs a page header (Edit/Delete actions) with the infolist.
         $show = File::get($showPath);
         $this->assertStringContainsString('KinetixPageHeader', $show);
@@ -216,8 +230,11 @@ class MakeResourceCommandTest extends TestCase
         $controller     = File::get($controllerPath);
 
         // A read-only show() renders the infolist + header actions (via route()).
+        // Record resolution goes through the resource's SCOPED query, never
+        // implicit route-model binding (team-prefixed URLs must 404 foreign ids).
         $this->assertStringContainsString('use Happones\Kinetix\Infolists\Infolist;', $controller);
-        $this->assertStringContainsString('public function show(Post $record)', $controller);
+        $this->assertStringContainsString('public function show(string $record)', $controller);
+        $this->assertStringContainsString('PostResource::getEloquentQuery()->findOrFail($record)', $controller);
         $this->assertStringContainsString("EditAction::make()->route('posts.edit')", $controller);
 
         // The per-row View action (→ show) lives on the resource table().

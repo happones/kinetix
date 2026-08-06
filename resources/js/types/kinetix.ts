@@ -1119,6 +1119,10 @@ export interface KinetixRelationManagerData {
     title: string;
     relationship: string;
     table: KinetixTableData;
+    /** Badge next to the title / on the tab (e.g. a record count). */
+    badge?: number | string | null;
+    /** Kinetix status color for the badge (primary, gray, success…). */
+    badgeColor?: string | null;
 }
 
 export interface KinetixPlanData {

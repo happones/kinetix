@@ -19,7 +19,7 @@ Activate this skill when:
 
 ## Documentation
 
-Full reference: [Kinetix Import / Export Documentation](file:///home/happones/Plugins/Php/kinetix/docs/import-export.md).
+Full reference: [Kinetix Import / Export Documentation](https://happones.github.io/kinetix/import-export).
 
 ## Usage Guide
 

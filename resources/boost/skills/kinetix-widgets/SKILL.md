@@ -22,7 +22,7 @@ Activate this skill when:
 
 ## Documentation
 
-For full details, reference the [Kinetix Widgets Documentation](file:///home/happones/Plugins/Php/kinetix/docs/widgets.md).
+For full details, reference the [Kinetix Widgets Documentation](https://happones.github.io/kinetix/widgets).
 
 ## Usage Guide
 

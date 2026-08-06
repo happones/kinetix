@@ -20,8 +20,8 @@ Activate this skill when:
 ## Documentation
 
 For component details, reference:
-- [Kinetix Tables Reference](file:///home/happones/Plugins/Php/kinetix/docs/tables.md)
-- [Kinetix Forms Reference](file:///home/happones/Plugins/Php/kinetix/docs/forms.md)
+- [Kinetix Tables Reference](https://happones.github.io/kinetix/tables)
+- [Kinetix Forms Reference](https://happones.github.io/kinetix/forms)
 
 ## Localizing labels
 
@@ -234,17 +234,20 @@ class PostsRelationManager extends RelationManager
     }
 }
 
-// Edit/show controller
+// Edit/show controller — pass the record so canViewForRecord() gating applies.
 return inertia('Users/Edit', [
-    'relations' => [PostsRelationManager::make($user)->toArray()],
+    'relations' => collect(UserResource::relationManagersFor('edit', $user))
+        ->map(fn (string $m) => $m::make($user)->toData())
+        ->values(),
 ]);
 ```
 
 ```vue
-<KinetixRelationManager v-for="r in relations" :key="r.relationship" :manager="r" />
+<!-- Auto-tabs when >1 manager (Filament-style, with getBadge() counts); plain section when 1. -->
+<KinetixRelationManagers :managers="relations" />
 ```
 
-For multiple standalone tables on one page (without a relation), call `Table::make($q)->queryPrefix('foo_')` directly. Full reference: [Relation Managers](file:///home/happones/Plugins/Php/kinetix/docs/relation-managers.md).
+Key rules: resolve the PARENT through `Resource::getEloquentQuery()->findOrFail($id)` (never implicit route-model binding — a team-prefixed URL would render another team's record; `kinetix:make-resource` scaffolds this). `recordModals()` inside a relation manager THROWS (its endpoints bypass the parent relationship) — use row actions on nested routes. `getBadge()` puts counts on the tab; `canViewForRecord(Model $parent, string $page)` is the record/user-aware gate; `$title` passes through `__()`. For multiple standalone tables on one page (without a relation), call `Table::make($q)->queryPrefix('foo_')` directly. Full reference: [Relation Managers](https://happones.github.io/kinetix/relation-managers).
 
 ---
 
