@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import type { Component } from 'vue';
 import KinetixAddressPicker from '../KinetixAddressPicker.vue';
+import KinetixBusinessHours from '../KinetixBusinessHours.vue';
 import KinetixCheckboxList from '../KinetixCheckboxList.vue';
 import KinetixDateRangePicker from '../KinetixDateRangePicker.vue';
 import KinetixFileUpload from '../KinetixFileUpload.vue';
@@ -122,6 +123,10 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
             disabled: c.isDisabled,
             placeholder: c.placeholder,
         }),
+    },
+    'business-hours': {
+        component: KinetixBusinessHours,
+        props: (c) => ({ disabled: c.isDisabled }),
     },
     'address-picker': {
         component: KinetixAddressPicker,

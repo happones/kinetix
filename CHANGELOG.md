@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.161.0] - 2026-08-06
+
+Weekly business-hours field — the roadmap's schedule kit for
+booking/appointment apps.
+
+- **`BusinessHours::make('hours')`** form field: per-day editor with an
+  enable switch, one or more `HH:MM` ranges, add/remove range and "Apply to
+  all days"; day names via `Intl` in the active locale; defaults to
+  Monday–Friday 09:00–17:00 **(published: `KinetixBusinessHours.vue`)**.
+- **`WeeklySchedule` value object** (`Support`): `isOpenAt($moment)` /
+  `isOpenNow($tz)` / `effectiveSchedule()` / `rangesFor($day)`; overnight
+  ranges wrap past midnight (`22:00–02:00`); `fromArray()` normalizes loose
+  input. **`AsWeeklySchedule`** Eloquent cast round-trips the VO.
+- **`kinetix_weekly_schedule` validation rule** (string-registered, usable
+  on any validator) — the field seeds it automatically. New
+  `validation_weekly_schedule` + 4 editor keys ×7 locales.
+- **`primitives/KinetixSwitch.vue`** extracted as the single home of the
+  shadcn switch recipe (the Toggle field and the new editor both build on
+  it) **(published)**.
+
 ## [0.160.0] - 2026-08-06
 
 Plan-gating kit: capabilities + limits enforcement wired end-to-end on the

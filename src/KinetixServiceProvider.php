@@ -117,6 +117,7 @@ use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Support\WeeklySchedule;
 use Happones\Kinetix\Tables\RecordModalController;
 use Happones\Kinetix\Tables\TableWriteController;
 use Happones\Kinetix\Tags\TagController;
@@ -144,6 +145,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -332,6 +334,15 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register package translation namespace
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'kinetix');
+
+        // Weekly business-hours structure (the BusinessHours field seeds it;
+        // usable on any host validator too). String-registered so it survives
+        // the string-rule pipeline fields serialize through.
+        Validator::extend(
+            'kinetix_weekly_schedule',
+            fn ($attribute, $value): bool => WeeklySchedule::validate($value),
+            (string) __('kinetix.validation_weekly_schedule'),
+        );
 
         if ($this->app->runningInConsole()) {
             $this->commands([

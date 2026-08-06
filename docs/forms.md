@@ -599,6 +599,45 @@ Like `DateTimePicker`, the popover has a footer: **Now** (current time rounded
 to `minuteStep`) and **Done** — or **Apply** with `->confirm()`, which defers
 the commit to that button and discards the draft on any other dismissal.
 
+### `BusinessHours` (weekly schedule)
+
+A weekly business-hours editor — one row per day with an enable switch, one or
+more `HH:MM` time ranges, add/remove range and **Apply to all days**. Day
+names come from `Intl` in the active locale. Defaults to Monday–Friday
+09:00–17:00, and the structure is validated server-side automatically (the
+`kinetix_weekly_schedule` rule, seeded by the field):
+
+```php
+use Happones\Kinetix\Forms\Components\BusinessHours;
+
+BusinessHours::make('hours');
+```
+
+Pair the column with the `AsWeeklySchedule` cast to read it back as a value
+object:
+
+```php
+use Happones\Kinetix\Support\Casts\AsWeeklySchedule;
+
+protected $casts = ['hours' => AsWeeklySchedule::class];
+```
+
+```php
+$venue->hours?->isOpenAt(now($venue->timezone));   // bool — pass the moment in ITS timezone
+$venue->hours?->isOpenNow($venue->timezone);       // shortcut
+$venue->hours?->effectiveSchedule();               // full normalized week array
+$venue->hours?->rangesFor('monday');               // enabled ranges (empty when off)
+```
+
+- A range whose end is **at or before** its start wraps past midnight —
+  friday `22:00–02:00` keeps saturday 01:00 open through friday's entry.
+- The stored shape is `{ monday: { enabled, ranges: [{ start, end }] }, … }`
+  with all seven days always present; disabled days keep their last ranges so
+  re-enabling restores them.
+- `WeeklySchedule::fromArray()` normalizes loose input (invalid ranges
+  dropped, unknown keys removed); the validation rule is the STRICT gate —
+  also usable standalone: `'hours' => ['array', 'kinetix_weekly_schedule']`.
+
 ---
 
 ### `MonthPicker`, `YearPicker` & `WeekPicker`
