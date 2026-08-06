@@ -13,6 +13,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.144.0] - 2026-08-05
+
+Relation managers grow up: automatic tabs when a resource declares several
+(Filament-style, with count badges), record/user-aware visibility, and a
+team-safety pass that closes a real cross-tenant hole in the scaffolded
+controllers.
+
+### Added
+
+- ⚠️ **(published) `<KinetixRelationManagers>` — the relation managers HOST
+  with automatic tabs.** Pass everything `relationManagersFor()` returned:
+  one manager renders as a plain section; **several render as a tab per
+  manager** (title + optional badge), showing only the active one. Each
+  table's namespaced query params (`{relationship}_…`) make tab switches
+  state-safe. `:tabs="false"` forces the stacked layout;
+  `<KinetixRelationManager>` remains for custom arrangements.
+- **Badges on the manager/tab** — override `getBadge()` (e.g.
+  `$this->getRelationshipQuery()->count()`) with
+  `protected static ?string $badgeColor`.
+- **Record/user-aware visibility** — `canViewForRecord(Model $parent, string
+  $page)` (the Filament analogue; `isVisibleOn()` was static and
+  record-blind), honored by `relationManagersFor($page, $record)` when you
+  pass the parent record.
+- **`getRelation(): Relation`** exposes the parent's relationship OBJECT
+  (BelongsToMany keeps its pivot — groundwork for attach/detach actions).
+- **`$title` passes through `__()`** so a translation key localizes the
+  manager heading/tab.
+- **`kinetix:make-resource` wires relation managers end to end**: the
+  generated show/edit controllers pass `relations` (filtered per page and
+  record) and the generated pages render `<KinetixRelationManagers>` — adding
+  a manager to the resource Just Works.
+
+### Fixed
+
+- **Cross-team record access in scaffolded controllers.** The generated
+  show/edit/update/destroy (and restore/forceDelete) resolved records by
+  implicit route-model binding — id alone — so a team-prefixed URL could
+  render/mutate ANOTHER team's record, and every relation manager on the page
+  then listed that team's children. They now resolve through
+  `Resource::getEloquentQuery()->findOrFail($record)` (out-of-scope ids 404).
+  Existing scaffolded apps: apply the same pattern manually — see
+  [Relation Managers → Teams](docs/relation-managers.md).
+- **Table write endpoints no longer widen past a captured scope.** A
+  resource-backed descriptor (`recordModals()`) replaced the captured where
+  clauses with the bare resource query; inline cell edits/reorders through a
+  relation manager's table could reach records outside the parent relation.
+  The base query now INTERSECTS the resource query with the captured scope.
+- **`recordModals()` inside a relation manager is now rejected** with a clear
+  exception — its endpoints resolve through the resource query, not the
+  parent relationship (create wouldn't stamp the parent FK; update/delete
+  could reach any record). Use row actions on nested routes instead.
+- **Published agent skills no longer link to a local filesystem path** — the
+  10 `file:///home/...` doc references across 8 skills now point at the
+  hosted docs site.
+
 ## [0.143.0] - 2026-08-05
 
 ### Added
