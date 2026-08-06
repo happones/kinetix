@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.148.0] - 2026-08-06
+
+### Added
+
+- **Server-flashed toasts (`kinetix_toast`)**: any controller redirect can
+  fire a themed toast with
+  `->with('kinetix_toast', __('kinetix.record_created'))` (a string → success)
+  or `['type' => 'error', 'message' => …]` — **(published)**
+  `<KinetixToaster />` watches the new shared prop and shows it (a per-flash
+  uuid lets the same message fire twice in a row). The Kinetix record
+  endpoints (simple-resource modals, relation-manager modal CRUD) and the
+  `kinetix:make-resource` scaffolded controllers now flash it on every
+  create/update/delete/restore/force-delete with generic, customizable
+  messages; new `record_restored` / `record_force_deleted` keys in all 7
+  locales.
+
+### Fixed
+
+- **(published) Submitted form values survive a failed validation
+  round-trip**: on error-back the controller reruns and re-serializes the form
+  from the ORIGINAL record (edit) or the blank blueprint (create), and
+  `KinetixForm` synced from those props — a cleared required field silently
+  refilled from the record and a half-typed create form wiped itself.
+  `KinetixForm` now keeps the user's values whenever the incoming render
+  carries validation errors, and syncs again on the next error-free render
+  (UI tests cover both paths).
+- **(published) Standalone `<KinetixWizard>` auto-jumps to the first errored
+  step** when `errorSteps` changes (unless the current step already holds
+  one) — the same contract the form Tabs/Wizard layouts already had, so a
+  failed submit is never invisible on another step.
+
 ## [0.147.0] - 2026-08-06
 
 ### Added
