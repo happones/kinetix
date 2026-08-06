@@ -395,10 +395,56 @@ items, buttons); `<KinetixPlanGate>` when it should sell the upgrade.
 
 <Screenshot name="usage-meters" alt="Metered usage — progress meters" />
 
-For **metered** Stripe prices (API calls, seats, storage, …) you usually want a
-progress bar showing how much of the plan's included allowance has been used.
-Kinetix can't know *how* your app measures usage — that's inherently
-app-specific — so the customization point is a single method on your billable:
+For **metered** dimensions (API calls, AI messages, storage, …) you usually
+want a progress bar showing how much of the plan's included allowance has
+been used — and a way to actually track and enforce that consumption.
+
+### Tracking usage & credits (`HasMeteredUsage`)
+
+Add the trait to the billable (next to `HasPlan`) and publish the tables
+(`--tag=kinetix-billing-migrations`) to get a real consumption backend —
+counters per metric key that **reset each calendar month**, plus **top-up
+credits** that extend the plan's allowance:
+
+```php
+use Happones\Kinetix\Billing\Concerns\HasMeteredUsage;
+
+class Team extends Model // + Billable, HasPlan
+{
+    use HasMeteredUsage;
+}
+```
+
+```php
+$team->consume('ai_messages');           // record 1 unit — throws (403) past allowance + credits
+$team->consume('ai_messages', 5);        // record 5 units atomically
+$team->canConsume('ai_messages', 5);     // graceful pre-check
+$team->currentUsage('ai_messages');      // units consumed this month
+$team->remainingUsage('ai_messages');    // allowance − used + credits (null = unlimited)
+$team->addCredits('ai_messages', 1000);  // top-up after a one-off purchase
+$team->creditsFor('ai_messages');        // remaining credit balance
+```
+
+- The **allowance** is the plan's `features.usage.{key}` (§4); no value =
+  unlimited, and unlimited keys never block or touch credits.
+- **Accounting**: the allowance is spent first; only the excess draws credits
+  down. Everything runs in one transaction with row locks, so concurrent
+  consumers can't double-spend. A failed `consume()`
+  (`UsageLimitExceededException`, 403 — carries `key` and `remaining`)
+  records nothing.
+- **Credits persist across months**; the monthly counter resets by calendar
+  month (`usagePeriodKey()` — override for lifetime counters or a
+  billing-cycle anchor).
+- The trait ships a default `meteredUsage()`, so `<KinetixUsageMeters>`
+  renders one meter per plan `usage.*` key with the REAL tracked numbers —
+  zero extra wiring. With credits on a key, the meter's limit becomes
+  `allowance + credits` so the purchased headroom shows.
+
+### Custom metrics (`meteredUsage()` by hand)
+
+When a dimension isn't tracked through `consume()` (seats = a COUNT, storage
+= a SUM), override `meteredUsage()` yourself — it's just a method on the
+billable:
 
 ```php
 use Happones\Kinetix\Billing\Plan;

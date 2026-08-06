@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.162.0] - 2026-08-06
+
+Metered usage + credits — the consumption backend the usage meters were
+missing, closing the 2026-07 roadmap trio (plan gating → business hours →
+this).
+
+- **`HasMeteredUsage` billable trait** (tables `kinetix_usage` +
+  `kinetix_credits`, published under `kinetix-billing-migrations`):
+  `consume($key, $n)` records atomically (row locks; the plan's
+  `features.usage.*` allowance is spent before credits; past
+  `allowance + credits` a `UsageLimitExceededException` (403) aborts with
+  nothing recorded), `canConsume()`, `currentUsage()` (resets per calendar
+  month — `usagePeriodKey()` overridable), `remainingUsage()` (null =
+  unlimited; unlimited keys never block or touch credits).
+- **Top-up credits**: `addCredits($key, $n)` / `creditsFor($key)` — not
+  period-scoped, persist until consumed.
+- **Zero-wiring meters**: the trait ships a default `meteredUsage()`, so
+  `<KinetixUsageMeters>` renders one meter per plan `usage.*` key with real
+  tracked numbers; with credits the meter's limit shows the purchased
+  headroom (`allowance + credits`).
+
 ## [0.161.0] - 2026-08-06
 
 Weekly business-hours field — the roadmap's schedule kit for

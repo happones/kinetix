@@ -423,7 +423,8 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional Billing module's plans migration.
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000000_create_kinetix_plans_table.php' => database_path('migrations/2026_01_01_000000_create_kinetix_plans_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000000_create_kinetix_plans_table.php'  => database_path('migrations/2026_01_01_000000_create_kinetix_plans_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000027_create_kinetix_usage_tables.php' => database_path('migrations/2026_01_01_000027_create_kinetix_usage_tables.php'),
             ], 'kinetix-billing-migrations');
 
             // Publish the optional Membership module's provisions migration.

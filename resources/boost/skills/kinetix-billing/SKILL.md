@@ -83,7 +83,17 @@ Frontend: `<KinetixPlanGate feature="capabilities.api">` = `<KinetixPlanFeature>
 lock-card + Upgrade CTA denied state (`#locked` slot overrides); `useKinetixPlan()` adds
 `allows('api')` + `upgradeUrl`.
 
-### 4. Metered usage progress
+### 4. Metered usage tracking + credits
+
+`use HasMeteredUsage` on the billable (tables via `--tag=kinetix-billing-migrations`):
+`consume($key, $n)` (atomic, throws `UsageLimitExceededException` 403 past allowance+credits,
+allowance spent before credits), `canConsume`, `currentUsage` (resets per calendar month —
+override `usagePeriodKey()`), `remainingUsage` (null = unlimited; unlimited never blocks),
+`addCredits`/`creditsFor` (credits persist across months). Ships a default `meteredUsage()` so
+`<KinetixUsageMeters>` shows real tracked numbers per plan `usage.*` key (limit becomes
+allowance+credits when credits exist). Override `meteredUsage()` for COUNT/SUM-style metrics.
+
+### 5. Metered usage progress
 
 ```php
 use Happones\Kinetix\Billing\UsageMetric;
@@ -103,7 +113,7 @@ public function meteredUsage(?\Happones\Kinetix\Billing\Plan $plan): array
 
 Report the usage back to Stripe (write side): `BillingManager::for($billable)->reportUsage($quantity, $meteredPriceId)`.
 
-### 5. Scaffold
+### 6. Scaffold
 
 ```bash
 php artisan kinetix:make-billing --seeder
