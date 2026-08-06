@@ -13,6 +13,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.155.0] - 2026-08-06
+
+Full shadcn new-york-v4 congruence sweep across every floating surface —
+verified against the v4 registry recipes, enforced by a new CI scan test.
+
+### Changed — all **(published)**
+
+- **12 floating surfaces that popped in with ZERO animation now carry the
+  full v4 set** (fade + zoom + directional side-slide): Select, Combobox,
+  TimezonePicker, SavedViews, Time/Month/Year/DateRange/Week pickers,
+  Announcements, Spotlight (fade+zoom, modal-style) and the DataTable column
+  toggle. **8 more had partial sets completed** (PeriodFilter,
+  AccessibilityMenu, TeamSwitcher, ModeToggle, LanguageDropdown,
+  Date/DateTime pickers, wizard tooltip).
+- **Tailwind v4 bug fixed**: `w-[--reka-combobox-trigger-width]` is invalid
+  in v4 (implicit `var()` was dropped) — the combobox/timezone popovers had
+  silently stopped matching their trigger width. Now `w-(--var)` syntax, plus
+  reka `origin-(--…-transform-origin)` / available-height vars so zoom scales
+  from the trigger and long menus shrink instead of clipping.
+- **Remaining hand-rolled modals aligned to the v4 dialog line**
+  (ConfidentialUnlock, Shortcuts, GdprPanel confirm, CalendarEventDetails):
+  `bg-black/80` overlay with fade in/out, `bg-background` panel with
+  fade+zoom-95 at 200ms. Drawer surfaces (`KinetixSheet`,
+  NotificationDrawer) moved to `shadow-lg` + v4 tokens.
+- **Wizard step tooltip uses the v4 tooltip recipe** (`bg-foreground
+  text-background text-xs text-balance`) instead of menu tokens.
+- **`prefers-reduced-motion` is now honored at the OS level** — previously
+  motion suppression only applied when a user toggled the Kinetix
+  accessibility preference; tw-animate-css ships no guard of its own.
+- **Hover-only affordances are keyboard-reachable**: copy/confidential
+  buttons in cells, saved-view actions and media-tile controls gain
+  `group-focus-within`/`focus-visible` opacity escapes.
+- **Calendar nav buttons** use `buttonVariants({ ghost, icon-sm })` (32px +
+  focus ring) instead of 6 hand-copied 28px ring-less literals; the DataTable
+  deleted its duplicated column-toggle popover and renders the shared
+  `<KinetixTableColumnToggle>`.
+- New shared consts in `useKinetixShadcnVariants`
+  (`popoverAnimationClass` / `popoverContentClass` / `menuContentClass` /
+  `tooltipContentClass`) for new code, and a **CI scan test**
+  (`tests/js/shadcnSurfaces.spec.ts`) failing any reka floating surface that
+  drops part of the v4 animation set — congruence is now enforced, not
+  reviewed.
+
+### Queued (audited, not yet migrated)
+
+- `KinetixBadge` primitive over the unused `badgeVariants()` (18 literal
+  pills across 14 components); ImportModal / FilePreview / RoleEditorModal /
+  RoleDeleteDialog / LogDetailModal onto `KinetixModal`; the relation-manager
+  tab strip onto reka Tabs (roving tabindex + aria-controls); Tour overlay
+  transitions.
+
 ## [0.154.1] - 2026-08-06
 
 ### Fixed
