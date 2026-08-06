@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.154.1] - 2026-08-06
+
+### Fixed
+
+- **(published) The modal close button was visually gone**: in the v4
+  registry the panel itself is the `fixed` element, so the close button's
+  `absolute top-4 right-4` anchors to it — Kinetix's panel sits inside a
+  fixed flex wrapper and was missing `relative`, sending the button to the
+  viewport corner instead. The E2E now asserts the button's bounding box
+  sits INSIDE the panel.
+
 ## [0.154.0] - 2026-08-06
 
 ### Changed
