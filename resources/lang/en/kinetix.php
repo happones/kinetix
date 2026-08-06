@@ -90,6 +90,7 @@ return [
     'restore'                   => 'Restore',
     'force_delete'              => 'Delete permanently',
     'attach'                    => 'Attach',
+    'relation_loading'          => 'Loading…',
     'detach'                    => 'Detach',
     'attached'                  => 'Attached.',
     'detached'                  => 'Detached.',

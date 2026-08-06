@@ -72,6 +72,9 @@ class MakeRelationManagerCommand extends GeneratorCommand
             // Pages this manager appears on. Restrict with e.g. ['view'] or ['edit'].
             protected static array \$visibleOn = ['edit', 'view'];
 
+            // Lazy: serialize only the tab stub until the tab is opened.
+            // protected static bool \$isLazy = true;
+
             {$titleAttr}
 
             /**

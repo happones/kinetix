@@ -90,6 +90,7 @@ return [
     'restore'                          => '復元',
     'force_delete'                     => '完全に削除',
     'attach'                           => '関連付け',
+    'relation_loading'                 => '読み込み中…',
     'detach'                           => '関連付け解除',
     'attached'                         => '関連付けました。',
     'detached'                         => '関連付けを解除しました。',

@@ -90,6 +90,7 @@ return [
     'restore'                          => 'Восстановить',
     'force_delete'                     => 'Удалить навсегда',
     'attach'                           => 'Привязать',
+    'relation_loading'                 => 'Загрузка…',
     'detach'                           => 'Отвязать',
     'attached'                         => 'Привязано.',
     'detached'                         => 'Отвязано.',

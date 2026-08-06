@@ -19,6 +19,7 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -119,6 +120,23 @@ class RtpEditablePivotManager extends RelationManager
         return $table->columns([
             TextInputColumn::make('pivot.role'),
         ]);
+    }
+}
+
+class RtpLazyTasksManager extends RelationManager
+{
+    protected static string $relationship = 'tasks';
+
+    protected static bool $isLazy = true;
+
+    public function getBadge(): int|string|null
+    {
+        return $this->getRelationshipQuery()->count();
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table->columns([TextColumn::make('title')]);
     }
 }
 
@@ -419,6 +437,66 @@ class RelationTableParityTest extends TestCase
             'column'   => 'pivot.role',
             'value'    => 'smuggled',
         ])->assertNotFound();
+    }
+
+    public function test_a_lazy_manager_serializes_a_stub_until_its_relation_param_matches(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+        $project->tasks()->createMany([['title' => 'Alpha'], ['title' => 'Beta']]);
+
+        // No ?relation= (initial page render): tab stub only — no table, no
+        // descriptor — but title and badge so the tab renders complete.
+        $stub = RtpLazyTasksManager::make($project)->toData();
+
+        $this->assertTrue($stub->deferred);
+        $this->assertNull($stub->table);
+        $this->assertNull($stub->descriptor);
+        $this->assertSame('Tasks', $stub->title);
+        $this->assertSame(2, $stub->badge);
+
+        // Another tab active: still a stub.
+        request()->merge(['relation' => 'other']);
+        $this->assertTrue(RtpLazyTasksManager::make($project)->toData()->deferred);
+
+        // Its own tab active: the full payload.
+        request()->merge(['relation' => 'tasks']);
+        $full = RtpLazyTasksManager::make($project)->toData();
+
+        $this->assertFalse($full->deferred);
+        $this->assertNotNull($full->table);
+        $this->assertCount(2, $full->table->records);
+    }
+
+    public function test_a_lazy_stub_runs_no_table_queries(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+        $project->tasks()->create(['title' => 'Alpha']);
+
+        DB::enableQueryLog();
+
+        RtpLazyTasksManager::make($project)->toData();
+
+        // Only getBadge()'s own count — none of the table's record/summary
+        // queries. That single query is the whole point of keeping badges
+        // cheap on lazy managers.
+        $queries = collect(DB::getQueryLog())
+            ->pluck('query')
+            ->filter(fn (string $sql): bool => str_contains($sql, 'rtp_tasks'));
+
+        DB::disableQueryLog();
+
+        $this->assertCount(1, $queries);
+        $this->assertStringContainsString('count', strtolower((string) $queries->first()));
+    }
+
+    public function test_an_eager_manager_is_never_deferred(): void
+    {
+        $project = RtpProject::create(['name' => 'Kinetix']);
+
+        $data = RtpTagsManager::make($project)->toData();
+
+        $this->assertFalse($data->deferred);
+        $this->assertNotNull($data->table);
     }
 
     public function test_an_editable_pivot_column_outside_with_pivot_throws_at_serialize_time(): void

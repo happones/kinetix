@@ -90,6 +90,7 @@ return [
     'restore'                   => 'Restaurar',
     'force_delete'              => 'Eliminar permanentemente',
     'attach'                    => 'Vincular',
+    'relation_loading'          => 'Cargando…',
     'detach'                    => 'Desvincular',
     'attached'                  => 'Vinculado.',
     'detached'                  => 'Desvinculado.',

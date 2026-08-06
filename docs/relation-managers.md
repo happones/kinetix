@@ -92,6 +92,7 @@ the modal ones in the same table.
 | `isVisibleOn(string $page): bool` | Page-level visibility (`'edit'` \| `'view'`) — see §4 |
 | `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label/search by. **Defaults to the primary key when unset — the picker then shows raw ids as labels, so always set it** — see §8/§9 |
 | `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk/footer actions |
+| `protected static $isLazy` | `true` defers the manager to its tab activation — only the tab stub serializes until then (see §12) |
 | `getRelation(): Relation` | The parent's relationship OBJECT (BelongsToMany keeps its pivot) |
 | `getRelationshipQuery(): Builder` | The parent-scoped Eloquent query |
 | `toData()` / `toArray()` | Serialize to `RelationManagerData` |
@@ -571,7 +572,40 @@ model never sees the value. An editable pivot column outside `withPivot()`
 throws at serialize time. Note pivot writes go through the query builder
 (`updateExistingPivot`), so Eloquent model events don't fire for them.
 
-## 12. What's not supported (yet)
+## 12. Lazy managers
+
+Opt a heavy manager out of the initial page render (Filament's `$isLazy`):
+
+```php
+class AuditLogRelationManager extends RelationManager
+{
+    protected static string $relationship = 'auditLogs';
+
+    protected static bool $isLazy = true;
+}
+```
+
+- A lazy manager serializes only its **tab stub** (title + badge) until it is
+  the active `?relation=` — none of its table queries run for tabs nobody
+  opens, on the initial render **or** on any later table interaction from a
+  sibling tab.
+- When its tab activates, the frontend revisits with
+  `?relation={relationship}` automatically and shows a pulsing skeleton
+  meanwhile; once the param is in the URL, everything (search, sort,
+  pagination, modal saves) behaves exactly like an eager manager.
+- `getBadge()` **still runs for the stub** so the tab can show its count —
+  keep it cheap on lazy managers.
+- Deliberately **not** "first tab loads eagerly": even a lazy manager whose
+  tab starts active defers to a follow-up request — that's the point of
+  lazy. If the first tab should render with the page, leave it eager.
+- Serialize-time misconfiguration guards (export inside a manager, undeclared
+  pivot columns…) fire when the manager **loads**, not on the stub.
+- With the **stacked layout** (`tabs: false` or a hand-placed
+  `<KinetixRelationManager>`), at most ONE lazy manager per page can load —
+  the single `?relation=` param can only name one. Use the tabs host (the
+  default) when several managers are lazy.
+
+## 13. What's not supported (yet)
 
 So you don't discover it the hard way:
 
@@ -584,13 +618,10 @@ So you don't discover it the hard way:
   the WHOLE model, not the parent's relation (a silent data-exposure
   surface). Bulk-export selected rows, or export from the related resource's
   own index. Relation-scoped export is on the roadmap.
-- **Deferred/lazy managers** (Filament's `$isLazy`) — every manager
-  serializes eagerly today; on pages with many heavy managers consider
-  wrapping the `relations` prop in `Inertia::optional()` yourself.
 - **Grouped/collapsible managers and custom empty states** — planned polish;
   the flat auto-tabs host covers the common case.
 
-## 13. i18n
+## 14. i18n
 
 `protected static ?string $title` passes through `__()`, so a translation key
 works out of the box:

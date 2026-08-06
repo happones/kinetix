@@ -278,6 +278,37 @@ async function removeRelation(
     }
 }
 
+// --- Lazy manager (deferred stub → load on activation) -----------------------
+
+/**
+ * A lazy manager ships only its tab stub until it is the active
+ * `?relation=`: on mount we revisit with the relation param so the server
+ * serializes the full payload (table + descriptor). One request per mount —
+ * the tabs host keys the panel per relationship, so re-activating a tab
+ * remounts (and refreshes) it. Re-armed only on error so a failed visit can
+ * be retried by switching back to the tab.
+ */
+const deferredRequested = ref(false);
+
+const isDeferred = computed(
+    () => !!props.manager.deferred && !props.manager.table,
+);
+
+function loadDeferred(): void {
+    if (deferredRequested.value) {
+        return;
+    }
+
+    deferredRequested.value = true;
+
+    router.reload({
+        data: { relation: props.manager.relationship },
+        onError: () => {
+            deferredRequested.value = false;
+        },
+    });
+}
+
 // --- Event wiring (AttachAction / DetachAction dispatch these) --------------
 
 const forThisManager = (event: Event): boolean =>
@@ -319,6 +350,10 @@ const onDissociateRelation = (event: Event): void => {
 };
 
 onMounted(() => {
+    if (isDeferred.value) {
+        loadDeferred();
+    }
+
     window.addEventListener('kinetix:open-attach', onOpenAttach);
     window.addEventListener('kinetix:open-associate', onOpenAssociate);
     window.addEventListener('kinetix:detach-relation', onDetachRelation);
@@ -355,7 +390,15 @@ onBeforeUnmount(() => {
             </span>
         </h2>
 
-        <KinetixTable :table="manager.table" />
+        <!-- Lazy manager still loading: pulsing skeleton, replaced by the
+             real table when the ?relation= revisit lands. -->
+        <div v-if="isDeferred" class="space-y-3" aria-busy="true">
+            <span class="sr-only">{{ t('kinetix.relation_loading') }}</span>
+            <div class="h-9 animate-pulse w-64 rounded-md bg-muted"></div>
+            <div class="h-40 animate-pulse rounded-md bg-muted"></div>
+        </div>
+
+        <KinetixTable v-else-if="manager.table" :table="manager.table" />
 
         <!-- Record picker modal (AttachAction / AssociateAction events) on the
              shared KinetixModal shell (shadcn v4 dialog line). -->

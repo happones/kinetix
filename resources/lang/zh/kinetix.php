@@ -90,6 +90,7 @@ return [
     'restore'                          => '恢复',
     'force_delete'                     => '永久删除',
     'attach'                           => '关联',
+    'relation_loading'                 => '加载中…',
     'detach'                           => '取消关联',
     'attached'                         => '已关联。',
     'detached'                         => '已取消关联。',

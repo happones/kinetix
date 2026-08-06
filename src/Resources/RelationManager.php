@@ -62,6 +62,15 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     protected static bool $readOnly = false;
 
     /**
+     * Lazy (Filament's `$isLazy`): the manager serializes only its tab stub
+     * (title + badge) until it is the ACTIVE one (`?relation={relationship}`),
+     * so its table queries never run for tabs nobody opened. The frontend
+     * host requests the full payload automatically on activation. Note that
+     * `getBadge()` still runs for the stub — keep it cheap on lazy managers.
+     */
+    protected static bool $isLazy = false;
+
+    /**
      * The related-model attribute the attach modal labels and searches by
      * (Filament's `recordTitleAttribute`). Required for `AttachAction`.
      */
@@ -232,8 +241,48 @@ abstract class RelationManager implements Arrayable, JsonSerializable
         ]));
     }
 
+    public static function isLazy(): bool
+    {
+        return static::$isLazy;
+    }
+
+    /**
+     * Whether this manager should serialize its FULL payload: always for
+     * eager managers; for lazy ones only when it is the active tab
+     * (`?relation=` matches). Deliberately never "first tab by default" —
+     * the point of lazy is that the initial page render runs none of the
+     * manager's queries, even when its tab starts active.
+     */
+    protected function shouldSerializeTable(): bool
+    {
+        return ! static::$isLazy
+            || request('relation') === static::$relationship;
+    }
+
+    /**
+     * The lazy stub: enough for the tabs host to render the tab (and its
+     * badge) — no table, no descriptor, no queries beyond `getBadge()`.
+     * Serialize-time misconfiguration guards (export inside a manager, bad
+     * pivot columns…) run when the manager LOADS, not here.
+     */
+    protected function toDeferredData(): RelationManagerData
+    {
+        return new RelationManagerData(
+            title: static::getTitle(),
+            relationship: static::$relationship,
+            table: null,
+            badge: $this->getBadge(),
+            badgeColor: $this->getBadgeColor(),
+            deferred: true,
+        );
+    }
+
     public function toData(): RelationManagerData
     {
+        if (! $this->shouldSerializeTable()) {
+            return $this->toDeferredData();
+        }
+
         $relation = $this->getRelation();
 
         $table = $this->table(

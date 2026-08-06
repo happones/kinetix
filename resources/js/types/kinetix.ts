@@ -1142,7 +1142,8 @@ export interface KinetixTableStat {
 export interface KinetixRelationManagerData {
     title: string;
     relationship: string;
-    table: KinetixTableData;
+    /** Null while a lazy manager is deferred — only the tab stub shipped. */
+    table: KinetixTableData | null;
     /** Badge next to the title / on the tab (e.g. a record count). */
     badge?: number | string | null;
     /** Kinetix status color for the badge (primary, gray, success…). */
@@ -1154,6 +1155,11 @@ export interface KinetixRelationManagerData {
      * (AttachAction::form()).
      */
     attachForm?: Record<string, any> | null;
+    /**
+     * A lazy manager whose table hasn't been loaded yet: the frontend
+     * requests the full payload by revisiting with `?relation=`.
+     */
+    deferred?: boolean;
 }
 
 export interface KinetixPlanData {

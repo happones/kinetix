@@ -19,7 +19,13 @@ import KinetixRelationManager from './KinetixRelationManager.vue';
  *   `?relation=…`, so table reloads, modal saves (back()) and shared links
  *   land on the tab the user was on.
  *
- * Set `tabs: false` to force the stacked layout regardless of count.
+ * LAZY managers (`$isLazy`) arrive as tab stubs (no table); the child
+ * component requests the full payload on activation via the same
+ * `?relation=` param, showing a skeleton meanwhile — nothing to wire here.
+ *
+ * Set `tabs: false` to force the stacked layout regardless of count. NOTE:
+ * with several LAZY managers prefer the tabs layout — the stacked one mounts
+ * them all at once and only the last-requested `?relation=` can load.
  */
 const props = withDefaults(
     defineProps<{

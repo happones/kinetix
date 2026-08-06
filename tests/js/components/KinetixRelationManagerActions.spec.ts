@@ -16,6 +16,7 @@ vi.mock('@inertiajs/vue3', () => ({
     },
 }));
 
+import { router } from '@inertiajs/vue3';
 import KinetixRelationManager from '@/components/KinetixRelationManager.vue';
 import KinetixTable from '@/components/KinetixTable.vue';
 
@@ -313,6 +314,56 @@ describe('relation manager row actions carry the record end-to-end', () => {
             ids: [3],
             pivot: { role: 'writer' },
         });
+
+        wrapper.unmount();
+    });
+
+    it('a deferred manager shows a skeleton and requests its ?relation= load once', async () => {
+        const reload = vi.mocked(router.reload);
+        reload.mockClear();
+
+        const wrapper = mount(KinetixRelationManager, {
+            props: {
+                manager: {
+                    title: 'Tags',
+                    relationship: 'tags',
+                    table: null,
+                    deferred: true,
+                } as any,
+            },
+            global: { plugins: [i18n], stubs: { KinetixTable: true } },
+        });
+
+        // Skeleton in place of the table, and exactly one load request
+        // carrying this manager's relation param.
+        expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true);
+        expect(wrapper.findComponent(KinetixTable).exists()).toBe(false);
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(reload).toHaveBeenCalledWith(
+            expect.objectContaining({ data: { relation: 'tags' } }),
+        );
+
+        wrapper.unmount();
+    });
+
+    it('a loaded manager renders its table without requesting anything', async () => {
+        const reload = vi.mocked(router.reload);
+        reload.mockClear();
+
+        const wrapper = mount(KinetixRelationManager, {
+            props: {
+                manager: {
+                    title: 'Tags',
+                    relationship: 'tags',
+                    table,
+                } as any,
+            },
+            global: { plugins: [i18n], stubs: { KinetixTable: true } },
+        });
+
+        expect(wrapper.find('[aria-busy="true"]').exists()).toBe(false);
+        expect(wrapper.findComponent(KinetixTable).exists()).toBe(true);
+        expect(reload).not.toHaveBeenCalled();
 
         wrapper.unmount();
     });

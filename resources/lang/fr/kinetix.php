@@ -90,6 +90,7 @@ return [
     'restore'                   => 'Restaurer',
     'force_delete'              => 'Supprimer définitivement',
     'attach'                    => 'Associer',
+    'relation_loading'          => 'Chargement…',
     'detach'                    => 'Dissocier',
     'attached'                  => 'Associé.',
     'detached'                  => 'Dissocié.',

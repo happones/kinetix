@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.157.0] - 2026-08-06
+
+Lazy relation managers — Filament's `$isLazy` for Kinetix.
+
+### Added
+
+- **`protected static bool $isLazy = true`** on a relation manager defers it
+  to its tab activation: the initial page render serializes only the tab
+  stub (title + badge — `getBadge()` still runs, keep it cheap), so none of
+  the manager's table queries execute for tabs nobody opens. Activating the
+  tab revisits with `?relation={relationship}` automatically and shows a
+  pulsing skeleton meanwhile **(published: `KinetixRelationManager.vue`,
+  `KinetixRelationManagers.vue`)**; from then on search/sort/pagination and
+  modal saves behave exactly like an eager manager. Deliberately not
+  "first tab loads eagerly" — a lazy manager always defers.
+- `RelationManagerData.table` is now nullable with a `deferred` flag
+  **(published: `types/kinetix.ts`)**; new `relation_loading` translation
+  key ×7 locales; `kinetix:make-relation-manager` scaffolds a commented
+  `$isLazy` hint.
+
+### Notes
+
+- Serialize-time misconfiguration guards (export inside a manager,
+  undeclared pivot columns…) fire when a lazy manager loads, not on its stub.
+- With the stacked layout (`tabs: false`), at most one lazy manager per page
+  can load (single `?relation=` param) — use the tabs host for several.
+
 ## [0.156.0] - 2026-08-06
 
 Writing pivot data in BelongsToMany relation managers — the three

@@ -13,7 +13,8 @@ class RelationManagerData extends Data
     public function __construct(
         public string $title,
         public string $relationship,
-        public TableData $table,
+        /** Null while a lazy manager is deferred — only the tab stub shipped. */
+        public ?TableData $table,
         /** Badge next to the title / on the tab (e.g. a record count). */
         public int|string|null $badge = null,
         /** Kinetix status color for the badge (primary, gray, success…). */
@@ -27,5 +28,11 @@ class RelationManagerData extends Data
          * @var array<string, mixed>|null
          */
         public ?array $attachForm = null,
+        /**
+         * A lazy manager whose table hasn't been loaded yet: only the tab
+         * stub (title/badge) shipped. The frontend requests the full payload
+         * by revisiting with `?relation={relationship}`.
+         */
+        public bool $deferred = false,
     ) {}
 }
