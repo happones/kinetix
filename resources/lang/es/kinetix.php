@@ -231,8 +231,10 @@ return [
     'saved_view_delete'       => 'Eliminar vista',
 
     // Kanban
-    'kanban_empty'       => 'Suelta tarjetas aquí',
-    'kanban_move_failed' => 'No se pudo mover la tarjeta. Inténtalo de nuevo.',
+    'kanban_empty'         => 'Suelta tarjetas aquí',
+    'kanban_card'          => 'Tarjeta arrastrable',
+    'kanban_keyboard_hint' => 'Usa las flechas izquierda y derecha para mover esta tarjeta a la columna anterior o siguiente.',
+    'kanban_move_failed'   => 'No se pudo mover la tarjeta. Inténtalo de nuevo.',
 
     // Event calendar
     'calendar_today'      => 'Hoy',

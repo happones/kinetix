@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.164.0] - 2026-08-06
+
+Accessibility backlog cleared.
+
+- **Field helper text, end to end**: `Field::helperText(string|Closure)`
+  renders a hint under the field with an addressable id (`{name}-help`), and
+  the control's `aria-describedby` now CHAINS helper + error
+  (`{name}-help {name}-error`) — screen readers hear both **(published:
+  `KinetixFormSchema.vue`, `Form/KinetixFormField.vue`)**. The DTO's
+  `description` field existed but was never settable nor rendered for fields.
+- **Kanban semantics**: cards expose `aria-roledescription` and point
+  `aria-describedby` at a per-board screen-reader-only instructions element
+  (the arrow-key move affordance is now discoverable); columns are labelled
+  groups (`role="group"`, name + count) **(published: `KinetixKanban.vue`,
+  `Kanban/KanbanColumn.vue`)**. 2 new translation keys ×7 locales.
+- Note: the rest of the audited backlog was already shipped — `aria-sort`
+  (v0.132), result-count announcements, keyboard alternatives for every
+  drag-and-drop, and the global `prefers-reduced-motion` kill-switch (v0.155)
+  that supersedes per-component `motion-reduce:` pairing.
+
 ## [0.163.0] - 2026-08-06
 
 The v4 congruence backlog from the v0.155 audit, all **(published)**:

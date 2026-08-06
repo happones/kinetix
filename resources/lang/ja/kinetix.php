@@ -212,6 +212,8 @@ return [
     'saved_view_default'               => 'デフォルトに設定',
     'saved_view_delete'                => 'ビューを削除',
     'kanban_empty'                     => 'ここにカードをドロップ',
+    'kanban_card'                      => 'ドラッグ可能なカード',
+    'kanban_keyboard_hint'             => '左右の矢印キーでこのカードを前後の列に移動できます。',
     'kanban_move_failed'               => 'カードを移動できませんでした。もう一度お試しください。',
     'calendar_today'                   => '今日',
     'calendar_prev'                    => '前月',

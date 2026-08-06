@@ -30,6 +30,47 @@ const mountForm = () => {
 };
 
 describe('KinetixForm', () => {
+    it('renders helper text and chains it with the error in aria-describedby', async () => {
+        page.props.errors = {};
+
+        const wrapper = mount(KinetixForm, {
+            props: {
+                form: {
+                    schema: [
+                        {
+                            type: 'text-input',
+                            name: 'email',
+                            label: 'Email',
+                            description: 'We never share it.',
+                        },
+                    ],
+                    data: { email: '' },
+                    rules: {},
+                    operation: 'create',
+                },
+            },
+            global: { plugins: [i18n] },
+        });
+
+        // Helper text renders with its addressable id and is referenced.
+        const help = wrapper.get('#email-help');
+        expect(help.text()).toBe('We never share it.');
+        expect(wrapper.get('input').attributes('aria-describedby')).toBe(
+            'email-help',
+        );
+
+        // With an error, describedby chains BOTH ids.
+        page.props.errors = { email: 'Invalid email' };
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.get('input').attributes('aria-describedby')).toBe(
+            'email-help email-error',
+        );
+        expect(wrapper.get('input').attributes('aria-invalid')).toBe('true');
+
+        wrapper.unmount();
+    });
+
     it('renders a server validation error from Inertia page props', async () => {
         const wrapper = mountForm();
         expect(wrapper.text()).not.toContain('The email is required.');

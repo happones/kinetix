@@ -301,6 +301,10 @@ Fields reside in the `Happones\Kinetix\Forms\Components` namespace. They all inh
 - `default(mixed $value|Closure $value)`: Set initial fallback state.
 - `disabled(bool|Closure $condition = true)`: Prevent input mutations.
 - `placeholder(string|Closure $placeholder)`: Visual watermark.
+- `helperText(string|Closure $text)`: Hint rendered under the field. Wired for
+  assistive tech: it gets an addressable id (`{name}-help`) and the control's
+  `aria-describedby` chains it together with any validation error
+  (`{name}-help {name}-error`), so screen readers hear both.
 - `prefix(string|Closure $prefix)`: Prepends a label prefix.
 - `suffix(string|Closure $suffix)`: Appends a label suffix.
 - `extraInputAttributes(array $attributes)`: Custom HTML attributes merged onto the input element.

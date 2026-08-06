@@ -13,6 +13,8 @@ import type {
 } from '@/types/kinetix';
 import KanbanColumn from './Kanban/KanbanColumn.vue';
 
+let kanbanUid = 0;
+
 /**
  * A drag-and-drop board. Cards are grouped into columns by status; dragging a
  * card to another column persists the new status (optimistic, reverting on
@@ -22,6 +24,10 @@ const props = defineProps<{ kanban: KinetixKanbanData }>();
 
 const { t } = useI18n();
 const page = usePage<KinetixSharedProps>();
+
+// Unique per board instance, so several boards on a page keep their own
+// sr-only instructions element as each card's aria-describedby target.
+const hintId = `kinetix-kanban-hint-${++kanbanUid}`;
 
 // Local, mutable copy of the columns so drags update the UI immediately.
 const columns = reactive(
@@ -134,11 +140,17 @@ async function onCardKeyboardMove(
             {{ kanban.heading }}
         </h2>
 
+        <!-- Screen-reader instructions every card points at (aria-describedby). -->
+        <p :id="hintId" class="sr-only">
+            {{ t('kinetix.kanban_keyboard_hint') }}
+        </p>
+
         <div class="gap-4 pb-2 flex overflow-x-auto">
             <KanbanColumn
                 v-for="column in columns"
                 :key="column.key"
                 :column="column"
+                :hint-id="hintId"
                 @card-dragstart="(card) => onDragStart(card, column.key)"
                 @card-dragend="onDragEnd"
                 @card-move="

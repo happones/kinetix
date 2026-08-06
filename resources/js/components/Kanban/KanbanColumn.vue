@@ -12,7 +12,11 @@ interface KanbanColumnData {
     cards: KinetixKanbanCard[];
 }
 
-const props = defineProps<{ column: KanbanColumnData }>();
+const props = defineProps<{
+    column: KanbanColumnData;
+    /** Id of the board's sr-only keyboard instructions (aria-describedby). */
+    hintId?: string;
+}>();
 
 const emit = defineEmits<{
     (e: 'card-dragstart', card: KinetixKanbanCard): void;
@@ -66,6 +70,8 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
 
 <template>
     <div
+        role="group"
+        :aria-label="`${column.label} (${column.cards.length})`"
         class="w-72 rounded-lg flex shrink-0 flex-col border border-border bg-muted/30"
         @dragover.prevent
         @drop="emit('drop')"
@@ -108,6 +114,8 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     :data-kanban-card="card.id"
                     draggable="true"
                     tabindex="0"
+                    :aria-roledescription="t('kinetix.kanban_card')"
+                    :aria-describedby="hintId"
                     class="p-3 shadow-xs hover:shadow-md cursor-grab rounded-md border border-border bg-card transition-shadow outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
                     :class="
                         virtual.enabled.value

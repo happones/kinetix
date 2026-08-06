@@ -131,3 +131,16 @@ Kanban::make(Deal::query())
     ->query(fn ($q) => $q->where('team_id', $teamId))
     ->moveScope(['team_id' => $teamId]);   // same constraint, enforced on move
 ```
+
+## Accessibility
+
+The board is fully keyboard-operable — no pointer required:
+
+- Every card is focusable (`Tab`); **left/right arrow keys move the focused
+  card to the previous/next column**. The move is announced through the shared
+  live region and focus follows the card into its new column.
+- Cards expose `aria-roledescription` ("draggable card") and point their
+  `aria-describedby` at a screen-reader-only instructions element, so
+  assistive-tech users learn the arrow-key affordance on focus.
+- Columns are labelled groups (`role="group"`, name + card count), and failed
+  moves surface both as a toast and through its polite live region.

@@ -305,6 +305,15 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                 />
             </div>
 
+            <!-- Helper text (id is an aria-describedby target, like the error). -->
+            <p
+                v-if="comp.description"
+                :id="`${comp.name}-help`"
+                class="text-xs mt-1 text-muted-foreground"
+            >
+                {{ comp.description }}
+            </p>
+
             <!-- Validation Error (id is the aria-describedby target; alert
                  role announces it to screen readers as it appears). -->
             <p

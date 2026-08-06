@@ -213,20 +213,25 @@ const delegate = computed<Delegate | null>(
 );
 
 /**
- * Error wiring for assistive tech: `aria-invalid` flips the field into its
- * destructive state (the shadcn input/textarea classes style it) and
- * `aria-describedby` points at the error text KinetixFormSchema renders with
- * the `<name>-error` id. Bound via fallthrough attrs so every field type gets
- * it on its root control without per-field plumbing.
+ * Describedby/error wiring for assistive tech: `aria-describedby` chains the
+ * helper text (`<name>-help`) and the error (`<name>-error`) ids that
+ * KinetixFormSchema renders, and `aria-invalid` flips the field into its
+ * destructive state (the shadcn input/textarea classes style it). Bound via
+ * fallthrough attrs so every field type gets it without per-field plumbing.
  */
 const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
-    if (!props.errors[props.comp.name]) {
-        return {};
-    }
+    const hasError = !!props.errors[props.comp.name];
+
+    const describedBy = [
+        props.comp.description ? `${props.comp.name}-help` : null,
+        hasError ? `${props.comp.name}-error` : null,
+    ]
+        .filter(Boolean)
+        .join(' ');
 
     return {
-        'aria-invalid': 'true',
-        'aria-describedby': `${props.comp.name}-error`,
+        ...(hasError ? { 'aria-invalid': 'true' } : {}),
+        ...(describedBy ? { 'aria-describedby': describedBy } : {}),
     };
 });
 </script>

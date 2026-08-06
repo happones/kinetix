@@ -231,8 +231,10 @@ return [
     'saved_view_delete'       => 'Supprimer la vue',
 
     // Kanban
-    'kanban_empty'       => 'Déposez des cartes ici',
-    'kanban_move_failed' => 'Impossible de déplacer la carte. Veuillez réessayer.',
+    'kanban_empty'         => 'Déposez des cartes ici',
+    'kanban_card'          => 'Carte déplaçable',
+    'kanban_keyboard_hint' => 'Utilisez les flèches gauche et droite pour déplacer cette carte vers la colonne précédente ou suivante.',
+    'kanban_move_failed'   => 'Impossible de déplacer la carte. Veuillez réessayer.',
 
     // Event calendar
     'calendar_today'      => 'Aujourd’hui',

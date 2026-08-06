@@ -212,6 +212,8 @@ return [
     'saved_view_default'               => '设为默认',
     'saved_view_delete'                => '删除视图',
     'kanban_empty'                     => '将卡片拖放到这里',
+    'kanban_card'                      => '可拖动卡片',
+    'kanban_keyboard_hint'             => '使用左右方向键将此卡片移动到上一列或下一列。',
     'kanban_move_failed'               => '无法移动卡片。请重试。',
     'calendar_today'                   => '今天',
     'calendar_prev'                    => '上个月',

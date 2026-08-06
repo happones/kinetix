@@ -231,8 +231,10 @@ return [
     'saved_view_delete'       => 'Delete view',
 
     // Kanban
-    'kanban_empty'       => 'Drop cards here',
-    'kanban_move_failed' => 'Could not move the card. Please try again.',
+    'kanban_empty'         => 'Drop cards here',
+    'kanban_card'          => 'Draggable card',
+    'kanban_keyboard_hint' => 'Use the left and right arrow keys to move this card to the previous or next column.',
+    'kanban_move_failed'   => 'Could not move the card. Please try again.',
 
     // Event calendar
     'calendar_today'      => 'Today',

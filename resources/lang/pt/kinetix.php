@@ -231,8 +231,10 @@ return [
     'saved_view_delete'       => 'Excluir visualização',
 
     // Kanban
-    'kanban_empty'       => 'Solte cartões aqui',
-    'kanban_move_failed' => 'Não foi possível mover o cartão. Tente novamente.',
+    'kanban_empty'         => 'Solte cartões aqui',
+    'kanban_card'          => 'Cartão arrastável',
+    'kanban_keyboard_hint' => 'Use as setas para a esquerda e para a direita para mover este cartão para a coluna anterior ou seguinte.',
+    'kanban_move_failed'   => 'Não foi possível mover o cartão. Tente novamente.',
 
     // Event calendar
     'calendar_today'      => 'Hoje',

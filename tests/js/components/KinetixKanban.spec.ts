@@ -80,6 +80,22 @@ describe('KinetixKanban', () => {
         });
     });
 
+    it('cards carry the draggable-card semantics and keyboard instructions', () => {
+        const wrapper = mountIt();
+
+        const hint = wrapper.find('p.sr-only');
+        expect(hint.exists()).toBe(true);
+        expect(hint.attributes('id')).toMatch(/^kinetix-kanban-hint-/);
+
+        const card = wrapper.get('[data-kanban-card]');
+        expect(card.attributes('aria-roledescription')).toBeTruthy();
+        expect(card.attributes('aria-describedby')).toBe(hint.attributes('id'));
+
+        // Columns are labelled groups (name + count).
+        const group = wrapper.get('[role="group"]');
+        expect(group.attributes('aria-label')).toContain('(');
+    });
+
     it('cards are focusable and the right arrow moves one column over', async () => {
         fetchMock.mockClear();
         const w = mountIt();

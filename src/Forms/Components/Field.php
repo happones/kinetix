@@ -185,6 +185,19 @@ abstract class Field extends Component
         return $this;
     }
 
+    /**
+     * Helper text rendered under the field (the `{name}-help` element) and
+     * referenced by the control's `aria-describedby` alongside any error.
+     */
+    protected string|Closure|null $helperText = null;
+
+    public function helperText(string|Closure $text): static
+    {
+        $this->helperText = $text;
+
+        return $this;
+    }
+
     public function required(mixed $condition = true): static
     {
         if ($condition instanceof Closure) {
@@ -389,10 +402,13 @@ abstract class Field extends Component
             $isDisabled = (bool) $isDisabled($record);
         }
 
+        $helperText = $this->helperText instanceof Closure ? ($this->helperText)($record) : $this->helperText;
+
         return new FormFieldData(
             type: $this->getType(),
             name: $this->name,
-            label: $label !== null ? (string) $label : null,
+            label: $label            !== null ? (string) $label : null,
+            description: $helperText !== null ? (string) $helperText : null,
             columnSpan: $this->columnSpan,
             placeholder: $placeholder !== null ? (string) $placeholder : null,
             defaultValue: $this->getDefaultValue($record),
