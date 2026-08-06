@@ -193,7 +193,7 @@ TextEntry::make('role')->inlineLabel();               // label + value on one ro
 | `->copyable(bool = true)` | Show a copy-to-clipboard button |
 | `->date(?string $format = null)` | Format a date value — no argument = **localized** to the app locale via `config('kinetix.formats.date')` (isoFormat `ll`); a format string = plain PHP `format()` |
 | `->dateTime(?string $format = null)` | Format a datetime value — same semantics, token `config('kinetix.formats.datetime')` (`lll`) |
-| `->isoDate(?string $format = null)` / `->isoDateTime(?string $format = null)` | Explicit localized isoFormat tokens (Filament-compatible) |
+| `->isoDate(?string $format = null)` / `->isoDateTime(?string $format = null)` | Explicit localized isoFormat tokens |
 | `->locale(string $locale)` | Override the formatting locale for this entry |
 | `->money(string $currency = 'USD', int $divideBy = 1, ?string $locale = null)` | Format as **localized** currency via intl (`$1,234.50` en / `1.234,50 €` de); `$divideBy` converts minor units |
 | `->limit(int)` | Truncate long strings with an ellipsis |

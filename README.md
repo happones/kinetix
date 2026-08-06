@@ -42,7 +42,7 @@ modules.
 
 It's **"hybrid"** because it lives in both worlds at once: backend builders,
 DTOs and query pipelines on the PHP side; real components on the Vue side — not a
-frontend-only UI kit, not a backend-only package. Think Filament's developer
+frontend-only UI kit, not a backend-only package. An admin-grade developer
 experience, built from the ground up for the **Inertia + Vue** stack.
 
 > **Complement, not replacement.** Kinetix is designed to sit *alongside* the

@@ -7,7 +7,7 @@ export default withMermaid(
   defineConfig({
     title: "Kinetix",
     description:
-      "A modern UI toolkit for Laravel + Vue 3 + Inertia.js — Filament-style fluent PHP APIs, real-time components, and full i18n.",
+      "A modern UI toolkit for Laravel + Vue 3 + Inertia.js — fluent PHP builders, real-time components, and full i18n.",
     base: "/kinetix/",
     lang: "en-US",
     cleanUrls: true,

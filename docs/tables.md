@@ -186,7 +186,7 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
 - `copyable(bool $condition = true)`: Shows a click-to-copy button on the cell (on hover) that copies its value to the clipboard. Rendered on `TextColumn` (plain **and** badge) and `ColorColumn`.
 - `tooltip(string $tooltip)`: Static hover tooltip (title attribute) — column caveats, units, definitions. Per-record dynamic text belongs in `description()`.
 - `formatStateUsing(Closure $callback)`: Formats the value dynamically on the backend before serialization.
-- `state(Closure|mixed $state)`: Overrides how the raw cell value is resolved — a Closure (`fn ($record) => …`) or a constant — instead of reading the attribute named after the column. `formatStateUsing()` still runs afterwards. Filament-compatible (alias: `getStateUsing()`):
+- `state(Closure|mixed $state)`: Overrides how the raw cell value is resolved — a Closure (`fn ($record) => …`) or a constant — instead of reading the attribute named after the column. `formatStateUsing()` still runs afterwards (alias: `getStateUsing()`):
   ```php
   TextColumn::make('total')->state(fn (Order $o) => $o->subtotal + $o->tax);
   ```
@@ -200,9 +200,9 @@ Displays text strings with additional formatting structures:
 - `badgeColor(string|Closure $color)`: Sets status colors (`success`, `danger`, `warning`, `info`, `gray`).
 - `date(?string $format = null)`: Formats carbon/datetime values. **With no argument the output is localized** to the application locale via Carbon `isoFormat()`, using the token from `config('kinetix.formats.date')` (default `ll` — "Jul 9, 2026" in `en`, "9 de jul. de 2026" in `es`). Passing a format keeps the plain, non-localized PHP `format()` behaviour (`->date('d/m/Y')`).
 - `dateTime(?string $format = null)`: Same semantics, defaulting to `config('kinetix.formats.datetime')` (default `lll`, includes the time).
-- `isoDate(?string $format = null)` / `isoDateTime(?string $format = null)`: Format with explicit Carbon isoFormat tokens, localized (`->isoDate('LL')` → "9 de julio de 2026" in `es`). Filament-compatible.
+- `isoDate(?string $format = null)` / `isoDateTime(?string $format = null)`: Format with explicit Carbon isoFormat tokens, localized (`->isoDate('LL')` → "9 de julio de 2026" in `es`).
 - `locale(string $locale)`: Override the formatting locale for this column (defaults to `app()->getLocale()`).
-- `money(string $currency = 'USD', int $divideBy = 1, ?string $locale = null)`: Formats as **localized currency** via intl (`$1,234.50` in `en`, `1.234,50 €` in `de`). `$divideBy` converts minor units (`100` for cents); the locale resolves from the argument, then the column `->locale()`, then the app locale. Filament-compatible.
+- `money(string $currency = 'USD', int $divideBy = 1, ?string $locale = null)`: Formats as **localized currency** via intl (`$1,234.50` in `en`, `1.234,50 €` in `de`). `$divideBy` converts minor units (`100` for cents); the locale resolves from the argument, then the column `->locale()`, then the app locale.
 - `limit(int $limit)`: Truncates text.
 - `description(string|Closure $description, string $position = 'below')`: Displays secondary description lines.
 - `separator(string $separator = ', ')`: Glue for **array states** (a `TagsInput`/`CheckboxList`/multi-`Select` attribute, a JSON cast) — plain text implodes with it. A `->badge()` column ignores the glue and renders **one pill per item** instead (arrays never leak raw JSON into the cell either way).
@@ -358,7 +358,7 @@ Renders as a checkbox.
 Renders as a dropdown select.
 - `options(array|Closure|string $options)`: Dropdown option pairs, a closure, or an Enum class (auto-mapped to value→label).
 - `attribute(string $attribute)`: Maps query parameters directly to database columns. If omitted, defaults to the filter name.
-- `relationship(string $name, string $titleColumn, ?Closure $modifyQueryUsing = null)`: Filament-compatible — options come from the related model (`key => title column`) and the filter applies `whereHas` on the relation's key. Inherited by `MultiSelectFilter`, and mirrored by [`Select::relationship()`](/forms#from-a-relationship) on the form side. The eager options are capped by `kinetix.forms.relationship_options_limit` (200), with a warning when truncated:
+- `relationship(string $name, string $titleColumn, ?Closure $modifyQueryUsing = null)`: Options come from the related model (`key => title column`) and the filter applies `whereHas` on the relation's key. Inherited by `MultiSelectFilter`, and mirrored by [`Select::relationship()`](/forms#from-a-relationship) on the form side. The eager options are capped by `kinetix.forms.relationship_options_limit` (200), with a warning when truncated:
   ```php
   SelectFilter::make('author')->relationship('author', 'name');
   SelectFilter::make('author')->relationship('author', 'name', fn ($q) => $q->where('active', true));

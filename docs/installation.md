@@ -71,7 +71,7 @@ tooling? Point it elsewhere:
 
 ::: tip Upgrading — automatic
 `kinetix:install` registers `@php artisan kinetix:upgrade` in your composer.json's
-`post-autoload-dump` (the same pattern as Filament's `filament:upgrade`), so every
+`post-autoload-dump`, so every
 `composer install`/`update` re-publishes the volatile published assets —
 **components** (+ composables, stores, TS types), **translations** (recompiling
 the Vue i18n bundle when `laravel-vue-i18n-generator` is installed) and the
@@ -194,7 +194,7 @@ plain text (no container, animation, or colors).
 
 Kinetix registration (feature permissions, module content, gates) grows over
 time. Rather than piling it into `AppServiceProvider`, it belongs in a
-dedicated provider — the Filament pattern. `kinetix:install` scaffolds
+dedicated provider. `kinetix:install` scaffolds
 `app/Providers/KinetixServiceProvider.php` and registers it in
 `bootstrap/providers.php` **by default** (idempotent — safe to re-run, and an
 existing provider file is never overwritten). Opt out with:

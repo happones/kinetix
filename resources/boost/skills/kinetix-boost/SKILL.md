@@ -24,7 +24,7 @@ Activate this skill when:
 ### A. Searching Documentation
 - **Always use `search-docs` first** when starting a new task or coding logic.
 - Pass a `packages` array when you want to filter results to specific packages like `inertiajs/inertia-laravel` or `spatie/laravel-data`.
-- Keep search terms focused on the functionality (e.g., `test resource table` rather than `filament 4 test resource table`).
+- Keep search terms focused on the functionality (e.g., `test resource table` rather than `kinetix 1 test resource table`).
 
 ### B. Database Inspection
 - Prefer the **`database-schema`** tool to query database structures before creating or writing migrations.

@@ -1,6 +1,6 @@
 # Kinetix Resources Complete Reference
 
-Kinetix Resources provide a powerful, class-based CRUD builder system for Laravel applications, heavily inspired by Filament's developer experience. 
+Kinetix Resources provide a powerful, class-based CRUD builder system for Laravel applications, fully rendered by Vue + Inertia on the frontend.
 
 Resources map Eloquent database models to cohesive administration panels by grouping corresponding **Tables**, **Forms**, **Routes**, **Controllers**, and **Vue Views** under unified classes.
 
@@ -258,7 +258,7 @@ php artisan kinetix:make-relation-manager {name} [options]
 | `--associate` | HasMany/MorphMany: add `AssociateAction` (toolbar) + `DissociateAction` (row) alongside the default Create |
 | `--force` | Overwrite the class if it already exists |
 
-The stub always ships the Filament-default header: `CreateAction` opening the
+The stub always ships the default header: `CreateAction` opening the
 create **modal**, plus grouped Edit/Delete row actions — `--attach` /
 `--associate` compose the transfer actions with it rather than replacing it.
 

@@ -3,7 +3,7 @@ layout: home
 
 hero:
   text: "The hybrid framework for Laravel + Vue + Inertia"
-  tagline: "One package spanning backend and frontend — Filament-style fluent PHP APIs that render polished, real-time shadcn/Vue components, with full i18n."
+  tagline: "One package spanning backend and frontend — fluent PHP builders that render polished, real-time shadcn/Vue components, with full i18n."
   image:
     light: /logo.png
     dark: /logo_w.png

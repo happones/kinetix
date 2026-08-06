@@ -86,7 +86,7 @@ the modal ones in the same table.
 | `form(Form $form): Form` | Schema for the create/edit **modals** — enables `->modal('create'\|'edit')` actions; never needs a parent FK field (see §6) |
 | `infolist(Infolist $infolist): Infolist` | Read-only detail for the View **modal** — enables `->modal('view')` (see §6) |
 | `::make(?Model $parent)` | Bind the parent record |
-| `canViewForRecord(Model $parent, string $page): bool` | Record/user-aware gating (Filament analogue) — see §4 |
+| `canViewForRecord(Model $parent, string $page): bool` | Record/user-aware gating — see §4 |
 | `getBadge(): int\|string\|null` | Badge next to the title / on the tab (e.g. a count) — see §3 |
 | `getBadgeColor(): ?string` | Accessor for `$badgeColor` |
 | `isVisibleOn(string $page): bool` | Page-level visibility (`'edit'` \| `'view'`) — see §4 |
@@ -125,8 +125,7 @@ defineProps<{ relations: KinetixRelationManagerData[] }>();
 </template>
 ```
 
-`<KinetixRelationManagers>` is the host and picks the layout automatically,
-exactly like Filament:
+`<KinetixRelationManagers>` is the host and picks the layout automatically:
 
 - **one manager** → a plain section (heading + table);
 - **several** → an automatic **tab per manager** (title + optional badge),
@@ -213,7 +212,7 @@ $relations = array_map(
 );
 ```
 
-For per-record / per-user logic (Filament's `canViewForRecord`), override
+For per-record / per-user logic, override
 `canViewForRecord()` — it receives the PARENT record, and
 `relationManagersFor($page, $record)` filters through it whenever you pass the
 record:
@@ -247,11 +246,11 @@ Relation managers rely on the same `Table::queryPrefix('posts_')` mechanism you 
 
 ---
 
-## 6. Modal CRUD (create / edit / view / delete) — the Filament convention
+## 6. Modal CRUD (create / edit / view / delete)
 
 Relation managers get full CRUD **in modals** with zero routes and zero
 controllers: declare a `form()` (and optionally an `infolist()`) on the
-MANAGER — exactly Filament's convention — and flag the table's actions with
+MANAGER — and flag the table's actions with
 `->modal(...)`. The manager wires everything else automatically.
 
 ```php
@@ -433,7 +432,7 @@ class TagsRelationManager extends RelationManager
 ## 9. HasMany / MorphMany: associate & dissociate
 
 The `HasMany`/`MorphMany` counterpart of attach/detach — re-parenting by
-foreign key (Filament's Associate/Dissociate):
+foreign key:
 
 ```php
 use Happones\Kinetix\Actions\AssociateAction;
@@ -456,7 +455,7 @@ class TasksRelationManager extends RelationManager
 ```
 
 - **Associate** opens a modal listing the related records **not owned by any
-  parent** (foreign key `NULL` — Filament's default scope), searchable on
+  parent** (foreign key `NULL`), searchable on
   `$recordTitleAttribute`; associating stamps the FK (and morph type)
   server-side via the relationship.
 - **Dissociate** confirms first and **nulls the foreign key** — the related
@@ -498,7 +497,7 @@ A fix in Table automatically fixes every manager. Notes that matter:
 ## 11. Pivot columns (BelongsToMany)
 
 Declare the pivot columns on the relationship (`->withPivot('role')`) and
-address them through the pivot accessor, exactly like Filament:
+address them through the pivot accessor:
 
 ```php
 class MembersRelationManager extends RelationManager
@@ -525,7 +524,7 @@ class MembersRelationManager extends RelationManager
 
 ### Writing pivot data
 
-All three Filament-parity write paths work, and all of them only ever touch
+All three write paths work, and all of them only ever touch
 columns declared in `withPivot()`:
 
 **Pivot fields in the attach modal** — give the `AttachAction` a form; the
@@ -550,7 +549,7 @@ when no form is declared.
 on edit and are routed to it on save (`updateExistingPivot`), while the rest
 of the state goes to the related model. On create, BelongsToMany passes them
 as the attach's pivot data. When a pivot column and a related attribute share
-a name, **the pivot wins** — same rule as Filament:
+a name, **the pivot wins**:
 
 ```php
 public function form(Form $form): Form
@@ -574,7 +573,7 @@ throws at serialize time. Note pivot writes go through the query builder
 
 ## 12. Lazy managers
 
-Opt a heavy manager out of the initial page render (Filament's `$isLazy`):
+Opt a heavy manager out of the initial page render:
 
 ```php
 class AuditLogRelationManager extends RelationManager
@@ -585,6 +584,12 @@ class AuditLogRelationManager extends RelationManager
 }
 ```
 
+- **Lazy is opt-in by design — eager is the default.** Loading a deferred
+  manager costs a full Inertia page revisit (props re-serialize), which is a
+  great trade for a genuinely heavy tab but pure overhead for the common
+  small one: lazy-by-default would turn every page with managers into two
+  requests plus a skeleton flash. Reserve `$isLazy` for managers whose
+  queries you actually feel.
 - A lazy manager serializes only its **tab stub** (title + badge) until it is
   the active `?relation=` — none of its table queries run for tabs nobody
   opens, on the initial render **or** on any later table interaction from a

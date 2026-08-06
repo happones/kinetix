@@ -13,7 +13,7 @@ metadata:
 Activate this skill when:
 - Building input forms for resource pages or action modals.
 - Adding fields like `TextInput`, `NumberField` (steppers + decimal/percent/currency), `Slider`, `Rating` (stars + half), `PinInput` (OTP), `SlugInput` (auto from a source field), `SignaturePad` (canvas → PNG data URL), `PhoneInput` (international, country selector + E.164), `Select`, `Checkbox`, `Toggle`, `DateTimePicker`, `DateRangePicker`, `AddressPicker`, `RichEditor` (WYSIWYG: basic/tiptap/markdown), `Textarea`, `Hidden`, `Radio`, `CheckboxList`, `ColorPicker`, `TagsInput`, `KeyValue`, `Repeater`, or `FileUpload`. Date/Month/Week/Range pickers and `NumberField` default their calendar/number locale to the **application locale** (BCP-47); `->locale('fr')` overrides per field. Date/DateTime/Time pickers: values are naive wall-time strings whose implicit timezone is **`app.timezone`** — the Today/Now presets read the clock there (never the browser's), overridable per field with `->timezone('America/Mexico_City')`. DateTime/Time popovers carry a Now + Done footer; `->confirm()` switches to an explicit **Apply** commit (draft until then); DatePicker adds `->todayButton()` and `->closeOnSelect(false)`.
-- Structuring layouts: `Grid::make(n)`, `Section::make()` (card), `Fieldset::make()` (bordered legend), `Tabs::make()->tabs([Tab::make()->icon()->schema()])`, `Split::make([...])` (responsive flex row), `Placeholder::make()->content()` (read-only, not a field), `Wizard::make()->steps([Step::make()])` (multi-step — see the `kinetix-wizard` skill). All nest and share `columnSpan()`/`columnSpanFull()` (Filament-compatible shorthand for `columnSpan('full')`)/`visible()`/`hidden()`.
+- Structuring layouts: `Grid::make(n)`, `Section::make()` (card), `Fieldset::make()` (bordered legend), `Tabs::make()->tabs([Tab::make()->icon()->schema()])`, `Split::make([...])` (responsive flex row), `Placeholder::make()->content()` (read-only, not a field), `Wizard::make()->steps([Step::make()])` (multi-step — see the `kinetix-wizard` skill). All nest and share `columnSpan()`/`columnSpanFull()` (shorthand for `columnSpan('full')`)/`visible()`/`hidden()`.
 - Adding Laravel validation rules dynamically to inputs (`required()`, `maxLength()`, `rules()`), custom messages (`validationMessages()`), or attribute names (`validationAttribute()`).
 - Validating either **fluently** (`$form->validate()`) or via a **FormRequest** (`KinetixFormRequest` / the `ResolvesKinetixForm` trait) — rules live in the form, never duplicated.
 - Enabling **live validation** with Laravel Precognition (`->precognitive()` / `->validationUrl()`).
@@ -155,7 +155,7 @@ PostForm::make()->validationUrl(route('posts.store'), 'post'); // or an explicit
 
 ## Responsive Layout
 
-Grids are responsive by default with Filament semantics: `Grid::make(2)` /
+Grids are responsive by default: `Grid::make(2)` /
 `->columns(2)` means 2 columns from `lg` up and ONE below — never assume a
 fixed column count on mobile. `columns()` and `columnSpan()` accept breakpoint
 maps (`['default' => 1, 'sm' => 2, 'xl' => 3]`, keys default/sm/md/lg/xl/2xl,

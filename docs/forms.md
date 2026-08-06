@@ -165,7 +165,7 @@ and let the new default do the work.
 
 #### Responsive columns & spans
 
-Grids are responsive by default, with Filament's semantics: **an int means
+Grids are responsive by default: **an int means
 "this many columns from `lg` up, one below"**, so `Grid::make(2)` collapses to
 a single column on narrow layouts with no annotation. Breakpoints are measured
 against the **form's own width** (CSS container queries), not the viewport — a
