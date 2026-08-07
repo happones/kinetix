@@ -169,7 +169,7 @@ All entries share these base methods (defined on `Entry`):
 | `->columnSpan(int\|string)` | Grid span (`'full'` or a column count) |
 | `->visible()` / `->hidden()` | Boolean or `Closure` visibility |
 | `->visibleOn()` / `->hiddenOn()` | Restrict by operation |
-| `->authorize(string\|Closure\|bool, mixed $subject = null)` | Gate-based visibility (see [§6](#6-conditional-visibility)) |
+| `->authorize(string\|Closure\|bool, mixed $subject = null)` | Gate-based visibility (see [§6](#_6-conditional-visibility)) |
 | `->extraAttributes(array)` | Arbitrary attributes passed to the wrapper |
 
 ### TextEntry

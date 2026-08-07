@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
-import { nextTick, reactive, ref } from 'vue';
+import { nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
@@ -37,8 +37,19 @@ const page = usePage<KinetixSharedProps>();
 const hintId = `kinetix-kanban-hint-${++kanbanUid}`;
 
 // Local, mutable copy of the columns so drags update the UI immediately.
-const columns = reactive(
-    props.kanban.columns.map((c) => ({ ...c, cards: [...c.cards] })),
+const snapshotColumns = () =>
+    props.kanban.columns.map((c) => ({ ...c, cards: [...c.cards] }));
+
+const columns = reactive(snapshotColumns());
+
+// Inertia replaces `kanban` wholesale on every visit/reload (modal CRUD, the
+// post-move reload), so a reference watch is enough to resync the local copy —
+// no deep watch needed, which would traverse every card on large boards.
+watch(
+    () => props.kanban.columns,
+    () => {
+        columns.splice(0, columns.length, ...snapshotColumns());
+    },
 );
 
 const dragging = ref<{ card: KinetixKanbanCard; from: string } | null>(null);

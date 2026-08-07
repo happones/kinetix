@@ -41,7 +41,7 @@ return Inertia::render('Calendar', ['calendar' => $calendar->toData()]);
   whatever you supply, so scope to a sensible window for large datasets).
 - **`timezone`** — a string or `fn () => ...` closure (e.g.
   `fn () => auth()->user()->timezone`). Defaults to `config('app.timezone')`.
-  See [§3 Timezones](#3-timezones) for why this rarely needs to be touched.
+  See [§3 Timezones](#_3-timezones) for why this rarely needs to be touched.
 
 ---
 
@@ -72,11 +72,11 @@ defineProps<{ calendar: object }>();
 | `weekStartsOn`       | `number`                              | `1`       | 0=Sunday … 6=Saturday |
 | `locale`             | `string \| null`                       | `null`    | BCP-47 locale for month/weekday/hour labels |
 | `timezone`           | `string \| null`                       | `null`    | Overrides `calendar.timezone` (e.g. the viewer's own browser zone) |
-| `views`              | `('month'\|'week'\|'day')[]`          | `['month']` | Opts into the view switcher — see [§4](#4-month-week-day-views) |
+| `views`              | `('month'\|'week'\|'day')[]`          | `['month']` | Opts into the view switcher — see [§4](#_4-month-week-day-views) |
 | `view`               | `'month'\|'week'\|'day'`              | `views[0]`| Controlled active view (`v-model:view`) |
 | `anchorDate`         | `string \| null`                       | `null`    | Initial month/week/day (ISO `Y-MM-DD`), e.g. for deep-linking. Defaults to today |
 | `startHour`/`endHour`| `number`                              | `0`/`24`  | Visible hour range in week/day views |
-| `eventDisplay`       | `'modal'\|'sheet'`                    | `'modal'` | How a clicked event's details are shown — see [§5](#5-event-details-modal--sheet) |
+| `eventDisplay`       | `'modal'\|'sheet'`                    | `'modal'` | How a clicked event's details are shown — see [§5](#_5-event-details-modal-sheet) |
 | `sheetSide`          | `'top'\|'right'\|'bottom'\|'left'`    | `'right'` | Which edge the sheet slides from (`eventDisplay="sheet"`) |
 | `showEventDetails`   | `boolean`                             | `true`    | Set `false` to suppress the built-in popup and rely on `@event-click` |
 
@@ -89,12 +89,12 @@ defineProps<{ calendar: object }>();
   `showEventDetails`), **`day-click`** (the ISO date, month view empty-cell
   clicks), **`slot-click`** (the ISO datetime, week/day view empty-slot
   clicks), **`event-moved`** (the event + its new ISO start, after a
-  successful drag — see [§6](#6-drag-and-drop-rescheduling)), and
+  successful drag — see [§6](#_6-drag-and-drop-rescheduling)), and
   **`update:view`**.
 
 No endpoint, migration or config flag is needed — the calendar is read-only
 by default and navigates client-side. Drag-and-drop rescheduling is a
-server-side opt-in: [`Calendar::moveable()`](#6-drag-and-drop-rescheduling).
+server-side opt-in: [`Calendar::moveable()`](#_6-drag-and-drop-rescheduling).
 
 ---
 
@@ -388,12 +388,12 @@ public function destroy(Event $event)
 
 `back()` re-renders the calendar page (the new event appears) and
 `<KinetixToaster>` picks up the flash — see
-[server-flashed toasts](/notifications#server-flashed-toasts).
+[server-flashed toasts](/notifications#server-flashed-toasts-kinetix-toast).
 
 ### Dedicated pages
 
 If events deserve full pages, use `eventActions()` with `inertiaVisit()`
-(see [§5](#5-event-details-modal--sheet)) for edit/delete from the details
+(see [§5](#_5-event-details-modal-sheet)) for edit/delete from the details
 popup, plus a header action with `->url(route('events.create'))`. The page
 controllers then `redirect()->with('kinetix_toast', …)` exactly like
 [resource scaffold pages](/resources).

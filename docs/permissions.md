@@ -48,7 +48,7 @@ class User extends Authenticatable
 ```
 
 > With teams enabled, `HasRoles` and Jetstream-style `HasTeams` both declare
-> `teams()` — see [§4 trait collision](#trait-collision-with-the-starter-kits-hasteams).
+> `teams()` — see [§4 trait collision](#trait-collision-with-the-starter-kit-s-hasteams).
 
 ::: tip Permissions come from code, roles come from the database
 There is deliberately **no `roles` key in the config**: permissions/features
@@ -131,7 +131,7 @@ Declaring `permissionFeature(): 'posts'` puts these five abilities in the
 `can()`), but it does **not** protect your Post routes or controllers by
 itself. Nothing intercepts a request just because an ability with a matching
 name exists. You still enforce on the server — middleware, policy, or an
-explicit Gate check — see [Enforcing on the server](#enforcing-on-the-server).
+explicit Gate check — see [Enforcing on the server](#_1-5-enforcing-on-the-server).
 :::
 
 #### How Resources Are Registered (Auto-Discovery)

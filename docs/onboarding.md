@@ -113,7 +113,7 @@ Drop `KinetixEmptyState` wherever a list or section has no data yet:
 <Screenshot name="empty-state" alt="Empty state" />
 
 The default slot holds the call-to-action(s). `icon` is any
-[Kinetix icon name](/actions#icons).
+[Kinetix icon name](/actions#core-api).
 
 ---
 

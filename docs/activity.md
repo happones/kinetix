@@ -78,7 +78,7 @@ react to domain changes (the Webhooks module will fan these out).
 
 ### Per-feature: one record's history
 
-Drop it onto a Resource's [View / Show page](/resources#_7-view-show-page-read-only),
+Drop it onto a Resource's [View / Show page](/resources#_7-view-show-page-read-only-detail),
 so an admin sees that record's changes:
 
 ```vue

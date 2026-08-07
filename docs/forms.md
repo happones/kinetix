@@ -246,7 +246,7 @@ Fieldset::make('Address')
 ```
 
 ### 4. Tabs
-A tabbed container (Reka UI). Each `Tab` holds its own schema and may carry an `icon()` (any [Kinetix icon name](/actions#icons)). Fields inside every tab are still validated and saved — switching tabs is purely visual.
+A tabbed container (Reka UI). Each `Tab` holds its own schema and may carry an `icon()` (any [Kinetix icon name](/actions#core-api)). Fields inside every tab are still validated and saved — switching tabs is purely visual.
 
 <Screenshot name="layout-tabs" alt="Tabs layout" />
 
@@ -290,7 +290,7 @@ Placeholder::make('Account ID')
     ->content(fn ($record) => $record?->id ?? '—')
 ```
 
-All layout components share the base `columnSpan()`, `visible()/hidden()`, `visibleOn()/hiddenOn()`, and `authorize()` methods (see [§5 Operations & Visibility Constraints](#5-operations--visibility-constraints)), and nest arbitrarily.
+All layout components share the base `columnSpan()`, `visible()/hidden()`, `visibleOn()/hiddenOn()`, and `authorize()` methods (see [§5 Operations & Visibility Constraints](#_5-operations-visibility-constraints)), and nest arbitrarily.
 
 ### 7. Wizard
 Break a form into validated steps with `Wizard::make()->steps([Step::make(...)])`. Advancing is gated on the current step's required fields. Also available as a standalone page component with gating middleware — see the dedicated [Wizard](/wizard) guide.
@@ -365,7 +365,7 @@ Select::make('role')
 ```
 
 #### Option Resolvers
-- **Enum Reflection**: Pass the classname of any Enum. If it implements the `HasLabel` contract, Kinetix maps case values to returned labels automatically.
+- **Enum Reflection**: Pass the classname of any Enum — see [Enums & `HasLabel`](#enums-haslabel) below.
 - **Array Mapping**: Pass a simple key-value array:
   ```php
   Select::make('tier')
@@ -379,6 +379,58 @@ Select::make('role')
   Select::make('manager_id')
       ->options(fn (?User $record) => User::where('id', '!=', $record?->id)->pluck('name', 'id')->toArray());
   ```
+
+#### Enums & `HasLabel`
+
+Pass an Enum class straight to `options()` and Kinetix builds the option list
+from its cases. Labels resolve in this order:
+
+1. `getLabel()`, when the enum implements
+   `Happones\Kinetix\Support\Contracts\HasLabel` — **or simply defines a public
+   `getLabel(): ?string` method**. Resolution is duck-typed, so enums written
+   against an equivalent third-party label contract work in Kinetix unchanged.
+2. Otherwise the backing `value` (backed enums) or the case `name` (pure enums).
+
+```php
+use App\Enums\TaskStatus;
+
+Select::make('status')
+    ->options(TaskStatus::class)
+    ->default(TaskStatus::Todo->value);
+```
+
+```php
+namespace App\Enums;
+
+use Happones\Kinetix\Support\Concerns\HasLabelOptions;
+use Happones\Kinetix\Support\Contracts\HasLabel;
+
+enum TaskStatus: string implements HasLabel
+{
+    use HasLabelOptions;
+
+    case Todo = 'todo';
+    case Done = 'done';
+
+    public function getLabel(): ?string
+    {
+        return match ($this) {
+            self::Todo => __('To do'),
+            self::Done => __('Done'),
+        };
+    }
+}
+```
+
+The optional `HasLabelOptions` concern adds a static `TaskStatus::options()`
+helper (`['todo' => 'To do', 'done' => 'Done']`) for the places where you need
+the array yourself.
+
+Define the enum once and it drives every surface: `Select`, `Radio`,
+`TextColumn->badge()`, `SelectColumn`, `SelectFilter`, Infolist entries, and
+export columns. See [Tables → Enum Support & Contracts](/tables#enum-support-contracts)
+for the color and icon contracts (`HasColor`, `HasIcon`) used by badges and
+icon columns.
 
 #### Searchable (combobox)
 
@@ -677,7 +729,7 @@ Apply-only commit), **`->todayButton()`** (a "This month" / "This year" /
 "This week" shortcut), **`->closeOnSelect(false)`**, and **`->timezone()`** —
 the current-period preset and the initial view read the clock in
 **`app.timezone`** by default, never the browser's (see
-[Timezones](#timezones-apptimezone-by-default-per-field-override)). The
+[Timezones](#timezones-app-timezone-by-default-per-field-override)). The
 standalone Vue components accept the same props.
 
 <Screenshot name="month-picker" alt="Month picker" />
@@ -729,8 +781,8 @@ By default the popover closes once **both** ends are picked; `->confirm()`
 switches to the draft + **Apply** contract, `->todayButton()` adds a Today
 shortcut, and — like every picker — "today" is read in **`app.timezone`**
 (overridable per field with `->timezone()`), never the browser clock. See
-[Timezones](#timezones-apptimezone-by-default-per-field-override) and
-[Close behavior](#close-behavior--the-footer-by-design) above.
+[Timezones](#timezones-app-timezone-by-default-per-field-override) and
+[Close behavior](#close-behavior-the-footer-by-design) above.
 
 Persist `{from,to}` to a JSON-cast column, or split it in a `dehydrateStateUsing()`
 callback. As a **table filter**, use `DateRangeFilter` (see

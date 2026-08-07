@@ -108,7 +108,7 @@ clicked or activated with <kbd>Enter</kbd> — wire it to open the record:
 ```
 
 Or open an in-page modal instead of navigating — see
-[Adding & editing cards](#adding--editing-cards) below.
+[Adding & editing cards](#adding-editing-cards) below.
 
 ---
 
@@ -121,7 +121,7 @@ page wiring, and both patterns compose with what you already know:
 
 Keep the user on the board: a header action dispatches a browser event, the
 page opens a `KinetixModal` hosting a `KinetixForm`, and the controller
-persists + flashes a [toast](/notifications#server-flashed-toasts). Pass
+persists + flashes a [toast](/notifications#server-flashed-toasts-kinetix-toast). Pass
 `flat` to the form — **the modal is already the surface**, so `Section`s render
 as divided groups instead of nesting a card inside the modal:
 

@@ -104,7 +104,7 @@ class ContactImporter extends Importer
 | `authorize(?Authenticatable $user): bool` | Override for custom authorization; enforced on every import endpoint |
 | `protected bool $downloadableTemplate = true` | Offer a "Download template" link in the import modal |
 | `protected ?string $templateFileName = null` | Template filename (null = studly class name, `ProductImporter.csv`) |
-| `getStartedNotificationBody(): string` | Toast shown when the import is queued (see [Notifications](#7-notifications-lifecycle--custom-messages)) |
+| `getStartedNotificationBody(): string` | Toast shown when the import is queued (see [Notifications](#_7-notifications-lifecycle-custom-messages)) |
 | `getCompletedNotificationTitle/Body(int $imported, int $failed): string` | Completion notification title/body |
 | `getFailedNotificationTitle/Body(): string` | Whole-job failure notification title/body |
 
@@ -335,7 +335,7 @@ The import itself is queued; the user gets a completion **notification** when it
 - When any rows failed, the notification also carries a **Download failed rows** action: a CSV of **every** failed source row (row number, the original cells, and the reason), behind the same signed, user-bound, expiring download token exports use.
 - Sent via `broadcast()` when Echo is configured, otherwise persisted with `sendToDatabase()`.
 
-Customize the dispatch by overriding `queue()` and `chunkSize()`, the whole per-row behaviour via `importRow()` / `resolveRecord()`, and every notification message via the `get*Notification*` hooks (see [Notifications](#7-notifications-lifecycle--custom-messages)).
+Customize the dispatch by overriding `queue()` and `chunkSize()`, the whole per-row behaviour via `importRow()` / `resolveRecord()`, and every notification message via the `get*Notification*` hooks (see [Notifications](#_7-notifications-lifecycle-custom-messages)).
 
 ---
 
@@ -525,7 +525,7 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 | `export(?Model $recipient, array $parameters = []): void` | Dispatch the queued export + notify the recipient. `$parameters` (e.g. `['ids' => [...]]`) reach the exporter inside the job |
 | `parameter(string $key, $default = null)` | Read a runtime parameter inside `query()` (e.g. the selected `ids`) |
 | `withParameters(array): static` | Set parameters on an instance (used by the job; `export()` is the usual entry point) |
-| `getStartedNotificationBody(): string` | Toast shown when the export is queued (see [Notifications](#7-notifications-lifecycle--custom-messages)) |
+| `getStartedNotificationBody(): string` | Toast shown when the export is queued (see [Notifications](#_7-notifications-lifecycle-custom-messages)) |
 | `getCompletedNotificationTitle/Body(int $exported, int $failed): string` | Completion notification title/body |
 | `getFailedNotificationTitle/Body(): string` | Whole-job failure notification title/body |
 

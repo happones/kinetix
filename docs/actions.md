@@ -319,13 +319,13 @@ onUnmounted(() => window.removeEventListener('kinetix:event-create', open));
 
 The controller persists and flashes a toast (`back()->with('kinetix_toast',
 __('kinetix.record_created'))`). Full worked examples live in the
-[Kanban](/kanban#adding--editing-cards) and
-[Calendar](/calendar#7-creating--editing-events) guides.
+[Kanban](/kanban#adding-editing-cards) and
+[Calendar](/calendar#_7-creating-editing-events) guides.
 
 > `->modal('create'|'edit'|'view'|'delete')` is a different mechanism: it opens
 > the **table-hosted record modals** and therefore only works on actions
 > rendered inside a table that opted in via `Table::recordModals()` — see
-> [Simple resources](/resources#42-simple-resource-simple). In a page header it
+> [Simple resources](/resources#_2-simple-resource-simple). In a page header it
 > is a no-op.
 
 ### Shared execution composable

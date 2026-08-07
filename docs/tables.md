@@ -836,8 +836,8 @@ Table-level methods control refresh, pagination, and row behavior:
 - `poll(string $interval)`: Refreshes the table on an interval (e.g. `->poll('10s')`). Backed by Inertia's **`usePoll`** — a partial reload that preserves scroll and table state (search/filters/sort/page). Accepts `'10s'`, `'5000ms'`, etc.
 - `reorderable(string $column = 'sort_order')`: Enables drag-and-drop row reordering (a grip-handle column appears). The new order is persisted to the given integer column via a signed, token-guarded `tables/reorder` endpoint, and rows default to that order. See [Reordering rows](#reordering-rows).
 - `paginated(bool|array $options)`: Toggles pagination or sets the page-size options. Pass `false` to disable pagination (the full result set is rendered), or an array of integers to override the selectable per-page options (default `[5, 10, 25, 50]`).
-- `simplePaginated(bool $simple = true)`: Paginate **without counting** the result set. See [Large tables](#large-tables-simplepaginated).
-- `cursorPaginated(bool $cursor = true)`: Seek-based pagination — no `OFFSET`, constant cost at any depth. See [Deep pagination](#deep-pagination-cursorpaginated).
+- `simplePaginated(bool $simple = true)`: Paginate **without counting** the result set. See [Large tables](#large-tables-—-simplepaginated).
+- `cursorPaginated(bool $cursor = true)`: Seek-based pagination — no `OFFSET`, constant cost at any depth. See [Deep pagination](#deep-pagination-—-cursorpaginated).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
 - `toolbarLayout(string $layout)`: Toolbar arrangement. The default `'auto'`
@@ -1177,6 +1177,15 @@ Implement the following contracts inside your Enums to provide metadata:
 - `Happones\Kinetix\Support\Contracts\HasColor`: Defines the theme color status (`primary`, `success`, `warning`, `danger`, `gray`) for badges and icons.
 - `Happones\Kinetix\Support\Contracts\HasIcon`: Defines the Lucide icon name for icon columns.
 
+::: tip Duck-typed resolution
+Implementing the Kinetix contracts is optional: any enum exposing public
+`getLabel(): ?string`, `getColor(): ?string`, or `getIcon(): ?string` methods
+resolves exactly the same way. Enums written against equivalent third-party
+label contracts therefore work in Kinetix unchanged — no rewrite needed.
+Enums without any of these methods still render: backed enums fall back to
+their `value`, pure enums to their case `name`.
+:::
+
 #### Example Enum Definition
 
 ```php
@@ -1245,4 +1254,8 @@ Include `use Happones\Kinetix\Support\Concerns\HasLabelOptions;` inside your Enu
 $options = PostStatus::options();
 // Returns: ['draft' => 'Borrador', 'published' => 'Publicado', 'archived' => 'Archivado']
 ```
+
+The same contracts drive `Select`/`Radio` form fields
+([Forms → Enums & `HasLabel`](/forms#enums-haslabel)), Infolist entries, and
+export columns — define the enum once and every surface renders it consistently.
 

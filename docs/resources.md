@@ -4,7 +4,7 @@ Kinetix Resources provide a powerful, class-based CRUD builder system for Larave
 
 Resources map Eloquent database models to cohesive administration panels by grouping corresponding **Tables**, **Forms**, **Routes**, **Controllers**, and **Vue Views** under unified classes.
 
-A generated resource index page combines a [page header](/actions#6-page-action-bars) (title + actions) with a [table](/tables) (sortable, filterable, with row actions and optional reordering):
+A generated resource index page combines a [page header](/actions#_6-page-action-bars) (title + actions) with a [table](/tables) (sortable, filterable, with row actions and optional reordering):
 
 <Screenshot name="page-header" alt="Resource page header with actions" />
 
@@ -868,4 +868,4 @@ relation managers, tabs, or a bespoke layout):
    `KinetixInfolist` (and `KinetixRelationManager` per relation).
 
 For the full page recipe — tabs, sections, and the Vue component — see the
-[Infolists "Show page" recipe](/infolists#8b-recipe-a-record-show-page-with-tabs-actions).
+[Infolists "Show page" recipe](/infolists#_8b-recipe-a-record-show-page-with-tabs-actions).

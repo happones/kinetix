@@ -46,6 +46,12 @@ Pick by the DATA and whether it should be editable inline — do not default eve
 | Anything bespoke | `ViewColumn->view('MyCell')->props(fn ($record) => …)` | your component emits its own updates |
 | KeyValue / Repeater | `->formatStateUsing()` into a summary string, or `ViewColumn` | — |
 
+Enum resolution is duck-typed: any enum with public `getLabel()`/`getColor()`/`getIcon()`
+methods resolves without implementing the `Happones\Kinetix\Support\Contracts` interfaces,
+so enums written against equivalent third-party label contracts work unchanged. The
+`Happones\Kinetix\Support\Concerns\HasLabelOptions` concern adds a static `::options()`
+helper, and enums without any of these methods fall back to `value`/case `name`.
+
 ## Shared column properties (all types)
 
 `label(__(…))`, `searchable()`, `sortable(bool, ?Closure $using)`, `alignment('left|center|right')`,

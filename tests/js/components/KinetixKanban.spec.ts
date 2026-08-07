@@ -80,6 +80,32 @@ describe('KinetixKanban', () => {
         });
     });
 
+    it('resyncs the board when the kanban prop is replaced (Inertia reload)', async () => {
+        const w = mountIt();
+        expect(w.findAll('article').length).toBe(2);
+
+        // Simulate an Inertia partial reload after a modal create: the server
+        // ships a brand-new kanban object with an extra card in "doing".
+        await w.setProps({
+            kanban: {
+                ...kanban,
+                columns: [
+                    kanban.columns[0],
+                    {
+                        key: 'doing',
+                        label: 'In Progress',
+                        color: null,
+                        cards: [{ id: 3, title: 'Card B', description: null }],
+                    },
+                    kanban.columns[2],
+                ],
+            },
+        });
+
+        expect(w.findAll('article').length).toBe(3);
+        expect(w.text()).toContain('Card B');
+    });
+
     it('cards carry the draggable-card semantics and keyboard instructions', () => {
         const wrapper = mountIt();
 

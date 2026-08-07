@@ -87,7 +87,7 @@ function onFinish() {
 | `step`        | `number`                                                          | `0`          | Controlled current step (`v-model:step`) |
 | `linear`      | `boolean`                                                          | `true`       | Restrict indicator jumps to reached steps |
 | `beforeNext`  | `(fromIndex) => boolean \| Promise<boolean>`                      | —            | Return `false` / reject to block advancing (per-step validation) |
-| `errorSteps`  | `number[]`                                                        | `[]`         | Step indexes holding a validation error — their indicator is marked destructive, they stay navigable even under `linear`, and when new errors arrive the wizard **auto-jumps to the first errored step** (unless the current step already holds one) — the same contract as form Tabs. Set automatically for form wizards; see [Forms → Error Focus](/forms#8-error-focus-in-tabs--wizards) |
+| `errorSteps`  | `number[]`                                                        | `[]`         | Step indexes holding a validation error — their indicator is marked destructive, they stay navigable even under `linear`, and when new errors arrive the wizard **auto-jumps to the first errored step** (unless the current step already holds one) — the same contract as form Tabs. Set automatically for form wizards; see [Forms → Error Focus](/forms#_8-error-focus-in-tabs-wizards) |
 
 ### Events & slots
 

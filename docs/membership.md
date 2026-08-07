@@ -314,7 +314,7 @@ host's `teams`/`users` schema is unknown to the package.
 ## 5. Backend surface
 
 The module registers a `members` feature with the permission registry, so its
-abilities show up in the [permission matrix](/permissions#6-role-management-ui)
+abilities show up in the [permission matrix](/permissions#_6-role-management-ui)
 and `kinetix:permissions:sync`:
 
 * `members.viewAny` — View members
