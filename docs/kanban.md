@@ -82,11 +82,12 @@ defineProps<{ board: object }>();
 
 Cards are draggable (native HTML5 drag-and-drop — no extra dependency). While a
 card is in flight its source dims, the hovered column highlights as the drop
-target, and cards FLIP-animate into place on landing (animations respect
-`prefers-reduced-motion`). Dropping a card into another column moves it
-optimistically and `POST`s the change; if the request fails the card snaps back
-and a toast is shown. The board reloads after a successful move so server-side
-ordering/derived data stays in sync.
+target **and shows a dashed ghost placeholder previewing where the card will
+land** (labelled with the card's title), and cards FLIP-animate into place on
+landing (animations respect `prefers-reduced-motion`). Dropping a card into
+another column moves it optimistically and `POST`s the change; if the request
+fails the card snaps back and a toast is shown. The board reloads after a
+successful move so server-side ordering/derived data stays in sync.
 
 **Touch devices** get the same drag without HTML5 DnD (which never fires on
 touch): **long-press a card (~250ms)** to lift it into a floating clone that

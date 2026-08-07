@@ -172,6 +172,29 @@ describe('KinetixKanban card clicks and drag feedback', () => {
         expect(emitted![0][1]).toBe('todo');
     });
 
+    it('previews the drop with a ghost card in the hovered column', async () => {
+        const w = mountIt();
+        const card = w.findAll('article')[0]; // Card A in "todo"
+
+        await card.trigger('dragstart');
+
+        const target = w.get('[data-kanban-column="done"]');
+        await target.trigger('dragenter');
+
+        const ghost = target.find('.kx-drop-ghost');
+        expect(ghost.exists()).toBe(true);
+        expect(ghost.text()).toContain('Card A');
+
+        // Never in the card's own column — dropping there is a no-op.
+        const source = w.get('[data-kanban-column="todo"]');
+        await source.trigger('dragenter');
+        expect(source.find('.kx-drop-ghost').exists()).toBe(false);
+
+        // And it disappears when the drag ends.
+        await card.trigger('dragend');
+        expect(w.find('.kx-drop-ghost').exists()).toBe(false);
+    });
+
     it('dims the source card and highlights the hovered column while dragging', async () => {
         const w = mountIt();
         const card = w.findAll('article')[0];

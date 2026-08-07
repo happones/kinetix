@@ -122,15 +122,38 @@ describe('KinetixMediaLibrary', () => {
         expect(w.findAll('[draggable="true"]').length).toBeLessThan(60);
     });
 
-    it('reorders items via drag and drop', async () => {
+    it('reorders items via drag and drop, previewing while dragging', async () => {
         const w = mountIt([imageItem, fileItem]);
         const cards = w.findAll('[draggable="true"]');
 
         await cards[0].trigger('dragstart');
-        await cards[1].trigger('drop');
+        await cards[1].trigger('dragover');
+
+        // Live preview: the grid already shows the new order and the in-flight
+        // tile is styled as a translucent drop preview — nothing emitted yet.
+        expect(w.emitted('update:value')).toBeUndefined();
+        expect(w.findAll('[draggable="true"]')[1].classes()).toContain(
+            'opacity-60',
+        );
+
+        await w.findAll('[draggable="true"]')[1].trigger('drop');
 
         const emitted = w.emitted('update:value')!.at(-1)![0] as any[];
         expect(emitted[0].id).toBe(2);
         expect(emitted[1].id).toBe(1);
+    });
+
+    it('reverts the preview when the drag ends without a drop', async () => {
+        const w = mountIt([imageItem, fileItem]);
+        const cards = w.findAll('[draggable="true"]');
+
+        await cards[0].trigger('dragstart');
+        await cards[1].trigger('dragover');
+        await cards[1].trigger('dragend');
+
+        expect(w.emitted('update:value')).toBeUndefined();
+        expect(w.findAll('[draggable="true"]')[0].classes()).not.toContain(
+            'opacity-60',
+        );
     });
 });

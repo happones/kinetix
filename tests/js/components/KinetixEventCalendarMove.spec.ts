@@ -105,6 +105,40 @@ describe('KinetixEventCalendar drag-and-drop moves', () => {
         });
     });
 
+    it('previews the drop with a ghost chip in the hovered day cell', async () => {
+        const w = mountIt();
+
+        await chipOf(w, 'Launch')!.trigger('dragstart');
+        const cell = w.get('[data-calendar-drop="day:2026-06-18"]');
+        await cell.trigger('dragover');
+
+        const ghost = cell.find('.kx-drop-ghost');
+        expect(ghost.exists()).toBe(true);
+        expect(ghost.text()).toContain('Launch');
+
+        // The ghost follows the pointer to the next hovered cell.
+        const nextCell = w.get('[data-calendar-drop="day:2026-06-19"]');
+        await nextCell.trigger('dragover');
+        expect(cell.find('.kx-drop-ghost').exists()).toBe(false);
+        expect(nextCell.find('.kx-drop-ghost').exists()).toBe(true);
+
+        // And disappears when the drag ends.
+        await chipOf(w, 'Launch')!.trigger('dragend');
+        expect(w.find('.kx-drop-ghost').exists()).toBe(false);
+    });
+
+    it('previews the drop with a ghost chip in the hovered hour slot', async () => {
+        const w = mountIt({ views: ['week'], view: 'week' });
+
+        await chipOf(w, 'Launch')!.trigger('dragstart');
+        const slot = w.get('[data-calendar-drop="slot:2026-06-18:14"]');
+        await slot.trigger('dragover');
+
+        const ghost = slot.find('.kx-drop-ghost');
+        expect(ghost.exists()).toBe(true);
+        expect(ghost.text()).toContain('Launch');
+    });
+
     it('dropping on a week-view hour slot snaps the start to that slot', async () => {
         const w = mountIt({ views: ['week'], view: 'week' });
 

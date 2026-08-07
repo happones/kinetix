@@ -82,7 +82,8 @@ namespaced `{relationship}_…`). Rules that differ:
 ## Table builder surface (one-liners)
 
 `heading()/description()`, `striped()`, `poll('10s')`, `recordUrl(fn)`, `stickyActions()`,
-`reorderable('sort_order')` (drag + persisted), `saveViews(?key)` (per-user presets; key defaults
+`reorderable('sort_order')` (drag with a translucent live preview of the landing row, persisted on
+drop, reverted on a cancelled drag), `saveViews(?key)` (per-user presets; key defaults
 to `Model:queryPrefix`), `queryPrefix('tags_')` (multiple tables per page), `stats([...])` (KPI
 cards over the same filtered query), `recordModals(Resource::class)` (in-table modal CRUD for
 simple resources — NOT inside relation managers), `simplePaginated()` (no COUNT) /

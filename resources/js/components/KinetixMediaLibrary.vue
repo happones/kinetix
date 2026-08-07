@@ -4,7 +4,9 @@ import { Loader2, UploadCloud } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
+import { useKinetixListReorder } from '@/composables/useKinetixListReorder';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
 import type { KinetixMediaItem, KinetixSharedProps } from '@/types/kinetix';
 import MediaLibraryTile from './Media/MediaLibraryTile.vue';
@@ -48,11 +50,27 @@ const prefix = computed(
 const inputRef = ref<HTMLInputElement | null>(null);
 const uploading = ref(false);
 const errorMessage = ref<string | null>(null);
-const dragIndex = ref<number | null>(null);
 
 const items = computed<KinetixMediaItem[]>(() =>
     Array.isArray(props.value) ? props.value : [],
 );
+
+// --- Reorder (native drag-and-drop) -----------------------------------------
+// Tiles render from the composable's local copy so the dragged tile travels
+// through the grid as a live translucent preview; the new order is emitted
+// once, on drop, and reverted when the drag is cancelled.
+const {
+    localItems: orderedItems,
+    draggingIndex,
+    onDragStart: onReorderStart,
+    onDragOver: onReorderOver,
+    onDrop: onReorderDrop,
+    onDragEnd: onReorderEnd,
+} = useKinetixListReorder<KinetixMediaItem>({
+    items: () => items.value,
+    enabled: () => props.reorderable && !props.disabled,
+    onCommit: (next) => emit('update:value', next),
+});
 
 const acceptAttr = computed(() => {
     if (props.acceptedFileTypes && props.acceptedFileTypes.length > 0) {
@@ -128,7 +146,7 @@ const mediaRows = computed<MediaRow[]>(() =>
         const from = row.index * columnsPerRow.value;
 
         return {
-            tiles: items.value
+            tiles: orderedItems.value
                 .slice(from, from + columnsPerRow.value)
                 .map((item, offset) => ({ item, index: from + offset })),
             start: row.start,
@@ -206,7 +224,7 @@ function onInputChange(event: Event): void {
 }
 
 function onDrop(event: DragEvent): void {
-    if (dragIndex.value !== null) {
+    if (draggingIndex.value !== null) {
         return; // a reorder drag, not a file drop
     }
 
@@ -214,7 +232,7 @@ function onDrop(event: DragEvent): void {
 }
 
 function remove(index: number): void {
-    const next = [...items.value];
+    const next = [...orderedItems.value];
     next.splice(index, 1);
     emit('update:value', next);
 }
@@ -240,33 +258,6 @@ function preview(item: KinetixMediaItem): void {
         }),
     );
 }
-
-// --- Reorder (native drag-and-drop) -----------------------------------------
-function onDragStart(index: number): void {
-    if (props.reorderable) {
-        dragIndex.value = index;
-    }
-}
-
-function onDragOver(event: DragEvent): void {
-    if (dragIndex.value !== null) {
-        event.preventDefault();
-    }
-}
-
-function onDropReorder(targetIndex: number): void {
-    if (dragIndex.value === null || dragIndex.value === targetIndex) {
-        dragIndex.value = null;
-
-        return;
-    }
-
-    const next = [...items.value];
-    const [moved] = next.splice(dragIndex.value, 1);
-    next.splice(targetIndex, 0, moved);
-    dragIndex.value = null;
-    emit('update:value', next);
-}
 </script>
 
 <template>
@@ -278,15 +269,17 @@ function onDropReorder(targetIndex: number): void {
             class="gap-3 sm:grid-cols-3 md:grid-cols-4 grid grid-cols-2"
         >
             <MediaLibraryTile
-                v-for="(item, idx) in items"
+                v-for="(item, idx) in orderedItems"
                 :key="item.id ?? item.path ?? idx"
                 :item="item"
                 :reorderable="reorderable"
                 :disabled="disabled"
                 :draggable="reorderable"
-                @dragstart="onDragStart(idx)"
-                @dragover="onDragOver"
-                @drop="onDropReorder(idx)"
+                :class="draggingIndex === idx ? KINETIX_DROP_PREVIEW_CLASS : ''"
+                @dragstart="onReorderStart(idx)"
+                @dragover="onReorderOver(idx, $event)"
+                @drop="onReorderDrop()"
+                @dragend="onReorderEnd()"
                 @preview="preview(item)"
                 @remove="remove(idx)"
             />
@@ -318,9 +311,15 @@ function onDropReorder(targetIndex: number): void {
                         :reorderable="reorderable"
                         :disabled="disabled"
                         :draggable="reorderable"
-                        @dragstart="onDragStart(tile.index)"
-                        @dragover="onDragOver"
-                        @drop="onDropReorder(tile.index)"
+                        :class="
+                            draggingIndex === tile.index
+                                ? KINETIX_DROP_PREVIEW_CLASS
+                                : ''
+                        "
+                        @dragstart="onReorderStart(tile.index)"
+                        @dragover="onReorderOver(tile.index, $event)"
+                        @drop="onReorderDrop()"
+                        @dragend="onReorderEnd()"
                         @preview="preview(tile.item)"
                         @remove="remove(tile.index)"
                     />

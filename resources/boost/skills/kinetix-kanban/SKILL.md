@@ -68,7 +68,8 @@ plain string. Use the backing values as the `statuses()` keys.
 
 Native HTML5 drag-and-drop (no extra dependency), with a long-press touch
 fallback on mobile (floating clone follows the finger; edge auto-scroll).
-While dragging, the source card dims and the hovered column highlights; cards
+While dragging, the source card dims, the hovered column highlights and shows
+a dashed ghost placeholder previewing where the card will land; cards
 FLIP-animate into place (respects `prefers-reduced-motion`). Moves are
 optimistic (revert + toast on failure) and trigger a `router.reload()` on
 success. Keyboard: left/right arrows move a focused card between columns;

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { KINETIX_DRAG_SOURCE_CLASS } from '@/composables/kinetixDragStyles';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
 import type { KinetixKanbanCard } from '@/types/kinetix';
+import KinetixDropGhost from '../KinetixDropGhost.vue';
 
 interface KanbanColumnData {
     key: string;
@@ -16,8 +18,10 @@ const props = defineProps<{
     column: KanbanColumnData;
     /** Id of the board's sr-only keyboard instructions (aria-describedby). */
     hintId?: string;
-    /** Id of the card currently in flight (dims the source card). */
-    draggingCardId?: string | number | null;
+    /** The card currently in flight (dims its source, labels the ghost). */
+    draggingCard?: KinetixKanbanCard | null;
+    /** Key of the column the in-flight card is dragged from. */
+    draggingFromKey?: string | null;
     /** True when the board's touch drag hovers this column (highlight). */
     touchDropTarget?: boolean;
 }>();
@@ -50,6 +54,18 @@ const onDrop = (): void => {
     dragDepth.value = 0;
     emit('drop');
 };
+
+// A cancelled drag (Escape, released off-board) fires no dragleave/drop on the
+// hovered column, which would leave the depth counter — and thus the highlight
+// and ghost — stuck for the next drag.
+watch(
+    () => props.draggingCard,
+    (card) => {
+        if (card == null) {
+            dragDepth.value = 0;
+        }
+    },
+);
 
 // Each column virtualizes its own card list once it grows past the threshold;
 // the drop target is the column (not a card slot), so windowing the cards never
@@ -90,6 +106,18 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
         virtual.measureElement(el);
     }
 };
+
+// Preview where the in-flight card will land: a ghost placeholder at the end
+// of the hovered column (cards append on drop). Skipped for the card's own
+// column (dropping there is a no-op) and for virtualized columns, where the
+// list end is usually out of view and rows are positioned absolutely.
+const showDropGhost = computed(
+    () =>
+        isDragOver.value &&
+        props.draggingCard != null &&
+        props.draggingFromKey !== props.column.key &&
+        !virtual.enabled.value,
+);
 </script>
 
 <template>
@@ -163,8 +191,8 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                         virtual.enabled.value
                             ? 'top-0 left-0 absolute w-[calc(100%-1rem)]'
                             : '',
-                        draggingCardId != null && draggingCardId === card.id
-                            ? 'opacity-40'
+                        draggingCard != null && draggingCard.id === card.id
+                            ? KINETIX_DRAG_SOURCE_CLASS
                             : '',
                     ]"
                     :style="
@@ -195,8 +223,14 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     }}</span>
                 </article>
 
+                <KinetixDropGhost
+                    v-if="showDropGhost"
+                    key="__kanban-drop-ghost"
+                    :label="draggingCard?.title"
+                />
+
                 <p
-                    v-if="column.cards.length === 0"
+                    v-if="column.cards.length === 0 && !showDropGhost"
                     key="__kanban-empty"
                     class="px-1 py-4 text-xs text-center text-muted-foreground"
                 >

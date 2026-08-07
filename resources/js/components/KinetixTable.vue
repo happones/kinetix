@@ -3,6 +3,7 @@ import { router, usePage, usePoll } from '@inertiajs/vue3';
 import { GripVertical } from '@lucide/vue';
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixColumnVisibility } from '@/composables/useKinetixColumnVisibility';
@@ -343,13 +344,20 @@ onMounted(() => {
 });
 
 // --- Row reordering ----------------------------------------------------------
-const { rows, onDragStart, onDragOver, onDrop, moveRowBy } =
-    useKinetixTableReorder({
-        records: () => props.table.records,
-        reorderable: () => !!props.table.reorderable,
-        model: () => props.table.model,
-        routePrefix: () => routePrefix.value,
-    });
+const {
+    rows,
+    draggingId,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragEnd,
+    moveRowBy,
+} = useKinetixTableReorder({
+    records: () => props.table.records,
+    reorderable: () => !!props.table.reorderable,
+    model: () => props.table.model,
+    routePrefix: () => routePrefix.value,
+});
 
 // Keyboard alternative to dragging: arrows on the focused grip move the row.
 // Focus travels with the button (rows are keyed by id, so Vue moves the node).
@@ -461,6 +469,9 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                     ? 'hover:bg-muted/40'
                                     : 'hover:bg-muted/30',
                                 'data-[state=selected]:bg-muted',
+                                draggingId != null && draggingId === record.id
+                                    ? KINETIX_DROP_PREVIEW_CLASS
+                                    : '',
                             ]"
                             @click="handleRowClick(record, $event)"
                             @dragstart="
@@ -471,6 +482,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                 onDragOver(rowIndex, $event)
                             "
                             @drop="table.reorderable && onDrop()"
+                            @dragend="table.reorderable && onDragEnd()"
                         >
                             <td
                                 v-if="table.reorderable"

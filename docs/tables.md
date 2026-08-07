@@ -977,8 +977,11 @@ filters or page size change, restarting from the first page.
 ## Reordering rows
 
 Call `reorderable()` to let users drag rows into a new order. A grip handle is
-added to each row; on drop, Kinetix persists the new order to an integer column
-(`sort_order` by default) and the table defaults to ordering by it.
+added to each row; while dragging, the in-flight row travels through the list
+as a **translucent live preview of its landing position**, and on drop Kinetix
+persists the new order to an integer column (`sort_order` by default) — the
+table defaults to ordering by it. A cancelled drag (<kbd>Esc</kbd>, or released
+outside the table) reverts the preview without persisting anything.
 
 ```php
 Table::make(Section::query())->reorderable(); // persists to `sort_order`

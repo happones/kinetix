@@ -254,8 +254,9 @@ Calendar::make(Event::query())
   the background, and on failure it snaps back with an error toast. After a
   successful move the page reloads so derived data stays in sync, and
   **`event-moved`** `(event, newStart)` fires for anything else you want to do.
-- While dragging, the source chip dims and the hovered cell/slot highlights —
-  the same feedback language as the [Kanban board](/kanban).
+- While dragging, the source chip dims, the hovered cell/slot highlights, and a
+  **dashed ghost chip previews where the event will land** (labelled with the
+  event's title) — the same feedback language as the [Kanban board](/kanban).
 
 **Touch devices** use a **long-press (~250ms)** to lift the chip into a
 floating clone that tracks the finger; moving before the long-press activates

@@ -35,7 +35,10 @@ The field value is an **ordered array of media items**:
 ```
 
 Newly uploaded files carry a `path` (the stored temp path); existing spatie media
-carry an `id`. Reordering just reorders the array.
+carry an `id`. Reordering just reorders the array: while dragging, the in-flight
+tile travels through the grid as a **translucent live preview of its landing
+position**; the new order is applied once on drop, and a cancelled drag reverts
+the preview.
 
 ---
 

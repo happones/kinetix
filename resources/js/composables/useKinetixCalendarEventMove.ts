@@ -35,8 +35,10 @@ export interface UseKinetixCalendarEventMove {
     localEvents: ComputedRef<KinetixCalendarEvent[]>;
     /** True when the calendar opted into moves (`Calendar::moveable()`). */
     canMove: ComputedRef<boolean>;
+    /** The event in flight — labels the drop-preview ghost. */
+    draggingEvent: Ref<KinetixCalendarEvent | null>;
     /** Id of the event in flight — dims its chips. */
-    draggingEventId: Ref<string | number | null>;
+    draggingEventId: ComputedRef<string | number | null>;
     /** The hovered drop key (`day:Y-MM-DD` / `slot:Y-MM-DD:H`), for highlights. */
     dropTarget: Ref<string | null>;
     onEventDragStart: (event: KinetixCalendarEvent) => void;
@@ -83,7 +85,8 @@ export function useKinetixCalendarEventMove(
     const localEvents = computed(() => events.value);
     const canMove = computed(() => Boolean(options.calendar().model));
 
-    const draggingEventId = ref<string | number | null>(null);
+    const draggingEvent = ref<KinetixCalendarEvent | null>(null);
+    const draggingEventId = computed(() => draggingEvent.value?.id ?? null);
     const dropTarget = ref<string | null>(null);
 
     const dayDropKey = (dateKey: string): string => `day:${dateKey}`;
@@ -188,16 +191,12 @@ export function useKinetixCalendarEventMove(
     }
 
     // --- Native HTML5 drag (mouse) -------------------------------------------
-    let htmlDragEvent: KinetixCalendarEvent | null = null;
-
     const onEventDragStart = (event: KinetixCalendarEvent): void => {
-        htmlDragEvent = event;
-        draggingEventId.value = event.id;
+        draggingEvent.value = event;
     };
 
     const onEventDragEnd = (): void => {
-        htmlDragEvent = null;
-        draggingEventId.value = null;
+        draggingEvent.value = null;
         dropTarget.value = null;
     };
 
@@ -206,7 +205,7 @@ export function useKinetixCalendarEventMove(
     };
 
     const onDropKeyDrop = (key: string): void => {
-        const event = htmlDragEvent;
+        const event = draggingEvent.value;
         onEventDragEnd();
 
         if (!event) {
@@ -225,13 +224,13 @@ export function useKinetixCalendarEventMove(
         targetAttr: 'data-calendar-drop',
         scrollContainer: () => options.scrollContainer(),
         onStart: (event) => {
-            draggingEventId.value = event.id;
+            draggingEvent.value = event;
         },
         onHover: (key) => {
             dropTarget.value = key;
         },
         onDrop: (event, key) => {
-            draggingEventId.value = null;
+            draggingEvent.value = null;
             dropTarget.value = null;
 
             const newStart = key ? resolveDropInstant(key, event) : null;
@@ -326,6 +325,7 @@ export function useKinetixCalendarEventMove(
     return {
         localEvents,
         canMove,
+        draggingEvent,
         draggingEventId,
         dropTarget,
         onEventDragStart,

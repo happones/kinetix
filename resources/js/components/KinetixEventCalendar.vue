@@ -4,6 +4,7 @@ import type { CalendarDate } from '@internationalized/date';
 import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { KINETIX_DRAG_SOURCE_CLASS } from '@/composables/kinetixDragStyles';
 import { useKinetixCalendarEventDetails } from '@/composables/useKinetixCalendarEventDetails';
 import { useKinetixCalendarEventMove } from '@/composables/useKinetixCalendarEventMove';
 import { useKinetixCalendarGrids } from '@/composables/useKinetixCalendarGrids';
@@ -17,6 +18,7 @@ import type {
 } from '@/types/kinetix';
 import CalendarEventDetails from './Calendar/CalendarEventDetails.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
+import KinetixDropGhost from './KinetixDropGhost.vue';
 
 let calendarUid = 0;
 
@@ -132,6 +134,7 @@ const weekScrollRef = ref<HTMLElement | null>(null);
 const {
     localEvents,
     canMove,
+    draggingEvent,
     draggingEventId,
     dropTarget,
     onEventDragStart,
@@ -384,7 +387,7 @@ onMounted(() => {
                                     : '',
                                 draggingEventId != null &&
                                 draggingEventId === event.id
-                                    ? 'opacity-40'
+                                    ? KINETIX_DRAG_SOURCE_CLASS
                                     : '',
                             ]"
                             :style="{
@@ -411,6 +414,15 @@ onMounted(() => {
                                 })
                             }}
                         </p>
+
+                        <KinetixDropGhost
+                            v-if="
+                                draggingEvent &&
+                                dropTarget === dayDropKey(cell.date)
+                            "
+                            compact
+                            :label="draggingEvent.title"
+                        />
                     </div>
                 </div>
             </div>
@@ -483,7 +495,7 @@ onMounted(() => {
                                         : '',
                                     draggingEventId != null &&
                                     draggingEventId === event.id
-                                        ? 'opacity-40'
+                                        ? KINETIX_DRAG_SOURCE_CLASS
                                         : '',
                                 ]"
                                 :style="{
@@ -504,6 +516,15 @@ onMounted(() => {
                             >
                                 {{ event.title }}
                             </button>
+
+                            <KinetixDropGhost
+                                v-if="
+                                    draggingEvent &&
+                                    dropTarget === dayDropKey(col.key)
+                                "
+                                compact
+                                :label="draggingEvent.title"
+                            />
                         </div>
                     </div>
 
@@ -551,7 +572,17 @@ onMounted(() => {
                                 @drop.prevent="
                                     onDropKeyDrop(slotDropKey(col.key, h))
                                 "
-                            />
+                            >
+                                <KinetixDropGhost
+                                    v-if="
+                                        draggingEvent &&
+                                        dropTarget === slotDropKey(col.key, h)
+                                    "
+                                    compact
+                                    class="m-1"
+                                    :label="draggingEvent.title"
+                                />
+                            </button>
 
                             <div
                                 v-if="
@@ -583,7 +614,7 @@ onMounted(() => {
                                         : '',
                                     draggingEventId != null &&
                                     draggingEventId === event.id
-                                        ? 'opacity-40'
+                                        ? KINETIX_DRAG_SOURCE_CLASS
                                         : '',
                                 ]"
                                 :style="{

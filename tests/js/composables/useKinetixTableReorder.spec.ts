@@ -129,6 +129,42 @@ describe('useKinetixTableReorder', () => {
         vi.useRealTimers();
     });
 
+    it('tracks the in-flight row id and reverts on a cancelled drag', async () => {
+        fetchMock.mockClear();
+        const source = ref([rec(1), rec(2), rec(3)]);
+        let api: ReturnType<typeof useKinetixTableReorder>;
+
+        const Harness = defineComponent({
+            setup() {
+                api = useKinetixTableReorder({
+                    records: () => source.value,
+                    reorderable: () => true,
+                    model: () => 'token',
+                    routePrefix: () => '_kinetix',
+                });
+
+                return () => h('div');
+            },
+        });
+
+        mount(Harness);
+        await nextTick();
+
+        api!.onDragStart(0);
+        expect(api!.draggingId.value).toBe(1);
+
+        // The id follows the row through the live preview.
+        api!.onDragOver(2, { preventDefault: vi.fn() } as any);
+        expect(api!.rows.value.map((r) => r.id)).toEqual([2, 3, 1]);
+        expect(api!.draggingId.value).toBe(1);
+
+        // Cancelled drag: preview reverts, nothing persisted.
+        api!.onDragEnd();
+        expect(api!.draggingId.value).toBeNull();
+        expect(api!.rows.value.map((r) => r.id)).toEqual([1, 2, 3]);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('refuses out-of-range keyboard moves', () => {
         const source = ref([rec(1), rec(2)]);
         let api: ReturnType<typeof useKinetixTableReorder>;

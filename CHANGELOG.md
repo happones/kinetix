@@ -13,6 +13,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.166.0] - 2026-08-07
+
+Drop-preview feedback across every drag surface, a kanban board reactivity
+fix, and an enums documentation pass.
+
+- **Drop-preview ghosts (kanban + calendar)**: while a drag is in flight, the
+  hovered drop target now previews the landing spot with a dashed ghost
+  placeholder labelled with the dragged item's title — kanban columns (at the
+  end of the column, where the card lands; suppressed in the card's own column
+  and in virtualized columns) and calendar month cells, all-day banner and
+  hour slots. Built on a new shared `KinetixDropGhost` primitive (aria-hidden,
+  pointer-transparent, `prefers-reduced-motion`-aware) **(published:
+  `KinetixDropGhost.vue`, `KinetixKanban.vue`, `Kanban/KanbanColumn.vue`,
+  `KinetixEventCalendar.vue`, `useKinetixCalendarEventMove.ts`)**.
+- **Live-preview reorder (tables + media library)**: new generic
+  `useKinetixListReorder` composable — live preview under the pointer, a
+  single commit on drop, revert on a cancelled drag. Table row reordering now
+  wraps it (`useKinetixTableReorder`): the in-flight row renders as a
+  translucent preview of its landing position, and an Escape/out-of-bounds
+  drag reverts instead of leaving an unpersisted order. The media library
+  grid (which previously reordered only on drop, with no feedback) uses it
+  directly **(published: `useKinetixListReorder.ts`,
+  `useKinetixTableReorder.ts`, `KinetixTable.vue`,
+  `KinetixMediaLibrary.vue`)**.
+- **Shared drag styling vocabulary**: `kinetixDragStyles.ts` centralizes the
+  drag-source dim and drop-preview classes reused by kanban, calendar, tables
+  and the media library **(published)**.
+- **Kanban: board resyncs on server updates**: `KinetixKanban` now watches
+  the `kanban` prop and resyncs its local column state whenever Inertia ships
+  fresh data (modal CRUD, post-move reloads) — previously the board kept its
+  first-render snapshot until a manual browser refresh. A cancelled drag no
+  longer leaves a column's drop highlight stuck for the next drag
+  **(published: `KinetixKanban.vue`, `Kanban/KanbanColumn.vue`)**.
+- **Enums & `HasLabel` docs**: documented the duck-typed enum resolution (any
+  enum with a public `getLabel()`/`getColor()`/`getIcon()` method resolves
+  everywhere — implementing the Kinetix contracts is optional, and enums
+  written against equivalent third-party label contracts work unchanged), the
+  `HasLabelOptions` `::options()` helper, and enum-driven Selects end-to-end
+  (forms + tables docs and skills).
+- **Docs: 31 broken in-page anchors fixed** — VitePress slugs collapse
+  double dashes and prefix numbered headings with `_`; every cross-link is
+  now validated against the real heading slugs.
+
 ## [0.165.0] - 2026-08-06
 
 Kanban/Calendar interaction parity: modal-safe (flat) forms, calendar

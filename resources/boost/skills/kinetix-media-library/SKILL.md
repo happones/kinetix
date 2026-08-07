@@ -32,7 +32,8 @@ MediaLibrary::make('gallery')
 ```
 
 Builds on `FileUpload` (same upload token / disk / constraints). Multiple +
-reorderable by default. Value = ordered array of
+reorderable by default (drag with a translucent live preview of the landing
+spot; the order is emitted once on drop). Value = ordered array of
 `{ id?, path?, url, name, size?, mime?, thumb? }` — new uploads carry `path`,
 existing spatie media carry `id`.
 
