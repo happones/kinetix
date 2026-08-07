@@ -252,6 +252,11 @@ return [
     'calendar_no_events'  => 'No events',
     'calendar_view_event' => 'View details',
 
+    'calendar_move_failed'   => 'Could not move the event. Please try again.',
+    'calendar_moved_to'      => 'Moved to :date',
+    'calendar_keyboard_hint' => 'Hold Alt and press an arrow key to move this event',
+    'calendar_invalid_date'  => 'The target date is not valid.',
+
     // Announcements
     'announcements_title' => 'What’s new',
     'announcements_empty' => 'No announcements yet.',

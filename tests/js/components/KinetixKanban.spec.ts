@@ -131,3 +131,36 @@ describe('KinetixKanban', () => {
         ).toBeUndefined();
     });
 });
+
+describe('KinetixKanban card clicks and drag feedback', () => {
+    it('emits card-click with the card and its column on click and Enter', async () => {
+        const w = mountIt();
+        const card = w.findAll('article')[0]; // Card A in "todo"
+
+        await card.trigger('click');
+        await card.trigger('keydown', { key: 'Enter' });
+
+        const emitted = w.emitted('card-click');
+        expect(emitted).toHaveLength(2);
+        expect(emitted![0][0]).toMatchObject({ id: 1, title: 'Card A' });
+        expect(emitted![0][1]).toBe('todo');
+    });
+
+    it('dims the source card and highlights the hovered column while dragging', async () => {
+        const w = mountIt();
+        const card = w.findAll('article')[0];
+
+        await card.trigger('dragstart');
+        expect(card.classes()).toContain('opacity-40');
+
+        const target = w.get('[data-kanban-column="done"]');
+        await target.trigger('dragenter');
+        expect(target.classes()).toContain('ring-2');
+
+        await target.trigger('dragleave');
+        expect(target.classes()).not.toContain('ring-2');
+
+        await card.trigger('dragend');
+        expect(card.classes()).not.toContain('opacity-40');
+    });
+});

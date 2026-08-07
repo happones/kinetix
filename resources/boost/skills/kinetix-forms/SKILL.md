@@ -140,7 +140,22 @@ PostForm::make()->validationUrl(route('posts.store'), 'post'); // or an explicit
 <KinetixForm :form="postForm" validation-url="/posts" @submit="submit" />
 ```
 
-### 4. Error Focus in Tabs & Wizards
+### 4. Forms inside modals: pass `flat`
+
+When a `KinetixForm` renders inside a `KinetixModal`/`KinetixSheet`, ALWAYS
+pass the `flat` prop: the panel is already the surface, so Sections render as
+divided groups (heading + description intact) instead of nesting a card
+inside the modal. Kinetix's own modal hosts (record modals, attach forms,
+view-modal infolists via `KinetixInfolist`'s own `flat`) do this
+automatically; host pages composing their own modal must do it themselves.
+
+```vue
+<KinetixModal :open="open" title="New post" scroll-body>
+    <KinetixForm :form="postForm" flat @submit="submit" />
+</KinetixModal>
+```
+
+### 5. Error Focus in Tabs & Wizards
 
 `KinetixForm` reads Inertia's `errors` automatically (a controller `ValidationException` now renders with no wiring). Errored **tabs/wizard steps** are marked, the form **switches/jumps to the first offending one**, and the **first errored field is focused + scrolled into view** — fully recursive (wizard-in-tab-in-section resolves correctly). Live per-field validation never steals focus from the field being edited.
 

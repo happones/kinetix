@@ -500,6 +500,11 @@ export interface KinetixCalendarData {
     events: KinetixCalendarEvent[];
     /** IANA timezone events were resolved against server-side. */
     timezone: string;
+    /**
+     * Encrypted move descriptor — present only when the calendar opted into
+     * drag-and-drop rescheduling via `Calendar::moveable()`.
+     */
+    model?: string | null;
 }
 
 /** Which day/week/month view is active in <KinetixEventCalendar>. */

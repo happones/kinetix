@@ -13,6 +13,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.165.0] - 2026-08-06
+
+Kanban/Calendar interaction parity: modal-safe (flat) forms, calendar
+drag-and-drop rescheduling, touch drag on mobile for both boards.
+
+- **Flat modal forms — card-in-modal eliminated**: `KinetixForm` and
+  `KinetixInfolist` gain a `flat` prop that renders `Section`/`Tabs` without
+  card chrome (divided groups with heading/description intact), recursively
+  through Grid/Fieldset/Tabs/Wizard/Split/Repeater. The table record modals,
+  the view-modal infolist and relation-manager attach forms pass it
+  automatically — a resource form WITH `Section`s is now safe in `--simple`
+  record modals **(published: `KinetixForm.vue`, `KinetixFormSchema.vue`,
+  `KinetixFormTabs.vue`, `KinetixFormWizard.vue`, `KinetixInfolist.vue`,
+  `KinetixInfolistEntries.vue`, `KinetixTable.vue`,
+  `KinetixRelationManager.vue`)**.
+- **Calendar drag-and-drop rescheduling**: `Calendar::moveable()` (+
+  `authorizeMove()`, `moveScope()`) makes events draggable to another day
+  (month view — keeps time-of-day) or hour slot (week/day — snaps to the
+  hour); the end column shifts by the same delta so durations survive. New
+  signed `POST {prefix}/tables/calendar-move` endpoint mirrors the
+  kanban-move guard chain (user-bound expiring descriptor, policy default
+  `update`, moveScope → 404, unparseable start → 422). Optimistic with revert
+  + error toast, `router.reload()` on success, new `event-moved` emit;
+  `CalendarData` gains a nullable `model` descriptor **(published:
+  `KinetixEventCalendar.vue`, `useKinetixCalendarEventMove.ts`)**.
+- **Touch drag on mobile** for BOTH kanban and calendar via the new
+  `useKinetixTouchDrag` composable: long-press (~250ms) lifts a floating
+  clone that tracks the finger, the hovered target highlights, the board
+  auto-scrolls near horizontal edges, and moving before the long-press simply
+  scrolls (the gesture is never hijacked) **(published)**.
+- **Kanban drag feedback**: the source card dims, the hovered column
+  highlights (dragenter depth counter), and cards FLIP-animate into place via
+  `TransitionGroup` — disabled for virtualized columns and under
+  `prefers-reduced-motion` **(published: `KinetixKanban.vue`,
+  `Kanban/KanbanColumn.vue`)**.
+- **Kanban `card-click`**: `<KinetixKanban>` emits `card-click(card,
+  columnKey)` on click/<kbd>Enter</kbd> — the hook for edit-in-modal or
+  navigation (cards were previously inert).
+- Calendar keyboard moves: Alt + arrow keys on a focused event (±1 day
+  everywhere; ±1 week in month view, ±1 hour in the time grids), announced
+  through the shared live region with focus restore; moveable chips point
+  `aria-describedby` at sr-only instructions. 4 new i18n keys ×7 locales.
+- Docs: kanban/calendar gain full CRUD wiring guides (in-page modal — flat
+  form + `->dispatch()` header action + the `kinetix_toast` controller
+  contract — or dedicated pages); actions doc adds "header actions that open
+  a form in a modal" and clarifies `->modal()` is table-only; forms doc
+  covers `flat`.
+
 ## [0.164.0] - 2026-08-06
 
 Accessibility backlog cleared.

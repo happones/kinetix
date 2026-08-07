@@ -292,6 +292,42 @@ defineProps<{ headerActions: KinetixAction[] }>();
 
 **Slots:** `before-actions` (left of the action row) and the default slot (right of it). Actions with `requiresConfirmation()` open the shared confirmation modal automatically.
 
+### Header actions that open a form in a modal
+
+A header action carries no form of its own — when a "New …" button should open
+a modal form on the same page, give the action `->dispatch()` and let the page
+host the modal. Pass **`flat`** to the form so its Sections don't render as a
+card inside the modal panel:
+
+```php
+Action::make('new-event')->label('New event')->icon('plus')->dispatch('event-create');
+```
+
+```vue
+<script setup lang="ts">
+onMounted(() => window.addEventListener('kinetix:event-create', open));
+onUnmounted(() => window.removeEventListener('kinetix:event-create', open));
+</script>
+
+<template>
+    <KinetixPageHeader heading="Schedule" :actions="headerActions" />
+    <KinetixModal :open="isOpen" title="New event" scroll-body @update:open="isOpen = $event">
+        <KinetixForm :form="eventForm" flat @submit="submit" />
+    </KinetixModal>
+</template>
+```
+
+The controller persists and flashes a toast (`back()->with('kinetix_toast',
+__('kinetix.record_created'))`). Full worked examples live in the
+[Kanban](/kanban#adding--editing-cards) and
+[Calendar](/calendar#7-creating--editing-events) guides.
+
+> `->modal('create'|'edit'|'view'|'delete')` is a different mechanism: it opens
+> the **table-hosted record modals** and therefore only works on actions
+> rendered inside a table that opted in via `Table::recordModals()` — see
+> [Simple resources](/resources#42-simple-resource-simple). In a page header it
+> is a no-op.
+
 ### Shared execution composable
 
 Both `KinetixTable.vue` and `KinetixPageHeader.vue` consume `@/composables/useKinetixActions`:

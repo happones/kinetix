@@ -23,6 +23,8 @@ const props = defineProps<{
     comp: any;
     values: Record<string, any>;
     errors: Record<string, string>;
+    /** Forwarded to nested schemas: chrome-free Sections inside modals. */
+    flat?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -136,6 +138,7 @@ function beforeNext(index: number): boolean {
                         :parent-columns="
                             resolveColumns(comp.schema?.[index]?.columns)
                         "
+                        :flat="flat"
                         @update:value="
                             (name, val) => emit('update:value', name, val)
                         "

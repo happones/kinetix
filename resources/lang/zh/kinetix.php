@@ -229,6 +229,11 @@ return [
     'calendar_all_day'                 => '全天',
     'calendar_no_events'               => '暂无事件',
     'calendar_view_event'              => '查看详情',
+
+    'calendar_move_failed'             => '无法移动事件。请重试。',
+    'calendar_moved_to'                => '已移动到 :date',
+    'calendar_keyboard_hint'           => '按住 Alt 并使用方向键移动此事件',
+    'calendar_invalid_date'            => '目标日期无效。',
     'announcements_title'              => '最新动态',
     'announcements_empty'              => '暂无公告。',
     'announcements_new'                => '新',

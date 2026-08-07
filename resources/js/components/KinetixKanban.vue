@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import { useKinetixTouchDrag } from '@/composables/useKinetixTouchDrag';
 import type {
     KinetixKanbanCard,
     KinetixKanbanData,
@@ -18,9 +19,15 @@ let kanbanUid = 0;
 /**
  * A drag-and-drop board. Cards are grouped into columns by status; dragging a
  * card to another column persists the new status (optimistic, reverting on
- * error). Uses native HTML5 drag-and-drop — no extra dependency.
+ * error). Uses native HTML5 drag-and-drop on pointer devices and a long-press
+ * touch drag on mobile — no extra dependency.
  */
 const props = defineProps<{ kanban: KinetixKanbanData }>();
+
+const emit = defineEmits<{
+    /** A card was clicked (or Enter-pressed) — e.g. open its record. */
+    (e: 'card-click', card: KinetixKanbanCard, columnKey: string): void;
+}>();
 
 const { t } = useI18n();
 const page = usePage<KinetixSharedProps>();
@@ -42,6 +49,45 @@ function onDragStart(card: KinetixKanbanCard, from: string): void {
 
 function onDragEnd(): void {
     dragging.value = null;
+}
+
+// --- Touch drag (long-press) -----------------------------------------------
+// Native HTML5 drag never fires on touch devices; a long-press lifts the card
+// into a floating clone instead. The hovered column highlights via
+// `touchDropKey`, and the horizontal board auto-scrolls near its edges.
+const boardEl = ref<HTMLElement | null>(null);
+const touchDropKey = ref<string | null>(null);
+
+const touchDrag = useKinetixTouchDrag<{
+    card: KinetixKanbanCard;
+    from: string;
+}>({
+    targetAttr: 'data-kanban-column',
+    scrollContainer: () => boardEl.value,
+    onStart: (drag) => {
+        dragging.value = drag;
+    },
+    onHover: (key) => {
+        touchDropKey.value = key;
+    },
+    onDrop: (drag, key) => {
+        dragging.value = null;
+
+        if (key !== null) {
+            moveCard(drag.card, drag.from, key);
+        }
+    },
+});
+
+function onCardPointerDown(
+    card: KinetixKanbanCard,
+    from: string,
+    event: PointerEvent,
+): void {
+    touchDrag.startFromPointerDown(event, event.currentTarget as HTMLElement, {
+        card,
+        from,
+    });
 }
 
 /**
@@ -145,14 +191,20 @@ async function onCardKeyboardMove(
             {{ t('kinetix.kanban_keyboard_hint') }}
         </p>
 
-        <div class="gap-4 pb-2 flex overflow-x-auto">
+        <div ref="boardEl" class="gap-4 pb-2 flex overflow-x-auto">
             <KanbanColumn
                 v-for="column in columns"
                 :key="column.key"
                 :column="column"
                 :hint-id="hintId"
+                :dragging-card-id="dragging?.card.id ?? null"
+                :touch-drop-target="touchDropKey === column.key"
                 @card-dragstart="(card) => onDragStart(card, column.key)"
                 @card-dragend="onDragEnd"
+                @card-click="(card) => emit('card-click', card, column.key)"
+                @card-pointerdown="
+                    (card, event) => onCardPointerDown(card, column.key, event)
+                "
                 @card-move="
                     (card, direction) =>
                         onCardKeyboardMove(card, column.key, direction)

@@ -252,6 +252,11 @@ return [
     'calendar_no_events'  => 'Aucun événement',
     'calendar_view_event' => 'Voir les détails',
 
+    'calendar_move_failed'   => "Impossible de déplacer l'événement. Veuillez réessayer.",
+    'calendar_moved_to'      => 'Déplacé au :date',
+    'calendar_keyboard_hint' => 'Maintenez Alt et appuyez sur une flèche pour déplacer cet événement',
+    'calendar_invalid_date'  => "La date cible n'est pas valide.",
+
     // Announcements
     'announcements_title' => 'Nouveautés',
     'announcements_empty' => 'Aucune annonce pour le moment.',

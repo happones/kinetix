@@ -25,6 +25,12 @@ const props = defineProps<{
      * it so they never overflow. Defaults to a single column (the form root).
      */
     parentColumns?: ResponsiveColumns;
+    /**
+     * Chrome-free rendering for forms hosted inside a modal: the modal panel
+     * is already the surface, so Sections drop their card (border/shadow/bg)
+     * and render as divided groups instead of nesting card-in-modal.
+     */
+    flat?: boolean;
 }>();
 
 const { t } = useI18n();
@@ -69,6 +75,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                     :values="values"
                     :errors="errors"
                     :parent-columns="gridOf(comp)"
+                    :flat="flat"
                     @update:value="
                         (name, val) => emit('update:value', name, val)
                     "
@@ -76,15 +83,25 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
             </div>
         </div>
 
-        <!-- Section Card Layout -->
+        <!-- Section Layout: a card by default; flat (divided group) when the
+             host is already a surface, e.g. a modal panel. -->
         <div
             v-else-if="comp.type === 'section'"
-            class="kinetix-col rounded-xl shadow-sm border border-input bg-background"
+            class="kinetix-col"
+            :class="
+                flat
+                    ? '[&:not(:first-child)]:pt-4 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-border'
+                    : 'rounded-xl shadow-sm border border-input bg-background'
+            "
             :style="colStyle(comp)"
         >
-            <div class="p-6 pb-4 border-b border-border">
+            <div
+                v-if="!flat || comp.heading || comp.description"
+                :class="flat ? 'pb-4' : 'p-6 pb-4 border-b border-border'"
+            >
                 <h3
                     class="font-semibold tracking-tight leading-none text-foreground"
+                    :class="flat ? 'text-sm' : ''"
                 >
                     {{ comp.heading }}
                 </h3>
@@ -95,7 +112,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                     {{ comp.description }}
                 </p>
             </div>
-            <div class="p-6 kinetix-grid-host">
+            <div class="kinetix-grid-host" :class="flat ? '' : 'p-6'">
                 <div
                     class="kinetix-grid gap-4 grid"
                     :style="gridColumnVars(gridOf(comp))"
@@ -105,6 +122,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                         :values="values"
                         :errors="errors"
                         :parent-columns="gridOf(comp)"
+                        :flat="flat"
                         @update:value="
                             (name, val) => emit('update:value', name, val)
                         "
@@ -134,6 +152,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                     :values="values"
                     :errors="errors"
                     :parent-columns="gridOf(comp)"
+                    :flat="flat"
                     @update:value="
                         (name, val) => emit('update:value', name, val)
                     "
@@ -151,6 +170,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                 :tabs="comp.schema"
                 :values="values"
                 :errors="errors"
+                :flat="flat"
                 @update:value="(name, val) => emit('update:value', name, val)"
             />
         </div>
@@ -165,6 +185,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                 :comp="comp"
                 :values="values"
                 :errors="errors"
+                :flat="flat"
                 @update:value="(name, val) => emit('update:value', name, val)"
             />
         </div>
@@ -179,6 +200,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                 :schema="comp.schema"
                 :values="values"
                 :errors="errors"
+                :flat="flat"
                 @update:value="(name, val) => emit('update:value', name, val)"
             />
         </div>
@@ -273,6 +295,7 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
                                 :schema="comp.schema"
                                 :values="item"
                                 :errors="errors"
+                                :flat="flat"
                                 @update:value="
                                     (name, val) =>
                                         updateItem(comp.name, idx, name, val)

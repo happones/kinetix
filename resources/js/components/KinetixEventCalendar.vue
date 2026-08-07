@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixCalendarEventDetails } from '@/composables/useKinetixCalendarEventDetails';
+import { useKinetixCalendarEventMove } from '@/composables/useKinetixCalendarEventMove';
 import { useKinetixCalendarGrids } from '@/composables/useKinetixCalendarGrids';
 import { useKinetixCalendarNavigation } from '@/composables/useKinetixCalendarNavigation';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
@@ -16,6 +17,8 @@ import type {
 } from '@/types/kinetix';
 import CalendarEventDetails from './Calendar/CalendarEventDetails.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
+
+let calendarUid = 0;
 
 /**
  * An event calendar (scheduler): month/week/day views over events from any
@@ -80,6 +83,11 @@ const emit = defineEmits<{
     (e: 'day-click', date: string): void;
     (e: 'slot-click', dateTime: string): void;
     (e: 'update:view', view: KinetixCalendarView): void;
+    (
+        e: 'event-moved',
+        event: KinetixCalendarData['events'][number],
+        newStart: string,
+    ): void;
 }>();
 
 const { t } = useI18n();
@@ -90,6 +98,10 @@ const tz = computed(
 
 // Guards the modal's Teleport — no `document.body` during SSR.
 const isMounted = ref(false);
+
+// Unique per calendar instance, so several calendars on a page keep their own
+// sr-only instructions element as each event's aria-describedby target.
+const moveHintId = `kinetix-calendar-hint-${++calendarUid}`;
 
 const {
     activeView,
@@ -112,6 +124,33 @@ const {
     onViewChange: (v) => emit('update:view', v),
 });
 
+// Drag-and-drop rescheduling (opt-in server-side via Calendar::moveable()).
+// The grids render from the composable's optimistic event copy so a dropped
+// event lands in its new cell immediately.
+const weekScrollRef = ref<HTMLElement | null>(null);
+
+const {
+    localEvents,
+    canMove,
+    draggingEventId,
+    dropTarget,
+    onEventDragStart,
+    onEventDragEnd,
+    onDropKeyOver,
+    onDropKeyDrop,
+    onEventPointerDown,
+    onEventKeydown,
+    slotDropKey,
+    dayDropKey,
+} = useKinetixCalendarEventMove({
+    calendar: () => props.calendar,
+    tz: () => tz.value,
+    locale: () => locale.value,
+    activeView: () => activeView.value,
+    scrollContainer: () => weekScrollRef.value,
+    onMoved: (event, newStart) => emit('event-moved', event, newStart),
+});
+
 const {
     monthGrid,
     hours,
@@ -123,7 +162,7 @@ const {
 } = useKinetixCalendarGrids({
     anchor: () => anchor.value,
     activeView: () => activeView.value,
-    events: () => props.calendar.events,
+    events: () => localEvents.value,
     tz: () => tz.value,
     locale: () => locale.value,
     weekStartsOn: () => props.weekStartsOn,
@@ -280,6 +319,11 @@ onMounted(() => {
             {{ monthLabel }}
         </div>
 
+        <!-- Screen-reader instructions moveable events point at (aria-describedby). -->
+        <p v-if="canMove" :id="moveHintId" class="sr-only">
+            {{ t('kinetix.calendar_keyboard_hint') }}
+        </p>
+
         <!-- ===== Month view ===== -->
         <div
             v-if="activeView === 'month'"
@@ -299,9 +343,18 @@ onMounted(() => {
                 <div
                     v-for="cell in monthGrid"
                     :key="cell.date"
-                    class="min-h-24 p-1 border-r border-b border-border [&:nth-child(7n)]:border-r-0"
-                    :class="cell.inMonth ? '' : 'bg-muted/20'"
+                    class="min-h-24 p-1 border-r border-b border-border transition-colors [&:nth-child(7n)]:border-r-0"
+                    :class="
+                        dropTarget === dayDropKey(cell.date)
+                            ? 'bg-accent/60 ring-1 ring-primary/40 ring-inset'
+                            : cell.inMonth
+                              ? ''
+                              : 'bg-muted/20'
+                    "
+                    :data-calendar-drop="canMove ? dayDropKey(cell.date) : null"
                     @click="emit('day-click', cell.date)"
+                    @dragover.prevent="onDropKeyOver(dayDropKey(cell.date))"
+                    @drop.prevent="onDropKeyDrop(dayDropKey(cell.date))"
                 >
                     <div
                         class="mb-1 h-6 w-6 text-xs flex items-center justify-center rounded-full"
@@ -322,10 +375,29 @@ onMounted(() => {
                             :key="String(event.id)"
                             type="button"
                             class="rounded px-1.5 py-0.5 text-xs text-white block w-full truncate text-left"
+                            :class="[
+                                canMove
+                                    ? 'cursor-grab active:cursor-grabbing'
+                                    : '',
+                                draggingEventId != null
+                                    ? 'pointer-events-none'
+                                    : '',
+                                draggingEventId != null &&
+                                draggingEventId === event.id
+                                    ? 'opacity-40'
+                                    : '',
+                            ]"
                             :style="{
                                 backgroundColor: event.color ?? '#3b82f6',
                             }"
+                            :draggable="canMove"
+                            :data-calendar-event="event.id"
+                            :aria-describedby="canMove ? moveHintId : undefined"
                             @click.stop="openEvent(event)"
+                            @dragstart="onEventDragStart(event)"
+                            @dragend="onEventDragEnd"
+                            @pointerdown="(e) => onEventPointerDown(event, e)"
+                            @keydown="(e) => onEventKeydown(event, e)"
                         >
                             {{ event.title }}
                         </button>
@@ -346,7 +418,7 @@ onMounted(() => {
 
         <!-- ===== Week / day view (hourly grid) ===== -->
         <div v-else class="rounded-lg overflow-hidden border border-border">
-            <div class="overflow-x-auto">
+            <div ref="weekScrollRef" class="overflow-x-auto">
                 <div class="min-w-[40rem]">
                     <!-- Day headers -->
                     <div
@@ -383,17 +455,52 @@ onMounted(() => {
                         <div
                             v-for="col in dayColumns"
                             :key="`allday-${col.key}`"
-                            class="min-w-0 space-y-0.5 px-1 flex-1"
+                            class="min-w-0 space-y-0.5 px-1 rounded flex-1 transition-colors"
+                            :class="
+                                dropTarget === dayDropKey(col.key)
+                                    ? 'bg-accent/60 ring-1 ring-primary/40 ring-inset'
+                                    : ''
+                            "
+                            :data-calendar-drop="
+                                canMove ? dayDropKey(col.key) : null
+                            "
+                            @dragover.prevent="
+                                onDropKeyOver(dayDropKey(col.key))
+                            "
+                            @drop.prevent="onDropKeyDrop(dayDropKey(col.key))"
                         >
                             <button
                                 v-for="event in col.allDayEvents"
                                 :key="String(event.id)"
                                 type="button"
                                 class="rounded px-1.5 py-0.5 text-xs text-white block w-full truncate text-left"
+                                :class="[
+                                    canMove
+                                        ? 'cursor-grab active:cursor-grabbing'
+                                        : '',
+                                    draggingEventId != null
+                                        ? 'pointer-events-none'
+                                        : '',
+                                    draggingEventId != null &&
+                                    draggingEventId === event.id
+                                        ? 'opacity-40'
+                                        : '',
+                                ]"
                                 :style="{
                                     backgroundColor: event.color ?? '#3b82f6',
                                 }"
+                                :draggable="canMove"
+                                :data-calendar-event="event.id"
+                                :aria-describedby="
+                                    canMove ? moveHintId : undefined
+                                "
                                 @click.stop="openEvent(event)"
+                                @dragstart="onEventDragStart(event)"
+                                @dragend="onEventDragEnd"
+                                @pointerdown="
+                                    (e) => onEventPointerDown(event, e)
+                                "
+                                @keydown="(e) => onEventKeydown(event, e)"
                             >
                                 {{ event.title }}
                             </button>
@@ -428,8 +535,22 @@ onMounted(() => {
                                 v-for="h in hours"
                                 :key="h"
                                 type="button"
-                                class="h-16 block w-full border-b border-border/60 hover:bg-accent/40"
+                                class="h-16 block w-full border-b border-border/60 transition-colors hover:bg-accent/40"
+                                :class="
+                                    dropTarget === slotDropKey(col.key, h)
+                                        ? 'bg-accent/60 ring-1 ring-primary/40 ring-inset'
+                                        : ''
+                                "
+                                :data-calendar-drop="
+                                    canMove ? slotDropKey(col.key, h) : null
+                                "
                                 @click="onSlotClick(col.date, h)"
+                                @dragover.prevent="
+                                    onDropKeyOver(slotDropKey(col.key, h))
+                                "
+                                @drop.prevent="
+                                    onDropKeyDrop(slotDropKey(col.key, h))
+                                "
                             />
 
                             <div
@@ -453,12 +574,35 @@ onMounted(() => {
                                 :key="String(event.id)"
                                 type="button"
                                 class="left-0.5 right-0.5 px-1.5 py-0.5 text-white rounded absolute overflow-hidden text-left text-[11px]"
+                                :class="[
+                                    canMove
+                                        ? 'cursor-grab active:cursor-grabbing'
+                                        : '',
+                                    draggingEventId != null
+                                        ? 'pointer-events-none'
+                                        : '',
+                                    draggingEventId != null &&
+                                    draggingEventId === event.id
+                                        ? 'opacity-40'
+                                        : '',
+                                ]"
                                 :style="{
                                     top: `${topPct}%`,
                                     height: `${Math.max(heightPct, 4)}%`,
                                     backgroundColor: event.color ?? '#3b82f6',
                                 }"
+                                :draggable="canMove"
+                                :data-calendar-event="event.id"
+                                :aria-describedby="
+                                    canMove ? moveHintId : undefined
+                                "
                                 @click.stop="openEvent(event)"
+                                @dragstart="onEventDragStart(event)"
+                                @dragend="onEventDragEnd"
+                                @pointerdown="
+                                    (e) => onEventPointerDown(event, e)
+                                "
+                                @keydown="(e) => onEventKeydown(event, e)"
                             >
                                 {{ event.title }}
                             </button>

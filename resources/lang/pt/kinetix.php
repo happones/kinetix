@@ -252,6 +252,11 @@ return [
     'calendar_no_events'  => 'Sem eventos',
     'calendar_view_event' => 'Ver detalhes',
 
+    'calendar_move_failed'   => 'Não foi possível mover o evento. Tente novamente.',
+    'calendar_moved_to'      => 'Movido para :date',
+    'calendar_keyboard_hint' => 'Segure Alt e pressione uma seta para mover este evento',
+    'calendar_invalid_date'  => 'A data de destino não é válida.',
+
     // Announcements
     'announcements_title' => 'Novidades',
     'announcements_empty' => 'Ainda não há anúncios.',

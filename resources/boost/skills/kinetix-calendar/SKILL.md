@@ -55,8 +55,28 @@ builder used by tables/page headers, so `inertiaVisit()`/`request()`
 (background HTTP)/`dispatch()` (custom browser event)/`requiresConfirmation()`
 /`authorize()`/`visible()`/`hidden()` all work identically here.
 
-No migration, route or config flag — it's read-only and navigates client-side
-over the supplied events (scope a sensible window for big datasets).
+No migration or config flag — it's read-only by default and navigates
+client-side over the supplied events (scope a sensible window for big
+datasets).
+
+### Drag-and-drop rescheduling (`moveable()`)
+
+```php
+Calendar::make(Event::query())
+    ->dateColumn('starts_at')->endColumn('ends_at')->title('name')
+    ->moveable()                        // opt-in: events become draggable
+    ->authorizeMove('reschedule')       // optional; default ability `update` when a policy exists
+    ->moveScope(['team_id' => $teamId]); // tenant guard, enforced on the endpoint lookup
+```
+
+Dragging an event to another day (month view) or hour slot (week/day) POSTs
+`{model, recordId, start}` to `{prefix}/tables/calendar-move` — the signed
+descriptor mirrors Kanban's (user-bound, expiring, columns sealed in). The end
+column shifts by the same delta so durations survive. Moves are optimistic
+(snap back + error toast on failure, reload on success), work on touch via
+long-press, and have a keyboard alternative (Alt + arrows: ±1 day, ±1 week in
+month view, ±1 hour in time grids). The component emits `event-moved(event,
+newStartIso)` after a successful move.
 
 `start`/`end` always serialize as **absolute-instant ISO-8601 datetimes**
 (never date-only) — this is what makes the frontend timezone-correct: an
@@ -106,3 +126,17 @@ midnight).
 The new **`<KinetixSheet>`** primitive (`open`, `side`, `title`,
 `description`, `#header`/`#footer` slots) is a standalone, reusable
 shadcn-style slide-in panel — usable anywhere, not just for calendar events.
+
+## Creating & editing events (CRUD wiring)
+
+The calendar reads events; CRUD is regular page wiring. Preferred: an in-page
+modal — a `KinetixPageHeader` action with `->dispatch('event-create')`, the
+page listens for `kinetix:event-create` and opens a `KinetixModal` hosting
+`<KinetixForm :form="eventForm" flat @submit="submit" />` (**always pass
+`flat` in modals** — the panel is the surface; Sections must not nest a card
+inside it). `@day-click`/`@slot-click` prefill the start for click-to-create.
+Controllers persist and flash `back()->with('kinetix_toast',
+__('kinetix.record_created'))` (`record_updated`/`record_deleted` for the
+other verbs). Alternative: dedicated pages via `eventActions()` +
+`inertiaVisit()` and `redirect()->with('kinetix_toast', …)`. Full example:
+docs/calendar.md §7.

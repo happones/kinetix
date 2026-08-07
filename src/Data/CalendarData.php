@@ -22,5 +22,10 @@ class CalendarData extends Data
         public ?string $heading,
         public array $events,
         public string $timezone,
+        /**
+         * Encrypted descriptor {model, dateColumn, endColumn} for the move
+         * endpoint — null unless the calendar opted in via `moveable()`.
+         */
+        public ?string $model = null,
     ) {}
 }

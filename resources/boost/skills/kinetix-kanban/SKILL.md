@@ -60,9 +60,30 @@ plain string. Use the backing values as the `statuses()` keys.
 ## Frontend
 
 ```vue
-<KinetixKanban :kanban="board" />
+<KinetixKanban
+    :kanban="board"
+    @card-click="(card, columnKey) => …"
+/>
 ```
 
-Native HTML5 drag-and-drop (no extra dependency). Moves are optimistic (revert +
-toast on failure) and trigger a `router.reload()` on success. i18n `kanban_*`
-(en/es/fr/pt).
+Native HTML5 drag-and-drop (no extra dependency), with a long-press touch
+fallback on mobile (floating clone follows the finger; edge auto-scroll).
+While dragging, the source card dims and the hovered column highlights; cards
+FLIP-animate into place (respects `prefers-reduced-motion`). Moves are
+optimistic (revert + toast on failure) and trigger a `router.reload()` on
+success. Keyboard: left/right arrows move a focused card between columns;
+Enter fires `card-click`. i18n `kanban_*` (en/es/fr/pt/zh/ja/ru).
+
+## Adding & editing cards (CRUD wiring)
+
+The board only moves cards; CRUD is regular page wiring. Preferred: an
+in-page modal — a `KinetixPageHeader` action with `->dispatch('task-create')`,
+the page listens for `kinetix:task-create` and opens a `KinetixModal` hosting
+`<KinetixForm :form="taskForm" flat @submit="submit" />` (**always pass `flat`
+in modals** — the panel is the surface; Sections must not nest a card inside
+it); `@card-click` opens the same modal for edits. Controllers persist and
+flash `back()->with('kinetix_toast', __('kinetix.record_created'))`
+(`record_updated`/`record_deleted` for the other verbs). Alternative:
+dedicated pages via `router.visit()` on `card-click` and
+`redirect()->with('kinetix_toast', …)`. Full example: docs/kanban.md
+"Adding & editing cards".

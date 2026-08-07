@@ -16,6 +16,7 @@ use Happones\Kinetix\Billing\BillingManager;
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\EnsurePlanCapability;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
+use Happones\Kinetix\Calendar\CalendarMoveController;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
 use Happones\Kinetix\Commands\ApiLogsPruneCommand;
 use Happones\Kinetix\Commands\ConfidentialEncryptExistingCommand;
@@ -2374,6 +2375,12 @@ class KinetixServiceProvider extends ServiceProvider
                 // move scope) and the host's policy.
                 Route::post('kanban-move', KanbanMoveController::class)
                     ->name('kinetix.tables.kanban-move');
+
+                // Calendar event move: reschedule a record to a new start
+                // instant (end shifts by the same delta), guarded by the
+                // calendar's signed descriptor and the host's policy.
+                Route::post('calendar-move', CalendarMoveController::class)
+                    ->name('kinetix.tables.calendar-move');
 
                 // TableRepeater autosave: create/update/delete a single row on the
                 // bound relation, guarded by the field's signed descriptor.

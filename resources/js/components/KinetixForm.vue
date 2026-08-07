@@ -26,6 +26,13 @@ const props = defineProps<{
      * (e.g. the same route you submit to).
      */
     validationUrl?: string;
+    /**
+     * Chrome-free rendering for forms hosted inside a modal or sheet: the
+     * panel is already the surface, so Sections render as divided groups
+     * instead of nested cards. Pass it whenever the form sits in a
+     * KinetixModal/KinetixSheet.
+     */
+    flat?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -136,6 +143,7 @@ const onSubmit = (e: Event) => {
                 :schema="form.schema"
                 :values="formValues"
                 :errors="errors"
+                :flat="flat"
                 @update:value="onUpdateValue"
             />
         </div>

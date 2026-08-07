@@ -229,6 +229,11 @@ return [
     'calendar_all_day'                 => 'Весь день',
     'calendar_no_events'               => 'Нет событий',
     'calendar_view_event'              => 'Подробнее',
+
+    'calendar_move_failed'             => 'Не удалось переместить событие. Попробуйте ещё раз.',
+    'calendar_moved_to'                => 'Перемещено на :date',
+    'calendar_keyboard_hint'           => 'Удерживая Alt, нажимайте клавиши со стрелками, чтобы переместить это событие',
+    'calendar_invalid_date'            => 'Недопустимая дата назначения.',
     'announcements_title'              => 'Что нового',
     'announcements_empty'              => 'Объявлений пока нет.',
     'announcements_new'                => 'Новое',

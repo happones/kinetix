@@ -212,6 +212,23 @@ Section::make('General Profile')
     ])
 ```
 
+::: tip Sections inside modals: pass `flat`
+The Section card is designed for pages, where the schema provides its own
+surface. When a form renders inside a `KinetixModal`/`KinetixSheet`, pass the
+**`flat`** prop to `<KinetixForm>` — the panel is already the surface, so
+Sections drop their card chrome (border/shadow/background) and render as
+divided groups with their heading and description intact, instead of nesting a
+card inside the modal. Kinetix's own modal hosts (the simple-resource record
+modals, relation-manager attach forms, and view-modal infolists) do this
+automatically.
+
+```vue
+<KinetixModal :open="open" title="New event" scroll-body>
+    <KinetixForm :form="eventForm" flat @submit="submit" />
+</KinetixModal>
+```
+:::
+
 ### 3. Fieldset
 A lighter labelled grouping than `Section` — a bordered `<fieldset>` with a `<legend>`, no card chrome. Supports `columns()` and nesting.
 

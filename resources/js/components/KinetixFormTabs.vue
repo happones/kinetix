@@ -22,6 +22,8 @@ const props = defineProps<{
     tabs: any[];
     values: Record<string, any>;
     errors: Record<string, string>;
+    /** Forwarded to nested schemas: chrome-free Sections inside modals. */
+    flat?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -97,6 +99,7 @@ watch(
                     :values="values"
                     :errors="errors"
                     :parent-columns="resolveColumns(tab.columns)"
+                    :flat="flat"
                     @update:value="
                         (name, val) => emit('update:value', name, val)
                     "

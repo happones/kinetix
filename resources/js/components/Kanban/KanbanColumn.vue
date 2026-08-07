@@ -16,16 +16,40 @@ const props = defineProps<{
     column: KanbanColumnData;
     /** Id of the board's sr-only keyboard instructions (aria-describedby). */
     hintId?: string;
+    /** Id of the card currently in flight (dims the source card). */
+    draggingCardId?: string | number | null;
+    /** True when the board's touch drag hovers this column (highlight). */
+    touchDropTarget?: boolean;
 }>();
 
 const emit = defineEmits<{
     (e: 'card-dragstart', card: KinetixKanbanCard): void;
     (e: 'card-dragend'): void;
     (e: 'card-move', card: KinetixKanbanCard, direction: -1 | 1): void;
+    (e: 'card-click', card: KinetixKanbanCard): void;
+    (e: 'card-pointerdown', card: KinetixKanbanCard, event: PointerEvent): void;
     (e: 'drop'): void;
 }>();
 
 const { t } = useI18n();
+
+// Highlight while a native drag hovers the column. dragenter/dragleave fire
+// for every child crossed, so a depth counter tracks the real boundary.
+const dragDepth = ref(0);
+const isDragOver = computed(() => dragDepth.value > 0 || props.touchDropTarget);
+
+const onDragEnter = (): void => {
+    dragDepth.value++;
+};
+
+const onDragLeave = (): void => {
+    dragDepth.value = Math.max(0, dragDepth.value - 1);
+};
+
+const onDrop = (): void => {
+    dragDepth.value = 0;
+    emit('drop');
+};
 
 // Each column virtualizes its own card list once it grows past the threshold;
 // the drop target is the column (not a card slot), so windowing the cards never
@@ -72,9 +96,17 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
     <div
         role="group"
         :aria-label="`${column.label} (${column.cards.length})`"
-        class="w-72 rounded-lg flex shrink-0 flex-col border border-border bg-muted/30"
+        :data-kanban-column="column.key"
+        class="w-72 rounded-lg flex shrink-0 flex-col border transition-colors"
+        :class="
+            isDragOver
+                ? 'border-primary/50 bg-accent/50 ring-2 ring-primary/30'
+                : 'border-border bg-muted/30'
+        "
         @dragover.prevent
-        @drop="emit('drop')"
+        @dragenter.prevent="onDragEnter"
+        @dragleave="onDragLeave"
+        @drop="onDrop"
     >
         <div class="gap-2 px-3 py-2 flex items-center border-b border-border">
             <span
@@ -97,13 +129,23 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
             class="min-h-16 flex flex-1 flex-col"
             :class="virtual.enabled.value ? 'max-h-[70vh] overflow-y-auto' : ''"
         >
-            <div
+            <!-- Cards FLIP-move into place on drops/reorders; the virtualized
+                 branch positions rows itself, so transitions turn off there. -->
+            <TransitionGroup
+                tag="div"
                 class="gap-2 p-2 flex flex-1 flex-col"
                 :class="virtual.enabled.value ? 'relative block' : ''"
                 :style="
                     virtual.enabled.value
                         ? { height: `${virtual.totalSize.value}px` }
                         : undefined
+                "
+                :move-class="virtual.enabled.value ? '' : 'kx-card-move'"
+                :enter-active-class="
+                    virtual.enabled.value ? '' : 'kx-card-enter-active'
+                "
+                :enter-from-class="
+                    virtual.enabled.value ? '' : 'kx-card-enter-from'
                 "
             >
                 <article
@@ -117,11 +159,14 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     :aria-roledescription="t('kinetix.kanban_card')"
                     :aria-describedby="hintId"
                     class="p-3 shadow-xs hover:shadow-md cursor-grab rounded-md border border-border bg-card transition-shadow outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
-                    :class="
+                    :class="[
                         virtual.enabled.value
                             ? 'top-0 left-0 absolute w-[calc(100%-1rem)]'
-                            : ''
-                    "
+                            : '',
+                        draggingCardId != null && draggingCardId === card.id
+                            ? 'opacity-40'
+                            : '',
+                    ]"
                     :style="
                         virtual.enabled.value
                             ? { transform: `translateY(${start}px)` }
@@ -129,6 +174,9 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
                     "
                     @dragstart="emit('card-dragstart', card)"
                     @dragend="emit('card-dragend')"
+                    @pointerdown="(e) => emit('card-pointerdown', card, e)"
+                    @click="emit('card-click', card)"
+                    @keydown.enter.prevent="emit('card-click', card)"
                     @keydown.left.prevent="emit('card-move', card, -1)"
                     @keydown.right.prevent="emit('card-move', card, 1)"
                 >
@@ -149,11 +197,36 @@ const measureRow = (el: Element | ComponentPublicInstance | null): void => {
 
                 <p
                     v-if="column.cards.length === 0"
+                    key="__kanban-empty"
                     class="px-1 py-4 text-xs text-center text-muted-foreground"
                 >
                     {{ t('kinetix.kanban_empty') }}
                 </p>
-            </div>
+            </TransitionGroup>
         </div>
     </div>
 </template>
+
+<style scoped>
+.kx-card-move {
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kx-card-enter-active {
+    transition:
+        opacity 150ms ease-out,
+        transform 150ms ease-out;
+}
+
+.kx-card-enter-from {
+    opacity: 0;
+    transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kx-card-move,
+    .kx-card-enter-active {
+        transition: none;
+    }
+}
+</style>

@@ -229,6 +229,11 @@ return [
     'calendar_all_day'                 => '終日',
     'calendar_no_events'               => 'イベントなし',
     'calendar_view_event'              => '詳細を見る',
+
+    'calendar_move_failed'             => 'イベントを移動できませんでした。もう一度お試しください。',
+    'calendar_moved_to'                => ':date に移動しました',
+    'calendar_keyboard_hint'           => 'Alt キーを押しながら矢印キーでこのイベントを移動できます',
+    'calendar_invalid_date'            => '移動先の日付が無効です。',
     'announcements_title'              => '最新情報',
     'announcements_empty'              => 'お知らせはまだありません。',
     'announcements_new'                => '新着',

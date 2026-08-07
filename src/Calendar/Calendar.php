@@ -13,11 +13,15 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 
 /**
  * Builds a month/week/day-view calendar of events from an Eloquent query.
- * Read-only: the component navigates client-side over the supplied events;
- * scope the window with ->query() if a model has many records.
+ * Read-only by default: the component navigates client-side over the supplied
+ * events; scope the window with ->query() if a model has many records.
+ * Opt into drag-and-drop rescheduling with ->moveable() — dragging an event
+ * to another day/slot persists the new start (guarded by a signed
+ * descriptor, like the Kanban board's moves).
  *
  *     Calendar::make(Event::query())
  *         ->dateColumn('starts_at')
@@ -54,6 +58,15 @@ class Calendar
      * @var array<int, Action>
      */
     protected array $eventActions = [];
+
+    protected bool $moveable = false;
+
+    protected ?string $moveAbility = null;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $moveScope = [];
 
     public function __construct(protected mixed $queryOrModel) {}
 
@@ -158,6 +171,48 @@ class Calendar
         return $this;
     }
 
+    /**
+     * Let events be dragged to another day (month view) or hour slot
+     * (week/day views). The new start persists to `dateColumn` and the end
+     * shifts by the same delta, so durations are preserved. Guarded like
+     * Kanban moves: a signed descriptor plus the host's policy — pair with
+     * `authorizeMove()` / `moveScope()` to bound who can move what.
+     */
+    public function moveable(bool $condition = true): static
+    {
+        $this->moveable = $condition;
+
+        return $this;
+    }
+
+    /**
+     * The Gate ability checked against the record on every move (via the
+     * host's policy). Defaults to `update` whenever the model has a
+     * registered policy — call this to check a different ability.
+     */
+    public function authorizeMove(string $ability): static
+    {
+        $this->moveAbility = $ability;
+
+        return $this;
+    }
+
+    /**
+     * Constraints (column => value) the record must match to be movable —
+     * evaluated now (in the request) and enforced on the move endpoint's
+     * lookup. The tenant guard for calendars without a policy:
+     *
+     *     ->moveScope(['team_id' => $request->user()->currentTeam->getKey()])
+     *
+     * @param array<string, mixed> $constraints serializable values only
+     */
+    public function moveScope(array $constraints): static
+    {
+        $this->moveScope = $constraints;
+
+        return $this;
+    }
+
     public function toData(): CalendarData
     {
         $timezone = $this->resolveTimezone();
@@ -205,7 +260,47 @@ class Calendar
             heading: $this->heading,
             events: $events,
             timezone: $timezone,
+            model: $this->moveable ? $this->buildMoveDescriptor() : null,
         );
+    }
+
+    /**
+     * Mint the signed descriptor {@see CalendarMoveController} trusts: the
+     * model, the date columns to rewrite, the ability and scope bounding the
+     * move, plus the user it was minted for and an expiry so a leaked token
+     * isn't replayable by someone else.
+     */
+    protected function buildMoveDescriptor(): string
+    {
+        $ttl = config('kinetix.tables.token_ttl', 1440);
+
+        return Crypt::encrypt([
+            'model'       => $this->getModelClass(),
+            'dateColumn'  => $this->dateColumn,
+            'endColumn'   => $this->endColumn,
+            'moveAbility' => $this->moveAbility,
+            'moveScope'   => $this->moveScope,
+            'user'        => auth()->id(),
+            'expires'     => is_numeric($ttl) && (int) $ttl > 0
+                ? now()->getTimestamp() + ((int) $ttl * 60)
+                : null,
+        ]);
+    }
+
+    /**
+     * @return class-string<Model>
+     */
+    public function getModelClass(): string
+    {
+        if ($this->queryOrModel instanceof Builder) {
+            return $this->queryOrModel->getModel()::class;
+        }
+
+        if (is_string($this->queryOrModel)) {
+            return $this->queryOrModel;
+        }
+
+        return $this->queryOrModel::class;
     }
 
     protected function resolveTimezone(): string

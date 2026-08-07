@@ -776,9 +776,11 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                     ></div>
                 </div>
 
+                <!-- The modal IS the surface — flat drops Section card chrome. -->
                 <KinetixForm
                     v-else-if="recordForm"
                     :form="recordForm"
+                    flat
                     @submit="submitRecordForm"
                 >
                     <template #default>
@@ -824,11 +826,13 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                     ></div>
                     <div class="h-24 animate-pulse rounded-md bg-muted"></div>
                 </div>
-                <!-- The modal IS the surface — no card-in-modal. -->
+                <!-- The modal IS the surface — no card-in-modal, and flat
+                     drops the card chrome of any Section/Tabs in the schema. -->
                 <KinetixInfolist
                     v-else-if="recordInfolist"
                     :infolist="recordInfolist"
                     :surface="false"
+                    flat
                 />
             </KinetixModal>
 

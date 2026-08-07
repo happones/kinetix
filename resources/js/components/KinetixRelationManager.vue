@@ -498,6 +498,7 @@ onBeforeUnmount(() => {
                     :id="attachFormId"
                     :form="attachFormDto"
                     class="pt-3 border-t border-border"
+                    flat
                     @submit="(values) => submitAttach(values)"
                 >
                     <template #default><span class="hidden"></span></template>

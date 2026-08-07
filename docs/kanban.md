@@ -80,10 +80,117 @@ defineProps<{ board: object }>();
 </template>
 ```
 
-Cards are draggable (native HTML5 drag-and-drop — no extra dependency). Dropping
-a card into another column moves it optimistically and `POST`s the change; if the
-request fails the card snaps back and a toast is shown. The board reloads after a
-successful move so server-side ordering/derived data stays in sync.
+Cards are draggable (native HTML5 drag-and-drop — no extra dependency). While a
+card is in flight its source dims, the hovered column highlights as the drop
+target, and cards FLIP-animate into place on landing (animations respect
+`prefers-reduced-motion`). Dropping a card into another column moves it
+optimistically and `POST`s the change; if the request fails the card snaps back
+and a toast is shown. The board reloads after a successful move so server-side
+ordering/derived data stays in sync.
+
+**Touch devices** get the same drag without HTML5 DnD (which never fires on
+touch): **long-press a card (~250ms)** to lift it into a floating clone that
+tracks the finger; the hovered column highlights, the board auto-scrolls
+horizontally near its edges, and releasing over a column drops the card.
+Moving before the long-press activates simply scrolls, so the board never
+hijacks the scroll gesture.
+
+### Card clicks
+
+`<KinetixKanban>` emits **`card-click`** `(card, columnKey)` when a card is
+clicked or activated with <kbd>Enter</kbd> — wire it to open the record:
+
+```vue
+<KinetixKanban
+    :kanban="board"
+    @card-click="(card) => router.visit(route('tasks.edit', card.id))"
+/>
+```
+
+Or open an in-page modal instead of navigating — see
+[Adding & editing cards](#adding--editing-cards) below.
+
+---
+
+## Adding & editing cards
+
+The board itself only moves cards — creating and editing records is regular
+page wiring, and both patterns compose with what you already know:
+
+### In-page modal (recommended for boards)
+
+Keep the user on the board: a header action dispatches a browser event, the
+page opens a `KinetixModal` hosting a `KinetixForm`, and the controller
+persists + flashes a [toast](/notifications#server-flashed-toasts). Pass
+`flat` to the form — **the modal is already the surface**, so `Section`s render
+as divided groups instead of nesting a card inside the modal:
+
+```php
+// Controller
+use Happones\Kinetix\Actions\Action;
+
+return Inertia::render('Tasks/Board', [
+    'board'         => $board->toData(),
+    'headerActions' => Action::toArrayMany([
+        Action::make('new-task')->label('New task')->icon('plus')
+            ->dispatch('task-create'),
+    ]),
+    'taskForm'      => TaskForm::render(),   // a Form subclass, or Form::make(new Task)->schema([...])->fill()->toArray()
+]);
+```
+
+```vue
+<script setup lang="ts">
+import { router } from '@inertiajs/vue3';
+import { onMounted, onUnmounted, ref } from 'vue';
+
+const props = defineProps<{ board: object; headerActions: object[]; taskForm: object }>();
+
+const createOpen = ref(false);
+const openCreate = () => (createOpen.value = true);
+
+onMounted(() => window.addEventListener('kinetix:task-create', openCreate));
+onUnmounted(() => window.removeEventListener('kinetix:task-create', openCreate));
+
+const submit = (values: Record<string, unknown>) =>
+    router.post(route('tasks.store'), values, {
+        onSuccess: () => (createOpen.value = false),
+    });
+</script>
+
+<template>
+    <KinetixPageHeader heading="Tasks" :actions="headerActions" />
+    <KinetixKanban :kanban="board" @card-click="(card) => …" />
+
+    <KinetixModal :open="createOpen" title="New task" scroll-body @update:open="createOpen = $event">
+        <!-- flat: the modal is the surface — no card-in-modal. -->
+        <KinetixForm :form="taskForm" flat @submit="submit" />
+    </KinetixModal>
+</template>
+```
+
+```php
+// Store/update/destroy follow the standard toast contract:
+public function store(Request $request)
+{
+    $data = $request->validate([...]);
+    Task::create($data + ['status' => 'todo']);
+
+    return back()->with('kinetix_toast', __('kinetix.record_created'));
+}
+```
+
+`back()` re-renders the board page (the new card appears) and
+`<KinetixToaster>` picks up the flash. Use `__('kinetix.record_updated')` /
+`__('kinetix.record_deleted')` for the other verbs, and
+`['type' => 'error', 'message' => …]` for failures.
+
+### Dedicated pages
+
+If tasks deserve full pages, wire `card-click` to `router.visit(route('tasks.edit', card.id))`
+and add a header action with `->url(route('tasks.create'))` — the page
+controllers then `redirect()->with('kinetix_toast', …)` exactly like
+[resource scaffold pages](/resources).
 
 ---
 
@@ -137,8 +244,9 @@ Kanban::make(Deal::query())
 The board is fully keyboard-operable — no pointer required:
 
 - Every card is focusable (`Tab`); **left/right arrow keys move the focused
-  card to the previous/next column**. The move is announced through the shared
-  live region and focus follows the card into its new column.
+  card to the previous/next column**, and <kbd>Enter</kbd> activates it
+  (`card-click`). The move is announced through the shared live region and
+  focus follows the card into its new column.
 - Cards expose `aria-roledescription` ("draggable card") and point their
   `aria-describedby` at a screen-reader-only instructions element, so
   assistive-tech users learn the arrow-key affordance on focus.

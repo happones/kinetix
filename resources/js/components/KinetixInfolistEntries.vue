@@ -32,6 +32,12 @@ const props = defineProps<{
     schema: KinetixInfolistEntry[];
     /** The enclosing grid's per-breakpoint columns — spans clamp against it. */
     parentColumns?: ResponsiveColumns;
+    /**
+     * Chrome-free rendering for infolists hosted inside a modal: the modal
+     * panel is already the surface, so Sections/Tabs drop their card
+     * (border/shadow/bg) instead of nesting card-in-modal.
+     */
+    flat?: boolean;
 }>();
 
 const cols = computed<ResponsiveColumns>(
@@ -126,14 +132,21 @@ onBeforeUnmount(() => {
                 <KinetixInfolistEntries
                     :schema="entry.schema || []"
                     :parent-columns="gridOf(entry)"
+                    :flat="flat"
                 />
             </div>
         </div>
 
-        <!-- Section card layout -->
+        <!-- Section layout: a card by default; flat (divided group) when the
+             host is already a surface, e.g. a modal panel. -->
         <div
             v-else-if="entry.type === 'section'"
-            class="kinetix-col rounded-xl shadow-sm border border-border bg-card text-card-foreground"
+            class="kinetix-col"
+            :class="
+                flat
+                    ? '[&:not(:first-child)]:pt-4 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-border'
+                    : 'rounded-xl shadow-sm border border-border bg-card text-card-foreground'
+            "
             :style="colStyle(entry)"
         >
             <div
@@ -142,7 +155,7 @@ onBeforeUnmount(() => {
                     entry.description ||
                     (entry.actions?.length ?? 0) > 0
                 "
-                class="p-6 pb-4 border-b border-border"
+                :class="flat ? 'pb-4' : 'p-6 pb-4 border-b border-border'"
             >
                 <div class="gap-4 flex items-start justify-between">
                     <div class="gap-3 min-w-0 flex items-start">
@@ -160,6 +173,7 @@ onBeforeUnmount(() => {
                             <h3
                                 v-if="entry.heading"
                                 class="font-semibold tracking-tight leading-none text-foreground"
+                                :class="flat ? 'text-sm' : ''"
                             >
                                 {{ entry.heading }}
                             </h3>
@@ -204,7 +218,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
             </div>
-            <div class="p-6 kinetix-grid-host">
+            <div class="kinetix-grid-host" :class="flat ? '' : 'p-6'">
                 <div
                     class="kinetix-grid gap-x-4 gap-y-5 grid"
                     :style="gridColumnVars(gridOf(entry))"
@@ -212,6 +226,7 @@ onBeforeUnmount(() => {
                     <KinetixInfolistEntries
                         :schema="entry.schema || []"
                         :parent-columns="gridOf(entry)"
+                        :flat="flat"
                     />
                 </div>
             </div>
@@ -236,19 +251,26 @@ onBeforeUnmount(() => {
                 <KinetixInfolistEntries
                     :schema="entry.schema || []"
                     :parent-columns="gridOf(entry)"
+                    :flat="flat"
                 />
             </div>
         </fieldset>
 
-        <!-- Tabs layout -->
+        <!-- Tabs layout: card by default; chrome-free when flat. -->
         <div
             v-else-if="entry.type === 'tabs'"
-            class="kinetix-col rounded-xl shadow-sm border border-border bg-card text-card-foreground"
+            class="kinetix-col"
+            :class="
+                flat
+                    ? ''
+                    : 'rounded-xl shadow-sm border border-border bg-card text-card-foreground'
+            "
             :style="colStyle(entry)"
         >
             <div
                 role="tablist"
-                class="gap-1 px-2 pt-2 flex flex-wrap border-b border-border"
+                class="gap-1 flex flex-wrap border-b border-border"
+                :class="flat ? '' : 'px-2 pt-2'"
             >
                 <button
                     v-for="(tab, tabIndex) in entry.schema || []"
@@ -272,7 +294,7 @@ onBeforeUnmount(() => {
                     {{ tab.heading }}
                 </button>
             </div>
-            <div class="p-6 kinetix-grid-host">
+            <div class="kinetix-grid-host" :class="flat ? 'pt-4' : 'p-6'">
                 <template
                     v-for="(tab, tabIndex) in entry.schema || []"
                     :key="tabIndex"
@@ -285,6 +307,7 @@ onBeforeUnmount(() => {
                         <KinetixInfolistEntries
                             :schema="tab.schema || []"
                             :parent-columns="gridOf(tab)"
+                            :flat="flat"
                         />
                     </div>
                 </template>

@@ -18,9 +18,15 @@ const props = withDefaults(
          * pass `false`. Schemas with their own layout nodes are never wrapped.
          */
         surface?: boolean;
+        /**
+         * Chrome-free Sections/Tabs for infolists hosted inside a modal —
+         * the panel is already the surface. Implies no bare-schema wrap.
+         */
+        flat?: boolean;
     }>(),
     {
         surface: true,
+        flat: false,
     },
 );
 
@@ -32,7 +38,7 @@ const hasLayout = computed(() =>
     ),
 );
 
-const wrap = computed(() => props.surface && !hasLayout.value);
+const wrap = computed(() => props.surface && !props.flat && !hasLayout.value);
 </script>
 
 <template>
@@ -52,6 +58,7 @@ const wrap = computed(() => props.surface && !hasLayout.value);
             <KinetixInfolistEntries
                 :schema="infolist.schema"
                 :parent-columns="resolveColumns(infolist.columns)"
+                :flat="flat"
             />
         </div>
     </div>
