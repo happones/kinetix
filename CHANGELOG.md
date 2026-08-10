@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Billing: an empty string is no longer mistaken for a Stripe id.** Every
+  identifier check in the billing module went through `!== null`, so a
+  `stripe_id` (or price, or payment method) of `''` — what a form default, a
+  CSV import or a `fill()` routinely leaves in a column — was treated as a real
+  value and only failed deep inside the Stripe API call:
+  - `ensureStripeCustomer()` believed a blank `stripe_id` was a customer and
+    skipped creation, breaking every later call. It now creates the customer —
+    clearing the blank id first, because Cashier's own `hasStripeId()` is a
+    plain null check and `createAsStripeCustomer()` would otherwise throw
+    `CustomerAlreadyCreated` and leave the billable permanently stuck. New
+    `BillingManager::hasStripeCustomer()` exposes the stricter check.
+  - `HasPlan::currentPlan()` matched a blank subscription price against the
+    plan table, so plans whose price columns were seeded as `''` all matched
+    and **silently granted the wrong plan's features**. A blank price now
+    matches nothing.
+  - A blank `payment_method` is treated as "none given" (`subscribe()` takes
+    the no-card path instead of sending `''` to Stripe), and
+    `addPaymentMethod('')` fails immediately with a clear message.
+  - `Plan::stripePriceId()` returns `null` for a blank column, so `subscribe()`
+    reports "plan has no Stripe price id for this cycle" instead of forwarding
+    an invalid id; a blank subscription price is reported as `null` in
+    `subscriptionData()`, and a blank `trial_plan` slug no longer queries.
+
 ## [0.168.0] - 2026-08-10
 
 The Help Center becomes properly multilingual: the manual now follows the

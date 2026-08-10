@@ -155,9 +155,18 @@ class Plan extends Model
         return $value === null ? null : (float) $value;
     }
 
+    /**
+     * The Stripe price id for a cycle, or null when the plan has none.
+     *
+     * A blank column counts as "none": `''` is what a form or an import leaves
+     * behind, and handing it to Stripe as a price id fails with an opaque API
+     * error instead of the explicit "plan has no price for this cycle".
+     */
     public function stripePriceId(string $cycle = 'monthly'): ?string
     {
-        return $cycle === 'yearly' ? $this->stripe_yearly_price_id : $this->stripe_monthly_price_id;
+        $priceId = $cycle === 'yearly' ? $this->stripe_yearly_price_id : $this->stripe_monthly_price_id;
+
+        return filled($priceId) ? (string) $priceId : null;
     }
 
     public function isFree(): bool

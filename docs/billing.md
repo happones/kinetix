@@ -655,6 +655,7 @@ In addition to the methods above, `BillingManager` exposes:
 | Method | Returns | Purpose |
 |---|---|---|
 | `billable()` | `Model` | The resolved billable model instance. |
+| `hasStripeCustomer()` | `bool` | Whether the billable is a real Stripe customer — an **empty** `stripe_id` counts as none (see below). |
 | `ensureStripeCustomer()` | `void` | Create the billable as a Stripe customer if it isn't one yet (called automatically before issuing intents/adding cards). |
 | `setupIntent()` | `mixed` | Create a Stripe SetupIntent for collecting a card (ensures the customer first). |
 | `defaultPaymentMethodId()` | `?string` | Id of the billable's default payment method, or `null`. |
@@ -663,6 +664,26 @@ In addition to the methods above, `BillingManager` exposes:
 | `downloadInvoice(string $invoiceId)` | `mixed` | Streamed PDF download response for the invoice (vendor/product set from config). |
 | `usage()` | `array<UsageMetricData>` | Metered usage metrics resolved against the current plan (empty unless the billable reports usage — see §5). |
 | `reportUsage(int $quantity = 1, ?string $priceId = null)` | `void` | Report metered usage to Stripe via Cashier's `SubscriptionItem::reportUsage()`. No-op without an active subscription. |
+
+### Empty strings are not ids
+
+Everywhere Kinetix reads a Stripe identifier it treats **blank as absent**, not
+as a value — `''` is what a form default, a CSV import or a `fill()` leaves in
+a column, and passing it on produces an opaque Stripe API error far from the
+cause:
+
+- A blank `stripe_id` is **not a customer**: `ensureStripeCustomer()` creates
+  one. It also clears the blank id first, because Cashier's own `hasStripeId()`
+  is a plain null check, so `createAsStripeCustomer()` would otherwise throw
+  `CustomerAlreadyCreated` and leave the billable permanently stuck.
+- A blank `payment_method` means "none given" — `subscribe()` takes the no-card
+  path (trial or default card) instead of sending `''` to Stripe;
+  `addPaymentMethod('')` fails immediately with a clear message.
+- A blank Stripe price on a plan means the plan has **no price for that cycle**
+  (`stripePriceId()` returns `null`), so `subscribe()` reports exactly that.
+- A blank subscription price never matches a plan. This one matters beyond
+  ergonomics: plans whose price columns were seeded as `''` would all match a
+  blank subscription price and silently grant the wrong plan's features.
 
 ---
 

@@ -149,6 +149,49 @@ class HasPlanTest extends TestCase
         $this->assertNull($free->remainingPlanLimit('usage.products', 99));
     }
 
+    public function test_a_blank_subscription_price_never_matches_a_plan(): void
+    {
+        // A plan seeded/imported with empty price columns instead of NULL.
+        Plan::create([
+            'name'                    => 'Pro',
+            'monthly_price'           => 29,
+            'stripe_monthly_price_id' => '',
+            'stripe_yearly_price_id'  => '',
+            'features'                => ['capabilities' => ['api' => true]],
+        ]);
+
+        $free = Plan::create(['name' => 'Free', 'monthly_price' => 0, 'is_free' => true]);
+
+        $user                   = BillableUser::create(['name' => 'Jane']);
+        $user->fakeSubscription = new FakeSubscription('');
+
+        // Matching '' against '' would hand out Pro's capabilities for free.
+        $this->assertTrue($user->currentPlan()->is($free));
+        $this->assertFalse($user->canUseFeature('capabilities.api'));
+    }
+
+    public function test_a_blank_trial_plan_slug_is_ignored(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $free = Plan::create(['name' => 'Free', 'monthly_price' => 0, 'is_free' => true]);
+
+        $user = new class extends BillableUser
+        {
+            protected $table = 'billable_users';
+
+            public function onGenericTrial(): bool
+            {
+                return true;
+            }
+        };
+
+        $user->fill(['name' => 'Jane'])->save();
+        $user->trial_plan = '';
+
+        $this->assertTrue($user->currentPlan()->is($free));
+    }
+
     public function test_current_plan_matches_yearly_price_id(): void
     {
         $plan = Plan::create([

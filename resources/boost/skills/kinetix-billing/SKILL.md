@@ -104,6 +104,19 @@ replaces the lock UI and receives `{ remaining, open }`. No upgrade URL = no CTA
 </KinetixPlanLock>
 ```
 
+### 3b. Blank is not an id (REQUIRED when touching Stripe identifiers)
+
+Kinetix treats `''` as absent everywhere a Stripe id is read — `''` is what a form default or an
+import leaves in a column, and forwarding it produces an opaque Stripe error far from the cause.
+`BillingManager::hasStripeCustomer()` is stricter than Cashier's `hasStripeId()` (a plain null
+check): a blank `stripe_id` is NOT a customer, and `ensureStripeCustomer()` clears it before
+creating one (otherwise Cashier throws `CustomerAlreadyCreated` and the billable stays stuck
+forever). A blank `payment_method` means "none given" (`subscribe()` takes the no-card path;
+`addPaymentMethod('')` throws); a blank plan price means no price for that cycle
+(`Plan::stripePriceId()` returns null); a blank subscription price never matches a plan — plans
+seeded with `''` price columns would otherwise all match it and grant the wrong features. Use
+`filled()`/`blank()`, never `!== null`, for these.
+
 ### 4. Metered usage tracking + credits
 
 `use HasMeteredUsage` on the billable (tables via `--tag=kinetix-billing-migrations`):

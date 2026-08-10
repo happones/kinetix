@@ -148,14 +148,36 @@ class BillingManager
     // Stripe helpers
     // -------------------------------------------------------------------
 
+    /**
+     * Whether the billable is a real Stripe customer.
+     *
+     * Deliberately stricter than Cashier's own `hasStripeId()` (`! is_null()`):
+     * an EMPTY `stripe_id` is not a customer, it's an uninitialized column —
+     * something a form default, a CSV import or a `->fill()` with `''` leaves
+     * behind routinely. Treating it as a customer sends `''` to the Stripe API
+     * and fails deep inside the call instead of here.
+     */
+    public function hasStripeCustomer(): bool
+    {
+        return filled($this->billable->stripe_id ?? null);
+    }
+
     public function ensureStripeCustomer(): void
     {
-        if (($this->billable->stripe_id ?? null) !== null) {
+        if ($this->hasStripeCustomer()) {
             return;
         }
 
         if (! method_exists($this->billable, 'createAsStripeCustomer')) {
             return;
+        }
+
+        // A blank-but-not-null id makes Cashier's `hasStripeId()` true, so
+        // `createAsStripeCustomer()` would throw CustomerAlreadyCreated and the
+        // billable would stay stuck forever. Clear it first, then create.
+        if (($this->billable->stripe_id ?? null) !== null) {
+            $this->billable->stripe_id = null;
+            $this->billable->save();
         }
 
         $this->billable->createAsStripeCustomer();
@@ -237,7 +259,9 @@ class BillingManager
             'onGracePeriod' => $subscription !== null && (bool) ($subscription->onGracePeriod() ?? false),
             'status'        => $subscription !== null ? (string) ($subscription->stripe_status ?? '') : null,
             'endsAt'        => $subscription !== null ? $subscription->ends_at?->toIso8601String() : null,
-            'stripePrice'   => $subscription !== null ? $subscription->stripe_price ?? null : null,
+            'stripePrice'   => $subscription !== null && filled($subscription->stripe_price ?? null)
+                ? (string) $subscription->stripe_price
+                : null,
             ...$this->resolveTrialData($subscription),
         ];
     }
@@ -275,6 +299,11 @@ class BillingManager
 
     public function subscribe(string $planSlug, ?string $paymentMethod = null, string $cycle = 'monthly'): void
     {
+        // A blank payment method means "none given" — forms and JSON payloads
+        // send `''` for an untouched field, and passing it on would reach
+        // Stripe as an invalid id instead of taking the no-card path here.
+        $paymentMethod = filled($paymentMethod) ? $paymentMethod : null;
+
         $plan = $this->resolvePlan($planSlug);
 
         if ($plan->isFree()) {
@@ -295,6 +324,10 @@ class BillingManager
 
     public function addPaymentMethod(string $paymentMethod): void
     {
+        if (blank($paymentMethod)) {
+            throw new RuntimeException('A payment method id is required to add a payment method.');
+        }
+
         $this->ensureStripeCustomer();
         $this->billable->addPaymentMethod($paymentMethod);
 
@@ -307,6 +340,10 @@ class BillingManager
 
     public function removePaymentMethod(string $id): void
     {
+        if (blank($id)) {
+            return;
+        }
+
         $paymentMethod = $this->billable->findPaymentMethod($id);
 
         $paymentMethod?->delete();
@@ -456,7 +493,8 @@ class BillingManager
 
         $slug = $this->billable->trial_plan ?? null;
 
-        if ($slug === null) {
+        // A blank slug is no slug: matching it would query for `where('slug', '')`.
+        if (blank($slug)) {
             return null;
         }
 
@@ -568,7 +606,7 @@ class BillingManager
     {
         $priceId = $plan->stripePriceId($cycle);
 
-        if ($priceId === null) {
+        if (blank($priceId)) {
             throw new RuntimeException("Plan [{$planSlug}] has no Stripe price id for the [{$cycle}] cycle.");
         }
 

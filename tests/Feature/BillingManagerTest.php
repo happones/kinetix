@@ -717,4 +717,125 @@ class BillingManagerTest extends TestCase
         $this->assertNull($billable->getAttribute('trial_plan'));
         $this->assertNull($billable->getAttribute('trial_ends_at'));
     }
+
+    // -------------------------------------------------------------------
+    // Blank-string guards: `''` is not an id
+    // -------------------------------------------------------------------
+
+    public function test_a_blank_stripe_id_is_not_a_customer_and_is_healed(): void
+    {
+        $billable = new class extends FakeBillable
+        {
+            protected $table = 'fake_billables';
+
+            public int $created = 0;
+
+            public function createAsStripeCustomer(array $options = []): void
+            {
+                // Mirrors Cashier: creating with an id already set throws.
+                if ($this->stripe_id !== null) {
+                    throw new RuntimeException('CustomerAlreadyCreated');
+                }
+
+                $this->created++;
+                $this->stripe_id = 'cus_new';
+            }
+        };
+
+        $billable->stripe_id = '';
+        $billable->save();
+
+        $manager = BillingManager::for($billable);
+
+        $this->assertFalse($manager->hasStripeCustomer());
+
+        $manager->ensureStripeCustomer();
+
+        $this->assertSame(1, $billable->created);
+        $this->assertSame('cus_new', $billable->stripe_id);
+    }
+
+    public function test_a_real_stripe_id_is_left_alone(): void
+    {
+        $billable = new class extends FakeBillable
+        {
+            protected $table = 'fake_billables';
+
+            public int $created = 0;
+
+            public function createAsStripeCustomer(array $options = []): void
+            {
+                $this->created++;
+            }
+        };
+
+        $billable->stripe_id = 'cus_existing';
+        $billable->save();
+
+        $manager = BillingManager::for($billable);
+
+        $this->assertTrue($manager->hasStripeCustomer());
+
+        $manager->ensureStripeCustomer();
+
+        $this->assertSame(0, $billable->created);
+        $this->assertSame('cus_existing', $billable->stripe_id);
+    }
+
+    public function test_add_payment_method_rejects_a_blank_id(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('A payment method id is required');
+
+        BillingManager::for(FakeBillable::create())->addPaymentMethod('');
+    }
+
+    public function test_subscribe_treats_a_blank_payment_method_as_none(): void
+    {
+        $billable = new class extends FakeBillable
+        {
+            protected $table = 'fake_billables';
+
+            public function hasDefaultPaymentMethod(): bool
+            {
+                return false;
+            }
+
+            public function defaultPaymentMethod(): ?object
+            {
+                return null;
+            }
+        };
+
+        $billable->save();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('A payment method is required to start a new subscription.');
+
+        BillingManager::for($billable)->subscribe('pro', '');
+    }
+
+    public function test_subscribe_rejects_a_plan_whose_price_id_is_blank(): void
+    {
+        Plan::create([
+            'name'                    => 'Blank',
+            'slug'                    => 'blank',
+            'monthly_price'           => 19,
+            'stripe_monthly_price_id' => '',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('has no Stripe price id');
+
+        BillingManager::for(FakeBillable::create())->subscribe('blank', 'pm_1');
+    }
+
+    public function test_a_blank_subscription_price_is_reported_as_none(): void
+    {
+        $billable                    = FakeBillable::create();
+        $billable->sub               = new FakeStripeSubscription;
+        $billable->sub->stripe_price = '';
+
+        $this->assertNull(BillingManager::for($billable)->subscriptionData()['stripePrice']);
+    }
 }

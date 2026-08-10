@@ -26,7 +26,7 @@ trait HasPlan
         if ($trialGeneric && method_exists($this, 'onGenericTrial') && $this->onGenericTrial()) {
             $trialPlanSlug = $this->trial_plan ?? null;
 
-            if ($trialPlanSlug !== null) {
+            if (filled($trialPlanSlug)) {
                 /** @var class-string<Plan> $model */
                 $model = config('kinetix.billing.plan_model', Plan::class);
 
@@ -40,7 +40,10 @@ trait HasPlan
             if ($subscription !== null) {
                 $priceId = $subscription->stripe_price ?? null;
 
-                if ($priceId !== null) {
+                // A blank price must never be matched: plans whose price
+                // columns are `''` (a common seed/import artifact) would all
+                // match it, silently granting the wrong plan's features.
+                if (filled($priceId)) {
                     /** @var class-string<Plan> $model */
                     $model = config('kinetix.billing.plan_model', Plan::class);
 
