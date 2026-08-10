@@ -27,6 +27,7 @@ class HelpScreenshotsCommand extends Command
      */
     protected $signature = 'kinetix:help-screenshots
                             {--only= : Capture only these page names (comma-separated)}
+                            {--locale= : Store the captures for this locale (articles in it get them instead of the shared ones)}
                             {--keep-local : Keep the local PNGs after uploading}';
 
     /**
@@ -152,6 +153,20 @@ class HelpScreenshotsCommand extends Command
         $disk   = config('kinetix.help.screenshots.disk') ?? config('kinetix.filesystem.disk', 'public');
         $prefix = trim((string) config('kinetix.help.screenshots.path_prefix', 'help/screenshots'), '/');
         $files  = File::glob($outDir.'/*.png');
+
+        // A localized run lands in its own folder; articles written in that
+        // locale are served from there, everything else keeps the shared set.
+        $locale = (string) ($this->option('locale') ?? '');
+
+        if ($locale !== '') {
+            if (! preg_match('/^[a-z]{2}([_-][A-Za-z]{2,4})?$/', $locale)) {
+                $this->error("Invalid locale [{$locale}]. Use a code like `es` or `pt_BR`.");
+
+                return self::FAILURE;
+            }
+
+            $prefix .= '/'.$locale;
+        }
 
         if ($files === []) {
             $this->warn('No screenshots were produced.');

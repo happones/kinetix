@@ -20,11 +20,26 @@ export function useKinetixHelpToc(contentEl: Ref<HTMLElement | null>) {
     const activeId = ref('');
     let observer: IntersectionObserver | null = null;
 
+    /**
+     * Unicode-aware heading slug. An ASCII-only rule (`\w`) silently mangles
+     * accented headings and erases non-Latin ones entirely — every article in
+     * Greek, Russian, Arabic, Chinese or Japanese would collapse to the same
+     * empty id — so letters and digits of ANY script are kept.
+     *
+     * Accents are folded on LATIN text only (`Configuración` →
+     * `configuracion`, keeping fragment URLs typeable). Other scripts are
+     * recomposed untouched: in Arabic or Hebrew a combining mark can change
+     * the letter itself (`إ` is not a decorated `ا`), so stripping it would
+     * misspell the heading.
+     */
     const slugify = (text: string): string =>
         text
+            .normalize('NFD')
+            .replace(/(\p{Script=Latin})\p{M}+/gu, '$1')
+            .normalize('NFC')
             .toLowerCase()
             .trim()
-            .replace(/[^\w\s-]/g, '')
+            .replace(/[^\p{L}\p{N}\s-]/gu, '')
             .replace(/\s+/g, '-')
             .replace(/-+/g, '-');
 
@@ -48,8 +63,15 @@ export function useKinetixHelpToc(contentEl: Ref<HTMLElement | null>) {
             const text = el.textContent?.trim() ?? '';
             let id = el.id || slugify(text) || 'section';
 
-            while (seen.has(id)) {
-                id = `${id}-1`;
+            // Repeated headings (common across translations) get -2, -3, …
+            if (seen.has(id)) {
+                let suffix = 2;
+
+                while (seen.has(`${id}-${suffix}`)) {
+                    suffix++;
+                }
+
+                id = `${id}-${suffix}`;
             }
 
             seen.add(id);

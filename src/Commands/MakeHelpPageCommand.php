@@ -15,6 +15,8 @@ class MakeHelpPageCommand extends Command
      * @var string
      */
     protected $signature = 'kinetix:make-help-page
+                            {--locale= : Scaffold a translation variant instead of the pages}
+                            {--from= : The article slug to translate (with --locale; omit for every article)}
                             {--force : Overwrite the pages if they already exist}';
 
     /**
@@ -22,13 +24,17 @@ class MakeHelpPageCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Scaffold the Help Center pages (index + article) and a sample markdown article';
+    protected $description = 'Scaffold the Help Center pages (index + article), a sample article, or a translation variant';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
+        if (is_string($this->option('locale')) && $this->option('locale') !== '') {
+            return $this->scaffoldTranslations((string) $this->option('locale'));
+        }
+
         $directory = resource_path('js/pages/Kinetix/Help');
 
         if (File::exists("{$directory}/Index.vue") && ! $this->option('force')) {
@@ -108,6 +114,108 @@ VUE;
         $this->line('   npm i -D playwright && npx playwright install chromium).');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Scaffold `{slug}.{locale}.md` variants from the base articles, keeping
+     * the structure a translator needs (front matter + heading skeleton) and
+     * leaving the prose to translate. Existing variants are never touched
+     * without `--force`.
+     */
+    protected function scaffoldTranslations(string $locale): int
+    {
+        if (! preg_match('/^[a-z]{2}([_-][A-Za-z]{2,4})?$/', $locale)) {
+            $this->error("Invalid locale [{$locale}]. Use a code like `es` or `pt_BR`.");
+
+            return self::FAILURE;
+        }
+
+        $path  = $this->helpPathForDisplay();
+        $from  = $this->option('from');
+        $bases = is_string($from) && $from !== ''
+            ? [$path.'/'.basename($from, '.md').'.md']
+            : $this->baseArticles($path);
+
+        if ($bases === []) {
+            $this->error("No base articles found in {$path}.");
+
+            return self::FAILURE;
+        }
+
+        $created = 0;
+
+        foreach ($bases as $base) {
+            if (! File::exists($base)) {
+                $this->error("Article not found: {$base}");
+
+                return self::FAILURE;
+            }
+
+            $target = substr($base, 0, -3).".{$locale}.md";
+
+            if (File::exists($target) && ! $this->option('force')) {
+                $this->line("Skipped (exists): {$target}");
+
+                continue;
+            }
+
+            File::put($target, $this->translationSkeleton((string) File::get($base), $locale));
+            $this->line("Created: {$target}");
+            $created++;
+        }
+
+        $this->info("\n{$created} translation file(s) created for [{$locale}].");
+        $this->comment('Translate the headings and prose, then check coverage with `php artisan kinetix:help-status`.');
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Base (non-variant) article files in the help directory.
+     *
+     * @return array<int, string>
+     */
+    protected function baseArticles(string $path): array
+    {
+        return array_values(array_filter(
+            File::glob("{$path}/*.md") ?: [],
+            static function (string $file): bool {
+                $name = basename($file);
+
+                return $name !== 'README.md'
+                    && ! str_starts_with($name, '_')
+                    && ! preg_match('/\.[a-z]{2}([_-][A-Za-z]{2,4})?\.md$/', $name);
+            },
+        ));
+    }
+
+    /**
+     * The base article reduced to what a translator fills in: the front matter
+     * (verbatim — `permission`/`order`/`icon` must not drift between locales)
+     * and its headings, each followed by a TODO marker.
+     */
+    protected function translationSkeleton(string $markdown, string $locale): string
+    {
+        $frontMatter = '';
+
+        if (preg_match('/^---\R.*?\R---\R?/s', $markdown, $matches)) {
+            $frontMatter = $matches[0];
+            $markdown    = (string) substr($markdown, strlen($matches[0]));
+        }
+
+        $headings = [];
+
+        foreach (preg_split('/\R/', $markdown) ?: [] as $line) {
+            if (preg_match('/^#{1,3}\s+\S/', $line)) {
+                $headings[] = trim($line)."\n\nTODO ({$locale}): translate this section.\n";
+            }
+        }
+
+        if ($headings === []) {
+            $headings[] = "TODO ({$locale}): translate this article.\n";
+        }
+
+        return $frontMatter."\n".implode("\n", $headings);
     }
 
     /**

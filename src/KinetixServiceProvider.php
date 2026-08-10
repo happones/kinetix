@@ -24,6 +24,7 @@ use Happones\Kinetix\Commands\ConfidentialRotateKeyCommand;
 use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
 use Happones\Kinetix\Commands\DoctorCommand;
 use Happones\Kinetix\Commands\HelpScreenshotsCommand;
+use Happones\Kinetix\Commands\HelpStatusCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
 use Happones\Kinetix\Commands\MakeBillingCommand;
@@ -69,6 +70,7 @@ use Happones\Kinetix\Gdpr\GdprRegistry;
 use Happones\Kinetix\Health\HealthController;
 use Happones\Kinetix\Health\HealthMetrics;
 use Happones\Kinetix\Help\HelpController;
+use Happones\Kinetix\Help\HelpManager;
 use Happones\Kinetix\Help\HelpSpotlightSource;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
@@ -353,6 +355,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeRolesPageCommand::class,
                 MakeHelpPageCommand::class,
                 HelpScreenshotsCommand::class,
+                HelpStatusCommand::class,
                 MakeActionCommand::class,
                 MakeTableCommand::class,
                 MakeFormCommand::class,
@@ -1036,6 +1039,10 @@ class KinetixServiceProvider extends ServiceProvider
         if (! config('kinetix.help.enabled', false)) {
             return;
         }
+
+        // Singleton so the per-request, per-locale article index is built once
+        // and shared by the JSON endpoints and the Spotlight source.
+        $this->app->singleton(HelpManager::class);
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);

@@ -788,11 +788,30 @@ return [
         // The host's named article route Spotlight links resolve through.
         'show_route' => 'help.show',
 
-        // Cache the discovery metadata (never the rendered, permission-gated
-        // HTML). Invalidated automatically when any article file changes.
+        // Locales the manual may be served in (`{slug}.{locale}.md` variants).
+        // Null = infer: the Locale module's locales, else whatever variants
+        // exist on disk. Requests may only ask for a locale on this list.
+        'locales' => null,
+
+        // The language the base `{slug}.md` files are written in, and the last
+        // resort before serving the base file. Null = config('app.fallback_locale').
+        'fallback_locale' => env('KINETIX_HELP_FALLBACK_LOCALE'),
+
+        // Strict mode: hide articles that have no variant in the active locale
+        // instead of serving them in the fallback language.
+        'hide_untranslated' => env('KINETIX_HELP_HIDE_UNTRANSLATED', false),
+
+        // Cache the per-locale article index — metadata + the plain-text
+        // search corpus (never the rendered, permission-gated HTML).
         'cache' => [
             'enabled' => env('KINETIX_HELP_CACHE', false),
             'ttl'     => env('KINETIX_HELP_CACHE_TTL', 3600),
+
+            // 'fingerprint' = key on the files' mtimes, so edits invalidate
+            // instantly (best for staging/authoring). 'ttl' = skip the
+            // per-request stat of every file and expire on the TTL (best for
+            // production, where articles ship with a deploy).
+            'strategy' => env('KINETIX_HELP_CACHE_STRATEGY', 'fingerprint'),
         ],
 
         'screenshots' => [

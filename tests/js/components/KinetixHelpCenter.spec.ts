@@ -1,5 +1,5 @@
-import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 const { routerMock, fetchMock } = vi.hoisted(() => ({
@@ -9,7 +9,18 @@ const { routerMock, fetchMock } = vi.hoisted(() => ({
 
 vi.mock('@inertiajs/vue3', () => ({
     router: routerMock,
-    usePage: () => ({ props: {} }),
+    usePage: () => ({
+        props: {
+            kinetix_locale: {
+                enabled: true,
+                current: 'en',
+                locales: [
+                    { code: 'en', label: 'English' },
+                    { code: 'es', label: 'Español' },
+                ],
+            },
+        },
+    }),
 }));
 
 vi.mock('@/composables/useKinetixHttp', () => ({
@@ -18,6 +29,7 @@ vi.mock('@/composables/useKinetixHttp', () => ({
 }));
 
 import KinetixHelpCenter from '@/components/KinetixHelpCenter.vue';
+import { clearKinetixHelpCache } from '@/composables/useKinetixHelp';
 
 const i18n = createI18n({
     legacy: false,
@@ -31,6 +43,7 @@ const i18n = createI18n({
                 help_no_articles: 'No help articles yet.',
                 help_grid_view: 'Card view',
                 help_list_view: 'List view',
+                help_untranslated: 'Not translated yet',
             },
         },
     },
@@ -43,6 +56,8 @@ const ARTICLES = [
         group: 'Basics',
         icon: null,
         excerpt: 'Widgets at a glance.',
+        locale: 'en',
+        isFallback: false,
     },
     {
         slug: '02-products',
@@ -50,16 +65,24 @@ const ARTICLES = [
         group: 'Catalog',
         icon: null,
         excerpt: 'Manage products.',
+        locale: 'en',
+        isFallback: false,
     },
 ];
 
 const mountCenter = (props: Record<string, unknown> = {}) =>
     mount(KinetixHelpCenter, { props, global: { plugins: [i18n] } });
 
+// Each mounted center watches the app locale; unmount between tests so a stale
+// instance can't answer the next test's language change.
+enableAutoUnmount(afterEach);
+
 describe('KinetixHelpCenter', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.useRealTimers();
+        clearKinetixHelpCache();
+        i18n.global.locale.value = 'en';
         fetchMock.mockResolvedValue({ articles: ARTICLES });
     });
 
@@ -67,7 +90,7 @@ describe('KinetixHelpCenter', () => {
         const w = mountCenter();
         await flushPromises();
 
-        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/help');
+        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/help?locale=en');
         expect(w.text()).toContain('Basics');
         expect(w.text()).toContain('Catalog');
         expect(w.text()).toContain('Dashboard');
@@ -117,6 +140,8 @@ describe('KinetixHelpCenter', () => {
                     title: 'Products',
                     group: 'Catalog',
                     excerpt: '…drag and drop…',
+                    locale: 'en',
+                    isFallback: false,
                 },
             ],
         });
@@ -128,7 +153,9 @@ describe('KinetixHelpCenter', () => {
         vi.advanceTimersByTime(300);
         await flushPromises();
 
-        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/help/search?q=drag');
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/_kinetix/help/search?q=drag&locale=en',
+        );
         expect(w.text()).toContain('…drag and drop…');
         vi.useRealTimers();
     });
@@ -139,5 +166,58 @@ describe('KinetixHelpCenter', () => {
         await flushPromises();
 
         expect(w.text()).toContain('No help articles yet.');
+    });
+
+    it('reloads the index when the app language changes', async () => {
+        const w = mountCenter();
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({
+            articles: [
+                {
+                    ...ARTICLES[0],
+                    title: 'Panel',
+                    excerpt: 'Widgets de un vistazo.',
+                    locale: 'es',
+                },
+            ],
+        });
+
+        i18n.global.locale.value = 'es';
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/help?locale=es');
+        expect(w.text()).toContain('Panel');
+        expect(w.text()).not.toContain('Dashboard');
+    });
+
+    it('serves a language it already loaded from cache', async () => {
+        const w = mountCenter();
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({ articles: [] });
+        i18n.global.locale.value = 'es';
+        await flushPromises();
+
+        const callsAfterSwitch = fetchMock.mock.calls.length;
+
+        i18n.global.locale.value = 'en';
+        await flushPromises();
+
+        expect(fetchMock.mock.calls.length).toBe(callsAfterSwitch);
+        expect(w.text()).toContain('Dashboard');
+    });
+
+    it('marks entries that fall back to another language', async () => {
+        fetchMock.mockResolvedValue({
+            articles: [{ ...ARTICLES[0], locale: 'en', isFallback: true }],
+        });
+        i18n.global.locale.value = 'es';
+
+        const w = mountCenter();
+        await flushPromises();
+
+        expect(w.text()).toContain('EN');
+        expect(w.get('[lang="en"]').text()).toContain('Dashboard');
     });
 });

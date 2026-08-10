@@ -11,12 +11,18 @@ import {
 } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixHelpArticleSummary } from '@/types/kinetix';
 import { cn } from './primitives/cn';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
 /**
  * The Help Center index: permission-filtered articles as grouped cards (or a
  * list — `layout` prop + user toggle) with a debounced server-side search
  * over titles AND bodies. Content comes from Kinetix's help endpoints, so a
  * user never sees articles their Gate denies.
+ *
+ * Everything follows the app's language and re-fetches when the user switches
+ * it. Entries that aren't translated yet are marked with the language they are
+ * actually written in (and carry that `lang` for screen readers) instead of
+ * quietly appearing to be in the reader's language.
  *
  * Navigation defaults to `{current path}/{slug}` — the scaffolded page lives
  * at `/help`, so articles land on `/help/{slug}`. Override with the
@@ -165,18 +171,29 @@ const groups = computed(() => {
                 @click.prevent="open(hit.slug)"
             >
                 <span class="gap-2 flex items-center">
-                    <span class="text-sm font-semibold text-foreground">{{
-                        hit.title
-                    }}</span>
+                    <span
+                        class="text-sm font-semibold text-foreground"
+                        :lang="hit.locale"
+                        >{{ hit.title }}</span
+                    >
                     <span
                         v-if="hit.group"
                         class="px-1.5 py-0.5 rounded bg-secondary text-[11px] text-secondary-foreground"
                         >{{ hit.group }}</span
                     >
+                    <KinetixBadge
+                        v-if="hit.isFallback"
+                        variant="outline"
+                        size="sm"
+                        :title="t('kinetix.help_untranslated')"
+                        >{{ hit.locale.toUpperCase() }}</KinetixBadge
+                    >
                 </span>
-                <span class="text-xs text-muted-foreground">{{
-                    hit.excerpt
-                }}</span>
+                <span
+                    class="text-xs text-muted-foreground"
+                    :lang="hit.locale"
+                    >{{ hit.excerpt }}</span
+                >
             </a>
         </div>
 
@@ -236,11 +253,21 @@ const groups = computed(() => {
                             </span>
                             <span
                                 class="text-sm font-semibold truncate text-foreground"
+                                :lang="entry.locale"
                                 >{{ entry.title }}</span
+                            >
+                            <KinetixBadge
+                                v-if="entry.isFallback"
+                                variant="outline"
+                                size="sm"
+                                class="ml-auto shrink-0"
+                                :title="t('kinetix.help_untranslated')"
+                                >{{ entry.locale.toUpperCase() }}</KinetixBadge
                             >
                         </span>
                         <span
                             class="text-xs line-clamp-2 text-muted-foreground"
+                            :lang="entry.locale"
                             >{{ entry.excerpt }}</span
                         >
                     </a>
@@ -262,16 +289,26 @@ const groups = computed(() => {
                             :is="resolveIcon(entry.icon) ?? BookOpen"
                             class="size-4 shrink-0 text-primary"
                         />
-                        <span class="min-w-0">
+                        <span class="min-w-0 flex-1">
                             <span
                                 class="text-sm font-medium block truncate text-foreground"
+                                :lang="entry.locale"
                                 >{{ entry.title }}</span
                             >
                             <span
                                 class="text-xs block truncate text-muted-foreground"
+                                :lang="entry.locale"
                                 >{{ entry.excerpt }}</span
                             >
                         </span>
+                        <KinetixBadge
+                            v-if="entry.isFallback"
+                            variant="outline"
+                            size="sm"
+                            class="shrink-0"
+                            :title="t('kinetix.help_untranslated')"
+                            >{{ entry.locale.toUpperCase() }}</KinetixBadge
+                        >
                     </a>
                 </div>
             </section>

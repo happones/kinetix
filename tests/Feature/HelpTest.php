@@ -197,7 +197,11 @@ MD);
         $this->article('01-a.md', "# A\n\n![Dash](screenshots/dash.png)");
 
         $html = $this->getJson(route('kinetix.help.show', ['slug' => '01-a']))->json('html');
-        $this->assertStringContainsString('src="'.url('/_kinetix/help/screenshots').'/dash.png"', $html);
+        // Tagged with the article's own locale so localized captures resolve.
+        $this->assertStringContainsString(
+            'src="'.url('/_kinetix/help/screenshots').'/dash.png?locale=en"',
+            $html,
+        );
     }
 
     public function test_screenshots_stream_from_the_disk_with_local_fallback(): void
@@ -240,6 +244,127 @@ MD);
 
         // Short queries return nothing.
         $this->getJson(route('kinetix.help.search', ['q' => 'k']))->assertJsonCount(0, 'results');
+    }
+
+    public function test_an_explicit_locale_is_served_without_touching_the_app_locale(): void
+    {
+        $this->article('01-a.md', "# English\n\nBase body.");
+        $this->article('01-a.es.md', "# Español\n\nCuerpo.");
+
+        // The app stays in English; the request asks for Spanish.
+        $this->getJson(route('kinetix.help.index', ['locale' => 'es']))
+            ->assertOk()
+            ->assertHeader('Content-Language', 'es')
+            ->assertJsonPath('locale', 'es')
+            ->assertJsonPath('articles.0.title', 'Español')
+            ->assertJsonPath('articles.0.locale', 'es')
+            ->assertJsonPath('articles.0.isFallback', false);
+
+        $this->assertSame('en', app()->getLocale());
+    }
+
+    public function test_an_unsupported_locale_is_ignored(): void
+    {
+        $this->article('01-a.md', "# English\n\nBase body.");
+
+        // `zz` is not authored, configured, or the app's — never trusted, so
+        // it can neither pick files nor widen the cache keyspace.
+        $this->getJson(route('kinetix.help.index', ['locale' => 'zz']))
+            ->assertOk()
+            ->assertJsonPath('locale', 'en')
+            ->assertJsonPath('articles.0.title', 'English');
+    }
+
+    public function test_the_article_payload_describes_its_language(): void
+    {
+        $this->article('01-a.md', "# English\n\nBase body.");
+        $this->article('01-a.es.md', "# Español\n\nCuerpo.");
+        app()->setLocale('fr');
+        config(['kinetix.help.locales' => ['en', 'es', 'fr']]);
+
+        $this->getJson(route('kinetix.help.show', ['slug' => '01-a']))
+            ->assertOk()
+            ->assertHeader('Content-Language', 'en')
+            ->assertJsonPath('locale', 'en')
+            ->assertJsonPath('requestedLocale', 'fr')
+            ->assertJsonPath('isFallback', true)
+            ->assertJsonPath('availableLocales', ['en', 'es']);
+    }
+
+    public function test_the_configured_fallback_locale_wins_over_the_base_file(): void
+    {
+        config([
+            'kinetix.help.locales'         => ['en', 'es', 'pt'],
+            'kinetix.help.fallback_locale' => 'pt',
+        ]);
+
+        $this->article('01-a.md', '# Base');
+        $this->article('01-a.pt.md', '# Português');
+
+        // Spanish is missing: the configured fallback (pt) is served, not the
+        // base file.
+        $this->getJson(route('kinetix.help.show', ['slug' => '01-a', 'locale' => 'es']))
+            ->assertOk()
+            ->assertJsonPath('locale', 'pt')
+            ->assertJsonPath('isFallback', true)
+            ->assertJsonPath('title', 'Português');
+    }
+
+    public function test_hide_untranslated_omits_articles_missing_in_the_locale(): void
+    {
+        config(['kinetix.help.hide_untranslated' => true]);
+
+        $this->article('01-a.md', "# Translated\n\nBody.");
+        $this->article('01-a.es.md', "# Traducido\n\nCuerpo con kanban.");
+        $this->article('02-b.md', "# English only\n\nBody with kanban.");
+
+        $this->getJson(route('kinetix.help.index', ['locale' => 'es']))
+            ->assertOk()
+            ->assertJsonCount(1, 'articles')
+            ->assertJsonPath('articles.0.title', 'Traducido');
+
+        // Search follows the same rule…
+        $this->getJson(route('kinetix.help.search', ['q' => 'kanban', 'locale' => 'es']))
+            ->assertJsonCount(1, 'results')
+            ->assertJsonPath('results.0.slug', '01-a');
+
+        // …and the hidden article 404s rather than being served in English.
+        $this->getJson(route('kinetix.help.show', ['slug' => '02-b', 'locale' => 'es']))
+            ->assertNotFound();
+    }
+
+    public function test_search_reads_the_requested_locale(): void
+    {
+        $this->article('01-a.md', "# English\n\nDrag and drop rows.");
+        $this->article('01-a.es.md', "# Español\n\nArrastra y suelta filas.");
+
+        $this->getJson(route('kinetix.help.search', ['q' => 'arrastra', 'locale' => 'es']))
+            ->assertOk()
+            ->assertJsonCount(1, 'results')
+            ->assertJsonPath('results.0.title', 'Español')
+            ->assertJsonPath('results.0.locale', 'es');
+
+        // The same term finds nothing in the English index.
+        $this->getJson(route('kinetix.help.search', ['q' => 'arrastra']))
+            ->assertJsonCount(0, 'results');
+    }
+
+    public function test_localized_screenshots_win_over_the_shared_ones(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('help/screenshots/dash.png', 'shared-bytes');
+        Storage::disk('local')->put('help/screenshots/es/dash.png', 'spanish-bytes');
+
+        $this->article('01-a.md', '# A');
+        $this->article('01-a.es.md', '# Español');
+
+        $localized = $this->get(route('kinetix.help.screenshot', ['file' => 'dash.png', 'locale' => 'es']));
+        $localized->assertOk();
+        $this->assertSame('spanish-bytes', $localized->streamedContent());
+
+        $shared = $this->get(route('kinetix.help.screenshot', ['file' => 'dash.png']));
+        $shared->assertOk();
+        $this->assertSame('shared-bytes', $shared->streamedContent());
     }
 
     public function test_metadata_cache_invalidates_when_a_file_changes(): void

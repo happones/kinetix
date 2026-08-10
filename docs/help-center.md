@@ -91,10 +91,53 @@ Files named `README.md` or starting with `_` are ignored (drafts).
 ### Translations
 
 Add a locale variant next to the base file: `06-products.es.md`,
-`06-products.pt.md`. Resolution follows the app locale with a regional
-fallback — `pt_BR` tries `{slug}.pt_BR.md`, then `{slug}.pt.md`, then the base
-file. Titles, excerpts and search all read the resolved localized file. The
-base `.md` must exist — variants alone are not discovered.
+`06-products.pt.md`. The base `.md` must exist — variants alone are not
+discovered.
+
+**Resolution.** A request is served in the active language, falling back one
+step at a time: `{slug}.pt_BR.md` → `{slug}.pt.md` →
+`{slug}.{help.fallback_locale}.md` → the base `{slug}.md`. Titles, excerpts,
+groups, ordering and search all read the resolved file, so an index is never a
+mix of half-translated metadata.
+
+**The language is part of the request, not an ambient assumption.** Every help
+endpoint takes `?locale=` (validated against the locales the manual is
+authored in — anything else is ignored), and the components send the app's
+active language with every call. Three things follow:
+
+- Switching language in your app's selector **re-fetches the index and the open
+  article immediately** — no page reload, no article left in the previous
+  language.
+- Responses carry `Content-Language` + `Vary`, and the URL differs per
+  language, so no browser or CDN cache can hand one language's payload to
+  another.
+- A reader can open a single article in another language without changing the
+  whole app's locale (the chips described in §4).
+
+<Screenshot name="help-article-language" alt="Help article — untranslated notice and per-article language chips" />
+
+**Untranslated articles are marked, never silently swapped.** Each payload says
+which language it is actually in (`locale`) and whether that differs from the
+one asked for (`isFallback`). The components use it to mark the entry with its
+real language — both visually and as a `lang` attribute, so screen readers
+switch pronunciation instead of reading English as if it were Spanish. Prefer
+hiding those articles entirely? Set `help.hide_untranslated` and they disappear
+from the index, search and their own URL (404) until translated.
+
+**Coverage and scaffolding.**
+
+```bash
+php artisan kinetix:help-status                    # matrix: article × locale
+php artisan kinetix:help-status --strict           # non-zero exit on any gap (CI gate)
+
+php artisan kinetix:make-help-page --locale=es --from=06-products
+php artisan kinetix:make-help-page --locale=es     # every article missing that locale
+```
+
+The scaffolder copies the front matter verbatim (`permission`, `order` and
+`icon` must not drift between languages) and reproduces the heading skeleton
+with `TODO (es)` markers — structure to translate, never untranslated prose
+masquerading as a translation.
 
 ### Permission-gated content
 
@@ -165,6 +208,22 @@ a public URL. There is also a zero-setup fallback: PNGs committed to
 `{help.path}/screenshots/` are served directly (the original
 "commit the screenshots to the repo" workflow).
 
+### Screenshots per language
+
+A manual for a translated app needs translated captures. Run the command once
+per language:
+
+```bash
+php artisan kinetix:help-screenshots --locale=es
+```
+
+Captures land in `{path_prefix}/{locale}/` and are served to articles written
+in that language; anything without a localized capture falls back to the shared
+set, so you can translate screenshots gradually. Markdown never changes — the
+same `![Alt](screenshots/name.png)` embed resolves per language (the renderer
+tags each embed with the article's own locale). The committed-PNG workflow
+follows the same rule with `{help.path}/screenshots/{locale}/name.png`.
+
 > Screenshots are auth-protected but not per-article gated (they are often
 > shared across articles). Don't screenshot anything more sensitive than the
 > articles themselves.
@@ -193,10 +252,22 @@ If PHP can't exec node, the command prints the manual invocation.
 <KinetixHelpCenter :article-href="(slug) => `/docs/${slug}`" />
 
 <KinetixHelpArticle :slug="slug" />        <!-- article + TOC + prev/next -->
+<KinetixHelpArticle :slug="slug" hide-language-switcher />
 ```
 
 - **Search** is server-side (250 ms debounce) over the localized titles *and
-  bodies* of the articles the user may see.
+  bodies* of the articles the user may see — served from an in-memory index,
+  so a query costs no file reads.
+- **Language** follows the app and reacts to the switcher. Articles available
+  in more than one language show chips ("Read in: English · Español") that swap
+  just that article; untranslated ones show a notice naming the language you're
+  actually reading. Pass `hide-language-switcher` to keep the notice without
+  the chips.
+- Heading anchors are Unicode-aware: `## Configuración` becomes
+  `#configuracion` and non-Latin headings keep their own script instead of
+  collapsing into identical ids.
+
+<Screenshot name="help-center" alt="Help Center index — grouped cards, search, and an untranslated article marked with its language" />
 - The index groups by the `group` front matter key; cards/list both link via
   `article-href` (default: `{current path}/{slug}` — matching the scaffolded
   routes, teams included).
@@ -217,10 +288,33 @@ global command palette (permission-filtered). Result links resolve through the
     'enabled'    => env('KINETIX_HELP_ENABLED', false),
     'path'       => env('KINETIX_HELP_PATH'),        // null = resource_path('help')
     'show_route' => 'help.show',                     // Spotlight link target
-    'cache'      => [
-        'enabled' => env('KINETIX_HELP_CACHE', false), // metadata only; HTML is
-        'ttl'     => env('KINETIX_HELP_CACHE_TTL', 3600), // never cached (per-user gating)
+
+    // Languages the manual may be served in. Null = infer: the Locale
+    // module's locales, else the variants found on disk. A request can only
+    // ask for a locale on this list.
+    'locales' => null,
+
+    // Language the base `{slug}.md` files are written in, and the last resort
+    // before serving that base file. Null = config('app.fallback_locale').
+    'fallback_locale' => env('KINETIX_HELP_FALLBACK_LOCALE'),
+
+    // Hide articles with no variant in the active language instead of serving
+    // them in the fallback one.
+    'hide_untranslated' => env('KINETIX_HELP_HIDE_UNTRANSLATED', false),
+
+    'cache' => [
+        'enabled'  => env('KINETIX_HELP_CACHE', false),      // index only; HTML is
+        'ttl'      => env('KINETIX_HELP_CACHE_TTL', 3600),   // never cached (per-user gating)
+        'strategy' => env('KINETIX_HELP_CACHE_STRATEGY', 'fingerprint'),
     ],
     'screenshots' => [ /* see §3 */ ],
 ],
 ```
+
+**Cache strategy.** `fingerprint` (default) keys the per-language index on the
+article files' mtimes, so an edit is visible immediately — right for authoring
+and staging. `ttl` skips that per-request stat entirely and lets entries expire
+on the TTL — right for production, where articles ship with a deploy. Either
+way the index holds metadata **and** the plain-text search corpus, built with
+one read per article; the rendered HTML is never cached because it is
+permission-gated per user.

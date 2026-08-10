@@ -17,6 +17,59 @@ const col = (name: string, extra: Record<string, unknown> = {}) => ({
 
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
     {
+        // Help article specimen: a Spanish reader on an English-only article,
+        // so the fallback notice + language chips both render.
+        match: /\/help\/article\//,
+        data: {
+            slug: '02-products',
+            title: 'Products',
+            group: 'Catalog',
+            html: '<h1>Products</h1><p>Every product in your catalog lives here — create them one by one or import a spreadsheet.</p><h2>Creating a product</h2><p>Open <strong>Catalog → Products</strong> and press <em>New product</em>. Name and price are required; everything else can wait.</p><h2>Importing in bulk</h2><p>Download the template, fill it in, and drop it on the importer. Rows that fail validation come back as a CSV you can fix and re-upload.</p>',
+            locale: 'en',
+            requestedLocale: 'es',
+            isFallback: true,
+            availableLocales: ['en', 'pt'],
+            prev: { slug: '01-dashboard', title: 'Dashboard' },
+            next: { slug: '03-billing', title: 'Billing' },
+        },
+    },
+    {
+        match: /\/help(\?|$)/,
+        data: {
+            locale: 'es',
+            locales: ['en', 'es', 'pt'],
+            articles: [
+                {
+                    slug: '01-panel',
+                    title: 'El panel',
+                    group: 'Primeros pasos',
+                    icon: 'layout-dashboard',
+                    excerpt: 'Tus widgets de un vistazo, y cómo reordenarlos.',
+                    locale: 'es',
+                    isFallback: false,
+                },
+                {
+                    slug: '02-productos',
+                    title: 'Productos',
+                    group: 'Primeros pasos',
+                    icon: 'package',
+                    excerpt: 'Crea, importa y organiza tu catálogo.',
+                    locale: 'es',
+                    isFallback: false,
+                },
+                {
+                    slug: '03-billing',
+                    title: 'Billing and invoices',
+                    group: 'Cuenta',
+                    icon: 'credit-card',
+                    excerpt: 'Plans, payment methods and invoice downloads.',
+                    locale: 'en',
+                    isFallback: true,
+                },
+            ],
+        },
+    },
+    {
         match: /\/mail-templates\/preview$/,
         data: {
             subject: 'Welcome to Acme, Ada!',

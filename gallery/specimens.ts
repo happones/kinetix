@@ -249,6 +249,8 @@ import KinetixSubscriptionStatus from '@/components/KinetixSubscriptionStatus.vu
 import KinetixUsageMeters from '@/components/KinetixUsageMeters.vue';
 import KinetixInvoicesTable from '@/components/KinetixInvoicesTable.vue';
 import KinetixPlanLock from '@/components/KinetixPlanLock.vue';
+import KinetixHelpCenter from '@/components/KinetixHelpCenter.vue';
+import KinetixHelpArticle from '@/components/KinetixHelpArticle.vue';
 import KinetixChartWidget from '@/components/KinetixChartWidget.vue';
 import KinetixCustomWidget from '@/components/KinetixCustomWidget.vue';
 import KinetixTableWidget from '@/components/KinetixTableWidget.vue';
@@ -1721,6 +1723,19 @@ export const specimens: Specimen[] = [
             description:
                 'Invite a teammate to start collaborating on this project.',
         },
+    },
+    {
+        name: 'help-center',
+        title: 'Help Center — localized index',
+        component: KinetixHelpCenter,
+        width: 880,
+    },
+    {
+        name: 'help-article-language',
+        title: 'Help article — untranslated notice + language chips',
+        component: KinetixHelpArticle,
+        width: 760,
+        props: { slug: '02-products' },
     },
     {
         name: 'onboarding-checklist',

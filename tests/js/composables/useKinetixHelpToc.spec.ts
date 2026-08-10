@@ -45,8 +45,23 @@ describe('useKinetixHelpToc', () => {
 
         expect(api.toc.value.map((entry) => entry.id)).toEqual([
             'usage',
-            'usage-1',
-            'usage-1-1',
+            'usage-2',
+            'usage-3',
+        ]);
+    });
+
+    it('keeps non-English headings addressable', () => {
+        const api = buildWith(
+            '<h2>Configuración</h2><h2>Электронная почта</h2><h2>設定</h2><h2>الإعدادات</h2>',
+        );
+
+        // Accents fold away; other scripts survive instead of collapsing to
+        // one meaningless id (what an ASCII-only `\w` rule would produce).
+        expect(api.toc.value.map((entry) => entry.id)).toEqual([
+            'configuracion',
+            'электронная-почта',
+            '設定',
+            'الإعدادات',
         ]);
     });
 

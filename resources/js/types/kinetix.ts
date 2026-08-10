@@ -122,6 +122,10 @@ export interface KinetixHelpArticleSummary {
     group: string | null;
     icon: string | null;
     excerpt: string;
+    /** The language this entry is actually written in. */
+    locale: string;
+    /** True when that differs from the requested language (untranslated). */
+    isFallback: boolean;
 }
 
 /** A rendered Help Center article with its prev/next neighbors. */
@@ -130,6 +134,14 @@ export interface KinetixHelpArticleDetail {
     title: string;
     group: string | null;
     html: string;
+    /** The language the rendered body is written in (for `lang`/`dir`). */
+    locale: string;
+    /** The language that was asked for. */
+    requestedLocale: string;
+    /** True when the body fell back to another language. */
+    isFallback: boolean;
+    /** Every language this article exists in, for the per-article switcher. */
+    availableLocales: string[];
     prev: { slug: string; title: string } | null;
     next: { slug: string; title: string } | null;
 }
@@ -140,6 +152,8 @@ export interface KinetixHelpSearchResult {
     title: string;
     group: string | null;
     excerpt: string;
+    locale: string;
+    isFallback: boolean;
 }
 
 /** One product-tour step (selector + popover content). */

@@ -13,6 +13,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.168.0] - 2026-08-10
+
+The Help Center becomes properly multilingual: the manual now follows the
+reader's language live, says which language they're actually reading, and
+costs no file reads to search.
+
+### Added
+
+- **The language is part of the request**: every help endpoint accepts
+  `?locale=` — validated against the locales the manual is authored in
+  (`help.locales`, else the Locale module's, else the variants found on disk),
+  so untrusted input can neither pick files nor widen the cache keyspace — and
+  answers with `Content-Language` + `Vary`. The URL now varies per language, so
+  no browser or CDN cache can serve one language's payload to another.
+- **Per-article language switcher**: an article payload carries `locale`,
+  `requestedLocale`, `isFallback` and `availableLocales`, and
+  `<KinetixHelpArticle>` renders chips to read a single article in another
+  language without changing the app's locale (`hide-language-switcher` opts
+  out) **(published: `KinetixHelpArticle.vue`, `types/kinetix.ts`)**.
+- **Untranslated content is marked, never silently swapped**: the article body
+  carries its real `lang` (plus `dir="auto"`) with a notice naming the language
+  shown, and index/search entries get a language badge and their own `lang`
+  attribute — so a screen reader stops reading English as if it were Spanish
+  **(published: `KinetixHelpCenter.vue`, `KinetixHelpArticle.vue`)**.
+- **New config**: `help.locales`, `help.fallback_locale` (the language the base
+  `.md` files are written in, and the last resort before them),
+  `help.hide_untranslated` (strict mode: an article with no variant in the
+  active language disappears from the index, search and its own URL) and
+  `help.cache.strategy` (`fingerprint` | `ttl`) **(published:
+  `config/kinetix.php`)**.
+- **Localized screenshots**: `kinetix:help-screenshots --locale=es` stores a
+  capture set under `{path_prefix}/{locale}/`, and embeds resolve it for
+  articles written in that language, falling back to the shared capture — the
+  markdown never changes.
+- **`kinetix:help-status`**: translation coverage per article and locale, with
+  `--strict` for a CI gate and `--locale` to narrow the report.
+- **`kinetix:make-help-page --locale=es [--from=slug]`**: scaffolds the missing
+  variants with the front matter verbatim (permissions and ordering must not
+  drift between languages) and the heading skeleton with TODO markers.
+- 3 new translation keys (`help_translation_missing`, `help_read_in`,
+  `help_untranslated`) across all seven locales **(published)**.
+
+### Fixed
+
+- **The Help Center kept the previous language after a switch**: it fetched
+  only on mount, and an Inertia reload re-renders the page component without
+  re-running `onMounted`, so the index and the open article stayed in the old
+  language until a full page load. `useKinetixHelp` now watches the active
+  language and re-fetches **(published: `useKinetixHelp.ts`)**.
+- **Heading anchors erased non-Latin headings**: the TOC slug used an
+  ASCII-only rule, so `Configuración` lost letters and Cyrillic/CJK/Arabic
+  headings collapsed to identical ids (`section`, `section-1`, …), breaking
+  every deep link. Slugs are now Unicode-aware, folding diacritics on Latin
+  text only (an Arabic combining mark changes the letter, it doesn't decorate
+  it), and repeated headings dedupe as `-2`, `-3` **(published:
+  `useKinetixHelpToc.ts`)**.
+
+### Changed
+
+- **Search stopped re-reading the manual**: each locale's articles are built
+  once per request into an index holding both the metadata and the plain-text
+  search corpus, so a query costs zero file reads (it previously re-read and
+  re-parsed every article, twice, on every keystroke). The index memo is keyed
+  on the files' mtimes so a long-lived worker can't serve a stale manual, and
+  `HelpManager` is now a singleton shared by the endpoints and the Spotlight
+  source.
+- `useKinetixHelp` caches payloads per language client-side (switching back and
+  forth costs no request); `clearKinetixHelpCache()` drops them **(published:
+  `useKinetixHelp.ts`)**.
+- Dev-only: the gallery gained Help Center specimens, and `docs/help-center.md`
+  documents the whole translation workflow with light/dark screenshots.
+
 ## [0.167.0] - 2026-08-10
 
 An optional plan-lock UI for the billing suite: the padlock every SaaS grows —
