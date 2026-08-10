@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.168.1] - 2026-08-10
+
 ### Fixed
 
 - **Billing: an empty string is no longer mistaken for a Stripe id.** Every
