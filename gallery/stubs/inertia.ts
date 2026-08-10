@@ -43,6 +43,23 @@ const page = {
                 { id: 3, name: 'Initech', url: '#', current: false },
             ],
         },
+        // Surfaced for the plan-lock specimens: a plan WITHOUT the gated
+        // capability, so every <KinetixPlanLock> renders its locked state.
+        kinetix_billing: {
+            enabled: true,
+            plan: {
+                slug: 'starter',
+                name: 'Starter',
+                features: { capabilities: { discord: false } },
+            },
+            upgradeUrl: '/billing',
+            lock: {
+                variant: 'card',
+                modal: true,
+                blur: true,
+                badgeLabel: null,
+            },
+        },
         // Surfaced for the presence / online-users specimen.
         kinetix_presence: { enabled: true, channel: 'kinetix-presence' },
         // Surfaced for the queue-stats specimen (poll 0 → no interval).

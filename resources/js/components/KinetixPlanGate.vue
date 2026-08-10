@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { Lock } from '@lucide/vue';
-import { useI18n } from 'vue-i18n';
-import { useKinetixPlan } from '@/composables/useKinetixPlan';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
-import KinetixPlanFeature from './KinetixPlanFeature.vue';
+import KinetixPlanLock from './KinetixPlanLock.vue';
 
 /**
  * The "module locked" upsell pattern: `<KinetixPlanFeature>` with a built-in
@@ -24,6 +19,10 @@ import KinetixPlanFeature from './KinetixPlanFeature.vue';
  * Fail-closed like every plan check: no plan (or billing off) = locked.
  * Display gating only — the server must still enforce the feature
  * (`kinetix.plan:` middleware / `HasPlan` / `EnforcesPlanLimits`).
+ *
+ * This is `<KinetixPlanLock variant="card">` with the CTA linking straight to
+ * the upgrade URL — reach for `<KinetixPlanLock>` when you want another
+ * presentation (overlay, banner, badge) or the upgrade modal.
  */
 withDefaults(
     defineProps<{
@@ -36,45 +35,21 @@ withDefaults(
     }>(),
     { feature: undefined, limit: undefined, count: 0 },
 );
-
-const { t } = useI18n();
-const { upgradeUrl } = useKinetixPlan();
 </script>
 
 <template>
-    <KinetixPlanFeature :feature="feature" :limit="limit" :count="count">
+    <KinetixPlanLock
+        variant="card"
+        :feature="feature"
+        :limit="limit"
+        :count="count"
+        :modal="false"
+    >
         <template #default="{ remaining }">
             <slot :remaining="remaining" />
         </template>
-        <template #denied="{ remaining }">
-            <slot name="locked" :remaining="remaining">
-                <div
-                    class="rounded-lg px-6 py-12 flex flex-col items-center justify-center border border-dashed border-border text-center"
-                >
-                    <div
-                        class="mb-3 size-10 flex items-center justify-center rounded-full bg-muted"
-                    >
-                        <Lock
-                            class="size-5 text-muted-foreground"
-                            aria-hidden="true"
-                        />
-                    </div>
-                    <h3 class="text-sm font-semibold text-foreground">
-                        {{ t('kinetix.plan_locked_title') }}
-                    </h3>
-                    <p class="mt-1 text-sm max-w-sm text-muted-foreground">
-                        {{ t('kinetix.plan_locked_body') }}
-                    </p>
-                    <Link
-                        v-if="upgradeUrl"
-                        :href="upgradeUrl"
-                        :class="buttonVariants({ size: 'sm' })"
-                        class="mt-4"
-                    >
-                        {{ t('kinetix.plan_upgrade') }}
-                    </Link>
-                </div>
-            </slot>
+        <template v-if="$slots.locked" #locked="{ remaining }">
+            <slot name="locked" :remaining="remaining" />
         </template>
-    </KinetixPlanFeature>
+    </KinetixPlanLock>
 </template>

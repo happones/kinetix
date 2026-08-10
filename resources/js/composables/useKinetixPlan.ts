@@ -1,7 +1,19 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import type { ComputedRef } from 'vue';
-import type { KinetixBillingState, KinetixSharedProps } from '@/types/kinetix';
+import type {
+    KinetixBillingState,
+    KinetixPlanLockDefaults,
+    KinetixSharedProps,
+} from '@/types/kinetix';
+
+/** Fallbacks used when the app never publishes `kinetix.billing.lock`. */
+const LOCK_FALLBACKS: Required<KinetixPlanLockDefaults> = {
+    variant: 'card',
+    modal: true,
+    blur: true,
+    badgeLabel: null,
+};
 
 /**
  * Resolve a dot-path inside the plan's nested features JSON, mirroring
@@ -63,6 +75,13 @@ export function useKinetixPlan() {
 
     /** Where the upsell CTA sends users (`kinetix.billing.upgrade_url`). */
     const upgradeUrl = computed(() => state.value.upgradeUrl ?? null);
+
+    /**
+     * App-wide defaults for the `<KinetixPlanLock>` upsell UI, from
+     * `kinetix.billing.lock` — per-instance props always win over these.
+     */
+    const lockDefaults: ComputedRef<Required<KinetixPlanLockDefaults>> =
+        computed(() => ({ ...LOCK_FALLBACKS, ...(state.value.lock ?? {}) }));
 
     /**
      * Capability sugar mirroring the backend's `planAllows()`:
@@ -127,10 +146,65 @@ export function useKinetixPlan() {
         plan,
         onPlan,
         upgradeUrl,
+        lockDefaults,
         allows,
         featureValue,
         canUseFeature,
         hasReachedLimit,
         remaining,
     };
+}
+
+/** The gating props shared by `<KinetixPlanFeature>` / `<KinetixPlanLock>`. */
+export interface KinetixPlanAccessInput {
+    /** Dot-path of a capability flag, e.g. `capabilities.api`. */
+    feature?: string;
+    /** Dot-path of a usage limit, e.g. `usage.projects`. */
+    limit?: string;
+    /** Current usage count, compared against the `limit` path. */
+    count?: number;
+}
+
+/**
+ * The single evaluation of "does this plan allow it?" behind every declarative
+ * gate — capability, usage limit, or both (each given prop must pass). Kept
+ * here so `<KinetixPlanFeature>` and `<KinetixPlanLock>` can never drift:
+ *
+ *     const { allowed, remainingCount } = useKinetixPlanAccess(() => props);
+ *
+ * `gated` tells a caller whether any gating prop was supplied at all — a lock
+ * with none is an unconditional upsell, not an allowed feature.
+ */
+export function useKinetixPlanAccess(input: () => KinetixPlanAccessInput) {
+    const { canUseFeature, hasReachedLimit, remaining } = useKinetixPlan();
+
+    const gated = computed(() => {
+        const { feature, limit } = input();
+
+        return feature !== undefined || limit !== undefined;
+    });
+
+    const allowed = computed(() => {
+        const { feature, limit, count } = input();
+        let ok = true;
+
+        if (feature !== undefined) {
+            ok = ok && canUseFeature(feature);
+        }
+
+        if (limit !== undefined) {
+            ok = ok && !hasReachedLimit(limit, count ?? 0);
+        }
+
+        return ok;
+    });
+
+    /** Units left on the `limit` path (null = unlimited or no limit prop). */
+    const remainingCount = computed(() => {
+        const { limit, count } = input();
+
+        return limit !== undefined ? remaining(limit, count ?? 0) : null;
+    });
+
+    return { gated, allowed, remainingCount };
 }

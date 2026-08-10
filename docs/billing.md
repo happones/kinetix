@@ -383,6 +383,119 @@ lock card with an **Upgrade CTA** pointing at `kinetix.billing.upgrade_url`:
 Use `<KinetixPlanFeature>` when the denied state should render nothing (menu
 items, buttons); `<KinetixPlanGate>` when it should sell the upgrade.
 
+### The padlock: `<KinetixPlanLock>`
+
+`<KinetixPlanGate>` is one presentation of a locked feature. `<KinetixPlanLock>`
+is the whole set — same gating props (`feature` / `limit` + `count`), four ways
+to show the lock, chosen with `variant`:
+
+| Variant | What it renders | Use it for |
+|---|---|---|
+| `card` (default) | Dashed lock card **replacing** the content | A whole locked module or page section |
+| `overlay` | The content stays visible but blurred, dimmed and `inert`, under a centred lock | Panels/dashboards — "here's what you're missing" |
+| `banner` | A row-shaped upsell strip (icon, title + plan pill, copy, CTA) | Above content the plan only partly unlocks |
+| `badge` | The content dimmed with a padlock appended; any click opens the upgrade dialog | Sidebar items, tab triggers, menu entries |
+
+<Screenshot name="plan-lock-card" alt="Plan lock — locked module card" />
+
+<Screenshot name="plan-lock-overlay" alt="Plan lock — overlay over the locked panel" />
+
+<Screenshot name="plan-lock-banner" alt="Plan lock — upsell banner" />
+
+<Screenshot name="plan-lock-badge" alt="Plan lock — padlocked navigation item" />
+
+```vue
+<!-- Locked module (same as KinetixPlanGate, now with an upgrade dialog) -->
+<KinetixPlanLock feature="capabilities.api">
+  <ApiTokensPanel />
+</KinetixPlanLock>
+
+<!-- Locked panel: the settings stay visible behind the padlock -->
+<KinetixPlanLock variant="overlay" feature="alerts.discord" feature-name="Discord alerts">
+  <DiscordSettings />
+</KinetixPlanLock>
+
+<!-- Locked sidebar item: dimmed, padlocked, click sells the upgrade -->
+<KinetixPlanLock variant="badge" feature="capabilities.api">
+  <SidebarLink href="/api-tokens">API tokens</SidebarLink>
+</KinetixPlanLock>
+
+<!-- Standalone upsell: no feature/limit prop = always locked -->
+<KinetixPlanLock variant="banner" feature-name="Real-time alerts" badge-label="Pro" />
+```
+
+Copy and behaviour are props, all optional:
+
+| Prop | Default | Purpose |
+|---|---|---|
+| `featureName` | `null` | Human name woven into the default body copy and the dialog |
+| `title` / `description` / `ctaLabel` | translated `kinetix.plan_*` keys | Override any string |
+| `badgeLabel` | `kinetix.billing.lock.badge_label` | Plan pill next to the title (e.g. `Pro`) |
+| `modal` | `kinetix.billing.lock.modal` (`true`) | CTA opens `<KinetixUpgradeModal>`; `false` links straight to the upgrade URL |
+| `blur` | `kinetix.billing.lock.blur` (`true`) | `overlay`: blur the content behind the lock |
+| `upgradeUrl` | `kinetix.billing.upgrade_url` | Per-instance CTA target |
+| `variant` | `kinetix.billing.lock.variant` (`card`) | Presentation |
+
+App-wide defaults live in config, so a single decision ("locks are overlays and
+say Pro") applies everywhere and per-instance props still win:
+
+```php
+'lock' => [
+    'variant'     => env('KINETIX_BILLING_LOCK_VARIANT', 'card'),
+    'modal'       => env('KINETIX_BILLING_LOCK_MODAL', true),
+    'blur'        => env('KINETIX_BILLING_LOCK_BLUR', true),
+    'badge_label' => env('KINETIX_BILLING_LOCK_BADGE_LABEL'),
+],
+```
+
+The `#locked` slot replaces the lock UI entirely and receives `remaining` plus
+an `open()` callback for the upgrade dialog:
+
+```vue
+<KinetixPlanLock limit="usage.projects" :count="projects.length">
+  <NewProjectForm />
+  <template #locked="{ remaining, open }">
+    <button type="button" @click="open">You've used every project on this plan</button>
+  </template>
+</KinetixPlanLock>
+```
+
+`<KinetixUpgradeModal>` is also usable on its own when the app wants the same
+upsell dialog from its own code — `v-model:open` plus an optional
+`feature-name`. Without an upgrade URL configured, neither the lock CTA nor the
+dialog's CTA renders, so a lock never ships a dead-end button.
+
+A lock with **no** `feature`/`limit` prop is an unconditional upsell (handy for
+banners); with them it fails closed like every plan check — no plan, or billing
+off, means locked.
+
+### Hide it or padlock it — your call
+
+Kinetix never decides how a plan-locked feature looks to the user. Both
+behaviours are first-class, on the same dot-paths, and you pick per surface:
+
+```vue
+<!-- HIDE: the item simply isn't there for plans that don't include it -->
+<KinetixPlanFeature feature="capabilities.discord">
+  <SidebarLink href="/alerts/discord">Discord alerts</SidebarLink>
+</KinetixPlanFeature>
+
+<!-- PADLOCK: the item stays visible, dimmed, and sells the upgrade on click -->
+<KinetixPlanLock variant="badge" feature="capabilities.discord">
+  <SidebarLink href="/alerts/discord">Discord alerts</SidebarLink>
+</KinetixPlanLock>
+```
+
+The same choice applies to pages and panels: render nothing (`<KinetixPlanFeature>`
+with no `#denied` slot), replace the section with a lock card (`variant="card"`),
+or leave it visible behind an overlay (`variant="overlay"`). Nothing here is
+mandatory — an app that never wants padlocks simply never imports
+`<KinetixPlanLock>`, and the backend enforcement is unchanged either way.
+
+> Hiding is not protection. Whichever presentation you choose, the route and
+> the write path must still be gated server-side (`kinetix.plan:` middleware,
+> `HasPlan`, `EnforcesPlanLimits`) — a hidden link is still a reachable URL.
+
 > **Display gating only.** The shared plan lets the SPA hide/disable UI, but the
 > server must still enforce every feature and limit on the write path
 > (`plan.feature` / `kinetix.plan:` middleware, `EnforcesPlanLimits`,
@@ -565,6 +678,8 @@ All components are token-only (shadcn semantic tokens) and take labels via props
 | `KinetixSubscriptionStatus` | Status badge + cancel/resume |
 | `KinetixInvoicesTable` | Invoice list with per-row download |
 | `KinetixUsageMeters` | Metered-usage progress bars (renders nothing when there's nothing to show) |
+| `KinetixPlanLock` | Plan-locked feature UI: card / overlay / banner / badge padlock + upgrade CTA |
+| `KinetixUpgradeModal` | The upsell dialog the locks open (also usable standalone) |
 
 <Screenshot name="pricing-table" alt="Pricing table — plan cards" />
 

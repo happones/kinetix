@@ -2127,6 +2127,13 @@ class KinetixServiceProvider extends ServiceProvider
                 ],
                 // Where <KinetixPlanGate>'s upsell CTA sends users to upgrade.
                 'upgradeUrl' => config('kinetix.billing.upgrade_url'),
+                // App-wide <KinetixPlanLock> presentation defaults.
+                'lock' => [
+                    'variant'    => config('kinetix.billing.lock.variant', 'card'),
+                    'modal'      => (bool) config('kinetix.billing.lock.modal', true),
+                    'blur'       => (bool) config('kinetix.billing.lock.blur', true),
+                    'badgeLabel' => config('kinetix.billing.lock.badge_label'),
+                ],
             ];
         });
 

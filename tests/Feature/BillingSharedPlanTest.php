@@ -70,7 +70,12 @@ class BillingSharedPlanTest extends TestCase
     }
 
     /**
-     * @return array{enabled: bool, plan: ?array{slug: string, name: string, features: array<string, mixed>}}
+     * @return array{
+     *     enabled: bool,
+     *     plan: ?array{slug: string, name: string, features: array<string, mixed>},
+     *     upgradeUrl?: ?string,
+     *     lock?: array{variant: string, modal: bool, blur: bool, badgeLabel: ?string},
+     * }
      */
     private function sharedBilling(): array
     {
@@ -120,6 +125,39 @@ class BillingSharedPlanTest extends TestCase
 
         $this->assertFalse($data['enabled']);
         $this->assertNull($data['plan']);
+    }
+
+    public function test_shares_the_plan_lock_presentation_defaults(): void
+    {
+        config([
+            'kinetix.billing.upgrade_url'      => '/billing',
+            'kinetix.billing.lock.variant'     => 'overlay',
+            'kinetix.billing.lock.modal'       => false,
+            'kinetix.billing.lock.blur'        => false,
+            'kinetix.billing.lock.badge_label' => 'Pro',
+        ]);
+
+        $this->actingAs(SharedPlanUser::create(['name' => 'Jane']));
+
+        $data = $this->sharedBilling();
+
+        $this->assertSame('/billing', $data['upgradeUrl']);
+        $this->assertSame('overlay', $data['lock']['variant']);
+        $this->assertFalse($data['lock']['modal']);
+        $this->assertFalse($data['lock']['blur']);
+        $this->assertSame('Pro', $data['lock']['badgeLabel']);
+    }
+
+    public function test_plan_lock_defaults_fall_back_to_the_card(): void
+    {
+        $this->actingAs(SharedPlanUser::create(['name' => 'Jane']));
+
+        $data = $this->sharedBilling();
+
+        $this->assertSame('card', $data['lock']['variant']);
+        $this->assertTrue($data['lock']['modal']);
+        $this->assertTrue($data['lock']['blur']);
+        $this->assertNull($data['lock']['badgeLabel']);
     }
 
     public function test_share_is_disabled_when_billing_is_off(): void

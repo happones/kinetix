@@ -126,6 +126,11 @@ return [
     'plan_locked_title'              => 'Se requiere mejorar el plan',
     'plan_locked_body'               => 'Esta funcionalidad no está incluida en tu plan actual.',
     'plan_upgrade'                   => 'Mejorar plan',
+    'plan_locked_feature'            => 'La funcionalidad ":feature" no está incluida en tu plan actual.',
+    'plan_locked_hint'               => 'Bloqueado: requiere mejorar el plan',
+    'plan_upgrade_modal_title'       => 'Mejora tu plan para desbloquear',
+    'plan_upgrade_modal_body'        => 'Esta funcionalidad está disponible en nuestros planes premium. Mejora tu suscripción para desbloquearla.',
+    'plan_upgrade_dismiss'           => 'Quizá más tarde',
 
     // Etiquetas UI de facturación
     'billing_current_plan'             => 'Plan actual',

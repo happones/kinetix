@@ -13,6 +13,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.167.0] - 2026-08-10
+
+An optional plan-lock UI for the billing suite: the padlock every SaaS grows —
+in a card, over a panel, in a banner or beside a menu item — plus the upgrade
+dialog behind it. Hiding a plan-locked feature and padlocking it are now both
+one-liners on the same dot-paths.
+
+### Added
+
+- **`<KinetixPlanLock>` — the plan padlock (billing UI, opt-in)**: one
+  component for every way a plan-locked feature is presented, gated on the
+  same dot-paths the server enforces (`feature` / `limit` + `count`). Four
+  presentations via `variant`: `card` (dashed lock card replacing the content
+  — what `<KinetixPlanGate>` renders), `overlay` (the content stays visible
+  but blurred, dimmed and `inert` under a centred lock), `banner` (row-shaped
+  upsell strip) and `badge` (the content dimmed with a padlock appended, any
+  click opening the upgrade dialog instead of navigating — sidebar items, tab
+  triggers). Copy is prop-driven (`featureName`, `title`, `description`,
+  `ctaLabel`, `badgeLabel`) with translated defaults, and `#locked` replaces
+  the lock UI entirely (receives `remaining` + an `open()` callback). A lock
+  with no `feature`/`limit` prop is an unconditional upsell **(published:
+  `KinetixPlanLock.vue`, `Billing/PlanLockPanel.vue`,
+  `Billing/PlanLockCta.vue`)**.
+- **`<KinetixUpgradeModal>`**: the shared upsell dialog the locks open (built
+  on the `KinetixModal` primitive), also usable standalone via
+  `v-model:open` + `feature-name`. Without an upgrade URL configured, no CTA
+  renders anywhere — a lock never ships a dead-end button **(published:
+  `KinetixUpgradeModal.vue`)**.
+- **App-wide lock defaults**: new `kinetix.billing.lock` config block
+  (`variant`, `modal`, `blur`, `badge_label`, each with a
+  `KINETIX_BILLING_LOCK_*` env) shared to the SPA as `kinetix_billing.lock`,
+  so a single decision applies to every lock while per-instance props still
+  win **(published: `config/kinetix.php`, `types/kinetix.ts`)**.
+- 5 new translation keys (`plan_locked_feature`, `plan_locked_hint`,
+  `plan_upgrade_modal_title`, `plan_upgrade_modal_body`,
+  `plan_upgrade_dismiss`) across all seven locales **(published)**.
+
+### Changed
+
+- **Plan gating is evaluated in one place**: the new `useKinetixPlanAccess()`
+  helper in `useKinetixPlan()` is now the single implementation of "does this
+  plan allow it?" — `<KinetixPlanFeature>` uses it, and `<KinetixPlanGate>`
+  became a thin `<KinetixPlanLock variant="card">` wrapper (same props, same
+  `#locked` slot, same CTA behaviour, no migration needed) **(published:
+  `useKinetixPlan.ts`, `KinetixPlanFeature.vue`, `KinetixPlanGate.vue`)**.
+
+### Documentation
+
+- `docs/billing.md` gained a padlock section (variant table, prop table, config
+  block, `#locked` slot) with light/dark screenshots of all four presentations,
+  plus a "hide it or padlock it — your call" section spelling out that both
+  behaviours are first-class and that neither replaces server-side enforcement.
+- Dev-only: `npm run screenshots -- <name>` now accepts name filters instead of
+  always recapturing the entire gallery.
+
 ## [0.166.0] - 2026-08-07
 
 Drop-preview feedback across every drag surface, a kanban board reactivity

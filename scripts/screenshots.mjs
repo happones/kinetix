@@ -14,8 +14,21 @@ const server = await createServer({
   logLevel: "warn",
 });
 await server.listen();
-const { specimens } = await server.ssrLoadModule("/specimens.ts");
+const { specimens: allSpecimens } = await server.ssrLoadModule("/specimens.ts");
 const base = `http://localhost:${server.config.server.port}`;
+
+// Optional name filters: `npm run screenshots -- plan-lock` recaptures only the
+// specimens whose name contains one of the given substrings (no args = all).
+const filters = process.argv.slice(2);
+const specimens = filters.length
+  ? allSpecimens.filter((s) => filters.some((f) => s.name.includes(f)))
+  : allSpecimens;
+
+if (!specimens.length) {
+  console.error(`No specimens match: ${filters.join(", ")}`);
+  await server.close();
+  process.exit(1);
+}
 
 await mkdir(outDir, { recursive: true });
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useKinetixPlan } from '@/composables/useKinetixPlan';
+import { useKinetixPlanAccess } from '@/composables/useKinetixPlan';
 
 /**
  * Declarative plan gate — the billing twin of `<KinetixCan>`. Two modes:
@@ -37,26 +36,7 @@ const props = withDefaults(
     { feature: undefined, limit: undefined, count: 0 },
 );
 
-const { canUseFeature, hasReachedLimit, remaining } = useKinetixPlan();
-
-const allowed = computed(() => {
-    let ok = true;
-
-    if (props.feature !== undefined) {
-        ok = ok && canUseFeature(props.feature);
-    }
-
-    if (props.limit !== undefined) {
-        ok = ok && !hasReachedLimit(props.limit, props.count);
-    }
-
-    return ok;
-});
-
-/** Units left on the `limit` path (null = unlimited or no limit prop). */
-const remainingCount = computed(() =>
-    props.limit !== undefined ? remaining(props.limit, props.count) : null,
-);
+const { allowed, remainingCount } = useKinetixPlanAccess(() => props);
 </script>
 
 <template>

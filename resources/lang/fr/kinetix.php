@@ -126,6 +126,11 @@ return [
     'plan_locked_title'              => 'Mise à niveau requise',
     'plan_locked_body'               => 'Cette fonctionnalité n\'est pas incluse dans votre forfait actuel.',
     'plan_upgrade'                   => 'Mettre à niveau',
+    'plan_locked_feature'            => 'La fonctionnalité « :feature » n\'est pas incluse dans votre forfait actuel.',
+    'plan_locked_hint'               => 'Verrouillé — mise à niveau requise',
+    'plan_upgrade_modal_title'       => 'Mettre à niveau pour débloquer',
+    'plan_upgrade_modal_body'        => 'Cette fonctionnalité est disponible sur nos forfaits premium. Mettez à niveau votre abonnement pour la débloquer.',
+    'plan_upgrade_dismiss'           => 'Plus tard',
 
     // Libellés UI de facturation
     'billing_current_plan'             => 'Forfait actuel',

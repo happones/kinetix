@@ -248,6 +248,7 @@ import KinetixMemberList from '@/components/KinetixMemberList.vue';
 import KinetixSubscriptionStatus from '@/components/KinetixSubscriptionStatus.vue';
 import KinetixUsageMeters from '@/components/KinetixUsageMeters.vue';
 import KinetixInvoicesTable from '@/components/KinetixInvoicesTable.vue';
+import KinetixPlanLock from '@/components/KinetixPlanLock.vue';
 import KinetixChartWidget from '@/components/KinetixChartWidget.vue';
 import KinetixCustomWidget from '@/components/KinetixCustomWidget.vue';
 import KinetixTableWidget from '@/components/KinetixTableWidget.vue';
@@ -1473,6 +1474,32 @@ const invoices = [
     },
 ];
 
+// --- Plan-lock fixtures (the content a lock gates) --------------------------
+const planLockField = (label: string, value: string) =>
+    h('div', { class: 'space-y-1.5' }, [
+        h('span', { class: 'text-xs font-semibold text-foreground' }, label),
+        h(
+            'div',
+            {
+                class: 'rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground',
+            },
+            value,
+        ),
+    ]);
+
+const planLockContent = () =>
+    h('div', { class: 'space-y-4' }, [
+        planLockField('Webhook URL', 'https://discord.com/api/webhooks/…'),
+        planLockField('Channel', '#deploys'),
+    ]);
+
+const planLockNavItem = () =>
+    h(
+        'span',
+        { class: 'flex items-center gap-2 text-sm font-medium' },
+        'Discord alerts',
+    );
+
 const chartWidget = {
     id: 'chart',
     type: 'chart',
@@ -2570,6 +2597,55 @@ export const specimens: Specimen[] = [
                 },
             ],
         },
+    },
+    {
+        name: 'plan-lock-card',
+        title: 'Plan lock — locked module card',
+        component: KinetixPlanLock,
+        frame: 'card',
+        width: 560,
+        props: {
+            feature: 'capabilities.discord',
+            featureName: 'Discord alerts',
+            badgeLabel: 'Pro',
+        },
+        slots: { default: planLockContent },
+    },
+    {
+        name: 'plan-lock-overlay',
+        title: 'Plan lock — overlay over the locked panel',
+        component: KinetixPlanLock,
+        frame: 'card',
+        width: 560,
+        props: {
+            feature: 'capabilities.discord',
+            featureName: 'Discord alerts',
+            variant: 'overlay',
+        },
+        slots: { default: planLockContent },
+    },
+    {
+        name: 'plan-lock-banner',
+        title: 'Plan lock — upsell banner',
+        component: KinetixPlanLock,
+        width: 560,
+        props: {
+            featureName: 'Real-time alerts',
+            variant: 'banner',
+            badgeLabel: 'Pro',
+        },
+    },
+    {
+        name: 'plan-lock-badge',
+        title: 'Plan lock — padlocked navigation item',
+        component: KinetixPlanLock,
+        frame: 'card',
+        width: 320,
+        props: {
+            feature: 'capabilities.discord',
+            variant: 'badge',
+        },
+        slots: { default: planLockNavItem },
     },
 
     // --- Widgets ---------------------------------------------------------------

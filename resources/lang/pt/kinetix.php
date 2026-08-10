@@ -126,6 +126,11 @@ return [
     'plan_locked_title'              => 'Upgrade necessário',
     'plan_locked_body'               => 'Este recurso não está incluído no seu plano atual.',
     'plan_upgrade'                   => 'Fazer upgrade',
+    'plan_locked_feature'            => 'O recurso ":feature" não está incluído no seu plano atual.',
+    'plan_locked_hint'               => 'Bloqueado — upgrade necessário',
+    'plan_upgrade_modal_title'       => 'Faça upgrade para desbloquear',
+    'plan_upgrade_modal_body'        => 'Este recurso está disponível nos nossos planos premium. Faça upgrade da sua assinatura para desbloqueá-lo.',
+    'plan_upgrade_dismiss'           => 'Talvez mais tarde',
 
     // Rótulos de UI de cobrança
     'billing_current_plan'             => 'Plano atual',

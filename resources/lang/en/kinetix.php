@@ -126,6 +126,11 @@ return [
     'plan_locked_title'              => 'Upgrade required',
     'plan_locked_body'               => 'This feature is not included in your current plan.',
     'plan_upgrade'                   => 'Upgrade plan',
+    'plan_locked_feature'            => 'The ":feature" feature is not included in your current plan.',
+    'plan_locked_hint'               => 'Locked — upgrade required',
+    'plan_upgrade_modal_title'       => 'Upgrade to unlock',
+    'plan_upgrade_modal_body'        => 'This feature is available on our premium plans. Upgrade your subscription to unlock it.',
+    'plan_upgrade_dismiss'           => 'Maybe later',
 
     // Billing UI labels
     'billing_current_plan'             => 'Current plan',

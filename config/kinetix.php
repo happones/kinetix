@@ -1133,6 +1133,23 @@ return [
         // send users to upgrade (e.g. '/billing'). Null = plain 403 / no CTA.
         'upgrade_url' => env('KINETIX_BILLING_UPGRADE_URL'),
 
+        // App-wide defaults for the <KinetixPlanLock> upsell UI. Every entry is
+        // a default only — a per-instance prop always wins.
+        'lock' => [
+            // How a locked feature is presented: card | overlay | banner | badge.
+            'variant' => env('KINETIX_BILLING_LOCK_VARIANT', 'card'),
+
+            // Whether the lock CTA opens the upgrade modal (false = link out
+            // to `upgrade_url` directly).
+            'modal' => env('KINETIX_BILLING_LOCK_MODAL', true),
+
+            // Whether the `overlay` variant blurs the content behind the lock.
+            'blur' => env('KINETIX_BILLING_LOCK_BLUR', true),
+
+            // Plan pill shown next to the lock title (e.g. 'Pro'). Null = none.
+            'badge_label' => env('KINETIX_BILLING_LOCK_BADGE_LABEL'),
+        ],
+
         // Optionally resolve a different billable from the authenticated user
         // (e.g. fn ($user) => $user->currentTeam). Null = the user itself.
         'resolve_billable' => null,

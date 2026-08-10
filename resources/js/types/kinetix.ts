@@ -172,6 +172,21 @@ export interface KinetixToursState {
     seen: string[];
 }
 
+/** How a locked feature is presented by <KinetixPlanLock>. */
+export type KinetixPlanLockVariant = 'card' | 'overlay' | 'banner' | 'badge';
+
+/** App-wide <KinetixPlanLock> defaults from `kinetix.billing.lock`. */
+export interface KinetixPlanLockDefaults {
+    /** Presentation used when an instance sets no `variant`. */
+    variant?: KinetixPlanLockVariant;
+    /** Whether locks open the upgrade modal instead of linking straight out. */
+    modal?: boolean;
+    /** Whether the `overlay` variant blurs the content behind the lock. */
+    blur?: boolean;
+    /** Plan pill shown next to the lock title (e.g. 'Pro'). Null = none. */
+    badgeLabel?: string | null;
+}
+
 /** The billable's current plan shared via Inertia (`kinetix_billing`). */
 export interface KinetixBillingState {
     enabled: boolean;
@@ -183,6 +198,8 @@ export interface KinetixBillingState {
     } | null;
     /** Where <KinetixPlanGate>'s upsell CTA sends users to upgrade. */
     upgradeUrl?: string | null;
+    /** Defaults for the <KinetixPlanLock> upsell UI. */
+    lock?: KinetixPlanLockDefaults;
 }
 
 /** Cookie consent bar config shared via Inertia. */

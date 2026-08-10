@@ -83,6 +83,27 @@ Frontend: `<KinetixPlanGate feature="capabilities.api">` = `<KinetixPlanFeature>
 lock-card + Upgrade CTA denied state (`#locked` slot overrides); `useKinetixPlan()` adds
 `allows('api')` + `upgradeUrl`.
 
+`<KinetixPlanLock>` is the full padlock: same gating props (`feature`/`limit`+`count`), four
+presentations via `variant` — `card` (dashed lock card replacing the content), `overlay`
+(content stays visible, blurred + `inert`, under the lock), `banner` (row-shaped upsell strip),
+`badge` (content dimmed with a padlock appended; clicking it opens the upgrade dialog instead of
+navigating). Copy props: `featureName` (woven into the default body copy), `title`,
+`description`, `ctaLabel`, `badgeLabel` ('Pro' pill); behaviour props: `modal` (CTA opens
+`<KinetixUpgradeModal>` vs linking out), `blur` (overlay), `upgradeUrl`. App-wide defaults live
+in `kinetix.billing.lock` (`variant`/`modal`/`blur`/`badge_label`) — per-instance props win. A
+lock with NO `feature`/`limit` is an unconditional upsell (standalone banners). `#locked`
+replaces the lock UI and receives `{ remaining, open }`. No upgrade URL = no CTA rendered.
+
+```vue
+<KinetixPlanLock variant="overlay" feature="alerts.discord" feature-name="Discord alerts">
+    <DiscordSettings />
+</KinetixPlanLock>
+
+<KinetixPlanLock variant="badge" feature="capabilities.api">
+    <SidebarLink href="/api-tokens">API tokens</SidebarLink>
+</KinetixPlanLock>
+```
+
 ### 4. Metered usage tracking + credits
 
 `use HasMeteredUsage` on the billable (tables via `--tag=kinetix-billing-migrations`):
@@ -125,6 +146,7 @@ php artisan kinetix:make-billing --seeder
 - `src/Billing/UsageMetric.php` · `Contracts/ProvidesUsageMetrics.php`
 - `src/Data/PlanData.php` · `UsageMetricData.php`
 - `resources/js/components/KinetixPricingTable|KinetixPlanCard|KinetixPaymentMethods|KinetixSubscriptionStatus|KinetixInvoicesTable|KinetixUsageMeters.vue`
-- `resources/js/composables/useKinetixBilling.ts` · `useKinetixStripe.ts`
+- `resources/js/components/KinetixPlanFeature|KinetixPlanGate|KinetixPlanLock|KinetixUpgradeModal.vue` · `components/Billing/PlanLockPanel|PlanLockCta.vue`
+- `resources/js/composables/useKinetixBilling.ts` · `useKinetixStripe.ts` · `useKinetixPlan.ts`
 - `database/migrations/*_create_kinetix_plans_table.php`
 - `src/Commands/MakeBillingCommand.php`
