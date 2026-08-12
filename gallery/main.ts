@@ -1,3 +1,4 @@
+import { createPinia } from 'pinia';
 import { createApp, defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 import { Toaster } from 'vue-sonner';
@@ -75,4 +76,7 @@ const app = createApp({
         h('div', { style: 'display:inline-block' }, [h(Frame), h(Toaster)]),
 });
 app.use(i18n);
+// Store-backed components (the notification trigger reads its unread count from
+// a Pinia store) need one too.
+app.use(createPinia());
 app.mount('#app');

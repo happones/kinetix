@@ -3,6 +3,7 @@ import { Search } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { isMac } from '@/composables/useKinetixHotkeys';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * Header trigger for the Spotlight command palette — pair it with
@@ -20,11 +21,19 @@ function open(): void {
 </script>
 
 <template>
+    <!-- Collapsed, this is a header trigger like any other: the SAME `outline`
+         + `icon-sm` button as announcements, notifications, accessibility, dark
+         mode and language — it used to be a borderless 36px square, so it read
+         as a different control and sat 4px taller than the row. From `sm` up
+         the same surface just grows into a search box. -->
     <button
         type="button"
         :aria-label="t('kinetix.spotlight_placeholder')"
         :title="`${t('kinetix.spotlight_placeholder')} (${shortcut})`"
-        class="gap-2 h-9 w-9 sm:h-9 sm:w-auto sm:min-w-[12rem] sm:justify-start sm:border sm:border-input sm:bg-background sm:px-3 sm:hover:bg-accent/50 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        :class="[
+            buttonVariants({ variant: 'outline', size: 'icon-sm' }),
+            'font-normal sm:w-auto sm:min-w-[12rem] sm:justify-start sm:px-3 text-muted-foreground',
+        ]"
         @click="open"
     >
         <Search class="h-4 w-4 shrink-0" />

@@ -277,7 +277,7 @@ return [
     'announcements_play'           => 'Reprendre le défilement',
     'announcements_slide_position' => '{current} sur {total}',
     'announcements_go_to'          => 'Afficher : {title}',
-    'announcements_unread_count'   => '{count} non lus',
+    'unread_count'                 => '{count} non lus',
 
     // Rôles et permissions
     'save'                        => 'Enregistrer',

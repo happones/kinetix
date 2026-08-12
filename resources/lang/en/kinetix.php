@@ -277,7 +277,7 @@ return [
     'announcements_play'           => 'Resume rotation',
     'announcements_slide_position' => '{current} of {total}',
     'announcements_go_to'          => 'Show: {title}',
-    'announcements_unread_count'   => '{count} unread',
+    'unread_count'                 => '{count} unread',
 
     // Roles & permissions
     'save'                        => 'Save',

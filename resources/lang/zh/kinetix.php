@@ -252,7 +252,7 @@ return [
     'announcements_play'               => '继续轮播',
     'announcements_slide_position'     => '第 {current} 条，共 {total} 条',
     'announcements_go_to'              => '显示：{title}',
-    'announcements_unread_count'       => '{count} 条未读',
+    'unread_count'                     => '{count} 条未读',
     'save'                             => '保存',
     'select_all'                       => '全选',
     'search_permissions'               => '搜索权限…',

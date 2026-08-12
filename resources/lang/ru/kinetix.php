@@ -252,7 +252,7 @@ return [
     'announcements_play'               => 'Возобновить прокрутку',
     'announcements_slide_position'     => '{current} из {total}',
     'announcements_go_to'              => 'Показать: {title}',
-    'announcements_unread_count'       => 'Непрочитанных: {count}',
+    'unread_count'                     => 'Непрочитанных: {count}',
     'save'                             => 'Сохранить',
     'select_all'                       => 'Выбрать все',
     'search_permissions'               => 'Поиск прав…',

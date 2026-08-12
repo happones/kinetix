@@ -13,6 +13,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The header triggers didn't match each other.** Every one of them is meant to
+  be the same `outline` + `icon-sm` button, but the **notification bell** was a
+  `ghost` variant (borderless, next to four bordered buttons) and the
+  **spotlight trigger** hand-rolled a 36px borderless square when collapsed — so
+  on a phone, or any narrow header, two of six controls looked like a different
+  control and sat 4px taller than the row. Both now build on the shared recipe
+  **(published: `KinetixNotificationTrigger.vue`,
+  `KinetixSpotlightTrigger.vue`)**.
+- **The two unread badges were different sizes.** The bell's pill and the
+  megaphone's were styled independently (18px vs 16px, different offsets and
+  cutoffs) even though they sit side by side. Both now use
+  `triggerCountBadgeClass` — one recipe, exported from
+  `useKinetixShadcnVariants` — and are `aria-hidden`, with the count spoken by
+  the button's own label instead of as a loose number **(published:
+  `useKinetixShadcnVariants.ts`, `KinetixNotificationTrigger.vue`,
+  `KinetixAnnouncements.vue`)**.
+- The `announcements_unread_count` translation key is now **`unread_count`** —
+  the notification bell uses the same string, and the key was scoped to the
+  wrong feature **(published: translations)**.
+
+### Added
+
+- `header-controls` / `header-controls-narrow` gallery specimens (the whole
+  trigger strip in one shot, wide and sub-`sm`) plus a scan test pinning the
+  shared button recipe — the drift above was invisible in each component's own
+  tests, and only showed up side by side.
+
 ## [0.169.0] - 2026-08-11
 
 Announcements grow a second face — an in-page banner instead of a header

@@ -12,7 +12,10 @@ import {
     useKinetixAnnouncementFormat,
     useKinetixAnnouncements,
 } from '@/composables/useKinetixAnnouncements';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import {
+    buttonVariants,
+    triggerCountBadgeClass,
+} from '@/composables/useKinetixShadcnVariants';
 import ScrollArea from './primitives/ScrollArea.vue';
 
 /**
@@ -29,7 +32,7 @@ const open = ref(false);
 /** The badge is a number on screen; the trigger has to say what it counts. */
 const triggerLabel = computed(() =>
     unread.value > 0
-        ? `${t('kinetix.announcements_title')} — ${t('kinetix.announcements_unread_count', { count: unread.value })}`
+        ? `${t('kinetix.announcements_title')} — ${t('kinetix.unread_count', { count: unread.value })}`
         : t('kinetix.announcements_title'),
 );
 
@@ -55,9 +58,9 @@ function onOpen(next: boolean): void {
             <span
                 v-if="unread > 0"
                 aria-hidden="true"
-                class="-top-1.5 -right-1.5 min-w-4 px-1 font-semibold absolute flex items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground"
+                :class="triggerCountBadgeClass"
             >
-                {{ unread > 9 ? '9+' : unread }}
+                {{ unread > 99 ? '99+' : unread }}
             </span>
         </PopoverTrigger>
 

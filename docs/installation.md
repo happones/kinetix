@@ -354,6 +354,29 @@ Modal-style components (`KinetixSheet`, `KinetixConfirmModal`, the table record
 modals) are **not** hosts — they're prop-driven, self-teleporting, and need no
 layout placement.
 
+#### The header strip
+
+The header triggers are built to stand next to each other — one shared button
+recipe (`outline` + `icon-sm`), so they line up whatever combination you mount:
+
+<Screenshot name="header-controls" alt="Spotlight, notifications, announcements, accessibility, dark mode and language triggers in one header row" />
+
+```vue
+<div class="flex items-center gap-2">
+    <KinetixSpotlightTrigger />
+    <KinetixNotificationTrigger />
+    <KinetixAnnouncements />
+    <KinetixAccessibilityMenu />
+    <KinetixModeToggle />
+    <KinetixLanguageSwitcher />
+</div>
+```
+
+Below the `sm` breakpoint the spotlight trigger collapses from its search box to
+the same icon button as the rest, so the strip stays one row on a phone:
+
+<Screenshot name="header-controls-narrow" alt="The same header triggers on a narrow screen, all collapsed to icon buttons" />
+
 ### Register the Vue plugins (directives)
 
 The publish also ships three plugins under `resources/js/plugins/`. Register the

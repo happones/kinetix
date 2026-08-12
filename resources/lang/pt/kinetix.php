@@ -277,7 +277,7 @@ return [
     'announcements_play'           => 'Retomar a rotação',
     'announcements_slide_position' => '{current} de {total}',
     'announcements_go_to'          => 'Mostrar: {title}',
-    'announcements_unread_count'   => '{count} não lidos',
+    'unread_count'                 => '{count} não lidos',
 
     // Papéis e permissões
     'save'                        => 'Salvar',

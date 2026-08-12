@@ -252,7 +252,7 @@ return [
     'announcements_play'               => '自動切り替えを再開',
     'announcements_slide_position'     => '{total} 件中 {current} 件目',
     'announcements_go_to'              => '表示: {title}',
-    'announcements_unread_count'       => '未読 {count} 件',
+    'unread_count'                     => '未読 {count} 件',
     'save'                             => '保存',
     'select_all'                       => 'すべて選択',
     'search_permissions'               => '権限を検索…',

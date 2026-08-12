@@ -25,6 +25,7 @@ import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
 import KinetixAnnouncementBanner from '@/components/KinetixAnnouncementBanner.vue';
 import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
+import KinetixNotificationTrigger from '@/components/KinetixNotificationTrigger.vue';
 import KinetixLanguageSwitcher from '@/components/KinetixLanguageSwitcher.vue';
 import KinetixTeamSwitcher from '@/components/KinetixTeamSwitcher.vue';
 import KinetixOnlineUsers from '@/components/KinetixOnlineUsers.vue';
@@ -1593,6 +1594,23 @@ const customWidget = {
     data: {},
 };
 
+/**
+ * Every header trigger side by side, the way a real app header mounts them —
+ * the only place their shared button recipe can be checked at a glance.
+ */
+const HeaderControls: Component = {
+    name: 'HeaderControls',
+    render: () =>
+        h('div', { class: 'flex items-center justify-end gap-2' }, [
+            h(KinetixSpotlightTrigger),
+            h(KinetixNotificationTrigger),
+            h(KinetixAnnouncements),
+            h(KinetixAccessibilityMenu),
+            h(KinetixModeToggle),
+            h(KinetixLanguageSwitcher),
+        ]),
+};
+
 export const specimens: Specimen[] = [
     {
         name: 'wizard-stepper',
@@ -2162,6 +2180,25 @@ export const specimens: Specimen[] = [
         component: KinetixAnnouncements,
         width: 420,
         openSelector: '#specimen button',
+    },
+    {
+        // The whole header row in one shot: every trigger is the same `outline`
+        // + `icon-sm` button, so drift (a borderless bell, a taller search box)
+        // is visible at a glance instead of only in a running app.
+        name: 'header-controls',
+        title: 'Header controls (one row)',
+        component: HeaderControls,
+        width: 620,
+        frame: 'card',
+    },
+    {
+        name: 'header-controls-narrow',
+        title: 'Header controls (narrow / mobile)',
+        component: HeaderControls,
+        // Media queries read the VIEWPORT, not the frame — a full-page capture
+        // is the only way to see the sub-`sm` rendering.
+        width: 320,
+        fullPage: true,
     },
     {
         name: 'announcement-banner',
