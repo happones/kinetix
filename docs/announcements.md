@@ -67,7 +67,9 @@ php artisan migrate
 ```
 
 Additive and idempotent — existing entries keep `team_id` NULL, so they stay
-platform-wide and every feed keeps showing them.
+platform-wide and every feed keeps showing them. The same publish brings the
+per-team read state, the banner's dismissals table and the feed index; nothing
+re-appears as unread after the upgrade.
 
 ---
 
@@ -89,16 +91,105 @@ It shows a megaphone icon with an **unread badge**; opening the popover lists th
 published feed (new entries get a dot + the badge clears by marking the feed
 seen). `useKinetixAnnouncements()` exposes `{ announcements, unread, loading,
 load, markSeen }` for a custom UI. Strings are localized (`announcements_*`,
-en/es/fr/pt).
+7 locales).
+
+---
+
+## The banner
+
+The popover waits to be opened — fine for a changelog, useless for something the
+user has to read. `<KinetixAnnouncementBanner>` puts the message inside the page
+instead: one entry at a time, rotating through the rest when there is more than
+one.
+
+<Screenshot name="announcement-banner" alt="Announcement banner with carousel controls" />
+
+```vue
+<script setup lang="ts">
+import KinetixAnnouncementBanner from '@/components/kinetix/KinetixAnnouncementBanner.vue';
+</script>
+
+<template>
+    <!-- Everything is optional: these are the defaults. -->
+    <KinetixAnnouncementBanner
+        :limit="3"
+        :autoplay="8000"
+        dismissible
+    />
+
+    <!-- Only what matters, no rotation clock: -->
+    <KinetixAnnouncementBanner :levels="['feature', 'fix']" :autoplay="0" />
+</template>
+```
+
+| Prop              | Default      | What it does                                            |
+| ----------------- | ------------ | ------------------------------------------------------- |
+| `limit`           | `3`          | How many entries rotate (server ceiling: 10)            |
+| `levels`          | all          | Restrict to these levels                                |
+| `autoplay`        | `8000`       | Rotation interval in ms; `0` turns auto-rotation off    |
+| `dismissible`     | `true`       | Show the close button                                   |
+| `position`        | `inline`     | `inline` or `fixed-top` (see below)                     |
+| `fixedWidthClass` | `max-w-3xl`  | Width of the pinned bar                                 |
+| `class`           | —            | Merged onto the alert surface                           |
+
+### Pinned to the top
+
+`position="fixed-top"` pins the banner to the top of the viewport instead of
+leaving it in the page flow — for the announcement everyone has to see, whatever
+page they're on. Mount it once in your layout:
+
+<Screenshot name="announcement-banner-fixed" alt="Announcement banner pinned to the top of the viewport" />
+
+```vue
+<KinetixAnnouncementBanner position="fixed-top" :levels="['info']" />
+```
+
+It sits above the page and **below** Kinetix's own overlays, so a modal or a
+dropdown still covers it. Because a pinned bar hides whatever is under it, the
+component publishes its measured height (it changes as entries wrap) as
+`--kinetix-announcement-banner-height` on `<html>` — reserve the space in your
+layout and get it back the moment the banner is dismissed:
+
+```css
+.app-shell {
+    padding-top: var(--kinetix-announcement-banner-height, 0px);
+}
+```
+
+**Dismissing is per announcement**, unlike the popover's single "I read the
+feed" timestamp: closing a banner hides *that* entry for that user, on every
+device, and leaves the unread badge alone. Rotation pauses on hover and on
+keyboard focus, has an explicit pause button, and is turned off entirely for
+users who ask their OS for reduced motion — who still get the arrows and dots.
+Left/right arrow keys move between entries.
+
+`useKinetixAnnouncementBanner({ limit, levels })` exposes
+`{ announcements, loading, load, dismiss }` if you'd rather build your own.
+
+The default `limit` comes from config when the component doesn't pass one:
+
+```php
+'announcements' => [
+    'enabled'      => env('KINETIX_ANNOUNCEMENTS_ENABLED', true),
+    'banner_limit' => env('KINETIX_ANNOUNCEMENTS_BANNER_LIMIT', 3),
+],
+```
 
 ---
 
 ## How "unread" works
 
-Each user has a single **last-seen** timestamp. An announcement is *new* to them
-when its `published_at` is later than that timestamp (everything is new until
-they first open the feed). Opening the popover updates the timestamp, so the
-badge reflects only entries published since their last visit.
+Each user has a **last-seen** timestamp per team, plus one for the platform-wide
+entries. An announcement is *new* to them when its `published_at` is later than
+the timestamp of the pool it belongs to (everything is new until they first open
+the feed). Opening the popover updates both, so:
+
+- reading team A's feed never clears team B's badge — the two teams track their
+  own state;
+- the platform-wide entries are read **once**, not once per team.
+
+Dismissing a banner is separate and per announcement: it hides that entry from
+that user's banner without touching the unread count.
 
 ---
 
@@ -107,10 +198,15 @@ badge reflects only entries published since their last visit.
 Registered under your Kinetix prefix (`{current_team}/_kinetix/announcements` with teams on).
 The feed is scoped to the active team plus the platform-wide entries:
 
-| Method | Route                          | Name                          |
-| ------ | ------------------------------ | ----------------------------- |
-| `GET`  | `{prefix}/announcements`       | `kinetix.announcements.index` |
-| `POST` | `{prefix}/announcements/seen`  | `kinetix.announcements.seen`  |
+| Method | Route                                | Name                             |
+| ------ | ------------------------------------ | -------------------------------- |
+| `GET`  | `{prefix}/announcements`             | `kinetix.announcements.index`    |
+| `GET`  | `{prefix}/announcements/banner`      | `kinetix.announcements.banner`   |
+| `POST` | `{prefix}/announcements/seen`        | `kinetix.announcements.seen`     |
+| `POST` | `{prefix}/announcements/{id}/dismiss`| `kinetix.announcements.dismiss`  |
 
 `index` returns the published feed (each with an `isNew` flag) plus the `unread`
-count; `seen` marks the feed read for the current user.
+count; `banner` returns the published entries the user hasn't dismissed
+(`?limit=`, `?levels=feature,fix`); `seen` marks the feed read; `dismiss` hides
+one entry. An id from another tenant is a 404 — `dismiss` resolves through the
+same team-scoped query the feed uses.

@@ -66,6 +66,8 @@ class AnnouncementTeamScopingTest extends TestCase
 
         (require __DIR__.'/../../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php')->up();
         (require __DIR__.'/../../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php')->up();
+        (require __DIR__.'/../../database/migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php')->up();
+        (require __DIR__.'/../../database/migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php')->up();
 
         $this->withTeamSegment(7);
     }
@@ -146,6 +148,68 @@ class AnnouncementTeamScopingTest extends TestCase
         $this->withoutTeamSegment();
 
         $this->assertNull(KinetixAnnouncements::publish('From the deploy', 'Body')->team_id);
+    }
+
+    public function test_reading_one_teams_feed_leaves_the_other_teams_badge_alone(): void
+    {
+        $this->announce(7, 'Ours');
+        $this->announce(8, 'Theirs');
+
+        $manager = app(AnnouncementManager::class);
+        $manager->markSeen($this->user());
+
+        $this->assertSame(0, $manager->unreadCount($this->user()));
+
+        // The same user, one team over: their own entries are still unread.
+        $this->withTeamSegment(8);
+
+        $this->assertSame(1, $manager->unreadCount($this->user()));
+    }
+
+    public function test_reading_the_platform_wide_entries_clears_them_in_every_team(): void
+    {
+        $this->announce(null, 'Platform update');
+        $this->announce(8, 'Theirs');
+
+        $manager = app(AnnouncementManager::class);
+        $manager->markSeen($this->user());
+
+        // Read once, read everywhere — the global pool tracks its own state, so
+        // it doesn't follow the user from team to team.
+        $this->withTeamSegment(8);
+
+        $this->assertSame(1, $manager->unreadCount($this->user()));
+        $this->assertEqualsCanonicalizing(
+            ['Platform update' => false, 'Theirs' => true],
+            array_reduce(
+                $manager->feed($this->user()),
+                static function (array $carry, object $a): array {
+                    $carry[$a->title] = $a->isNew;
+
+                    return $carry;
+                },
+                [],
+            ),
+        );
+    }
+
+    public function test_the_banner_hides_dismissed_entries_and_refuses_another_teams_id(): void
+    {
+        $ours   = $this->announce(7, 'Ours');
+        $theirs = $this->announce(8, 'Theirs');
+
+        $this->actingAs($this->user())
+            ->postJson("/7/_kinetix/announcements/{$ours->getKey()}/dismiss")
+            ->assertOk();
+
+        $this->actingAs($this->user())
+            ->getJson('/7/_kinetix/announcements/banner')
+            ->assertOk()
+            ->assertJsonCount(0, 'announcements');
+
+        $this->actingAs($this->user())
+            ->postJson("/7/_kinetix/announcements/{$theirs->getKey()}/dismiss")
+            ->assertNotFound();
     }
 
     public function test_the_endpoint_serves_the_scoped_feed(): void

@@ -55,8 +55,9 @@ for (const specimen of specimens) {
     });
     const frame = page.locator("#specimen");
     await frame.waitFor({ state: "visible" });
-    // Let fonts/transitions settle.
-    await page.waitForTimeout(250);
+    // Let fonts/transitions settle — long enough for a component that only
+    // appears once its data lands (the announcement banner slides in over 300ms).
+    await page.waitForTimeout(500);
 
     const suffix = theme === "dark" ? "-dark" : "";
     const file = `${outDir}/${specimen.name}${suffix}.png`;

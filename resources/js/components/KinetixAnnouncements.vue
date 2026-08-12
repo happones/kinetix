@@ -6,10 +6,14 @@ import {
     PopoverRoot,
     PopoverTrigger,
 } from 'reka-ui';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useKinetixAnnouncements } from '@/composables/useKinetixAnnouncements';
+import {
+    useKinetixAnnouncementFormat,
+    useKinetixAnnouncements,
+} from '@/composables/useKinetixAnnouncements';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import ScrollArea from './primitives/ScrollArea.vue';
 
 /**
  * "What's new" header control: an icon button with an unread badge that opens a
@@ -18,8 +22,16 @@ import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
  */
 const { t } = useI18n();
 const { announcements, unread, load, markSeen } = useKinetixAnnouncements();
+const { levelClass, levelLabel, formatDate } = useKinetixAnnouncementFormat();
 
 const open = ref(false);
+
+/** The badge is a number on screen; the trigger has to say what it counts. */
+const triggerLabel = computed(() =>
+    unread.value > 0
+        ? `${t('kinetix.announcements_title')} — ${t('kinetix.announcements_unread_count', { count: unread.value })}`
+        : t('kinetix.announcements_title'),
+);
 
 onMounted(load);
 
@@ -30,16 +42,6 @@ function onOpen(next: boolean): void {
         markSeen();
     }
 }
-
-const levelClass: Record<string, string> = {
-    feature: 'bg-success/15 text-success',
-    fix: 'bg-info/15 text-info',
-    info: 'bg-muted text-muted-foreground',
-};
-
-function formatDate(value: string | null): string {
-    return value ? new Date(value).toLocaleDateString() : '';
-}
 </script>
 
 <template>
@@ -47,11 +49,12 @@ function formatDate(value: string | null): string {
         <PopoverTrigger
             :class="buttonVariants({ variant: 'outline', size: 'icon-sm' })"
             class="relative"
-            :aria-label="t('kinetix.announcements_title')"
+            :aria-label="triggerLabel"
         >
             <Megaphone class="size-[1.2rem]" />
             <span
                 v-if="unread > 0"
+                aria-hidden="true"
                 class="-top-1.5 -right-1.5 min-w-4 px-1 font-semibold absolute flex items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground"
             >
                 {{ unread > 9 ? '9+' : unread }}
@@ -70,7 +73,9 @@ function formatDate(value: string | null): string {
                     </p>
                 </div>
 
-                <div class="max-h-96 overflow-y-auto">
+                <!-- The cap goes on the viewport, so a short feed keeps its own
+                     height and a long one scrolls inside the popover. -->
+                <ScrollArea viewport-class="max-h-96">
                     <p
                         v-if="announcements.length === 0"
                         class="px-4 py-6 text-sm text-center text-muted-foreground"
@@ -86,19 +91,22 @@ function formatDate(value: string | null): string {
                         <div class="gap-2 flex items-center">
                             <span
                                 v-if="a.isNew"
+                                aria-hidden="true"
                                 class="size-2 shrink-0 rounded-full bg-primary"
-                                :aria-label="t('kinetix.announcements_new')"
                             />
                             <h3
                                 class="min-w-0 text-sm font-medium flex-1 text-foreground"
                             >
+                                <span v-if="a.isNew" class="sr-only">
+                                    {{ t('kinetix.announcements_new') }}:
+                                </span>
                                 {{ a.title }}
                             </h3>
                             <span
                                 class="px-2 py-0.5 font-medium shrink-0 rounded-full text-[10px]"
-                                :class="levelClass[a.level] ?? levelClass.info"
+                                :class="levelClass(a.level)"
                             >
-                                {{ a.level }}
+                                {{ levelLabel(a.level) }}
                             </span>
                         </div>
                         <p
@@ -110,7 +118,7 @@ function formatDate(value: string | null): string {
                             {{ formatDate(a.publishedAt) }}
                         </p>
                     </article>
-                </div>
+                </ScrollArea>
             </PopoverContent>
         </PopoverPortal>
     </PopoverRoot>

@@ -267,6 +267,18 @@ return [
     'announcements_empty' => 'No announcements yet.',
     'announcements_new'   => 'New',
 
+    'announcements_level_info'     => 'Info',
+    'announcements_level_feature'  => 'Feature',
+    'announcements_level_fix'      => 'Fix',
+    'announcements_previous'       => 'Previous announcement',
+    'announcements_next'           => 'Next announcement',
+    'announcements_dismiss'        => 'Dismiss',
+    'announcements_pause'          => 'Pause rotation',
+    'announcements_play'           => 'Resume rotation',
+    'announcements_slide_position' => '{current} of {total}',
+    'announcements_go_to'          => 'Show: {title}',
+    'announcements_unread_count'   => '{count} unread',
+
     // Roles & permissions
     'save'                        => 'Save',
     'select_all'                  => 'Select all',

@@ -267,6 +267,18 @@ return [
     'announcements_empty' => 'Ainda não há anúncios.',
     'announcements_new'   => 'Novo',
 
+    'announcements_level_info'     => 'Info',
+    'announcements_level_feature'  => 'Novidade',
+    'announcements_level_fix'      => 'Correção',
+    'announcements_previous'       => 'Anúncio anterior',
+    'announcements_next'           => 'Próximo anúncio',
+    'announcements_dismiss'        => 'Dispensar',
+    'announcements_pause'          => 'Pausar a rotação',
+    'announcements_play'           => 'Retomar a rotação',
+    'announcements_slide_position' => '{current} de {total}',
+    'announcements_go_to'          => 'Mostrar: {title}',
+    'announcements_unread_count'   => '{count} não lidos',
+
     // Papéis e permissões
     'save'                        => 'Salvar',
     'select_all'                  => 'Selecionar tudo',

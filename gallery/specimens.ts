@@ -23,6 +23,7 @@ import KinetixSignaturePad from '@/components/KinetixSignaturePad.vue';
 import KinetixPhoneInput from '@/components/KinetixPhoneInput.vue';
 import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
+import KinetixAnnouncementBanner from '@/components/KinetixAnnouncementBanner.vue';
 import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
 import KinetixLanguageSwitcher from '@/components/KinetixLanguageSwitcher.vue';
 import KinetixTeamSwitcher from '@/components/KinetixTeamSwitcher.vue';
@@ -2161,6 +2162,21 @@ export const specimens: Specimen[] = [
         component: KinetixAnnouncements,
         width: 420,
         openSelector: '#specimen button',
+    },
+    {
+        name: 'announcement-banner',
+        title: 'Announcement banner (carousel)',
+        component: KinetixAnnouncementBanner,
+        props: { autoplay: 0 },
+        width: 640,
+    },
+    {
+        name: 'announcement-banner-fixed',
+        title: 'Announcement banner (fixed top)',
+        component: KinetixAnnouncementBanner,
+        props: { autoplay: 0, position: 'fixed-top' },
+        width: 900,
+        fullPage: true,
     },
     {
         name: 'cookie-consent',

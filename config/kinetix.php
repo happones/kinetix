@@ -759,6 +759,10 @@ return [
     'announcements' => [
         'enabled' => env('KINETIX_ANNOUNCEMENTS_ENABLED', false),
 
+        // How many entries <KinetixAnnouncementBanner> rotates through when the
+        // component doesn't pass its own `limit` (hard ceiling: 10).
+        'banner_limit' => env('KINETIX_ANNOUNCEMENTS_BANNER_LIMIT', 3),
+
         // With teams on, an announcement belongs to the team it was published
         // from; a NULL team is platform-wide (every feed shows it), which is
         // what `KinetixAnnouncements::publishGlobally()` writes.

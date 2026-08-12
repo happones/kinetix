@@ -500,8 +500,11 @@ class KinetixServiceProvider extends ServiceProvider
             // plus the tenant column — separate file so apps that already
             // migrated pick it up on the next publish).
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php'         => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php' => database_path('migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php'              => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'      => database_path('migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php' => database_path('migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'    => database_path('migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'   => database_path('migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'),
             ], 'kinetix-announcements-migrations');
 
             // Publish the optional locale column migration (language switcher).
@@ -1661,7 +1664,9 @@ class KinetixServiceProvider extends ServiceProvider
             ->prefix("{$prefix}/announcements")
             ->group(function () {
                 Route::get('/', [AnnouncementController::class, 'index'])->name('kinetix.announcements.index');
+                Route::get('banner', [AnnouncementController::class, 'banner'])->name('kinetix.announcements.banner');
                 Route::post('seen', [AnnouncementController::class, 'seen'])->name('kinetix.announcements.seen');
+                Route::post('{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('kinetix.announcements.dismiss');
             });
     }
 

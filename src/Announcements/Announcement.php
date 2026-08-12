@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Announcements;
 
 use Happones\Kinetix\Support\Concerns\ScopedToTeam;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -31,6 +32,20 @@ class Announcement extends Model
     protected $table = 'kinetix_announcements';
 
     protected $guarded = [];
+
+    /**
+     * Live entries only: a `published_at` in the past. NULL is a draft, a
+     * future one is scheduled.
+     *
+     * @param  Builder<static> $query
+     * @return Builder<static>
+     */
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', now());
+    }
 
     /**
      * @return array<string, string>

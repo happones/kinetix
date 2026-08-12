@@ -267,6 +267,18 @@ return [
     'announcements_empty' => 'Aucune annonce pour le moment.',
     'announcements_new'   => 'Nouveau',
 
+    'announcements_level_info'     => 'Info',
+    'announcements_level_feature'  => 'Nouveauté',
+    'announcements_level_fix'      => 'Correctif',
+    'announcements_previous'       => 'Annonce précédente',
+    'announcements_next'           => 'Annonce suivante',
+    'announcements_dismiss'        => 'Ignorer',
+    'announcements_pause'          => 'Mettre en pause le défilement',
+    'announcements_play'           => 'Reprendre le défilement',
+    'announcements_slide_position' => '{current} sur {total}',
+    'announcements_go_to'          => 'Afficher : {title}',
+    'announcements_unread_count'   => '{count} non lus',
+
     // Rôles et permissions
     'save'                        => 'Enregistrer',
     'select_all'                  => 'Tout sélectionner',

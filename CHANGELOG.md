@@ -13,6 +13,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Announcements grow a second face — an in-page banner instead of a header
+popover — and stop leaking read state between a user's teams.
+
+### Added
+
+- **`<KinetixAnnouncementBanner>`: announcements where the work happens.** An
+  alert-styled surface that shows one entry at a time and rotates through the
+  rest: arrows, dots, an explicit pause button and left/right keys. Rotation
+  pauses on hover and on keyboard focus, and is off entirely under
+  `prefers-reduced-motion` (the manual controls stay). Props: `limit` (default
+  3), `levels`, `autoplay` (ms, `0` = no clock), `dismissible`, `class`.
+  Announced as a carousel region with a per-slide position label, and the live
+  region is only polite while the clock is stopped — auto-rotation never
+  interrupts a screen reader **(published:
+  `KinetixAnnouncementBanner.vue`)**.
+- **`position="fixed-top"`: the same banner pinned to the viewport**, above the
+  page and below Kinetix's overlays (a modal still covers it), for the notice
+  everyone has to see whatever page they're on. It publishes its measured
+  height — which changes as entries wrap — as
+  `--kinetix-announcement-banner-height` on `<html>`, so a layout can reserve
+  the space with `padding-top: var(--kinetix-announcement-banner-height, 0px)`
+  and get it back the moment the banner is dismissed. `fixedWidthClass`
+  (default `max-w-3xl`) sizes the bar; the slide-in is skipped under
+  `prefers-reduced-motion` **(published: `KinetixAnnouncementBanner.vue`)**.
+- **Dismissing is per announcement, and persisted.** Closing a banner hides
+  *that* entry for that user on every device — the feed's single "I read
+  everything" timestamp could not express this. New
+  `kinetix_announcement_dismissals` table, `GET {prefix}/announcements/banner`
+  (`?limit=`, `?levels=`) and `POST {prefix}/announcements/{id}/dismiss`, which
+  resolves through the team-scoped query, so another tenant's id is a 404.
+  `AnnouncementManager::banner()` / `dismiss()`;
+  `useKinetixAnnouncementBanner()` → `{ announcements, loading, load, dismiss }`
+  **(published: `useKinetixAnnouncements.ts`)**.
+- **New config** `announcements.banner_limit` (default 3, server ceiling 10) —
+  the default rotation length when the component doesn't pass its own
+  **(published: `config/kinetix.php`)**.
+- **11 new i18n keys × 7 locales** (`announcements_level_*`, `_previous`,
+  `_next`, `_dismiss`, `_pause`, `_play`, `_slide_position`, `_go_to`,
+  `_unread_count`) **(published: translations)**.
+
+### Fixed
+
+- **Multi-tenant: reading one team's feed cleared every team's badge.** Read
+  state was ONE row per user, so a user in two teams could open team A's feed
+  and have team B's unread count drop to zero without ever seeing it. It is now
+  one row per (user, team), plus a `team_id` NULL row for the platform-wide
+  entries — read once, read everywhere, instead of following the user from team
+  to team. Existing rows stay NULL, so nothing re-appears as unread after the
+  upgrade; `kinetix:doctor` flags the table when the column is missing.
+- **The feed had no index to sort on.** `where team_id = ? or team_id is null
+  order by published_at desc` was served by two single-column indexes, leaving
+  the sort to the database. Added a composite `(team_id, published_at)` index.
+- **The feed endpoint ran the same read-state query twice** (`feed()` and
+  `unreadCount()` back to back); it is now resolved once per request.
+- **The announcements popover ignored the app's language.** The level badge
+  printed the raw slug (`feature` in a Spanish feed) and dates were formatted in
+  the *browser's* locale, not the app's. Both now go through the shared
+  `useKinetixAnnouncementFormat()` **(published: `KinetixAnnouncements.vue`,
+  `useKinetixAnnouncements.ts`)**.
+- **Popover a11y**: the "new" dot carried an `aria-label` on a generic `<span>`
+  (which screen readers ignore) — it is now `aria-hidden` with an `sr-only`
+  label inside the heading; the trigger's label states what the badge counts
+  instead of leaving it as a bare number; and the feed scrolls through the
+  `ScrollArea` primitive rather than a raw `overflow-y-auto`
+  **(published: `KinetixAnnouncements.vue`)**.
+- The `Alert` primitive accepts a `role` override (default still `alert`), so a
+  surface that rotates or is always present doesn't have to be an assertive live
+  region **(published: `primitives/Alert.vue`)**.
+
+### Upgrading
+
+```bash
+php artisan vendor:publish --tag=kinetix-announcements-migrations --force
+php artisan migrate
+```
+
+Three additive, idempotent migrations: `team_id` on the views table, the
+dismissals table and the feed index.
+
 ## [0.168.1] - 2026-08-10
 
 ### Fixed

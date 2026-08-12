@@ -59,6 +59,14 @@ class AnnouncementsTest extends TestCase
             $table->timestamp('seen_at')->nullable();
             $table->timestamps();
         });
+        Schema::create('kinetix_announcement_dismissals', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('announcement_id');
+            $table->timestamp('dismissed_at')->nullable();
+            $table->timestamps();
+            $table->unique(['user_id', 'announcement_id']);
+        });
     }
 
     private function user(): AnnouncementUser
@@ -102,6 +110,78 @@ class AnnouncementsTest extends TestCase
 
         $this->assertSame('2026-06-01', $mutable->published_at->format('Y-m-d'));
         $this->assertSame('2026-06-02', $immutable->published_at->format('Y-m-d'));
+    }
+
+    public function test_the_banner_serves_undismissed_entries_only(): void
+    {
+        $user = $this->user();
+        $keep = KinetixAnnouncements::publish('Keep', 'a', 'feature', now()->subMinute());
+        $drop = KinetixAnnouncements::publish('Drop', 'b', 'info', now()->subMinutes(2));
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements/banner')
+            ->assertOk()
+            ->assertJsonCount(2, 'announcements');
+
+        $this->actingAs($user)
+            ->postJson("/_kinetix/announcements/{$drop->getKey()}/dismiss")
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements/banner')
+            ->assertOk()
+            ->assertJsonCount(1, 'announcements')
+            ->assertJsonPath('announcements.0.id', $keep->getKey());
+    }
+
+    public function test_dismissing_hides_the_banner_entry_without_marking_the_feed_read(): void
+    {
+        $user = $this->user();
+        KinetixAnnouncements::publish('One', 'a');
+
+        $announcement = KinetixAnnouncements::publish('Two', 'b');
+
+        $this->actingAs($user)
+            ->postJson("/_kinetix/announcements/{$announcement->getKey()}/dismiss")
+            ->assertOk();
+
+        // The feed is untouched: dismissing is "hide this banner", not "I read
+        // everything".
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertOk()
+            ->assertJsonCount(2, 'announcements')
+            ->assertJsonPath('unread', 2);
+    }
+
+    public function test_the_banner_can_be_narrowed_to_levels_and_a_limit(): void
+    {
+        $user = $this->user();
+        KinetixAnnouncements::publish('Feature', 'a', 'feature', now()->subMinute());
+        KinetixAnnouncements::publish('Fix', 'b', 'fix', now()->subMinutes(2));
+        KinetixAnnouncements::publish('Info', 'c', 'info', now()->subMinutes(3));
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements/banner?levels=feature,fix')
+            ->assertOk()
+            ->assertJsonCount(2, 'announcements');
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements/banner?limit=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'announcements')
+            ->assertJsonPath('announcements.0.title', 'Feature');
+    }
+
+    public function test_the_banner_never_serves_drafts_or_scheduled_entries(): void
+    {
+        Announcement::create(['title' => 'Draft', 'body' => 'x', 'published_at' => null]);
+        Announcement::create(['title' => 'Future', 'body' => 'x', 'published_at' => now()->addDay()]);
+
+        $this->actingAs($this->user())
+            ->getJson('/_kinetix/announcements/banner')
+            ->assertOk()
+            ->assertJsonCount(0, 'announcements');
     }
 
     public function test_announcements_published_after_seen_become_new_again(): void

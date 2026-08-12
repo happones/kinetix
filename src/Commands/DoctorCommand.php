@@ -375,11 +375,14 @@ class DoctorCommand extends Command
         $pending = [];
 
         foreach ([
-            'mail_templates' => ['kinetix_mail_templates', 'kinetix-mail-templates-migrations'],
-            'announcements'  => ['kinetix_announcements', 'kinetix-announcements-migrations'],
-            'reports_center' => ['kinetix_report_schedules', 'kinetix-reports-center-migrations'],
-            'api_logs'       => ['kinetix_api_logs', 'kinetix-api-logs-migrations'],
-        ] as $module => [$table, $tag]) {
+            ['mail_templates', 'kinetix_mail_templates', 'kinetix-mail-templates-migrations'],
+            ['announcements', 'kinetix_announcements', 'kinetix-announcements-migrations'],
+            // Read state is per (user, team): without the column, reading one
+            // team's feed clears that user's badge in every other team.
+            ['announcements', 'kinetix_announcement_views', 'kinetix-announcements-migrations'],
+            ['reports_center', 'kinetix_report_schedules', 'kinetix-reports-center-migrations'],
+            ['api_logs', 'kinetix_api_logs', 'kinetix-api-logs-migrations'],
+        ] as [$module, $table, $tag]) {
             if (! config("kinetix.{$module}.enabled", false) || ! KinetixTeams::enabledFor($module)) {
                 continue;
             }

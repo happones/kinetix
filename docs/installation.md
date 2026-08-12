@@ -348,6 +348,7 @@ until it's in the layout:
 | `<KinetixConfidentialUnlock />` | Header widget for the confidential-fields reveal gate | [Confidential](/confidential) |
 | `<KinetixSkipLink />` | Skip-to-content link — place it **first** in the layout | [Accessibility](/accessibility) |
 | `<KinetixAnnouncements />` | "What's new" trigger for your header | [Announcements](/announcements) |
+| `<KinetixAnnouncementBanner />` | Announcements as a banner — in the page flow or pinned to the top (`position="fixed-top"`) | [Announcements](/announcements) |
 
 Modal-style components (`KinetixSheet`, `KinetixConfirmModal`, the table record
 modals) are **not** hosts — they're prop-driven, self-teleporting, and need no
