@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.169.0] - 2026-08-11
+
 Announcements grow a second face — an in-page banner instead of a header
 popover — and stop leaking read state between a user's teams.
 
