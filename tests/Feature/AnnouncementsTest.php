@@ -7,12 +7,14 @@ namespace Happones\Kinetix\Tests\Feature;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Happones\Kinetix\Announcements\Announcement;
+use Happones\Kinetix\Announcements\AnnouncementDismissal;
 use Happones\Kinetix\Announcements\AnnouncementManager;
 use Happones\Kinetix\Announcements\KinetixAnnouncements;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 
 class AnnouncementUser extends Authenticatable
@@ -182,6 +184,117 @@ class AnnouncementsTest extends TestCase
             ->getJson('/_kinetix/announcements/banner')
             ->assertOk()
             ->assertJsonCount(0, 'announcements');
+    }
+
+    public function test_authoring_is_denied_unless_the_host_allows_it(): void
+    {
+        Gate::define('manageKinetixAnnouncements', fn (): bool => false);
+
+        $this->actingAs($this->user())
+            ->getJson('/_kinetix/announcements/manage')
+            ->assertForbidden();
+
+        $this->actingAs($this->user())
+            ->postJson('/_kinetix/announcements', ['title' => 'X', 'body' => 'Y', 'level' => 'info'])
+            ->assertForbidden();
+    }
+
+    public function test_an_editor_writes_schedules_and_deletes_without_a_deploy(): void
+    {
+        Gate::define('manageKinetixAnnouncements', fn (): bool => true);
+
+        $user = $this->user();
+
+        $created = $this->actingAs($user)
+            ->postJson('/_kinetix/announcements', [
+                'title'        => 'Draft for later',
+                'body'         => 'Body',
+                'level'        => 'feature',
+                'published_at' => null,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('announcement.status', 'draft')
+            ->json('announcement.id');
+
+        // A draft reaches nobody's feed…
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertJsonCount(0, 'announcements');
+
+        // …but the authoring list is where it's waiting to be finished.
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements/manage')
+            ->assertOk()
+            ->assertJsonCount(1, 'announcements')
+            ->assertJsonPath('announcements.0.status', 'draft');
+
+        $this->actingAs($user)
+            ->putJson("/_kinetix/announcements/{$created}", [
+                'title'        => 'Shipped',
+                'body'         => 'Body',
+                'level'        => 'feature',
+                'published_at' => now()->subMinute()->toIso8601String(),
+            ])
+            ->assertOk()
+            ->assertJsonPath('announcement.status', 'published');
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertJsonCount(1, 'announcements')
+            ->assertJsonPath('announcements.0.title', 'Shipped');
+
+        $this->actingAs($user)
+            ->deleteJson("/_kinetix/announcements/{$created}")
+            ->assertOk();
+
+        $this->assertSame(0, Announcement::query()->count());
+    }
+
+    public function test_a_scheduled_entry_stays_out_of_the_feed_until_its_moment(): void
+    {
+        Gate::define('manageKinetixAnnouncements', fn (): bool => true);
+
+        $user = $this->user();
+
+        $this->actingAs($user)
+            ->postJson('/_kinetix/announcements', [
+                'title'        => 'Maintenance window',
+                'body'         => 'Body',
+                'level'        => 'info',
+                'published_at' => now()->addDay()->toIso8601String(),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('announcement.status', 'scheduled');
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertJsonCount(0, 'announcements');
+
+        $this->travel(2)->days();
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertJsonCount(1, 'announcements');
+    }
+
+    public function test_deleting_an_announcement_takes_its_dismissals_with_it(): void
+    {
+        Gate::define('manageKinetixAnnouncements', fn (): bool => true);
+
+        $user         = $this->user();
+        $announcement = KinetixAnnouncements::publish('Going away', 'Body');
+
+        $this->actingAs($user)
+            ->postJson("/_kinetix/announcements/{$announcement->getKey()}/dismiss")
+            ->assertOk();
+
+        $this->assertSame(1, AnnouncementDismissal::query()->count());
+
+        $this->actingAs($user)
+            ->deleteJson("/_kinetix/announcements/{$announcement->getKey()}")
+            ->assertOk();
+
+        $this->assertSame(0, AnnouncementDismissal::query()->count());
     }
 
     public function test_announcements_published_after_seen_become_new_again(): void

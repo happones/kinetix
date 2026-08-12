@@ -1649,6 +1649,12 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
+        // Authoring is opt-in: without a host definition only `local` may write,
+        // so publishing an announcement can never be an accident in production.
+        if (! Gate::has('manageKinetixAnnouncements')) {
+            Gate::define('manageKinetixAnnouncements', fn ($user = null): bool => $this->app->environment('local'));
+        }
+
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);
 
@@ -1667,6 +1673,12 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('banner', [AnnouncementController::class, 'banner'])->name('kinetix.announcements.banner');
                 Route::post('seen', [AnnouncementController::class, 'seen'])->name('kinetix.announcements.seen');
                 Route::post('{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('kinetix.announcements.dismiss');
+
+                // Authoring (gated by `manageKinetixAnnouncements`).
+                Route::get('manage', [AnnouncementController::class, 'manage'])->name('kinetix.announcements.manage');
+                Route::post('/', [AnnouncementController::class, 'store'])->name('kinetix.announcements.store');
+                Route::put('{announcement}', [AnnouncementController::class, 'update'])->name('kinetix.announcements.update');
+                Route::delete('{announcement}', [AnnouncementController::class, 'destroy'])->name('kinetix.announcements.destroy');
             });
     }
 

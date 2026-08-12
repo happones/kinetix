@@ -36,6 +36,19 @@ php artisan migrate
 
 ## Publishing
 
+From the app (`<KinetixAnnouncementManager>`, gated by the
+`manageKinetixAnnouncements` ability — defaults to `local` only):
+
+```php
+Gate::define('manageKinetixAnnouncements', fn ($user) => $user->isAdmin());
+```
+
+No publish date = draft; a future date = scheduled. Both stay out of every
+reader feed until their moment. With teams on, a platform-wide entry is
+read-only inside a team (403) — it belongs to every tenant.
+
+From code:
+
 ```php
 use Happones\Kinetix\Announcements\KinetixAnnouncements;
 
@@ -60,6 +73,7 @@ Levels: `info` (default) | `feature` | `fix`. Only entries with a past
 ## Frontend
 
 ```vue
+<KinetixAnnouncementManager />                      <!-- authoring page -->
 <KinetixAnnouncements />                            <!-- header trigger -->
 <KinetixAnnouncementBanner                          <!-- in-page banner -->
     :limit="3"

@@ -2,7 +2,11 @@ import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixAnnouncement, KinetixSharedProps } from '@/types/kinetix';
+import type {
+    KinetixAnnouncement,
+    KinetixEditableAnnouncement,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 /**
  * Self-service "what's new" feed: load published announcements + the unread
@@ -104,6 +108,64 @@ export function useKinetixAnnouncementBanner(
     }
 
     return { announcements, loading, load, dismiss };
+}
+
+/**
+ * Authoring: the full list (drafts and scheduled entries included), create,
+ * update and delete. Every call is gated server-side by
+ * `manageKinetixAnnouncements`.
+ */
+export function useKinetixAnnouncementManager() {
+    const base = useAnnouncementsBase();
+
+    const announcements = ref<KinetixEditableAnnouncement[]>([]);
+    /** Inside a team, platform-wide entries are read-only. */
+    const teamScoped = ref(false);
+    const loading = ref(false);
+
+    async function load(): Promise<void> {
+        loading.value = true;
+
+        try {
+            const data = await kinetixFetch<{
+                announcements: KinetixEditableAnnouncement[];
+                teamScoped: boolean;
+            }>(`${base()}/manage`);
+            announcements.value = data?.announcements ?? [];
+            teamScoped.value = data?.teamScoped ?? false;
+        } finally {
+            loading.value = false;
+        }
+    }
+
+    async function save(
+        announcement: KinetixEditableAnnouncement,
+    ): Promise<KinetixEditableAnnouncement | null> {
+        const isUpdate = announcement.id != null;
+        const res = await kinetixFetch<{
+            announcement: KinetixEditableAnnouncement;
+        }>(isUpdate ? `${base()}/${announcement.id}` : base(), {
+            method: isUpdate ? 'PUT' : 'POST',
+            body: {
+                title: announcement.title,
+                body: announcement.body,
+                level: announcement.level,
+                // The API speaks the column name; `null` is a draft.
+                published_at: announcement.publishedAt,
+            },
+        });
+
+        await load();
+
+        return res?.announcement ?? null;
+    }
+
+    async function remove(id: number | string): Promise<void> {
+        await kinetixFetch(`${base()}/${id}`, { method: 'DELETE' });
+        await load();
+    }
+
+    return { announcements, teamScoped, loading, load, save, remove };
 }
 
 /**

@@ -23,7 +23,43 @@ php artisan migrate
 
 ---
 
-## Publishing
+## Publishing from the app
+
+Announcements used to be publish-from-code only, which made every "heads up,
+maintenance on Sunday" a deploy. `<KinetixAnnouncementManager>` is the authoring
+side: write, schedule, edit and delete, from a page in your app.
+
+<Screenshot name="announcement-manager" alt="Announcement manager listing a draft, a scheduled entry and a published one" />
+
+```vue
+<script setup lang="ts">
+import KinetixAnnouncementManager from '@/components/kinetix/KinetixAnnouncementManager.vue';
+</script>
+
+<template>
+    <KinetixAnnouncementManager />
+</template>
+```
+
+Authoring is gated by the **`manageKinetixAnnouncements`** ability, which
+defaults to `local` only — so nobody publishes to production by accident before
+you've decided who may. Define it in `AppServiceProvider`:
+
+```php
+Gate::define('manageKinetixAnnouncements', fn ($user) => $user->isAdmin());
+```
+
+An entry with **no publish date is a draft** and a **future date schedules it**;
+neither reaches a reader's feed until its moment arrives. The list shows drafts
+and scheduled entries — the reader endpoints never do.
+
+With teams on, a platform-wide entry (`team_id` NULL) is **read-only inside a
+team**: it belongs to every tenant, so editing it from one team would rewrite
+the message for all of them. Edit those outside a team scope, or from code.
+
+---
+
+## Publishing from code
 
 Publish entries from a seeder, a deploy step, a command — anywhere:
 
@@ -198,15 +234,24 @@ that user's banner without touching the unread count.
 Registered under your Kinetix prefix (`{current_team}/_kinetix/announcements` with teams on).
 The feed is scoped to the active team plus the platform-wide entries:
 
-| Method | Route                                | Name                             |
-| ------ | ------------------------------------ | -------------------------------- |
-| `GET`  | `{prefix}/announcements`             | `kinetix.announcements.index`    |
-| `GET`  | `{prefix}/announcements/banner`      | `kinetix.announcements.banner`   |
-| `POST` | `{prefix}/announcements/seen`        | `kinetix.announcements.seen`     |
-| `POST` | `{prefix}/announcements/{id}/dismiss`| `kinetix.announcements.dismiss`  |
+| Method   | Route                                 | Name                            | Gated by |
+| -------- | ------------------------------------- | ------------------------------- | -------- |
+| `GET`    | `{prefix}/announcements`              | `kinetix.announcements.index`   | auth |
+| `GET`    | `{prefix}/announcements/banner`       | `kinetix.announcements.banner`  | auth |
+| `POST`   | `{prefix}/announcements/seen`         | `kinetix.announcements.seen`    | auth |
+| `POST`   | `{prefix}/announcements/{id}/dismiss` | `kinetix.announcements.dismiss` | auth |
+| `GET`    | `{prefix}/announcements/manage`       | `kinetix.announcements.manage`  | `manageKinetixAnnouncements` |
+| `POST`   | `{prefix}/announcements`              | `kinetix.announcements.store`   | `manageKinetixAnnouncements` |
+| `PUT`    | `{prefix}/announcements/{id}`         | `kinetix.announcements.update`  | `manageKinetixAnnouncements` |
+| `DELETE` | `{prefix}/announcements/{id}`         | `kinetix.announcements.destroy` | `manageKinetixAnnouncements` |
 
 `index` returns the published feed (each with an `isNew` flag) plus the `unread`
 count; `banner` returns the published entries the user hasn't dismissed
 (`?limit=`, `?levels=feature,fix`); `seen` marks the feed read; `dismiss` hides
 one entry. An id from another tenant is a 404 — `dismiss` resolves through the
 same team-scoped query the feed uses.
+
+`manage` returns the authoring list (drafts and scheduled entries included, each
+with a `status` and `isGlobal`) plus `teamScoped`; `store`/`update` take
+`title`, `body`, `level` and a nullable `published_at`. Deleting an
+announcement also deletes its dismissals.

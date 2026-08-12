@@ -37,6 +37,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`<KinetixAnnouncementManager>`: announcements without a deploy.** The
+  feature was publish-from-code only — `KinetixAnnouncements::publish()` from a
+  seeder or a tinker session — so every "heads up, maintenance on Sunday" went
+  through an engineer. The manager is the authoring side: write, schedule, edit
+  and delete from a page in the app, with drafts (no publish date) and
+  scheduled entries (a future one) listed alongside the published ones. Gated
+  by the new **`manageKinetixAnnouncements`** ability, which defaults to
+  `local` only, so nothing can be published to production before the host
+  decides who may. New endpoints `GET announcements/manage`, `POST
+  announcements`, `PUT`/`DELETE announcements/{id}`; a platform-wide entry is
+  read-only inside a team (403 — it belongs to every tenant), and deleting an
+  announcement takes its banner dismissals with it **(published:
+  `KinetixAnnouncementManager.vue`, `useKinetixAnnouncements.ts`,
+  `types/kinetix.ts`, 14 translation keys × 7 locales)**.
 - `header-controls` / `header-controls-narrow` gallery specimens (the whole
   trigger strip in one shot, wide and sub-`sm`) plus a scan test pinning the
   shared button recipe — the drift above was invisible in each component's own

@@ -625,6 +625,41 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        match: /\/announcements\/manage/,
+        data: {
+            teamScoped: false,
+            announcements: [
+                {
+                    id: 4,
+                    title: 'Billing revamp',
+                    body: 'Invoices, proration and a self-service plan switcher.',
+                    level: 'feature',
+                    publishedAt: null,
+                    isGlobal: false,
+                    status: 'draft',
+                },
+                {
+                    id: 5,
+                    title: 'Maintenance window',
+                    body: 'Sunday 02:00–04:00 UTC. Exports pause; nothing is lost.',
+                    level: 'info',
+                    publishedAt: '2026-09-20T02:00:00Z',
+                    isGlobal: true,
+                    status: 'scheduled',
+                },
+                {
+                    id: 1,
+                    title: 'Dark mode is here 🌙',
+                    body: 'Toggle it from the header — your choice is remembered across devices.',
+                    level: 'feature',
+                    publishedAt: '2026-06-26T10:00:00Z',
+                    isGlobal: false,
+                    status: 'published',
+                },
+            ],
+        },
+    },
+    {
         match: /\/announcements\/banner/,
         data: {
             announcements: [

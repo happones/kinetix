@@ -497,6 +497,23 @@ export interface KinetixOnboarding {
     dismissed: boolean;
 }
 
+/**
+ * An announcement as its author edits it — drafts and scheduled entries
+ * included, which the reader feed never returns.
+ */
+export interface KinetixEditableAnnouncement {
+    /** `null` until the entry is created. */
+    id: number | string | null;
+    title: string;
+    body: string;
+    level: string;
+    /** `null` = draft; a future date = scheduled. */
+    publishedAt: string | null;
+    /** Platform-wide (visible to every team); read-only inside a team. */
+    isGlobal?: boolean;
+    status?: 'draft' | 'scheduled' | 'published';
+}
+
 /** A product announcement ("what's new" entry). */
 export interface KinetixAnnouncement {
     id: number | string | null;

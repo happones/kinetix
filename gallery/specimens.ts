@@ -24,6 +24,7 @@ import KinetixPhoneInput from '@/components/KinetixPhoneInput.vue';
 import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
 import KinetixAnnouncementBanner from '@/components/KinetixAnnouncementBanner.vue';
+import KinetixAnnouncementManager from '@/components/KinetixAnnouncementManager.vue';
 import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
 import KinetixNotificationTrigger from '@/components/KinetixNotificationTrigger.vue';
 import KinetixLanguageSwitcher from '@/components/KinetixLanguageSwitcher.vue';
@@ -2199,6 +2200,13 @@ export const specimens: Specimen[] = [
         // is the only way to see the sub-`sm` rendering.
         width: 320,
         fullPage: true,
+    },
+    {
+        name: 'announcement-manager',
+        title: 'Announcement manager',
+        component: KinetixAnnouncementManager,
+        width: 720,
+        frame: 'card',
     },
     {
         name: 'announcement-banner',

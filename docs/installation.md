@@ -349,6 +349,7 @@ until it's in the layout:
 | `<KinetixSkipLink />` | Skip-to-content link — place it **first** in the layout | [Accessibility](/accessibility) |
 | `<KinetixAnnouncements />` | "What's new" trigger for your header | [Announcements](/announcements) |
 | `<KinetixAnnouncementBanner />` | Announcements as a banner — in the page flow or pinned to the top (`position="fixed-top"`) | [Announcements](/announcements) |
+| `<KinetixAnnouncementManager />` | Write/schedule announcements from an admin page (`manageKinetixAnnouncements`) | [Announcements](/announcements) |
 
 Modal-style components (`KinetixSheet`, `KinetixConfirmModal`, the table record
 modals) are **not** hosts — they're prop-driven, self-teleporting, and need no

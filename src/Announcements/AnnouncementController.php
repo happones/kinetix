@@ -7,11 +7,13 @@ namespace Happones\Kinetix\Announcements;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
- * Self-service announcements feed: each user reads the published feed and marks
- * it seen (clearing their own unread count), or dismisses a single entry from
- * the banner.
+ * Two audiences in one controller: every user reads the published feed, marks
+ * it seen and dismisses banners; whoever passes `manageKinetixAnnouncements`
+ * also writes them — the feature was publish-from-code only, so shipping an
+ * announcement meant a deploy.
  */
 class AnnouncementController
 {
@@ -80,6 +82,132 @@ class AnnouncementController
         $this->manager->markSeen($this->user($request));
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * The authoring list: drafts and scheduled entries too, which the reader
+     * feed hides. Newest first, with unpublished ones at the top since they are
+     * what an editor came to finish.
+     */
+    public function manage(): JsonResponse
+    {
+        Gate::authorize('manageKinetixAnnouncements');
+
+        $announcements = Announcement::query()
+            ->forCurrentTeamOrGlobal()
+            ->orderByRaw('published_at is null desc')
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get()
+            ->map(fn (Announcement $a): array => $this->editable($a))
+            ->all();
+
+        return response()->json([
+            'announcements' => $announcements,
+            // Inside a team, a platform-wide entry is read-only (see update()).
+            'teamScoped' => Announcement::currentTeamId() !== null,
+        ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        Gate::authorize('manageKinetixAnnouncements');
+
+        $announcement = Announcement::query()->create([
+            ...$this->validatedAnnouncement($request),
+            ...Announcement::teamAttributes(),
+        ]);
+
+        return response()->json(['announcement' => $this->editable($announcement)], 201);
+    }
+
+    public function update(Request $request): JsonResponse
+    {
+        Gate::authorize('manageKinetixAnnouncements');
+
+        $announcement = $this->findForWriting($request);
+        $announcement->update($this->validatedAnnouncement($request));
+
+        return response()->json(['announcement' => $this->editable($announcement)]);
+    }
+
+    public function destroy(Request $request): JsonResponse
+    {
+        Gate::authorize('manageKinetixAnnouncements');
+
+        $announcement = $this->findForWriting($request);
+
+        // The banner's dismissals point at a row that is about to vanish.
+        AnnouncementDismissal::query()
+            ->where('announcement_id', $announcement->getKey())
+            ->delete();
+
+        $announcement->delete();
+
+        return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * An announcement this tenant may WRITE: its own. A platform-wide entry is
+     * every tenant's, so editing it from inside one team would rewrite the
+     * message for all of them — that is a platform-scope job. Another team's
+     * row stays a 404; its existence is not leaked.
+     */
+    protected function findForWriting(Request $request): Announcement
+    {
+        $announcement = Announcement::query()
+            ->forCurrentTeamOrGlobal()
+            ->findOrFail($request->route('announcement'));
+
+        abort_if(
+            $announcement->isGlobal() && Announcement::currentTeamId() !== null,
+            403,
+            'This is a platform-wide announcement. Edit it outside a team scope.',
+        );
+
+        return $announcement;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function validatedAnnouncement(Request $request): array
+    {
+        return $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'body'  => ['required', 'string', 'max:10000'],
+            'level' => ['required', 'string', 'regex:'.static::LEVEL_PATTERN],
+            // Null is a draft, a future date schedules it — both are how an
+            // editor works ahead of a release.
+            'published_at' => ['nullable', 'date'],
+        ]);
+    }
+
+    /**
+     * The authoring shape: the raw columns an editor round-trips, not the
+     * reader DTO (no `isNew`, and `publishedAt` keeps its date rather than
+     * being hidden as a draft).
+     *
+     * @return array<string, mixed>
+     */
+    protected function editable(Announcement $announcement): array
+    {
+        $publishedAt = $announcement->published_at;
+
+        return [
+            'id'          => $announcement->getKey(),
+            'title'       => $announcement->title,
+            'body'        => $announcement->body,
+            'level'       => $announcement->level,
+            'publishedAt' => $publishedAt?->format(\DateTimeInterface::ATOM),
+            'isGlobal'    => $announcement->isGlobal(),
+            'status'      => match (true) {
+                $publishedAt === null    => 'draft',
+                $publishedAt->isFuture() => 'scheduled',
+                default                  => 'published',
+            },
+        ];
     }
 
     /**
