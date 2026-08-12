@@ -69,6 +69,26 @@ class AnnouncementManager
     }
 
     /**
+     * What every Inertia response carries: the unread badge and the banner
+     * feed. Both components would otherwise fetch on mount, which costs a
+     * round-trip per navigation in an app whose layout is re-created per page.
+     *
+     * @return array{unread: int, bannerLimit: int, banner: array<int, AnnouncementData>}
+     */
+    public function sharedState(Model $user): array
+    {
+        $limit = max(1, min(10, (int) config('kinetix.announcements.banner_limit', 3)));
+
+        return [
+            'unread' => $this->unreadCount($user),
+            // The banner only hydrates from this when it isn't narrowed with
+            // its own limit/levels, so it has to say what shape it holds.
+            'bannerLimit' => $limit,
+            'banner'      => $this->banner($user, $limit),
+        ];
+    }
+
+    /**
      * How many published announcements the user hasn't seen yet.
      */
     public function unreadCount(Model $user): int

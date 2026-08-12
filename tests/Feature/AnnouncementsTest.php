@@ -16,6 +16,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 
 class AnnouncementUser extends Authenticatable
 {
@@ -295,6 +296,39 @@ class AnnouncementsTest extends TestCase
             ->assertOk();
 
         $this->assertSame(0, AnnouncementDismissal::query()->count());
+    }
+
+    public function test_the_page_payload_carries_the_badge_and_the_banner_feed(): void
+    {
+        $user = $this->user();
+        KinetixAnnouncements::publish('Shipped', 'Body', 'feature');
+
+        $this->actingAs($user);
+
+        /** @var callable $shared */
+        $shared = Inertia::getShared('kinetix_announcements');
+        $state  = value($shared);
+
+        // Both components read this instead of fetching on mount.
+        $this->assertSame(1, $state['unread']);
+        $this->assertCount(1, $state['banner']);
+        $this->assertSame(3, $state['bannerLimit']);
+    }
+
+    public function test_the_payload_is_absent_for_guests_and_when_sharing_is_off(): void
+    {
+        KinetixAnnouncements::publish('Shipped', 'Body');
+
+        /** @var callable $shared */
+        $shared = Inertia::getShared('kinetix_announcements');
+
+        // No user, nothing to say.
+        $this->assertNull(value($shared));
+
+        config()->set('kinetix.announcements.share', false);
+        $this->actingAs($this->user());
+
+        $this->assertNull(value($shared));
     }
 
     public function test_announcements_published_after_seen_become_new_again(): void

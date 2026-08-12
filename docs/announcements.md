@@ -213,6 +213,34 @@ The default `limit` comes from config when the component doesn't pass one:
 
 ---
 
+## What it costs to mount
+
+Both components used to fetch on mount, so a header that's re-created on every
+page (an Inertia layout that isn't persistent) meant **one request per
+navigation**, for a feed that changes maybe weekly.
+
+Kinetix now ships the unread count and the banner feed on every Inertia response
+as `kinetix_announcements`:
+
+- The header trigger renders its badge straight from the payload and fetches the
+  list **only when the popover is opened** — once, not on every open. A header
+  nobody clicks costs zero requests.
+- The banner renders from the payload too, unless you narrow it with `levels` or
+  a `limit` that differs from `announcements.banner_limit` — then only the
+  server can answer, so it fetches.
+
+```php
+'announcements' => [
+    'share' => env('KINETIX_ANNOUNCEMENTS_SHARE', true),
+],
+```
+
+Turn `share` off and the payload is `null`; both components fall back to
+fetching for themselves, exactly as before. That's the trade: a couple of
+indexed queries per Inertia response, or a round-trip per component mount.
+
+---
+
 ## How "unread" works
 
 Each user has a **last-seen** timestamp per team, plus one for the platform-wide

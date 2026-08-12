@@ -104,6 +104,15 @@ the layout can reserve the space with
 
 i18n `announcements_*` (7 locales).
 
+## Cost per mount
+
+`kinetix_announcements` (shared on every Inertia response:
+`{ unread, bannerLimit, banner }`, `null` for guests or when
+`announcements.share` is false) feeds both components, so neither fetches on
+mount. The popover loads its list once, on open; the banner fetches only when
+narrowed past the shared shape (`levels`, or a `limit` other than
+`banner_limit`).
+
 ## UUID / ULID Host Models
 
 This feature's migration builds `user_id` and `team_id` with

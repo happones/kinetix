@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
@@ -13,11 +13,22 @@ import type {
  * count, and mark the feed seen (clearing the unread badge).
  */
 export function useKinetixAnnouncements() {
+    const page = usePage<KinetixSharedProps>();
     const base = useAnnouncementsBase();
 
     const announcements = ref<KinetixAnnouncement[]>([]);
-    const unread = ref(0);
     const loading = ref(false);
+    const loaded = ref(false);
+
+    /**
+     * The badge comes from the page payload, so the header costs no request at
+     * all until someone opens the feed. `seen` is optimistic: it wins over the
+     * prop until the next Inertia response carries the cleared count.
+     */
+    const seen = ref(false);
+    const unread = computed(() =>
+        seen.value ? 0 : (page.props.kinetix_announcements?.unread ?? 0),
+    );
 
     async function load(): Promise<void> {
         loading.value = true;
@@ -28,18 +39,25 @@ export function useKinetixAnnouncements() {
                 unread: number;
             }>(base());
             announcements.value = data?.announcements ?? [];
-            unread.value = data?.unread ?? 0;
+            loaded.value = true;
         } finally {
             loading.value = false;
         }
     }
 
+    /** Fetch the list once — the badge alone doesn't need it. */
+    async function loadOnce(): Promise<void> {
+        if (!loaded.value && !loading.value) {
+            await load();
+        }
+    }
+
     async function markSeen(): Promise<void> {
-        unread.value = 0;
+        seen.value = true;
         await kinetixFetch(`${base()}/seen`, { method: 'POST' });
     }
 
-    return { announcements, unread, loading, load, markSeen };
+    return { announcements, unread, loading, load, loadOnce, markSeen };
 }
 
 export interface KinetixAnnouncementBannerOptions {
@@ -57,12 +75,39 @@ export interface KinetixAnnouncementBannerOptions {
 export function useKinetixAnnouncementBanner(
     options: KinetixAnnouncementBannerOptions = {},
 ) {
+    const page = usePage<KinetixSharedProps>();
     const base = useAnnouncementsBase();
 
     const announcements = ref<KinetixAnnouncement[]>([]);
     const loading = ref(false);
 
+    /**
+     * The page payload carries the default banner feed, so an un-narrowed
+     * banner costs no request. Narrow it — different levels, a different limit
+     * — and only the server can answer.
+     */
+    function shared(): KinetixAnnouncement[] | null {
+        const state = page.props.kinetix_announcements;
+
+        if (!state || options.levels?.length) {
+            return null;
+        }
+
+        return options.limit === undefined ||
+            options.limit === state.bannerLimit
+            ? state.banner
+            : null;
+    }
+
     async function load(): Promise<void> {
+        const hydrated = shared();
+
+        if (hydrated !== null) {
+            announcements.value = hydrated;
+
+            return;
+        }
+
         loading.value = true;
 
         const query = new URLSearchParams();

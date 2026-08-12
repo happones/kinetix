@@ -2,7 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
-vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: {} }) }));
+const pageProps: Record<string, unknown> = {};
+vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: pageProps }) }));
 const fetchMock = vi.fn();
 vi.mock('@/composables/useKinetixHttp', () => ({
     kinetixFetch: (...args: unknown[]) => fetchMock(...args),
@@ -53,7 +54,40 @@ const buttonWithLabel = (wrapper: ReturnType<typeof mountIt>, label: string) =>
     wrapper.findAll('button').find((b) => b.attributes('aria-label') === label);
 
 describe('KinetixAnnouncementBanner', () => {
-    beforeEach(() => fetchMock.mockReset());
+    beforeEach(() => {
+        fetchMock.mockReset();
+        pageProps.kinetix_announcements = undefined;
+    });
+
+    it('renders from the page payload without a request of its own', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 1,
+            bannerLimit: 3,
+            banner: [announcement(9, 'From the payload')],
+        };
+
+        const w = mountIt({ limit: 3 });
+        await flushPromises();
+
+        expect(w.text()).toContain('From the payload');
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('asks the server once it is narrowed past what the payload holds', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 1,
+            bannerLimit: 3,
+            banner: [announcement(9, 'From the payload')],
+        };
+        fetchMock.mockResolvedValueOnce({ announcements: [] });
+
+        mountIt({ levels: ['fix'] });
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/_kinetix/announcements/banner?limit=3&levels=fix',
+        );
+    });
 
     it('renders nothing while the banner feed is empty', async () => {
         fetchMock.mockResolvedValueOnce({ announcements: [] });

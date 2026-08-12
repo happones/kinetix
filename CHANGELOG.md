@@ -51,6 +51,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   announcement takes its banner dismissals with it **(published:
   `KinetixAnnouncementManager.vue`, `useKinetixAnnouncements.ts`,
   `types/kinetix.ts`, 14 translation keys × 7 locales)**.
+- **Announcements ride on the page payload instead of a request per mount.**
+  Both the header trigger and the banner fetched on mount, so an app whose
+  layout is re-created per page paid a round-trip **per navigation** for a feed
+  that changes weekly. The new `kinetix_announcements` shared prop
+  (`{ unread, bannerLimit, banner }`) feeds both: the trigger renders its badge
+  from the payload and loads the list only when the popover is opened (once,
+  not per open), and the banner hydrates from it unless narrowed with `levels`
+  or a non-default `limit`. `announcements.share` (default `true`) turns it off
+  and restores the old fetch-for-yourself behaviour **(published:
+  `useKinetixAnnouncements.ts`, `KinetixAnnouncements.vue`,
+  `types/kinetix.ts`, `config/kinetix.php`)**.
 - `header-controls` / `header-controls-narrow` gallery specimens (the whole
   trigger strip in one shot, wide and sub-`sm`) plus a scan test pinning the
   shared button recipe — the drift above was invisible in each component's own

@@ -2236,6 +2236,22 @@ class KinetixServiceProvider extends ServiceProvider
             ];
         });
 
+        // The unread badge + the banner feed, so the header trigger and the
+        // banner render from the page payload instead of each firing their own
+        // request on every mount — which, in an app whose layout is not
+        // persistent, is one round-trip per navigation.
+        Inertia::share('kinetix_announcements', function () {
+            $user = auth()->user();
+
+            if (! config('kinetix.announcements.enabled', false)
+                || ! config('kinetix.announcements.share', true)
+                || ! $user instanceof Model) {
+                return null;
+            }
+
+            return app(AnnouncementManager::class)->sharedState($user);
+        });
+
         // The user's teams + switch URLs, for <KinetixTeamSwitcher>.
         Inertia::share('kinetix_teams', fn () => app(TeamSwitcherManager::class)->payload());
 

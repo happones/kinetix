@@ -6,7 +6,7 @@ import {
     PopoverRoot,
     PopoverTrigger,
 } from 'reka-ui';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     useKinetixAnnouncementFormat,
@@ -20,11 +20,12 @@ import ScrollArea from './primitives/ScrollArea.vue';
 
 /**
  * "What's new" header control: an icon button with an unread badge that opens a
- * popover listing published announcements. Opening the popover marks the feed
- * seen, clearing the badge. Mount it in your app header.
+ * popover listing published announcements. Opening the popover loads the list
+ * and marks the feed seen, clearing the badge. Mount it in your app header.
  */
 const { t } = useI18n();
-const { announcements, unread, load, markSeen } = useKinetixAnnouncements();
+const { announcements, unread, loading, loadOnce, markSeen } =
+    useKinetixAnnouncements();
 const { levelClass, levelLabel, formatDate } = useKinetixAnnouncementFormat();
 
 const open = ref(false);
@@ -36,12 +37,20 @@ const triggerLabel = computed(() =>
         : t('kinetix.announcements_title'),
 );
 
-onMounted(load);
-
+/**
+ * The badge rides on the page payload, so nothing is fetched until the popover
+ * is opened — a header that never gets clicked costs zero requests.
+ */
 function onOpen(next: boolean): void {
     open.value = next;
 
-    if (next && unread.value > 0) {
+    if (!next) {
+        return;
+    }
+
+    loadOnce();
+
+    if (unread.value > 0) {
         markSeen();
     }
 }
@@ -80,7 +89,14 @@ function onOpen(next: boolean): void {
                      height and a long one scrolls inside the popover. -->
                 <ScrollArea viewport-class="max-h-96">
                     <p
-                        v-if="announcements.length === 0"
+                        v-if="loading && announcements.length === 0"
+                        class="px-4 py-6 text-sm text-center text-muted-foreground"
+                    >
+                        {{ t('kinetix.relation_loading') }}
+                    </p>
+
+                    <p
+                        v-else-if="announcements.length === 0"
                         class="px-4 py-6 text-sm text-center text-muted-foreground"
                     >
                         {{ t('kinetix.announcements_empty') }}

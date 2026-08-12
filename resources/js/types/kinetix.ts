@@ -87,6 +87,8 @@ export interface KinetixSharedProps {
         id: string;
     } | null;
     kinetix_notifications?: KinetixNotification[];
+    /** Unread badge + banner feed, so neither has to fetch on mount. */
+    kinetix_announcements?: KinetixAnnouncementState | null;
     kinetix_permissions?: KinetixPermissionState;
     kinetix_impersonation?: KinetixImpersonationState;
     /** Resolved feature flags for the current scope (name → on/off). */
@@ -495,6 +497,17 @@ export interface KinetixOnboarding {
     total: number;
     complete: boolean;
     dismissed: boolean;
+}
+
+/**
+ * The announcements payload shared on every Inertia response
+ * (`kinetix.announcements.share`).
+ */
+export interface KinetixAnnouncementState {
+    unread: number;
+    /** The `limit` the shared banner feed was built with. */
+    bannerLimit: number;
+    banner: KinetixAnnouncement[];
 }
 
 /**

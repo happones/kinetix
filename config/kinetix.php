@@ -763,6 +763,13 @@ return [
         // component doesn't pass its own `limit` (hard ceiling: 10).
         'banner_limit' => env('KINETIX_ANNOUNCEMENTS_BANNER_LIMIT', 3),
 
+        // Ship the unread count + banner feed on every Inertia response, so the
+        // header trigger and the banner render from the page payload instead of
+        // each fetching on mount (a round-trip per navigation when the layout
+        // isn't persistent). Turn it off to trade that back for a per-response
+        // query and have the components fetch for themselves.
+        'share' => env('KINETIX_ANNOUNCEMENTS_SHARE', true),
+
         // With teams on, an announcement belongs to the team it was published
         // from; a NULL team is platform-wide (every feed shows it), which is
         // what `KinetixAnnouncements::publishGlobally()` writes.
