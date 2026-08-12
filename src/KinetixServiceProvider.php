@@ -505,6 +505,7 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php' => database_path('migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php'),
                 __DIR__.'/../database/migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'    => database_path('migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'),
                 __DIR__.'/../database/migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'   => database_path('migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000031_add_expires_at_to_kinetix_announcements_table.php'   => database_path('migrations/2026_01_01_000031_add_expires_at_to_kinetix_announcements_table.php'),
             ], 'kinetix-announcements-migrations');
 
             // Publish the optional locale column migration (language switcher).

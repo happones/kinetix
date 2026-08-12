@@ -74,9 +74,26 @@ KinetixAnnouncements::publish(
 
 // Schedule one for later:
 KinetixAnnouncements::publish('Maintenance window', '…', 'info', now()->addDay());
+
+// …and let it go when it stops being news:
+KinetixAnnouncements::publish(
+    'Maintenance window',
+    'Sunday 02:00–04:00 UTC.',
+    'info',
+    now(),
+    now()->addWeek(),                // expires_at
+);
 ```
 
 Only entries with a past `published_at` are shown; a `null` value is a draft.
+`expires_at` is the other end: once it passes, the entry leaves every feed,
+banner and unread count on its own. `null` (the default) never expires — which
+is right for "v2.0 is here", and wrong for "maintenance on Sunday".
+
+The feed returns the 20 most recent entries; `?limit=` overrides it up to 50,
+and `announcements.feed_limit` changes the default. There is no cursor: a
+"what's new" feed is the last handful of entries, not an archive — and with
+`expires_at` doing its job, old news stops accumulating in the first place.
 
 ### Multi-tenant
 

@@ -38,6 +38,7 @@ const blank = (): KinetixEditableAnnouncement => ({
     body: '',
     level: 'info',
     publishedAt: new Date().toISOString(),
+    expiresAt: null,
 });
 
 const draft = ref<KinetixEditableAnnouncement>(blank());
@@ -48,19 +49,30 @@ const removing = ref<KinetixEditableAnnouncement | null>(null);
 const deleting = ref(false);
 
 /** `datetime-local` speaks "YYYY-MM-DDTHH:mm" in local time, not ISO/UTC. */
+const localInput = (iso: string | null | undefined): string => {
+    if (!iso) {
+        return '';
+    }
+
+    const date = new Date(iso);
+
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+        .toISOString()
+        .slice(0, 16);
+};
+
 const publishAt = computed({
-    get: (): string => {
-        if (draft.value.publishedAt === null) {
-            return '';
-        }
-
-        const date = new Date(draft.value.publishedAt);
-        const offset = date.getTimezoneOffset() * 60000;
-
-        return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-    },
+    get: (): string => localInput(draft.value.publishedAt),
     set: (value: string): void => {
         draft.value.publishedAt =
+            value === '' ? null : new Date(value).toISOString();
+    },
+});
+
+const expiresAt = computed({
+    get: (): string => localInput(draft.value.expiresAt),
+    set: (value: string): void => {
+        draft.value.expiresAt =
             value === '' ? null : new Date(value).toISOString();
     },
 });
@@ -323,6 +335,28 @@ onMounted(load);
                             }}
                         </p>
                     </div>
+                </div>
+
+                <div class="gap-1.5 flex flex-col">
+                    <label
+                        for="kinetix-announcement-expires"
+                        class="text-sm font-medium text-foreground"
+                    >
+                        {{ t('kinetix.announcements_field_expires_at') }}
+                    </label>
+                    <input
+                        id="kinetix-announcement-expires"
+                        v-model="expiresAt"
+                        type="datetime-local"
+                        :class="inputClass"
+                        aria-describedby="kinetix-announcement-expires-hint"
+                    />
+                    <p
+                        id="kinetix-announcement-expires-hint"
+                        class="text-xs text-muted-foreground"
+                    >
+                        {{ t('kinetix.announcements_field_expires_hint') }}
+                    </p>
                 </div>
             </form>
 

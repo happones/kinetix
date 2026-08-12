@@ -290,6 +290,9 @@ return [
     'announcements_field_level'          => 'Nivel',
     'announcements_field_published_at'   => 'Publicar el',
     'announcements_field_published_hint' => 'Déjalo vacío para mantenerlo como borrador; una fecha futura lo programa.',
+    'announcements_field_expires_at'     => 'Caduca el',
+    'announcements_field_expires_hint'   => 'Déjalo vacío para que se quede en el feed para siempre.',
+    'announcements_status_expired'       => 'Caducado',
     'announcements_delete_confirm'       => '¿Eliminar este anuncio?',
     'unread_count'                       => '{count} sin leer',
 

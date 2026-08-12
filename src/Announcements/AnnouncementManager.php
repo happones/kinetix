@@ -153,7 +153,7 @@ class AnnouncementManager
     }
 
     /**
-     * Publish an announcement (defaults to publishing immediately).
+     * Publish an announcement (defaults to publishing immediately, forever).
      *
      * Scoped to the active team when announcements are team-scoped. Pass
      * `global: true` for a platform-wide entry — a product update every tenant
@@ -166,12 +166,14 @@ class AnnouncementManager
         string $level = 'info',
         ?CarbonInterface $publishedAt = null,
         bool $global = false,
+        ?CarbonInterface $expiresAt = null,
     ): Announcement {
         $attributes = [
             'title'        => $title,
             'body'         => $body,
             'level'        => $level,
             'published_at' => $publishedAt ?? now(),
+            'expires_at'   => $expiresAt,
         ];
 
         if (KinetixTeams::enabledFor('announcements')) {

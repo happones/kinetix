@@ -68,6 +68,7 @@ class AnnouncementTeamScopingTest extends TestCase
         (require __DIR__.'/../../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php')->up();
         (require __DIR__.'/../../database/migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php')->up();
         (require __DIR__.'/../../database/migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php')->up();
+        (require __DIR__.'/../../database/migrations/2026_01_01_000031_add_expires_at_to_kinetix_announcements_table.php')->up();
 
         $this->withTeamSegment(7);
     }

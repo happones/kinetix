@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 /**
  * Two audiences in one controller: every user reads the published feed, marks
@@ -24,11 +25,17 @@ class AnnouncementController
 
     public function index(Request $request): JsonResponse
     {
-        $user = $this->user($request);
+        $user      = $this->user($request);
+        $validated = $request->validate([
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:50'],
+        ]);
 
         return response()->json([
-            'announcements' => $this->manager->feed($user),
-            'unread'        => $this->manager->unreadCount($user),
+            'announcements' => $this->manager->feed(
+                $user,
+                max(1, min(50, (int) ($validated['limit'] ?? config('kinetix.announcements.feed_limit', 20)))),
+            ),
+            'unread' => $this->manager->unreadCount($user),
         ]);
     }
 
@@ -181,6 +188,15 @@ class AnnouncementController
             // Null is a draft, a future date schedules it — both are how an
             // editor works ahead of a release.
             'published_at' => ['nullable', 'date'],
+            // Null never expires; otherwise the entry leaves the feed on its
+            // own, which is what news with a shelf life needs. It can only be
+            // compared to a publish date that exists — a draft may still carry
+            // one, ready for whenever it goes out.
+            'expires_at' => [
+                'nullable',
+                'date',
+                Rule::when(filled($request->input('published_at')), ['after:published_at']),
+            ],
         ]);
     }
 
@@ -201,11 +217,13 @@ class AnnouncementController
             'body'        => $announcement->body,
             'level'       => $announcement->level,
             'publishedAt' => $publishedAt?->format(\DateTimeInterface::ATOM),
+            'expiresAt'   => $announcement->expires_at?->format(\DateTimeInterface::ATOM),
             'isGlobal'    => $announcement->isGlobal(),
             'status'      => match (true) {
-                $publishedAt === null    => 'draft',
-                $publishedAt->isFuture() => 'scheduled',
-                default                  => 'published',
+                $publishedAt === null       => 'draft',
+                $publishedAt->isFuture()    => 'scheduled',
+                $announcement->hasExpired() => 'expired',
+                default                     => 'published',
             },
         ];
     }

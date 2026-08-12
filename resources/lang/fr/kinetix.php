@@ -290,6 +290,9 @@ return [
     'announcements_field_level'          => 'Niveau',
     'announcements_field_published_at'   => 'Publier le',
     'announcements_field_published_hint' => 'Laissez vide pour un brouillon ; une date future la programme.',
+    'announcements_field_expires_at'     => 'Expire le',
+    'announcements_field_expires_hint'   => 'Laissez vide pour la garder indéfiniment dans le fil.',
+    'announcements_status_expired'       => 'Expirée',
     'announcements_delete_confirm'       => 'Supprimer cette annonce ?',
     'unread_count'                       => '{count} non lus',
 

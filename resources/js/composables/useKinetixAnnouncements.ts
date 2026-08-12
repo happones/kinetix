@@ -195,8 +195,10 @@ export function useKinetixAnnouncementManager() {
                 title: announcement.title,
                 body: announcement.body,
                 level: announcement.level,
-                // The API speaks the column name; `null` is a draft.
+                // The API speaks the column names; `null` published is a
+                // draft, `null` expiry never expires.
                 published_at: announcement.publishedAt,
+                expires_at: announcement.expiresAt ?? null,
             },
         });
 

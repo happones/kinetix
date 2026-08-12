@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string      $body
  * @property string      $level
  * @property Carbon|null $published_at
+ * @property Carbon|null $expires_at
  * @property Carbon|null $created_at
  */
 class Announcement extends Model
@@ -34,8 +35,9 @@ class Announcement extends Model
     protected $guarded = [];
 
     /**
-     * Live entries only: a `published_at` in the past. NULL is a draft, a
-     * future one is scheduled.
+     * Live entries only: a `published_at` in the past and no `expires_at` that
+     * has passed. NULL published is a draft, a future one is scheduled; NULL
+     * expiry means it never stops being news.
      *
      * @param  Builder<static> $query
      * @return Builder<static>
@@ -44,7 +46,20 @@ class Announcement extends Model
     {
         return $query
             ->whereNotNull('published_at')
-            ->where('published_at', '<=', now());
+            ->where('published_at', '<=', now())
+            ->where(fn (Builder $live): Builder => $live
+                ->whereNull('expires_at')
+                ->orWhere('expires_at', '>', now()));
+    }
+
+    /**
+     * Whether the entry has stopped being shown (its `expires_at` has passed).
+     */
+    public function hasExpired(): bool
+    {
+        $expiresAt = $this->expires_at;
+
+        return $expiresAt !== null && $expiresAt->isPast();
     }
 
     /**
@@ -54,6 +69,7 @@ class Announcement extends Model
     {
         return [
             'published_at' => 'datetime',
+            'expires_at'   => 'datetime',
         ];
     }
 }

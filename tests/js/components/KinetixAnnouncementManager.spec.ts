@@ -159,6 +159,32 @@ describe('KinetixAnnouncementManager', () => {
         expect(fetchMock.mock.calls[1][1].body.published_at).toBeNull();
     });
 
+    it('sends the expiry alongside the publish date', async () => {
+        fetchMock.mockResolvedValueOnce({
+            announcements: [],
+            teamScoped: false,
+        });
+        const w = mountIt();
+        await flushPromises();
+
+        await w.find('button').trigger('click');
+        await flushPromises();
+        await setField('#kinetix-announcement-title', 'Maintenance');
+        await setField('#kinetix-announcement-body', 'Sunday 02:00 UTC.');
+        await setField('#kinetix-announcement-expires', '2026-09-20T04:00');
+
+        fetchMock.mockResolvedValueOnce({ announcement: entry() });
+        fetchMock.mockResolvedValueOnce({
+            announcements: [],
+            teamScoped: false,
+        });
+        await submitForm();
+
+        expect(fetchMock.mock.calls[1][1].body.expires_at).toContain(
+            '2026-09-20',
+        );
+    });
+
     it('a platform-wide entry is read-only inside a team', async () => {
         fetchMock.mockResolvedValueOnce({
             announcements: [entry({ isGlobal: true })],

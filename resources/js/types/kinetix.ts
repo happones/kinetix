@@ -522,9 +522,11 @@ export interface KinetixEditableAnnouncement {
     level: string;
     /** `null` = draft; a future date = scheduled. */
     publishedAt: string | null;
+    /** `null` never expires; otherwise the entry leaves the feed on its own. */
+    expiresAt?: string | null;
     /** Platform-wide (visible to every team); read-only inside a team. */
     isGlobal?: boolean;
-    status?: 'draft' | 'scheduled' | 'published';
+    status?: 'draft' | 'scheduled' | 'published' | 'expired';
 }
 
 /** A product announcement ("what's new" entry). */

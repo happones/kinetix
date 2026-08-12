@@ -51,6 +51,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   announcement takes its banner dismissals with it **(published:
   `KinetixAnnouncementManager.vue`, `useKinetixAnnouncements.ts`,
   `types/kinetix.ts`, 14 translation keys × 7 locales)**.
+- **`expires_at`: an announcement can now end.** "Maintenance on Sunday" used
+  to sit in the feed forever, and a tenant's list only ever grew. Past its
+  expiry an entry leaves every feed, banner and unread count on its own; `null`
+  (every existing row) never expires, so nothing changes for what's already
+  published. Settable from the manager UI, from
+  `KinetixAnnouncements::publish(..., $expiresAt)` and via the API, which
+  rejects an expiry before the publish date **(published:
+  `KinetixAnnouncementManager.vue`, `types/kinetix.ts`, 3 keys × 7 locales)**.
+- **The feed's size is configurable and bounded.** `?limit=` (ceiling 50) and
+  `announcements.feed_limit` (default 20) replace the hardcoded 20. No cursor:
+  a "what's new" feed is the last handful of entries, not an archive — and with
+  expiry doing its job, old news stops piling up **(published:
+  `config/kinetix.php`)**.
 - **Announcements ride on the page payload instead of a request per mount.**
   Both the header trigger and the banner fetched on mount, so an app whose
   layout is re-created per page paid a round-trip **per navigation** for a feed

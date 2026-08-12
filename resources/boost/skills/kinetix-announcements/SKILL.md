@@ -30,7 +30,9 @@ php artisan migrate
 ```php
 'announcements' => [
     'enabled'      => env('KINETIX_ANNOUNCEMENTS_ENABLED', false),
+    'feed_limit'   => env('KINETIX_ANNOUNCEMENTS_FEED_LIMIT', 20),
     'banner_limit' => env('KINETIX_ANNOUNCEMENTS_BANNER_LIMIT', 3),
+    'share'        => env('KINETIX_ANNOUNCEMENTS_SHARE', true),
 ],
 ```
 
@@ -54,10 +56,14 @@ use Happones\Kinetix\Announcements\KinetixAnnouncements;
 
 KinetixAnnouncements::publish('v2.0 is here', 'Dark mode, faster search…', 'feature');
 KinetixAnnouncements::publish('Heads up', '…', 'info', now()->addDay()); // scheduled
+KinetixAnnouncements::publish('Maintenance', '…', 'info', now(), now()->addWeek()); // expires
 ```
 
 Levels: `info` (default) | `feature` | `fix`. Only entries with a past
-`published_at` show; `null` = draft.
+`published_at` show; `null` = draft. `expires_at` ends it: once it passes the
+entry leaves every feed, banner and unread count (`null` = never expires). The
+feed returns 20 (`announcements.feed_limit`, `?limit=` up to 50) — no cursor,
+by design.
 
 ## Backend
 
@@ -67,8 +73,10 @@ Levels: `info` (default) | `feature` | `fix`. Only entries with a past
   one per (user, team), plus one for the platform-wide pool, so reading team A's
   feed never clears team B's badge and a global entry is read once, everywhere.
 - `AnnouncementController` (self-service, team-aware `{prefix}/announcements`):
-  `GET /` (feed + unread), `GET banner`, `POST seen`, `POST {id}/dismiss`.
-  Dismiss resolves through the team-scoped query — another tenant's id is a 404.
+  `GET /` (feed + unread), `GET banner`, `POST seen`, `POST {id}/dismiss`, plus
+  the authoring half — `GET manage`, `POST /`, `PUT|DELETE {id}` — behind
+  `manageKinetixAnnouncements`. Every lookup goes through the team-scoped
+  query, so another tenant's id is a 404.
 
 ## Frontend
 

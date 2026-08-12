@@ -759,6 +759,10 @@ return [
     'announcements' => [
         'enabled' => env('KINETIX_ANNOUNCEMENTS_ENABLED', false),
 
+        // How many entries the "what's new" feed returns when the request
+        // doesn't ask for its own `?limit=` (hard ceiling: 50).
+        'feed_limit' => env('KINETIX_ANNOUNCEMENTS_FEED_LIMIT', 20),
+
         // How many entries <KinetixAnnouncementBanner> rotates through when the
         // component doesn't pass its own `limit` (hard ceiling: 10).
         'banner_limit' => env('KINETIX_ANNOUNCEMENTS_BANNER_LIMIT', 3),

@@ -290,6 +290,9 @@ return [
     'announcements_field_level'          => 'Nível',
     'announcements_field_published_at'   => 'Publicar em',
     'announcements_field_published_hint' => 'Deixe vazio para manter como rascunho; uma data futura agenda.',
+    'announcements_field_expires_at'     => 'Expira em',
+    'announcements_field_expires_hint'   => 'Deixe vazio para mantê-lo no feed para sempre.',
+    'announcements_status_expired'       => 'Expirado',
     'announcements_delete_confirm'       => 'Excluir este anúncio?',
     'unread_count'                       => '{count} não lidos',
 

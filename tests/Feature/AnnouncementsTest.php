@@ -54,6 +54,7 @@ class AnnouncementsTest extends TestCase
             $table->text('body');
             $table->string('level')->default('info');
             $table->timestamp('published_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
             $table->timestamps();
         });
         Schema::create('kinetix_announcement_views', function (Blueprint $table) {
@@ -329,6 +330,97 @@ class AnnouncementsTest extends TestCase
         $this->actingAs($this->user());
 
         $this->assertNull(value($shared));
+    }
+
+    public function test_an_expired_announcement_leaves_every_feed_on_its_own(): void
+    {
+        $user = $this->user();
+        KinetixAnnouncements::publish(
+            'Maintenance window',
+            'Sunday 02:00 UTC.',
+            'info',
+            now()->subDay(),
+            now()->addDay(),
+        );
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertJsonCount(1, 'announcements')
+            ->assertJsonPath('unread', 1);
+
+        // The window has passed; nobody needs to read about it any more.
+        $this->travel(2)->days();
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertJsonCount(0, 'announcements')
+            ->assertJsonPath('unread', 0);
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements/banner')
+            ->assertJsonCount(0, 'announcements');
+    }
+
+    public function test_the_editor_sees_an_expired_entry_the_readers_no_longer_get(): void
+    {
+        Gate::define('manageKinetixAnnouncements', fn (): bool => true);
+
+        $user = $this->user();
+
+        $this->actingAs($user)
+            ->postJson('/_kinetix/announcements', [
+                'title'        => 'Old news',
+                'body'         => 'Body',
+                'level'        => 'info',
+                'published_at' => now()->subDays(2)->toIso8601String(),
+                'expires_at'   => now()->subDay()->toIso8601String(),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('announcement.status', 'expired');
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements/manage')
+            ->assertJsonCount(1, 'announcements')
+            ->assertJsonPath('announcements.0.status', 'expired');
+    }
+
+    public function test_an_expiry_before_the_publish_date_is_rejected(): void
+    {
+        Gate::define('manageKinetixAnnouncements', fn (): bool => true);
+
+        $this->actingAs($this->user())
+            ->postJson('/_kinetix/announcements', [
+                'title'        => 'Backwards',
+                'body'         => 'Body',
+                'level'        => 'info',
+                'published_at' => now()->toIso8601String(),
+                'expires_at'   => now()->subDay()->toIso8601String(),
+            ])
+            ->assertJsonValidationErrors('expires_at');
+    }
+
+    public function test_the_feed_limit_is_capped_and_configurable(): void
+    {
+        $user = $this->user();
+
+        foreach (range(1, 5) as $i) {
+            KinetixAnnouncements::publish("Entry {$i}", 'Body', 'info', now()->subMinutes($i));
+        }
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements?limit=2')
+            ->assertJsonCount(2, 'announcements');
+
+        // Past the ceiling is a validation error, not an unbounded query.
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements?limit=500')
+            ->assertJsonValidationErrors('limit');
+
+        config()->set('kinetix.announcements.feed_limit', 3);
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/announcements')
+            ->assertJsonCount(3, 'announcements');
     }
 
     public function test_announcements_published_after_seen_become_new_again(): void
