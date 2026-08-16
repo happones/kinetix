@@ -162,6 +162,8 @@ Nothing else to wire:
   `:hide-when-complete="false"`.
 - **It inherits your theme.** Tokens only, light and dark.
 
+<Screenshot name="onboarding-checklist-sidebar-collapsed" alt="The same rail expanded and collapsed to icons — the checklist is gone in the collapsed one" />
+
 > **Keep it short.** A rail has no scroll budget of its own — six steps is about
 > the ceiling before the block starts pushing your navigation around. Long
 > checklists belong in the `card` variant on a dedicated page.

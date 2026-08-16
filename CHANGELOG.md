@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `onboarding-checklist-sidebar-collapsed` gallery specimen: the same mock rail
+  expanded and collapsed side by side, the second one carrying shadcn's real
+  `group` + `data-collapsible="icon"` contract — so the "it folds away with the
+  rail" claim is demonstrated by rendering rather than asserted in prose. Both
+  sidebar specimens now pin their footer to the bottom of a fixed-height rail,
+  the way a real sidebar behaves.
+
 ## [0.171.0] - 2026-08-15
 
 The onboarding checklist stops paying for itself on every page: its state rides

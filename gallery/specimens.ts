@@ -46,49 +46,103 @@ import KinetixReportsCenter from '@/components/KinetixReportsCenter.vue';
 import KinetixConfidentialUnlock from '@/components/KinetixConfidentialUnlock.vue';
 
 // The onboarding checklist's `sidebar` variant is sized for a navigation rail,
-// so the specimen frames it in a mock one — nav rows above, the account row
+// so the specimens frame it in a mock one — nav rows above, the account row
 // below — instead of floating it on a blank card.
-const railRow = (icon: Component, label: string) =>
+const RAIL_ITEMS: Array<[Component, string]> = [
+    [LayoutDashboard, 'Dashboard'],
+    [Folder, 'Projects'],
+    [Users, 'Members'],
+    [Settings, 'Settings'],
+];
+
+const railRow = (icon: Component, label: string, collapsed: boolean) =>
+    collapsed
+        ? h(
+              'div',
+              {
+                  class: 'size-8 grid place-items-center rounded-md text-muted-foreground',
+              },
+              [h(icon, { class: 'size-4' })],
+          )
+        : h(
+              'div',
+              {
+                  class: 'gap-2 px-2 py-1.5 flex items-center rounded-md text-sm text-muted-foreground',
+              },
+              [h(icon, { class: 'size-4' }), label],
+          );
+
+const railAccount = (collapsed: boolean) =>
     h(
         'div',
         {
-            class: 'gap-2 px-2 py-1.5 flex items-center rounded-md text-sm text-muted-foreground',
+            class: collapsed
+                ? 'size-8 mt-1 grid place-items-center'
+                : 'gap-2 mt-1 px-2 py-1.5 flex items-center rounded-md',
         },
-        [h(icon, { class: 'size-4' }), label],
+        [
+            h('span', { class: 'size-6 rounded-full bg-muted-foreground/30' }),
+            collapsed
+                ? null
+                : h(
+                      'span',
+                      { class: 'text-sm text-foreground' },
+                      'Ada Lovelace',
+                  ),
+        ],
     );
 
-const OnboardingSidebarShowcase: Component = {
+/**
+ * A mock shadcn sidebar. `collapsed` reproduces the real contract the checklist
+ * keys off — the root carries `group` + `data-collapsible="icon"`, exactly as
+ * shadcn-vue's `<Sidebar collapsible="icon">` does once the rail collapses — so
+ * `group-data-[collapsible=icon]:hidden` on the block matches and it folds away
+ * on its own. The specimen proves that instead of asserting it.
+ */
+const onboardingRail = (collapsed: boolean): Component => ({
     render() {
         return h(
             'div',
             {
-                class: 'gap-1 p-2 flex flex-col rounded-lg border border-border bg-muted/40',
+                class: [
+                    'group gap-1 p-2 h-[26rem] flex flex-col rounded-lg border border-border bg-muted/40',
+                    collapsed ? 'w-14' : 'w-64',
+                ],
+                'data-collapsible': collapsed ? 'icon' : '',
             },
             [
-                railRow(LayoutDashboard, 'Dashboard'),
-                railRow(Folder, 'Projects'),
-                railRow(Users, 'Members'),
-                railRow(Settings, 'Settings'),
-                h('div', { class: 'h-16' }),
-                h(KinetixOnboardingChecklist, { variant: 'sidebar' }),
-                h(
-                    'div',
-                    {
-                        class: 'gap-2 mt-1 px-2 py-1.5 flex items-center rounded-md',
-                    },
-                    [
-                        h('span', {
-                            class: 'size-6 rounded-full bg-muted-foreground/30',
-                        }),
-                        h(
-                            'span',
-                            { class: 'text-sm text-foreground' },
-                            'Ada Lovelace',
-                        ),
-                    ],
+                ...RAIL_ITEMS.map(([icon, label]) =>
+                    railRow(icon, label, collapsed),
                 ),
+                h('div', { class: 'flex-1' }),
+                h(KinetixOnboardingChecklist, { variant: 'sidebar' }),
+                railAccount(collapsed),
             ],
         );
+    },
+});
+
+const OnboardingSidebarShowcase = onboardingRail(false);
+
+/** Expanded next to icon-collapsed — the block is there, then it isn't. */
+const OnboardingSidebarCollapsedShowcase: Component = {
+    render() {
+        const column = (caption: string, rail: Component) =>
+            h('div', { class: 'gap-2 flex flex-col' }, [
+                h(
+                    'span',
+                    {
+                        class: 'text-xs font-medium whitespace-nowrap text-muted-foreground',
+                    },
+                    caption,
+                ),
+                h(rail),
+            ]);
+
+        return h('div', { class: 'gap-6 flex items-start' }, [
+            column('Expanded', onboardingRail(false)),
+            column('Collapsed', onboardingRail(true)),
+        ]);
     },
 };
 
@@ -1816,6 +1870,12 @@ export const specimens: Specimen[] = [
         title: 'Onboarding checklist — sidebar variant',
         component: OnboardingSidebarShowcase,
         width: 300,
+    },
+    {
+        name: 'onboarding-checklist-sidebar-collapsed',
+        title: 'Onboarding checklist — expanded vs. icon-collapsed rail',
+        component: OnboardingSidebarCollapsedShowcase,
+        width: 420,
     },
     {
         name: 'form-schema',
