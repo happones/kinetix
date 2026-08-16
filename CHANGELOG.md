@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.172.0] - 2026-08-16
+
+Spotlight hardening, from a review of the module running 18 sources on a
+multi-tenant platform. One finding breaks tenant isolation silently; three bite
+under ordinary typing; the rest decide how the module scales.
+
+> **Action required if you index a tenant-scoped model with Scout.** `->query()`
+> now scopes the Scout path as well, which is the fix — but the engine still
+> spends its buffer before that filter runs, so a source whose index holds every
+> tenant's rows will return fewer results than its limit until you add
+> `->scoutWhere([...])`. See [Scout & multi-tenancy](https://happones.github.io/kinetix/spotlight#scout-multi-tenancy).
+
 ### Fixed
 
 - **Spotlight: a Scout source ignored its own tenancy scoping.** `->query()` is
