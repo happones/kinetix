@@ -498,11 +498,15 @@ return [
     'sessions_logged_out_others'     => 'Vos autres sessions ont été déconnectées.',
 
     // Intégration
-    'onboarding_title'     => 'Pour commencer',
-    'onboarding_progress'  => ':completed sur :total terminés',
-    'onboarding_dismiss'   => 'Ignorer',
-    'onboarding_mark_done' => 'Marquer comme fait',
-    'onboarding_go'        => 'Aller',
+    'onboarding_title'            => 'Pour commencer',
+    'onboarding_progress'         => ':completed sur :total terminés',
+    'onboarding_progress_short'   => ':completed sur :total',
+    'onboarding_dismiss'          => 'Ignorer',
+    'onboarding_mark_done'        => 'Marquer comme fait',
+    'onboarding_mark_done_step'   => 'Marquer :step comme fait',
+    'onboarding_go'               => 'Aller',
+    'onboarding_status_completed' => 'Terminé',
+    'onboarding_status_pending'   => 'À faire',
 
     // Visite guidée
     'tour_next' => 'Suivant',

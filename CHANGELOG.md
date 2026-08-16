@@ -31,12 +31,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the button's own label instead of as a loose number **(published:
   `useKinetixShadcnVariants.ts`, `KinetixNotificationTrigger.vue`,
   `KinetixAnnouncements.vue`)**.
+- **The onboarding checklist announced its progress as a bare number.** Its
+  progress bar had no accessible name and no `aria-valuetext`, so a screen
+  reader read "33" with nothing to attach it to, and a completed step was
+  marked only by a strike-through — a purely visual signal. Both variants now
+  name the bar, spell its value out ("1 of 3 complete"), hide the decorative
+  icons from the accessibility tree, and carry an `sr-only` "Completed" /
+  "Not completed" on every row **(published: `KinetixOnboardingChecklist.vue`
+  and its two variant components)**.
 - The `announcements_unread_count` translation key is now **`unread_count`** —
   the notification bell uses the same string, and the key was scoped to the
   wrong feature **(published: translations)**.
 
 ### Added
 
+- **The onboarding checklist can live in the sidebar.** It only ever had one
+  shape — a full-width card — which meant picking a page to put it on and
+  accepting that a user who lands anywhere else never sees the steps they have
+  left. `<KinetixOnboardingChecklist variant="sidebar" />` renders the same
+  checklist, the same steps and the same progress row as a condensed block
+  sized for the starter kit's navigation rail: a terse `1 of 3` counter and a
+  hairline bar instead of the heading, no step descriptions, an `×` for
+  dismiss, and rows where the leading circle ticks a manual step off while the
+  rest of the row is the step's CTA link — both affordances, no control nested
+  inside another. It carries shadcn's own
+  `group-data-[collapsible=icon]:hidden`, so a rail collapsed to icons drops it
+  rather than squeezing it, and the class is inert outside a sidebar. The
+  default stays `variant="card"` **(published:
+  `KinetixOnboardingChecklist.vue`, `Onboarding/OnboardingChecklistCard.vue`,
+  `Onboarding/OnboardingChecklistSidebar.vue`, 4 translation keys × 7
+  locales)**.
 - **`<KinetixAnnouncementManager>`: announcements without a deploy.** The
   feature was publish-from-code only — `KinetixAnnouncements::publish()` from a
   seeder or a tinker session — so every "heads up, maintenance on Sunday" went

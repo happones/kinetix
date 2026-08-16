@@ -498,11 +498,15 @@ return [
     'sessions_logged_out_others'     => 'Logged out of your other sessions.',
 
     // Onboarding
-    'onboarding_title'     => 'Getting started',
-    'onboarding_progress'  => ':completed of :total complete',
-    'onboarding_dismiss'   => 'Dismiss',
-    'onboarding_mark_done' => 'Mark as done',
-    'onboarding_go'        => 'Go',
+    'onboarding_title'            => 'Getting started',
+    'onboarding_progress'         => ':completed of :total complete',
+    'onboarding_progress_short'   => ':completed of :total',
+    'onboarding_dismiss'          => 'Dismiss',
+    'onboarding_mark_done'        => 'Mark as done',
+    'onboarding_mark_done_step'   => 'Mark :step as done',
+    'onboarding_go'               => 'Go',
+    'onboarding_status_completed' => 'Completed',
+    'onboarding_status_pending'   => 'Not completed',
 
     // Product tour
     'tour_next' => 'Next',

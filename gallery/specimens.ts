@@ -1,3 +1,4 @@
+import { Folder, LayoutDashboard, Settings, Users } from '@lucide/vue';
 import { h, type Component } from 'vue';
 import KinetixWizard from '@/components/KinetixWizard.vue';
 import KinetixEmptyState from '@/components/KinetixEmptyState.vue';
@@ -43,6 +44,53 @@ import KinetixReportRunsTable from '@/components/KinetixReportRunsTable.vue';
 import KinetixReportSchedules from '@/components/KinetixReportSchedules.vue';
 import KinetixReportsCenter from '@/components/KinetixReportsCenter.vue';
 import KinetixConfidentialUnlock from '@/components/KinetixConfidentialUnlock.vue';
+
+// The onboarding checklist's `sidebar` variant is sized for a navigation rail,
+// so the specimen frames it in a mock one — nav rows above, the account row
+// below — instead of floating it on a blank card.
+const railRow = (icon: Component, label: string) =>
+    h(
+        'div',
+        {
+            class: 'gap-2 px-2 py-1.5 flex items-center rounded-md text-sm text-muted-foreground',
+        },
+        [h(icon, { class: 'size-4' }), label],
+    );
+
+const OnboardingSidebarShowcase: Component = {
+    render() {
+        return h(
+            'div',
+            {
+                class: 'gap-1 p-2 flex flex-col rounded-lg border border-border bg-muted/40',
+            },
+            [
+                railRow(LayoutDashboard, 'Dashboard'),
+                railRow(Folder, 'Projects'),
+                railRow(Users, 'Members'),
+                railRow(Settings, 'Settings'),
+                h('div', { class: 'h-16' }),
+                h(KinetixOnboardingChecklist, { variant: 'sidebar' }),
+                h(
+                    'div',
+                    {
+                        class: 'gap-2 mt-1 px-2 py-1.5 flex items-center rounded-md',
+                    },
+                    [
+                        h('span', {
+                            class: 'size-6 rounded-full bg-muted-foreground/30',
+                        }),
+                        h(
+                            'span',
+                            { class: 'text-sm text-foreground' },
+                            'Ada Lovelace',
+                        ),
+                    ],
+                ),
+            ],
+        );
+    },
+};
 
 // Slug + signature showcase for the gallery.
 const SlugSignatureShowcase: Component = {
@@ -1762,6 +1810,12 @@ export const specimens: Specimen[] = [
         title: 'Onboarding checklist',
         component: KinetixOnboardingChecklist,
         width: 560,
+    },
+    {
+        name: 'onboarding-checklist-sidebar',
+        title: 'Onboarding checklist — sidebar variant',
+        component: OnboardingSidebarShowcase,
+        width: 300,
     },
     {
         name: 'form-schema',

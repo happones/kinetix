@@ -498,11 +498,15 @@ return [
     'sessions_logged_out_others'     => 'Suas outras sessões foram encerradas.',
 
     // Integração
-    'onboarding_title'     => 'Primeiros passos',
-    'onboarding_progress'  => ':completed de :total concluídos',
-    'onboarding_dismiss'   => 'Dispensar',
-    'onboarding_mark_done' => 'Marcar como concluído',
-    'onboarding_go'        => 'Ir',
+    'onboarding_title'            => 'Primeiros passos',
+    'onboarding_progress'         => ':completed de :total concluídos',
+    'onboarding_progress_short'   => ':completed de :total',
+    'onboarding_dismiss'          => 'Dispensar',
+    'onboarding_mark_done'        => 'Marcar como concluído',
+    'onboarding_mark_done_step'   => 'Marcar :step como concluído',
+    'onboarding_go'               => 'Ir',
+    'onboarding_status_completed' => 'Concluído',
+    'onboarding_status_pending'   => 'Pendente',
 
     // Tour do produto
     'tour_next' => 'Próximo',

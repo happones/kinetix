@@ -62,11 +62,20 @@ KinetixOnboarding::step('invite-team', 'Invite a teammate')
   `POST {prefix}/onboarding/complete`, `POST {prefix}/onboarding/dismiss`.
 
 ```vue
-<KinetixOnboardingChecklist />            <!-- progress bar, CTAs, mark-done, dismiss -->
+<KinetixOnboardingChecklist />                      <!-- card: progress bar, CTAs, mark-done, dismiss -->
+<KinetixOnboardingChecklist variant="sidebar" />    <!-- condensed block for a shadcn <SidebarFooter> -->
 ```
 
 `useKinetixOnboarding()` → `{ state, load, complete, dismiss }`. The card hides
 when dismissed and (default) when complete; `:hide-when-complete="false"` keeps it.
+
+**`variant`** (`card` default | `sidebar`) — same component, same state, same
+endpoints; only the presentation differs. The `sidebar` variant drops step
+descriptions, shows a terse `1 of 3` counter + hairline bar, makes the leading
+circle the mark-done control and the row itself the CTA link, and carries
+shadcn's `group-data-[collapsible=icon]:hidden` so an icon-collapsed rail hides
+it (harmless outside a sidebar). Mount it in the starter kit's `AppSidebar.vue`
+above the user menu; keep the checklist to ~6 steps at that width.
 
 ---
 

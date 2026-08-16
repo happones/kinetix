@@ -49,6 +49,26 @@ natural place to compose both worlds.
 Because both use shadcn-vue tokens, the Kinetix panels inherit your theme with no
 extra styling.
 
+## Mounting Kinetix inside the sidebar
+
+The starter kit's `AppSidebar.vue` is a plain shadcn-vue `<Sidebar>`, so Kinetix
+components drop straight into its slots. One is built for exactly that:
+[`<KinetixOnboardingChecklist variant="sidebar">`](/onboarding#the-sidebar-variant)
+— a condensed "Getting started" block that travels with the user across every
+page instead of living on one dashboard. The footer, above the user menu, is its
+natural home:
+
+```vue
+<SidebarFooter>
+  <KinetixOnboardingChecklist variant="sidebar" />
+  <NavUser />
+</SidebarFooter>
+```
+
+It honors `collapsible="icon"` out of the box: the block carries shadcn's own
+`group-data-[collapsible=icon]:hidden`, so a collapsed rail drops it rather than
+squeezing it.
+
 ## Wide tables & the `min-w-0` layout fix
 
 The starter kit's content area is a **flex** column, and a flex item defaults to

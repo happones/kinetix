@@ -94,6 +94,78 @@ dismissed and (by default) once every step is complete — pass
 `useKinetixOnboarding()` exposes `state`, `load`, `complete(step)`, `dismiss()`
 for a custom UI.
 
+### The sidebar variant
+
+A dashboard card is the right home for the checklist on day one — and the wrong
+one on day three, when the user lands somewhere else and never sees it again.
+`variant="sidebar"` renders the same checklist as a condensed block sized for
+the starter kit's navigation rail, so the remaining steps travel with the user
+across every page:
+
+```vue
+<KinetixOnboardingChecklist variant="sidebar" />
+```
+
+<Screenshot name="onboarding-checklist-sidebar" alt="Onboarding checklist, sidebar variant" />
+
+It is the same component and the same state — one set of steps, one dismissal,
+one progress row in the database. Only the presentation changes:
+
+| | `card` (default) | `sidebar` |
+| --- | --- | --- |
+| Progress | Heading + `1 of 3 complete` + 8px bar | `1 of 3` counter + hairline bar |
+| Step descriptions | Shown | Dropped (no room on a rail) |
+| Step CTA | An **outline** button per row | The row itself is the link |
+| Mark as done | A **Mark as done** button | The leading circle |
+| Dismiss | A **Dismiss** button | An `×` in the header |
+| Collapsed rail | — | Hides itself |
+
+Because the row *is* the link, each row keeps both affordances without nesting
+one control inside another: the circle on the left ticks a manual step off, and
+clicking anywhere else follows that step's CTA. Completed rows are struck
+through and inert.
+
+### Mounting it in the starter kit's sidebar
+
+Drop it into `AppSidebar.vue` — the footer, just above the user menu, is the
+spot that survives every page:
+
+```vue
+<script setup lang="ts">
+import KinetixOnboardingChecklist from "@/components/kinetix/KinetixOnboardingChecklist.vue";
+import { Sidebar, SidebarContent, SidebarFooter } from "@/components/ui/sidebar";
+import NavUser from "@/components/NavUser.vue";
+</script>
+
+<template>
+  <Sidebar collapsible="icon" variant="inset">
+    <SidebarContent>
+      <!-- your nav groups -->
+    </SidebarContent>
+
+    <SidebarFooter>
+      <KinetixOnboardingChecklist variant="sidebar" />
+      <NavUser />
+    </SidebarFooter>
+  </Sidebar>
+</template>
+```
+
+Nothing else to wire:
+
+- **It disappears with the rail.** The block carries shadcn's own
+  `group-data-[collapsible=icon]:hidden`, so a rail collapsed to icons drops it
+  instead of squeezing it. Outside a sidebar that class simply never matches, so
+  the variant is equally usable in any narrow column.
+- **It disappears when it is done.** Same rule as the card: hidden once
+  dismissed, and once every step is complete unless you pass
+  `:hide-when-complete="false"`.
+- **It inherits your theme.** Tokens only, light and dark.
+
+> **Keep it short.** A rail has no scroll budget of its own — six steps is about
+> the ceiling before the block starts pushing your navigation around. Long
+> checklists belong in the `card` variant on a dedicated page.
+
 ---
 
 ## 2. Empty states
