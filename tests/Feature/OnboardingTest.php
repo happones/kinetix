@@ -11,6 +11,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 
 class OnboardingUser extends Authenticatable
 {
@@ -174,5 +175,47 @@ class OnboardingTest extends TestCase
     public function test_unauthenticated_requests_are_rejected(): void
     {
         $this->getJson('/_kinetix/onboarding')->assertStatus(401);
+    }
+
+    public function test_the_page_payload_carries_the_checklist(): void
+    {
+        $user = $this->user();
+        app(OnboardingManager::class)->complete($user, 'manual-step');
+
+        $this->actingAs($user);
+
+        /** @var callable $shared */
+        $shared = Inertia::getShared('kinetix_onboarding');
+        $state  = value($shared)->toArray();
+
+        // The checklist reads this instead of fetching on mount.
+        $this->assertSame(1, $state['completedCount']);
+        $this->assertSame(2, $state['total']);
+        $this->assertFalse($state['dismissed']);
+    }
+
+    public function test_the_payload_is_absent_for_guests_and_when_sharing_is_off(): void
+    {
+        /** @var callable $shared */
+        $shared = Inertia::getShared('kinetix_onboarding');
+
+        // No user, nothing to say.
+        $this->assertNull(value($shared));
+
+        config()->set('kinetix.onboarding.share', false);
+        $this->actingAs($this->user());
+
+        $this->assertNull(value($shared));
+    }
+
+    public function test_reading_the_checklist_does_not_write_a_progress_row(): void
+    {
+        // The payload is built on EVERY response, so a read must stay a read —
+        // otherwise the first page view of every account writes a row.
+        $user = $this->user();
+
+        app(OnboardingManager::class)->for($user);
+
+        $this->assertDatabaseMissing('kinetix_onboarding', ['user_id' => $user->getKey()]);
     }
 }

@@ -166,6 +166,40 @@ Nothing else to wire:
 > the ceiling before the block starts pushing your navigation around. Long
 > checklists belong in the `card` variant on a dedicated page.
 
+### What it costs to mount
+
+The checklist used to fetch on mount. On a dashboard card that's one request per
+page load; in the sidebar it's worse, because the block lives in the layout and
+is therefore mounted on **every** page — a round-trip per navigation for a list
+that changes a handful of times in an account's lifetime.
+
+Kinetix ships the checklist state on every Inertia response as
+`kinetix_onboarding`, so the component renders straight from the page payload —
+no request, and no pop-in after the first paint:
+
+```php
+'onboarding' => [
+    'share' => env('KINETIX_ONBOARDING_SHARE', true),
+],
+```
+
+The trade is one progress-row read plus your `completedUsing` callbacks per
+Inertia response. **Keep those callbacks cheap** — they now run on every
+request, not only where the checklist is mounted. A `$user->hasVerifiedEmail()`
+is free; a `count()` over a big table is not, so cache it or move it behind a
+column you already load.
+
+Turn `share` off and the payload is `null`; the component falls back to fetching
+for itself, exactly as before. Either way `useKinetixOnboarding()` is the same
+API — `load()` simply becomes a no-op when the payload is there (pass
+`load(true)` to force a refetch). Ticking a step off or dismissing writes
+through the endpoints as always, and the returned state wins over the payload
+until the next Inertia response refreshes it.
+
+> Reading the checklist no longer creates a `kinetix_onboarding` row — the row
+> is written the first time the user actually completes a manual step or
+> dismisses the checklist.
+
 ---
 
 ## 2. Empty states

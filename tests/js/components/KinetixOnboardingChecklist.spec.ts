@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 const fetchMock = vi.fn();
+const pageProps: Record<string, unknown> = {};
 
 vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: {} }),
+    usePage: () => ({ props: pageProps }),
 }));
 
 vi.mock('@/composables/useKinetixHttp', () => ({
@@ -94,6 +95,16 @@ describe('KinetixOnboardingChecklist', () => {
     beforeEach(() => {
         fetchMock.mockReset();
         fetchMock.mockResolvedValue(state());
+        pageProps.kinetix_onboarding = undefined;
+    });
+
+    it('renders from the page payload without a request', async () => {
+        pageProps.kinetix_onboarding = state();
+
+        const wrapper = await mountChecklist({ variant: 'sidebar' });
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(wrapper.text()).toContain('Invite a teammate');
     });
 
     it('renders the card variant by default', async () => {

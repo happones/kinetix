@@ -2253,6 +2253,22 @@ class KinetixServiceProvider extends ServiceProvider
             return app(AnnouncementManager::class)->sharedState($user);
         });
 
+        // The setup checklist, so <KinetixOnboardingChecklist> renders from the
+        // page payload instead of fetching on mount. The sidebar variant lives
+        // in the layout — on every page — so that fetch was a round-trip per
+        // navigation for a list that changes a handful of times per account.
+        Inertia::share('kinetix_onboarding', function () {
+            $user = auth()->user();
+
+            if (! config('kinetix.onboarding.enabled', false)
+                || ! config('kinetix.onboarding.share', true)
+                || ! $user instanceof Model) {
+                return null;
+            }
+
+            return app(OnboardingManager::class)->for($user);
+        });
+
         // The user's teams + switch URLs, for <KinetixTeamSwitcher>.
         Inertia::share('kinetix_teams', fn () => app(TeamSwitcherManager::class)->payload());
 

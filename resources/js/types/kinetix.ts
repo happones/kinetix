@@ -89,6 +89,8 @@ export interface KinetixSharedProps {
     kinetix_notifications?: KinetixNotification[];
     /** Unread badge + banner feed, so neither has to fetch on mount. */
     kinetix_announcements?: KinetixAnnouncementState | null;
+    /** The setup checklist, so <KinetixOnboardingChecklist> doesn't fetch on mount. */
+    kinetix_onboarding?: KinetixOnboarding | null;
     kinetix_permissions?: KinetixPermissionState;
     kinetix_impersonation?: KinetixImpersonationState;
     /** Resolved feature flags for the current scope (name → on/off). */

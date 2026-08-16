@@ -29,6 +29,7 @@ php artisan migrate
 ```php
 'onboarding' => [
     'enabled' => env('KINETIX_ONBOARDING_ENABLED', false),
+    'share'   => env('KINETIX_ONBOARDING_SHARE', true),  // state on every Inertia response
     'teams'   => env('KINETIX_ONBOARDING_TEAMS', false), // per-team vs per-user progress
 ],
 ```
@@ -68,6 +69,14 @@ KinetixOnboarding::step('invite-team', 'Invite a teammate')
 
 `useKinetixOnboarding()` → `{ state, load, complete, dismiss }`. The card hides
 when dismissed and (default) when complete; `:hide-when-complete="false"` keeps it.
+
+**Payload, not fetch.** With `onboarding.share` on (default) the state rides on
+every Inertia response as **`kinetix_onboarding`**, so mounting the checklist
+costs no request; `load()` is a no-op then (`load(true)` forces a refetch), and
+`complete`/`dismiss` results win over the payload until the next response. The
+cost is one progress-row read + every `completedUsing` callback **per response**
+— keep them cheap. `for()` is a pure read: no row is written until the user
+completes a manual step or dismisses.
 
 **`variant`** (`card` default | `sidebar`) — same component, same state, same
 endpoints; only the presentation differs. The `sidebar` variant drops step

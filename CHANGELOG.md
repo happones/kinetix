@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The onboarding checklist rides on the page payload instead of a request per
+  mount.** It fetched on mount, which was one round-trip per page load for the
+  dashboard card — and one per *navigation* for the new sidebar variant, which
+  lives in the layout and is therefore mounted on every page, for a list that
+  changes a handful of times in an account's lifetime. The new
+  `kinetix_onboarding` shared prop carries the whole checklist, so the component
+  renders from the first paint with no request and no pop-in.
+  `onboarding.share` (default `true`) turns it off and restores the old
+  fetch-for-yourself behaviour. `useKinetixOnboarding()` is unchanged for
+  callers: `load()` becomes a no-op when the payload is there, `load(true)`
+  forces a refetch, and a ticked step or a dismissal wins over the payload until
+  the next Inertia response. The cost to know about: every `completedUsing`
+  callback now runs on **every** request, not only where the checklist is
+  mounted — keep them cheap **(published: `useKinetixOnboarding.ts`,
+  `types/kinetix.ts`, `config/kinetix.php`)**.
+
+### Fixed
+
+- **Reading the onboarding checklist wrote a row.** `OnboardingManager::for()`
+  resolved its progress with `firstOrCreate`, so merely *looking* at the
+  checklist created a `kinetix_onboarding` row — harmless when only the endpoint
+  called it, a write on every account's first page view now that the state is
+  shared on every response. It resolves with `firstOrNew`; the row is written
+  the first time the user completes a manual step or dismisses the checklist.
+
 ## [0.170.0] - 2026-08-15
 
 The onboarding checklist gets a second shape — a condensed block for the

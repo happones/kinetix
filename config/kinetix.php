@@ -658,6 +658,14 @@ return [
     'onboarding' => [
         'enabled' => env('KINETIX_ONBOARDING_ENABLED', false),
 
+        // Ship the checklist state on every Inertia response, so <KinetixOnboardingChecklist>
+        // renders from the page payload instead of fetching on mount (a round-trip per
+        // navigation when the layout isn't persistent — and the sidebar variant is mounted
+        // on every page). The cost is one progress-row read plus your `completedUsing`
+        // callbacks per response, so keep those cheap: they run on EVERY request, not only
+        // where the checklist is mounted. Turn it off to trade that back for the fetch.
+        'share' => env('KINETIX_ONBOARDING_SHARE', true),
+
         // Track progress per team instead of per user.
         'teams' => env('KINETIX_ONBOARDING_TEAMS'), // null = inherit kinetix.teams
     ],

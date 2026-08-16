@@ -80,9 +80,14 @@ class OnboardingManager
         $progress->save();
     }
 
+    /**
+     * `firstOrNew`, not `firstOrCreate`: `for()` is a pure read, and it now runs
+     * on every Inertia response when `onboarding.share` is on — a row is written
+     * only once the user actually ticks a step off or dismisses the checklist.
+     */
     protected function progressFor(Model $user): OnboardingProgress
     {
-        return OnboardingProgress::firstOrCreate([
+        return OnboardingProgress::firstOrNew([
             'user_id' => $user->getKey(),
             'team_id' => $this->teamId($user),
         ]);
