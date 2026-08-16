@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.170.0] - 2026-08-15
+
+The onboarding checklist gets a second shape — a condensed block for the
+navigation rail, so the remaining steps travel with the user. Announcements
+gain an authoring UI, an expiry date, and a place on the page payload instead
+of a request per mount.
+
 ### Fixed
 
 - **The header triggers didn't match each other.** Every one of them is meant to
