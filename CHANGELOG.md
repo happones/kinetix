@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.171.1] - 2026-08-16
+
+Documentation only — nothing a consumer receives via `vendor:publish` changed.
+
 ### Added
 
 - `onboarding-checklist-sidebar-collapsed` gallery specimen: the same mock rail
