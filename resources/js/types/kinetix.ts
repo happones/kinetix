@@ -68,6 +68,8 @@ export interface KinetixConfig {
     /** Laravel's app timezone — implicit timezone of naive picker values. */
     timezone?: string | null;
     sound: { enabled: boolean; path: string };
+    /** Palette settings the client has to agree with the endpoint on. */
+    spotlight?: { min_chars: number };
     broadcasting: Record<string, unknown> | null;
 }
 

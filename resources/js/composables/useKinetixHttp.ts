@@ -17,6 +17,20 @@ export interface KinetixFetchOptions {
     body?: unknown;
     /** Extra headers, merged over the defaults. */
     headers?: Record<string, string>;
+    /**
+     * Cancels the request. Aborting rejects with a `DOMException` named
+     * `AbortError` — check `isKinetixAbort(error)` rather than treating a
+     * superseded request as a failure.
+     */
+    signal?: AbortSignal;
+}
+
+/**
+ * Whether a rejection came from an aborted request rather than a real failure.
+ * A superseded search is not an error and must not surface as one.
+ */
+export function isKinetixAbort(error: unknown): boolean {
+    return error instanceof DOMException && error.name === 'AbortError';
 }
 
 /**
@@ -32,7 +46,7 @@ export async function kinetixFetch<T = unknown>(
     url: string,
     options: KinetixFetchOptions = {},
 ): Promise<T | null> {
-    const { method = 'GET', body, headers = {} } = options;
+    const { method = 'GET', body, headers = {}, signal } = options;
     const isFormData =
         typeof FormData !== 'undefined' && body instanceof FormData;
 
@@ -50,6 +64,7 @@ export async function kinetixFetch<T = unknown>(
         method: method.toUpperCase(),
         headers: { ...baseHeaders, ...headers },
         credentials: 'same-origin',
+        signal,
         body:
             body === undefined
                 ? undefined

@@ -360,6 +360,8 @@ return [
     'impersonation_leave'                => '自分のアカウントに戻る',
     'spotlight_placeholder'              => '検索…',
     'spotlight_empty'                    => '結果がありません。',
+    'spotlight_searching'                => '検索中…',
+    'spotlight_min_chars'                => ':count 文字以上入力してください',
     'webhooks_title'                     => 'Webhook',
     'webhook_add'                        => 'エンドポイントを追加',
     'webhook_name'                       => '名前',

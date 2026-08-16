@@ -9,6 +9,7 @@ use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Spotlight\SpotlightSource;
 use Happones\Kinetix\Tests\Feature\Fixtures\SpotlightFixture\FixtureLinkSource;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Support\Facades\File;
 
 class SpotlightDiscoveryTest extends TestCase
 {
@@ -52,5 +53,44 @@ class SpotlightDiscoveryTest extends TestCase
         $registry->discover('/path/does/not/exist', 'Some\\Namespace');
 
         $this->assertSame([], $registry->sources());
+    }
+
+    public function test_the_directory_scan_runs_once(): void
+    {
+        // It walked the filesystem and reflected every file in it once per
+        // keystroke that survived the debounce, for a list that cannot change
+        // within a request.
+        File::partialMock()->shouldReceive('allFiles')->once()->passthru();
+
+        $registry = new SpotlightRegistry;
+        $registry->discover($this->fixturesPath, $this->fixturesNamespace);
+
+        $registry->sources();
+        $registry->sources();
+        $registry->sources();
+    }
+
+    public function test_sources_are_still_rebuilt_on_every_call(): void
+    {
+        $registry = new SpotlightRegistry;
+        $registry->discover($this->fixturesPath, $this->fixturesNamespace);
+
+        // The INSTANCES are deliberately not cached: a source reads request
+        // state when it is built (the active locale for its group heading, the
+        // current tenant for its query), so caching them would freeze it into
+        // whichever request first touched the registry.
+        $this->assertNotSame($registry->sources()[0], $registry->sources()[0]);
+    }
+
+    public function test_discovering_a_new_path_invalidates_the_memoized_scan(): void
+    {
+        $registry = new SpotlightRegistry;
+        $registry->discover('/path/does/not/exist', 'Some\\Namespace');
+
+        $this->assertCount(0, $registry->sources()); // memoizes an empty scan
+
+        $registry->discover($this->fixturesPath, $this->fixturesNamespace);
+
+        $this->assertCount(1, $registry->sources());
     }
 }

@@ -360,6 +360,8 @@ return [
     'impersonation_leave'                => 'Вернуться в свой аккаунт',
     'spotlight_placeholder'              => 'Поиск…',
     'spotlight_empty'                    => 'Ничего не найдено.',
+    'spotlight_searching'                => 'Поиск…',
+    'spotlight_min_chars'                => 'Введите не менее :count символов',
     'webhooks_title'                     => 'Вебхуки',
     'webhook_add'                        => 'Добавить endpoint',
     'webhook_name'                       => 'Название',

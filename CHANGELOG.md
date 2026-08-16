@@ -13,6 +13,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Spotlight: a Scout source ignored its own tenancy scoping.** `->query()` is
+  the seam a multi-tenant host binds a source to the active team with, and it
+  was honored on the `LIKE` branch and dropped on the Scout one. So the moment a
+  model adopted `Laravel\Scout\Searchable` — a change usually made in another
+  file, for an unrelated reason — every tenant's records became searchable by
+  every other tenant. No exception, green build, correct-looking UI; the only
+  remaining defence was a `view` policy that may not exist and may not check
+  tenancy. Under Scout the engine now only **proposes** candidates: they are
+  hydrated through `->query()`, so a row it excludes cannot reach the palette,
+  and the engine's relevance order is re-imposed afterwards. Pair it with the
+  new `->scoutWhere()` (below) so the engine's buffer is spent on rows that
+  survive the scope — constraining only the hydration is safe but returns fewer
+  results than the limit.
+- **Spotlight: `spotlight.limit` was config nothing read.** The published key
+  did nothing; the per-source limit was a hardcoded 5, changeable only via
+  `->limit()`. A documented env var that silently does nothing is worse than no
+  knob at all **(published: `config/kinetix.php`)**.
+- **Spotlight: responses landed out of order.** The palette debounced and then
+  assigned whatever resolved, with no cancellation — so when typing outran the
+  round-trip, the response for `emp` could land after the one for `empleado` and
+  win, showing hits for a query the reader had already replaced, and doing it
+  more often exactly as load rose. Each search now aborts the one before it;
+  `search()` resolves to `null` when superseded and the palette skips the paint
+  **(published: `useKinetixHttp.ts`, `useKinetixSpotlight.ts`,
+  `KinetixSpotlight.vue`)**.
+- **Spotlight: the per-record policy pass silently under-filled.** It fetched a
+  fixed `limit * 3` buffer and rejected inside the loop, so a source whose
+  policy rejected more than two thirds returned fewer results than the limit
+  while matching, visible records went unshown — with nothing signalling the
+  truncation. It now walks pages until the limit is filled or the result set is
+  genuinely exhausted (five pages max), and the database path orders by key so
+  paging can't repeat or skip rows.
+- **Spotlight: `loading` was exposed and never rendered.** During a fan-out
+  across many sources the palette showed its empty state, so an in-flight search
+  was indistinguishable from one that found nothing. It now shows three distinct
+  states — searching, keep typing, no results **(published:
+  `KinetixSpotlight.vue`, 2 translation keys × 7 locales)**.
+- **Spotlight: source discovery re-scanned the filesystem per search.** The
+  registry is a singleton but `sources()` memoized nothing, so every keystroke
+  that survived the debounce walked the discovery directory and reflected every
+  file in it. The class-name scan is memoized; the **instances are deliberately
+  not**, because a source reads request state when it is built (the active
+  locale for its group heading, the current tenant for its query).
+
+### Added
+
+- **Spotlight: the search endpoint is rate limited.** One request fans out to
+  every authorized source, so a held-down key was an unbounded multiplier on
+  database load from any authenticated user. `spotlight.throttle` (default
+  `'60,1'`, `null` removes it) **(published: `config/kinetix.php`)**.
+- **Spotlight: `spotlight.min_chars` (default 2).** A single character is the
+  most expensive query the module can produce — `%a%` matches nearly every row
+  of every source — and it is the first thing every user types. Enforced in the
+  model sources *and* in the palette, which reads the value from the shared
+  config so the two can't disagree; the cheap in-memory `SpotlightLink`s still
+  answer short and empty queries as before **(published: `config/kinetix.php`,
+  `types/kinetix.ts`, `KinetixSpotlight.vue`)**.
+- **`SpotlightResource::scoutWhere([...])`** — engine-side filters for the Scout
+  driver, so the buffer is spent on rows the source may actually return.
+- **`SpotlightResource::trustQuery()`** — declare `query()` authorization-complete
+  and skip the per-record `view` pass. A source scoped by a Resource's own query
+  has usually already answered the question, and the pass costs a policy call —
+  often a query of its own — per candidate row.
+- **`->priority(int)` on sources** (via the new optional `HasSpotlightPriority`
+  interface, so custom `SpotlightSource` implementations keep working) —
+  deterministic group order instead of registration order, which was effectively
+  arbitrary and free to change between deploys.
+- **`kinetixFetch` accepts `signal?: AbortSignal`**, with `isKinetixAbort(error)`
+  to tell a superseded request from a real failure. Every Kinetix composable
+  fetches through this helper, so cancellation is now expressible anywhere
+  **(published: `useKinetixHttp.ts`)**.
+- A **"Scaling profile of the `LIKE` driver"** section in the Spotlight docs:
+  `%term%` applies no index, but a source query that filters an indexed tenant
+  column first confines the scan to that tenant's slice — so cost tracks your
+  largest single tenant, not the platform's total row count. That is the number
+  that says when to move to Scout.
+
 ## [0.171.1] - 2026-08-16
 
 Documentation only — nothing a consumer receives via `vendor:publish` changed.

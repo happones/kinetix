@@ -360,6 +360,8 @@ return [
     'impersonation_leave'                => '返回您的账户',
     'spotlight_placeholder'              => '搜索…',
     'spotlight_empty'                    => '无结果。',
+    'spotlight_searching'                => '搜索中…',
+    'spotlight_min_chars'                => '请至少输入 :count 个字符',
     'webhooks_title'                     => 'Webhooks',
     'webhook_add'                        => '添加端点',
     'webhook_name'                       => '名称',

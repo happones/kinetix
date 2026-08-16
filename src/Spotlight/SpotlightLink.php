@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
  * (`event`, dispatched on the client). Matches the query against its label and
  * keywords; shown unfiltered when the query is empty.
  */
-class SpotlightLink implements SpotlightSource
+class SpotlightLink implements HasSpotlightPriority, SpotlightSource
 {
     protected ?string $url = null;
 
@@ -25,6 +25,8 @@ class SpotlightLink implements SpotlightSource
     protected string $group = 'Navigation';
 
     protected ?string $ability = null;
+
+    protected int $priority = 0;
 
     /** @var array<int, string> */
     protected array $keywords = [];
@@ -79,6 +81,19 @@ class SpotlightLink implements SpotlightSource
         $this->keywords = $keywords;
 
         return $this;
+    }
+
+    /** Higher sorts this link's group first. */
+    public function priority(int $priority): static
+    {
+        $this->priority = $priority;
+
+        return $this;
+    }
+
+    public function getPriority(): int
+    {
+        return $this->priority;
     }
 
     public function authorizedFor(?Authenticatable $user): bool

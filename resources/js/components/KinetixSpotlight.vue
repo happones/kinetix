@@ -29,7 +29,7 @@ import type {
  * results are already authorization-filtered. Mount once in your layout.
  */
 const { t } = useI18n();
-const { search } = useKinetixSpotlight();
+const { loading, minChars, search } = useKinetixSpotlight();
 
 const open = ref(false);
 const query = ref('');
@@ -72,8 +72,23 @@ function onOpenChange(value: boolean): void {
 function onInput(event: Event): void {
     query.value = (event.target as HTMLInputElement).value;
     clearTimeout(debounce);
+
+    // Below the threshold there is nothing worth fanning out for: `%a%` matches
+    // nearly every row of every source. The endpoint enforces the same floor.
+    if (query.value.length < minChars.value) {
+        groups.value = [];
+
+        return;
+    }
+
     debounce = setTimeout(async () => {
-        groups.value = await search(query.value);
+        const result = await search(query.value);
+
+        // `null` = this search was superseded by a newer keystroke. Painting it
+        // would show results for a query the reader already replaced.
+        if (result !== null) {
+            groups.value = result;
+        }
     }, 200);
 }
 
@@ -127,7 +142,28 @@ function onSelect(item: unknown): void {
                     />
 
                     <ComboboxContent class="max-h-80 p-2 overflow-y-auto">
+                        <!-- A fan-out across many sources is not instant, and
+                             the empty state is a lie while it is running. -->
+                        <div
+                            v-if="loading"
+                            class="px-2 py-6 text-sm text-center text-muted-foreground"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            {{ t('kinetix.spotlight_searching') }}
+                        </div>
+                        <div
+                            v-else-if="query.length < minChars"
+                            class="px-2 py-6 text-sm text-center text-muted-foreground"
+                        >
+                            {{
+                                t('kinetix.spotlight_min_chars', {
+                                    count: minChars,
+                                })
+                            }}
+                        </div>
                         <ComboboxEmpty
+                            v-else
                             class="px-2 py-6 text-sm text-center text-muted-foreground"
                         >
                             {{ t('kinetix.spotlight_empty') }}

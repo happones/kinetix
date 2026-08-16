@@ -399,6 +399,8 @@ return [
     // Spotlight
     'spotlight_placeholder' => 'Rechercher…',
     'spotlight_empty'       => 'Aucun résultat.',
+    'spotlight_searching'   => 'Recherche…',
+    'spotlight_min_chars'   => 'Saisissez au moins :count caractères',
 
     // Webhooks
     'webhooks_title'       => 'Webhooks',

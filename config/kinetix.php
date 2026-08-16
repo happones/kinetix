@@ -564,7 +564,18 @@ return [
     'spotlight' => [
         'enabled' => env('KINETIX_SPOTLIGHT_ENABLED', false),
         'driver'  => env('KINETIX_SPOTLIGHT_DRIVER', 'auto'),
-        'limit'   => env('KINETIX_SPOTLIGHT_LIMIT', 5),
+
+        // Results per source. A source may override it with ->limit().
+        'limit' => env('KINETIX_SPOTLIGHT_LIMIT', 5),
+
+        // Shortest query that fans out to the sources. One character matches
+        // nearly every row of every source, and it is the first thing every
+        // user types — enforced on the endpoint AND in the palette.
+        'min_chars' => env('KINETIX_SPOTLIGHT_MIN_CHARS', 2),
+
+        // Rate limit for the search endpoint ('requests,minutes'), since one
+        // request fans out across every authorized source. Null removes it.
+        'throttle' => env('KINETIX_SPOTLIGHT_THROTTLE', '60,1'),
 
         // Directory (+ namespace) auto-scanned for `SpotlightSource` classes,
         // additive to sources registered via `KinetixSpotlight::register()`.

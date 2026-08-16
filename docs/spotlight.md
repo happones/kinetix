@@ -16,10 +16,25 @@ record the user can't see.
     'enabled' => env('KINETIX_SPOTLIGHT_ENABLED', false),
     // auto = Scout for Searchable models, else 'database' (LIKE). Force with 'database'.
     'driver'  => env('KINETIX_SPOTLIGHT_DRIVER', 'auto'),
-    // Max results per source.
+    // Max results per source. A source may override it with ->limit().
     'limit'   => env('KINETIX_SPOTLIGHT_LIMIT', 5),
+    // Shortest query that reaches the database. One character matches nearly
+    // every row of every source, and it is the first thing every user types.
+    'min_chars' => env('KINETIX_SPOTLIGHT_MIN_CHARS', 2),
+    // Rate limit for the search endpoint ('requests,minutes'); null removes it.
+    'throttle'  => env('KINETIX_SPOTLIGHT_THROTTLE', '60,1'),
 ],
 ```
+
+`min_chars` is enforced on the endpoint **and** in the palette (which reads it
+from the shared config, so the two never disagree) — below it, the palette shows
+a "keep typing" hint instead of firing a request. Cheap in-memory sources
+(`SpotlightLink`) still answer short and empty queries; only the model sources
+wait.
+
+`throttle` matters because one request fans out to **every** authorized source:
+without it a held-down key is an unbounded multiplier on database load, from any
+authenticated user.
 
 ---
 
@@ -97,8 +112,41 @@ Two layers, both enforced server-side:
       ->searchColumns(['title']);
   ```
 
+`->query()` is the **tenancy seam**, and it scopes both drivers. Under Scout the
+engine only *proposes* candidates; they are hydrated through this query, so a row
+it excludes can never reach the palette — a model adopting `Searchable` for an
+unrelated reason cannot silently widen what the palette can see. Read
+[Scout & multi-tenancy](#scout-multi-tenancy) before indexing a tenant-scoped
+model.
+
 Empty queries never dump the database — resources return nothing until there's a
-search term; only links/actions show.
+search term of at least `min_chars`; only links/actions show.
+
+### Skipping the per-record pass
+
+The `view` policy runs **once per candidate row**, and a policy that checks
+tenancy usually costs a query of its own — so a source whose `query()` has
+already answered the question pays for the answer twice. Say so:
+
+```php
+SpotlightResource::make(Post::class)
+    ->query(fn () => PostResource::getEloquentQuery())  // already scoped
+    ->trustQuery();                                     // …so skip the policy pass
+```
+
+Without it, Kinetix walks pages of candidates until the limit is filled or the
+result set runs out (up to five pages). That is deliberate: a fixed over-fetch
+has to guess a rejection rate, and guessing low returns fewer results than the
+limit while matching, visible records go unshown.
+
+### Group order
+
+Groups are ordered by source priority, highest first; equal priorities keep
+registration order, so the palette doesn't reshuffle between deploys.
+
+```php
+SpotlightLink::make('Billing')->url('/billing')->priority(10); // pinned to the top
+```
 
 ---
 
@@ -156,10 +204,47 @@ independently).
 configured engine), and falls back to a `LIKE` query over `searchColumns` for
 non-Scout models. Force the `LIKE` path with `driver = 'database'`.
 
-> With Scout, results come from the search index; the per-record `view` policy
-> still filters them, but for team/tenant scoping prefer Scout's own
-> `where()`/index constraints or the `->query()` base query.
+### Scout & multi-tenancy
+
+`->query()` scopes the Scout path too — the engine proposes candidates, your
+query decides which of them may be hydrated. That closes the hole, but it closes
+it *after* the engine has already spent its buffer, so if the index holds every
+tenant's rows the reader sees fewer results than the limit (sometimes none) even
+though matches exist.
+
+Filter engine-side as well, so the buffer is spent on rows that survive:
+
+```php
+SpotlightResource::make(Post::class)
+    ->scoutWhere(['team_id' => auth()->user()->currentTeam->id])  // the engine filters
+    ->query(fn () => Post::where('team_id', auth()->user()->currentTeam->id)); // and so does SQL
+```
+
+`scoutWhere()` maps to Scout's `where()`, so the attribute must be in the model's
+`toSearchableArray()` and filterable in your engine. It is a no-op on the
+database driver, where `query()` already filters in SQL.
+
+> **Both, not either.** `scoutWhere()` alone trusts the index to be correct and
+> current; `query()` alone is correct but under-fills. Together you get full
+> result sets that cannot cross a tenant boundary even if the index is stale.
+
+### Scaling profile of the `LIKE` driver
+
+`KinetixQuery::search()` builds `%term%`. The leading wildcard means **no index
+applies** — inherent to substring search, not a defect. The useful nuance:
+
+- When the source query filters on an **indexed tenant column first**, the scan
+  is confined to that tenant's slice. Cost tracks your **largest single tenant**,
+  not the platform's total row count — a very different planning signal from
+  "it degrades as you add customers".
+- **Dotted relation columns** (`author.name`) resolve through `whereHas`, adding
+  a dependent subquery per column. Prefer denormalized columns on hot sources.
+- A source blocked by `->authorize()` or by a feature gate costs nothing: it
+  never runs.
+
+Move to Scout when the largest tenant's slice — not the table — stops fitting a
+scan, and set up `scoutWhere()` at the same time.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `{prefix}/spotlight?q=…` | Grouped, authorization-filtered results |
+| `GET` | `{prefix}/spotlight?q=…` | Grouped, authorization-filtered results (throttled) |

@@ -1108,6 +1108,15 @@ class KinetixServiceProvider extends ServiceProvider
             }
         }
 
+        // One request fans out to every authorized source, so a held-down key
+        // is an unbounded multiplier on database load — and the endpoint is
+        // reachable by any authenticated user.
+        $throttle = config('kinetix.spotlight.throttle', '60,1');
+
+        if ($throttle !== null && $throttle !== '') {
+            $middleware[] = 'throttle:'.$throttle;
+        }
+
         Route::middleware($middleware)
             ->prefix("{$prefix}/spotlight")
             ->group(function () {
@@ -1980,6 +1989,11 @@ class KinetixServiceProvider extends ServiceProvider
                 'sound' => [
                     'enabled' => (bool) config('kinetix.notifications.sound.enabled', true),
                     'path'    => config('kinetix.notifications.sound.path', '/vendor/kinetix/notification.wav'),
+                ],
+                // The palette's own gate has to agree with the endpoint's, or
+                // it fires requests the server answers with an empty payload.
+                'spotlight' => [
+                    'min_chars' => SpotlightController::minChars(),
                 ],
                 'broadcasting' => $this->getBroadcastingConfig(),
             ];

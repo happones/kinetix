@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { kinetixFetch, xsrfToken } from '@/composables/useKinetixHttp';
+import {
+    isKinetixAbort,
+    kinetixFetch,
+    xsrfToken,
+} from '@/composables/useKinetixHttp';
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -73,5 +77,23 @@ describe('useKinetixHttp', () => {
     it('returns null for a 204 response', async () => {
         stubFetch({ status: 204 });
         expect(await kinetixFetch('/x', { method: 'DELETE' })).toBeNull();
+    });
+
+    it('forwards an abort signal to fetch', async () => {
+        const fetchMock = stubFetch({});
+        const controller = new AbortController();
+
+        await kinetixFetch('/x', { signal: controller.signal });
+
+        expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
+    });
+
+    it('tells an abort apart from a real failure', () => {
+        expect(isKinetixAbort(new DOMException('stop', 'AbortError'))).toBe(
+            true,
+        );
+        expect(isKinetixAbort(new Error('HTTP error! status: 500'))).toBe(
+            false,
+        );
     });
 });
