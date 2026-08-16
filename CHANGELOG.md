@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.171.0] - 2026-08-15
+
+The onboarding checklist stops paying for itself on every page: its state rides
+on the Inertia payload, and reading it no longer writes a row.
+
 ### Changed
 
 - **The onboarding checklist rides on the page payload instead of a request per
