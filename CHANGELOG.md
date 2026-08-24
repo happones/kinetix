@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.173.0] - 2026-08-23
+
+Dialog shells. A long form in a modal could strand its own content off screen:
+the shell had no bound of its own, so `scroll-body` was the only thing keeping a
+tall panel reachable — without it the panel grew past the viewport with its
+title and its footer actions off screen and nothing left to scroll. The shell
+now scrolls itself, every scroller Kinetix owns inside a dialog moved to the
+shadcn `ScrollArea`, and the surfaces that host long forms pin their actions.
+
 ### Fixed
 
 - **Modals: a long form could strand its own content off screen (published).**
