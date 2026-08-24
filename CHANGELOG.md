@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dev skill: the "there is no `KinetixButton`" rule was stale.** The internal
+  development skill still recorded buttons as class strings only — a settled
+  decision that `KinetixButton` superseded months ago — so an agent reading it
+  would hand-roll `buttonVariants()` for a submit button and lose the pending
+  state (spinner, `aria-busy`, double-click protection). The rule now states the
+  real contract: `KinetixButton` for anything that fires a request,
+  `buttonVariants()` for elements that are not a `<button>` and for controls
+  that never go pending. What still holds is kept intact (no host
+  `@/components/ui` imports, no parallel UI kit for fields/badges/cards, no
+  `KinetixInput`), and three stale `@/composables/useShadcnVariants` paths now
+  name the actual composable, `useKinetixShadcnVariants`. Internal tooling only
+  — nothing a consumer receives via `vendor:publish` changed.
+
 ## [0.173.0] - 2026-08-23
 
 Dialog shells. A long form in a modal could strand its own content off screen:
