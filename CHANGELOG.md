@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.173.1] - 2026-08-23
+
+Internal development skill only — nothing a consumer receives via
+`vendor:publish` changed.
+
 ### Fixed
 
 - **Dev skill: the "there is no `KinetixButton`" rule was stale.** The internal
