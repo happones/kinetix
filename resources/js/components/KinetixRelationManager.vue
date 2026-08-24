@@ -15,6 +15,7 @@ import KinetixForm from './KinetixForm.vue';
 import KinetixTable from './KinetixTable.vue';
 import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
+import ScrollArea from './primitives/ScrollArea.vue';
 
 /**
  * One relation manager: heading (+ optional badge) and the related-records
@@ -464,31 +465,37 @@ onBeforeUnmount(() => {
                     @input="onAttachSearch"
                 />
 
-                <div class="max-h-64 space-y-1 overflow-y-auto">
-                    <p
-                        v-if="attachLoading"
-                        class="py-4 text-sm text-center text-muted-foreground"
-                    >
-                        …
-                    </p>
-                    <p
-                        v-else-if="attachOptions.length === 0"
-                        class="py-4 text-sm text-center text-muted-foreground"
-                    >
-                        {{ t(picker[pickerMode].empty) }}
-                    </p>
-                    <label
-                        v-for="option in attachOptions"
-                        :key="option.id"
-                        class="gap-2 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-md hover:bg-accent"
-                    >
-                        <KinetixCheckbox
-                            :model-value="attachSelected.has(option.id)"
-                            @update:model-value="toggleAttachOption(option.id)"
-                        />
-                        <span class="min-w-0 truncate">{{ option.label }}</span>
-                    </label>
-                </div>
+                <ScrollArea type="auto" viewport-class="max-h-64">
+                    <div class="space-y-1">
+                        <p
+                            v-if="attachLoading"
+                            class="py-4 text-sm text-center text-muted-foreground"
+                        >
+                            …
+                        </p>
+                        <p
+                            v-else-if="attachOptions.length === 0"
+                            class="py-4 text-sm text-center text-muted-foreground"
+                        >
+                            {{ t(picker[pickerMode].empty) }}
+                        </p>
+                        <label
+                            v-for="option in attachOptions"
+                            :key="option.id"
+                            class="gap-2 px-2 py-1.5 text-sm flex cursor-pointer items-center rounded-md hover:bg-accent"
+                        >
+                            <KinetixCheckbox
+                                :model-value="attachSelected.has(option.id)"
+                                @update:model-value="
+                                    toggleAttachOption(option.id)
+                                "
+                            />
+                            <span class="min-w-0 truncate">{{
+                                option.label
+                            }}</span>
+                        </label>
+                    </div>
+                </ScrollArea>
 
                 <!-- Pivot fields (AttachAction::form()) — written to the pivot
                      row of every attached record. The footer's submit button

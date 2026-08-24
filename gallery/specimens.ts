@@ -316,6 +316,7 @@ import KinetixAccessibilityPanel from '@/components/KinetixAccessibilityPanel.vu
 import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
 import KinetixTableStats from '@/components/Table/KinetixTableStats.vue';
+import ModalScrollPage from './ModalScrollPage.vue';
 import ResourceCreatePage from './ResourceCreatePage.vue';
 import ResourceShowPage from './ResourceShowPage.vue';
 import KinetixListWidget from '@/components/KinetixListWidget.vue';
@@ -3437,6 +3438,15 @@ export const specimens: Specimen[] = [
         width: 720,
         props: { table: spec.table },
     })),
+    {
+        name: 'modal-scroll',
+        title: 'Modal shell — long forms stay reachable',
+        component: ModalScrollPage,
+        width: 900,
+        // Captured OPEN: the panel is bounded, the header and footer pinned,
+        // the body scrolling — the claim the docs make about long forms.
+        openSelector: '[data-testid="open-pinned"]',
+    },
     {
         name: 'relation-managers',
         title: 'Relation managers — tabs, modal CRUD, pickers',

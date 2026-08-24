@@ -241,6 +241,7 @@ onMounted(load);
                     : t('kinetix.edit')
             "
             :processing="saving"
+            scroll-body
             @update:open="editing = $event"
         >
             <form

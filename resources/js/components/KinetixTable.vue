@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { router, usePage, usePoll } from '@inertiajs/vue3';
 import { GripVertical } from '@lucide/vue';
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
+import {
+    computed,
+    defineAsyncComponent,
+    onMounted,
+    ref,
+    useId,
+    watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
@@ -239,6 +246,11 @@ const {
     config: () => props.table.recordModals,
     routePrefix: () => routePrefix.value,
 });
+
+// Unique per table instance: the modal's PINNED footer submit button lives
+// outside the <form>, so it targets it via the native `form` attribute — the
+// actions stay visible while a long schema scrolls.
+const recordFormId = `kinetix-record-form-${useId()}`;
 
 // A per-row action carries its `record` so a `dispatchEvent` action's listener
 // (or an inertiaVisit/httpRequest body) receives it; toolbar/footer actions
@@ -791,37 +803,36 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                 <!-- The modal IS the surface — flat drops Section card chrome. -->
                 <KinetixForm
                     v-else-if="recordForm"
+                    :id="recordFormId"
                     :form="recordForm"
                     flat
                     @submit="submitRecordForm"
                 >
-                    <template #default>
-                        <div
-                            class="gap-2 mt-6 sm:flex-row sm:justify-end flex flex-col-reverse"
-                        >
-                            <button
-                                type="button"
-                                :class="
-                                    buttonVariants({
-                                        variant: 'outline',
-                                        size: 'sm',
-                                    })
-                                "
-                                :disabled="recordProcessing"
-                                @click="closeRecordForm"
-                            >
-                                {{ t('kinetix.cancel') }}
-                            </button>
-                            <button
-                                type="submit"
-                                :class="buttonVariants({ size: 'sm' })"
-                                :disabled="recordProcessing"
-                            >
-                                {{ t('kinetix.save') }}
-                            </button>
-                        </div>
-                    </template>
+                    <template #default><span class="hidden"></span></template>
                 </KinetixForm>
+
+                <!-- DRY: the SHARED KinetixButton — and the actions live in the
+                     modal's pinned footer, so a long schema never scrolls Save
+                     out of reach. -->
+                <template #footer>
+                    <KinetixButton
+                        variant="outline"
+                        size="sm"
+                        :disabled="recordProcessing"
+                        @click="closeRecordForm"
+                    >
+                        {{ t('kinetix.cancel') }}
+                    </KinetixButton>
+                    <KinetixButton
+                        v-if="recordForm"
+                        type="submit"
+                        size="sm"
+                        :form="recordFormId"
+                        :loading="recordProcessing"
+                    >
+                        {{ t('kinetix.save') }}
+                    </KinetixButton>
+                </template>
             </KinetixModal>
 
             <!-- Simple-resource view modal (read-only infolist, server-resolved). -->

@@ -155,6 +155,13 @@ automatically; host pages composing their own modal must do it themselves.
 </KinetixModal>
 ```
 
+`scroll-body` is a LAYOUT choice, not a rescue: the shell bounds itself, so a
+panel taller than the viewport scrolls inside the dialog wrapper either way.
+Pass it when the header and footer should stay **pinned** while only the body
+scrolls (shadcn `ScrollArea`) — the usual choice for a long form, so Save stays
+visible. Skip it when the body hosts an in-flow dropdown that must escape the
+panel. `KinetixSheet` always pins.
+
 ### 5. Error Focus in Tabs & Wizards
 
 `KinetixForm` reads Inertia's `errors` automatically (a controller `ValidationException` now renders with no wiring). Errored **tabs/wizard steps** are marked, the form **switches/jumps to the first offending one**, and the **first errored field is focused + scrolled into view** — fully recursive (wizard-in-tab-in-section resolves correctly). Live per-field validation never steals focus from the field being edited.

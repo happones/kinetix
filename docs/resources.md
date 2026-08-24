@@ -406,6 +406,11 @@ matching ability (`view` / `create` / `update` / `delete`). Validation flows
 through the resource's own `form()`, so errors surface in the modal and the
 table reloads with fresh data on save.
 
+**Long forms stay usable.** The record modal is bounded to the viewport: the
+schema scrolls in the body while the title and the **Cancel / Save** actions
+stay pinned, so a form with many fields never pushes its own buttons out of
+reach. See [Forms → Section cards](/forms#_2-section-cards).
+
 **Fresh record on edit.** Opening the edit modal fetches a fresh copy of the
 record from the server by default, so a change made since the table loaded is
 never silently overwritten. Switch to the already-loaded row (no round-trip)

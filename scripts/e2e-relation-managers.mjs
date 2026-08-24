@@ -70,6 +70,23 @@ try {
       closeBox.y >= panelBox.y,
     "close button sits inside the panel",
   );
+  step = "the record form's Save rides the modal's PINNED footer";
+  // The button lives OUTSIDE the <form> (pinned footer), so it can only submit
+  // through native form association — `button.form` proves the wiring holds.
+  const association = await createDialog.evaluate((dialog) => {
+    const form = dialog.querySelector("form");
+    const submit = [...dialog.querySelectorAll('button[type="submit"]')].pop();
+    return {
+      wired: !!form && !!submit && submit.form === form,
+      id: form?.id ?? null,
+      // Pinned means: not inside the scrolling body.
+      inScrollArea: !!submit?.closest('[data-slot="scroll-area-viewport"]'),
+    };
+  });
+  assert.ok(association.wired, "the footer Save targets the modal's form");
+  assert.match(association.id ?? "", /^kinetix-record-form-/);
+  assert.equal(association.inScrollArea, false, "Save sits outside the scroller");
+
   await createDialog.getByRole("button", { name: "Cancel" }).click();
   await createDialog.waitFor({ state: "hidden" });
 
@@ -142,7 +159,7 @@ try {
     throw new Error(`browser errors:\n${failures.join("\n")}`);
   }
 
-  console.log("✓ relation-manager E2E: tabs, create modal, edit modal, dissociate, ?relation=, attach picker");
+  console.log("✓ relation-manager E2E: tabs, create modal (pinned footer), edit modal, dissociate, ?relation=, attach picker");
 } catch (error) {
   console.error(`✗ E2E failed at step: ${step}`);
   console.error(error);

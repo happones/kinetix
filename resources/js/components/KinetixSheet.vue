@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixFocusTrap } from '@/composables/useKinetixFocusTrap';
 import type { KinetixSheetSide } from '@/types/kinetix';
+import ScrollArea from './primitives/ScrollArea.vue';
 
 /**
  * A shadcn-style slide-in panel (Sheet) — a Dialog alternative anchored to an
@@ -141,7 +142,7 @@ const enterFromClass = computed(
                 <div
                     ref="panelEl"
                     tabindex="-1"
-                    class="p-6 shadow-lg absolute flex flex-col overflow-y-auto border-border bg-background outline-none"
+                    class="p-6 shadow-lg absolute flex flex-col overflow-hidden border-border bg-background outline-none"
                     :class="[positionClass, sizeClass]"
                 >
                     <div class="mb-4 flex items-start justify-between">
@@ -172,9 +173,11 @@ const enterFromClass = computed(
                         </button>
                     </div>
 
-                    <div class="min-h-0 flex-1">
+                    <!-- `-mr-3 pr-3` parks the overlay scrollbar in the
+                         panel's right padding instead of over the content. -->
+                    <ScrollArea type="auto" class="-mr-3 min-h-0 pr-3 flex-1">
                         <slot />
-                    </div>
+                    </ScrollArea>
 
                     <div
                         v-if="$slots.footer"

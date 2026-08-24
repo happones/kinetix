@@ -98,9 +98,6 @@ const tz = computed(
     () => props.timezone || props.calendar.timezone || getLocalTimeZone(),
 );
 
-// Guards the modal's Teleport — no `document.body` during SSR.
-const isMounted = ref(false);
-
 // Unique per calendar instance, so several calendars on a page keep their own
 // sr-only instructions element as each event's aria-describedby target.
 const moveHintId = `kinetix-calendar-hint-${++calendarUid}`;
@@ -239,8 +236,6 @@ function onSlotClick(date: CalendarDate, hour: number): void {
 }
 
 onMounted(() => {
-    isMounted.value = true;
-
     if (isTimeGridView(activeView.value)) {
         nextTick(() => scrollToNow());
     }
@@ -645,7 +640,6 @@ onMounted(() => {
 
         <!-- Event details (modal / sheet) -->
         <CalendarEventDetails
-            :is-mounted="isMounted"
             :event-display="eventDisplay"
             :sheet-side="sheetSide"
             :open="detailsOpen"

@@ -64,6 +64,7 @@ const body = computed(() => {
     <KinetixModal
         :open="open"
         max-width="sm:max-w-md"
+        scroll-body
         @update:open="emit('update:open', $event)"
     >
         <template #header="{ headingId }">

@@ -229,6 +229,20 @@ automatically.
 ```
 :::
 
+::: tip Long forms in a modal: `scroll-body` is a layout choice, not a rescue
+The shell bounds itself. A panel taller than the viewport scrolls **inside the
+dialog wrapper**, so a long form never strands its first field or its footer
+actions off screen — with or without `scroll-body`.
+
+Pass **`scroll-body`** when you want the other layout: header and footer
+**pinned** while only the body scrolls (in a shadcn `ScrollArea`), so Save and
+Cancel stay visible the whole way down. Skip it when the body hosts a dropdown
+that renders in flow and must escape the panel — a scrolling body clips it.
+`KinetixSheet` always uses the pinned layout.
+
+<Screenshot name="modal-scroll" alt="A 16-field form in a modal: the panel is bounded to the viewport, the title and the Cancel/Save footer stay pinned, and the body scrolls" />
+:::
+
 ### 3. Fieldset
 A lighter labelled grouping than `Section` — a bordered `<fieldset>` with a `<legend>`, no card chrome. Supports `columns()` and nesting.
 

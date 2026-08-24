@@ -355,6 +355,8 @@
         "impersonation_leave": "Return to your account",
         "spotlight_placeholder": "Search…",
         "spotlight_empty": "No results.",
+        "spotlight_searching": "Searching…",
+        "spotlight_min_chars": "Type at least {count} characters",
         "webhooks_title": "Webhooks",
         "webhook_add": "Add endpoint",
         "webhook_name": "Name",

@@ -13,6 +13,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Modals: a long form could strand its own content off screen (published).**
+  The dialog shell had no bound of its own, so `scroll-body` was the only thing
+  between a tall panel and unreachable content: without it the panel grew past
+  the viewport and its title, first fields and footer actions sat off screen
+  with nothing left to scroll. The shell now scrolls itself — the fixed wrapper
+  is a scroll container and the centering row carries `min-h-full`, so a panel
+  taller than the viewport scrolls whole instead of overflowing. `scroll-body`
+  goes back to being what it reads like: the opt-in for the pinned
+  header/footer layout. Affects every `KinetixModal` host, the simple-resource
+  record modals and relation-manager pickers included.
+  (`KinetixModal.vue`, `KinetixSheet.vue`)
+
+### Changed
+
+- **Modal and sheet bodies scroll in a shadcn `ScrollArea` (published).** The
+  `scroll-body` layout and the sheet body both use the `ScrollArea` primitive
+  instead of a raw `overflow-y-auto`, so every scroll surface in the package
+  carries the same overlay scrollbar — parked in the panel's padding gutter
+  rather than on top of the fields. `KinetixSheet` no longer scrolls its whole
+  panel, so its footer stays pinned; the relation-manager record picker's
+  option list moved to the same primitive.
+- **The simple-resource record modal pins its actions (published).** Cancel and
+  Save moved out of the form body into the modal's footer (wired to the form by
+  the native `form` attribute, as the relation-manager picker already does), so
+  a long schema scrolls under actions that stay put instead of scrolling them
+  away. (`KinetixTable.vue`)
+- **`KinetixAnnouncementManager` and `KinetixUpgradeModal` pin their footers
+  (published).** Both host a body that can outgrow the panel, so their Save /
+  upgrade actions now stay visible while the body scrolls.
+- **Calendar event details rides the shared shells (published).** The modal
+  presentation was a hand-rolled panel — no bound, no focus trap, no Escape,
+  no `aria-labelledby`. Modal and sheet now share one body on `KinetixModal` /
+  `KinetixSheet`, so the details surface can't drift between the two.
+
 ## [0.172.0] - 2026-08-16
 
 Spotlight hardening, from a review of the module running 18 sources on a
