@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.175.0] - 2026-08-25
+
+Icons. Every icon in Kinetix is declared from PHP by name, and a name the
+shipped map didn't know resolved to nothing — which on an `->iconButton()` meant
+a button with no icon and no label either: present, focusable, clickable, and
+completely invisible, with nothing thrown and nothing logged. There was also
+nowhere to register a name the package doesn't ship except patching a published
+file that every upgrade overwrites.
+
 ### Added
 
 - **`registerIcons()` — the icon map finally has a registration point**
