@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.174.0] - 2026-08-25
+
+Imports, rebuilt for wide files and huge ones. A file with twenty or more
+columns destroyed the dialog: everything — parse options, one select per target
+column, a full-width preview table — lived in one unbounded panel, so the modal
+grew past the viewport and stranded its own actions. Underneath, the queued job
+read the **whole file into an array** before importing a single row, which a
+million-row upload does not survive.
+
 ### Added
 
 - **A three-step import wizard** (published). `KinetixImporter` is now
