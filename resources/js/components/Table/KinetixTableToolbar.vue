@@ -154,7 +154,7 @@ const layoutClass = computed<string>(() => {
                             <template #icon>
                                 <component
                                     :is="resolveIcon(action.icon)"
-                                    v-if="action.icon"
+                                    v-if="resolveIcon(action.icon)"
                                 />
                             </template>
                             {{ action.label }}

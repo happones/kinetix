@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { resolveIcon } from '@/composables/useKinetixIcons';
+import { isIconOnlyAction, resolveIcon } from '@/composables/useKinetixIcons';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixAction,
@@ -86,15 +86,19 @@ const shellProps = computed(() =>
                     :key="idx"
                     type="button"
                     :class="actionClass(action)"
-                    :title="action.isIconButton ? action.label : undefined"
-                    :aria-label="action.isIconButton ? action.label : undefined"
+                    :title="isIconOnlyAction(action) ? action.label : undefined"
+                    :aria-label="
+                        isIconOnlyAction(action) ? action.label : undefined
+                    "
                     @click="emit('run-action', action)"
                 >
                     <component
                         :is="resolveIcon(action.icon)"
-                        v-if="action.icon"
+                        v-if="resolveIcon(action.icon)"
                     />
-                    <span v-if="!action.isIconButton">{{ action.label }}</span>
+                    <span v-if="!isIconOnlyAction(action)">{{
+                        action.label
+                    }}</span>
                 </button>
             </div>
         </div>

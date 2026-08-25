@@ -342,6 +342,18 @@ A file that lines up one-for-one **skips step 2** and lands on review directly.
 **Start import** stays disabled until every required column is mapped, and the
 mapping step says how many are still missing.
 
+<Screenshot name="importer-options" alt="The reading options expanded: delimiter, text enclosure and omit-lines on one aligned row, with the header-row checkbox on its own line" />
+
+<Screenshot name="importer-mapping" alt="The mapping step: a labelled select per target column, a progress counter, and a note naming the source column that will be ignored" />
+
+The reading options are a **`<KinetixCollapsible>`** primitive (`open` /
+`defaultOpen` / `title` / `summary` / `bare` props, `#trigger` slot) — a shadcn
+Collapsible built on Reka UI, animating its real height, reusable anywhere you
+want a disclosure and not only here. Its field grid measures **its own** width
+rather than the viewport's, which is the point: this form lives in a dialog
+whose width does not follow the screen, so viewport breakpoints squeezed it into
+columns the labels could not fit.
+
 Why three steps rather than one panel: a single scrolling panel had to hold the
 options, one select per column and a full-width preview at once, so a file with
 twenty or more columns grew the dialog past the viewport and stranded its own

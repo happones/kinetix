@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Tests\Concerns\CreatesPermissionTables;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Foundation\Application;
@@ -236,5 +237,31 @@ class DoctorCommandTest extends TestCase
         $this->assertSame(1, $exit);
         $this->assertGreaterThan(0, $payload['errors']);
         $this->assertContains('Membership', array_column($payload['findings'], 'section'));
+    }
+
+    public function test_drifted_icon_map_is_pointed_at_register_icons_instead_of_generic_advice(): void
+    {
+        $target = resource_path('js/composables/useKinetixIcons.ts');
+        File::ensureDirectoryExists(dirname($target));
+        File::put($target, "// edited by the host\n");
+
+        // A baseline recording a DIFFERENT hash is what marks the file as
+        // locally edited.
+        $manifest = PublishedFiles::manifestPath();
+        File::ensureDirectoryExists(dirname($manifest));
+        File::put($manifest, (string) json_encode([
+            'resources/js/composables/useKinetixIcons.ts' => md5('the published contents'),
+        ]));
+
+        try {
+            Artisan::call('kinetix:doctor');
+            $output = Artisan::output();
+        } finally {
+            File::delete($target);
+            File::delete($manifest);
+        }
+
+        $this->assertStringContainsString('registerIcons', $output);
+        $this->assertStringContainsString('app.ts', $output);
     }
 }

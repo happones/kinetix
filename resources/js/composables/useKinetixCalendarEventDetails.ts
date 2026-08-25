@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 import { dateKeyOf } from '@/composables/kinetixCalendarDates';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
+import { isIconOnlyAction } from '@/composables/useKinetixIcons';
 import {
     actionButtonVariant,
     buttonVariants,
@@ -74,7 +75,9 @@ export function useKinetixCalendarEventDetails(
     const eventActionClass = (action: KinetixAction): string =>
         buttonVariants({
             variant: action.color ? actionButtonVariant(action.color) : 'ghost',
-            size: action.isIconButton ? 'icon-sm' : 'sm',
+            // See KinetixTable: an unresolvable icon degrades to the label, so
+            // the button must not be sized icon-only.
+            size: isIconOnlyAction(action) ? 'icon-sm' : 'sm',
         });
 
     const dateFmt = computed(

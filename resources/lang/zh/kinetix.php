@@ -96,7 +96,7 @@ return [
     'import_exact_match'                => '文件与该导入器完全匹配——所有字段已自动映射。',
     'import_required_field'             => '必填',
     'import_unnamed_column'             => '第 :number 列',
-    'import_unused_columns'             => '有 :count 个来源列未映射，将被忽略：:columns',
+    'import_unused_columns'             => '未映射，将被忽略（:count）：:columns',
     'import_preview_sample'             => '前 :rows 行的样本 · 显示 :columns / :total 列',
     'import_preview_show_all_columns'   => '再显示 :count 列',
     'import_preview_show_fewer_columns' => '显示更少列',

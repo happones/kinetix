@@ -44,7 +44,10 @@ const actionClass = (action: { color?: string | null }): string =>
                 :class="actionClass(action)"
                 @click="emit('run-action', action)"
             >
-                <component :is="resolveIcon(action.icon)" v-if="action.icon" />
+                <component
+                    :is="resolveIcon(action.icon)"
+                    v-if="resolveIcon(action.icon)"
+                />
                 {{ action.label }}
             </button>
         </div>

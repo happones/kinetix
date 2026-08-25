@@ -131,11 +131,12 @@ const fieldId = (name: string): string =>
                         class="size-4 top-2.5 left-3 absolute text-muted-foreground"
                         aria-hidden="true"
                     />
+                    <!-- No placeholder: it would only echo the visible
+                         label directly above it. -->
                     <input
                         :id="searchId"
                         v-model="search"
                         type="search"
-                        :placeholder="t('kinetix.import_mapping_search')"
                         :class="[inputClass, 'pl-9']"
                     />
                 </div>
@@ -196,12 +197,16 @@ const fieldId = (name: string): string =>
                     :for="fieldId(column.name)"
                     class="sm:w-2/5 min-w-0 shrink-0"
                 >
-                    <span class="min-w-0 truncate">{{ column.label }}</span>
-                    <span
-                        v-if="column.isRequired"
-                        class="text-destructive"
-                        :aria-label="t('kinetix.import_required_field')"
-                        >*</span
+                    <!-- One span, so the required marker sits against the
+                         label instead of a gap away from it. -->
+                    <span class="min-w-0 truncate"
+                        >{{ column.label
+                        }}<span
+                            v-if="column.isRequired"
+                            class="text-destructive"
+                            :aria-label="t('kinetix.import_required_field')"
+                            >&nbsp;*</span
+                        ></span
                     >
                 </KinetixLabel>
 

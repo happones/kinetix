@@ -96,7 +96,7 @@ return [
     'import_exact_match'                => 'Файл полностью соответствует этому импортёру — все поля сопоставлены автоматически.',
     'import_required_field'             => 'Обязательное',
     'import_unnamed_column'             => 'Столбец :number',
-    'import_unused_columns'             => 'Столбцов файла без сопоставления — :count, они будут пропущены: :columns',
+    'import_unused_columns'             => 'Без сопоставления, будут пропущены (:count): :columns',
     'import_preview_sample'             => 'Образец первых :rows строк · показано столбцов: :columns из :total',
     'import_preview_show_all_columns'   => 'Показать ещё столбцов: :count',
     'import_preview_show_fewer_columns' => 'Показать меньше столбцов',

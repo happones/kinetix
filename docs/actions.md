@@ -24,13 +24,13 @@ Action::make('edit')
 |---|---|
 | `::make(string $name)` | Create an action |
 | `->label(string)` | Button text |
-| `->icon(string, string $position = 'before')` | Lucide icon name |
+| `->icon(string, string $position = 'before')` | Lucide icon name — see [Icons](icons.md) for the shipped set and how to register your own |
 | `->url(string\|Closure, bool $newTab = false)` | Navigate on click; closure receives the record |
 | `->route(string $name, array $params = [], string $method = 'get')` | Point at a **named route** — the intuitive CRUD wiring (see below) |
 | `->inertiaVisit(string $url, array $options = [])` | SPA visit via `router.visit()` (supports `method`) |
 | `->dispatch(string $event, array $data = [])` | Fire a `kinetix:{event}` browser event |
 | `->button()` / `->link()` | Render style |
-| `->iconButton(bool = true)` | Compact **icon-only** button — no visible label, no outline (the shadcn row-action style). The label is kept for `aria-label`/tooltip, so always set `->icon()` too. |
+| `->iconButton(bool = true)` | Compact **icon-only** button — no visible label, no outline (the shadcn row-action style). The label is kept for `aria-label`/tooltip, so always set `->icon()` too. If the icon name cannot be resolved the button falls back to showing its **label** rather than rendering empty — see [Icons](icons.md). |
 | `->color(string)` | `primary` · `secondary` · `success` · `warning` · `info` · `danger` · `gray` |
 | `->icon(?string, $position = 'before')` | Lucide icon name; pass `null` to remove it |
 | `->size(string)` | `xs` · `sm` · `md` · `lg` |

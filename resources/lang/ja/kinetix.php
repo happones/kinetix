@@ -96,7 +96,7 @@ return [
     'import_exact_match'                => 'ファイルはこのインポーターと完全に一致しました。すべての項目が自動で割り当てられました。',
     'import_required_field'             => '必須',
     'import_unnamed_column'             => '列 :number',
-    'import_unused_columns'             => ':count 件の元の列が未割り当てのため無視されます: :columns',
+    'import_unused_columns'             => '未割り当てのため無視されます（:count）: :columns',
     'import_preview_sample'             => '先頭 :rows 行のサンプル · :total 列のうち :columns 列を表示',
     'import_preview_show_all_columns'   => 'さらに :count 列を表示',
     'import_preview_show_fewer_columns' => '表示する列を減らす',

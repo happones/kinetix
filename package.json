@@ -21,7 +21,8 @@
         "types:check": "vue-tsc --noEmit",
         "prepare": "husky",
         "test:e2e": "node scripts/e2e-relation-managers.mjs",
-    "test:e2e:modals": "node scripts/e2e-modal-scroll.mjs"
+    "test:e2e:modals": "node scripts/e2e-modal-scroll.mjs",
+        "test:e2e:collapsible": "node scripts/e2e-collapsible.mjs"
     },
     "lint-staged": {
         "*.php": "vendor/bin/pint",

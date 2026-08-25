@@ -221,7 +221,7 @@ Displays text strings with additional formatting structures:
 Displays an icon based on value states:
 - `boolean()`: Helper to automatically show checkmark circles for `true` and cross circles for `false`.
 - `trueIcon()` / `falseIcon()` / `trueColor()` / `falseColor()`: Customize the boolean pair (`->boolean()->trueIcon('shield-check')->falseColor('gray')`).
-- `options(array $options)`: Maps icon names to conditional statements or values. Any name from the shared Kinetix icon map works.
+- `options(array $options)`: Maps icon names to conditional statements or values. Any name from the shared Kinetix icon map works — plus anything you registered yourself (see [Icons](icons.md)).
 - `colors(array $colors)`: Maps color labels to statements or values.
 - `size(int $size)`: Icon size in pixels (default 20).
 

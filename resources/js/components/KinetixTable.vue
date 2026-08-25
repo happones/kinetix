@@ -15,7 +15,7 @@ import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixColumnVisibility } from '@/composables/useKinetixColumnVisibility';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
-import { resolveIcon } from '@/composables/useKinetixIcons';
+import { isIconOnlyAction, resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixRecordModals } from '@/composables/useKinetixRecordModals';
 import { useKinetixRowSelection } from '@/composables/useKinetixRowSelection';
 import {
@@ -70,12 +70,15 @@ const routePrefix = computed(
 // shadcn-vue (new-york) button UI for row actions. Record actions default to a
 // light `ghost` so rows stay clean; an explicit action color is always honored.
 const recordActionClass = (action: {
+    icon?: string | null;
     color?: string | null;
     isIconButton?: boolean;
 }) =>
     buttonVariants({
         variant: action.color ? actionButtonVariant(action.color) : 'ghost',
-        size: action.isIconButton ? 'icon-sm' : 'sm',
+        // `isIconOnlyAction`, not `isIconButton`: an icon button whose icon does
+        // not resolve falls back to its label, so it must not be icon-sized.
+        size: isIconOnlyAction(action) ? 'icon-sm' : 'sm',
     });
 
 // --- Search + filters state --------------------------------------------------
@@ -590,12 +593,12 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                             :disabled="actionProcessing"
                                             :class="recordActionClass(action)"
                                             :title="
-                                                action.isIconButton
+                                                isIconOnlyAction(action)
                                                     ? action.label
                                                     : undefined
                                             "
                                             :aria-label="
-                                                action.isIconButton
+                                                isIconOnlyAction(action)
                                                     ? action.label
                                                     : undefined
                                             "
@@ -608,11 +611,12 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                         >
                                             <component
                                                 :is="resolveIcon(action.icon)"
-                                                v-if="action.icon"
+                                                v-if="resolveIcon(action.icon)"
                                             />
-                                            <span v-if="!action.isIconButton">{{
-                                                action.label
-                                            }}</span>
+                                            <span
+                                                v-if="!isIconOnlyAction(action)"
+                                                >{{ action.label }}</span
+                                            >
                                         </button>
                                     </template>
                                 </div>
@@ -671,7 +675,9 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                                     :is="
                                                         resolveIcon(action.icon)
                                                     "
-                                                    v-if="action.icon"
+                                                    v-if="
+                                                        resolveIcon(action.icon)
+                                                    "
                                                 />
                                             </template>
                                             {{ action.label }}
@@ -729,7 +735,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                         <template #icon>
                             <component
                                 :is="resolveIcon(action.icon)"
-                                v-if="action.icon"
+                                v-if="resolveIcon(action.icon)"
                             />
                         </template>
                         {{ action.label }}

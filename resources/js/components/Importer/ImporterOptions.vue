@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ChevronDown, RefreshCw } from '@lucide/vue';
-import { computed, ref, useId } from 'vue';
+import { RefreshCw } from '@lucide/vue';
+import { computed, useId } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixButton from '../KinetixButton.vue';
 import KinetixCheckbox from '../KinetixCheckbox.vue';
+import KinetixCollapsible from '../KinetixCollapsible.vue';
 import KinetixLabel from '../KinetixLabel.vue';
 import KinetixSelect from '../KinetixSelect.vue';
 
@@ -16,6 +17,13 @@ import KinetixSelect from '../KinetixSelect.vue';
  * putting four controls in front of the user before they have even chosen a
  * file is what made the dialog feel heavy. The summary line keeps the current
  * settings visible while collapsed, so nothing is hidden, only folded.
+ *
+ * The field grid measures ITS OWN width (a container query), not the viewport's.
+ * Viewport breakpoints were wrong here: this form lives in a dialog of a fixed
+ * width, so `lg:grid-cols-4` fired on any wide screen and squeezed four columns
+ * into ~720px, wrapping the labels and breaking the row's alignment. The
+ * container query collapses to two columns in the normal dialog and only opens
+ * up in the full-screen one, where the room is real.
  */
 const props = withDefaults(
     defineProps<{
@@ -25,7 +33,7 @@ const props = withDefaults(
             skipLines: number;
             hasHeader: boolean;
         };
-        /** Show the "apply" button — only meaningful once a file is parsed. */
+        /** Show the "re-read" button — only meaningful once a file is parsed. */
         canApply?: boolean;
         loading?: boolean;
         /** Start expanded (e.g. when a parse clearly went wrong). */
@@ -49,11 +57,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-const isOpen = ref(props.expanded);
-const contentId = `kinetix-import-options-${useId()}`;
-const skipLinesId = `kinetix-import-skip-${useId()}`;
-const delimiterId = `kinetix-import-delimiter-${useId()}`;
-const enclosureId = `kinetix-import-enclosure-${useId()}`;
+const uid = useId();
+const skipLinesId = `kinetix-import-skip-${uid}`;
+const delimiterId = `kinetix-import-delimiter-${uid}`;
+const enclosureId = `kinetix-import-enclosure-${uid}`;
+const hasHeaderId = `kinetix-import-header-${uid}`;
 
 const delimiterOptions = computed<Record<string, string>>(() => ({
     ',': t('kinetix.import_delimiter_comma'),
@@ -88,38 +96,24 @@ const summary = computed(() => {
 
     return parts.join(' · ');
 });
+
+const onSkipLines = (event: Event): void => {
+    const raw = Number((event.target as HTMLInputElement).value);
+
+    emit('update', { skipLines: Math.max(0, Number.isFinite(raw) ? raw : 0) });
+};
 </script>
 
 <template>
-    <div class="rounded-xl border border-border">
-        <button
-            type="button"
-            class="px-4 py-3 gap-3 rounded-xl flex w-full items-center text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            :aria-expanded="isOpen"
-            :aria-controls="contentId"
-            @click="isOpen = !isOpen"
-        >
-            <ChevronDown
-                class="size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none"
-                :class="isOpen ? 'rotate-0' : '-rotate-90'"
-                aria-hidden="true"
-            />
-            <span class="min-w-0 flex-1">
-                <span class="text-sm font-medium block text-foreground">
-                    {{ t('kinetix.import_parse_options') }}
-                </span>
-                <span class="text-xs block truncate text-muted-foreground">
-                    {{ summary }}
-                </span>
-            </span>
-        </button>
-
-        <div
-            v-show="isOpen"
-            :id="contentId"
-            class="px-4 pb-4 gap-4 flex flex-col"
-        >
-            <div class="gap-4 sm:grid-cols-2 lg:grid-cols-4 grid grid-cols-1">
+    <KinetixCollapsible
+        :default-open="expanded"
+        :title="t('kinetix.import_parse_options')"
+        :summary="summary"
+    >
+        <div class="kx-import-options gap-4 flex flex-col">
+            <!-- The three value fields. Each cell is label-over-field, so every
+                 field in a row shares one baseline whatever the column count. -->
+            <div class="kx-import-options-grid gap-4 grid">
                 <div class="gap-1.5 flex flex-col">
                     <KinetixLabel :for="delimiterId">
                         {{ t('kinetix.delimiter') }}
@@ -155,31 +149,23 @@ const summary = computed(() => {
                         min="0"
                         inputmode="numeric"
                         :class="inputClass"
-                        @input="
-                            emit('update', {
-                                skipLines: Math.max(
-                                    0,
-                                    Number(
-                                        ($event.target as HTMLInputElement)
-                                            .value,
-                                    ) || 0,
-                                ),
-                            })
-                        "
+                        @input="onSkipLines"
                     />
                 </div>
+            </div>
 
-                <div class="gap-2 flex items-end">
-                    <label
-                        class="h-9 gap-2 text-sm flex cursor-pointer items-center text-foreground"
-                    >
-                        <KinetixCheckbox
-                            :checked="options.hasHeader"
-                            @change="emit('update', { hasHeader: $event })"
-                        />
-                        {{ t('kinetix.has_header') }}
-                    </label>
-                </div>
+            <!-- The boolean gets its own row rather than a fourth grid cell:
+                 a checkbox has no label-above-field stack, so sitting it beside
+                 three that do is what made the row look misaligned. -->
+            <div class="gap-2 flex items-center">
+                <KinetixCheckbox
+                    :id="hasHeaderId"
+                    :checked="options.hasHeader"
+                    @change="emit('update', { hasHeader: $event })"
+                />
+                <KinetixLabel :for="hasHeaderId" class="cursor-pointer">
+                    {{ t('kinetix.has_header') }}
+                </KinetixLabel>
             </div>
 
             <p class="text-xs text-muted-foreground">
@@ -200,5 +186,36 @@ const summary = computed(() => {
                 </KinetixButton>
             </div>
         </div>
-    </div>
+    </KinetixCollapsible>
 </template>
+
+<style scoped>
+/*
+ * The grid measures its own width, not the viewport's — the whole point, since
+ * this form sits in a dialog whose width does not follow the screen. One column
+ * when cramped, two when a label still fits, three — one row, no orphan cell —
+ * once all three fields fit side by side.
+ */
+.kx-import-options {
+    container-type: inline-size;
+}
+
+.kx-import-options-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 22rem) {
+    .kx-import-options-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Three fields, three columns — one row, every label on one line, no orphan
+   cell next to an empty one. Below this the grid steps down instead of
+   wrapping a label. */
+@container (min-width: 34rem) {
+    .kx-import-options-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+</style>

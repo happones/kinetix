@@ -96,7 +96,7 @@ return [
     'import_exact_match'                => 'The file matches this importer exactly — every field was mapped for you.',
     'import_required_field'             => 'Required',
     'import_unnamed_column'             => 'Column :number',
-    'import_unused_columns'             => ':count source columns are not mapped and will be ignored: :columns',
+    'import_unused_columns'             => 'Not mapped, so ignored (:count): :columns',
     'import_preview_sample'             => 'Sample of the first :rows rows · showing :columns of :total columns',
     'import_preview_show_all_columns'   => 'Show :count more columns',
     'import_preview_show_fewer_columns' => 'Show fewer columns',

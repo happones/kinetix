@@ -431,6 +431,18 @@ class DoctorCommand extends Command
             .'platform-admin role rather than a per-team one.');
     }
 
+    /**
+     * Published files with a supported extension point, and the hint that names
+     * it — so `doctor` never tells you to "use config" for a file that has no
+     * config key.
+     *
+     * @var array<string, string>
+     */
+    protected const DRIFT_HATCHES = [
+        'useKinetixIcons.ts' => 'For useKinetixIcons.ts specifically: call registerIcons({ \'my-name\': MyIcon }) '
+            .'once from resources/js/app.ts instead — a file Kinetix never publishes, so an upgrade cannot drop it.',
+    ];
+
     protected function checkFrontend(): void
     {
         $bundles = PublishedFiles::i18nBundles();
@@ -461,9 +473,19 @@ class DoctorCommand extends Command
             return;
         }
 
-        $this->warn_('Publishes', count($drifted).' published file(s) have local edits',
-            'kinetix:upgrade re-publishes with --force on every composer install, so these edits will be lost. '
-            .'Move the change into a wrapper, a slot, or config.', $drifted);
+        $hint = 'kinetix:upgrade re-publishes with --force on every composer install, so these edits will be lost. '
+            .'Move the change into a wrapper, a slot, or config.';
+
+        // Generic advice is useless when the file has a PURPOSE-BUILT hatch,
+        // so name it. Patching the icon map is the common case: it used to be
+        // the only way to declare an icon Kinetix doesn't ship.
+        foreach (static::DRIFT_HATCHES as $needle => $advice) {
+            if (array_filter($drifted, fn (string $file): bool => str_contains($file, $needle)) !== []) {
+                $hint .= ' '.$advice;
+            }
+        }
+
+        $this->warn_('Publishes', count($drifted).' published file(s) have local edits', $hint, $drifted);
     }
 
     // --------------------------------------------------------------- output

@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixClientTable } from '@/composables/useKinetixClientTable';
-import { resolveIcon } from '@/composables/useKinetixIcons';
+import { isIconOnlyAction, resolveIcon } from '@/composables/useKinetixIcons';
 import {
     actionButtonVariant,
     buttonVariants,
@@ -96,12 +96,15 @@ watch(
 );
 
 const recordActionClass = (action: {
+    icon?: string | null;
     color?: string | null;
     isIconButton?: boolean;
 }) =>
     buttonVariants({
         variant: action.color ? actionButtonVariant(action.color) : 'ghost',
-        size: action.isIconButton ? 'icon-sm' : 'sm',
+        // See KinetixTable: an unresolvable icon degrades to the label, so the
+        // button must not be sized icon-only.
+        size: isIconOnlyAction(action) ? 'icon-sm' : 'sm',
     });
 
 const {
@@ -201,7 +204,7 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                     >
                         <component
                             :is="resolveIcon(action.icon)"
-                            v-if="action.icon"
+                            v-if="resolveIcon(action.icon)"
                         />
                         {{ action.label }}
                     </button>
@@ -296,12 +299,12 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                                         :disabled="processing"
                                         :class="recordActionClass(action)"
                                         :title="
-                                            action.isIconButton
+                                            isIconOnlyAction(action)
                                                 ? action.label
                                                 : undefined
                                         "
                                         :aria-label="
-                                            action.isIconButton
+                                            isIconOnlyAction(action)
                                                 ? action.label
                                                 : undefined
                                         "
@@ -311,11 +314,12 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                                     >
                                         <component
                                             :is="resolveIcon(action.icon)"
-                                            v-if="action.icon"
+                                            v-if="resolveIcon(action.icon)"
                                         />
-                                        <span v-if="!action.isIconButton">{{
-                                            action.label
-                                        }}</span>
+                                        <span
+                                            v-if="!isIconOnlyAction(action)"
+                                            >{{ action.label }}</span
+                                        >
                                     </button>
                                 </template>
                             </div>

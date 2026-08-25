@@ -13,6 +13,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`registerIcons()` — the icon map finally has a registration point**
+  (published). Every icon is declared from PHP by name, and a name the shipped
+  map didn't know resolved to `null`. The only way to add one was to patch the
+  published `useKinetixIcons.ts`, which `kinetix:upgrade --force` drops on every
+  bump — and `doctor`'s advice for a drifted published file ("move it into a
+  wrapper, a slot, or config") had no target here: there is no icon config key,
+  no slot for a row action's icon, and 21 published components import the
+  composable, so "wrap it" meant patching 21 files instead of one.
+
+  ```ts
+  // resources/js/app.ts — a file Kinetix never publishes
+  import { Forklift } from '@lucide/vue';
+  import { registerIcons } from '@/composables/useKinetixIcons';
+
+  registerIcons({ forklift: Forklift });
+  ```
+
+  Icons are passed as **components, not strings**, so the host's bundler still
+  tree-shakes — which is why there is deliberately no `kinetix.icons` config
+  block, and why a registered name can come from any icon set or be a component
+  of your own. A registration **overrides** a shipped name, making this also the
+  supported way to swap an icon without editing a published component.
+  `registeredIconNames()` lists everything resolvable, sorted, for a host test
+  that asserts every name the app declares actually resolves. New docs page:
+  [Icons](https://happones.github.io/kinetix/icons), plus a `kinetix-icons`
+  Boost skill.
+- **37 more icon names ship** (published): the ordinary vocabulary a
+  line-of-business app reaches for on day one, rather than leaving every host to
+  register the same list. Commerce (`store`, `printer`, `receipt`, `truck`,
+  `banknote`, `hand-coins`, `shopping-basket`, `archive`), org
+  (`building`, `building-2`, `briefcase`, `home`, `globe`, `crown`), status
+  (`ban`, `shield`, `shield-check`, `lock-open`, `minus-circle`,
+  `check-circle-2`, `user-check`, `snowflake`), actions/layout (`refresh-cw`,
+  `arrow-left-right`, `history`, `more-horizontal`, `table`, `grid-3x3`,
+  `file-text`, `help-circle`, `webhook`, `wrench`, `sparkles`, `heart`) and
+  trades (`stethoscope`, `pill`, `utensils-crossed`).
+- **`<KinetixCollapsible>`** (published): the shadcn-vue new-york-v4 Collapsible
+  on Reka UI's `Collapsible*` — a real `<button>` with `aria-expanded`, and an
+  actual height animation. (`height: auto` cannot be animated, so the keyframes
+  interpolate to the height Reka measures and publishes as
+  `--reka-collapsible-content-height`; they live in the component's own scoped
+  style, so the animation never depends on the host having declared shadcn's.)
+  Props `open` / `defaultOpen` / `title` / `summary` / `disabled` / `bare`,
+  slots `default` / `trigger`. The import dialog's reading options were a
+  hand-rolled `v-show` with no animation; they now use it, and so should any new
+  disclosure. Verified in a browser by `npm run test:e2e:collapsible`.
+- **`kinetix:doctor` names the escape hatch it knows about.** A drifted
+  `useKinetixIcons.ts` now gets told about `registerIcons()` specifically,
+  instead of generic advice that did not apply to it.
+
+### Fixed
+
+- **An action with an unknown icon name no longer renders an invisible button.**
+  The renderers guarded on the NAME (`v-if="action.icon"`), not on the resolved
+  component, so an unresolvable name rendered no icon — and on an
+  `->iconButton()` no label either, because an icon button hides it. The result
+  was a button that was present, focusable and clickable with nothing drawn in
+  it; nothing threw and nothing logged. An icon button whose icon does not
+  resolve now falls back to its **label** and gives up its icon-only sizing
+  (`isIconOnlyAction()` is the one predicate the size variant, the
+  `title`/`aria-label` and the label all agree on), and every other call site
+  guards on the resolved component. In a development build, the first
+  unresolvable name is logged with the fix — once per name, so a 500-row table
+  does not flood the console.
+- **The import dialog's reading options were misaligned** (published). The field
+  grid used viewport breakpoints (`lg:grid-cols-4`), but the form lives in a
+  dialog whose width does not follow the screen: on any wide monitor it squeezed
+  four columns into ~720px, wrapping the labels and breaking the row's baseline.
+  It now measures **its own** width with a container query — one row of three
+  aligned fields where there is room, stepping down instead of wrapping — and
+  the header-row checkbox moved to its own row, since a checkbox has no
+  label-over-field stack to share a baseline with. Also: the mapping search no
+  longer carries a placeholder that merely echoed its visible label, and the
+  required-field marker sits against its label instead of a gap away.
+
+### Changed
+
+- The import wizard's "columns will be ignored" note is phrased for any count
+  (the shipped catalogs have no plural-form convention), so it reads correctly
+  for one column as well as for several.
+
+
 ## [0.174.0] - 2026-08-25
 
 Imports, rebuilt for wide files and huge ones. A file with twenty or more

@@ -96,7 +96,7 @@ return [
     'import_exact_match'                => 'O arquivo corresponde exatamente a este importador — todos os campos foram mapeados automaticamente.',
     'import_required_field'             => 'Obrigatório',
     'import_unnamed_column'             => 'Coluna :number',
-    'import_unused_columns'             => ':count colunas do arquivo não estão mapeadas e serão ignoradas: :columns',
+    'import_unused_columns'             => 'Sem mapeamento, serão ignoradas (:count): :columns',
     'import_preview_sample'             => 'Amostra das primeiras :rows linhas · :columns de :total colunas',
     'import_preview_show_all_columns'   => 'Mostrar mais :count colunas',
     'import_preview_show_fewer_columns' => 'Mostrar menos colunas',

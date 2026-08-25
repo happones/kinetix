@@ -96,7 +96,7 @@ return [
     'import_exact_match'                => 'El archivo coincide exactamente con este importador: todos los campos se asignaron automáticamente.',
     'import_required_field'             => 'Obligatorio',
     'import_unnamed_column'             => 'Columna :number',
-    'import_unused_columns'             => ':count columnas del archivo no están asignadas y se ignorarán: :columns',
+    'import_unused_columns'             => 'Sin asignar, se ignoran (:count): :columns',
     'import_preview_sample'             => 'Muestra de las primeras :rows filas · :columns de :total columnas',
     'import_preview_show_all_columns'   => 'Mostrar :count columnas más',
     'import_preview_show_fewer_columns' => 'Mostrar menos columnas',

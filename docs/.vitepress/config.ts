@@ -99,6 +99,7 @@ export default withMermaid(
           { text: "Onboarding", link: "/onboarding" },
           { text: "Product Tours", link: "/tours" },
           { text: "Help Center", link: "/help-center" },
+          { text: "Icons", link: "/icons" },
           { text: "Accessibility", link: "/accessibility" },
           { text: "Language Switcher", link: "/locale" },
           { text: "Team Switcher", link: "/team-switcher" },

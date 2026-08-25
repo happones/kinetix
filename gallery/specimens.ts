@@ -44,6 +44,8 @@ import KinetixReportRunsTable from '@/components/KinetixReportRunsTable.vue';
 import KinetixReportSchedules from '@/components/KinetixReportSchedules.vue';
 import KinetixReportsCenter from '@/components/KinetixReportsCenter.vue';
 import KinetixConfidentialUnlock from '@/components/KinetixConfidentialUnlock.vue';
+import ImporterOptions from '@/components/Importer/ImporterOptions.vue';
+import ImporterMapping from '@/components/Importer/ImporterMapping.vue';
 
 // The onboarding checklist's `sidebar` variant is sized for a navigation rail,
 // so the specimens frame it in a mock one — nav rows above, the account row
@@ -1715,7 +1717,74 @@ const HeaderControls: Component = {
         ]),
 };
 
+// Import wizard fixtures. The reading-options form is the case that used to
+// break: viewport breakpoints squeezed four columns into a dialog that is ~720px
+// wide whatever the screen, so the labels wrapped and the row lost its baseline.
+const importParseOptions = {
+    delimiter: ',',
+    enclosure: '"',
+    skipLines: 2,
+    hasHeader: true,
+};
+
+const importMappingColumns = [
+    { name: 'sku', label: 'SKU', isRequired: true, guesses: [] },
+    { name: 'name', label: 'Product name', isRequired: true, guesses: [] },
+    { name: 'price', label: 'Unit price', isRequired: false, guesses: [] },
+    { name: 'stock', label: 'Stock on hand', isRequired: false, guesses: [] },
+    { name: 'barcode', label: 'Barcode', isRequired: false, guesses: [] },
+    { name: 'category', label: 'Category', isRequired: false, guesses: [] },
+];
+
 export const specimens: Specimen[] = [
+    {
+        name: 'importer-options',
+        title: 'Import — reading options (expanded)',
+        component: ImporterOptions,
+        frame: 'card',
+        // The width of the default import dialog, which is what the field grid
+        // has to lay itself out in — not the viewport's.
+        width: 720,
+        props: { options: importParseOptions, canApply: true, expanded: true },
+    },
+    {
+        name: 'importer-options-collapsed',
+        title: 'Import — reading options (collapsed)',
+        component: ImporterOptions,
+        frame: 'card',
+        width: 720,
+        props: { options: importParseOptions },
+    },
+    {
+        name: 'importer-mapping',
+        title: 'Import — column mapping',
+        component: ImporterMapping,
+        frame: 'card',
+        width: 720,
+        props: {
+            columns: importMappingColumns,
+            headers: [
+                'sku',
+                'product_name',
+                'price',
+                'stock',
+                'barcode',
+                'category',
+                'notes',
+            ],
+            mapping: {
+                sku: 0,
+                name: 1,
+                price: 2,
+                stock: 3,
+                barcode: 4,
+                category: null,
+            },
+            isExactMatch: false,
+            unusedHeaders: ['notes'],
+            missingRequired: [],
+        },
+    },
     {
         name: 'wizard-stepper',
         title: 'Wizard — stepper',

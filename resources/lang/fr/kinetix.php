@@ -96,7 +96,7 @@ return [
     'import_exact_match'                => 'Le fichier correspond exactement à cet importateur — tous les champs ont été associés automatiquement.',
     'import_required_field'             => 'Obligatoire',
     'import_unnamed_column'             => 'Colonne :number',
-    'import_unused_columns'             => ':count colonnes du fichier ne sont pas associées et seront ignorées : :columns',
+    'import_unused_columns'             => 'Non associées, donc ignorées (:count) : :columns',
     'import_preview_sample'             => 'Échantillon des :rows premières lignes · :columns colonnes sur :total',
     'import_preview_show_all_columns'   => 'Afficher :count colonnes de plus',
     'import_preview_show_fewer_columns' => 'Afficher moins de colonnes',
