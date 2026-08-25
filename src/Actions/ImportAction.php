@@ -25,9 +25,9 @@ class ImportAction extends Action
     /**
      * Wire the action to the given importer. Clicking it opens the import
      * preview modal (`<KinetixImportModal>` must be mounted once in the layout),
-     * carrying the importer as a signed token — plus the template filename when
-     * the importer offers a downloadable template (default on; opt out with
-     * `protected bool $downloadableTemplate = false`).
+     * carrying the importer as a signed token — plus the dialog settings the
+     * importer resolved (template filename, preview limits, layout), so the
+     * dialog can present itself correctly before a file is chosen.
      *
      * @param class-string<Importer> $importerClass
      */
@@ -38,7 +38,11 @@ class ImportAction extends Action
 
         $this->dispatch('open-importer', [
             'importer' => $importerClass::token(),
-            'template' => $importer->hasDownloadableTemplate() ? $importer->getTemplateFileName() : null,
+            'template' => $importer->settings()->template,
+            // The dialog's resolved settings travel WITH the event, so the
+            // shell can size itself (modal / full screen / sheet) and label the
+            // upload step before any file exists.
+            'settings' => $importer->settings()->toArray(),
         ]);
 
         return $this;

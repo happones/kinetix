@@ -1,481 +1,393 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { UploadCloud, Loader2, ArrowRight, Download } from '@lucide/vue';
-import { computed, reactive, ref } from 'vue';
+import { ArrowLeft, ArrowRight, Upload } from '@lucide/vue';
+import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
-import { kinetixFetch } from '@/composables/useKinetixHttp';
-import type { KinetixImportPreview } from '@/types/kinetix';
-import KinetixCheckbox from './KinetixCheckbox.vue';
-import KinetixSelect from './KinetixSelect.vue';
+import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
+import {
+    KINETIX_IMPORT_SETTINGS_DEFAULTS,
+    useKinetixImporter,
+} from '@/composables/useKinetixImporter';
+import type { KinetixImporterStep } from '@/composables/useKinetixImporter';
+import type {
+    KinetixImportPreview,
+    KinetixImportSettings,
+} from '@/types/kinetix';
+import ImporterDropzone from './Importer/ImporterDropzone.vue';
+import ImporterMapping from './Importer/ImporterMapping.vue';
+import ImporterOptions from './Importer/ImporterOptions.vue';
+import ImporterPreview from './Importer/ImporterPreview.vue';
+import ImporterSteps from './Importer/ImporterSteps.vue';
+import KinetixButton from './KinetixButton.vue';
+import ScrollArea from './primitives/ScrollArea.vue';
 
+/**
+ * The import wizard: choose a file → confirm the column mapping → review and
+ * start.
+ *
+ * Why three steps: a single scrolling panel had to hold the parse options, one
+ * select per target column and a preview table at once, so a file with twenty
+ * or more columns grew the dialog past the viewport and stranded its own
+ * actions. Each step is now bounded, and the file's width only ever affects the
+ * step that is actually showing it.
+ *
+ * Scale is a server concern and stays one: the preview is a SAMPLE
+ * (`settings.previewRows` rows, which is also the reader's ceiling), the row
+ * count is counted rather than parsed, and the import itself streams. Nothing
+ * here grows with the size of the file — a million-row upload behaves like a
+ * ten-row one.
+ *
+ * `surface` says who owns the scrolling, so the same component works inline on
+ * a page, in a modal, in a full-screen modal and in a sheet.
+ */
 const props = withDefaults(
     defineProps<{
         importer: string;
         routePrefix?: string | null;
         /**
-         * Template filename when the importer offers a downloadable template
-         * (serialized by ImportAction; null hides the link).
+         * Template filename when the importer offers a downloadable template.
+         * Superseded by `settings.template`; kept for callers that pass it
+         * alone.
          */
         template?: string | null;
+        /**
+         * The importer's resolved dialog settings (preview limits, layout,
+         * upload ceiling). `ImportAction` sends these with the
+         * `open-importer` event; until the first upload answers with the real
+         * ones, these are what the dialog uses.
+         */
+        settings?: KinetixImportSettings | null;
+        /**
+         * Where the wizard is rendered, which decides what scrolls:
+         * `inline` — the page scrolls (default, for a wizard placed on a page);
+         * `modal` — the step body scrolls, capped so the dialog stays put;
+         * `fullscreen` — the step body fills the panel;
+         * `sheet` — the host panel already scrolls, so the wizard adds none.
+         */
+        surface?: 'inline' | 'modal' | 'fullscreen' | 'sheet';
     }>(),
     {
         routePrefix: null,
         template: null,
+        settings: null,
+        surface: 'inline',
     },
 );
 
+const emit = defineEmits<{
+    /** The parsed file's source-column count (0 before a file is parsed). */
+    (e: 'update:columns', count: number): void;
+    /** The import was queued — the dialog can close. */
+    (e: 'started', message: string | null): void;
+    /** The user backed out. */
+    (e: 'cancel'): void;
+}>();
+
 const { t } = useI18n();
 const page = usePage();
+const { announce } = useKinetixAnnounce();
 
 const prefix = computed(
     () =>
-        (page.props.kinetix_config as any)?.route_prefix ??
+        (page.props.kinetix_config as { route_prefix?: string } | undefined)
+            ?.route_prefix ??
         props.routePrefix ??
         '_kinetix',
 );
 
-const templateUrl = computed(() =>
-    props.template
-        ? `/${prefix.value}/imports/template?importer=${encodeURIComponent(props.importer)}`
-        : null,
-);
+/** Caller-supplied settings, with the standalone `template` prop folded in. */
+const providedSettings = computed<KinetixImportSettings>(() => ({
+    ...KINETIX_IMPORT_SETTINGS_DEFAULTS,
+    ...(props.settings ?? {}),
+    ...(props.template ? { template: props.template } : {}),
+}));
 
-const file = ref<File | null>(null);
-const preview = ref<KinetixImportPreview | null>(null);
-const mapping = reactive<Record<string, number | null>>({});
-const loading = ref(false);
-const starting = ref(false);
-const errorMessage = ref<string | null>(null);
-
-const options = reactive({
-    delimiter: ',',
-    enclosure: '"',
-    skipLines: 0,
-    hasHeader: true,
+const {
+    file,
+    preview,
+    mapping,
+    parseOptions,
+    loading,
+    starting,
+    errorMessage,
+    step,
+    settings,
+    templateUrl,
+    headers,
+    columnCount,
+    mappedCount,
+    missingRequired,
+    unusedHeaders,
+    canStart,
+    setFile,
+    setMapping,
+    columnForHeader,
+    resetMapping,
+    upload,
+    applyParseOptions,
+    startImport,
+    goTo,
+    back,
+} = useKinetixImporter({
+    importer: () => props.importer,
+    prefix: () => prefix.value,
+    settings: () => providedSettings.value,
+    fallbackError: () => t('kinetix.import_failed'),
+    announce,
 });
 
-const delimiterOptions = [
-    { value: ',', label: 'Comma ( , )' },
-    { value: ';', label: 'Semicolon ( ; )' },
-    { value: '\t', label: 'Tab' },
-    { value: '|', label: 'Pipe ( | )' },
-];
-
-const enclosureOptions = [
-    { value: '"', label: 'Double quote ( " )' },
-    { value: "'", label: "Single quote ( ' )" },
-    { value: '', label: 'None' },
-];
-
-const delimiterOptionsMap = computed(() => {
-    const map: Record<string, string> = {};
-    delimiterOptions.forEach((opt) => {
-        map[opt.value] = opt.label;
-    });
-
-    return map;
+// The shell sizes itself from the file's width, so it needs the count.
+watch(columnCount, (count) => emit('update:columns', count), {
+    immediate: true,
 });
 
-const enclosureOptionsMap = computed(() => {
-    const map: Record<string, string> = {};
-    enclosureOptions.forEach((opt) => {
-        map[opt.value] = opt.label;
-    });
+/** Steps the indicator lets the user jump back to. */
+const reachableSteps = computed<KinetixImporterStep[]>(() => {
+    if (preview.value === null) {
+        return ['file'];
+    }
 
-    return map;
+    return canStart.value ? ['file', 'mapping', 'review'] : ['file', 'mapping'];
 });
 
-const applyPreview = (data: KinetixImportPreview) => {
-    preview.value = data;
-    options.delimiter = data.options.delimiter;
-    options.enclosure = data.options.enclosure;
-    options.skipLines = data.options.skipLines;
-    options.hasHeader = data.options.hasHeader;
-
-    // Reset mapping to the server-computed, collision-free suggestions.
-    Object.keys(mapping).forEach((key) => delete mapping[key]);
-
-    for (const column of data.columns) {
-        mapping[column.name] = data.autoMapping[column.name] ?? null;
-    }
-};
-
-const onFileChange = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    file.value = target.files?.[0] ?? null;
-};
-
-const upload = async () => {
-    if (!file.value) {
-        return;
+const canContinue = computed(() => {
+    if (step.value === 'file') {
+        return file.value !== null;
     }
 
-    loading.value = true;
-    errorMessage.value = null;
+    return canStart.value;
+});
 
-    const body = new FormData();
-    body.append('file', file.value);
-    body.append('importer', props.importer);
-    body.append('delimiter', options.delimiter);
-    body.append('enclosure', options.enclosure);
-    body.append('skipLines', String(options.skipLines));
-    body.append('hasHeader', options.hasHeader ? '1' : '0');
-
-    try {
-        const data = await kinetixFetch<KinetixImportPreview>(
-            `/${prefix.value}/imports/upload`,
-            { method: 'POST', body },
-        );
-
-        applyPreview(data as KinetixImportPreview);
-    } catch (error: any) {
-        errorMessage.value = error?.message ?? t('kinetix.import_failed');
-    } finally {
-        loading.value = false;
-    }
-};
-
-const applyOptions = async () => {
-    if (!preview.value) {
-        return;
+const stepBodyClass = computed(() => {
+    if (props.surface === 'fullscreen') {
+        return 'min-h-0 flex-1';
     }
 
-    loading.value = true;
-    errorMessage.value = null;
+    // Capped rather than unbounded: this is what keeps a fifty-column file from
+    // growing the dialog past the viewport.
+    return 'max-h-[min(55vh,32rem)]';
+});
 
-    try {
-        const data = await kinetixFetch<KinetixImportPreview>(
-            `/${prefix.value}/imports/preview`,
-            {
-                method: 'POST',
-                body: {
-                    importer: props.importer,
-                    fileToken: preview.value.fileToken,
-                    ...options,
-                },
-            },
-        );
+const onContinue = async (): Promise<void> => {
+    if (step.value === 'file') {
+        // A file that was already parsed doesn't need re-uploading to move on.
+        const alreadyParsed = preview.value;
 
-        applyPreview(data as KinetixImportPreview);
-    } catch (error: any) {
-        errorMessage.value = error?.message ?? t('kinetix.import_failed');
-    } finally {
-        loading.value = false;
-    }
-};
+        if (alreadyParsed !== null) {
+            goTo(alreadyParsed.isExactMatch ? 'review' : 'mapping');
 
-// Indices already claimed by other target columns — used to prevent collisions.
-const usedIndexes = (exceptColumn: string): Set<number> => {
-    const used = new Set<number>();
-
-    for (const [name, index] of Object.entries(mapping)) {
-        if (name !== exceptColumn && index !== null && index !== undefined) {
-            used.add(index);
+            return;
         }
-    }
 
-    return used;
-};
+        await upload();
+        const parsed = preview.value as KinetixImportPreview | null;
 
-const setMapping = (column: string, value: string) => {
-    mapping[column] = value === '' ? null : Number(value);
-};
-
-const getMappingOptions = (headers: string[]) => {
-    const record: Record<string, string> = {
-        '': t('kinetix.not_mapped'),
-    };
-
-    headers.forEach((header, index) => {
-        record[String(index)] = header;
-    });
-
-    return record;
-};
-
-const getDisabledMappingKeys = (columnName: string) => {
-    const used = usedIndexes(columnName);
-
-    return Array.from(used).map(String);
-};
-
-// Reverse lookup: which target column label (if any) a header is mapped to.
-const columnForHeader = (index: number): string | null => {
-    if (!preview.value) {
-        return null;
-    }
-
-    for (const column of preview.value.columns) {
-        if (mapping[column.name] === index) {
-            return column.label;
+        if (parsed !== null) {
+            announce(
+                t('kinetix.import_parsed_announce', {
+                    rows: parsed.totalRows,
+                    columns: parsed.headers.length,
+                }),
+            );
         }
-    }
 
-    return null;
-};
-
-const canStart = computed(() => {
-    if (!preview.value) {
-        return false;
-    }
-
-    return preview.value.columns
-        .filter((column) => column.isRequired)
-        .every(
-            (column) =>
-                mapping[column.name] !== null &&
-                mapping[column.name] !== undefined,
-        );
-});
-
-const startImport = async () => {
-    if (!preview.value || !canStart.value) {
         return;
     }
 
-    starting.value = true;
-    errorMessage.value = null;
+    if (step.value === 'mapping') {
+        goTo('review');
 
-    try {
-        const response = await kinetixFetch<{
-            status: string;
-            message?: string;
-        }>(`/${prefix.value}/imports/start`, {
-            method: 'POST',
-            body: {
-                importer: props.importer,
-                fileToken: preview.value.fileToken,
-                mapping,
-                ...options,
-            },
-        });
-
-        // The server message comes from Importer::getStartedNotificationBody(),
-        // so a customized importer message reaches the toast too.
-        toast.success(response?.message ?? t('kinetix.import_started'));
-        preview.value = null;
-        file.value = null;
-    } catch (error: any) {
-        errorMessage.value = error?.message ?? t('kinetix.import_failed');
-    } finally {
-        starting.value = false;
+        return;
     }
+
+    const message = await startImport();
+
+    if (message === null && errorMessage.value !== null) {
+        return;
+    }
+
+    // The message comes from Importer::getStartedNotificationBody(), so a
+    // customized importer message reaches the toast too.
+    const body = message ?? t('kinetix.import_started');
+    toast.success(body);
+    announce(body);
+    emit('started', message);
 };
+
+const summaryRows = computed(() => {
+    if (!preview.value) {
+        return [];
+    }
+
+    return [
+        {
+            label: t('kinetix.import_summary_file'),
+            value: file.value?.name ?? '—',
+        },
+        {
+            label: t('kinetix.import_summary_rows'),
+            value: preview.value.totalRows.toLocaleString(),
+        },
+        {
+            label: t('kinetix.import_summary_mapped'),
+            value: `${mappedCount.value} / ${preview.value.columns.length}`,
+        },
+        {
+            label: t('kinetix.import_summary_ignored'),
+            value: String(unusedHeaders.value.length),
+        },
+    ];
+});
 </script>
 
 <template>
-    <div class="space-y-5">
-        <!-- File upload -->
-        <div
-            class="rounded-xl p-6 border border-dashed border-input text-center"
-        >
-            <UploadCloud class="h-8 w-8 mx-auto text-muted-foreground" />
-            <div class="mt-3 gap-3 flex items-center justify-center">
-                <input
-                    type="file"
-                    accept=".csv,.txt,.tsv,.xls,.xlsx"
-                    class="text-sm file:mr-3 file:px-3 file:py-1.5 file:text-xs file:font-semibold text-muted-foreground file:rounded-md file:border-0 file:bg-primary file:text-primary-foreground"
-                    @change="onFileChange"
-                />
-                <button
-                    type="button"
-                    class="h-9 gap-1.5 px-4 text-sm font-medium inline-flex items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                    :disabled="!file || loading"
-                    @click="upload"
-                >
-                    <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
-                    {{ t('kinetix.upload') }}
-                </button>
-            </div>
-            <a
-                v-if="templateUrl"
-                :href="templateUrl"
-                :download="template ?? undefined"
-                class="mt-3 gap-1.5 text-xs font-medium inline-flex items-center text-primary hover:underline"
-            >
-                <Download class="h-3.5 w-3.5" />
-                {{ t('kinetix.download_template') }}
-            </a>
-        </div>
+    <div
+        class="gap-4 flex flex-col"
+        :class="surface === 'fullscreen' ? 'min-h-0 h-full' : ''"
+    >
+        <ImporterSteps
+            :current="step"
+            :reachable="reachableSteps"
+            @select="goTo"
+        />
 
+        <!-- Errors are announced and sit above the step they belong to, never
+             only painted on a field. -->
         <p
             v-if="errorMessage"
             class="px-3 py-2 text-sm rounded-md bg-destructive/10 text-destructive"
+            role="alert"
         >
             {{ errorMessage }}
         </p>
 
-        <template v-if="preview">
-            <!-- CSV options -->
-            <div class="rounded-xl p-4 border border-border">
-                <h3 class="mb-3 text-sm font-semibold text-foreground">
-                    {{ t('kinetix.csv_options') }}
-                </h3>
-                <div class="gap-4 sm:grid-cols-4 grid grid-cols-1">
-                    <div
-                        class="gap-1 text-xs font-medium flex flex-col text-muted-foreground"
-                    >
-                        {{ t('kinetix.delimiter') }}
-                        <KinetixSelect
-                            :value="options.delimiter"
-                            :options="delimiterOptionsMap"
-                            @update:value="options.delimiter = $event"
-                        />
-                    </div>
-                    <div
-                        class="gap-1 text-xs font-medium flex flex-col text-muted-foreground"
-                    >
-                        {{ t('kinetix.enclosure') }}
-                        <KinetixSelect
-                            :value="options.enclosure"
-                            :options="enclosureOptionsMap"
-                            @update:value="options.enclosure = $event"
-                        />
-                    </div>
-                    <label
-                        class="gap-1 text-xs font-medium flex flex-col text-muted-foreground"
-                    >
-                        {{ t('kinetix.omit_lines') }}
-                        <input
-                            v-model.number="options.skipLines"
-                            type="number"
-                            min="0"
-                            class="h-9 px-2 text-sm rounded-md border border-border bg-popover"
-                        />
-                    </label>
-                    <div class="gap-3 flex items-end">
-                        <label
-                            class="gap-2 text-sm flex items-center text-foreground"
-                        >
-                            <KinetixCheckbox
-                                :checked="options.hasHeader"
-                                @change="options.hasHeader = $event"
-                            />
-                            {{ t('kinetix.has_header') }}
-                        </label>
-                    </div>
-                </div>
-                <div class="mt-3 flex items-center justify-between">
-                    <span class="text-xs text-muted-foreground">
-                        {{
-                            t('kinetix.rows_detected', {
-                                count: preview.totalRows,
-                            })
-                        }}
-                    </span>
-                    <button
-                        type="button"
-                        class="h-8 px-3 text-xs font-medium inline-flex items-center rounded-md border border-border hover:bg-accent disabled:opacity-50"
+        <component
+            :is="
+                surface === 'sheet' || surface === 'inline' ? 'div' : ScrollArea
+            "
+            v-bind="
+                surface === 'sheet' || surface === 'inline'
+                    ? {}
+                    : { type: 'auto', class: `-mr-3 pr-3 ${stepBodyClass}` }
+            "
+            :class="surface === 'fullscreen' ? 'min-h-0 flex-1' : ''"
+        >
+            <div class="gap-4 flex flex-col">
+                <!-- Step 1: the file, and how to read it. -->
+                <template v-if="step === 'file'">
+                    <ImporterDropzone
+                        :file="file"
+                        :max-upload-size="settings.maxUploadSize"
+                        :template-url="templateUrl"
+                        :template-name="settings.template ?? null"
                         :disabled="loading"
-                        @click="applyOptions"
-                    >
-                        {{ t('kinetix.apply') }}
-                    </button>
-                </div>
-            </div>
+                        @update:file="setFile"
+                    />
 
-            <!-- Column mapping -->
-            <div class="rounded-xl p-4 border border-border">
-                <h3 class="mb-3 text-sm font-semibold text-foreground">
-                    {{ t('kinetix.column_mapping') }}
-                </h3>
-                <div class="gap-3 sm:grid-cols-2 grid grid-cols-1">
-                    <div
-                        v-for="column in preview.columns"
-                        :key="column.name"
-                        class="gap-2 flex items-center"
+                    <ImporterOptions
+                        :options="parseOptions"
+                        :can-apply="preview !== null"
+                        :loading="loading"
+                        @update="Object.assign(parseOptions, $event)"
+                        @apply="applyParseOptions"
+                    />
+                </template>
+
+                <!-- Step 2: the mapping. -->
+                <ImporterMapping
+                    v-else-if="step === 'mapping' && preview"
+                    :columns="preview.columns"
+                    :headers="headers"
+                    :mapping="mapping"
+                    :is-exact-match="preview.isExactMatch"
+                    :unused-headers="unusedHeaders"
+                    :missing-required="missingRequired"
+                    @update="setMapping"
+                    @reset="resetMapping"
+                />
+
+                <!-- Step 3: review, then start. -->
+                <template v-else-if="step === 'review' && preview">
+                    <dl
+                        class="p-4 gap-3 sm:grid-cols-4 rounded-xl grid grid-cols-2 border border-border"
                     >
-                        <span class="text-sm w-1/2 truncate text-foreground">
-                            {{ column.label }}
-                            <span
-                                v-if="column.isRequired"
-                                class="text-destructive"
-                                >*</span
+                        <div v-for="row in summaryRows" :key="row.label">
+                            <dt class="text-xs text-muted-foreground">
+                                {{ row.label }}
+                            </dt>
+                            <dd
+                                class="text-sm font-medium truncate text-foreground"
+                                :title="row.value"
                             >
-                        </span>
-                        <ArrowRight
-                            class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                        />
-                        <div class="w-1/2">
-                            <KinetixSelect
-                                :value="mapping[column.name] ?? ''"
-                                :options="getMappingOptions(preview.headers)"
-                                :disabled-keys="
-                                    getDisabledMappingKeys(column.name)
-                                "
-                                :class="
-                                    column.isRequired &&
-                                    mapping[column.name] === null
-                                        ? 'border-destructive/40'
-                                        : ''
-                                "
-                                @update:value="setMapping(column.name, $event)"
-                            />
+                                {{ row.value }}
+                            </dd>
                         </div>
-                    </div>
-                </div>
-            </div>
+                    </dl>
 
-            <!-- Preview table -->
-            <div class="rounded-xl overflow-x-auto border border-border">
-                <table class="text-sm min-w-full">
-                    <thead class="bg-muted/40">
-                        <tr>
-                            <th
-                                v-for="(header, index) in preview.headers"
-                                :key="index"
-                                class="px-3 py-2 font-semibold text-left whitespace-nowrap text-foreground"
-                            >
-                                <div>{{ header }}</div>
-                                <div
-                                    v-if="columnForHeader(index)"
-                                    class="mt-0.5 font-medium text-[10px] text-success"
-                                >
-                                    → {{ columnForHeader(index) }}
-                                </div>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="(row, rowIndex) in preview.rows"
-                            :key="rowIndex"
-                            class="border-t border-border"
-                        >
-                            <td
-                                v-for="(header, colIndex) in preview.headers"
-                                :key="colIndex"
-                                class="px-3 py-2 whitespace-nowrap text-muted-foreground"
-                                :class="
-                                    columnForHeader(colIndex)
-                                        ? 'bg-success/10'
-                                        : ''
-                                "
-                            >
-                                {{ row[colIndex] }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                    <ImporterPreview
+                        v-if="settings.hasPreview"
+                        :preview="preview"
+                        :max-columns="settings.previewColumns"
+                        :column-for-header="columnForHeader"
+                    />
 
-            <!-- Start -->
-            <div class="flex justify-end">
-                <button
-                    type="button"
-                    class="h-10 gap-2 px-5 text-sm font-semibold inline-flex items-center rounded-md bg-success text-success-foreground hover:bg-success/90 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="!canStart || starting"
-                    @click="startImport"
-                >
-                    <Loader2 v-if="starting" class="h-4 w-4 animate-spin" />
-                    {{
-                        starting
+                    <p class="text-xs text-muted-foreground">
+                        {{ t('kinetix.import_queued_help') }}
+                    </p>
+                </template>
+            </div>
+        </component>
+
+        <!-- Actions: one primary per step, back always available. In a sheet
+             the panel's own body is the scroller, so the row sticks to the
+             bottom of it rather than sitting past a long mapping list. -->
+        <div
+            class="gap-2 sm:flex-row sm:justify-end flex shrink-0 flex-col-reverse"
+            :class="
+                surface === 'sheet'
+                    ? 'bottom-0 pt-3 sticky border-t border-border bg-background'
+                    : ''
+            "
+        >
+            <KinetixButton
+                v-if="step !== 'file'"
+                variant="outline"
+                :disabled="loading || starting"
+                @click="back"
+            >
+                <template #icon>
+                    <ArrowLeft class="size-4" />
+                </template>
+                {{ t('kinetix.import_back') }}
+            </KinetixButton>
+
+            <KinetixButton
+                v-else-if="surface !== 'inline'"
+                variant="outline"
+                :disabled="loading || starting"
+                @click="emit('cancel')"
+            >
+                {{ t('kinetix.cancel') }}
+            </KinetixButton>
+
+            <KinetixButton
+                :loading="loading || starting"
+                :disabled="!canContinue"
+                @click="onContinue"
+            >
+                <template #icon>
+                    <Upload v-if="step === 'review'" class="size-4" />
+                    <ArrowRight v-else class="size-4" />
+                </template>
+                {{
+                    step === 'review'
+                        ? starting
                             ? t('kinetix.importing')
                             : t('kinetix.start_import')
-                    }}
-                </button>
-            </div>
-        </template>
+                        : t('kinetix.import_continue')
+                }}
+            </KinetixButton>
+        </div>
     </div>
 </template>

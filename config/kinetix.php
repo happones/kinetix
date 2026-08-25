@@ -110,6 +110,50 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Imports
+    |--------------------------------------------------------------------------
+    |
+    | Defaults for the import dialog and for how much of an uploaded file it
+    | reads. Previewing NEVER loads the whole file: the reader streams the
+    | first `preview_rows` data rows and stops, so a ten-row preview costs the
+    | same on a thousand-row file as on a million-row one. Any importer can
+    | override these per class ($preview, $previewRows, $previewColumns,
+    | $layout, $maxUploadSize).
+    |
+    */
+    'imports' => [
+        // Upload ceiling in kilobytes (100 MB by default — a million-row CSV
+        // is roughly that). PHP's own `upload_max_filesize` / `post_max_size`
+        // still cap this, so raise those too before raising this.
+        'max_upload_size' => env('KINETIX_IMPORT_MAX_UPLOAD_SIZE', 102400),
+
+        // Whether the dialog shows the sample-data table at all.
+        'preview' => env('KINETIX_IMPORT_PREVIEW', true),
+
+        // Sample data rows parsed for the preview table. This is also the read
+        // limit — the reader stops here instead of parsing the rest of the file.
+        'preview_rows' => env('KINETIX_IMPORT_PREVIEW_ROWS', 10),
+
+        // Source columns the preview table renders before the rest collapse
+        // behind a "show all columns" toggle (0 = no cap). A wide file would
+        // otherwise turn the preview into a horizontal scroll nobody reads.
+        'preview_columns' => env('KINETIX_IMPORT_PREVIEW_COLUMNS', 8),
+
+        // Dialog surface. 'auto' promotes the dialog to a full-screen modal
+        // once the file has more than `fullscreen_threshold` source columns;
+        // 'modal' | 'fullscreen' | 'sheet' pin one surface regardless.
+        'layout'               => env('KINETIX_IMPORT_LAYOUT', 'auto'),
+        'fullscreen_threshold' => env('KINETIX_IMPORT_FULLSCREEN_THRESHOLD', 12),
+
+        // Rows per read pass for spreadsheets (xls/xlsx). Unlike CSV, a
+        // spreadsheet has no streaming API, so the reader re-opens the file
+        // per window of rows instead of materializing the whole sheet — this
+        // is what bounds worker memory on a huge workbook.
+        'spreadsheet_chunk_size' => env('KINETIX_IMPORT_SPREADSHEET_CHUNK', 2000),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Published Translations
     |--------------------------------------------------------------------------
     |

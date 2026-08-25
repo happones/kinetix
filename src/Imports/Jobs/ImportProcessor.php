@@ -34,6 +34,16 @@ class ImportProcessor implements ShouldQueue
     public int $tries = 3;
 
     /**
+     * The open failed-rows CSV writer (null when the import has no recipient,
+     * or once the log has been published).
+     */
+    protected ?FileWriter $failureLog = null;
+
+    protected ?string $failureLogPath = null;
+
+    protected int $failureLogRows = 0;
+
+    /**
      * @param class-string<Importer>  $importerClass
      * @param array<string, mixed>    $options
      * @param array<string, int|null> $mapping        column name => source header index
@@ -106,16 +116,6 @@ class ImportProcessor implements ShouldQueue
         $disk                 = KinetixDisk::privateName();
         [$localPath, $isTemp] = KinetixDisk::localReadablePath($disk, $this->path);
 
-        try {
-            $parsed = FileReader::read($localPath, $options);
-        } finally {
-            KinetixDisk::discardTemp($localPath, $isTemp);
-        }
-
-        $rows = $parsed['rows'];
-
-        $rules = $this->mappedRules($importer);
-
         $imported = 0;
         $failed   = 0;
 
@@ -126,63 +126,150 @@ class ImportProcessor implements ShouldQueue
         /** @var array<int, string> $failures */
         $failures = [];
 
-        // Every failed source row (uncapped, unlike the $failures summary), so
-        // the user can download a CSV of exactly what was skipped and why.
-        /** @var array<int, array<int, mixed>> $failedRows */
-        $failedRows = [];
+        try {
+            $headers = FileReader::headers($localPath, $options);
+            $rules   = $this->mappedRules($importer);
 
-        foreach (array_chunk($rows, max(1, $importer->chunkSize())) as $chunk) {
-            DB::transaction(function () use ($chunk, $importer, $rules, &$imported, &$failed, &$failures, &$failedRows, &$rowNumber): void {
-                foreach ($chunk as $row) {
-                    $rowNumber++;
-                    $data = $this->mapRow($row);
+            // Failed rows are written out as they happen instead of collected:
+            // a wholly mismatched million-row file would otherwise hold a
+            // million rows in worker memory on its way to the CSV.
+            $this->openFailureLog($headers);
 
-                    if ($rules !== []) {
-                        $validator = Validator::make($data, $rules);
+            $chunkSize = max(1, $importer->chunkSize());
+            $buffer    = [];
 
-                        if ($validator->fails()) {
-                            $failed++;
-                            $reason = (string) $validator->errors()->first();
-                            $this->recordFailure($failures, $rowNumber, $reason);
-                            $failedRows[] = [$rowNumber, ...array_values($row), $reason];
+            // The file is STREAMED, one row at a time — memory is bounded by
+            // the chunk size, never by the row count, so a million-row import
+            // costs the same as a thousand-row one.
+            foreach (FileReader::stream($localPath, $options) as $row) {
+                $buffer[] = $row;
 
-                            continue;
-                        }
-                    }
-
-                    try {
-                        $importer->importRow($data);
-                        $imported++;
-                    } catch (Throwable $e) {
-                        $failed++;
-                        $this->recordFailure($failures, $rowNumber, $e->getMessage());
-                        $failedRows[] = [$rowNumber, ...array_values($row), $e->getMessage()];
-                    }
+                if (count($buffer) < $chunkSize) {
+                    continue;
                 }
-            });
+
+                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber);
+                $buffer = [];
+            }
+
+            if ($buffer !== []) {
+                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber);
+            }
+        } finally {
+            KinetixDisk::discardTemp($localPath, $isTemp);
         }
 
         Storage::disk($disk)->delete($this->path);
 
-        $failedRowsUrl = $failedRows !== []
-            ? $this->storeFailedRows($parsed['headers'], $failedRows)
-            : null;
-
-        $this->notify($importer, $imported, $failed, $failures, $failedRowsUrl);
+        $this->notify($importer, $imported, $failed, $failures, $this->publishFailureLog());
     }
 
     /**
-     * Write the failed source rows (plus their reason) to a downloadable CSV
-     * and return a signed download URL bound to the recipient — so beyond the
-     * 10 rows quoted in the notification body, nothing is lost. Null when the
-     * import has no recipient (nobody could download it).
+     * Import one buffered chunk of rows inside a single transaction.
      *
-     * @param array<int, string>            $headers
-     * @param array<int, array<int, mixed>> $failedRows
+     * @param array<int, array<int, string|null>> $chunk
+     * @param array<string, array<int, mixed>>    $rules
+     * @param array<int, string>                  $failures
      */
-    protected function storeFailedRows(array $headers, array $failedRows): ?string
+    protected function processChunk(
+        array $chunk,
+        Importer $importer,
+        array $rules,
+        int &$imported,
+        int &$failed,
+        array &$failures,
+        int &$rowNumber,
+    ): void {
+        DB::transaction(function () use ($chunk, $importer, $rules, &$imported, &$failed, &$failures, &$rowNumber): void {
+            foreach ($chunk as $row) {
+                $rowNumber++;
+                $data = $this->mapRow($row);
+
+                if ($rules !== []) {
+                    $validator = Validator::make($data, $rules);
+
+                    if ($validator->fails()) {
+                        $failed++;
+                        $reason = (string) $validator->errors()->first();
+                        $this->recordFailure($failures, $rowNumber, $reason);
+                        $this->logFailedRow($rowNumber, $row, $reason);
+
+                        continue;
+                    }
+                }
+
+                try {
+                    $importer->importRow($data);
+                    $imported++;
+                } catch (Throwable $e) {
+                    $failed++;
+                    $this->recordFailure($failures, $rowNumber, $e->getMessage());
+                    $this->logFailedRow($rowNumber, $row, $e->getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * Open the failed-rows CSV, so every skipped row can be written out the
+     * moment it fails rather than accumulated in memory. No-op when the import
+     * has no recipient (nobody could download the result).
+     *
+     * @param array<int, string> $headers
+     */
+    protected function openFailureLog(array $headers): void
     {
         if ($this->recipientClass === null || $this->recipientId === null) {
+            return;
+        }
+
+        $this->failureLogPath = (string) tempnam(sys_get_temp_dir(), 'kinetix_import_failures_');
+        $this->failureLog     = new FileWriter($this->failureLogPath, 'csv');
+
+        if ($headers !== []) {
+            $this->failureLog->writeRow([
+                (string) __('kinetix.import_failures_row_heading'),
+                ...$headers,
+                (string) __('kinetix.import_failures_error_heading'),
+            ]);
+        }
+    }
+
+    /**
+     * Append one skipped row (with its reason) to the failed-rows CSV.
+     *
+     * @param array<int, string|null> $row
+     */
+    protected function logFailedRow(int $rowNumber, array $row, string $reason): void
+    {
+        if ($this->failureLog === null) {
+            return;
+        }
+
+        $this->failureLogRows++;
+        $this->failureLog->writeRow([$rowNumber, ...array_values($row), $reason]);
+    }
+
+    /**
+     * Close the failed-rows CSV and, when anything failed, store it behind the
+     * same signed, user-bound, expiring download token exports use — so beyond
+     * the 10 rows quoted in the notification body, nothing is lost.
+     */
+    protected function publishFailureLog(): ?string
+    {
+        if ($this->failureLog === null || $this->failureLogPath === null) {
+            return null;
+        }
+
+        $this->failureLog->close();
+        $this->failureLog = null;
+
+        $localPath            = $this->failureLogPath;
+        $this->failureLogPath = null;
+
+        if ($this->failureLogRows === 0) {
+            @unlink($localPath);
+
             return null;
         }
 
@@ -192,25 +279,8 @@ class ImportProcessor implements ShouldQueue
         $directory  = 'kinetix-exports';
         $storedName = Str::uuid()->toString().'.csv';
 
-        $tempPath = (string) tempnam(sys_get_temp_dir(), 'kinetix_import_failures_');
-        $writer   = new FileWriter($tempPath, 'csv');
-
-        if ($headers !== []) {
-            $writer->writeRow([
-                (string) __('kinetix.import_failures_row_heading'),
-                ...$headers,
-                (string) __('kinetix.import_failures_error_heading'),
-            ]);
-        }
-
-        foreach ($failedRows as $row) {
-            $writer->writeRow($row);
-        }
-
-        $writer->close();
-
-        Storage::disk($disk)->putFileAs($directory, new File($tempPath), $storedName);
-        @unlink($tempPath);
+        Storage::disk($disk)->putFileAs($directory, new File($localPath), $storedName);
+        @unlink($localPath);
 
         $downloadName = str(class_basename($this->importerClass))->kebab()->append('-failed-rows.csv')->toString();
         $token        = DownloadToken::mint($disk, $directory.'/'.$storedName, $downloadName, $this->recipientId);

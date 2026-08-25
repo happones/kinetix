@@ -1,9 +1,11 @@
 # Kinetix Import / Export
 
-A queue-backed import pipeline with a **smart preview**: upload a CSV/Excel file, Kinetix parses it, auto-maps source headers to your target columns (collision-free), and lets the user fix the mapping before dispatching a customizable, queued import job. A completion notification is sent when it finishes.
+A queue-backed import pipeline with a **three-step wizard**: choose a file, confirm the column mapping Kinetix guessed for you, review a sample and start. The import runs on the queue and notifies the user when it finishes.
+
+It is built to stay cheap on files of any size. Previewing reads a **sample**, never the file: the reader stops at the configured row limit, the row count is counted rather than parsed, and the queued job **streams** the file row by row. A million-row upload costs the dialog the same as a ten-row one.
 
 > Excel (`.xls`/`.xlsx`) support uses `phpoffice/phpspreadsheet`. CSV/TSV are parsed natively.
-> **Export** is documented in §6 (in progress).
+> **Export** is documented in §7.
 
 ---
 
@@ -30,10 +32,11 @@ graph LR
 |---|---|
 | `Importer` (abstract) | Declares target columns, the model, per-row import, queue/chunk config |
 | `ImportColumn` | A target column: label, required, rules, alias guesses, value casting |
-| `FileReader` | Parses CSV (native) and Excel (phpspreadsheet) honouring CSV options |
+| `FileReader` | Streams CSV (native) and Excel (phpspreadsheet) — bounded, never whole-file |
 | `ImportController` | `upload` / `preview` / `start` endpoints |
-| `ImportProcessor` | Queued job: maps rows, validates, imports, notifies, cleans up |
-| `KinetixImporter.vue` | Smart-preview UI (upload, CSV options, mapping, preview, start) |
+| `ImportProcessor` | Queued job: streams rows, validates, imports, notifies, cleans up |
+| `KinetixImporter.vue` | The wizard (file → mapping → review), and its subcomponents in `components/Importer/` |
+| `KinetixImportModal.vue` | Picks the dialog surface (modal / full-screen modal / sheet) |
 
 ---
 
@@ -104,7 +107,15 @@ class ContactImporter extends Importer
 | `authorize(?Authenticatable $user): bool` | Override for custom authorization; enforced on every import endpoint |
 | `protected bool $downloadableTemplate = true` | Offer a "Download template" link in the import modal |
 | `protected ?string $templateFileName = null` | Template filename (null = studly class name, `ProductImporter.csv`) |
-| `getStartedNotificationBody(): string` | Toast shown when the import is queued (see [Notifications](#_7-notifications-lifecycle-custom-messages)) |
+| `protected ?bool $preview = null` | Show the sample-data table (null inherits `kinetix.imports.preview`) |
+| `protected ?int $previewRows = null` | Sample rows — **and the reader's ceiling** (null inherits config) |
+| `protected ?int $previewColumns = null` | Columns shown before the rest fold away, `0` = no cap (null inherits config) |
+| `protected ?string $layout = null` | `'auto'` \| `'modal'` \| `'fullscreen'` \| `'sheet'` (null inherits config) |
+| `protected ?int $fullscreenThreshold = null` | Column count above which `'auto'` goes full screen |
+| `protected ?int $maxUploadSize = null` | Upload ceiling in kilobytes (null inherits config) |
+| `settings(): ImportSettingsData` | The resolved dialog settings sent to the frontend |
+| `isExactMatch(array $headers, array $mapping): bool` | Whether the file lines up one-for-one (see below) |
+| `getStartedNotificationBody(): string` | Toast shown when the import is queued (see [Notifications](#_8-notifications-lifecycle-custom-messages)) |
 | `getCompletedNotificationTitle/Body(int $imported, int $failed): string` | Completion notification title/body |
 | `getFailedNotificationTitle/Body(): string` | Whole-job failure notification title/body |
 
@@ -206,9 +217,83 @@ class ProductImporter extends Importer
 
 `Importer::guessMapping($headers)` matches each column against its name, label, and `guess()` aliases using a normalized comparison (case/spacing/punctuation insensitive — `NOMBRE` ≈ `name`). It is **collision-free**: each source header is claimed by at most one target column.
 
+#### Exact matches skip the mapping step
+
+`Importer::isExactMatch($headers, $mapping)` reports whether the file lines up
+one-for-one: **every** target column found a header, and **every** (non-blank)
+header was claimed. A file filled in from the downloadable template always
+satisfies this — the template's header row *is* the column labels — so the
+wizard says so and takes the user **straight to review**. Nothing was guessed,
+so there is nothing to confirm.
+
+It deliberately fails when a source column goes unclaimed: that column's data
+would be silently dropped, which is exactly the case the user should see. The
+mapping step names those columns explicitly ("2 source columns are not mapped
+and will be ignored: …").
+
 ---
 
-## 3. Endpoints
+## 3. Scale: what actually gets read
+
+An import file is allowed to be enormous, so every step is bounded:
+
+| Step | Cost | Why |
+|---|---|---|
+| Preview | `previewRows` rows | The reader **stops** at the limit — a 10-row preview parses 10 rows on a 1M-row file |
+| Row count | One pass, no parsing | CSV newlines are counted in 1 MB blocks; a spreadsheet reports its own row count via `listWorksheetInfo()`, with no cells loaded |
+| Queued import | `chunkSize()` rows in memory | `FileReader::stream()` is a generator: the job holds one chunk, never the file |
+| Failed rows | One row at a time | Skipped rows are written to the downloadable CSV as they happen, not collected |
+
+Spreadsheets (`.xls`/`.xlsx`) have no streaming reader — loading one materializes
+every cell — so they are read in **windows** of `spreadsheet_chunk_size` rows,
+re-opening the file per window (`RowWindowFilter`). The **first** worksheet is
+the one read.
+
+::: tip The row count is a label, not a contract
+It is intentionally cheap rather than exact: a CSV field containing a literal
+newline counts more than once. The number labels the dialog ("1,204,882 rows
+detected") — it never drives the import, which streams the real records.
+:::
+
+### Configuration
+
+```php
+// config/kinetix.php
+'imports' => [
+    'max_upload_size'        => env('KINETIX_IMPORT_MAX_UPLOAD_SIZE', 102400),   // KB
+    'preview'                => env('KINETIX_IMPORT_PREVIEW', true),
+    'preview_rows'           => env('KINETIX_IMPORT_PREVIEW_ROWS', 10),
+    'preview_columns'        => env('KINETIX_IMPORT_PREVIEW_COLUMNS', 8),        // 0 = no cap
+    'layout'                 => env('KINETIX_IMPORT_LAYOUT', 'auto'),
+    'fullscreen_threshold'   => env('KINETIX_IMPORT_FULLSCREEN_THRESHOLD', 12),
+    'spreadsheet_chunk_size' => env('KINETIX_IMPORT_SPREADSHEET_CHUNK', 2000),
+],
+```
+
+Any importer overrides the lot per class:
+
+```php
+class WideProductImporter extends Importer
+{
+    protected ?int $previewRows = 5;        // sample 5 rows instead of 10
+    protected ?int $previewColumns = 0;     // no column cap in the preview
+    protected ?string $layout = 'fullscreen'; // always take the room
+    protected ?int $maxUploadSize = 512000; // 500 MB, for a very large export dump
+}
+
+class SensitiveImporter extends Importer
+{
+    protected ?bool $preview = false;       // map the columns, never show the cells
+}
+```
+
+`max_upload_size` is enforced on the upload endpoint (from the **importer**, not
+the config, when it overrides it). PHP's own `upload_max_filesize` and
+`post_max_size` still cap it — raise those first.
+
+---
+
+## 4. Endpoints
 
 All under the configured Kinetix route prefix (default `_kinetix`), using the `web`+`auth` middleware:
 
@@ -223,7 +308,7 @@ The importer class travels as an encrypted token (`Importer::token()`), and the 
 
 ---
 
-## 4. Frontend
+## 5. Frontend
 
 Pass the importer token to the page and render `KinetixImporter`:
 
@@ -245,7 +330,43 @@ defineProps<{ importer: string }>();
 </template>
 ```
 
-The component provides: file upload (csv/tsv/xls/xlsx), a **CSV options** panel (delimiter, text enclosure, omit first N lines, has-header), the **mapping** grid (a `<select>` per target column, pre-selected from the auto-mapping, with already-used source columns disabled to prevent collisions), a live **preview** table that highlights mapped columns, and a **Start import** button that is disabled until all required columns are mapped.
+### The three steps
+
+| Step | What it holds |
+|---|---|
+| **1 · File** | Drop zone (also a real file input — drag-and-drop is never the only way in), the chosen file with its size, the **Download template** link, and the **Reading options** — collapsed, with the current settings still stated in its summary line |
+| **2 · Mapping** | One labelled select per target column, pre-selected from the auto-mapping, with already-claimed source columns disabled so one source is never reused. Searchable, filterable to "unmapped only", resettable to the suggestions, with a `18 / 24 fields mapped` counter — and it names the source columns the import would otherwise silently drop |
+| **3 · Review** | A summary (file, rows, mapped fields, ignored columns), the bounded sample table, and **Start import** |
+
+A file that lines up one-for-one **skips step 2** and lands on review directly.
+**Start import** stays disabled until every required column is mapped, and the
+mapping step says how many are still missing.
+
+Why three steps rather than one panel: a single scrolling panel had to hold the
+options, one select per column and a full-width preview at once, so a file with
+twenty or more columns grew the dialog past the viewport and stranded its own
+actions. Each step is bounded now, and the file's width only affects the step
+actually showing it.
+
+The pieces live in `components/Importer/` (`ImporterSteps`, `ImporterDropzone`,
+`ImporterOptions`, `ImporterMapping`, `ImporterPreview`) with the state machine
+in `composables/useKinetixImporter.ts`, so the wizard's steps stay
+presentational.
+
+### Where it renders: `surface`
+
+`KinetixImporter` never assumes it owns the page, because what should scroll
+depends on where it sits:
+
+| `surface` | Who scrolls |
+|---|---|
+| `inline` (default) | The page. Use it for a wizard placed on a page of its own |
+| `modal` | The wizard's own bounded scroller, capped so the dialog stays put |
+| `fullscreen` | The wizard's scroller, filling the panel |
+| `sheet` | Nobody new — `KinetixSheet` already scrolls its body |
+
+`KinetixImportModal` sets this for you (below). Set it yourself only when you
+place the wizard in a shell of your own.
 
 ### Quickest: the prebuilt `ImportAction`
 
@@ -265,6 +386,54 @@ $table->headerActions([
 ```
 
 Clicking the action fires `kinetix:open-importer` (with the importer as a signed token); `KinetixImportModal` catches it and renders `KinetixImporter` in a shadcn dialog. `ImportAction` is a normal `Action` (`->label()`/`->icon()`/`->authorize()`…). Give each a unique name when you have several: `ImportAction::make('importBrands')->importer(BrandImporter::class)`.
+
+The event carries the importer's resolved `settings`, so the dialog can present
+itself correctly before a file even exists.
+
+### The dialog sizes itself to the file
+
+One size does not fit every file: a three-column CSV is a dialog, a
+twenty-four-column one needs the room. With the default `layout: 'auto'`, the
+dialog **promotes itself to a full-screen modal** once the parsed file exceeds
+`fullscreenThreshold` columns (12 by default).
+
+It is the *same* `KinetixModal`, only bigger — the wizard is resized, never
+remounted, so a mapping the user already adjusted survives the change.
+
+| `layout` | Behaviour |
+|---|---|
+| `'auto'` (default) | Modal, promoting itself to full screen past the column threshold |
+| `'modal'` | Always the normal dialog |
+| `'fullscreen'` | Always full screen |
+| `'sheet'` | An edge panel (`KinetixSheet`), decided **up front** |
+
+::: tip Why `'sheet'` never escalates automatically
+Swapping the modal for a sheet mid-flow means unmounting the wizard, which would
+discard the file and the mapping the user already fixed. A sheet is therefore an
+explicit per-importer choice, and the automatic escalation stays within one
+component.
+:::
+
+```php
+class WideProductImporter extends Importer
+{
+    protected ?string $layout = 'fullscreen';    // or 'sheet' / 'modal'
+    protected ?int $fullscreenThreshold = 8;     // escalate sooner under 'auto'
+}
+```
+
+### The sample table
+
+Bounded on both axes, and both bounds are yours to set:
+
+- **Rows** — `previewRows` (10). This is the *reader's* ceiling too, so it is
+  literally how much of the file is parsed.
+- **Columns** — `previewColumns` (8). The rest fold behind a
+  *"Show N more columns"* toggle rather than turning the dialog into a
+  horizontal scroll. `0` shows them all. The table scrolls inside its own
+  container, so the dialog never scrolls sideways.
+- **Off entirely** — `protected ?bool $preview = false`. The mapping still works
+  (it only needs the headers); no cell values are shown or even parsed.
 
 ### Recipe (manual): open the importer from a table toolbar action
 
@@ -289,57 +458,72 @@ return inertia('Contacts/Index', [
 ]);
 ```
 
-**3. The page** listens for `kinetix:open-importer` and shows the importer in a dialog:
+**3. The page** listens for `kinetix:open-importer` and shows the importer in a dialog. Use `KinetixModal` — it owns the focus trap, `Escape`, and the bounded panel — and tell the wizard which surface it is in, so it brings its own bounded scroller:
 
 ```vue
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import KinetixImporter from '@/components/kinetix/KinetixImporter.vue';
+import KinetixModal from '@/components/kinetix/primitives/KinetixModal.vue';
 
 defineProps<{ table: any; importer: string }>();
 
 const showImporter = ref(false);
-const open = () => (showImporter.value = true);
+const columns = ref(0);
+
+const open = () => {
+    columns.value = 0;
+    showImporter.value = true;
+};
 
 onMounted(() => window.addEventListener('kinetix:open-importer', open));
 onBeforeUnmount(() => window.removeEventListener('kinetix:open-importer', open));
+
+// The same escalation `KinetixImportModal` does for you.
+const fullscreen = computed(() => columns.value > 12);
 </script>
 
 <template>
   <KinetixTable :table="table" />
 
-  <!-- Minimal dialog wrapper; use your own modal/Reka Dialog if preferred. -->
-  <div
-    v-if="showImporter"
-    class="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/50 p-6"
-    @click.self="showImporter = false"
+  <KinetixModal
+    :open="showImporter"
+    title="Import contacts"
+    :max-width="fullscreen ? 'sm:max-w-[95vw]' : 'sm:max-w-3xl'"
+    :fullscreen="fullscreen"
+    @update:open="showImporter = $event"
   >
-    <div class="w-full max-w-3xl rounded-xl border border-border bg-card p-6 shadow-lg">
-      <KinetixImporter :importer="importer" />
-    </div>
-  </div>
+    <KinetixImporter
+      :importer="importer"
+      :surface="fullscreen ? 'fullscreen' : 'modal'"
+      @update:columns="columns = $event"
+      @started="showImporter = false"
+      @cancel="showImporter = false"
+    />
+  </KinetixModal>
 </template>
 ```
+
+Emits worth wiring: `update:columns` (the parsed file's source-column count — what the escalation reads), `started` (the import was queued), `cancel` (the user backed out of step 1).
 
 The import itself is queued; the user gets a completion **notification** when it finishes. Reload the table afterwards with `router.reload({ only: ['table'] })` (e.g. on a notification action or a manual refresh).
 
 ---
 
-## 5. The Queued Job
+## 6. The Queued Job
 
-`ImportProcessor` reads the full file, maps each row by the chosen header indices, validates mapped columns against their `rules()`, calls `importRow()` per row inside chunked transactions, deletes the temp file, and finishes by sending a Kinetix notification:
+`ImportProcessor` **streams** the file (`FileReader::stream()` is a generator, so the job holds one chunk of rows, never the file), maps each row by the chosen header indices, validates mapped columns against their `rules()`, calls `importRow()` per row inside chunked transactions, deletes the temp file, and finishes by sending a Kinetix notification:
 
 - `Import complete` — `:imported imported, :failed skipped` (status `success`, or `warning` if any rows were skipped). A row that fails validation or whose `importRow()` throws is **skipped, never fatal** — the first 10 failures are listed in the notification body with their row number and reason.
-- When any rows failed, the notification also carries a **Download failed rows** action: a CSV of **every** failed source row (row number, the original cells, and the reason), behind the same signed, user-bound, expiring download token exports use.
+- When any rows failed, the notification also carries a **Download failed rows** action: a CSV of **every** failed source row (row number, the original cells, and the reason), behind the same signed, user-bound, expiring download token exports use. Rows are written to it **as they fail**, so a wholly mismatched million-row file doesn't hold a million rows in worker memory on the way there.
 - Sent via `broadcast()` when Echo is configured, otherwise persisted with `sendToDatabase()`.
 
-Customize the dispatch by overriding `queue()` and `chunkSize()`, the whole per-row behaviour via `importRow()` / `resolveRecord()`, and every notification message via the `get*Notification*` hooks (see [Notifications](#_7-notifications-lifecycle-custom-messages)).
+Customize the dispatch by overriding `queue()` and `chunkSize()`, the whole per-row behaviour via `importRow()` / `resolveRecord()`, and every notification message via the `get*Notification*` hooks (see [Notifications](#_8-notifications-lifecycle-custom-messages)).
 
 ---
 
-## 6. Export
+## 7. Export
 
 A queued `Exporter` streams records (CSV) or builds a workbook (Excel) to storage, then sends the user a **download notification** carrying a signed, time-unguessable download link.
 
@@ -525,7 +709,7 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 | `export(?Model $recipient, array $parameters = []): void` | Dispatch the queued export + notify the recipient. `$parameters` (e.g. `['ids' => [...]]`) reach the exporter inside the job |
 | `parameter(string $key, $default = null)` | Read a runtime parameter inside `query()` (e.g. the selected `ids`) |
 | `withParameters(array): static` | Set parameters on an instance (used by the job; `export()` is the usual entry point) |
-| `getStartedNotificationBody(): string` | Toast shown when the export is queued (see [Notifications](#_7-notifications-lifecycle-custom-messages)) |
+| `getStartedNotificationBody(): string` | Toast shown when the export is queued (see [Notifications](#_8-notifications-lifecycle-custom-messages)) |
 | `getCompletedNotificationTitle/Body(int $exported, int $failed): string` | Completion notification title/body |
 | `getFailedNotificationTitle/Body(): string` | Whole-job failure notification title/body |
 
@@ -571,7 +755,7 @@ class InvoiceExporter extends Exporter
 
 ---
 
-## 7. Notifications: lifecycle & custom messages
+## 8. Notifications: lifecycle & custom messages
 
 Wiring an `ExportAction` / `ImportAction` to a class is all it takes — the full
 notification lifecycle is automatic:

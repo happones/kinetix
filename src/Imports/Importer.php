@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Imports;
 
 use Happones\Kinetix\Data\ImportColumnData;
+use Happones\Kinetix\Data\ImportSettingsData;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -37,6 +38,48 @@ abstract class Importer
      * class name (`ProductImporter` → `ProductImporter.csv`).
      */
     protected ?string $templateFileName = null;
+
+    /**
+     * Whether the import dialog renders the sample-data preview table. Null
+     * inherits `kinetix.imports.preview`; set false on importers whose files
+     * are wide or whose cells are sensitive enough that showing them in the
+     * dialog is undesirable.
+     */
+    protected ?bool $preview = null;
+
+    /**
+     * Data rows sampled for the preview — and the reader's ceiling, so this is
+     * literally how much of the file is parsed to build it. Null inherits
+     * `kinetix.imports.preview_rows`.
+     */
+    protected ?int $previewRows = null;
+
+    /**
+     * Source columns the preview table shows before the rest collapse behind a
+     * "show all columns" toggle (0 = no cap). Null inherits
+     * `kinetix.imports.preview_columns`.
+     */
+    protected ?int $previewColumns = null;
+
+    /**
+     * Dialog surface: 'auto' (a full-screen modal once the file exceeds
+     * {@see getFullscreenThreshold()} columns), 'modal', 'fullscreen' or
+     * 'sheet'. Null inherits `kinetix.imports.layout`.
+     */
+    protected ?string $layout = null;
+
+    /**
+     * Source-column count above which the 'auto' layout goes full screen. Null
+     * inherits `kinetix.imports.fullscreen_threshold`.
+     */
+    protected ?int $fullscreenThreshold = null;
+
+    /**
+     * Upload ceiling in kilobytes for this importer's files. Null inherits
+     * `kinetix.imports.max_upload_size`. PHP's own upload_max_filesize /
+     * post_max_size still cap it.
+     */
+    protected ?int $maxUploadSize = null;
 
     /**
      * Define the target columns the file can be mapped onto.
@@ -164,6 +207,77 @@ abstract class Importer
     public function getFailedNotificationBody(): string
     {
         return (string) __('kinetix.import_failed_body');
+    }
+
+    /**
+     * Whether the dialog shows the sample-data preview table.
+     */
+    public function hasPreview(): bool
+    {
+        return $this->preview ?? (bool) config('kinetix.imports.preview', true);
+    }
+
+    /**
+     * Data rows sampled for the preview. Also the read ceiling: the file
+     * reader stops here, so this is the whole cost of previewing a file
+     * regardless of how many rows it actually has.
+     */
+    public function getPreviewRows(): int
+    {
+        return max(1, $this->previewRows ?? (int) config('kinetix.imports.preview_rows', 10));
+    }
+
+    /**
+     * Source columns the preview table renders before the rest collapse behind
+     * a "show all columns" toggle. 0 = no cap.
+     */
+    public function getPreviewColumns(): int
+    {
+        return max(0, $this->previewColumns ?? (int) config('kinetix.imports.preview_columns', 8));
+    }
+
+    /**
+     * The dialog surface: 'auto' | 'modal' | 'fullscreen' | 'sheet'.
+     */
+    public function getLayout(): string
+    {
+        $layout = $this->layout ?? (string) config('kinetix.imports.layout', 'auto');
+
+        return in_array($layout, ['auto', 'modal', 'fullscreen', 'sheet'], true) ? $layout : 'auto';
+    }
+
+    /**
+     * Source-column count above which the 'auto' layout goes full screen.
+     */
+    public function getFullscreenThreshold(): int
+    {
+        return max(1, $this->fullscreenThreshold ?? (int) config('kinetix.imports.fullscreen_threshold', 12));
+    }
+
+    /**
+     * Upload ceiling in kilobytes.
+     */
+    public function getMaxUploadSize(): int
+    {
+        return max(1, $this->maxUploadSize ?? (int) config('kinetix.imports.max_upload_size', 102400));
+    }
+
+    /**
+     * The resolved dialog/reader settings sent to the frontend — carried by the
+     * `open-importer` event (so the shell can size itself before a file
+     * exists) and by every preview payload.
+     */
+    public function settings(): ImportSettingsData
+    {
+        return new ImportSettingsData(
+            hasPreview: $this->hasPreview(),
+            previewRows: $this->getPreviewRows(),
+            previewColumns: $this->getPreviewColumns(),
+            layout: $this->getLayout(),
+            fullscreenThreshold: $this->getFullscreenThreshold(),
+            maxUploadSize: $this->getMaxUploadSize(),
+            template: $this->hasDownloadableTemplate() ? $this->getTemplateFileName() : null,
+        );
     }
 
     public function hasDownloadableTemplate(): bool
@@ -298,6 +412,35 @@ abstract class Importer
         }
 
         return $mapping;
+    }
+
+    /**
+     * Whether the uploaded file lines up with this importer one-for-one: every
+     * target column found a header, and every (non-blank) header was claimed.
+     *
+     * A file produced from the downloadable template always satisfies this,
+     * since the template's header row IS the column labels — which is what
+     * lets the dialog report "matches the template" and take the user straight
+     * to review instead of making them confirm a mapping it already knows.
+     *
+     * @param array<int, string>      $headers
+     * @param array<string, int|null> $mapping column name => header index
+     */
+    public static function isExactMatch(array $headers, array $mapping): bool
+    {
+        $namedHeaders = array_filter(
+            $headers,
+            fn (string $header): bool => ImportColumn::normalize($header) !== ''
+        );
+
+        if ($namedHeaders === []) {
+            return false;
+        }
+
+        $mapped = array_filter($mapping, fn (?int $index): bool => $index !== null);
+
+        return count($mapped) === count(static::getColumns())
+            && count($mapped) === count($namedHeaders);
     }
 
     /**

@@ -14,6 +14,10 @@ import ScrollArea from './ScrollArea.vue';
  * z-index uses the Kinetix layer scale (never a raw utility), and focus
  * trapping/escape/aria ride on useKinetixFocusTrap.
  *
+ * `fullscreen` is the third layout: the panel takes the viewport and hands its
+ * remaining height to the body, for content that needs the room (a wide import
+ * preview) rather than content that is merely long.
+ *
  * The shell is ALWAYS bounded: the fixed wrapper scrolls, so a panel taller
  * than the viewport (a long form) scrolls whole instead of overflowing off
  * screen with its top and bottom unreachable. `scrollBody` is the opt-in for
@@ -38,6 +42,15 @@ const props = withDefaults(
          * shadcn ScrollArea), instead of scrolling the whole panel.
          */
         scrollBody?: boolean;
+        /**
+         * Take (nearly) the whole viewport, for content that genuinely needs
+         * the room — a wide data grid, an import preview of a twenty-column
+         * file. The panel is bounded to the viewport and its BODY is handed the
+         * remaining height, so the content decides what scrolls inside it
+         * (pass `scrollBody` as well to let the shell scroll it instead).
+         * Combine with a wide `maxWidth`.
+         */
+        fullscreen?: boolean;
     }>(),
     {
         title: null,
@@ -46,6 +59,7 @@ const props = withDefaults(
         showCloseButton: true,
         processing: false,
         scrollBody: false,
+        fullscreen: false,
     },
 );
 
@@ -152,9 +166,10 @@ const { headingId } = useKinetixFocusTrap({
                         class="rounded-lg p-6 shadow-lg gap-4 relative grid w-full max-w-[calc(100%-2rem)] border bg-background outline-none"
                         :class="[
                             maxWidth,
-                            scrollBody
+                            scrollBody || fullscreen
                                 ? 'max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto]'
                                 : '',
+                            fullscreen ? 'h-[calc(100dvh-2rem)]' : '',
                         ]"
                     >
                         <button
@@ -201,7 +216,10 @@ const { headingId } = useKinetixFocusTrap({
                         >
                             <slot />
                         </ScrollArea>
-                        <div v-else>
+                        <!-- `min-h-0` lets a full-screen body hand its own
+                             height to a child that fills it (a wizard with its
+                             own scroller) instead of overflowing the panel. -->
+                        <div v-else :class="fullscreen ? 'min-h-0' : ''">
                             <slot />
                         </div>
 

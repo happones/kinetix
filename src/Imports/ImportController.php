@@ -16,11 +16,6 @@ use Throwable;
 
 class ImportController
 {
-    /**
-     * Number of sample rows returned for the preview table.
-     */
-    protected int $previewRows = 10;
-
     protected string $storageDirectory = 'kinetix-imports';
 
     /**
@@ -49,11 +44,11 @@ class ImportController
      */
     public function upload(Request $request): JsonResponse
     {
-        $request->validate([
-            'file'     => ['required', 'file', 'mimes:csv,txt,tsv,xls,xlsx'],
-            'importer' => ['required', 'string'],
-        ]);
+        $request->validate(['importer' => ['required', 'string']]);
 
+        // The importer is resolved and authorized BEFORE the file is validated,
+        // both so the size ceiling can come from the importer itself and so an
+        // unauthorized caller never gets as far as storing an upload.
         try {
             $importer = Importer::fromToken($request->string('importer')->toString());
         } catch (Throwable $e) {
@@ -63,6 +58,10 @@ class ImportController
         if (! $importer->authorize($request->user())) {
             return response()->json(['message' => __('kinetix.import_forbidden')], 403);
         }
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt,tsv,xls,xlsx', 'max:'.$importer->getMaxUploadSize()],
+        ]);
 
         $path = $request->file('file')->store($this->storageDirectory, KinetixDisk::privateName());
 
@@ -183,19 +182,28 @@ class ImportController
     {
         [$absolutePath, $isTemp] = KinetixDisk::localReadablePath(KinetixDisk::privateName(), $path);
 
+        // Only the sample is parsed (and only when a preview is actually
+        // shown), so the cost of previewing does not grow with the file. The
+        // headers alone are enough to build the mapping.
+        $sampleRows = $importer->hasPreview() ? $importer->getPreviewRows() : 0;
+
         try {
-            $parsed = FileReader::read($absolutePath, $options, $this->previewRows);
+            $parsed = FileReader::read($absolutePath, $options, $sampleRows);
             $total  = FileReader::countRows($absolutePath, $options);
         } finally {
             KinetixDisk::discardTemp($absolutePath, $isTemp);
         }
+
+        $autoMapping = $importer::guessMapping($parsed['headers']);
 
         return new ImportPreviewData(
             headers: $parsed['headers'],
             rows: $parsed['rows'],
             columns: $importer::getColumnsData(),
             options: $options,
-            autoMapping: $importer::guessMapping($parsed['headers']),
+            settings: $importer->settings(),
+            autoMapping: $autoMapping,
+            isExactMatch: $importer::isExactMatch($parsed['headers'], $autoMapping),
             fileToken: Crypt::encryptString($path),
             totalRows: $total,
         );

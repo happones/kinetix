@@ -1060,13 +1060,38 @@ export interface KinetixImportOptions {
 }
 
 export interface KinetixImportPreview {
+    /** The file's source columns */
     headers: string[];
+    /** Sample rows only — capped at settings.previewRows */
     rows: (string | null)[][];
+    /** The importer's target columns */
     columns: KinetixImportColumn[];
     options: KinetixImportOptions;
+    settings: KinetixImportSettings;
+    /** Map of target column name => source header index (or null) */
     autoMapping: Record<string, number | null>;
+    /** Every column matched a header and every header was claimed */
+    isExactMatch: boolean;
     fileToken: string;
+    /** Data rows in the file (a cheap count, not a parse) */
     totalRows: number;
+}
+
+export interface KinetixImportSettings {
+    /** Whether the sample-data table renders at all */
+    hasPreview: boolean;
+    /** Data rows sampled (also the reader's row ceiling) */
+    previewRows: number;
+    /** Source columns shown before the rest collapse (0 = no cap) */
+    previewColumns: number;
+    /** 'auto' | 'modal' | 'fullscreen' | 'sheet' */
+    layout: string;
+    /** Column count above which 'auto' goes full screen */
+    fullscreenThreshold: number;
+    /** Upload ceiling in kilobytes */
+    maxUploadSize: number;
+    /** Template filename, or null when the importer offers none */
+    template?: string;
 }
 
 export interface KinetixInfolistEntry {

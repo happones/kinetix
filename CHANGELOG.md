@@ -13,6 +13,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A three-step import wizard** (published). `KinetixImporter` is now
+  **file → mapping → review**, with a step indicator, and each step is bounded:
+  the mapping list scrolls inside the step instead of growing the dialog, so the
+  layout is the same whether the importer has three target columns or fifty.
+  The pieces live in `components/Importer/*` (`ImporterSteps`,
+  `ImporterDropzone`, `ImporterOptions`, `ImporterMapping`, `ImporterPreview`)
+  over a new `composables/useKinetixImporter.ts` state machine.
+  - **Step 1** is a drop zone that is also a real file input (drag-and-drop is
+    never the only way in), showing the chosen file and its size, and the
+    **reading options collapsed** — with the current delimiter / header /
+    omitted-lines settings still stated in the collapsed summary, so folded
+    never means hidden.
+  - **Step 2** is searchable, filterable to "unmapped only", resettable to the
+    suggestions, counts progress (`18 / 24 fields mapped`), and **names the
+    source columns the import would otherwise silently drop**.
+  - **Step 3** summarises the import (file, rows, mapped fields, ignored
+    columns) before anything is queued.
+- **The dialog sizes itself to the file** (published). Under the default
+  `layout: 'auto'`, `KinetixImportModal` promotes the **same** `KinetixModal` to
+  full screen once the parsed file exceeds `fullscreen_threshold` columns (12) —
+  resized, not remounted, so a mapping the user already fixed survives it.
+  `'modal'`, `'fullscreen'` and `'sheet'` pin one surface; `'sheet'` is an
+  explicit choice only, because swapping shells mid-flow would unmount the
+  wizard and lose the file.
+- **`fullscreen` on `KinetixModal`** (published): the panel takes the viewport
+  and hands its remaining height to the body, for content that needs the room
+  rather than content that is merely long. Existing modals are untouched.
+- **A file that lines up needs no mapping step.** `Importer::isExactMatch()` is
+  true when every target column found a header *and* every non-blank header was
+  claimed — always the case for a file filled in from the downloadable template
+  — and the wizard goes straight to review, saying so. It deliberately fails
+  when a source column goes unclaimed, since that column's data would be
+  dropped; the mapping step names those columns instead.
+- **Per-importer dialog settings**: `$preview`, `$previewRows`,
+  `$previewColumns`, `$layout`, `$fullscreenThreshold` and `$maxUploadSize`,
+  each falling back to a new `kinetix.imports` config block **(published
+  config)**. `settings()` serialises them, and they ride both the
+  `open-importer` event (so the shell can size itself before a file exists) and
+  every preview payload.
+- **The sample table is bounded on both axes**: `preview_rows` (10) rows —
+  which is also the reader's ceiling — and `preview_columns` (8) columns, with
+  the rest behind a *"show N more columns"* toggle and the horizontal scroll
+  kept inside the table's own container so the dialog never scrolls sideways.
+  `preview => false` maps the columns without showing (or parsing) any cells.
+
+### Fixed
+
+- **A large import no longer loads the file into memory.** `ImportProcessor`
+  called `FileReader::read()` with no limit and chunked the resulting array, so
+  peak memory scaled with the row count — a million-row file was a fatal error,
+  not a slow import. The job now consumes `FileReader::stream()`, a generator,
+  and holds one `chunkSize()` chunk at a time. Failed rows are written to the
+  downloadable CSV **as they fail** instead of being collected, so a wholly
+  mismatched file doesn't reproduce the same problem on the way out.
+- **Previewing no longer parses more than it shows.** The reader stops at the
+  row limit, so sampling 10 rows costs 10 rows regardless of file size, and
+  spreadsheets are read in **windows** (`RowWindowFilter`, re-opening the file
+  per window) instead of materialising every cell — the old path called
+  `toArray()` on the entire sheet just to slice ten rows off the front.
+- **Counting rows no longer reads the file twice.** CSV rows are counted by
+  scanning newlines in 1 MB blocks, and a spreadsheet reports its own row count
+  through `listWorksheetInfo()` with no cells loaded. The count is documented
+  for what it is: a cheap label for the dialog, not a contract (a field
+  containing a literal newline counts more than once) — the import itself
+  streams the real records.
+- **The upload ceiling is enforced.** `imports/upload` had no size limit at all;
+  it now validates against the importer's `maxUploadSize` (100 MB by default),
+  and resolves *and authorizes* the importer **before** validating the file, so
+  an unauthorized caller never gets as far as storing an upload.
+- **Accessibility of the import dialog**: every mapping select has a real
+  `KinetixLabel`, required-but-unmapped selects are `aria-invalid`, parse errors
+  are `role="alert"` and announced, the preview table has a `<caption>` and
+  `scope` on every header, and the step indicator is an `<ol>` with
+  `aria-current="step"`. Actions route through `KinetixButton`, so the pending
+  state and double-click protection match the rest of the toolkit.
+
+### Changed
+
+- **A spreadsheet's FIRST worksheet is the one read** (previously whichever
+  sheet the workbook marked active). Windowed reading needs a deterministic
+  sheet, and an import file is single-sheet in practice.
+- `ImportPreviewData` gained `settings` and `isExactMatch`; `ImportAction`'s
+  `open-importer` detail gained `settings` (the `template` key is unchanged).
+  `KinetixImporter` gained `settings` and `surface` props and
+  `update:columns` / `started` / `cancel` emits; its `template` prop still works
+  on its own.
+
+
 ## [0.173.1] - 2026-08-23
 
 Internal development skill only — nothing a consumer receives via
