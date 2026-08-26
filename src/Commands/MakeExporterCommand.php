@@ -26,12 +26,13 @@ class MakeExporterCommand extends GeneratorCommand
 
         namespace {$namespace};
 
-        use Happones\\Kinetix\\Exports\\Exporter;
+        use App\\Models\\Model;
         use Happones\\Kinetix\\Exports\\ExportColumn;
+        use Happones\\Kinetix\\Exports\\Exporter;
 
         class {$class} extends Exporter
         {
-            protected static ?string \$model = \\App\\Models\\Model::class;
+            protected static ?string \$model = Model::class;
 
             public function format(): string
             {

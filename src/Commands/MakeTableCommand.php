@@ -26,8 +26,8 @@ class MakeTableCommand extends GeneratorCommand
 
         namespace {$namespace};
 
-        use Happones\\Kinetix\\Tables\\Table;
         use Happones\\Kinetix\\Tables\\Columns\\TextColumn;
+        use Happones\\Kinetix\\Tables\\Table;
 
         class {$class} extends Table
         {

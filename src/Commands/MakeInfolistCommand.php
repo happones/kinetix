@@ -26,8 +26,8 @@ class MakeInfolistCommand extends GeneratorCommand
 
         namespace {$namespace};
 
-        use Happones\\Kinetix\\Infolists\\Infolist;
         use Happones\\Kinetix\\Infolists\\Components\\TextEntry;
+        use Happones\\Kinetix\\Infolists\\Infolist;
 
         class {$class} extends Infolist
         {

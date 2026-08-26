@@ -26,12 +26,13 @@ class MakeReportCommand extends GeneratorCommand
 
         namespace {$namespace};
 
+        use App\\Models\\Model;
         use Happones\\Kinetix\\Exports\\ExportColumn;
         use Happones\\Kinetix\\ReportsCenter\\Report;
 
         class {$class} extends Report
         {
-            protected static ?string \$model = \\App\\Models\\Model::class;
+            protected static ?string \$model = Model::class;
 
             public function format(): string
             {

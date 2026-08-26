@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class MakeNotificationCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -61,17 +64,17 @@ class {$name} extends Notification
     public function __construct()
     {
         parent::__construct();
-        
+
         // Configure your notification defaults here
         \$this->title('{$name} Notification')
-             ->description('This is a custom notification created by Kinetix.')
-             ->info()
-             ->duration(4000);
+            ->description('This is a custom notification created by Kinetix.')
+            ->info()
+            ->duration(4000);
     }
 }
 PHP;
 
-        File::put($filePath, $template);
+        $this->putGenerated($filePath, $template);
         $this->info("Kinetix notification class [app/Kinetix/Notifications/{$name}.php] created successfully!");
 
         return self::SUCCESS;

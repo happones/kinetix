@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 
 class MakeResourceCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -144,7 +147,7 @@ class MakeResourceCommand extends Command
             return;
         }
 
-        File::put($path, $contents);
+        $this->putGenerated($path, $contents);
         $this->line("Created {$label}");
     }
 

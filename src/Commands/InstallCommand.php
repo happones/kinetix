@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Happones\Kinetix\Support\ComposerHook;
 use Happones\Kinetix\Support\PublishedFiles;
 use Illuminate\Console\Command;
@@ -13,6 +14,8 @@ use Illuminate\Support\ServiceProvider;
 
 class InstallCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -308,8 +311,7 @@ JS;
         if (File::exists($providerPath)) {
             $this->info('App\\Providers\\KinetixServiceProvider already exists — skipping.');
         } else {
-            File::ensureDirectoryExists(dirname($providerPath));
-            File::put($providerPath, $this->providerStub());
+            $this->putGenerated($providerPath, $this->providerStub());
             $this->info('Created app/Providers/KinetixServiceProvider.php');
         }
 

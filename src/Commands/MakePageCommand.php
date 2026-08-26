@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class MakePageCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     protected $signature = 'kinetix:make-page
                             {name : The page name (e.g. InventoryAdjust)}
                             {--no-controller : Skip the controller}
@@ -67,10 +70,7 @@ class MakePageCommand extends Command
             return;
         }
 
-        File::ensureDirectoryExists(dirname($path));
-        // A trailing newline, so the generated file is already clean under the
-        // host's own Pint/ESLint run instead of failing it on first commit.
-        File::put($path, rtrim($contents, "\n")."\n");
+        $this->putGenerated($path, $contents);
         $this->line("Created {$label}");
     }
 

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 class MakeHelpPageCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -77,8 +80,8 @@ defineProps<{
 </template>
 VUE;
 
-        File::put("{$directory}/Index.vue", $indexTemplate);
-        File::put("{$directory}/Show.vue", $showTemplate);
+        $this->putGenerated("{$directory}/Index.vue", $indexTemplate);
+        $this->putGenerated("{$directory}/Show.vue", $showTemplate);
         $this->line('Created Vue Pages: [resources/js/pages/Kinetix/Help/Index.vue, Show.vue]');
 
         $this->createSampleArticle();
@@ -159,7 +162,7 @@ VUE;
                 continue;
             }
 
-            File::put($target, $this->translationSkeleton((string) File::get($base), $locale));
+            $this->putGenerated($target, $this->translationSkeleton((string) File::get($base), $locale));
             $this->line("Created: {$target}");
             $created++;
         }
@@ -265,7 +268,7 @@ Only users allowed to view products can read this section.
 <!-- /kinetix:can -->
 MD;
 
-        File::put("{$path}/01-getting-started.md", $sample);
+        $this->putGenerated("{$path}/01-getting-started.md", $sample);
         $this->line("Created sample article: [{$path}/01-getting-started.md]");
     }
 

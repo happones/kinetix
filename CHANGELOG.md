@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Scaffolded code no longer fails the host's own formatter on its first run.**
+  Every `kinetix:make-*` stub is a heredoc, and a heredoc ends at its closing
+  marker with no trailing newline — so every generated file tripped
+  `single_blank_line_at_eof` the first time a host ran `pint`. Generated code
+  that arrives already violating the project's standards is a poor first
+  impression, and it was every generator, not one.
+
+  All of them now write through a shared `WritesGeneratedFiles` helper, so the
+  tail is normalized in one place instead of being remembered per stub.
+  `InstallCommand`'s append/edit paths are untouched — they manage their own
+  newlines against files the host already owns.
+
+  Checking it properly with the real formatter turned up more of the same class,
+  now fixed too: unordered imports in the table, form, infolist, exporter,
+  importer and relation-manager stubs; an inline `\App\Models\Model::class`
+  where an import belongs (importer, exporter, report); a stray 12-space indent
+  on the relation manager's `$recordTitleAttribute` line; and trailing
+  whitespace plus mis-aligned method chaining in the notification stub.
+
+  The guard is `GeneratedScaffoldStyleTest`, which runs **Pint itself** over what
+  every generator actually wrote — a per-rule assertion only catches the rule
+  someone thought of. Repo tooling only; nothing a consumer receives via
+  `vendor:publish` changed, though the code these commands generate does.
+
+
 ## [0.177.0] - 2026-08-25
 
 Custom pages. A screen that is not a CRUD resource had no way to declare its

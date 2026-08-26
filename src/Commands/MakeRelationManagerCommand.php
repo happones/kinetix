@@ -34,18 +34,18 @@ class MakeRelationManagerCommand extends GeneratorCommand
         $extraImports = '';
         $toolbarExtra = "\n                // BelongsToMany: AttachAction::make() — HasMany: AssociateAction::make()";
         $rowExtra     = "\n                    // BelongsToMany: DetachAction::make() — HasMany: DissociateAction::make()";
-        $titleAttr    = "// The attribute the attach/associate pickers label and search by.\n            // protected static ?string \$recordTitleAttribute = 'name';";
+        $titleAttr    = "// The attribute the attach/associate pickers label and search by.\n    // protected static ?string \$recordTitleAttribute = 'name';";
 
         if ($attach) {
             $extraImports = "\nuse Happones\\Kinetix\\Actions\\AttachAction;\nuse Happones\\Kinetix\\Actions\\DetachAction;";
             $toolbarExtra = "\n                AttachAction::make(),";
             $rowExtra     = "\n                    DetachAction::make(),";
-            $titleAttr    = "// The attribute the attach picker labels and searches by.\n            protected static ?string \$recordTitleAttribute = 'name';";
+            $titleAttr    = "// The attribute the attach picker labels and searches by.\n    protected static ?string \$recordTitleAttribute = 'name';";
         } elseif ($associate) {
             $extraImports = "\nuse Happones\\Kinetix\\Actions\\AssociateAction;\nuse Happones\\Kinetix\\Actions\\DissociateAction;";
             $toolbarExtra = "\n                AssociateAction::make(),";
             $rowExtra     = "\n                    DissociateAction::make(),";
-            $titleAttr    = "// The attribute the associate picker labels and searches by.\n            protected static ?string \$recordTitleAttribute = 'name';";
+            $titleAttr    = "// The attribute the associate picker labels and searches by.\n    protected static ?string \$recordTitleAttribute = 'name';";
         }
 
         return <<<PHP
@@ -62,8 +62,8 @@ class MakeRelationManagerCommand extends GeneratorCommand
         use Happones\\Kinetix\\Forms\\Components\\TextInput;
         use Happones\\Kinetix\\Forms\\Form;
         use Happones\\Kinetix\\Resources\\RelationManager;
-        use Happones\\Kinetix\\Tables\\Table;
         use Happones\\Kinetix\\Tables\\Columns\\TextColumn;
+        use Happones\\Kinetix\\Tables\\Table;
 
         class {$class} extends RelationManager
         {

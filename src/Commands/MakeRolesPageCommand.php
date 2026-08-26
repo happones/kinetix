@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 class MakeRolesPageCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -69,7 +72,7 @@ import KinetixRolesOverview from '@/components/kinetix/KinetixRolesOverview.vue'
 </template>
 VUE;
 
-        File::put($filePath, $template);
+        $this->putGenerated($filePath, $template);
         $this->line('Created Vue Page: [resources/js/pages/Kinetix/Roles/Index.vue]');
 
         $this->info("\nRoles page scaffolded successfully!");

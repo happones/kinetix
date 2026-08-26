@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class HelpScreenshotsCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -62,7 +65,7 @@ class HelpScreenshotsCommand extends Command
         $outDir       = storage_path('framework/kinetix-help-screenshots');
         $manifestPath = $outDir.'/manifest.json';
         File::ensureDirectoryExists($outDir);
-        File::put($manifestPath, (string) json_encode($this->manifest($pages, $outDir), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
+        $this->putGenerated($manifestPath, (string) json_encode($this->manifest($pages, $outDir), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
 
         $node   = (string) config('kinetix.help.screenshots.node_binary', 'node');
         $result = Process::env([

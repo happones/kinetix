@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 class MakeBillingCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The name and signature of the console command.
      *
@@ -175,7 +178,7 @@ const subscribe = (plan: KinetixPlanData) => {
 </template>
 VUE;
 
-        File::put("{$directory}/Index.vue", $template);
+        $this->putGenerated("{$directory}/Index.vue", $template);
         $this->line('Created Vue page: [resources/js/pages/Billing/Index.vue]');
     }
 
@@ -234,7 +237,7 @@ class PlanSeeder extends Seeder
 }
 PHP;
 
-        File::put("{$directory}/PlanSeeder.php", $template);
+        $this->putGenerated("{$directory}/PlanSeeder.php", $template);
         $this->line('Created seeder: [database/seeders/PlanSeeder.php]');
     }
 }

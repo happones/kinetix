@@ -26,12 +26,13 @@ class MakeImporterCommand extends GeneratorCommand
 
         namespace {$namespace};
 
-        use Happones\\Kinetix\\Imports\\Importer;
+        use App\\Models\\Model;
         use Happones\\Kinetix\\Imports\\ImportColumn;
+        use Happones\\Kinetix\\Imports\\Importer;
 
         class {$class} extends Importer
         {
-            protected static ?string \$model = \\App\\Models\\Model::class;
+            protected static ?string \$model = Model::class;
 
             public static function getColumns(): array
             {

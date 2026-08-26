@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 abstract class GeneratorCommand extends Command
 {
+    use WritesGeneratedFiles;
+
     /**
      * The sub-namespace/directory under app/Kinetix (e.g. 'Actions').
      */
@@ -32,8 +35,7 @@ abstract class GeneratorCommand extends Command
             return self::FAILURE;
         }
 
-        File::ensureDirectoryExists($directory);
-        File::put($path, $this->stub($class));
+        $this->putGenerated($path, $this->stub($class));
 
         $this->info("Created [{$this->relativePath($path)}].");
 

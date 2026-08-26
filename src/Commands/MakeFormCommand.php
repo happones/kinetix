@@ -26,8 +26,8 @@ class MakeFormCommand extends GeneratorCommand
 
         namespace {$namespace};
 
-        use Happones\\Kinetix\\Forms\\Form;
         use Happones\\Kinetix\\Forms\\Components\\TextInput;
+        use Happones\\Kinetix\\Forms\\Form;
 
         class {$class} extends Form
         {
