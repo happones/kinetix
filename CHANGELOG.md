@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.176.0] - 2026-08-25
+
+Page action bars. A page had a header bar and nothing at the other end — the
+only `footerActions` in the package belonged to `Table` and rendered inside the
+table's own card, and the scaffolded pages hand-wrote a Save/Cancel row inside a
+form. A custom page whose body is your own component now gets the same
+PHP-declared actions at the bottom as it already had at the top.
+
 ### Added
 
 - **`<KinetixPageFooter>` — page-level footer actions** (published). A page had
