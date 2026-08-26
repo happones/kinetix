@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.177.0] - 2026-08-25
+
+Custom pages. A screen that is not a CRUD resource had no way to declare its
+chrome from PHP: the header bar took a raw `KinetixAction[]` prop, the footer bar
+had only just arrived, and there was no scaffold for a blank page at all. Now a
+page's heading and both action bars are one object on the server, and its body
+stays whatever Vue you want.
+
 ### Added
 
 - **`Happones\Kinetix\Pages\Page` — a page's chrome, declared in PHP.** Not
