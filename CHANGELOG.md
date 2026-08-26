@@ -13,6 +13,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Happones\Kinetix\Pages\Page` — a page's chrome, declared in PHP.** Not
+  every screen is a resource: a dashboard, a POS terminal, a bulk-adjust form.
+  Their bodies differ, but the chrome around them is always the same, and it
+  belongs on the server where authorization, routes and translations already are.
+
+  ```php
+  class InventoryAdjustPage extends Page
+  {
+      protected ?string $heading = 'Adjust stock';
+      protected bool $stickyFooter = true;
+
+      protected function buildFooterActions(): array
+      {
+          return [$cancel, $post];   // primary LAST — the row reverses on mobile
+      }
+  }
+
+  return inertia('Kinetix/InventoryAdjust', [
+      'page' => InventoryAdjustPage::make()->record($item)->toArray(),
+  ]);
+  ```
+
+  It declares **only** the chrome — heading, description and the two action bars
+  — and nothing about the body, which is the point. `->record($model)` feeds
+  every action's serialization, so `->url(fn ($record) => …)` and
+  `->authorize()` receive it, and an action the user may not run is dropped
+  **before it reaches the browser** rather than hidden in the client. `Page` is
+  `Arrayable` + `JsonSerializable`, so it can be passed straight to an Inertia
+  prop. New docs page:
+  [Custom Pages](https://happones.github.io/kinetix/pages), plus a
+  `kinetix-pages` Boost skill.
+- **`<KinetixPageShell>`** (published): renders a serialized page — header bar,
+  your content, footer bar — from one `page` prop, so the payload doesn't have
+  to be unpacked by hand. A bar with nothing to show is not rendered
+  (`alwaysFooter` forces a footer whose content comes from a slot), and the four
+  slots forward to the corresponding bar. It is sugar over composing
+  `<KinetixPageHeader>` and `<KinetixPageFooter>` yourself, which remains fully
+  supported and is the better fit when the layout between them is unusual.
+- **`kinetix:make-page`** — scaffolds a blank page: the `Page` class, a
+  single-action controller, and a Vue page whose body is a placeholder to
+  replace. It prints the route line to register, and normalizes the suffix
+  (`InventoryPage` yields `InventoryPage`, never `InventoryPagePage`). Options
+  `--sticky-footer`, `--no-controller`, `--no-view`, `--force`. Every generated
+  file ends in a newline, so the scaffold passes the host's own Pint and ESLint
+  on the first run.
+
+
 ## [0.176.0] - 2026-08-25
 
 Page action bars. A page had a header bar and nothing at the other end — the

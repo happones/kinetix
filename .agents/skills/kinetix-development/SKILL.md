@@ -411,6 +411,20 @@ Every icon is declared from PHP by NAME and resolved by one shared frontend map
 
 ---
 
+## 8c. Kinetix Custom Pages
+
+Chrome for a NON-resource screen, declared in PHP. Docs: [docs/pages.md]; boost
+skill: `kinetix-pages`. Added v0.177.0.
+
+- **`Happones\Kinetix\Pages\Page`** (note: NOT `KinetixPage` — package classes are unprefixed, like `Table`/`Form`/`Infolist`/`Action`). Declares heading, description, `headerActions`, `footerActions`, `record`, `stickyFooter` → `PageData` (`#[TypeScript]`), `Arrayable` + `JsonSerializable`. Subclass hooks `buildHeaderActions()`/`buildFooterActions()` run in the constructor, mirroring `Table::buildFooterActions()`. `::make($heading)` uses `??=` so a subclass's declared `$heading` WINS over the constructor argument, while the fluent `->heading()` always wins.
+- **It declares CHROME ONLY** — nothing about the body. That is the whole design: the actions come from the server (authorization, routes, translations) and the content stays arbitrary Vue.
+- **Authorization at serialization**: `serializeActions()` drops anything whose `Action::toData($record)` is null, so an unauthorized or hidden action never reaches the browser. `->record()` feeds that call, which is what makes `->url(fn ($record) => …)` and `->authorize()` work.
+- **`KinetixPageShell.vue`** renders `KinetixPageHeader` + default slot + `KinetixPageFooter` from one `page` prop; each bar is omitted when it has nothing to show (`alwaysFooter` forces the footer for a slot-only footer). Slots `header-before-actions`/`header-actions`/`footer-before-actions`/`footer-actions` forward to the bars. It is SUGAR over composing the two bars by hand — keep both paths working.
+- **`kinetix:make-page`** (`MakePageCommand`, registered in the provider) writes the page class + a single-action controller + the Vue page, prints the route line, and normalizes the `Page` suffix (`InventoryPage` → `InventoryPage`, not `InventoryPagePage`). Options `--sticky-footer`, `--no-controller`, `--no-view`, `--force`. It appends a trailing newline to every generated file so the scaffold passes the HOST's Pint/ESLint on first run — the older generators do not, and `MakePageCommandTest` pins it along with `php -l` on the generated PHP.
+- Tests: `PageTest`, `MakePageCommandTest`, `KinetixPageShell.spec.ts`.
+
+---
+
 ## 9. Kinetix Relation Managers
 
 Manage a parent record's related records on its edit/show page; a thin composition over `Table`.

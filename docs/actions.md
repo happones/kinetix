@@ -350,6 +350,10 @@ The pinned bar stays part of the layout, so it never covers the last of your con
 A footer usually repeats actions the header already bound, and two handlers on one chord is a bug. Turn it on only for actions that live **only** in the footer.
 :::
 
+### Declaring both bars at once
+
+When a page's whole chrome is header + footer actions, `Happones\Kinetix\Pages\Page` declares it in one object and `<KinetixPageShell>` renders it — see [Custom Pages](pages.md). Passing `KinetixAction[]` to the two bars by hand, as above, stays fully supported.
+
 ### One implementation behind both: `KinetixActionBar`
 
 Both bars render their actions through `KinetixActionBar.vue`, so a grouped dropdown, a `requiresConfirmation()` modal, a declared shortcut and a pending spinner behave identically top and bottom. Use it directly when you need an action row somewhere neither bar fits:

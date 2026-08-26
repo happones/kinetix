@@ -1045,6 +1045,17 @@ export interface KinetixTableCellRecord {
     urls?: Record<string, string | null>;
 }
 
+export interface KinetixPageData {
+    heading?: string;
+    description?: string;
+    /** Actions in the page header */
+    headerActions: KinetixAction[];
+    /** Actions in the page footer */
+    footerActions: KinetixAction[];
+    /** Pin the footer bar to the bottom of the scroll container */
+    stickyFooter: boolean;
+}
+
 export interface KinetixImportColumn {
     name: string;
     label: string;

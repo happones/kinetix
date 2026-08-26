@@ -34,6 +34,7 @@ use Happones\Kinetix\Commands\MakeHelpPageCommand;
 use Happones\Kinetix\Commands\MakeImporterCommand;
 use Happones\Kinetix\Commands\MakeInfolistCommand;
 use Happones\Kinetix\Commands\MakeNotificationCommand;
+use Happones\Kinetix\Commands\MakePageCommand;
 use Happones\Kinetix\Commands\MakeRelationManagerCommand;
 use Happones\Kinetix\Commands\MakeReportCommand;
 use Happones\Kinetix\Commands\MakeResourceCommand;
@@ -365,6 +366,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeRelationManagerCommand::class,
                 MakeBillingCommand::class,
                 MakeSettingsPageCommand::class,
+                MakePageCommand::class,
                 ActivityPruneCommand::class,
                 WebhooksPruneCommand::class,
                 SendReportsCommand::class,
