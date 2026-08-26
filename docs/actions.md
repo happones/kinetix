@@ -231,7 +231,17 @@ The modal is rendered through `<Teleport to="body">`, closes on overlay click or
 
 ## 6. Page Action Bars
 
-`KinetixPageHeader.vue` renders a page-level header with a title, optional description, and a right-aligned row of actions — the standard place for "Create", "Edit", "Delete", or custom page actions. It reuses the same action execution and confirmation flow as tables.
+A page gets two action bars, and **neither knows anything about what the page renders between them** — that independence is the point. Put a table, a form, or a component entirely of your own in the middle:
+
+```vue
+<KinetixPageHeader heading="Inventory" :actions="headerActions" />
+
+<MyCustomThing />          <!-- anything at all -->
+
+<KinetixPageFooter :actions="footerActions" />
+```
+
+`KinetixPageHeader.vue` renders a page-level header with a title, optional description, and a right-aligned row of actions — the standard place for "Create", "Edit", "Delete", or custom page actions. `KinetixPageFooter.vue` is its counterpart for the end of the page ("Save", "Cancel", "Archive"). Both reuse the same action execution and confirmation flow as tables.
 
 <Screenshot name="page-header" alt="Page header with actions" />
 
@@ -292,6 +302,70 @@ defineProps<{ headerActions: KinetixAction[] }>();
 
 **Slots:** `before-actions` (left of the action row) and the default slot (right of it). Actions with `requiresConfirmation()` open the shared confirmation modal automatically.
 
+### Footer actions: `KinetixPageFooter`
+
+<Screenshot name="page-footer" alt="A page footer bar: a save-state note on the left, Cancel and Save changes right-aligned" />
+
+Same contract, bottom of the page:
+
+```php
+return inertia('Inventory/Adjust', [
+    'item' => $item,
+    'footerActions' => [
+        Action::make('cancel')
+            ->label(__('inventory.cancel'))->color('gray')
+            ->url(route('inventory.index')),
+
+        Action::make('post')
+            ->label(__('inventory.post'))->icon('check')
+            ->requiresConfirmation(__('inventory.post_confirm'))
+            ->inertiaVisit(route('inventory.post', $item), ['method' => 'post']),
+    ],
+]);
+```
+
+```vue
+<KinetixPageFooter :actions="footerActions" sticky>
+    <template #before-actions>Last saved 2 minutes ago</template>
+</KinetixPageFooter>
+```
+
+| Prop | Type | Description |
+|---|---|---|
+| `actions` | `KinetixAction[]` | Serialized actions |
+| `sticky` | `boolean?` | Pin the bar to the bottom of the scroll container (default `false`) |
+| `shortcuts` | `boolean?` | Bind the actions' `->shortcut()` keys (default **`false`** — see below) |
+
+**Slots:** `before-actions` (left of the row — a save state, a hint, a validation summary) and the default slot (right of it).
+
+The action row is `flex-col-reverse` below `sm`, which puts the **last** action — the primary one, by convention — on top where the thumb is, and full width. From `sm` up it is a right-aligned row. Same rule as the dialog shells' footers, so a footer looks the same on a page and in a modal.
+
+::: tip `sticky` is `position: sticky`, not `fixed`
+The pinned bar stays part of the layout, so it never covers the last of your content the way a fixed bar does — no bottom padding to remember. Use it for a long page where "Save" should stay reachable without scrolling to the end.
+:::
+
+<Screenshot name="page-footer-sticky" alt="The same footer bar pinned, with a top border and solid background" />
+
+::: warning `shortcuts` defaults to off in the footer
+A footer usually repeats actions the header already bound, and two handlers on one chord is a bug. Turn it on only for actions that live **only** in the footer.
+:::
+
+### One implementation behind both: `KinetixActionBar`
+
+Both bars render their actions through `KinetixActionBar.vue`, so a grouped dropdown, a `requiresConfirmation()` modal, a declared shortcut and a pending spinner behave identically top and bottom. Use it directly when you need an action row somewhere neither bar fits:
+
+```vue
+<KinetixActionBar :actions="actions" :shortcuts="false" stack />
+```
+
+| Prop | Type | Description |
+|---|---|---|
+| `actions` | `KinetixAction[]` | Serialized actions |
+| `shortcuts` | `boolean?` | Bind declared shortcut keys (default `true`) |
+| `stack` | `boolean?` | Full-width stacked below `sm`, right-aligned row above (default `false` — the header's inline, wrapping row) |
+
+**Slots:** `before` and `after`.
+
 ### Header actions that open a form in a modal
 
 A header action carries no form of its own — when a "New …" button should open
@@ -330,7 +404,7 @@ __('kinetix.record_created'))`). Full worked examples live in the
 
 ### Shared execution composable
 
-Both `KinetixTable.vue` and `KinetixPageHeader.vue` consume `@/composables/useKinetixActions`:
+`KinetixTable.vue` and `KinetixActionBar.vue` (and therefore both page bars) consume `@/composables/useKinetixActions`:
 
 - `executeAction(action)` — runs an action (dispatch / Inertia visit / new tab / navigation).
 - `useActionConfirmation()` — returns `{ pendingAction, isConfirmOpen, processing, processingAction, requestAction, confirm, cancel }` to gate actions behind the modal.

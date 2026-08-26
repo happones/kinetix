@@ -45,6 +45,7 @@ import KinetixReportSchedules from '@/components/KinetixReportSchedules.vue';
 import KinetixReportsCenter from '@/components/KinetixReportsCenter.vue';
 import KinetixConfidentialUnlock from '@/components/KinetixConfidentialUnlock.vue';
 import ImporterOptions from '@/components/Importer/ImporterOptions.vue';
+import KinetixPageFooter from '@/components/KinetixPageFooter.vue';
 import ImporterMapping from '@/components/Importer/ImporterMapping.vue';
 
 // The onboarding checklist's `sidebar` variant is sized for a navigation rail,
@@ -1736,7 +1737,65 @@ const importMappingColumns = [
     { name: 'category', label: 'Category', isRequired: false, guesses: [] },
 ];
 
+// Page action bars. The header and the footer render the same actions through
+// the same KinetixActionBar, so they are captured together to show the pair.
+const pageAction = (over: Record<string, unknown> = {}) => ({
+    name: 'act',
+    label: 'Action',
+    viewType: 'button',
+    shouldOpenInNewTab: false,
+    color: null,
+    shouldClose: false,
+    shouldMarkAsRead: false,
+    shouldMarkAsUnread: false,
+    ...over,
+});
+
+const pageHeaderActions = [
+    pageAction({
+        name: 'import',
+        label: 'Import',
+        icon: 'upload',
+        color: 'gray',
+    }),
+    pageAction({ name: 'new', label: 'New product', icon: 'plus' }),
+];
+
+const pageFooterActions = [
+    pageAction({ name: 'cancel', label: 'Cancel', color: 'gray' }),
+    pageAction({ name: 'save', label: 'Save changes', icon: 'check' }),
+];
+
 export const specimens: Specimen[] = [
+    {
+        name: 'page-footer',
+        title: 'Page footer — action bar',
+        component: KinetixPageFooter,
+        frame: 'card',
+        width: 720,
+        props: { actions: pageFooterActions },
+        slots: { 'before-actions': () => 'All changes saved' },
+    },
+    {
+        name: 'page-footer-sticky',
+        title: 'Page footer — sticky',
+        component: KinetixPageFooter,
+        frame: 'card',
+        width: 720,
+        props: { actions: pageFooterActions, sticky: true },
+    },
+    {
+        name: 'page-header-actions',
+        title: 'Page header — actions',
+        component: KinetixPageHeader,
+        frame: 'card',
+        width: 720,
+        props: {
+            heading: 'Products',
+            description: 'Everything you sell, in one place.',
+            actions: pageHeaderActions,
+        },
+    },
     {
         name: 'importer-options',
         title: 'Import — reading options (expanded)',

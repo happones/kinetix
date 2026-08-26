@@ -13,6 +13,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`<KinetixPageFooter>` — page-level footer actions** (published). A page had
+  a header action bar and nothing at the other end: `footerActions` existed only
+  on `Table`, where it renders inside the table's own footer card, and the
+  scaffolded create/edit pages hand-wrote a Save/Cancel row inside
+  `KinetixForm`'s slot — coupled to a form and not driven by `Action` objects at
+  all. So a custom page whose body was your own Vue component had no way to
+  declare footer actions from PHP.
+
+  Both bars now take **only** `actions` (plus the header's heading/description),
+  so anything can sit between them:
+
+  ```vue
+  <KinetixPageHeader heading="Inventory" :actions="headerActions" />
+  <MyCustomThing />
+  <KinetixPageFooter :actions="footerActions" sticky />
+  ```
+
+  `sticky` pins the bar with the shadcn footer chrome, using `position: sticky`
+  rather than `fixed` **on purpose** — the bar stays part of the layout, so it
+  never covers the last of the content and the page owes it no bottom padding.
+  The row is `flex-col-reverse` below `sm` (the last action — the primary one by
+  convention — lands on top, full width) and a right-aligned row above, matching
+  the dialog shells' footers. `shortcuts` defaults to **off** here: a footer
+  usually repeats actions the header already bound, and two handlers on one
+  chord is a bug. Slots `before-actions` (a save state, a hint, a validation
+  summary) and default.
+- **`<KinetixActionBar>`** (published): the action row both page bars render
+  through — dropdown groups, `requiresConfirmation()` modals, `->shortcut()`
+  registration, per-button pending state, `viewType: 'link'` vs button, icon
+  position. Previously that logic lived only inside `KinetixPageHeader`, so a
+  footer would have meant a second copy of it. Props `actions` / `shortcuts` /
+  `stack`, slots `before` / `after` — use it directly for an action row where
+  neither page bar fits.
+
+### Changed
+
+- `KinetixPageHeader` now delegates its action row to `KinetixActionBar`
+  (published). Its props, slots and rendered output are unchanged — the
+  extraction exists so the header and the footer cannot drift apart.
+
+### Fixed
+
+- **The frontend suite no longer flakes under parallel load.** A different spec
+  failed on each full run — always a 5s **timeout**, never an assertion: the
+  timezone picker builds the full IANA zone list and the import mapping mounts
+  two dozen Reka selects, and either passes alone in about a second yet exceeds
+  the default timeout while 160 other files share the CPU. `testTimeout` is now
+  20s. Repo tooling only — nothing a consumer receives via `vendor:publish`
+  changed.
+
+
 ## [0.175.0] - 2026-08-25
 
 Icons. Every icon in Kinetix is declared from PHP by name, and a name the
