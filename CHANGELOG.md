@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.177.1] - 2026-08-25
+
+Generator hygiene. Every `kinetix:make-*` stub produced a file that failed the
+host's own `pint` on the very first run — starting with a missing trailing
+newline, and, once checked with the real formatter, a handful more of the same
+kind. Nothing a consumer receives via `vendor:publish` changed; the code these
+commands generate did.
+
 ### Fixed
 
 - **Scaffolded code no longer fails the host's own formatter on its first run.**
