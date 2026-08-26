@@ -104,4 +104,39 @@ class HelpScreenshotsCommandTest extends TestCase
             ->expectsOutputToContain('kinetix.help.screenshots.pages')
             ->assertFailed();
     }
+
+    public function test_the_capture_directory_ignores_its_own_contents(): void
+    {
+        Storage::fake('local');
+        Process::fake();
+
+        $outDir = storage_path('framework/kinetix-help-screenshots');
+        File::ensureDirectoryExists($outDir);
+        File::put($outDir.'/dashboard.png', 'png');
+
+        $this->artisan('kinetix:help-screenshots');
+
+        // Every sibling directory Laravel keeps under storage/framework ships
+        // this pair; ours is created by the command, so without it the captured
+        // PNGs are only kept out of git by the host's root .gitignore — and
+        // `--keep-local` or a failed upload leaves them behind.
+        $ignore = $outDir.'/.gitignore';
+        $this->assertFileExists($ignore);
+        $this->assertSame("*\n!.gitignore\n", File::get($ignore));
+    }
+
+    public function test_the_ignore_file_is_not_rewritten_if_the_host_customized_it(): void
+    {
+        Storage::fake('local');
+        Process::fake();
+
+        $outDir = storage_path('framework/kinetix-help-screenshots');
+        File::ensureDirectoryExists($outDir);
+        File::put($outDir.'/.gitignore', "# mine\n*\n");
+        File::put($outDir.'/dashboard.png', 'png');
+
+        $this->artisan('kinetix:help-screenshots');
+
+        $this->assertSame("# mine\n*\n", File::get($outDir.'/.gitignore'));
+    }
 }

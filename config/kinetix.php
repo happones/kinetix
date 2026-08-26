@@ -899,6 +899,14 @@ return [
             // Key prefix on the disk.
             'path_prefix' => 'help/screenshots',
 
+            // How long (seconds) a browser may reuse a capture before
+            // revalidating. Captures stream through an AUTHENTICATED route, so
+            // the header is always `private` — a shared proxy or CDN must never
+            // hold one. An ETag rides along, so an expired copy costs a 304
+            // instead of the bytes. 0 disables caching entirely (a live demo
+            // environment where captures are regenerated constantly).
+            'cache_ttl' => env('KINETIX_HELP_SCREENSHOT_CACHE_TTL', 86400),
+
             // Pages to capture: name => path (or ['path' => ..., 'full_page' => bool, 'delay' => ms]).
             'pages' => [
                 // 'dashboard' => '/dashboard',

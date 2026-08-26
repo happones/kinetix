@@ -87,6 +87,14 @@ class HelpController
      * work because the response proxies through this authenticated route) and
      * finally from `{help.path}/screenshots/` for the commit-the-PNGs
      * workflow. Filenames are strictly validated (no traversal, images only).
+     *
+     * Both paths get the SAME cache headers. They used to disagree, badly: the
+     * disk response inherited the session's `no-cache, private`, so every view
+     * of an article re-streamed every screenshot through PHP and the disk, while
+     * the committed-file response came back `public` — inviting a shared proxy
+     * to hold an authenticated user's capture. Now: `private` (never a shared
+     * cache), a real `max-age`, and an ETag so an expired copy costs a 304
+     * rather than the bytes.
      */
     public function screenshot(Request $request): Response
     {
@@ -100,7 +108,12 @@ class HelpController
 
         foreach (["{$prefix}/{$locale}/{$name}", "{$prefix}/{$name}"] as $key) {
             if (Storage::disk($disk)->exists($key)) {
-                return Storage::disk($disk)->response($key);
+                return $this->cacheable(
+                    Storage::disk($disk)->response($key),
+                    $request,
+                    (int) (Storage::disk($disk)->lastModified($key) ?: 0),
+                    (int) (Storage::disk($disk)->size($key) ?: 0),
+                );
             }
         }
 
@@ -108,11 +121,51 @@ class HelpController
             $local = $this->manager->path().$suffix;
 
             if (is_file($local)) {
-                return response()->file($local);
+                return $this->cacheable(
+                    response()->file($local),
+                    $request,
+                    (int) (filemtime($local) ?: 0),
+                    (int) (filesize($local) ?: 0),
+                );
             }
         }
 
         abort(404);
+    }
+
+    /**
+     * Apply the shared screenshot cache policy, and answer 304 when the client
+     * already has the bytes.
+     *
+     * The validator is mtime + size rather than a content hash: it is free on a
+     * local disk and one metadata call on S3, and a regenerated capture always
+     * moves at least one of the two. `cache_ttl = 0` opts out entirely.
+     */
+    protected function cacheable(Response $response, Request $request, int $lastModified, int $size): Response
+    {
+        $ttl = (int) config('kinetix.help.screenshots.cache_ttl', 86400);
+
+        if ($ttl <= 0) {
+            // Explicit, not inherited: the committed-file path would otherwise
+            // still answer `public`.
+            $response->headers->set('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+
+            return $response;
+        }
+
+        $response->setPrivate();
+        $response->setMaxAge($ttl);
+        $response->headers->addCacheControlDirective('must-revalidate');
+
+        if ($lastModified > 0) {
+            $response->setLastModified((new \DateTimeImmutable)->setTimestamp($lastModified));
+            $response->setEtag(substr(sha1($lastModified.':'.$size), 0, 16));
+        }
+
+        // Turns a matching If-None-Match / If-Modified-Since into an empty 304.
+        $response->isNotModified($request);
+
+        return $response;
     }
 
     /**

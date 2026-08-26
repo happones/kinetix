@@ -219,6 +219,88 @@ MD);
         $this->get(route('kinetix.help.screenshot', ['file' => 'missing.png']))->assertNotFound();
     }
 
+    public function test_screenshots_are_privately_cacheable_on_both_paths(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('help/screenshots/on-disk.png', 'disk-bytes');
+        File::ensureDirectoryExists("{$this->helpPath}/screenshots");
+        File::put("{$this->helpPath}/screenshots/committed.png", 'png-bytes');
+
+        // The two paths used to disagree: the disk response inherited the
+        // session's `no-cache` (so every article view re-streamed every
+        // capture), while the committed file answered `public` — letting a
+        // shared proxy hold an authenticated user's screenshot.
+        foreach (['on-disk.png', 'committed.png'] as $file) {
+            $response     = $this->get(route('kinetix.help.screenshot', ['file' => $file]))->assertOk();
+            $cacheControl = (string) $response->headers->get('Cache-Control');
+
+            $this->assertStringContainsString('private', $cacheControl, $file);
+            $this->assertStringContainsString('max-age=86400', $cacheControl, $file);
+            $this->assertStringNotContainsString('public', $cacheControl, $file);
+            $this->assertStringNotContainsString('no-cache', $cacheControl, $file);
+            $this->assertNotNull($response->headers->get('ETag'), $file);
+            $this->assertNotNull($response->headers->get('Last-Modified'), $file);
+        }
+    }
+
+    public function test_an_unchanged_screenshot_answers_304_without_the_bytes(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('help/screenshots/on-disk.png', 'disk-bytes');
+
+        $url  = route('kinetix.help.screenshot', ['file' => 'on-disk.png']);
+        $etag = $this->get($url)->assertOk()->headers->get('ETag');
+
+        $this->withHeaders(['If-None-Match' => (string) $etag])
+            ->get($url)
+            ->assertStatus(304);
+    }
+
+    public function test_a_regenerated_screenshot_invalidates_its_etag(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('help/screenshots/on-disk.png', 'first');
+        $first = $this->get(route('kinetix.help.screenshot', ['file' => 'on-disk.png']))->headers->get('ETag');
+
+        // The validator is mtime + size, so a recapture that changes either one
+        // is served fresh rather than from a stale cache.
+        Storage::disk('local')->put('help/screenshots/on-disk.png', 'second capture, different size');
+        $second = $this->get(route('kinetix.help.screenshot', ['file' => 'on-disk.png']))->headers->get('ETag');
+
+        $this->assertNotSame($first, $second);
+    }
+
+    public function test_a_zero_ttl_opts_out_of_caching_on_both_paths(): void
+    {
+        config()->set('kinetix.help.screenshots.cache_ttl', 0);
+
+        Storage::fake('local');
+        Storage::disk('local')->put('help/screenshots/on-disk.png', 'disk-bytes');
+        File::ensureDirectoryExists("{$this->helpPath}/screenshots");
+        File::put("{$this->helpPath}/screenshots/committed.png", 'png-bytes');
+
+        foreach (['on-disk.png', 'committed.png'] as $file) {
+            $cacheControl = (string) $this->get(route('kinetix.help.screenshot', ['file' => $file]))
+                ->assertOk()
+                ->headers->get('Cache-Control');
+
+            $this->assertStringContainsString('no-store', $cacheControl, $file);
+            // Still never `public`, even with caching off.
+            $this->assertStringNotContainsString('public', $cacheControl, $file);
+        }
+    }
+
+    public function test_screenshot_embeds_are_lazy(): void
+    {
+        $this->article('01-a.md', "# A\n\n![Dash](screenshots/dash.png)");
+
+        // Each capture is a round trip through an authenticated PHP route, so
+        // an article full of them must not fire them all before a scroll.
+        $html = $this->getJson(route('kinetix.help.show', ['slug' => '01-a']))->json('html');
+        $this->assertStringContainsString('loading="lazy"', $html);
+        $this->assertStringContainsString('decoding="async"', $html);
+    }
+
     public function test_screenshot_route_rejects_traversal_and_non_images(): void
     {
         File::ensureDirectoryExists("{$this->helpPath}/screenshots");

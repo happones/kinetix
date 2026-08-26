@@ -108,6 +108,21 @@ under `{path_prefix}/{locale}/` — articles in that language get it, everything
 else falls back to the shared capture. Committed PNGs under
 `{help.path}/screenshots/[{locale}/]` work with zero setup.
 
+**Images do NOT belong in git, and by default they aren't**: captures go to a
+disk, the local PNGs are deleted after upload (`--keep-local` opts out), the
+default `public` disk path is already covered by Laravel's
+`storage/app/public/.gitignore`, and the command's scratch directory ignores
+itself. **The trap is deployment**: a LOCAL disk is per-machine, so a fresh
+server serves 404s until `kinetix:help-screenshots` runs there — point
+`KINETIX_HELP_SCREENSHOT_DISK` at S3 (or any shared disk), or make the capture
+part of the deploy. Commit the PNGs instead only for a small, rarely-changed
+manual with no object storage; a translated manual multiplies the file count per
+language, so binaries in git add up fast.
+
+Captures are served `private` with an ETag (never `public` — they stream through
+an authenticated route) and cached for `screenshots.cache_ttl` seconds (default
+86400, `0` disables). Embeds render `loading="lazy"`.
+
 ## Frontend
 
 ```vue

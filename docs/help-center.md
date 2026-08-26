@@ -208,6 +208,70 @@ a public URL. There is also a zero-setup fallback: PNGs committed to
 `{help.path}/screenshots/` are served directly (the original
 "commit the screenshots to the repo" workflow).
 
+### Do the images belong in git?
+
+Short answer: **no, and by default they already don't.** The captures go to a
+**disk**, not to your repository, and `kinetix:help-screenshots` deletes the
+local PNGs after uploading them (`--keep-local` opts out). With the default
+`public` disk they land in `storage/app/public/help/screenshots/`, which
+Laravel's own `storage/app/public/.gitignore` (`*`) already ignores. The
+command's scratch directory ignores itself too.
+
+The choice is really about **where the images live at runtime**, and it has one
+consequence worth knowing before you pick:
+
+| | Disk (default) | Committed to the repo |
+|---|---|---|
+| Repo size | Untouched | Grows with every recapture — PNGs are binary, so every version is stored in full, forever |
+| Fresh deploy | **Needs a shared disk (S3) or a run on that machine** — a local disk starts empty and the embeds 404 | Works immediately; the images ship with the code |
+| Recapture | One command, no commit, no review | A commit and a diff nobody can read |
+| Review | Invisible in PRs | Visible (if that matters to you) |
+
+::: warning The deploy trap of the disk workflow
+A **local** disk is per-machine. Deploy to a new server and the articles
+reference captures that aren't there yet. Either point
+`KINETIX_HELP_SCREENSHOT_DISK` at S3 (or any shared disk), or make
+`kinetix:help-screenshots` part of your deploy. Nothing warns you — the images
+simply 404.
+:::
+
+**Pick the disk** (S3 or equivalent) when the repo's size matters, when captures
+are regenerated often, or when the manual is translated — a localized set
+multiplies the file count by the number of languages.
+
+**Pick committing them** when the manual is small and rarely changes, when you
+have no object storage, or when you genuinely want screenshot changes to show up
+in code review. Then put them in `{help.path}/screenshots/` and let git track
+them; there is nothing else to configure.
+
+Either way, if you ever ran the command with `--keep-local` before this was
+tidied up, check for strays:
+
+```bash
+git ls-files storage/app/public/help storage/framework/kinetix-help-screenshots
+```
+
+### Caching
+
+Captures stream through the authenticated route, so they are cached as
+`private` — a shared proxy or CDN must never hold one — with an ETag so an
+expired copy costs a `304` instead of the bytes:
+
+```php
+'screenshots' => [
+    // Seconds a browser may reuse a capture. 0 = never cache.
+    'cache_ttl' => env('KINETIX_HELP_SCREENSHOT_CACHE_TTL', 86400),
+],
+```
+
+The default is a day. Set it to `0` on an environment where captures are
+regenerated constantly and you want every view to fetch the current one. The
+validator is the file's modification time and size, so a recapture is served
+fresh even within the window.
+
+Embeds are also rendered `loading="lazy"`, so an article with a dozen captures
+doesn't fire a dozen authenticated requests before the reader scrolls.
+
 ### Screenshots per language
 
 A manual for a translated app needs translated captures. Run the command once
@@ -238,6 +302,7 @@ follows the same rule with `{help.path}/screenshots/{locale}/name.png`.
 | `delay` | 700 ms | Settle time after `load`. The runner intentionally avoids `networkidle` — apps holding websockets (Echo/Reverb presence) never settle. |
 | `base_url` | `app.url` | |
 | `node_binary` | `node` | For non-PATH installs (also useful on Windows). |
+| `cache_ttl` | 86400 | Seconds a browser may reuse a capture (always `private`; 0 disables). |
 
 Use a **dedicated screenshot user** without 2FA — the login flow is scripted.
 `--only=dashboard,products` limits a run; `--keep-local` keeps the temp PNGs.

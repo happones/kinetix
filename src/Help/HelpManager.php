@@ -558,9 +558,14 @@ class HelpManager
     {
         $base = $this->screenshotBaseUrl();
 
+        // `loading="lazy"` matters more here than on a normal page: every
+        // capture is a round trip through an authenticated PHP route, so an
+        // article with a dozen of them would otherwise fire a dozen requests
+        // before the reader has scrolled to any of them.
         return (string) preg_replace_callback(
             '/src="screenshots\/([\w\-.]+)"/',
-            static fn (array $matches): string => 'src="'.$base.'/'.$matches[1].'?locale='.rawurlencode($locale).'"',
+            static fn (array $matches): string => 'src="'.$base.'/'.$matches[1].'?locale='
+                .rawurlencode($locale).'" loading="lazy" decoding="async"',
             $html,
         );
     }

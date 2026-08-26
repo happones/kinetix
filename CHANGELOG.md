@@ -13,6 +13,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Help Center screenshots were never cached by the browser** (published
+  config). The disk-served path — the default — inherited the session's
+  `Cache-Control: no-cache, private`, so every view of an article re-streamed
+  every capture through PHP, auth and the storage disk. An article with a dozen
+  screenshots cost a dozen requests per reader per visit, forever.
+
+  Worse, the two serving paths disagreed: the committed-PNG fallback came back
+  `Cache-Control: public`, which invites a shared proxy or CDN to hold a
+  capture belonging to an authenticated user — squarely against the module's own
+  promise that screenshots never leave the authenticated route.
+
+  Both paths now answer `private, max-age=<ttl>, must-revalidate` with an ETag
+  and `Last-Modified`, and a conditional request gets a `304` instead of the
+  bytes. New `kinetix.help.screenshots.cache_ttl` (default 86400; `0` opts out
+  and still never says `public`). The validator is the file's mtime and size, so
+  a recapture is served fresh even inside the window.
+- **Screenshot embeds render `loading="lazy"`** (and `decoding="async"`). Every
+  capture is a round trip through an authenticated PHP route, so an article full
+  of them used to fire all of those requests before the reader had scrolled to
+  any of them.
+- **The screenshot capture directory now ignores its own contents.** Every
+  directory Laravel keeps under `storage/framework` ships a `*` + `!.gitignore`
+  pair, but `storage/framework/kinetix-help-screenshots/` was created bare — so
+  captured PNGs were kept out of git only by whatever the host's root
+  `.gitignore` happened to say, and `--keep-local` or an upload that failed
+  halfway left binaries in a possibly-tracked path. An existing `.gitignore` in
+  that directory is never overwritten.
+
+### Documentation
+
+- **Help Center: whether the images belong in git, answered.** The docs
+  described both the disk and the commit-the-PNGs workflows without ever saying
+  which to choose. There is now a comparison of the two on repo size, fresh
+  deploys, recapture cost and reviewability — plus the trap the disk workflow
+  hides: a **local** disk is per-machine, so a new server serves 404s until
+  `kinetix:help-screenshots` runs there or the disk points at S3. Nothing warned
+  you; the images simply didn't appear.
+
+
 ## [0.177.1] - 2026-08-25
 
 Generator hygiene. Every `kinetix:make-*` stub produced a file that failed the

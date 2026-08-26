@@ -65,6 +65,7 @@ class HelpScreenshotsCommand extends Command
         $outDir       = storage_path('framework/kinetix-help-screenshots');
         $manifestPath = $outDir.'/manifest.json';
         File::ensureDirectoryExists($outDir);
+        $this->protectCaptureDirectory($outDir);
         $this->putGenerated($manifestPath, (string) json_encode($this->manifest($pages, $outDir), JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
 
         $node   = (string) config('kinetix.help.screenshots.node_binary', 'node');
@@ -88,6 +89,24 @@ class HelpScreenshotsCommand extends Command
         }
 
         return $this->upload($outDir);
+    }
+
+    /**
+     * Make the capture directory ignore its own contents.
+     *
+     * Every other directory Laravel keeps under `storage/framework` ships a
+     * `*` + `!.gitignore` pair; this one is created by us, so without this the
+     * captured PNGs are only kept out of git by whatever the host's root
+     * `.gitignore` happens to say. `--keep-local`, or an upload that fails
+     * halfway, would otherwise leave binaries in a tracked path.
+     */
+    protected function protectCaptureDirectory(string $directory): void
+    {
+        $ignore = $directory.'/.gitignore';
+
+        if (! File::exists($ignore)) {
+            File::put($ignore, "*\n!.gitignore\n");
+        }
     }
 
     /**
