@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.177.2] - 2026-08-26
+
+Help Center screenshots. The default serving path never let a browser cache a
+capture, so every view of an article re-streamed every image through PHP and the
+storage disk — and the fallback path answered `public`, offering authenticated
+content to any shared proxy. Also: what the docs never said about whether the
+images belong in git.
+
 ### Fixed
 
 - **Help Center screenshots were never cached by the browser** (published
