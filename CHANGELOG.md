@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.180.0] - 2026-08-27
+
+Staff who have no email address. The starter kit assumes one everywhere, so
+there was nowhere to send an activation link and no way to hand someone their
+first password — which rules out onboarding a large part of the workforce in a
+lot of real businesses. This adds the two halves that fixes: a **password
+lifecycle** (expiry, no reuse, forced change, admin-issued temporary
+credentials), and **login identity** — signing in with a username or a phone.
+Membership then grows the modes that use them: an account created directly with
+a credential handed over in person, and delivery by SMS.
+
+Everything defaults to exactly the previous behavior.
+
 ### Added
 
 - **Membership `delivery: sms` — texting the activation link.** Completes the
