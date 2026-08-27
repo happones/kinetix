@@ -13,6 +13,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Credentials — the password lifecycle.** A new opt-in module
+  (`kinetix.credentials.enabled`) covering what a business app eventually needs
+  and Laravel leaves to you: password **expiry**, a **history** so recent
+  passwords can't be reused, a **forced change**, and **temporary passwords** an
+  admin issues and hands over. Every knob is off by default, so enabling the
+  module changes nothing until you opt into a rule.
+
+  ```php
+  KinetixPasswords::isExpired($user);
+  KinetixPasswords::forceChange($user);              // after a breach
+  $plain = KinetixPasswords::issueTemporary($user);  // returned ONCE
+  ```
+
+- **The bookkeeping maintains itself.** `password_changed_at`, the history and
+  the forced-change flag hang off the user model's own events, not off call
+  sites — because a password can be set from Fortify, a reset link, a seeder or
+  `tinker`, and a policy that only holds on the path Kinetix owns is a policy
+  with a hole in it. `$user->forceFill(['password' => Hash::make($x)])->save()`
+  is the whole API.
+- **`NotAPreviousPassword`** — a validation rule that takes the user
+  explicitly, so it drops straight into Fortify's `UpdateUserPassword` /
+  `ResetUserPassword`. The **current** password counts as used, which is the
+  case a naive history table gets wrong: with an empty history a user could
+  "change" to the password they already have. Depth is capped at 5 — each
+  remembered password is a deliberately slow hash comparison.
+- **`kinetix.password` middleware + `<KinetixPasswordChange>`** (published).
+  The screen is used both by someone who chose to change their password and by
+  someone sent there, and it does **not** ask for the current password on a
+  temporary credential — an admin chose that one, so repeating it back proves
+  nothing. `login`, `logout`, `password.*`, `verification.*` and the change
+  screen itself are always exempt (without them a stuck user could neither fix
+  it nor leave), and JSON requests get a **423** rather than an HTML redirect.
+- **Existing accounts are never locked out.** A null `password_changed_at`
+  means "predates the policy" and counts as current, so switching expiry on
+  can't log out an entire company at once. The docs show the backfill for when
+  you do want it retroactive.
+- **`kinetix:doctor` checks it.** The columns missing is an **error** (the
+  observer stands down, so nothing is ever stamped and no password can expire);
+  expiry configured while the `kinetix.password` middleware is in no route group
+  is a **warning** — everything looks configured and nobody is ever asked to
+  change theirs.
+- **Docs: signing in with a username or phone**
+  ([Credentials §5](https://happones.github.io/kinetix/credentials#_5-signing-in-with-a-username-or-a-phone)).
+  Many businesses have employees with no email address, and the starter kit
+  assumes email everywhere. The identity half is the host's to own, so the docs
+  spell out all three places to change — the migration (nullable `email`,
+  unique `username`/`phone`, and **normalize phones to E.164 or the unique index
+  is decoration**), the `Fortify::authenticateUsing()` resolver (branch on
+  `FILTER_VALIDATE_EMAIL` so an email can't also match a username; one generic
+  failure message so the lookup isn't an enumerable directory), and the
+  validation — plus the consequence to decide **before** shipping: a user with
+  no email cannot receive a password reset.
+
 ## [0.179.1] - 2026-08-27
 
 Which gates a bypass actually bypasses. The answer lived only in the code, and

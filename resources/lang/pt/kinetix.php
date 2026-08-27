@@ -420,10 +420,22 @@ return [
     'activation_submit'           => 'Ativar conta',
 
     // E-mails de associação
-    'member_activation_subject' => 'Ative sua conta no :app',
-    'member_activation_intro'   => 'Você foi adicionado ao :app. Defina uma senha para ativar sua conta.',
-    'member_activation_button'  => 'Ativar conta',
-    'member_activation_expiry'  => 'Este link expirará em breve. Se já expirou, peça a um administrador para reenviá-lo.',
+    'member_activation_subject'  => 'Ative sua conta no :app',
+    'member_activation_intro'    => 'Você foi adicionado ao :app. Defina uma senha para ativar sua conta.',
+    'member_activation_button'   => 'Ativar conta',
+    'member_activation_expiry'   => 'Este link expirará em breve. Se já expirou, peça a um administrador para reenviá-lo.',
+    'password_expired'           => 'Sua senha expirou. Escolha uma nova.',
+    'password_must_change'       => 'Você precisa definir uma nova senha antes de continuar.',
+    'password_previously_used'   => 'Você não pode reutilizar uma das suas últimas :count senhas.',
+    'password_current_incorrect' => 'A senha atual está incorreta.',
+    'password_changed'           => 'Sua senha foi atualizada.',
+    'password_change_title'      => 'Altere sua senha',
+    'password_current'           => 'Senha atual',
+    'password_new'               => 'Nova senha',
+    'password_confirm'           => 'Confirme a nova senha',
+    'password_change_submit'     => 'Atualizar senha',
+    'password_expires_in'        => 'Sua senha expira em :days dia(s).',
+    'password_history_hint'      => 'Você não pode reutilizar suas últimas :count senhas.',
 
     // Configurações
     'settings_saved' => 'Configurações salvas.',

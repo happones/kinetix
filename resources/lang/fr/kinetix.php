@@ -420,10 +420,22 @@ return [
     'activation_submit'           => 'Activer le compte',
 
     // E-mails d’adhésion
-    'member_activation_subject' => 'Activez votre compte :app',
-    'member_activation_intro'   => 'Vous avez été ajouté à :app. Définissez un mot de passe pour activer votre compte.',
-    'member_activation_button'  => 'Activer le compte',
-    'member_activation_expiry'  => 'Ce lien expirera bientôt. S’il a expiré, demandez à un administrateur de le renvoyer.',
+    'member_activation_subject'  => 'Activez votre compte :app',
+    'member_activation_intro'    => 'Vous avez été ajouté à :app. Définissez un mot de passe pour activer votre compte.',
+    'member_activation_button'   => 'Activer le compte',
+    'member_activation_expiry'   => 'Ce lien expirera bientôt. S’il a expiré, demandez à un administrateur de le renvoyer.',
+    'password_expired'           => 'Votre mot de passe a expiré. Veuillez en choisir un nouveau.',
+    'password_must_change'       => 'Vous devez définir un nouveau mot de passe avant de continuer.',
+    'password_previously_used'   => 'Vous ne pouvez pas réutiliser un de vos :count derniers mots de passe.',
+    'password_current_incorrect' => 'Le mot de passe actuel est incorrect.',
+    'password_changed'           => 'Votre mot de passe a été mis à jour.',
+    'password_change_title'      => 'Changer votre mot de passe',
+    'password_current'           => 'Mot de passe actuel',
+    'password_new'               => 'Nouveau mot de passe',
+    'password_confirm'           => 'Confirmer le nouveau mot de passe',
+    'password_change_submit'     => 'Mettre à jour',
+    'password_expires_in'        => 'Votre mot de passe expire dans :days jour(s).',
+    'password_history_hint'      => 'Vous ne pouvez pas réutiliser vos :count derniers mots de passe.',
 
     // Paramètres
     'settings_saved' => 'Paramètres enregistrés.',

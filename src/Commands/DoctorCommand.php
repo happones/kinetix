@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Entitlements\Entitlement;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Permissions\PermissionRegistry;
@@ -50,6 +51,7 @@ class DoctorCommand extends Command
         $this->checkPermissions();
         $this->checkPolicyDelegation();
         $this->checkEntitlements();
+        $this->checkCredentials();
         $this->checkRoles();
         $this->checkMembership();
         $this->checkConfigCallbacks();
@@ -113,7 +115,7 @@ class DoctorCommand extends Command
         $modules = [
             'permissions', 'membership', 'settings', 'activity', 'webhooks', 'onboarding',
             'wizards', 'billing', 'tours', 'help', 'spotlight', 'reports_center', 'confidential',
-            'entitlements',
+            'entitlements', 'credentials',
         ];
 
         $enabled = array_values(array_filter(
@@ -205,6 +207,97 @@ class DoctorCommand extends Command
                 );
             }
         }
+    }
+
+    /**
+     * The password policy is enforced by a middleware Kinetix cannot install
+     * for you and by columns it cannot assume exist. Get either wrong and the
+     * policy is simply not applied — with nothing anywhere to say so.
+     */
+    protected function checkCredentials(): void
+    {
+        if (! config('kinetix.credentials.enabled', false)) {
+            return;
+        }
+
+        $policy = app(PasswordPolicy::class);
+
+        // Without the columns the observer stands down entirely, so nothing is
+        // ever stamped and no password can expire.
+        $missing = array_values(array_filter(
+            ['password_changed_at', 'must_change_password'],
+            static fn (string $column): bool => ! Schema::hasColumn('users', $column),
+        ));
+
+        if ($missing !== []) {
+            $this->error_(
+                'Credentials',
+                'the users table is missing the password policy columns, so the policy is NOT enforced',
+                'php artisan vendor:publish --tag=kinetix-credentials-migrations && php artisan migrate',
+                $missing,
+            );
+
+            return;
+        }
+
+        $enforcing = $policy->expiryDays() !== null || $policy->historyDepth() > 0;
+
+        if (! $enforcing) {
+            $this->ok('Credentials', 'enabled, no password rules configured (expiry off, history off)');
+
+            return;
+        }
+
+        $rules = [];
+
+        if ($policy->expiryDays() !== null) {
+            $rules[] = 'expires after '.$policy->expiryDays().' days';
+        }
+
+        if ($policy->historyDepth() > 0) {
+            $rules[] = 'remembers '.$policy->historyDepth().' previous password(s)';
+        }
+
+        $this->ok('Credentials', implode(', ', $rules));
+
+        // Expiry without the middleware is the silent one: everything looks
+        // configured, and nobody is ever sent to change their password.
+        if ($policy->expiryDays() !== null && ! $this->passwordMiddlewareIsApplied()) {
+            $this->warn_(
+                'Credentials',
+                'passwords expire but the `kinetix.password` middleware is not in any route group — nobody is ever asked to change theirs',
+                "Append it to your authenticated group: \$middleware->appendToGroup('web', "
+                .'\Happones\Kinetix\Credentials\Middleware\EnsurePasswordIsCurrent::class);',
+            );
+        }
+
+        if ((int) config('kinetix.credentials.passwords.history', 0) > PasswordPolicy::MAX_HISTORY) {
+            $this->warn_(
+                'Credentials',
+                'passwords.history is capped at '.PasswordPolicy::MAX_HISTORY.' — each remembered password costs a deliberately slow hash comparison on every change',
+            );
+        }
+    }
+
+    /**
+     * Whether any registered route actually runs the password middleware.
+     */
+    protected function passwordMiddlewareIsApplied(): bool
+    {
+        foreach (Route::getRoutes()->getRoutes() as $route) {
+            foreach ($route->gatherMiddleware() as $middleware) {
+                if (! is_string($middleware)) {
+                    continue;
+                }
+
+                if ($middleware === 'kinetix.password'
+                    || str_contains($middleware, 'EnsurePasswordIsCurrent')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

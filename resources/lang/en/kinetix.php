@@ -420,10 +420,22 @@ return [
     'activation_submit'           => 'Activate account',
 
     // Membership emails
-    'member_activation_subject' => 'Activate your :app account',
-    'member_activation_intro'   => 'You have been added to :app. Set a password to activate your account.',
-    'member_activation_button'  => 'Activate account',
-    'member_activation_expiry'  => 'This link will expire soon. If it has expired, ask an administrator to resend it.',
+    'member_activation_subject'  => 'Activate your :app account',
+    'member_activation_intro'    => 'You have been added to :app. Set a password to activate your account.',
+    'member_activation_button'   => 'Activate account',
+    'member_activation_expiry'   => 'This link will expire soon. If it has expired, ask an administrator to resend it.',
+    'password_expired'           => 'Your password has expired. Please choose a new one.',
+    'password_must_change'       => 'You must set a new password before continuing.',
+    'password_previously_used'   => 'You cannot reuse one of your last :count passwords.',
+    'password_current_incorrect' => 'The current password is incorrect.',
+    'password_changed'           => 'Your password has been updated.',
+    'password_change_title'      => 'Change your password',
+    'password_current'           => 'Current password',
+    'password_new'               => 'New password',
+    'password_confirm'           => 'Confirm new password',
+    'password_change_submit'     => 'Update password',
+    'password_expires_in'        => 'Your password expires in :days day(s).',
+    'password_history_hint'      => 'You cannot reuse your last :count passwords.',
 
     // Settings
     'settings_saved' => 'Settings saved.',

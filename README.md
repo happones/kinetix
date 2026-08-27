@@ -111,7 +111,8 @@ Each module ships with a dedicated `docs/<feature>.md` guide, translations
   [PDF Templates](docs/pdf-templates.md), [Media Library](docs/media-library.md).
 - **SaaS platform** — [Billing](docs/billing.md), [Membership](docs/membership.md),
   [Team Switcher](docs/team-switcher.md), [Permissions](docs/permissions.md),
-  [Entitlements](docs/entitlements.md), [Feature Flags](docs/feature-flags.md),
+  [Entitlements](docs/entitlements.md), [Credentials](docs/credentials.md),
+  [Feature Flags](docs/feature-flags.md),
   [Impersonation](docs/impersonation.md),
   [Activity Log](docs/activity.md), [Webhooks](docs/webhooks.md),
   [Developer Tokens](docs/tokens.md), [Connected Accounts](docs/connected-accounts.md),

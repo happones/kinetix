@@ -478,6 +478,54 @@ return [
     | app then cannot be deployed with a cached config.
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Credentials (optional)
+    |--------------------------------------------------------------------------
+    |
+    | How people prove who they are: the password lifecycle today, and the
+    | identity fields they sign in with (see docs/credentials.md — that half is
+    | host-side wiring: a migration plus your Fortify config).
+    |
+    | Every knob below is OFF by default, so enabling the module changes nothing
+    | until you opt into a rule. Publish the migrations with
+    | `--tag=kinetix-credentials-migrations`.
+    |
+    */
+    'credentials' => [
+        'enabled' => env('KINETIX_CREDENTIALS_ENABLED', false),
+
+        'passwords' => [
+            // Days a password stays valid. null = passwords never expire.
+            // Accounts whose password predates the policy have no timestamp and
+            // count as current, so switching this on can't lock everyone out at
+            // once — backfill `password_changed_at` if you want it retroactive.
+            'expires_after_days' => env('KINETIX_PASSWORD_EXPIRES_DAYS'),
+
+            // How many previous passwords may not be reused (0 = off, max 5).
+            // Each one costs a hash comparison, which is slow on purpose.
+            'history' => env('KINETIX_PASSWORD_HISTORY', 0),
+
+            // How long an UNUSED temporary credential stays valid. Kinetix does
+            // not own your login, so enforce it there with
+            // KinetixPasswords::temporaryHasExpired($user).
+            'temporary_ttl_hours' => env('KINETIX_PASSWORD_TEMPORARY_TTL', 48),
+
+            // Days before expiry that the UI starts warning (0 = never warn).
+            'warn_before_days' => env('KINETIX_PASSWORD_WARN_DAYS', 7),
+
+            // Route names (fnmatch patterns allowed) or paths the
+            // `kinetix.password` middleware lets through for a user who must
+            // change their password. The change screen itself, login, logout,
+            // password.* and verification.* are ALWAYS exempt — without them a
+            // stuck user could neither fix it nor leave.
+            'except' => [],
+
+            'view'           => env('KINETIX_PASSWORD_VIEW', 'Kinetix/PasswordChange'),
+            'redirect_after' => env('KINETIX_PASSWORD_REDIRECT', '/'),
+        ],
+    ],
+
     'membership' => [
         'enabled'           => env('KINETIX_MEMBERSHIP_ENABLED', false),
         'teams'             => env('KINETIX_MEMBERSHIP_TEAMS'), // null = inherit kinetix.teams

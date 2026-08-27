@@ -108,6 +108,9 @@ skill, translations (en/es/fr/pt) and tests.
 - **Team Switcher** — active-team switching. `docs/team-switcher.md`
 - **Permissions** — spatie-permission bridge + `<KinetixCan>`.
   `docs/permissions.md`
+- **Credentials** — password lifecycle (expiry, history, forced change,
+  temporary credentials) + what it takes to sign in with a username or phone.
+  `docs/credentials.md`
 - **Feature Flags** — Pennant bridge + `<KinetixFeature>`. `docs/feature-flags.md`
 - **Entitlements** — composes flags × plan capabilities × usage limits × role
   permissions under one declared name, with a verdict that says which layer

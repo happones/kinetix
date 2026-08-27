@@ -59,6 +59,10 @@ use Happones\Kinetix\Confidential\KeyManagers\LocalKeyManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountController;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
+use Happones\Kinetix\Credentials\Middleware\EnsurePasswordIsCurrent;
+use Happones\Kinetix\Credentials\PasswordController;
+use Happones\Kinetix\Credentials\PasswordObserver;
+use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Data\AccessibilityData;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Entitlements\Middleware\EnsureEntitled;
@@ -210,6 +214,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The entitlement registry (flags × plan × limits × permissions).
         $this->app->singleton(EntitlementRegistry::class);
+
+        // The password lifecycle (expiry, history, forced change).
+        $this->app->singleton(PasswordPolicy::class);
 
         // The spotlight source registry (command palette), with optional
         // directory auto-discovery of `SpotlightSource` implementations.
@@ -447,6 +454,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000001_create_kinetix_member_provisions_table.php' => database_path('migrations/2026_01_01_000001_create_kinetix_member_provisions_table.php'),
             ], 'kinetix-membership-migrations');
 
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000032_create_kinetix_password_history_table.php'      => database_path('migrations/2026_01_01_000032_create_kinetix_password_history_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php' => database_path('migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php'),
+            ], 'kinetix-credentials-migrations');
+
             // Publish the optional Settings module's migration.
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000002_create_kinetix_settings_table.php' => database_path('migrations/2026_01_01_000002_create_kinetix_settings_table.php'),
@@ -600,6 +612,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Membership module (admin provisioning + activation)
         $this->registerMembership();
+
+        // Register the optional Credentials module (password lifecycle)
+        $this->registerCredentials();
 
         // Register the optional Settings module (database-backed settings pages)
         $this->registerSettings();
@@ -802,6 +817,56 @@ class KinetixServiceProvider extends ServiceProvider
      * appear in the permission matrix / sync) and the management + activation
      * routes. Authorization flows through the Gate exactly like `roles.manage`.
      */
+    /**
+     * Wire the optional Credentials module: the password policy's model
+     * observer, the `kinetix.password` middleware alias and the change-password
+     * screen.
+     *
+     * The middleware is aliased but NOT applied — Kinetix owns none of the
+     * host's route groups. Append it yourself (see docs/credentials.md); a
+     * policy configured without it enforces nothing, which `kinetix:doctor`
+     * reports.
+     */
+    protected function registerCredentials(): void
+    {
+        $this->app['router']->aliasMiddleware('kinetix.password', EnsurePasswordIsCurrent::class);
+
+        if (! config('kinetix.credentials.enabled', false)) {
+            return;
+        }
+
+        // The policy's bookkeeping hangs off the user model's own events, so it
+        // holds whatever changes a password — Fortify, a reset, a seeder.
+        $userModel = (string) config('kinetix.credentials.user_model')
+            ?: (string) config('kinetix.membership.user_model', 'App\\Models\\User');
+
+        if (class_exists($userModel) && method_exists($userModel, 'observe')) {
+            $userModel::observe(PasswordObserver::class);
+        }
+
+        $this->registerCredentialsRoutes();
+    }
+
+    /**
+     * The change-password screen. Deliberately NOT team-prefixed: a user who
+     * must replace their password has to reach it from anywhere, including
+     * before any team context is resolved.
+     */
+    protected function registerCredentialsRoutes(): void
+    {
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/password")
+            ->group(function () {
+                Route::get('/', [PasswordController::class, 'show'])
+                    ->name('kinetix.password.change.show');
+                Route::post('/', [PasswordController::class, 'update'])
+                    ->name('kinetix.password.change');
+            });
+    }
+
     protected function registerMembership(): void
     {
         if (! config('kinetix.membership.enabled', false)) {
@@ -2257,6 +2322,10 @@ class KinetixServiceProvider extends ServiceProvider
             ];
         });
 
+        // The password policy as it applies to the current user, so the SPA can
+        // warn before expiry and explain a forced change without a round trip.
+        Inertia::share('kinetix_credentials', fn () => app(PasswordPolicy::class)->state(auth()->user()));
+
         // The current user's accessibility preferences (applied by the
         // KinetixAccessibility Vue plugin), or the configured defaults.
         Inertia::share('kinetix_accessibility', function () {
@@ -2692,6 +2761,10 @@ class KinetixServiceProvider extends ServiceProvider
             // Only the request memo is dropped: the opt-in persistent cache is
             // invalidated by plan WRITES, not by the clock.
             PlanCatalog::flushMemo();
+
+            // The password observer memoizes whether the users table carries
+            // the policy columns; a migration between requests must be seen.
+            PasswordObserver::flush();
         };
 
         $reset();

@@ -420,10 +420,22 @@ return [
     'activation_submit'           => 'Activar cuenta',
 
     // Correos de membresía
-    'member_activation_subject' => 'Activa tu cuenta de :app',
-    'member_activation_intro'   => 'Te agregaron a :app. Define una contraseña para activar tu cuenta.',
-    'member_activation_button'  => 'Activar cuenta',
-    'member_activation_expiry'  => 'Este enlace caducará pronto. Si ya expiró, pide a un administrador que lo reenvíe.',
+    'member_activation_subject'  => 'Activa tu cuenta de :app',
+    'member_activation_intro'    => 'Te agregaron a :app. Define una contraseña para activar tu cuenta.',
+    'member_activation_button'   => 'Activar cuenta',
+    'member_activation_expiry'   => 'Este enlace caducará pronto. Si ya expiró, pide a un administrador que lo reenvíe.',
+    'password_expired'           => 'Tu contraseña expiró. Elige una nueva.',
+    'password_must_change'       => 'Debes establecer una nueva contraseña antes de continuar.',
+    'password_previously_used'   => 'No puedes reutilizar una de tus últimas :count contraseñas.',
+    'password_current_incorrect' => 'La contraseña actual es incorrecta.',
+    'password_changed'           => 'Tu contraseña se actualizó.',
+    'password_change_title'      => 'Cambia tu contraseña',
+    'password_current'           => 'Contraseña actual',
+    'password_new'               => 'Nueva contraseña',
+    'password_confirm'           => 'Confirma la nueva contraseña',
+    'password_change_submit'     => 'Actualizar contraseña',
+    'password_expires_in'        => 'Tu contraseña expira en :days día(s).',
+    'password_history_hint'      => 'No puedes reutilizar tus últimas :count contraseñas.',
 
     // Configuración
     'settings_saved' => 'Configuración guardada.',
