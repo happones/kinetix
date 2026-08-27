@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.178.0] - 2026-08-27
+
+Gating. Kinetix ships four gating layers — feature flags, plan capabilities,
+plan usage limits and role permissions — and each is fine on its own. The
+trouble is the feature that sits behind several of them: the `&&` chain gets
+re-typed in the controller, in the button and in the menu, the three drift, and
+`false` can't tell the user whether to upgrade or to ask an admin. Meanwhile
+every link in that chain was re-querying the `plans` table. Both are fixed.
+
 ### Added
 
 - **Entitlements — the four gating layers, composed under one declared name.**
