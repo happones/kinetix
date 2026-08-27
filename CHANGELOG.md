@@ -15,6 +15,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Login identity — signing in with a username or a phone, not just email.**
+  The second half of Credentials: `credentials.identity.fields` says which
+  columns a login may resolve against (`['email']` is exactly today's
+  behavior), and Fortify becomes one line.
+
+  ```php
+  Fortify::authenticateUsing(fn (Request $request) => KinetixIdentity::attempt(
+      $request->input(Fortify::username()),
+      $request->input('password'),
+  ));
+  ```
+
+  `attempt()` resolves the login, verifies the password and refuses a temporary
+  credential past its TTL, then hands the user back — Kinetix does not own your
+  login, so sessions, throttling and two-factor stay where they were.
+  `--tag=kinetix-identity-migrations` adds only the columns you accept, and
+  relaxes `email` to nullable **only once something else can identify a
+  person** (changing it while it is the sole identifier would allow an account
+  nobody can log into).
+
+- **A login is classified before it is queried.** An input that looks like an
+  email is only ever matched against `email` — without that, someone could
+  register another person's email address as their *username* and be found by
+  it. The default `username_pattern` excludes `@` so the collision cannot even
+  be created, and `kinetix:doctor` warns if you widen it.
+- **Phone normalization, with the ambiguity confined to lookup.** Storage is
+  strict: without a `+` or `00`, digits are a LOCAL number and get
+  `phone_country`'s dial code. A bare string that already starts with the
+  country code is genuinely ambiguous and nothing settles it without a
+  numbering-plan library — so `resolve()` tries both readings against
+  canonically-stored values while `normalize()` refuses to guess. People can
+  type their number however they know it; one number still cannot become two
+  accounts.
+- **Ambiguous logins resolve to nobody.** An all-digit string is both a valid
+  username and a plausible phone, so two different people can match one login
+  with every column still perfectly unique. That is denied rather than guessed.
+- **Failures are indistinguishable, including in timing.** Unknown identifier,
+  wrong password and stale temporary credential all return null and all spend
+  the same time (a dummy hash comparison stands in for the missing user), so the
+  form is not a directory anyone can enumerate.
+- **`KinetixIdentity::rules()`** generates validation for the accepted fields —
+  each nullable and unique, plus a guard that at least one is present.
+- **`kinetix:doctor`** errors on an accepted field with no column (nobody could
+  ever sign in with it) and warns on a `username_pattern` that accepts an email
+  address or phone logins with no `identity.phone_country` set.
+
+### Added
+
 - **Credentials — the password lifecycle.** A new opt-in module
   (`kinetix.credentials.enabled`) covering what a business app eventually needs
   and Laravel leaves to you: password **expiry**, a **history** so recent

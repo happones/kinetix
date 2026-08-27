@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Credentials\IdentityResolver;
 use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Entitlements\Entitlement;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
@@ -240,6 +241,8 @@ class DoctorCommand extends Command
             return;
         }
 
+        $this->checkIdentity();
+
         $enforcing = $policy->expiryDays() !== null || $policy->historyDepth() > 0;
 
         if (! $enforcing) {
@@ -275,6 +278,59 @@ class DoctorCommand extends Command
             $this->warn_(
                 'Credentials',
                 'passwords.history is capped at '.PasswordPolicy::MAX_HISTORY.' — each remembered password costs a deliberately slow hash comparison on every change',
+            );
+        }
+    }
+
+    /**
+     * Login identity: accepting a field the table doesn't carry means nobody
+     * can ever sign in with it, and a `username` pattern that allows `@` lets
+     * one person register another's email address as their username.
+     */
+    protected function checkIdentity(): void
+    {
+        $identity = app(IdentityResolver::class);
+        $fields   = $identity->fields();
+
+        if ($fields === ['email']) {
+            return;
+        }
+
+        $this->ok('Credentials', 'login identity: '.implode(', ', $fields));
+
+        $missing = array_values(array_filter(
+            $fields,
+            static fn (string $field): bool => ! Schema::hasColumn('users', $field),
+        ));
+
+        if ($missing !== []) {
+            $this->error_(
+                'Credentials',
+                'the users table has no column for accepted login field(s) — nobody can sign in with them',
+                'php artisan vendor:publish --tag=kinetix-identity-migrations && php artisan migrate',
+                $missing,
+            );
+        }
+
+        // `@` in a username is how one person registers another's email address
+        // as their username; classification stops it being MATCHED, but the
+        // collision should not be creatable in the first place.
+        if (in_array('username', $fields, true)
+            && in_array('email', $fields, true)
+            && preg_match($identity->usernamePattern(), 'someone@example.com') === 1) {
+            $this->warn_(
+                'Credentials',
+                'the username pattern accepts an email address, so a username can be registered that looks like someone else\'s email',
+                'Exclude `@` from `credentials.identity.username_pattern` (the shipped default already does).',
+            );
+        }
+
+        if (in_array('phone', $fields, true)
+            && (string) config('kinetix.credentials.identity.phone_country', '') === '') {
+            $this->warn_(
+                'Credentials',
+                'phone logins are accepted but no `identity.phone_country` is set — a number typed without a country code is stored as-is, so the same person can end up with two accounts',
+                "Set it to the ISO country your staff dial from, e.g. 'MX'.",
             );
         }
     }

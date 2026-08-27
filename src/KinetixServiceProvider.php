@@ -59,6 +59,7 @@ use Happones\Kinetix\Confidential\KeyManagers\LocalKeyManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountController;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
+use Happones\Kinetix\Credentials\IdentityResolver;
 use Happones\Kinetix\Credentials\Middleware\EnsurePasswordIsCurrent;
 use Happones\Kinetix\Credentials\PasswordController;
 use Happones\Kinetix\Credentials\PasswordObserver;
@@ -217,6 +218,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The password lifecycle (expiry, history, forced change).
         $this->app->singleton(PasswordPolicy::class);
+
+        // Login identity (which fields resolve to a user).
+        $this->app->singleton(IdentityResolver::class);
 
         // The spotlight source registry (command palette), with optional
         // directory auto-discovery of `SpotlightSource` implementations.
@@ -458,6 +462,10 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000032_create_kinetix_password_history_table.php'      => database_path('migrations/2026_01_01_000032_create_kinetix_password_history_table.php'),
                 __DIR__.'/../database/migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php' => database_path('migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php'),
             ], 'kinetix-credentials-migrations');
+
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000034_add_kinetix_identity_fields_to_users_table.php' => database_path('migrations/2026_01_01_000034_add_kinetix_identity_fields_to_users_table.php'),
+            ], 'kinetix-identity-migrations');
 
             // Publish the optional Settings module's migration.
             $this->publishes([

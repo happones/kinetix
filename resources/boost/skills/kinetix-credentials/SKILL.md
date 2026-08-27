@@ -1,6 +1,6 @@
 ---
 name: kinetix-credentials
-description: "Password lifecycle — expiry, history (no reuse), forced change and admin-issued temporary passwords — plus what it takes to sign in with a username or phone instead of email. Activates when configuring password policy, adding NotAPreviousPassword, wiring the kinetix.password middleware, issuing temporary credentials, or changing Fortify to accept a non-email identifier."
+description: "Login identity (sign in with username or phone, not just email) and the password lifecycle — expiry, history (no reuse), forced change and admin-issued temporary passwords — plus what it takes to sign in with a username or phone instead of email. Activates when configuring password policy, adding NotAPreviousPassword, wiring the kinetix.password middleware, issuing temporary credentials, or changing Fortify to accept a non-email identifier."
 license: MIT
 metadata:
   author: happones
@@ -34,6 +34,11 @@ For full details, reference `docs/credentials.md` (published at https://happones
         'except'              => [],     // extra routes the middleware lets through
         'view'                => 'Kinetix/PasswordChange',
         'redirect_after'      => '/',
+    ],
+    'identity' => [
+        'fields'           => ['email'],   // + 'username' / 'phone'
+        'phone_country'    => '',
+        'username_pattern' => '/^[a-zA-Z0-9._-]{3,32}$/',
     ],
 ],
 ```
@@ -97,20 +102,58 @@ fix it nor leave, and the middleware redirects the change screen to itself. Add
 your own with `passwords.except` (route names, fnmatch patterns, or paths).
 JSON requests get a **423**, not a redirect.
 
-## Username / phone login (host-side, NOT owned by Kinetix)
+## Username / phone login (`credentials.identity`)
 
-Kinetix supplies the password half; the identity half is the host's:
+```php
+'identity' => [
+    'fields'           => ['email', 'username', 'phone'],  // ['email'] = today
+    'phone_country'    => 'MX',   // assumed for a bare local number
+    'username_pattern' => '/^[a-zA-Z0-9._-]{3,32}$/',
+],
+```
 
-1. **Migration** — add `username` / `phone` (nullable + unique), make `email`
-   nullable. NULLs don't collide in MySQL/Postgres so the unique index still
-   works. **Normalize phones to E.164** or the index is decoration
-   (`Support\DialCodes` + `<KinetixPhoneInput>` already emit that shape).
-2. **Fortify** — `config('fortify.username') = 'login'` plus
-   `Fortify::authenticateUsing()` resolving against the accepted columns.
-   Branch on `FILTER_VALIDATE_EMAIL` so an email can't also match a username,
-   and return ONE generic failure message (a "no user with that phone" message
-   is an enumerable directory).
-3. **Validation** — stop requiring `email`; require one of the identifiers.
+Publish `--tag=kinetix-identity-migrations` (adds only the accepted columns, and
+relaxes `email` to nullable ONLY once something else can identify a person).
+
+Fortify is one line — Kinetix does NOT own the login, `attempt()` just resolves
+and verifies, then hands the user back:
+
+```php
+// config/fortify.php → 'username' => 'login'
+Fortify::authenticateUsing(fn (Request $request) => KinetixIdentity::attempt(
+    $request->input(Fortify::username()),
+    $request->input('password'),
+));
+```
+
+```php
+KinetixIdentity::fields();                    // accepted columns
+KinetixIdentity::classify($login);            // which field(s) it could be
+KinetixIdentity::resolve($login);             // ?Model
+KinetixIdentity::attempt($login, $password);  // ?Model — + temp-TTL refusal
+KinetixIdentity::normalize('phone', $input);  // APPLY THIS ON WRITES TOO
+KinetixIdentity::rules($ignore);              // validation for create/update
+```
+
+### REQUIRED rules
+
+- **Normalize on writes.** `$user->phone = KinetixIdentity::normalize('phone', $input)`.
+  A unique index cannot see duplicates it isn't shown — `+52 55 1234 5678` and
+  `525512345678` would otherwise become two accounts.
+- **Never widen `username_pattern` to allow `@`.** Classification stops an email
+  being MATCHED against a username, but a pattern with `@` lets the collision be
+  CREATED (registering someone else's email as your username). `kinetix:doctor`
+  warns.
+- **Storage is strict, lookup is forgiving.** Without `+`/`00`, digits are a
+  LOCAL number. A bare string starting with the country code is ambiguous, so
+  only `resolve()` tries both readings. Do NOT add a heuristic to `normalize()`.
+- **Keep login errors generic.** `attempt()` returns null for unknown
+  identifier, wrong password and stale temporary credential alike, and spends
+  the same time on each. A message that distinguishes them is an enumerable
+  directory.
+- **Two users matching one login resolves to NOBODY** (an all-digit string is
+  both a valid username and a plausible phone). Ambiguous identity is worse than
+  a failed login.
 
 **Plan for the consequence:** a user with no email cannot receive a password
 reset. Pick one before shipping — admin-issued temporary password (what this
@@ -121,7 +164,8 @@ screen forever.
 ## Files
 
 - `src/Credentials/{PasswordPolicy,PasswordObserver,PasswordHistory,KinetixPasswords,PasswordController}.php`
+- `src/Credentials/{IdentityResolver,KinetixIdentity}.php`
 - `src/Credentials/Rules/NotAPreviousPassword.php`
 - `src/Credentials/Middleware/EnsurePasswordIsCurrent.php` · alias `kinetix.password`
 - `resources/js/components/KinetixPasswordChange.vue` · prop `kinetix_credentials`
-- `database/migrations/*_create_kinetix_password_history_table.php` · `*_add_kinetix_password_fields_to_users_table.php`
+- `database/migrations/*_create_kinetix_password_history_table.php` · `*_add_kinetix_password_fields_to_users_table.php` · `*_add_kinetix_identity_fields_to_users_table.php`

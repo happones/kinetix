@@ -16,6 +16,13 @@ you opt into a rule.
 'credentials' => [
     'enabled' => env('KINETIX_CREDENTIALS_ENABLED', false),
 
+    // What a person may sign in with. ['email'] is exactly today's behavior.
+    'identity' => [
+        'fields'           => ['email'],
+        'phone_country'    => '',   // ISO country assumed for a bare local number
+        'username_pattern' => '/^[a-zA-Z0-9._-]{3,32}$/',
+    ],
+
     'passwords' => [
         // Days a password stays valid. null = passwords never expire.
         'expires_after_days' => env('KINETIX_PASSWORD_EXPIRES_DAYS'),
@@ -174,8 +181,11 @@ proves nothing.
 
 ### Expiring an unused temporary credential
 
-Kinetix does not own your login, so it cannot refuse a stale one for you. Add
-one line where you authenticate:
+Kinetix does not own your login, so it cannot refuse a stale one for you.
+
+If you use [`KinetixIdentity::attempt()`](#_5-1-fortify) you get it for free —
+it already refuses a temporary credential past its TTL. On an email-only app
+that keeps Fortify's default login, add the check yourself:
 
 ```php
 Fortify::authenticateUsing(function (Request $request) {
@@ -200,49 +210,29 @@ Fortify::authenticateUsing(function (Request $request) {
 ## 5. Signing in with a username or a phone
 
 Many businesses have employees who simply do not have an email address — but
-almost all of them have a phone, and a username can always be assigned. The
-starter kit assumes email everywhere, so this takes changes in **your** app:
-Kinetix supplies the password half, you own the identity half.
-
-There are three places to touch, and one consequence to plan for.
-
-### 5.1 The migration
-
-Make `email` optional and add the fields you want to accept:
+almost all of them have a phone, and a username can always be assigned.
 
 ```php
-// database/migrations/xxxx_xx_xx_add_login_identifiers_to_users_table.php
-public function up(): void
-{
-    Schema::table('users', function (Blueprint $table) {
-        $table->string('username')->nullable()->unique()->after('name');
-        $table->string('phone')->nullable()->unique()->after('username');
-    });
-
-    // Email stops being mandatory. Keep the unique index: NULLs do not collide
-    // in MySQL or Postgres, so any number of users can have no email while
-    // those that do still can't share one.
-    Schema::table('users', function (Blueprint $table) {
-        $table->string('email')->nullable()->change();
-    });
-}
+'identity' => [
+    'fields'           => ['email', 'username', 'phone'],
+    'phone_country'    => 'MX',   // assumed when a number is typed without a country code
+    'username_pattern' => '/^[a-zA-Z0-9._-]{3,32}$/',
+],
 ```
 
-::: warning `->change()` needs `doctrine/dbal` on older setups
-Laravel 11+ changes columns natively. On an older app, `composer require
-doctrine/dbal` first — and check the column definition it generates before
-running it in production.
-:::
+```bash
+php artisan vendor:publish --tag=kinetix-identity-migrations
+php artisan migrate
+```
 
-Store phones in **one canonical format** or the unique index is decoration:
-`+52 55 1234 5678` and `525512345678` are the same number and would both
-insert. Normalize to E.164 on the way in — Kinetix ships `Support\DialCodes`
-and `<KinetixPhoneInput>`, which already emit a country code plus digits.
+The migration adds only the columns you accept, and relaxes `email` to nullable
+**only once something else can identify a person** — changing it while it is the
+sole identifier would let an account be created that nobody can log into. The
+unique indexes survive the nullability: in MySQL and Postgres NULLs do not
+collide, so any number of users may have no email while the ones that do still
+cannot share it.
 
-### 5.2 Fortify
-
-Tell Fortify which request field carries the identifier, then resolve it
-against whichever columns you accept:
+### 5.1 Fortify
 
 ```php
 // config/fortify.php
@@ -251,60 +241,70 @@ against whichever columns you accept:
 
 ```php
 // app/Providers/FortifyServiceProvider.php
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Happones\Kinetix\Credentials\KinetixIdentity;
 use Laravel\Fortify\Fortify;
-use Happones\Kinetix\Credentials\KinetixPasswords;
 
-public function boot(): void
-{
-    Fortify::authenticateUsing(function (Request $request) {
-        $login = (string) $request->input('login');
-
-        $user = User::query()
-            ->when(filter_var($login, FILTER_VALIDATE_EMAIL), fn ($q) => $q->orWhere('email', $login))
-            ->when(! filter_var($login, FILTER_VALIDATE_EMAIL), function ($q) use ($login) {
-                $q->where('username', $login)
-                  ->orWhere('phone', $this->normalizePhone($login));
-            })
-            ->first();
-
-        if (! $user || ! Hash::check((string) $request->input('password'), $user->password)) {
-            return null;
-        }
-
-        if (KinetixPasswords::temporaryHasExpired($user)) {
-            return null;
-        }
-
-        return $user;
-    });
-}
+Fortify::authenticateUsing(fn (Request $request) => KinetixIdentity::attempt(
+    $request->input(Fortify::username()),
+    $request->input('password'),
+));
 ```
 
-Two details worth getting right:
+That is the whole change. `attempt()` resolves the login, verifies the password
+and refuses a [temporary credential](#4-forced-change-and-temporary-passwords)
+past its TTL — then hands the user back for Fortify to log in. Sessions,
+throttling and two-factor stay exactly where they were: **Kinetix does not own
+your login.**
 
-- **Look up by exactly one shape at a time.** Branching on
-  `FILTER_VALIDATE_EMAIL` keeps an input that *is* an email from also matching
-  someone's username, which is how "I logged in as the wrong person" bugs
-  happen.
-- **Do not leak which field matched.** One generic "these credentials do not
-  match our records" for every failure; a message that says "no user with that
-  phone" is a directory anyone can enumerate.
-
-Your login form then posts `login` instead of `email`, and the validation in
-`CreateNewUser` / your provisioning screen has to stop requiring `email` and
-require *one of* the accepted identifiers instead:
+Your login form posts `login` instead of `email`, and creation forms use the
+generated rules:
 
 ```php
 Validator::make($input, [
-    'email'    => ['nullable', 'email', 'max:255', Rule::unique(User::class)],
-    'username' => ['nullable', 'string', 'max:32', 'regex:/^[a-z0-9._-]+$/i', Rule::unique(User::class)],
-    'phone'    => ['nullable', 'string', 'max:20', Rule::unique(User::class)],
-    // At least one way to identify this person.
-    'identifier' => ['required_without_all:email,username,phone'],
+    ...KinetixIdentity::rules(),          // or ::rules($user) when updating
+    'name' => ['required', 'string', 'max:255'],
 ])->validate();
 ```
+
+Each accepted field is nullable and unique, plus a guard that **at least one**
+is present — a user nobody can identify is not a user.
+
+### 5.2 The two things that make it safe
+
+**A login is classified before it is queried.** An input that looks like an
+email is only ever matched against `email`. Without that, someone could register
+another person's email address as their *username* and be found by it — the "I
+logged in as the wrong person" bug. The default `username_pattern` excludes `@`
+as well, so the collision cannot even be created; `kinetix:doctor` warns if you
+widen it.
+
+**Every value is normalized identically going in and coming out.**
+`+52 55 1234 5678` and `525512345678` are one phone number, and stored
+inconsistently they defeat the unique index that is supposed to stop them being
+two accounts. Apply it on writes too:
+
+```php
+$user->phone = KinetixIdentity::normalize('phone', $request->input('phone'));
+```
+
+::: tip Storage is strict; lookup is forgiving
+Without a `+` or `00`, digits are read as a **local** number and get
+`phone_country`'s dial code. A bare string that already starts with the country
+code is genuinely ambiguous — `52 55 1234 5678` could be a full Mexican number
+or a local one that happens to start with 52 — and nothing settles that without
+a numbering-plan library. So storage refuses to guess, while **lookup** tries
+both readings: they are matched against values that were stored canonically, so
+at most one exists. A person can type their number however they know it.
+:::
+
+Two people can still match one login when an all-digit string is both a valid
+username and a plausible phone. Kinetix resolves that to **nobody** — an
+ambiguous identity is worse than a failed login.
+
+Failures are indistinguishable on purpose: `attempt()` returns null for an
+unknown identifier, a wrong password and a stale temporary credential alike, and
+spends the same time on each, so the form is not a directory anyone can
+enumerate. Keep your own error message generic to match.
 
 ### 5.3 The consequence: password reset stops working
 
@@ -316,20 +316,11 @@ employee accounts without email:
 | --- | --- |
 | **Admin-issued temporary password** | The owner issues one and hands it over; the user must replace it on first use. No delivery channel needed at all — this is what §4 is for, and the reason it exists. |
 | **Reset by SMS** | A Laravel notification on an SMS channel instead of mail. Needs a provider, and the token is as strong as your phone number's security. |
-| **Email required for self-service** | Users without email simply have no self-service reset, and the help desk issues them a temporary password. |
+| **Email required for self-service** | Users without email have no self-service reset, and the help desk issues them a temporary password. |
 
 Also turn off (or make conditional) email verification for these accounts —
-`MustVerifyEmail` on a user with a null email will loop them on the "verify
-your email" screen forever.
-
-::: tip A resolver is coming
-The lookup above is deliberately plain Laravel so it works today. A configurable
-`credentials.identity` block — accepted fields, phone normalization and a
-one-line resolver — is the next piece of this module; this section will shrink
-when it lands.
-:::
-
----
+`MustVerifyEmail` on a user with a null email will loop them on the "verify your
+email" screen forever.
 
 ## 6. Frontend
 

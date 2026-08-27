@@ -495,6 +495,28 @@ return [
     'credentials' => [
         'enabled' => env('KINETIX_CREDENTIALS_ENABLED', false),
 
+        // The model a login resolves to. Null falls back to
+        // `membership.user_model`, then App\Models\User.
+        'user_model' => env('KINETIX_CREDENTIALS_USER_MODEL'),
+
+        // What a person may sign in with. ['email'] is exactly today's
+        // behavior; add 'username' / 'phone' for staff who have no email
+        // address. Publish the columns with `--tag=kinetix-identity-migrations`
+        // and point Fortify at KinetixIdentity::attempt() — docs/credentials.md.
+        'identity' => [
+            'fields' => ['email'],
+
+            // Country assumed for a phone typed WITHOUT a country code (an
+            // ISO 3166-1 alpha-2 code, e.g. 'MX'). Empty = keep the digits as
+            // given rather than inventing a country the number isn't from.
+            'phone_country' => env('KINETIX_IDENTITY_PHONE_COUNTRY', ''),
+
+            // The shape a username may take. The default excludes `@` on
+            // purpose, so a username can never be mistaken for — or registered
+            // as — somebody else's email address.
+            'username_pattern' => '/^[a-zA-Z0-9._-]{3,32}$/',
+        ],
+
         'passwords' => [
             // Days a password stays valid. null = passwords never expire.
             // Accounts whose password predates the policy have no timestamp and
