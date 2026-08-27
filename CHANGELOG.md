@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.179.0] - 2026-08-27
+
+Authorization overhead. The prop that builds the SPA's `can()` map had to
+discover abilities the Gate grants without a stored row, and it did so by
+probing the whole catalog on every page load — ~40ms of it, spent almost
+entirely to rediscover a verdict that is all-or-nothing. It is now a config
+choice with a default that answers the same question in 0.4ms. Also: proof that
+last release's composition layer didn't quietly couple the four gating modules
+to each other.
+
 ### Fixed
 
 - **The `kinetix_permissions` prop no longer asks the Gate about every
