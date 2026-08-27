@@ -116,6 +116,47 @@ class DoctorCredentialsTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_direct_provisioning_without_credentials_is_an_error(): void
+    {
+        $this->usersTable();
+        config()->set('kinetix.credentials.enabled', false);
+        config()->set('kinetix.membership.enabled', true);
+        config()->set('kinetix.membership.provisioning', 'direct');
+
+        // The forced first-login change is what makes an admin-chosen password
+        // safe; without it, it simply works forever.
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('never forced to change')
+            ->assertFailed();
+    }
+
+    public function test_sms_delivery_without_a_channel_method_is_an_error(): void
+    {
+        $this->usersTable();
+        config()->set('kinetix.membership.enabled', true);
+        config()->set('kinetix.membership.delivery', 'sms');
+        config()->set('kinetix.membership.sms_channel', 'vonage');
+        config()->set('kinetix.membership.identifier', 'phone');
+
+        // Kinetix's own notification only knows toMail(): every link would be
+        // handed back to the admin while the config says they are texted.
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('handed back to the admin')
+            ->assertFailed();
+    }
+
+    public function test_sms_delivery_to_members_provisioned_by_email_is_a_warning(): void
+    {
+        $this->usersTable();
+        config()->set('kinetix.membership.enabled', true);
+        config()->set('kinetix.membership.delivery', 'sms');
+        config()->set('kinetix.membership.identifier', 'email');
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('without a phone number on file')
+            ->assertFailed();
+    }
+
     public function test_nothing_is_reported_when_the_module_is_off(): void
     {
         config()->set('kinetix.credentials.enabled', false);

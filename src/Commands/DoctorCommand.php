@@ -8,6 +8,7 @@ use Happones\Kinetix\Credentials\IdentityResolver;
 use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Entitlements\Entitlement;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
+use Happones\Kinetix\Membership\MemberActivationNotification;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -53,6 +55,7 @@ class DoctorCommand extends Command
         $this->checkPolicyDelegation();
         $this->checkEntitlements();
         $this->checkCredentials();
+        $this->checkMembershipDelivery();
         $this->checkRoles();
         $this->checkMembership();
         $this->checkConfigCallbacks();
@@ -207,6 +210,62 @@ class DoctorCommand extends Command
                     "Delegate to the matrix instead — e.g. return \$user->belongsToTeam(\$record->team) && (\$user->ownsTeam(\$record->team) || \$user->can('{$feature}.update'));",
                 );
             }
+        }
+    }
+
+    /**
+     * Membership delivery: a channel Kinetix cannot send on means the
+     * activation link is quietly handed back to the admin instead of reaching
+     * the member — correct, but not what the config says is happening.
+     */
+    protected function checkMembershipDelivery(): void
+    {
+        if (! config('kinetix.membership.enabled', false)) {
+            return;
+        }
+
+        $delivery     = (string) config('kinetix.membership.delivery', 'mail');
+        $provisioning = (string) config('kinetix.membership.provisioning', 'activation');
+
+        if ($delivery !== 'mail' || $provisioning !== 'activation') {
+            $this->ok('Membership', "provisioning: {$provisioning}, delivery: {$delivery}");
+        }
+
+        if ($provisioning === 'direct' && ! config('kinetix.credentials.enabled', false)) {
+            $this->error_(
+                'Membership',
+                'provisioning is "direct" but `credentials.enabled` is false — the temporary password an admin hands over never expires and is never forced to change',
+                'Enable the Credentials module and publish --tag=kinetix-credentials-migrations.',
+            );
+        }
+
+        if ($delivery !== 'sms') {
+            return;
+        }
+
+        $channel      = (string) config('kinetix.membership.sms_channel', 'vonage');
+        $notification = config('kinetix.membership.activation_notification');
+        $class        = is_string($notification) && class_exists($notification)
+            ? $notification
+            : MemberActivationNotification::class;
+
+        if (! method_exists($class, 'to'.Str::studly(class_basename($channel)))) {
+            $this->error_(
+                'Membership',
+                'delivery is "sms" but the activation notification has no `to'.Str::studly(class_basename($channel)).'()` — every link is handed back to the admin instead of being sent',
+                'Point `membership.activation_notification` at a subclass implementing your channel\'s message method; '
+                .'`smsContent()` gives you the text.',
+                [class_basename($class).' → channel "'.$channel.'"'],
+            );
+        }
+
+        if ((string) config('kinetix.membership.identifier', 'email') !== 'phone') {
+            $this->warn_(
+                'Membership',
+                'delivery is "sms" but members are provisioned by '.config('kinetix.membership.identifier', 'email')
+                .' — anyone without a phone number on file gets their link handed back instead of texted',
+                "Set `membership.identifier` to 'phone', or expect the manual fallback.",
+            );
         }
     }
 

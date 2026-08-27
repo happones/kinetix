@@ -281,6 +281,50 @@ php artisan migrate
 **once**, to pass on in person. It applies to both modes: an activation link in
 `activation`, a temporary password in `direct`.
 
+### Sending the link by SMS
+
+```php
+'delivery'                => 'sms',
+'identifier'              => 'phone',
+'sms_channel'             => 'vonage',                 // the channel YOU registered
+'activation_notification' => \App\Notifications\SmsActivation::class,
+```
+
+**Kinetix deliberately does not pick an SMS provider.** Vonage, Twilio and the
+local gateways each register their own notification channel and their own
+message object, they are mutually incompatible, and which one is right is a
+business decision about coverage and price in your country — in Mexico, for
+instance, almost nobody uses Vonage.
+
+So Kinetix routes over whatever channel you name and ships the message *text*;
+your provider's message object is a few lines:
+
+```php
+use Happones\Kinetix\Membership\MemberActivationNotification;
+
+class SmsActivation extends MemberActivationNotification
+{
+    public function toVonage(object $notifiable): VonageMessage
+    {
+        return (new VonageMessage)->content($this->smsContent());
+    }
+}
+```
+
+`smsContent()` is the translated one-liner (`kinetix.member_activation_sms`),
+kept short on purpose: a signed URL is already long, and every character before
+it pushes the message towards a second, billable segment. If your links are
+close to the limit, put a short-link service in front of `$this->activationUrl`.
+
+::: warning A link that can't be sent is never silently dropped
+Laravel resolves `toVonage()` by name at *send* time, so a missing method throws
+inside a queued job — where nobody sees it and the member never gets their link.
+Kinetix checks the method exists **before** sending, and falls back to handing
+the link to the admin. Same for a member with no phone number on file.
+`kinetix:doctor` reports both, because the config would otherwise claim
+something is being texted when nothing is.
+:::
+
 ### The trade `direct` makes
 
 The default exists so that **no password-less accounts pile up** — nobody has an

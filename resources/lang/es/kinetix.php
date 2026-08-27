@@ -426,6 +426,7 @@ return [
     'member_activation_intro'    => 'Te agregaron a :app. Define una contraseña para activar tu cuenta.',
     'member_activation_button'   => 'Activar cuenta',
     'member_activation_expiry'   => 'Este enlace caducará pronto. Si ya expiró, pide a un administrador que lo reenvíe.',
+    'member_activation_sms'      => 'Activa tu cuenta de :app: :url',
     'password_expired'           => 'Tu contraseña expiró. Elige una nueva.',
     'password_must_change'       => 'Debes establecer una nueva contraseña antes de continuar.',
     'password_previously_used'   => 'No puedes reutilizar una de tus últimas :count contraseñas.',

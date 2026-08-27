@@ -426,6 +426,7 @@ return [
     'member_activation_intro'    => 'Você foi adicionado ao :app. Defina uma senha para ativar sua conta.',
     'member_activation_button'   => 'Ativar conta',
     'member_activation_expiry'   => 'Este link expirará em breve. Se já expirou, peça a um administrador para reenviá-lo.',
+    'member_activation_sms'      => 'Ative sua conta :app: :url',
     'password_expired'           => 'Sua senha expirou. Escolha uma nova.',
     'password_must_change'       => 'Você precisa definir uma nova senha antes de continuar.',
     'password_previously_used'   => 'Você não pode reutilizar uma das suas últimas :count senhas.',

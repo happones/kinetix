@@ -426,6 +426,7 @@ return [
     'member_activation_intro'    => 'You have been added to :app. Set a password to activate your account.',
     'member_activation_button'   => 'Activate account',
     'member_activation_expiry'   => 'This link will expire soon. If it has expired, ask an administrator to resend it.',
+    'member_activation_sms'      => 'Activate your :app account: :url',
     'password_expired'           => 'Your password has expired. Please choose a new one.',
     'password_must_change'       => 'You must set a new password before continuing.',
     'password_previously_used'   => 'You cannot reuse one of your last :count passwords.',

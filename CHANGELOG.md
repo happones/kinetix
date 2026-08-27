@@ -15,6 +15,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Membership `delivery: sms` — texting the activation link.** Completes the
+  delivery axis: `mail` (default), `sms`, `manual`.
+
+  **Kinetix deliberately does not pick an SMS provider.** Vonage, Twilio and the
+  local gateways each register their own notification channel *and* their own
+  message object, they are mutually incompatible, and which one is right is a
+  business decision about coverage and price in your country. So Kinetix routes
+  over whatever channel `membership.sms_channel` names and ships the message
+  **text** (`smsContent()`); your provider's message object is a five-line
+  subclass pointed at by `membership.activation_notification`.
+
+- **A link that cannot be sent is never silently dropped.** Laravel resolves
+  `toVonage()` by name at *send* time, so a missing method throws inside a
+  queued job — where nobody sees it and the member never gets their link.
+  Kinetix checks the method exists **before** sending and falls back to handing
+  the link to the admin, exactly like a member with no phone number on file.
+- **`kinetix:doctor` reports the whole delivery chain**: an SMS channel the
+  notification can't speak (error — the config claims links are texted while
+  every one is handed back), SMS delivery for members provisioned by email
+  (warning), and `provisioning: direct` without the Credentials module (error —
+  the admin-chosen password never expires and is never forced to change).
+- `MemberActivationNotification` is now channel-aware (`via()` returns the
+  channel it was constructed with) and exposes `smsContent()`. The existing
+  two-argument constructor is unchanged, so nothing that builds one today
+  breaks.
+
+### Added
+
 - **Membership: provisioning a member who has no email address.** Two config
   axes, both defaulting to exactly today's behavior. `membership.provisioning`
   — **`activation`** (default) creates no `User` until the person sets their own

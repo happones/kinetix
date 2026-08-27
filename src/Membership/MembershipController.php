@@ -551,7 +551,7 @@ class MembershipController
     /**
      * `activation`: mint the signed link, and either send it or hand it back.
      *
-     * @param bool $force re-mint even when delivery is by mail (a resend)
+     * @param bool $force re-mint and return it even when delivery would send
      */
     protected function issueActivation(MemberProvision $provision, bool $force = false): ?MemberCredential
     {
@@ -563,29 +563,92 @@ class MembershipController
             ['provision' => $provision->getKey()],
         );
 
-        $route = $this->notificationRoute($provision);
+        $channel = $this->deliveryChannel();
+        $route   = $this->notificationRoute($provision, $channel);
 
-        // Handed over instead of sent, for three reasons that all end the same
-        // way: the admin asked for something to pass on, delivery is manual, or
-        // this member has no channel to send to at all. Returning the link beats
-        // failing silently.
-        if ($force || $this->deliversManually() || $route === null) {
+        // Handed over instead of sent. Four reasons, all ending the same way:
+        // the admin asked for something to pass on, delivery is manual, this
+        // member has no address on the delivery channel, or the notification
+        // cannot speak that channel. An activation link that silently goes
+        // nowhere is the one outcome worth ruling out.
+        if ($force
+            || $channel === 'manual'
+            || $route   === null
+            || ! $this->canSendOn($channel, $url, $provision)) {
             return MemberCredential::link($url, $expiresAt);
         }
 
-        Notification::route('mail', $route)
-            ->notify(new MemberActivationNotification($url, $provision));
+        Notification::route($channel, $route)
+            ->notify($this->activationNotification($url, $provision, $channel));
 
         return null;
     }
 
     /**
-     * Where an activation notification can be delivered, or null when the
-     * member has no channel at all.
+     * `mail` (default), `sms`, or `manual` for "send nothing".
      */
-    protected function notificationRoute(MemberProvision $provision): ?string
+    protected function deliveryChannel(): string
     {
-        return filled($provision->email) ? (string) $provision->email : null;
+        $delivery = (string) config('kinetix.membership.delivery', 'mail');
+
+        if ($delivery === 'manual') {
+            return 'manual';
+        }
+
+        // SMS has no single channel name — Vonage, Twilio and the local
+        // gateways each register their own, and which one is right is a
+        // business decision about coverage and price. Kinetix routes over
+        // whatever you name.
+        return $delivery === 'sms'
+            ? (string) config('kinetix.membership.sms_channel', 'vonage')
+            : 'mail';
+    }
+
+    /**
+     * Where an activation notification can be delivered on a channel, or null
+     * when this member has no address there.
+     */
+    protected function notificationRoute(MemberProvision $provision, ?string $channel = null): ?string
+    {
+        $channel ??= $this->deliveryChannel();
+
+        $value = $channel === 'mail' ? $provision->email : $provision->phone;
+
+        return filled($value) ? (string) $value : null;
+    }
+
+    /**
+     * Whether the notification actually implements the channel's message
+     * method (`toVonage()`, `toTwilio()`, …).
+     *
+     * Laravel resolves that method by name at send time, so a mismatch throws
+     * inside a queued job — where nobody sees it and the member never gets
+     * their link. Checking first turns that into a link the admin can pass on.
+     */
+    protected function canSendOn(string $channel, string $url, MemberProvision $provision): bool
+    {
+        if ($channel === 'mail') {
+            return true;
+        }
+
+        $notification = $this->activationNotification($url, $provision, $channel);
+
+        return method_exists($notification, 'to'.Str::studly(class_basename($channel)));
+    }
+
+    /**
+     * The notification to send. Replaceable, because an SMS channel needs a
+     * message object only its own package defines.
+     */
+    protected function activationNotification(
+        string $url,
+        MemberProvision $provision,
+        string $channel,
+    ): MemberActivationNotification {
+        /** @var class-string<MemberActivationNotification> $class */
+        $class = config('kinetix.membership.activation_notification') ?: MemberActivationNotification::class;
+
+        return new $class($url, $provision, $channel);
     }
 
     /**

@@ -426,6 +426,7 @@ return [
     'member_activation_intro'    => 'Vous avez été ajouté à :app. Définissez un mot de passe pour activer votre compte.',
     'member_activation_button'   => 'Activer le compte',
     'member_activation_expiry'   => 'Ce lien expirera bientôt. S’il a expiré, demandez à un administrateur de le renvoyer.',
+    'member_activation_sms'      => 'Activez votre compte :app : :url',
     'password_expired'           => 'Votre mot de passe a expiré. Veuillez en choisir un nouveau.',
     'password_must_change'       => 'Vous devez définir un nouveau mot de passe avant de continuer.',
     'password_previously_used'   => 'Vous ne pouvez pas réutiliser un de vos :count derniers mots de passe.',

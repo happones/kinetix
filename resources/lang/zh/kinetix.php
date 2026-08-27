@@ -395,6 +395,7 @@ return [
     'member_activation_intro'            => '您已被添加到 :app。请设置密码以激活账户。',
     'member_activation_button'           => '激活账户',
     'member_activation_expiry'           => '此链接即将过期。如已过期，请联系管理员重新发送。',
+    'member_activation_sms'              => '激活您的 :app 账户：:url',
     'password_expired'                   => '您的密码已过期，请设置新密码。',
     'password_must_change'               => '继续之前必须设置新密码。',
     'password_previously_used'           => '不能重复使用最近 :count 个密码。',

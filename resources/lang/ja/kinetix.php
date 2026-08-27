@@ -395,6 +395,7 @@ return [
     'member_activation_intro'            => ':app に追加されました。パスワードを設定してアカウントを有効化してください。',
     'member_activation_button'           => 'アカウントを有効化',
     'member_activation_expiry'           => 'このリンクはまもなく期限切れになります。期限切れの場合は管理者に再送信を依頼してください。',
+    'member_activation_sms'              => ':app のアカウントを有効化: :url',
     'password_expired'                   => 'パスワードの有効期限が切れました。新しいパスワードを設定してください。',
     'password_must_change'               => '続行する前に新しいパスワードを設定してください。',
     'password_previously_used'           => '直近 :count 件のパスワードは再利用できません。',

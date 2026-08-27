@@ -46,6 +46,19 @@ class ModeUser extends Authenticatable
 }
 
 /**
+ * The subclass a host writes for their SMS provider — Kinetix ships the text,
+ * the channel's message object comes from that provider's own package.
+ */
+class SmsActivation extends MemberActivationNotification
+{
+    /** @return array<string, string> */
+    public function toTestsms(object $notifiable): array
+    {
+        return ['content' => $this->smsContent()];
+    }
+}
+
+/**
  * Provisioning a member who has no email address.
  *
  * Two axes, both defaulting to today's behavior: `provisioning` decides whether
@@ -288,6 +301,87 @@ class MembershipProvisioningModesTest extends TestCase
         $this->actingAs($manager)
             ->postJson('/_kinetix/members/'.$provision->getKey().'/credential')
             ->assertStatus(422);
+    }
+
+    // -- delivery: sms ---------------------------------------------------------
+
+    public function test_sms_delivery_routes_the_link_to_the_phone(): void
+    {
+        Notification::fake();
+        config()->set('kinetix.membership.delivery', 'sms');
+        config()->set('kinetix.membership.identifier', 'phone');
+        config()->set('kinetix.membership.sms_channel', 'testsms');
+        config()->set('kinetix.membership.activation_notification', SmsActivation::class);
+        config()->set('kinetix.credentials.identity.phone_country', 'MX');
+
+        $response = $this->actingAs($this->manager())
+            ->postJson('/_kinetix/members', ['phone' => '55 1234 5678', 'role' => 'editor'])
+            ->assertCreated();
+
+        // Sent, so nothing is handed back.
+        $this->assertNull($response->json('credential'));
+
+        Notification::assertSentOnDemand(
+            SmsActivation::class,
+            static function (SmsActivation $notification, array $channels, object $notifiable): bool {
+                return $channels                      === ['testsms']
+                    && $notifiable->routes['testsms'] === '+525512345678';
+            },
+        );
+    }
+
+    public function test_a_notification_that_cannot_speak_the_channel_hands_the_link_over(): void
+    {
+        Notification::fake();
+        config()->set('kinetix.membership.delivery', 'sms');
+        config()->set('kinetix.membership.identifier', 'phone');
+        config()->set('kinetix.membership.sms_channel', 'testsms');
+        // The default notification only knows `toMail()`. Laravel would resolve
+        // `toTestsms()` at SEND time and throw inside a queued job, where nobody
+        // sees it and the member never gets their link.
+        config()->set('kinetix.membership.activation_notification', null);
+
+        $response = $this->actingAs($this->manager())
+            ->postJson('/_kinetix/members', ['phone' => '5512345678', 'role' => 'editor'])
+            ->assertCreated();
+
+        Notification::assertNothingSent();
+        $this->assertSame('link', $response->json('credential.type'));
+    }
+
+    public function test_sms_delivery_to_a_member_with_no_phone_hands_the_link_over(): void
+    {
+        Notification::fake();
+        config()->set('kinetix.membership.delivery', 'sms');
+        config()->set('kinetix.membership.sms_channel', 'testsms');
+        config()->set('kinetix.membership.activation_notification', SmsActivation::class);
+
+        // Provisioned by email, delivered by SMS: there is no number to text.
+        $response = $this->actingAs($this->manager())
+            ->postJson('/_kinetix/members', ['email' => 'new@example.com', 'role' => 'editor'])
+            ->assertCreated();
+
+        Notification::assertNothingSent();
+        $this->assertSame('link', $response->json('credential.type'));
+    }
+
+    public function test_the_sms_body_carries_the_activation_url(): void
+    {
+        // Kinetix translations live in the HOST's published `lang/*/kinetix.php`,
+        // so the line is registered here to exercise the real interpolation
+        // rather than the test environment's missing-key fallback.
+        app('translator')->addLines(['kinetix.member_activation_sms' => 'Activate :app: :url'], 'en');
+
+        $provision    = MemberProvision::create(['email' => 'x@example.com', 'role' => 'editor', 'status' => 'pending']);
+        $notification = new SmsActivation('https://example.test/activate/abc', $provision, 'testsms');
+
+        $body = $notification->smsContent();
+
+        // The URL is the whole point of the message, and every character before
+        // it pushes towards a second billable segment.
+        $this->assertStringContainsString('https://example.test/activate/abc', $body);
+        $this->assertStringStartsWith('Activate', $body);
+        $this->assertSame(['testsms'], $notification->via($provision));
     }
 
     // -- Identifiers -----------------------------------------------------------

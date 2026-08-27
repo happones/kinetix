@@ -566,8 +566,22 @@ return [
         'provisioning' => env('KINETIX_MEMBERSHIP_PROVISIONING', 'activation'),
 
         // How the activation link reaches them: 'mail' (default) sends it;
-        // 'manual' sends nothing and hands it back to the admin ONCE.
+        // 'sms' texts it to the member's phone; 'manual' sends nothing and
+        // hands it back to the admin ONCE.
         'delivery' => env('KINETIX_MEMBERSHIP_DELIVERY', 'mail'),
+
+        // The notification channel SMS goes out on. Kinetix does NOT pick an
+        // SMS provider — Vonage, Twilio and the local gateways each register
+        // their own channel, they are mutually incompatible, and which one is
+        // right is a business decision about coverage and price in your
+        // country. Name the channel you registered.
+        'sms_channel' => env('KINETIX_MEMBERSHIP_SMS_CHANNEL', 'vonage'),
+
+        // The activation notification. Kinetix's default ships `toMail()` plus
+        // the message text (`smsContent()`); point this at a subclass adding
+        // your channel's method (`toVonage()`, `toTwilio()`, …). Required for
+        // SMS — without it the link is handed to the admin rather than sent.
+        'activation_notification' => null,
 
         // Which field identifies a member: 'email' (default), 'username' or
         // 'phone'. Must be one of `credentials.identity.fields`, or a member

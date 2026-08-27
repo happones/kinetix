@@ -34,6 +34,8 @@ Two axes, BOTH defaulting to today's behavior:
   which is the point when staff have no email address. Provision goes straight
   to `active`.
 - **`manual`** delivery sends nothing and returns the credential ONCE.
+- **`sms`** delivery texts the link to the member's phone over
+  `membership.sms_channel`.
 
 ### Rules
 
@@ -56,6 +58,30 @@ Two axes, BOTH defaulting to today's behavior:
   identifier must look identical, or provisioning becomes a membership oracle.
 - **Use `identifier` for display**, not `email` — it is whichever field carries
   it. `email`/`username`/`phone` travel alongside.
+
+### SMS delivery
+
+NEVER hardcode an SMS provider. Vonage/Twilio/local gateways each define their
+own channel AND their own message object; the choice is a business decision
+about coverage and price. Kinetix routes over `membership.sms_channel` and ships
+the TEXT (`smsContent()`); the host subclasses the notification and points
+`membership.activation_notification` at it:
+
+```php
+class SmsActivation extends MemberActivationNotification
+{
+    public function toVonage(object $notifiable): VonageMessage
+    {
+        return (new VonageMessage)->content($this->smsContent());
+    }
+}
+```
+
+A missing `to{Channel}()` would throw inside a QUEUED job at send time — nobody
+sees it and the member never gets their link. Kinetix checks the method exists
+first and falls back to handing the link over; `kinetix:doctor` errors on it.
+Same fallback when the member has no phone on file. Keep `smsContent()` short:
+a signed URL is long and every extra character risks a second billable segment.
 
 ## Documentation
 
