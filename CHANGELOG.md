@@ -15,6 +15,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Membership: provisioning a member who has no email address.** Two config
+  axes, both defaulting to exactly today's behavior. `membership.provisioning`
+  — **`activation`** (default) creates no `User` until the person sets their own
+  password; **`direct`** creates it immediately with a temporary password.
+  `membership.delivery` — **`mail`** (default) sends the activation link;
+  **`manual`** sends nothing and hands the credential back to the admin.
+  `membership.identifier` picks the field a member is provisioned with
+  (`email`, `username` or `phone`).
+
+  `direct` + `manual` is the combination that works with **no delivery channel
+  at all**: the owner creates the account and hands over a password in person.
+  It gives up the "no password-less accounts pile up" invariant the default
+  exists for — the right price when the alternative is not being able to
+  onboard your staff.
+
+- **The credential is shown exactly once.** `POST
+  {prefix}/members/{provision}/credential` always REGENERATES rather than
+  reveals (the previous one stops working), and sits behind its own
+  **`members.credentials`** ability, because handing someone a credential means
+  being able to become them. Every issue is written to the Activity log with who
+  did it; the credential itself never is, and the object carrying it redacts
+  itself in `__toString()` and `var_dump()` so it cannot land in a log line by
+  accident.
+- **Identifiers are normalized through the login resolver**, so a phone typed
+  `55 1234 5678` and `+52 55 1234 5678` cannot become two provisions. A
+  `membership.identifier` the Credentials module does not accept falls back to
+  `email` rather than create a member nobody could sign in as.
+- **`direct` without `credentials.enabled` warns at boot** — the forced
+  first-login change that makes a temporary password safe lives there, and
+  without it the password an admin chose works forever.
+- **(published)** `MemberProvisionData` gains `username`, `phone` and
+  `identifier`, and `email` is now nullable; `<KinetixMemberList>` displays and
+  searches `identifier`, and `<KinetixMemberProvisioner>` takes an
+  `identifier-type` prop mirroring the server setting. Re-publish with
+  `--tag=kinetix-components --force`, and `--tag=kinetix-membership-migrations`
+  for the provisions-table columns.
+
+### Added
+
 - **Login identity — signing in with a username or a phone, not just email.**
   The second half of Credentials: `credentials.identity.fields` says which
   columns a login may resolve against (`['email']` is exactly today's

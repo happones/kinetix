@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Membership;
 
+use Happones\Kinetix\Activity\KinetixActivity;
+use Happones\Kinetix\Credentials\KinetixIdentity;
+use Happones\Kinetix\Credentials\KinetixPasswords;
 use Happones\Kinetix\Data\MemberProvisionData;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
@@ -19,6 +22,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Spatie\Permission\PermissionRegistrar;
@@ -32,6 +36,21 @@ use Spatie\Permission\PermissionRegistrar;
  * Management endpoints are gated by `members.*` abilities; activation is public
  * but protected by a temporary signed URL. All ids are resolved by route-parameter
  * name so the optional `{current_team}` prefix can't shift positional arguments.
+ *
+ * ## Two axes, both defaulting to today's behavior
+ *
+ * `membership.provisioning` — **`activation`** creates no User until the person
+ * sets their own password; **`direct`** creates it immediately with a temporary
+ * credential. Direct trades the "no password-less accounts pile up" invariant
+ * for working with no delivery channel at all, which is the whole point when
+ * your staff have no email address.
+ *
+ * `membership.delivery` — **`mail`** sends the activation link; **`manual`**
+ * sends nothing and hands the credential back to the admin ONCE, to pass on in
+ * person.
+ *
+ * `membership.identifier` — which field identifies the member (`email`,
+ * `username` or `phone`); see the Credentials module.
  */
 class MembershipController
 {
@@ -59,19 +78,27 @@ class MembershipController
     {
         Gate::authorize('members.provision');
 
+        $field = $this->identifierField();
+
         $validated = $request->validate([
-            'email' => ['required', 'email'],
-            'role'  => ['required', 'string'],
+            $field => $this->identifierRules($field),
+            'name' => ['nullable', 'string', 'max:255'],
+            'role' => ['required', 'string'],
         ]);
 
-        $teamId = $this->teamId($request);
+        $teamId     = $this->teamId($request);
+        $identifier = KinetixIdentity::normalize($field, (string) $validated[$field]);
 
         $this->assertAssignable($validated['role'], $teamId);
 
+        // `updateOrCreate` on purpose: a repeat on a known identifier has to
+        // look exactly like a fresh one, or provisioning becomes a way to test
+        // whether somebody is already a member.
         $provision = MemberProvision::updateOrCreate(
-            ['team_id' => $teamId, 'email' => $validated['email']],
+            ['team_id' => $teamId, $field => $identifier],
             [
                 'role'         => $validated['role'],
+                'name'         => $validated['name'] ?? null,
                 'invited_by'   => $request->user()?->getKey(),
                 'user_id'      => null,
                 'status'       => MemberProvisionStatus::Pending,
@@ -80,9 +107,41 @@ class MembershipController
             ],
         );
 
-        $this->sendActivationLink($provision);
+        $credential = $this->isDirect()
+            ? $this->provisionDirectly($provision, $request)
+            : $this->issueActivation($provision);
 
-        return response()->json(MemberProvisionData::fromModel($provision), 201);
+        return response()->json(
+            $this->payload($provision, $credential),
+            201,
+        );
+    }
+
+    /**
+     * Re-issue the credential for a member — a new temporary password, or a new
+     * signed activation link. It is always REGENERATED, never retrieved: the
+     * old one is unreadable by design, which is what "shown once" means.
+     *
+     * Behind its own ability: seeing a credential that lets you become someone
+     * else is a bigger privilege than adding them to the directory.
+     */
+    public function credential(Request $request): JsonResponse
+    {
+        Gate::authorize('members.credentials');
+
+        $provision = $this->findProvision($request);
+
+        abort_if(
+            $provision->status === MemberProvisionStatus::Revoked,
+            422,
+            'This member was revoked; provision them again instead.',
+        );
+
+        $credential = $provision->user_id !== null
+            ? $this->issueTemporaryPassword($provision, $request)
+            : $this->issueActivation($provision, force: true);
+
+        return response()->json($this->payload($provision, $credential));
     }
 
     public function resend(Request $request): JsonResponse
@@ -95,7 +154,17 @@ class MembershipController
         // Resurrecting an ACTIVE one would mint an activation link whose
         // submit creates a duplicate user; a REVOKED member must be
         // re-provisioned deliberately, not revived by a resend.
-        abort_if($provision->status === MemberProvisionStatus::Active, 422, 'This member is already active.');
+        //
+        // A member provisioned DIRECTLY is active from the start, so there is
+        // no link to resend — what they need is a new temporary password, which
+        // is a bigger privilege and lives on its own endpoint.
+        abort_if(
+            $provision->status === MemberProvisionStatus::Active,
+            422,
+            $provision->user_id !== null
+                ? 'This member already has an account; issue a new credential instead.'
+                : 'This member is already active.',
+        );
         abort_if($provision->status === MemberProvisionStatus::Revoked, 422, 'This member was revoked; provision them again instead.');
 
         $provision->update([
@@ -373,15 +442,187 @@ class MembershipController
         }
     }
 
-    protected function sendActivationLink(MemberProvision $provision): void
+    // -----------------------------------------------------------------
+    // Provisioning modes
+    // -----------------------------------------------------------------
+
+    protected function isDirect(): bool
     {
+        return config('kinetix.membership.provisioning', 'activation') === 'direct';
+    }
+
+    protected function deliversManually(): bool
+    {
+        return config('kinetix.membership.delivery', 'mail') === 'manual';
+    }
+
+    /**
+     * The field a member is provisioned with. Constrained to what the
+     * Credentials module actually accepts, so a provision can never be created
+     * under an identifier nobody could then sign in with.
+     */
+    protected function identifierField(): string
+    {
+        $field = (string) config('kinetix.membership.identifier', 'email');
+
+        return KinetixIdentity::accepts($field) ? $field : 'email';
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    protected function identifierRules(string $field): array
+    {
+        return match ($field) {
+            'email'    => ['required', 'email'],
+            'username' => ['required', 'string', 'max:32', 'regex:'.KinetixIdentity::resolver()->usernamePattern()],
+            'phone'    => ['required', 'string', 'max:20'],
+            default    => ['required', 'string'],
+        };
+    }
+
+    /**
+     * `direct`: create the host User now with a temporary credential, attach it
+     * to the team and assign the role — the whole of activation, done by the
+     * admin, because there is nobody to send a link to.
+     */
+    protected function provisionDirectly(MemberProvision $provision, Request $request): MemberCredential
+    {
+        $field     = $this->identifierField();
+        $userModel = $this->userModel();
+
+        /** @var Model $user */
+        $user = $userModel::create([
+            'name' => $provision->name ?? $provision->identifier(),
+            $field => $provision->getAttribute($field),
+            // Replaced immediately below; a User is never persisted with a
+            // password anyone could guess, not even for one statement.
+            'password' => Hash::make(Str::random(40)),
+        ]);
+
+        $credential = $this->issueTemporaryPassword($provision, $request, $user);
+
+        $attach = ConfigCallback::resolve(config('kinetix.membership.attach_member'));
+
+        if ($attach !== null) {
+            $attach($user, $provision);
+        }
+
+        $this->withTeam($provision->team_id, static function () use ($user, $provision): void {
+            if (method_exists($user, 'assignRole')) {
+                $user->assignRole($provision->role);
+            }
+        });
+
+        $provision->update([
+            'status'       => MemberProvisionStatus::Active,
+            'activated_at' => now(),
+            'user_id'      => $user->getKey(),
+            'expires_at'   => null,
+        ]);
+
+        return $credential;
+    }
+
+    /**
+     * A temporary password for an already-existing user, audited.
+     */
+    protected function issueTemporaryPassword(
+        MemberProvision $provision,
+        Request $request,
+        ?Model $user = null,
+    ): MemberCredential {
+        $user ??= $this->resolveUser($provision->user_id);
+
+        abort_if($user === null, 422, 'This member has no account yet.');
+
+        $plain = KinetixPasswords::issueTemporary($user);
+
+        // Handing someone a credential that lets you become them is a
+        // privileged, organization-shaping act — it belongs in the audit trail
+        // with who did it. The credential itself is never recorded.
+        $this->audit('member.credential.issued', $provision, $request, [
+            'type' => 'password',
+        ]);
+
+        return MemberCredential::password($plain, KinetixPasswords::temporaryExpiresAt($user));
+    }
+
+    /**
+     * `activation`: mint the signed link, and either send it or hand it back.
+     *
+     * @param bool $force re-mint even when delivery is by mail (a resend)
+     */
+    protected function issueActivation(MemberProvision $provision, bool $force = false): ?MemberCredential
+    {
+        $expiresAt = $provision->expires_at ?? now()->addHours($this->expiryHours());
+
         $url = URL::temporarySignedRoute(
             'kinetix.membership.activate.show',
-            $provision->expires_at ?? now()->addHours($this->expiryHours()),
+            $expiresAt,
             ['provision' => $provision->getKey()],
         );
 
-        Notification::route('mail', $provision->email)
+        $route = $this->notificationRoute($provision);
+
+        // Handed over instead of sent, for three reasons that all end the same
+        // way: the admin asked for something to pass on, delivery is manual, or
+        // this member has no channel to send to at all. Returning the link beats
+        // failing silently.
+        if ($force || $this->deliversManually() || $route === null) {
+            return MemberCredential::link($url, $expiresAt);
+        }
+
+        Notification::route('mail', $route)
             ->notify(new MemberActivationNotification($url, $provision));
+
+        return null;
+    }
+
+    /**
+     * Where an activation notification can be delivered, or null when the
+     * member has no channel at all.
+     */
+    protected function notificationRoute(MemberProvision $provision): ?string
+    {
+        return filled($provision->email) ? (string) $provision->email : null;
+    }
+
+    /**
+     * Kept for backwards compatibility: `resend()` and any host override still
+     * call this name.
+     */
+    protected function sendActivationLink(MemberProvision $provision): void
+    {
+        $this->issueActivation($provision);
+    }
+
+    /**
+     * @param array<string, mixed> $properties
+     */
+    protected function audit(string $event, MemberProvision $provision, Request $request, array $properties = []): void
+    {
+        if (! config('kinetix.activity.enabled', false)) {
+            return;
+        }
+
+        KinetixActivity::log($event, $provision, $properties, $request->user());
+    }
+
+    /**
+     * The provision, plus the credential when there is one to show — which is
+     * only ever the response that created it.
+     *
+     * @return array<string, mixed>
+     */
+    protected function payload(MemberProvision $provision, ?MemberCredential $credential): array
+    {
+        $payload = MemberProvisionData::fromModel($provision)->toArray();
+
+        if ($credential !== null) {
+            $payload['credential'] = $credential->toArray();
+        }
+
+        return $payload;
     }
 }

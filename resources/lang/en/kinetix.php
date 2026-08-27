@@ -398,6 +398,8 @@ return [
     // Membership & provisioning
     'members_title'               => 'Members',
     'member_email'                => 'Email',
+    'member_username'             => 'Username',
+    'member_phone'                => 'Phone',
     'member_role'                 => 'Role',
     'member_provision'            => 'Add member',
     'member_resend'               => 'Resend',

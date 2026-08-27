@@ -369,6 +369,8 @@ return [
     'delete_failed'                      => '削除できませんでした。',
     'members_title'                      => 'メンバー',
     'member_email'                       => 'メールアドレス',
+    'member_username'                    => 'ユーザー名',
+    'member_phone'                       => '電話番号',
     'member_role'                        => 'ロール',
     'member_provision'                   => 'メンバーを追加',
     'member_resend'                      => '再送信',

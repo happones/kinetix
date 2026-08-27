@@ -19,7 +19,21 @@ trait CreatesMembershipTables
             $table->increments('id');
             $table->string('name')->nullable();
             $table->string('email')->nullable();
+            // The identity + password-policy columns, as the Credentials
+            // migrations leave them — provisioning can hand out a temporary
+            // credential to somebody who has no email address.
+            $table->string('username')->nullable();
+            $table->string('phone')->nullable();
             $table->string('password')->nullable();
+            $table->timestamp('password_changed_at')->nullable();
+            $table->boolean('must_change_password')->default(false);
+        });
+
+        Schema::create('kinetix_password_history', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->index();
+            $table->string('password');
+            $table->timestamp('created_at')->nullable();
         });
 
         Schema::create('permissions', function (Blueprint $table) {
@@ -63,7 +77,9 @@ trait CreatesMembershipTables
         Schema::create('kinetix_member_provisions', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('team_id')->nullable()->index();
-            $table->string('email');
+            $table->string('email')->nullable();
+            $table->string('username')->nullable();
+            $table->string('phone')->nullable();
             $table->string('name')->nullable();
             $table->string('role');
             $table->unsignedBigInteger('invited_by')->nullable();
@@ -73,6 +89,8 @@ trait CreatesMembershipTables
             $table->timestamp('activated_at')->nullable();
             $table->timestamps();
             $table->unique(['team_id', 'email']);
+            $table->unique(['team_id', 'username']);
+            $table->unique(['team_id', 'phone']);
         });
     }
 }

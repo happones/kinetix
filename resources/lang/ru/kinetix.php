@@ -369,6 +369,8 @@ return [
     'delete_failed'                      => 'Не удалось удалить.',
     'members_title'                      => 'Участники',
     'member_email'                       => 'Email',
+    'member_username'                    => 'Имя пользователя',
+    'member_phone'                       => 'Телефон',
     'member_role'                        => 'Роль',
     'member_provision'                   => 'Добавить участника',
     'member_resend'                      => 'Отправить снова',

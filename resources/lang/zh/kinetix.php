@@ -369,6 +369,8 @@ return [
     'delete_failed'                      => '无法删除。',
     'members_title'                      => '成员',
     'member_email'                       => '邮箱',
+    'member_username'                    => '用户名',
+    'member_phone'                       => '电话',
     'member_role'                        => '角色',
     'member_provision'                   => '添加成员',
     'member_resend'                      => '重新发送',

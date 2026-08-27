@@ -44,6 +44,7 @@ const MEMBERS: KinetixMemberProvision[] = [
     {
         id: 1,
         email: 'active@example.com',
+        identifier: 'active@example.com',
         name: 'Active Person',
         role: 'editor',
         status: 'active',
@@ -51,6 +52,7 @@ const MEMBERS: KinetixMemberProvision[] = [
     {
         id: 2,
         email: 'pending@example.com',
+        identifier: 'pending@example.com',
         name: null,
         role: 'viewer',
         status: 'pending',
@@ -58,6 +60,7 @@ const MEMBERS: KinetixMemberProvision[] = [
     {
         id: 3,
         email: 'revoked@example.com',
+        identifier: 'revoked@example.com',
         name: 'Gone Person',
         role: 'editor',
         status: 'revoked',

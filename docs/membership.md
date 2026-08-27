@@ -248,6 +248,94 @@ pair, so `['editor', 'viewer']` keeps meaning exactly what it looks like.
 
 ---
 
+## 2.5 Provisioning modes (members with no email address)
+
+Plenty of businesses employ people who simply do not have an email address —
+so there is nowhere to send an activation link. Two config axes cover that, and
+**both default to exactly the behavior above**.
+
+```php
+'membership' => [
+    // 'activation' (default) | 'direct'
+    'provisioning' => env('KINETIX_MEMBERSHIP_PROVISIONING', 'activation'),
+    // 'mail' (default) | 'manual'
+    'delivery'     => env('KINETIX_MEMBERSHIP_DELIVERY', 'mail'),
+    // 'email' (default) | 'username' | 'phone'
+    'identifier'   => env('KINETIX_MEMBERSHIP_IDENTIFIER', 'email'),
+],
+```
+
+```bash
+php artisan vendor:publish --tag=kinetix-membership-migrations
+php artisan migrate
+```
+
+| | `activation` (default) | `direct` |
+| --- | --- | --- |
+| When the `User` exists | after they set their own password | immediately |
+| What they receive | a signed activation link | a temporary password |
+| Provision status after `store()` | `pending` | `active` |
+| Needs a delivery channel | yes, unless `delivery: manual` | **no** |
+
+`delivery: manual` sends nothing and hands the credential back to the admin
+**once**, to pass on in person. It applies to both modes: an activation link in
+`activation`, a temporary password in `direct`.
+
+### The trade `direct` makes
+
+The default exists so that **no password-less accounts pile up** — nobody has an
+account until they prove they wanted one. `direct` gives that up: the account
+exists from the moment an admin creates it, whether or not the person ever
+signs in. That is the price of working with no delivery channel, and it is the
+right price to pay when the alternative is not being able to onboard your staff
+at all. Revoking still runs `detach_member` and removes the role.
+
+### The credential is shown exactly once
+
+```jsonc
+// POST /_kinetix/members  →  201
+{
+  "id": 12, "identifier": "juan.perez", "status": "active", "role": "editor",
+  "credential": { "type": "password", "value": "Xk7...", "expiresAt": "..." }
+}
+```
+
+It is hashed on the way into the user record, so there is no reading it back —
+only issuing a new one, which the dedicated endpoint does:
+
+```
+POST {prefix}/members/{provision}/credential
+```
+
+That endpoint always **regenerates**; the previous credential stops working. It
+sits behind its own `members.credentials` ability, because handing someone a
+credential means being able to become that person — a bigger privilege than
+adding them to the directory. Every issue is written to the
+[Activity log](activity.md) with who did it; the credential itself never is.
+
+::: warning `direct` needs the Credentials module
+The forced first-login change that makes a temporary password safe lives in
+[Credentials](credentials.md). With `credentials.enabled` off, the password an
+admin chose keeps working forever — Kinetix logs a warning at boot and
+`kinetix:doctor` reports it.
+:::
+
+### Identifiers other than email
+
+`membership.identifier` must be one of `credentials.identity.fields`, or a
+member could be provisioned under something nobody can then sign in with;
+Kinetix falls back to `email` rather than let that happen. Values are
+normalized through the same resolver the login uses, so a phone typed
+`55 1234 5678` and `+52 55 1234 5678` cannot become two provisions. See
+[Credentials §5](credentials.md#_5-signing-in-with-a-username-or-a-phone).
+
+The API and the shipped components use `identifier` for display — whichever
+field carries it — while `email`, `username` and `phone` travel alongside it.
+`<KinetixMemberProvisioner>` takes an `identifier-type` prop mirroring the
+server setting, so the field gets the right label and keyboard.
+
+---
+
 ## 3. Lifecycle: provision → activate
 
 The module uses **pre-registration + activation**: the admin stores the email

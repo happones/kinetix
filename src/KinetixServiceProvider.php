@@ -467,6 +467,10 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000034_add_kinetix_identity_fields_to_users_table.php' => database_path('migrations/2026_01_01_000034_add_kinetix_identity_fields_to_users_table.php'),
             ], 'kinetix-identity-migrations');
 
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000035_add_identifiers_to_kinetix_member_provisions_table.php' => database_path('migrations/2026_01_01_000035_add_identifiers_to_kinetix_member_provisions_table.php'),
+            ], 'kinetix-membership-migrations');
+
             // Publish the optional Settings module's migration.
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000002_create_kinetix_settings_table.php' => database_path('migrations/2026_01_01_000002_create_kinetix_settings_table.php'),
@@ -893,6 +897,17 @@ class KinetixServiceProvider extends ServiceProvider
             );
         }
 
+        // `direct` hands out temporary passwords, and the forced first-login
+        // change that makes them safe lives in the Credentials module.
+        if (config('kinetix.membership.provisioning') === 'direct'
+            && ! config('kinetix.credentials.enabled', false)) {
+            Log::warning(
+                'Kinetix: `membership.provisioning` is "direct" but `credentials.enabled` is false — '
+                .'temporary passwords are issued without a forced first-login change, so they never expire '
+                .'and the member can keep using the one an admin chose.'
+            );
+        }
+
         app(PermissionRegistry::class)->feature('members')
             ->label('Members')
             ->abilities([
@@ -900,6 +915,9 @@ class KinetixServiceProvider extends ServiceProvider
                 'provision' => 'Add / invite members',
                 'update'    => 'Change member role',
                 'revoke'    => 'Remove members',
+                // Seeing a credential that lets you become someone else is a
+                // bigger privilege than adding them to the directory.
+                'credentials' => 'Issue member credentials',
             ]);
 
         $this->registerMembershipRoutes();
@@ -931,6 +949,8 @@ class KinetixServiceProvider extends ServiceProvider
                     ->name('kinetix.members.store');
                 Route::post('{provision}/resend', [MembershipController::class, 'resend'])
                     ->name('kinetix.members.resend');
+                Route::post('{provision}/credential', [MembershipController::class, 'credential'])
+                    ->name('kinetix.members.credential');
                 Route::put('{provision}', [MembershipController::class, 'update'])
                     ->name('kinetix.members.update');
                 Route::delete('{provision}', [MembershipController::class, 'destroy'])

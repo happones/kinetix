@@ -554,8 +554,27 @@ return [
         'user_model'        => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
         'assignable_roles'  => ['editor', 'viewer'],
         'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
-        'activation_view'   => env('KINETIX_MEMBERSHIP_ACTIVATION_VIEW', 'Kinetix/MemberActivation'),
-        'redirect_after'    => env('KINETIX_MEMBERSHIP_REDIRECT', '/'),
+
+        // How a provisioned member gets an account:
+        //   'activation' (default) — no User exists until the person sets their
+        //       own password, so no password-less accounts pile up.
+        //   'direct' — the User is created immediately with a temporary
+        //       password the admin hands over. Trades that invariant for
+        //       working with NO delivery channel, which is the point when your
+        //       staff have no email address. Requires `credentials.enabled`,
+        //       or the forced first-login change is not enforced.
+        'provisioning' => env('KINETIX_MEMBERSHIP_PROVISIONING', 'activation'),
+
+        // How the activation link reaches them: 'mail' (default) sends it;
+        // 'manual' sends nothing and hands it back to the admin ONCE.
+        'delivery' => env('KINETIX_MEMBERSHIP_DELIVERY', 'mail'),
+
+        // Which field identifies a member: 'email' (default), 'username' or
+        // 'phone'. Must be one of `credentials.identity.fields`, or a member
+        // could be provisioned under something nobody can sign in with.
+        'identifier'      => env('KINETIX_MEMBERSHIP_IDENTIFIER', 'email'),
+        'activation_view' => env('KINETIX_MEMBERSHIP_ACTIVATION_VIEW', 'Kinetix/MemberActivation'),
+        'redirect_after'  => env('KINETIX_MEMBERSHIP_REDIRECT', '/'),
 
         // e.g. [\App\Kinetix\SyncProvisionedMember::class, 'attach']
         'attach_member' => null,

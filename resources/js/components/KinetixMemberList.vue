@@ -30,7 +30,7 @@ const {
 const { t } = useI18n();
 
 const rowKey = (member: KinetixMemberProvision): string | number =>
-    member.id ?? member.email;
+    member.id ?? member.identifier ?? '';
 
 /** KinetixSelect expects a `{ value: label }` record. */
 const roleOptions = computed<Record<string, string>>(() =>
@@ -86,11 +86,11 @@ async function run(
     }
 }
 
-function onProvision(email: string, role: string): void {
+function onProvision(identifier: string, role: string): void {
     void run(
         'provision',
         null,
-        () => provision(email, role),
+        () => provision(identifier, role),
         t('kinetix.member_provisioned'),
         t('kinetix.member_provision_failed'),
     );
@@ -171,7 +171,7 @@ const filteredProvisions = computed<KinetixMemberProvision[]>(() => {
 
     return provisions.value.filter(
         (member) =>
-            member.email.toLowerCase().includes(query) ||
+            (member.identifier ?? '').toLowerCase().includes(query) ||
             (member.name ?? '').toLowerCase().includes(query),
     );
 });
@@ -250,13 +250,13 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
             >
                 <div class="min-w-0 basis-48 flex-1">
                     <p class="text-sm font-medium truncate text-foreground">
-                        {{ member.name ?? member.email }}
+                        {{ member.name ?? member.identifier }}
                     </p>
                     <p
                         v-if="member.name"
                         class="text-xs truncate text-muted-foreground"
                     >
-                        {{ member.email }}
+                        {{ member.identifier }}
                     </p>
                 </div>
 
@@ -280,7 +280,7 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
                             :value="member.role"
                             :options="roleOptions"
                             :disabled="isBusy"
-                            :aria-label="`${t('kinetix.member_role')} — ${member.email}`"
+                            :aria-label="`${t('kinetix.member_role')} — ${member.identifier}`"
                             @update:value="onRoleChange(member, $event)"
                         />
                     </div>
@@ -291,7 +291,7 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
                         size="sm"
                         :disabled="isBusy"
                         :loading="isRowBusy(member, 'resend')"
-                        :aria-label="`${t('kinetix.member_resend')} — ${member.email}`"
+                        :aria-label="`${t('kinetix.member_resend')} — ${member.identifier}`"
                         @click="onResend(member)"
                     >
                         {{ t('kinetix.member_resend') }}
@@ -303,7 +303,7 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
                         size="sm"
                         :disabled="isBusy"
                         :loading="isRowBusy(member, 'revoke')"
-                        :aria-label="`${t('kinetix.member_revoke')} — ${member.email}`"
+                        :aria-label="`${t('kinetix.member_revoke')} — ${member.identifier}`"
                         @click="requestRevoke(member)"
                     >
                         {{ t('kinetix.member_revoke') }}

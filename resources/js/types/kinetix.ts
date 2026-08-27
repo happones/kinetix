@@ -770,13 +770,27 @@ export interface KinetixSettingsPageData {
 /** A provisioned member (pending/active/revoked) from the Membership module. */
 export interface KinetixMemberProvision {
     id: number | string | null;
-    email: string;
+    /** Null for a member provisioned by username or phone instead. */
+    email: string | null;
+    username?: string | null;
+    phone?: string | null;
+    /** Whichever of the three identifies this member — use this for display. */
+    identifier: string | null;
     name: string | null;
     role: string;
     status: 'pending' | 'active' | 'revoked';
     expired: boolean;
     activatedAt: string | null;
     expiresAt: string | null;
+    /**
+     * The temporary password or activation link to hand over — present ONLY in
+     * the response that created it, and never readable again.
+     */
+    credential?: {
+        type: 'password' | 'link';
+        value: string;
+        expiresAt: string | null;
+    };
 }
 
 export interface KinetixStat {

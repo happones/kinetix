@@ -13,7 +13,12 @@ class MemberProvisionData extends Data
 {
     public function __construct(
         public int|string|null $id,
-        public string $email,
+        /** Null for a member provisioned by username or phone instead. */
+        public ?string $email,
+        public ?string $username,
+        public ?string $phone,
+        /** Whichever of the three identifies this member — for display. */
+        public ?string $identifier,
         public ?string $name,
         public string $role,
         public string $status,
@@ -27,6 +32,9 @@ class MemberProvisionData extends Data
         return new self(
             $provision->getKey(),
             $provision->email,
+            $provision->username,
+            $provision->phone,
+            $provision->identifier(),
             $provision->name,
             $provision->role,
             $provision->status->value,

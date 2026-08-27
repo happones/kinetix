@@ -17,6 +17,46 @@ Activate this skill when:
 - Rendering the membership UI (`<KinetixMemberList>`, `<KinetixMemberProvisioner>`, `<KinetixMemberActivation>`) or using the `useKinetixMembers` composable.
 - Attaching activated users to the host app's own team pivot via `attach_member` / `detach_member`.
 
+## Provisioning modes (members with no email address) — REQUIRED reading
+
+Two axes, BOTH defaulting to today's behavior:
+
+```php
+'provisioning' => 'activation',  // | 'direct'
+'delivery'     => 'mail',        // | 'manual'
+'identifier'   => 'email',       // | 'username' | 'phone'
+```
+
+- **`activation`** (default) — no `User` until the person sets their own
+  password. The invariant: no password-less accounts pile up.
+- **`direct`** — the `User` is created immediately with a temporary password.
+  GIVES UP that invariant in exchange for working with NO delivery channel,
+  which is the point when staff have no email address. Provision goes straight
+  to `active`.
+- **`manual`** delivery sends nothing and returns the credential ONCE.
+
+### Rules
+
+- **The credential is shown exactly once.** It is hashed into the user record;
+  there is no reading it back. `POST {prefix}/members/{provision}/credential`
+  always REGENERATES (the old one stops working). Never add a "reveal" that
+  retrieves.
+- **`members.credentials` is a separate ability** from `members.provision` —
+  handing over a credential means being able to become that person.
+- **`direct` requires `credentials.enabled`**, or the forced first-login change
+  never happens and the admin-chosen password works forever. Boot warning +
+  `kinetix:doctor`.
+- **`membership.identifier` must be in `credentials.identity.fields`** or
+  Kinetix falls back to `email` — provisioning someone under an identifier
+  nobody can sign in with is a directory entry, not an account.
+- **Identifiers are normalized** through the same resolver the login uses
+  (`KinetixIdentity::normalize`), so one phone number cannot become two
+  provisions.
+- **`store()` stays `updateOrCreate`** whatever the mode: a repeat on a known
+  identifier must look identical, or provisioning becomes a membership oracle.
+- **Use `identifier` for display**, not `email` — it is whichever field carries
+  it. `email`/`username`/`phone` travel alongside.
+
 ## Documentation
 
 For full details, reference `docs/membership.md` (published at https://happones.github.io/kinetix/membership).
