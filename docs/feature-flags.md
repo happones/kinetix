@@ -48,6 +48,14 @@ public function boot(): void
 > Plan-gating is just a flag whose resolver asks Billing — no separate
 > mechanism. See [Billing](/billing) for `canUseFeature()`.
 
+::: tip Flag AND plan AND role?
+Once a feature needs two or more layers, stop chaining them by hand and declare
+an [entitlement](/entitlements): one name, one evaluation, and a denial that
+says WHICH layer refused — so a flag denial 404s, a plan denial sells the
+upgrade, and a permission denial simply refuses. A single-layer gate stays a
+plain flag.
+:::
+
 ::: tip Guests (null scope)
 For a **guest** (not authenticated) the scope is `null`. Kinetix resolves flags
 on every Inertia response, so a user-scoped resolver is evaluated for guests too.

@@ -159,6 +159,8 @@ return [
     'billing_subscription_cancelled'    => '订阅取消成功。',
     'billing_subscription_resumed'      => '订阅恢复成功。',
     'billing_feature_unavailable'       => '您当前的套餐不包含此功能。',
+    'entitlement_unavailable'           => '此功能不可用。',
+    'entitlement_forbidden'             => '您没有执行此操作的权限。',
     'plan_limit_reached'                => '已达到套餐的:key上限（:limit）。',
     'validation_weekly_schedule'        => ':attribute 不是有效的每周时间表。',
     'business_hours_add_range'          => '添加时段',

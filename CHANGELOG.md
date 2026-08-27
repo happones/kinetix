@@ -13,6 +13,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Entitlements — the four gating layers, composed under one declared name.**
+  A new opt-in module (`kinetix.entitlements.enabled`) that does not replace
+  `<KinetixCan>`, `<KinetixPlanFeature>` or `<KinetixFeature>` — a single-layer
+  gate should keep using them directly. It exists for the feature behind more
+  than one:
+
+  ```php
+  KinetixEntitlements::define('alerts.discord')
+      ->flag('discord-alerts')        // rolled out here?
+      ->plan('alerts.discord')        // did this tenant buy it?
+      ->limit('alerts', [Alerts::class, 'countFor'])   // room left?
+      ->permission('alerts.manage');  // may this user do it?
+  ```
+
+  Layers evaluate in a fixed `flag → plan → limit → permission` order,
+  short-circuiting at the first denial — which makes it **cheaper** than the
+  chain it replaces, because the per-user check (the one that can run a policy,
+  per row, in a table) never runs once a memoized tenant-level layer already
+  refused. Every layer is optional; a layer you don't declare passes.
+  `define()` is additive, so two providers can each contribute one.
+- **Verdicts say WHICH layer refused.** `KinetixEntitlements::check()` returns a
+  `Verdict` carrying a `DenialReason`, so one gate can hide, sell or refuse
+  instead of greying everything out: a **flag** denial is a 404 (an unreleased
+  feature should be indistinguishable from one that was never built, so its
+  existence can't be probed), a **plan** or **limit** denial takes the upsell
+  redirect to `kinetix.billing.upgrade_url`, and a **permission** denial is a
+  plain 403. An undeclared name is denied — authorization fails closed — and
+  logs a warning under `app.debug`.
+- **`kinetix.entitled` middleware** — one alias in place of the
+  `kinetix.feature:… + kinetix.plan:… + can:…` stack, and unlike stacking them,
+  the response matches the layer that refused. Accepts several names
+  (`kinetix.entitled:reports.view,billing.view`); all must allow.
+  `KinetixEntitlements::authorize()` is the in-controller twin.
+- **`<KinetixEntitled>` + `useKinetixEntitlement()`** (published): the frontend
+  half, reading a new `kinetix_entitlements` Inertia prop. The `denied` slot
+  receives `reason` / `isUpsell` / `remaining`, so a padlock, a "read only" hint
+  and rendering nothing are all one component. With no `denied` slot nothing
+  renders — the safe default for flag and permission denials. New docs page:
+  [Entitlements](https://happones.github.io/kinetix/entitlements), plus a
+  `kinetix-entitlements` Boost skill.
+- **`kinetix:doctor` checks entitlements.** Declaring entitlements while
+  `kinetix.entitlements.enabled` is false is an **error**: the server still
+  enforces them, but the prop stays empty, so every frontend check silently
+  denies and the gated UI just disappears with nothing in the logs. It also
+  warns about a `->permission()` naming an ability neither Kinetix nor the Gate
+  defines (denies for everyone), and about plan layers declared with billing
+  off (skipped, so they gate nothing).
+- **`Happones\Kinetix\Support\Memo`** — the WeakMap-backed per-request memo
+  now behind every cached authorization verdict. Keyed by the subject **object**
+  rather than an id, so entries are released with it and nothing leaks between
+  requests under Octane or in a queue worker. `SuperAdmin` and `TeamOwner` were
+  refactored onto it (each had its own copy of the pattern).
+
+### Fixed
+
+- **Plan gating no longer re-queries the `plans` table per question.**
+  `HasPlan::currentPlan()` ran a query on *every* call, so `planAllows()`,
+  `planLimit()`, `canUseFeature()` and each plan-gated feature flag cost one
+  query apiece — a page gating a dozen things paid a dozen queries, per request,
+  per tenant. Plans are now read from `PlanCatalog` (the table in memory, loaded
+  at most once per request) and the resolved plan is memoized per billable:
+  **48 gate calls now cost one query**, and creating 20 records through
+  `EnforcesPlanLimits` costs one plan query instead of 20. Nothing about the
+  resolution changed — only how often it runs.
+- **`BillingManager::resolve()` no longer re-queries the team per call.** In a
+  teams app the billable is looked up from the `{team}` segment or the
+  subdomain, and `EnforcesPlanLimits` calls it on every model `creating` event —
+  so a bulk insert paid one team query per row. Now memoized per user, keyed by
+  host + team segment + tenancy mode so it can never cross tenants. A host
+  `resolve_billable` callback is still called live (its dependencies are
+  unknowable).
+- **Plan edits invalidate the catalog through every write path.** Model events
+  cover `save()`/`delete()`; a new `PlanQueryBuilder` covers bulk
+  `Plan::query()->update()`, which fires no model events at all. Flushing the
+  catalog also drops the resolved-plan memo, so a billable resolved before an
+  edit can't keep answering from the old plan.
+- **`kinetix.plan` and entitlement plan denials share one implementation**
+  (`Billing\UpsellResponse`), so the upsell redirect can never behave one way
+  in the middleware and another in the resolver.
+
+### Changed
+
+- **New config: `kinetix.billing.cache`** — the plan catalog is loaded at most once per
+  request regardless. Setting `ttl` (seconds) adds a persistent layer on top for
+  zero queries across requests; writes through the model flush it automatically.
+  Leave `ttl` null (the default) if something outside Eloquent writes your plans
+  — raw `DB::table('plans')` writes bypass the invalidation. On multi-server
+  setups point `store` at a shared store.
+- **New config: `kinetix.entitlements.enabled`** — enables the
+  `kinetix_entitlements` Inertia prop. `KinetixEntitlements::allows()` and the
+  `kinetix.entitled` middleware work either way.
+- **Docs**: [Permissions](https://happones.github.io/kinetix/permissions) now
+  states outright that plans and feature flags must stay **out** of model
+  policies — a policy runs per *record* while a plan is a per-*tenant* answer,
+  so putting one inside multiplies a constant cost by N rows, a `bool` can't
+  produce an upgrade CTA, and the three layers invalidate on different clocks —
+  and that policies must compare foreign keys rather than lazy-load relations
+  (a table serializes its record actions per row). [Billing](https://happones.github.io/kinetix/billing)
+  documents the plan catalog and its invalidation paths.
+- **(published)** New `resources/js/components/KinetixEntitled.vue`,
+  `composables/useKinetixEntitlement.ts`, new types in `types/kinetix.ts`, two
+  new keys in all seven locales, and the `billing.cache` / `entitlements` blocks
+  in `config/kinetix.php`. Re-publish with
+  `php artisan vendor:publish --tag=kinetix-components --force` (and
+  `--tag=kinetix-translations --force`), then merge the new config blocks.
+
 ## [0.177.2] - 2026-08-26
 
 Help Center screenshots. The default serving path never let a browser cache a

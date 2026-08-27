@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Entitlements\Entitlement;
+use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
@@ -47,6 +49,7 @@ class DoctorCommand extends Command
         $this->checkModules();
         $this->checkPermissions();
         $this->checkPolicyDelegation();
+        $this->checkEntitlements();
         $this->checkRoles();
         $this->checkMembership();
         $this->checkConfigCallbacks();
@@ -110,6 +113,7 @@ class DoctorCommand extends Command
         $modules = [
             'permissions', 'membership', 'settings', 'activity', 'webhooks', 'onboarding',
             'wizards', 'billing', 'tours', 'help', 'spotlight', 'reports_center', 'confidential',
+            'entitlements',
         ];
 
         $enabled = array_values(array_filter(
@@ -200,6 +204,91 @@ class DoctorCommand extends Command
                     "Delegate to the matrix instead — e.g. return \$user->belongsToTeam(\$record->team) && (\$user->ownsTeam(\$record->team) || \$user->can('{$feature}.update'));",
                 );
             }
+        }
+    }
+
+    /**
+     * Entitlements compose four gating layers, and every way of getting one
+     * wrong denies SILENTLY — which is the worst possible failure mode for
+     * authorization UI (a button that simply never appears, with no error).
+     */
+    protected function checkEntitlements(): void
+    {
+        $registry     = app(EntitlementRegistry::class);
+        $entitlements = $registry->all();
+
+        if ($entitlements === []) {
+            return;
+        }
+
+        $names = array_keys($entitlements);
+
+        // The one that bites hardest: declarations exist and the server
+        // enforces them, but the Inertia prop is never populated, so EVERY
+        // `<KinetixEntitled>` on the frontend resolves to denied — the whole
+        // UI quietly disappears with nothing in the logs.
+        if (! config('kinetix.entitlements.enabled', false)) {
+            $this->error_(
+                'Entitlements',
+                count($names).' entitlement(s) are declared but `kinetix.entitlements.enabled` is FALSE — '
+                .'the `kinetix_entitlements` prop stays empty, so every <KinetixEntitled> / useKinetixEntitlement '
+                .'check on the frontend silently denies',
+                'Set KINETIX_ENTITLEMENTS_ENABLED=true (the server-side checks work either way — this is the prop).',
+                $names,
+            );
+        } else {
+            $this->ok('Entitlements', count($names).' declared', null, $names);
+        }
+
+        $this->checkEntitlementLayers($entitlements);
+    }
+
+    /**
+     * Layers that can never pass: a `->plan()` with billing off is skipped
+     * (fail-open, fine), but a `->permission()` naming an ability nothing
+     * defines denies forever.
+     *
+     * @param array<string, Entitlement> $entitlements
+     */
+    protected function checkEntitlementLayers(array $entitlements): void
+    {
+        $registry = class_exists(PermissionRegistrar::class) && config('kinetix.permissions.enabled', false)
+            ? app(PermissionRegistry::class)
+            : null;
+
+        $unknown  = [];
+        $planless = [];
+
+        foreach ($entitlements as $name => $entitlement) {
+            $ability = $entitlement->permissionAbility();
+
+            if ($ability !== null
+                && ! Gate::has($ability)
+                && ($registry === null || ! $registry->has($ability))) {
+                $unknown[] = "{$name} → {$ability}";
+            }
+
+            if ($entitlement->usesPlanLayers() && ! config('kinetix.billing.enabled', false)) {
+                $planless[] = $name;
+            }
+        }
+
+        if ($unknown !== []) {
+            $this->warn_(
+                'Entitlements',
+                'entitlement(s) require an ability that is neither registered with Kinetix nor defined on the Gate — they deny for everyone',
+                'Register it (KinetixPermissions::feature(...)->ability(...) + php artisan kinetix:permissions:sync) or define it with Gate::define().',
+                $unknown,
+            );
+        }
+
+        if ($planless !== []) {
+            $this->warn_(
+                'Entitlements',
+                'entitlement(s) declare a plan capability or usage limit while `kinetix.billing.enabled` is false — those layers are SKIPPED (fail open), so they gate nothing',
+                'Enable billing, or drop the ->plan()/->limit() layer from the declaration.',
+                $planless,
+            );
         }
     }
 

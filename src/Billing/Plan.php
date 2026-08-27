@@ -73,6 +73,29 @@ class Plan extends Model
                 $plan->slug = Str::slug($plan->name);
             }
         });
+
+        // Every plan question is answered from {@see PlanCatalog}, so a write
+        // through the model must drop it — otherwise a price or feature edit
+        // would keep serving the old catalog for the rest of the request (and,
+        // with `billing.cache.ttl` set, until the entry expired).
+        static::saved(static function (): void {
+            PlanCatalog::flush();
+        });
+
+        static::deleted(static function (): void {
+            PlanCatalog::flush();
+        });
+    }
+
+    /**
+     * Bulk writes (`Plan::query()->update(...)`) fire no model events, so the
+     * catalog is flushed from the builder instead.
+     *
+     * @param \Illuminate\Database\Query\Builder $query
+     */
+    public function newEloquentBuilder($query): PlanQueryBuilder
+    {
+        return new PlanQueryBuilder($query);
     }
 
     public function scopeActive(Builder $query): Builder

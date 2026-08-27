@@ -109,6 +109,9 @@ skill, translations (en/es/fr/pt) and tests.
 - **Permissions** — spatie-permission bridge + `<KinetixCan>`.
   `docs/permissions.md`
 - **Feature Flags** — Pennant bridge + `<KinetixFeature>`. `docs/feature-flags.md`
+- **Entitlements** — composes flags × plan capabilities × usage limits × role
+  permissions under one declared name, with a verdict that says which layer
+  refused. `docs/entitlements.md`
 - **Impersonation** — audited "log in as user". `docs/impersonation.md`
 - **Activity Log** — audit trail + event spine. `docs/activity.md`
 - **Webhooks** — customer-facing webhook delivery (SSRF-safe). `docs/webhooks.md`

@@ -161,6 +161,8 @@ return [
     'billing_subscription_cancelled' => 'Subscription cancelled successfully.',
     'billing_subscription_resumed'   => 'Subscription resumed successfully.',
     'billing_feature_unavailable'    => 'Your current plan does not include this feature.',
+    'entitlement_unavailable'        => 'This feature is not available.',
+    'entitlement_forbidden'          => 'You are not allowed to do this.',
     'plan_limit_reached'             => 'Your plan\'s :key limit of :limit has been reached.',
     'validation_weekly_schedule'     => 'The :attribute is not a valid weekly schedule.',
     'business_hours_add_range'       => 'Add hours',

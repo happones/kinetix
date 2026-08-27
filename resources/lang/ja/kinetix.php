@@ -159,6 +159,8 @@ return [
     'billing_subscription_cancelled'    => 'サブスクリプションをキャンセルしました。',
     'billing_subscription_resumed'      => 'サブスクリプションを再開しました。',
     'billing_feature_unavailable'       => '現在のプランではこの機能は利用できません。',
+    'entitlement_unavailable'           => 'この機能は利用できません。',
+    'entitlement_forbidden'             => 'この操作を行う権限がありません。',
     'plan_limit_reached'                => 'プランの:key上限（:limit）に達しました。',
     'validation_weekly_schedule'        => ':attributeは有効な週間スケジュールではありません。',
     'business_hours_add_range'          => '時間帯を追加',

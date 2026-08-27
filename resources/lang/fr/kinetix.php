@@ -161,6 +161,8 @@ return [
     'billing_subscription_cancelled' => 'Abonnement annulé avec succès.',
     'billing_subscription_resumed'   => 'Abonnement repris avec succès.',
     'billing_feature_unavailable'    => "Votre forfait actuel n'inclut pas cette fonctionnalité.",
+    'entitlement_unavailable'        => "Cette fonctionnalité n'est pas disponible.",
+    'entitlement_forbidden'          => "Vous n'êtes pas autorisé à faire cela.",
     'plan_limit_reached'             => 'La limite :key de votre forfait (:limit) est atteinte.',
     'validation_weekly_schedule'     => 'Le champ :attribute n\'est pas un horaire hebdomadaire valide.',
     'business_hours_add_range'       => 'Ajouter des horaires',

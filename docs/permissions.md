@@ -342,6 +342,17 @@ exist anywhere.
 returns static `true`s, and registered features whose model has **no policy
 at all** (where the matrix silently enforces nothing).
 
+> **Keep plans and flags OUT of the policy.** A policy runs per **record**,
+> while a plan is a per-**tenant** answer — putting one inside multiplies a
+> constant cost by N rows, and a `bool` can't produce an upgrade CTA. For a
+> feature gated by more than one layer, declare an
+> [entitlement](entitlements.md) and leave the policy to tenancy + capability.
+
+> **Policies must compare foreign keys, not load relations.**
+> `$post->team_id === $user->current_team_id`, not `$post->team`. A table
+> serializes its record actions **per row**, so a relation load inside a policy
+> is one query per row per action.
+
 > **Frontend checks are UX, not security.** `<KinetixCan>` / `v-can` (§5) only
 > hide markup. A hidden button's endpoint is still reachable with `curl` —
 > every mutation needs one of the server-side mechanisms above.
@@ -992,6 +1003,9 @@ What to get right for that to hold at scale:
 - [Membership](membership.md) — inviting people **with** a role; its
   `assignable_roles` allow-list intersects with the roles managed here (use
   `AssignableRoles` so global + team roles stay in sync between both UIs).
+- [Entitlements](entitlements.md) — composing this matrix with plan
+  capabilities, usage limits and feature flags under one declared name, with a
+  denial that says which layer refused.
 - [Resources](resources.md) — `permissionFeature()` / `registerPermissions()`.
 - [Actions §9](actions.md) — `->authorize()` on actions; [Tables](tables.md) —
   `->can()` on columns and stat cards; [Forms](forms.md) — field-level `->can()`.

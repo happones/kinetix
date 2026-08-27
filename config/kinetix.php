@@ -1145,6 +1145,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Entitlements (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Composes the gating layers Kinetix already ships — feature flags, plan
+    | capabilities, plan usage limits and role permissions — under one declared
+    | name, so a feature that sits behind several of them is described once and
+    | evaluated the same way everywhere (controller, middleware, button, menu).
+    |
+    | Declare them in a service provider:
+    |
+    |     KinetixEntitlements::define('projects.create')
+    |         ->plan('projects')
+    |         ->limit('projects', [ProjectCounter::class, 'for'])
+    |         ->permission('projects.create');
+    |
+    | Turning this on only enables the `kinetix_entitlements` Inertia prop that
+    | feeds the frontend helpers; `KinetixEntitlements::allows()` and the
+    | `kinetix.entitled` middleware work regardless.
+    |
+    */
+    'entitlements' => [
+        'enabled' => env('KINETIX_ENTITLEMENTS_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Impersonation (optional)
     |--------------------------------------------------------------------------
     |
@@ -1219,6 +1245,24 @@ return [
 
         // Cashier subscription "type" (Cashier's default is 'default').
         'subscription' => env('KINETIX_BILLING_SUBSCRIPTION', 'default'),
+
+        // The `plans` table is read as an in-memory catalog: every plan
+        // question (capabilities, usage limits, the free fallback) is answered
+        // from it, and it is loaded AT MOST ONCE PER REQUEST regardless of
+        // these settings.
+        //
+        // Setting a `ttl` (seconds) adds a persistent layer on top, so the
+        // catalog survives between requests and plan gating costs zero
+        // queries. Writes through the Plan model flush it automatically, so an
+        // edit still applies on the next request; leave `ttl` null if plans
+        // are written by something Eloquent never sees (raw SQL, an external
+        // admin). Point `store` at a SHARED store (redis/memcached) on
+        // multi-server setups — a per-server store would go stale on the
+        // other nodes. Null = the default cache store.
+        'cache' => [
+            'store' => env('KINETIX_BILLING_CACHE_STORE'),
+            'ttl'   => env('KINETIX_BILLING_CACHE_TTL'),
+        ],
 
         // Currency symbol used when formatting prices in the UI.
         'currency'        => env('KINETIX_BILLING_CURRENCY', 'USD'),

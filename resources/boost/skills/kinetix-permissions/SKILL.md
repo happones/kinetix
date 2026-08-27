@@ -93,6 +93,14 @@ public function update(User $user, Post $post): bool
   bypass off, and reads as intent.
 - Class-level abilities (`viewAny`, `create`) have no record:
   `return $user->can('posts.viewAny');`.
+- **Never put a plan or feature-flag check inside a policy.** A policy runs per
+  RECORD; a plan is a per-TENANT answer, so you multiply a constant cost by N
+  rows. A `bool` also can't produce an upsell, and role / plan / flag invalidate
+  on three different clocks. Compose those with an **entitlement**
+  (`kinetix-entitlements` skill) and keep the policy to tenancy + capability.
+- Policies must compare FOREIGN KEYS, not lazy-load relations
+  (`$post->team_id === $user->current_team_id`): a table serializes its record
+  actions per row, so a relation load inside a policy is an N+1 per page.
 - `kinetix:doctor` flags synced features whose policy still returns static
   `true`s, and registered features whose model has no policy at all.
 

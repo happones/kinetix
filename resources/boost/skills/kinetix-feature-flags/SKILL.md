@@ -61,7 +61,15 @@ Route::get('/beta', ...)->middleware('kinetix.feature:beta-search'); // 404 when
   persistence/lottery/scopes; native evaluates the closure each request. Same
   contract either way.
 - The resolved flag map is shared as the `kinetix_features` Inertia prop when the
-  module is enabled.
+  module is enabled. That share resolves EVERY flag on every full page load, so a
+  plan-gated resolver runs `canUseFeature()` once per flag — free now that the
+  plan is memoized per request (`kinetix-billing` skill), but keep resolvers
+  cheap: no queries of your own inside one.
+
+> **Flag AND plan AND role?** Once a feature needs two or more layers, declare
+> an **entitlement** instead of chaining them — one name, one evaluation, and a
+> denial that says WHICH layer refused (flag → 404, plan → upsell, permission →
+> 403). See the `kinetix-entitlements` skill. A single-layer gate stays a flag.
 
 ---
 

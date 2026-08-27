@@ -97,6 +97,8 @@ export interface KinetixSharedProps {
     kinetix_impersonation?: KinetixImpersonationState;
     /** Resolved feature flags for the current scope (name → on/off). */
     kinetix_features?: Record<string, boolean>;
+    /** Declared entitlements resolved to verdicts, for useKinetixEntitlement / <KinetixEntitled>. */
+    kinetix_entitlements?: KinetixEntitlementsState;
     /** The billable's current plan (+ features JSON), for useKinetixPlan / <KinetixPlanFeature>. */
     kinetix_billing?: KinetixBillingState;
     /** Authorized product tours + seen ids, for <KinetixTours /> and the tours store. */
@@ -205,6 +207,32 @@ export interface KinetixPlanLockDefaults {
     blur?: boolean;
     /** Plan pill shown next to the lock title (e.g. 'Pro'). Null = none. */
     badgeLabel?: string | null;
+}
+
+/**
+ * Which gating layer refused an entitlement. `null` on the frontend means
+ * allowed; the server sends one of these on every denial.
+ */
+export type KinetixDenialReason =
+    | 'flag'
+    | 'plan'
+    | 'limit'
+    | 'permission'
+    | 'undefined';
+
+/** One entitlement's resolved verdict. */
+export interface KinetixEntitlementVerdict {
+    allowed: boolean;
+    /** Which layer refused; null when allowed. */
+    reason: KinetixDenialReason | null;
+    /** Units left on the usage limit; null = unlimited or no limit declared. */
+    remaining: number | null;
+}
+
+/** Declared entitlements resolved for the user (`kinetix_entitlements`). */
+export interface KinetixEntitlementsState {
+    enabled: boolean;
+    entitlements: Record<string, KinetixEntitlementVerdict>;
 }
 
 /** The billable's current plan shared via Inertia (`kinetix_billing`). */

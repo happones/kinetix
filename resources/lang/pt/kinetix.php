@@ -161,6 +161,8 @@ return [
     'billing_subscription_cancelled' => 'Assinatura cancelada com sucesso.',
     'billing_subscription_resumed'   => 'Assinatura retomada com sucesso.',
     'billing_feature_unavailable'    => 'Seu plano atual não inclui este recurso.',
+    'entitlement_unavailable'        => 'Este recurso não está disponível.',
+    'entitlement_forbidden'          => 'Você não tem permissão para fazer isto.',
     'plan_limit_reached'             => 'O limite de :key do seu plano (:limit) foi atingido.',
     'validation_weekly_schedule'     => 'O campo :attribute não é um horário semanal válido.',
     'business_hours_add_range'       => 'Adicionar horário',

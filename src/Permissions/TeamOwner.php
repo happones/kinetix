@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Permissions;
 
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Spatie\Permission\PermissionRegistrar;
-use WeakMap;
 
 /**
  * Resolves whether a user owns the team the current request is scoped to, for
@@ -27,15 +27,14 @@ use WeakMap;
  *
  * The active team is the one the permission layer is scoped to (the
  * `{current_team}` segment via `SetPermissionsTeam`), falling back to the
- * user's `currentTeam`. The verdict is memoized per (user object × team) —
- * `Gate::before` fires on every authorization check, and resolving the team can
- * cost a query — using a `WeakMap` so entries are released with the user
- * (request/Octane-safe), exactly like {@see SuperAdmin}.
+ * user's `currentTeam`. The verdict is memoized per (user object × team)
+ * through {@see Memo} — `Gate::before` fires on every authorization check, and
+ * resolving the team can cost a query — exactly like {@see SuperAdmin}.
  */
 class TeamOwner
 {
-    /** @var WeakMap<object, array<string, bool>>|null */
-    protected static ?WeakMap $memo = null;
+    /** The {@see Memo} store these verdicts live in. */
+    public const MEMO = 'permissions.team-owner';
 
     /**
      * Whether a bypass is configured at all (checked once, at boot).
@@ -57,16 +56,12 @@ class TeamOwner
             return false;
         }
 
-        static::$memo ??= new WeakMap;
-        $teamKey = static::teamKey();
-        $bucket  = static::$memo[$user] ?? [];
-
-        if (! array_key_exists($teamKey, $bucket)) {
-            $bucket[$teamKey]    = static::resolve($user);
-            static::$memo[$user] = $bucket;
-        }
-
-        return $bucket[$teamKey];
+        return (bool) Memo::remember(
+            self::MEMO,
+            $user,
+            static::teamKey(),
+            static fn (): bool => static::resolve($user),
+        );
     }
 
     /**
@@ -75,7 +70,7 @@ class TeamOwner
      */
     public static function flush(): void
     {
-        static::$memo = null;
+        Memo::flush(self::MEMO);
     }
 
     protected static function teamKey(): string

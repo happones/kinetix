@@ -5,69 +5,94 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Billing\Concerns;
 
 use Happones\Kinetix\Billing\Plan;
+use Happones\Kinetix\Billing\PlanCatalog;
+use Happones\Kinetix\Support\Memo;
 
 /**
  * Add to the Cashier Billable model (User/Team/…) to resolve its current Plan
  * and gate features. Cashier subscription methods are accessed defensively so
  * the trait is safe even before a subscription exists.
+ *
+ * Every helper here funnels through {@see currentPlan()}, which is resolved
+ * **once per billable per request** and answered from the in-memory
+ * {@see PlanCatalog} — so gating ten things on a page costs one plan
+ * resolution, not ten queries. Override {@see resolveCurrentPlan()} (not
+ * `currentPlan()`) to keep that memoization.
  */
 trait HasPlan
 {
     /**
-     * Resolve the billable's current plan from its active subscription's price,
-     * or null when there is no matching paid subscription.
+     * The billable's current plan — its subscription's price mapped to a plan,
+     * a generic-trial plan, or the free fallback. Null only when the catalog
+     * has nothing to fall back to.
+     *
+     * Memoized per billable object for the rest of the request. Mutating the
+     * subscription in a long-running process (a worker that upgrades a team,
+     * a test that swaps plans) must call {@see forgetCurrentPlan()}.
      */
     public function currentPlan(): ?Plan
     {
-        $type = (string) config('kinetix.billing.subscription', 'default');
+        return Memo::remember(
+            PlanCatalog::RESOLVED_MEMO,
+            $this,
+            $this->planSubscriptionType(),
+            fn (): ?Plan => $this->resolveCurrentPlan(),
+        );
+    }
 
+    /**
+     * Drop the memoized plan for this billable, so the next `currentPlan()`
+     * resolves again.
+     */
+    public function forgetCurrentPlan(): void
+    {
+        Memo::flush(PlanCatalog::RESOLVED_MEMO, $this);
+    }
+
+    /**
+     * Resolve the billable's current plan from its active subscription's price,
+     * or the free fallback when there is no matching paid subscription.
+     *
+     * Override this — rather than `currentPlan()` — for a bespoke resolution:
+     * the memoization wrapper stays in place.
+     */
+    protected function resolveCurrentPlan(): ?Plan
+    {
         $trialGeneric = (bool) config('kinetix.billing.trial_generic', false);
 
         if ($trialGeneric && method_exists($this, 'onGenericTrial') && $this->onGenericTrial()) {
-            $trialPlanSlug = $this->trial_plan ?? null;
-
-            if (filled($trialPlanSlug)) {
-                /** @var class-string<Plan> $model */
-                $model = config('kinetix.billing.plan_model', Plan::class);
-
-                return $model::query()->where('slug', $trialPlanSlug)->first();
+            // A billable on a generic trial is pinned to its trial plan — and
+            // to NOTHING when the configured slug matches no plan. Falling
+            // through to the free plan here would silently hand a broken trial
+            // setup the free plan's features instead of surfacing the misconfig.
+            if (filled($this->trial_plan ?? null)) {
+                return PlanCatalog::bySlug($this->trial_plan);
             }
         }
 
         if (method_exists($this, 'subscription')) {
-            $subscription = $this->subscription($type);
+            $subscription = $this->subscription($this->planSubscriptionType());
 
             if ($subscription !== null) {
-                $priceId = $subscription->stripe_price ?? null;
+                $plan = PlanCatalog::byPriceId($subscription->stripe_price ?? null);
 
-                // A blank price must never be matched: plans whose price
-                // columns are `''` (a common seed/import artifact) would all
-                // match it, silently granting the wrong plan's features.
-                if (filled($priceId)) {
-                    /** @var class-string<Plan> $model */
-                    $model = config('kinetix.billing.plan_model', Plan::class);
-
-                    $plan = $model::query()
-                        ->where('stripe_monthly_price_id', $priceId)
-                        ->orWhere('stripe_yearly_price_id', $priceId)
-                        ->first();
-
-                    if ($plan !== null) {
-                        return $plan;
-                    }
+                if ($plan !== null) {
+                    return $plan;
                 }
             }
         }
 
-        /** @var class-string<Plan> $model */
-        $model = config('kinetix.billing.plan_model', Plan::class);
+        return PlanCatalog::free();
+    }
 
-        return $model::query()->active()->ordered()
-            ->where(function ($query) {
-                $query->where('is_free', true)
-                    ->orWhere('monthly_price', '<=', 0);
-            })
-            ->first();
+    /**
+     * The Cashier subscription "type" this billable's plan is read from. It
+     * doubles as the memo key, so an app juggling several subscription types
+     * never serves one type's plan for another.
+     */
+    protected function planSubscriptionType(): string
+    {
+        return (string) config('kinetix.billing.subscription', 'default');
     }
 
     public function onPlan(string $slug): bool

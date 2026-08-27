@@ -159,6 +159,8 @@ return [
     'billing_subscription_cancelled'    => 'Подписка отменена.',
     'billing_subscription_resumed'      => 'Подписка возобновлена.',
     'billing_feature_unavailable'       => 'Ваш текущий тариф не включает эту функцию.',
+    'entitlement_unavailable'           => 'Эта функция недоступна.',
+    'entitlement_forbidden'             => 'У вас нет прав на это действие.',
     'plan_limit_reached'                => 'Достигнут лимит :key вашего тарифа (:limit).',
     'validation_weekly_schedule'        => 'Поле :attribute не является корректным недельным расписанием.',
     'business_hours_add_range'          => 'Добавить интервал',

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Permissions;
 
+use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\PermissionRegistrar;
-use WeakMap;
 
 /**
  * Resolves whether a user is the platform super-admin, honoring a **teamless**
@@ -15,18 +15,16 @@ use WeakMap;
  * `kinetix_permissions` Inertia prop, and the role-management controller so all
  * three agree on the same rule.
  *
- * The result is memoized per (user object × permissions-team-id) so the
- * `Gate::before` bypass — which fires on every authorization check — doesn't
- * repeatedly reload the user's roles (the teamless re-check reloads them). The
- * `WeakMap` is keyed by the user object, so distinct users never collide and
- * entries are released when the user is garbage-collected (request/Octane-safe);
- * the team id is part of the inner key so a team-scoped super-admin is still
- * re-evaluated per team.
+ * The result is memoized per (user object × permissions-team-id) through
+ * {@see Memo} so the `Gate::before` bypass — which fires on every
+ * authorization check — doesn't repeatedly reload the user's roles (the
+ * teamless re-check reloads them). The team id is the inner key, so a
+ * team-scoped super-admin is still re-evaluated per team.
  */
 class SuperAdmin
 {
-    /** @var WeakMap<object, array<string, bool>>|null */
-    protected static ?WeakMap $memo = null;
+    /** The {@see Memo} store these verdicts live in. */
+    public const MEMO = 'permissions.super-admin';
 
     public static function role(): string
     {
@@ -59,16 +57,12 @@ class SuperAdmin
             return false;
         }
 
-        static::$memo ??= new WeakMap;
-        $teamKey = static::teamKey();
-        $bucket  = static::$memo[$user] ?? [];
-
-        if (! array_key_exists($teamKey, $bucket)) {
-            $bucket[$teamKey]    = static::resolve($user);
-            static::$memo[$user] = $bucket;
-        }
-
-        return $bucket[$teamKey];
+        return (bool) Memo::remember(
+            self::MEMO,
+            $user,
+            static::teamKey(),
+            static fn (): bool => static::resolve($user),
+        );
     }
 
     /**
@@ -77,7 +71,7 @@ class SuperAdmin
      */
     public static function flush(): void
     {
-        static::$memo = null;
+        Memo::flush(self::MEMO);
     }
 
     protected static function teamKey(): string

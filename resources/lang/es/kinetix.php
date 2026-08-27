@@ -161,6 +161,8 @@ return [
     'billing_subscription_cancelled' => 'Suscripción cancelada correctamente.',
     'billing_subscription_resumed'   => 'Suscripción reanudada correctamente.',
     'billing_feature_unavailable'    => 'Tu plan actual no incluye esta función.',
+    'entitlement_unavailable'        => 'Esta función no está disponible.',
+    'entitlement_forbidden'          => 'No tienes permiso para hacer esto.',
     'plan_limit_reached'             => 'Has alcanzado el límite de :key de tu plan (:limit).',
     'validation_weekly_schedule'     => 'El campo :attribute no es un horario semanal válido.',
     'business_hours_add_range'       => 'Agregar horario',

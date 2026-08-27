@@ -7,7 +7,7 @@ namespace Happones\Kinetix\Billing;
 use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Data\UsageMetricData;
 use Happones\Kinetix\Support\KinetixTeams;
-use Illuminate\Database\Eloquent\Collection;
+use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as SupportCollection;
 use RuntimeException;
@@ -43,7 +43,45 @@ class BillingManager
         return new self($billable);
     }
 
+    /**
+     * The billable for the current request, memoized per user for its
+     * duration.
+     *
+     * In a teams app this resolution QUERIES — the `{team}` segment or the
+     * subdomain is looked up as a model. `resolve()` is called from every
+     * billing surface, and {@see Concerns\EnforcesPlanLimits} calls it on
+     * every model `creating` event, so without the memo a bulk insert paid one
+     * team query per row. The memo key carries the host and the team segment,
+     * so a resolution never leaks across tenants.
+     */
     protected static function resolveConfiguredBillable($user): mixed
+    {
+        // A host-supplied `resolve_billable` is the host's own code and its
+        // cost is theirs to control (the common shape, `fn ($user) =>
+        // $user->currentTeam`, is a cached relation read). Memoizing it would
+        // mean guessing what it depends on, so it is always called live.
+        if (! is_object($user) || config('kinetix.billing.resolve_billable')) {
+            return static::lookupConfiguredBillable($user);
+        }
+
+        return Memo::remember(
+            'billing.billable',
+            $user,
+            static::billableMemoKey(),
+            static fn (): mixed => static::lookupConfiguredBillable($user),
+        );
+    }
+
+    /**
+     * Forget the memoized billable for a user (or for everyone). For workers
+     * and tests that switch tenant within one process.
+     */
+    public static function forgetBillable(?object $user = null): void
+    {
+        Memo::flush('billing.billable', $user);
+    }
+
+    protected static function lookupConfiguredBillable($user): mixed
     {
         $resolver = config('kinetix.billing.resolve_billable');
 
@@ -56,6 +94,33 @@ class BillingManager
         }
 
         return $user;
+    }
+
+    /**
+     * The tenant context the billable was resolved in: the request host (for
+     * subdomain tenancy), the `{team}` route segment, and the two config
+     * switches the resolution branches on.
+     *
+     * Everything {@see lookupConfiguredBillable()} reads is in the key, so a
+     * memoized billable can never be served for a different tenant — or for a
+     * different tenancy MODE, which is how a test flipping
+     * `kinetix.billing.teams` mid-process still gets the right answer.
+     */
+    protected static function billableMemoKey(): string
+    {
+        $request = request();
+        $team    = $request->route('team');
+
+        if ($team instanceof Model) {
+            $team = $team->getKey();
+        }
+
+        return implode('|', [
+            $request->getHost(),
+            is_scalar($team) ? (string) $team : '',
+            KinetixTeams::enabledFor('billing') ? 'teams' : '',
+            (string) config('kinetix.tenancy.subdomain'),
+        ]);
     }
 
     protected static function resolveTeam($user): ?Model
@@ -131,10 +196,11 @@ class BillingManager
      */
     public function plans(): SupportCollection
     {
-        /** @var Collection<int, Plan> $plans */
-        $plans = $this->planModel()::query()->active()->ordered()->get();
-
-        return $plans->map(static fn (Plan $plan): PlanData => PlanData::fromPlan($plan))->values();
+        return PlanCatalog::all()
+            ->filter(static fn (Plan $plan): bool => (bool) $plan->is_active)
+            ->sortBy(static fn (Plan $plan): array => [$plan->sort_order, (float) $plan->monthly_price])
+            ->map(static fn (Plan $plan): PlanData => PlanData::fromPlan($plan))
+            ->values();
     }
 
     public function currentPlan(): ?Plan
@@ -491,24 +557,13 @@ class BillingManager
             return null;
         }
 
-        $slug = $this->billable->trial_plan ?? null;
-
-        // A blank slug is no slug: matching it would query for `where('slug', '')`.
-        if (blank($slug)) {
-            return null;
-        }
-
-        return $this->planModel()::query()->where('slug', $slug)->first();
+        // A blank slug is no slug: matching it would look up `slug === ''`.
+        return PlanCatalog::bySlug($this->billable->trial_plan ?? null);
     }
 
     protected function resolveFreePlan(): ?Plan
     {
-        return $this->planModel()::query()->active()->ordered()
-            ->where(function ($query) {
-                $query->where('is_free', true)
-                    ->orWhere('monthly_price', '<=', 0);
-            })
-            ->first();
+        return PlanCatalog::free();
     }
 
     // -------------------------------------------------------------------

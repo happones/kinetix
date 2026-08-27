@@ -395,6 +395,17 @@ JS;
              *     \App\Kinetix\PdfTemplates::register();      // KinetixPdf::register(...)
              *     \App\Kinetix\WebhookEvents::register();
              *     \App\Kinetix\OnboardingSteps::register();
+             *     \App\Kinetix\Entitlements::register();      // KinetixEntitlements::define(...)
+             *     \App\Kinetix\FeatureFlags::register();      // KinetixFeatures::define(...)
+             *
+             * A feature gated by MORE THAN ONE layer (a flag AND a plan AND a
+             * role) belongs in an entitlement, declared once, rather than an
+             * `&&` chain re-typed in the controller and again in every button:
+             *
+             *     KinetixEntitlements::define('projects.create')
+             *         ->plan('projects')
+             *         ->limit('projects', [ProjectCounter::class, 'for'])
+             *         ->permission('projects.create');
              */
             protected function registerModules(): void
             {

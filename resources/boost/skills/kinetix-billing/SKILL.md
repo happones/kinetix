@@ -30,6 +30,7 @@ Full reference: [Kinetix Billing Documentation](https://happones.github.io/kinet
 - **Stripe Elements + shadcn.** The card field is a cross-origin iframe and cannot inherit CSS. `useKinetixStripe` resolves shadcn tokens to `rgb()` via a probe element and re-applies them on `<html>` theme toggles (MutationObserver). It tears the Element + observer down on unmount — keep it leak-safe. Always verify both light and dark mode.
 - **Decouple the routes.** Components emit events; `useKinetixBilling(endpoints)` performs the Inertia visits with URL strings the host resolves (Ziggy/Wayfinder/plain).
 - **i18n + tokens.** Components are token-only and take labels via props (English defaults). Keep the `trans('kinetix.billing_*')` keys in sync across en/es/fr/pt/zh/ja/ru.
+- **Plans are read from a catalog, never re-queried.** `currentPlan()` is memoized per billable per request and answered from `PlanCatalog` (the whole `plans` table, loaded at most once). Gating a dozen things costs ONE query. Model writes and bulk `Plan::query()->update()` flush it automatically; raw `DB::table('plans')` writes do NOT — that's why `billing.cache.ttl` (the opt-in cross-request layer) defaults to null. Never add a plan query to a hot path: ask `HasPlan`. In a worker that changed a subscription mid-process, call `$billable->forgetCurrentPlan()`.
 - **Metered usage is customizable by design.** Kinetix cannot know how your app measures "used" — the billable defines `meteredUsage(?Plan $plan): array<UsageMetric>` (hybrid-detected via `method_exists`; implementing `Contracts\ProvidesUsageMetrics` is optional). The **limit** and **color** are each independently overridable per metric (`->limit()`, `->color(string|Closure)`) or left to fall back to the plan's `features.usage.{key}` and the default thresholds, respectively — don't hardcode either in the component.
 
 ## Usage Guide
@@ -61,6 +62,12 @@ Overridables: `planLimitKey()`, `planLimitBillable()` (defaults to the standard 
 resolution), `planLimitQuery($billable)` (defaults to narrowing by the billable's conventional
 FK when the creating record carries it). Unlimited plans skip the COUNT; billing-less
 environments skip the check entirely. `$model->enforcePlanLimit()` runs it manually.
+
+> **Gated by MORE than the plan?** A feature behind a plan capability AND a
+> feature flag AND a role belongs in an **entitlement**, not a hand-written
+> `&&` chain — see the `kinetix-entitlements` skill. It short-circuits (the
+> per-user check never runs once the plan refused) and reports WHICH layer
+> denied, so the UI can padlock instead of just greying out.
 
 ### 2. Orchestration
 

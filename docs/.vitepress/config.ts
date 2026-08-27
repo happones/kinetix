@@ -112,6 +112,7 @@ export default withMermaid(
         collapsed: false,
         items: [
           { text: "Roles & Permissions", link: "/permissions" },
+          { text: "Entitlements", link: "/entitlements" },
           { text: "Membership & Provisioning", link: "/membership" },
           { text: "Impersonation", link: "/impersonation" },
         ],

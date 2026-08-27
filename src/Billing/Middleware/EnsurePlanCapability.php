@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Billing\Middleware;
 
 use Closure;
 use Happones\Kinetix\Billing\BillingManager;
+use Happones\Kinetix\Billing\UpsellResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -28,17 +29,7 @@ class EnsurePlanCapability
             return $next($request);
         }
 
-        $message = (string) __('kinetix.billing_feature_unavailable');
-
-        $upgradeUrl = config('kinetix.billing.upgrade_url');
-
-        if (! $request->expectsJson() && is_string($upgradeUrl) && $upgradeUrl !== '') {
-            return redirect($upgradeUrl)
-                ->with('message', $message)
-                ->with('kinetix_toast', $message);
-        }
-
-        abort(403, $message);
+        return UpsellResponse::make((string) __('kinetix.billing_feature_unavailable'));
     }
 
     protected function allows(string $capability): bool

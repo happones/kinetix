@@ -264,6 +264,41 @@ With no resolvable plan, **capabilities are denied** (fail closed) while
 **limits stay unlimited** (fail open) — gating features is opt-in per plan;
 blocking creation never is.
 
+### The plan catalog
+
+Every helper above funnels through `currentPlan()`, and `currentPlan()` is
+resolved **once per billable per request** from an in-memory catalog of the
+`plans` table. Gating a dozen things on a page — a toolbar of plan-locked
+buttons, ten plan-gated [feature flags](/feature-flags), a page of
+[entitlements](/entitlements) — costs **one** `plans` query, not a dozen.
+
+```php
+'billing' => [
+    // The catalog is loaded at most once per request no matter what.
+    // A ttl adds a persistent layer on top: zero queries across requests.
+    'cache' => [
+        'store' => env('KINETIX_BILLING_CACHE_STORE'),   // null = default store
+        'ttl'   => env('KINETIX_BILLING_CACHE_TTL'),     // null = per-request only
+    ],
+],
+```
+
+What to get right:
+
+- **Writes through the model invalidate it automatically** — `$plan->save()`,
+  `$plan->delete()` and bulk `Plan::query()->update([...])` all flush the
+  catalog, so a price or feature edit applies immediately.
+- **Raw `DB::table('plans')` writes do not.** They bypass Eloquent entirely.
+  That is the reason to leave `ttl` null if something outside the model writes
+  your plans — with no ttl the catalog is re-read once per request anyway.
+- **Use a shared store on multi-server setups.** With a ttl set and a
+  per-server store (`file`, `array`), a plan edited on one node stays stale on
+  the others until it expires. Point it at Redis or Memcached.
+- **Long-running processes.** Kinetix drops the request memo at the start of
+  every request (Octane) and every queued job. A worker that changes a
+  subscription mid-process and re-asks should call
+  `$billable->forgetCurrentPlan()`.
+
 ### Gate routes on a capability
 
 Two middleware, one per style:
@@ -302,6 +337,10 @@ class Project extends Model
 - The count defaults to this model narrowed by the billable's conventional
   foreign key (`team_id` / `user_id`) whenever the creating record carries
   it; override `planLimitQuery()` for custom ownership shapes.
+- **Bulk inserts**: the plan itself is resolved once per request (see
+  [The plan catalog](#the-plan-catalog)), but the `COUNT` runs per record. For
+  a large import, check once up front with `hasReachedPlanLimit()` and insert
+  with `Model::insert()` (which fires no `creating` events) instead.
 - **Unlimited plans skip the COUNT entirely**, and a billing-less environment
   (no billable, no `HasPlan`) skips the check — the model keeps working.
 - `$model->enforcePlanLimit()` runs the same check manually (e.g. before

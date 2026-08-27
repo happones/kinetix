@@ -16,6 +16,7 @@ use Happones\Kinetix\Billing\BillingManager;
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\EnsurePlanCapability;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
+use Happones\Kinetix\Billing\PlanCatalog;
 use Happones\Kinetix\Calendar\CalendarMoveController;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
 use Happones\Kinetix\Commands\ApiLogsPruneCommand;
@@ -59,6 +60,8 @@ use Happones\Kinetix\ConnectedAccounts\ConnectedAccountController;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountManager;
 use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
 use Happones\Kinetix\Data\AccessibilityData;
+use Happones\Kinetix\Entitlements\EntitlementRegistry;
+use Happones\Kinetix\Entitlements\Middleware\EnsureEntitled;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
@@ -121,6 +124,7 @@ use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Support\Memo;
 use Happones\Kinetix\Support\WeeklySchedule;
 use Happones\Kinetix\Tables\RecordModalController;
 use Happones\Kinetix\Tables\TableWriteController;
@@ -143,6 +147,7 @@ use Happones\Kinetix\Wizards\WizardManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
@@ -153,6 +158,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Laravel\Octane\Events\RequestReceived as OctaneRequestReceived;
 use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\WebhookServer\Events\WebhookCallFailedEvent;
@@ -201,6 +207,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The feature-flag manager (pennant bridge / native evaluator).
         $this->app->singleton(FeatureManager::class);
+
+        // The entitlement registry (flags × plan × limits × permissions).
+        $this->app->singleton(EntitlementRegistry::class);
 
         // The spotlight source registry (command palette), with optional
         // directory auto-discovery of `SpotlightSource` implementations.
@@ -580,6 +589,9 @@ class KinetixServiceProvider extends ServiceProvider
         // Register the file-upload endpoints used by the FileUpload field
         $this->registerUploadRoutes();
 
+        // Drop request-scoped memos at the start of every request / queued job
+        $this->registerStateReset();
+
         // Register the optional Billing module (middleware alias + opt-in routes)
         $this->registerBilling();
 
@@ -600,6 +612,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Feature Flags module (pennant bridge / native)
         $this->registerFeatures();
+
+        // Register the optional Entitlements module (composed gating)
+        $this->registerEntitlements();
 
         // Register the optional Spotlight module (Cmd+K command palette)
         $this->registerSpotlight();
@@ -993,6 +1008,17 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerFeatures(): void
     {
         $this->app['router']->aliasMiddleware('kinetix.feature', EnsureFeature::class);
+    }
+
+    /**
+     * Wire the optional Entitlements module: the `kinetix.entitled` middleware
+     * (always aliased, like `kinetix.feature` — declaring entitlements is
+     * enough to use it) and, when enabled, the resolved verdict map for the
+     * frontend.
+     */
+    protected function registerEntitlements(): void
+    {
+        $this->app['router']->aliasMiddleware('kinetix.entitled', EnsureEntitled::class);
     }
 
     /**
@@ -2224,6 +2250,23 @@ class KinetixServiceProvider extends ServiceProvider
             return app(FeatureManager::class)->all();
         });
 
+        // Every declared entitlement resolved to {allowed, reason, remaining},
+        // so the SPA gates on exactly the composition the server enforces —
+        // and knows WHY something is denied, which is the difference between
+        // hiding a button and showing an upgrade padlock. Verdicts are
+        // memoized per request, so this share re-uses whatever the controller
+        // already asked rather than evaluating a second time.
+        Inertia::share('kinetix_entitlements', function () {
+            if (! config('kinetix.entitlements.enabled', false)) {
+                return ['enabled' => false, 'entitlements' => []];
+            }
+
+            return [
+                'enabled'      => true,
+                'entitlements' => app(EntitlementRegistry::class)->resolveShared(),
+            ];
+        });
+
         // The current user's accessibility preferences (applied by the
         // KinetixAccessibility Vue plugin), or the configured defaults.
         Inertia::share('kinetix_accessibility', function () {
@@ -2566,6 +2609,43 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('search', SearchController::class)
                     ->name('kinetix.forms.search');
             });
+    }
+
+    /**
+     * Clear the memos that must not outlive a single request.
+     *
+     * Authorization verdicts memoized per user ({@see Memo}) are keyed by the
+     * user OBJECT and released with it, so they need nothing here. The plan
+     * catalog is a plain static — under Octane or in a queue worker it would
+     * otherwise survive into the next request and serve a catalog another
+     * process has since edited.
+     *
+     * Under PHP-FPM this is a no-op (statics start empty), which also makes
+     * each test case start clean.
+     */
+    protected function registerStateReset(): void
+    {
+        $reset = static function (): void {
+            // Everything memoized per user (plans, entitlement verdicts,
+            // super-admin and owner verdicts) is keyed by the user OBJECT and
+            // released with it, so this is belt-and-braces — but it also means
+            // one call covers every store, present and future.
+            Memo::flush();
+
+            // The plan catalog is a plain static and genuinely would survive
+            // into the next request, serving a catalog another process edited.
+            // Only the request memo is dropped: the opt-in persistent cache is
+            // invalidated by plan WRITES, not by the clock.
+            PlanCatalog::flushMemo();
+        };
+
+        $reset();
+
+        Event::listen(JobProcessing::class, $reset);
+
+        if (class_exists(OctaneRequestReceived::class)) {
+            Event::listen(OctaneRequestReceived::class, $reset);
+        }
     }
 
     /**
