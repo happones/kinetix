@@ -526,6 +526,55 @@ Gate::before(function ($user, string $ability) {
 ```
 :::
 
+### 3.1 What each bypass actually bypasses
+
+The two bypasses are **not** stronger and weaker versions of the same thing —
+they answer different questions and cross different boundaries. The table below
+is the whole contract, and every cell is pinned by a test
+(`tests/Feature/BypassPrecedenceTest.php`).
+
+| | Super admin | Team owner (`owner_bypass`) |
+| --- | --- | --- |
+| Registered ability (`posts.update`) | ✅ granted | ✅ granted |
+| Ability **outside** the Kinetix registry | ✅ granted | ❌ untouched |
+| **Model policy** (`update` with a record) | ✅ **short-circuited** | ❌ policy still runs |
+| Crosses the tenancy boundary | ✅ yes, by design | ❌ never |
+| Plan capability (`planAllows`, `kinetix.plan`) | ❌ no effect | ❌ no effect |
+| Plan usage limit (`EnforcesPlanLimits`) | ❌ still blocked | ❌ still blocked |
+| Feature flag | ❌ no effect | ❌ no effect |
+| Entitlement — `->permission()` layer | ✅ granted | ✅ granted |
+| Entitlement — `->plan()` / `->limit()` / `->flag()` layers | ❌ no effect | ❌ no effect |
+| Needs a resolvable team | ❌ no | ✅ **yes** — grants nothing without one |
+
+Three consequences worth stating outright:
+
+**A super-admin is a platform role, not a big permission.** Its `Gate::before`
+is blanket: it returns `true` for *every* ability, including your model
+policies, so it crosses the tenancy boundary and can edit any tenant's records.
+That is the point of the role — and the reason to hand it out sparingly and to
+prefer `owner_bypass` for "this person runs their own team".
+
+**Nobody bypasses billing.** A plan is a commercial boundary, not an
+authorization one, so none of the plan helpers consult the Gate. A super-admin
+on the free plan gets the free plan's capabilities, and
+`EnforcesPlanLimits` blocks them at the cap like anyone else. If you want staff
+to be exempt, model it as a plan (a `staff` plan with everything on) or a
+feature flag — not as a role. Feature flags are likewise a rollout switch, not
+a permission: no role turns one on.
+
+**The owner bypass needs to know which team.** Ownership is a question about a
+*specific* team, so with no `{current_team}` segment and no `currentTeam` there
+is nothing to answer and the bypass grants nothing. It fails closed.
+
+::: tip Impersonation re-evaluates everything
+Impersonation replaces the authenticated user outright (`auth()->login($target)`),
+so every bypass above is re-evaluated **for the target**. An admin does not
+carry their super-admin into the session they are inspecting — which is exactly
+what makes "log in as user" safe to hand to support. See
+[Impersonation](impersonation.md) for the guard that stops the reverse
+(impersonating *into* more privilege than you hold).
+:::
+
 ---
 
 ## 4. Multi-Tenant (Teams) Support

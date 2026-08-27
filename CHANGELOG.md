@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **The bypass precedence matrix is written down**
+  ([Permissions §3.1](https://happones.github.io/kinetix/permissions#_3-1-what-each-bypass-actually-bypasses)).
+  Which gates a super-admin and a team owner actually bypass lived only in the
+  code, and the two facts people get wrong are opposites: a **super-admin
+  short-circuits model policies** (its `Gate::before` is blanket, so it crosses
+  the tenancy boundary by design) while a **team owner does not** (its bypass is
+  scoped to registry keys, so it never can). And **neither bypasses billing or a
+  feature flag** — the plan helpers never consult the Gate, so a super-admin on
+  the free plan is on the free plan and `EnforcesPlanLimits` blocks them at the
+  cap like anyone else. To exempt staff from a plan gate, model it as a plan or
+  a flag, never as a role.
+
+  Also documented: the owner bypass grants nothing without a resolvable team
+  (ownership is a question about a *specific* team, so it fails closed), and
+  impersonation replaces the authenticated user outright, so every bypass is
+  re-evaluated for the target.
+
+  Every cell is pinned by `tests/Feature/BypassPrecedenceTest.php`, so the table
+  can't drift from the behavior. Mirrored into the `kinetix-permissions` and
+  `kinetix-entitlements` skills and into
+  [Entitlements §7](https://happones.github.io/kinetix/entitlements).
+
 ## [0.179.0] - 2026-08-27
 
 Authorization overhead. The prop that builds the SPA's `can()` map had to

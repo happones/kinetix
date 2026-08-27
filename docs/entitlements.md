@@ -308,6 +308,15 @@ record** while the plan is a **per-tenant** answer (so you multiply a constant
 cost by N rows); a `bool` can't produce an upsell; and role, plan and flag
 invalidate on three completely different clocks.
 
+::: warning Gate bypasses do not reach the plan or the flag
+A super-admin or a team owner passes an entitlement's `->permission()` layer —
+that one goes through the Gate — but **not** its `->plan()`, `->limit()` or
+`->flag()` layers, which never consult the Gate at all. A super-admin on the
+free plan is still on the free plan. If staff should be exempt from a plan
+gate, model that as a plan or a flag, not as a role. The full matrix is in
+[Permissions §3.1](/permissions#_3-1-what-each-bypass-actually-bypasses).
+:::
+
 ---
 
 ## Related docs

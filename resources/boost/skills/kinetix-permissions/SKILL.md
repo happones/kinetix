@@ -235,6 +235,33 @@ escalating past their own level — **all bypassed for a super-admin**:
    `Happones\Kinetix\Permissions\AssignableRoles` (team + global roles, minus
    protected), so membership and the Roles UI never disagree.
 
+### What each bypass actually bypasses (REQUIRED before answering "can X do Y?")
+
+They are NOT weaker/stronger versions of the same thing. Pinned by
+`tests/Feature/BypassPrecedenceTest.php`:
+
+| | Super admin | Team owner (`owner_bypass`) |
+| --- | --- | --- |
+| Registered ability | ✅ | ✅ |
+| Ability outside the Kinetix registry | ✅ | ❌ |
+| **Model policy** (`update` + record) | ✅ **short-circuited** | ❌ policy runs |
+| Crosses the tenancy boundary | ✅ by design | ❌ never |
+| Plan capability / usage limit | ❌ | ❌ |
+| Feature flag | ❌ | ❌ |
+| Entitlement `->permission()` layer | ✅ | ✅ |
+| Entitlement `->plan()`/`->limit()`/`->flag()` | ❌ | ❌ |
+| Needs a resolvable team | ❌ | ✅ grants nothing without one |
+
+- **Nobody bypasses billing.** The plan helpers never consult the Gate — a plan
+  is a commercial boundary, not an authorization one. A super-admin on the free
+  plan gets the free plan, and `EnforcesPlanLimits` blocks them at the cap. To
+  exempt staff, model it as a plan or a flag, NEVER as a role.
+- **A super-admin's `Gate::before` is blanket** — it short-circuits model
+  policies and therefore the tenancy boundary. The owner bypass is scoped to
+  registry keys and cannot.
+- **Impersonation** replaces the authenticated user (`auth()->login($target)`),
+  so every bypass is re-evaluated for the TARGET.
+
 ### Super-admin parity on the frontend
 
 A super-admin holds the *role*, not the permissions. The `kinetix_permissions`

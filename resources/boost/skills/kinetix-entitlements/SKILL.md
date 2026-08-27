@@ -127,6 +127,14 @@ Never put a plan check inside a policy: the policy runs per RECORD while the
 plan is a per-TENANT answer, a `bool` can't produce an upsell, and role / plan /
 flag invalidate on three different clocks.
 
+## Gate bypasses reach ONE layer only
+
+A super-admin or a team owner passes the `->permission()` layer (it goes through
+the Gate) but NOT `->plan()`, `->limit()` or `->flag()` — those never consult the
+Gate. A super-admin on the free plan is still on the free plan. To exempt staff
+from a plan gate, model it as a plan or a flag, never as a role. Full matrix:
+`kinetix-permissions` skill, "What each bypass actually bypasses".
+
 ## Frontend
 
 ```vue
