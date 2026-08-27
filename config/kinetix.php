@@ -423,6 +423,23 @@ return [
         'owner_bypass' => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
         'guard'        => env('KINETIX_PERMISSIONS_GUARD', 'web'),
 
+        // How the `kinetix_permissions` prop discovers abilities the Gate
+        // grants WITHOUT a stored row, so the SPA's can() map matches what the
+        // server would authorize:
+        //
+        //   'auto'  (default) — the owner bypass answered once (it grants every
+        //           registered ability or none, so one verdict settles the
+        //           catalog), plus abilities the app defined with
+        //           Gate::define(). Covers every dynamic grant Kinetix
+        //           documents, at O(1).
+        //   'sweep' — additionally ask the Gate about EVERY registered ability.
+        //           Needed only when the app registers its OWN Gate::before
+        //           over registry keys (which the permissions docs advise
+        //           against). Costs one Gate call per registered ability on
+        //           every full page load — ~40ms on a 280-key catalog.
+        //   'off'   — stored rows only.
+        'dynamic_grants' => env('KINETIX_PERMISSIONS_DYNAMIC_GRANTS', 'auto'),
+
         // Role names that the management UI/endpoints refuse to create, rename
         // to, edit or delete. `null` protects just the super-admin role above;
         // set an explicit array to protect more (e.g. ['super-admin', 'owner']).

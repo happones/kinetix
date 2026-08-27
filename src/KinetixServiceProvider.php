@@ -2109,23 +2109,13 @@ class KinetixServiceProvider extends ServiceProvider
                 ? $user->getAllPermissions()->pluck('name')->all()
                 : [];
 
-            // …then add any registered permission the Gate grants dynamically —
-            // via a `Gate::before` bypass (e.g. a team **owner** whose rights
-            // come from `$user->ownsTeam(...)`) — which has no stored row.
-            // Without this the SPA's can() map is empty for such users and the
-            // UI hides features the server would actually authorize. Skipped
-            // for super-admins (useKinetixCan short-circuits on the flag) and
-            // for abilities already stored, so this per-request loop only pays
-            // for the genuinely dynamic grants.
+            // …then add any registered permission the Gate grants DYNAMICALLY —
+            // through a `Gate::before` bypass rather than a stored row. Without
+            // this the SPA's can() map is empty for such users and the UI hides
+            // features the server would actually authorize. Super-admins are
+            // skipped entirely (useKinetixCan short-circuits on the flag).
             if (! $isSuperAdmin) {
-                $stored = array_flip($permissions);
-                $gate   = Gate::forUser($user);
-
-                foreach (app(PermissionRegistry::class)->allPermissions() as $ability) {
-                    if (! isset($stored[$ability]) && $gate->allows($ability)) {
-                        $permissions[] = $ability;
-                    }
-                }
+                $permissions = [...$permissions, ...$this->dynamicallyGrantedPermissions($user, $permissions)];
             }
 
             return [
@@ -2412,6 +2402,71 @@ class KinetixServiceProvider extends ServiceProvider
                 );
             }
         });
+    }
+
+    /**
+     * Registered abilities the Gate grants this user WITHOUT a stored row, for
+     * the `kinetix_permissions` prop.
+     *
+     * Kinetix used to answer this by asking the Gate about every registered
+     * ability, once per request. That is quadratic in disguise — spatie's
+     * `Gate::before` scans the user's permission collection for each one, and
+     * an ability that isn't synced yet costs a thrown exception on top. On a
+     * 280-key catalog it measured ~40ms of pure overhead on every full page
+     * load, all of it to discover grants that in practice are all-or-nothing.
+     *
+     * Modes (`kinetix.permissions.dynamic_grants`):
+     *
+     *  - `auto` (default) — the owner bypass answered ONCE (it grants every
+     *    registered ability or none, so one verdict settles the whole catalog),
+     *    plus any ability the app explicitly defined on the Gate. This covers
+     *    every dynamic grant Kinetix itself documents, in O(1).
+     *  - `sweep` — additionally ask the Gate about every registered ability.
+     *    Needed only when the app registers its OWN `Gate::before` over
+     *    registry keys — which the permissions docs advise against, because a
+     *    hand-written blanket bypass also short-circuits model policies.
+     *  - `off` — stored rows only.
+     *
+     * @param  array<int, string> $stored the user's stored permission names
+     * @return array<int, string>
+     */
+    protected function dynamicallyGrantedPermissions(mixed $user, array $stored): array
+    {
+        $mode = (string) config('kinetix.permissions.dynamic_grants', 'auto');
+
+        if ($mode === 'off') {
+            return [];
+        }
+
+        $registry   = app(PermissionRegistry::class);
+        $candidates = array_values(array_diff($registry->allPermissions(), $stored));
+
+        if ($candidates === []) {
+            return [];
+        }
+
+        // The documented dynamic grant: the owner bypass is scoped to registry
+        // keys, so its verdict is the same for all of them. One check, not N.
+        if (TeamOwner::enabled() && TeamOwner::check($user)) {
+            return $candidates;
+        }
+
+        $gate = Gate::forUser($user);
+
+        if ($mode === 'sweep') {
+            return array_values(array_filter(
+                $candidates,
+                static fn (string $ability): bool => $gate->allows($ability),
+            ));
+        }
+
+        // `auto`: only abilities the app actually defined can still differ from
+        // the stored set — `Gate::has()` is an array lookup, so the expensive
+        // `allows()` runs for a handful of keys instead of the whole catalog.
+        return array_values(array_filter(
+            $candidates,
+            static fn (string $ability): bool => Gate::has($ability) && $gate->allows($ability),
+        ));
     }
 
     /**

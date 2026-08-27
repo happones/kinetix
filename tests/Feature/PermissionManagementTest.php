@@ -31,6 +31,18 @@ class PermUser extends Authenticatable
     protected $guard_name = 'web';
 }
 
+/**
+ * Stand-in for the host's team-ownership rule, as a config-cacheable callable
+ * array (a closure in config breaks `config:cache`).
+ */
+class OwnerBypassStub
+{
+    public static function check(mixed $user, mixed $team = null): bool
+    {
+        return $user?->name === 'Owner';
+    }
+}
+
 class PermissionManagementTest extends TestCase
 {
     use CreatesPermissionTables;
@@ -211,24 +223,110 @@ class PermissionManagementTest extends TestCase
             ->assertOk();
     }
 
-    public function test_gate_before_owner_capabilities_are_shared_to_the_frontend(): void
+    /**
+     * @return array{enabled: bool, permissions: array<int, string>, roles: array<int, string>, isSuperAdmin: bool}
+     */
+    private function sharedPermissions(): array
     {
-        // Regression (frontend parity): the `kinetix_permissions` Inertia prop
-        // that builds the SPA's can() map must reflect Gate-granted abilities, not
-        // just stored rows — otherwise a Gate::before owner sees an empty map and
-        // the UI hides everything the server would authorize.
-        $owner = PermUser::create(['name' => 'Owner']);
-        Gate::before(static fn ($user, string $ability): ?bool => (int) $user->getKey() === (int) $owner->getKey() ? true : null);
-
-        $this->actingAs($owner);
-
         /** @var callable $shared */
         $shared = Inertia::getShared('kinetix_permissions');
-        $data   = value($shared);
+
+        return value($shared);
+    }
+
+    public function test_owner_bypass_capabilities_are_shared_to_the_frontend(): void
+    {
+        // Regression (frontend parity): the `kinetix_permissions` Inertia prop
+        // that builds the SPA's can() map must reflect Gate-granted abilities,
+        // not just stored rows — otherwise a team owner (whose rights come from
+        // `ownsTeam()`, never a stored row) sees an empty map and the UI hides
+        // everything the server would authorize.
+        //
+        // This is the DOCUMENTED dynamic grant, and the default `auto` mode
+        // resolves it with ONE verdict rather than a Gate call per ability:
+        // the bypass is scoped to registry keys, so it grants all or none.
+        config()->set('kinetix.permissions.owner_bypass', [OwnerBypassStub::class, 'check']);
+
+        $owner = PermUser::create(['name' => 'Owner']);
+        $this->actingAs($owner);
+
+        $this->assertTrue($owner->getAllPermissions()->isEmpty());
+
+        $data = $this->sharedPermissions();
 
         $this->assertTrue($data['enabled']);
         $this->assertContains('posts.view', $data['permissions']);
         $this->assertContains('roles.manage', $data['permissions']);
+    }
+
+    public function test_an_ability_the_app_defined_on_the_gate_is_shared_in_auto_mode(): void
+    {
+        // The other dynamic grant `auto` covers: an explicit Gate::define()
+        // over a registry key. `Gate::has()` is an array lookup, so this stays
+        // cheap no matter how large the catalog grows.
+        Gate::define('posts.view', static fn (): bool => true);
+
+        $user = PermUser::create(['name' => 'Jane']);
+        $this->actingAs($user);
+
+        $data = $this->sharedPermissions();
+
+        $this->assertContains('posts.view', $data['permissions']);
+        // Nothing else leaks in from the catalog.
+        $this->assertNotContains('posts.update', $data['permissions']);
+    }
+
+    public function test_a_bespoke_gate_before_needs_the_sweep_mode(): void
+    {
+        // A hand-written `Gate::before` is NOT something Kinetix can discover
+        // without asking the Gate about every registered ability — the ~40ms
+        // per page load that `auto` exists to avoid. The docs steer apps to
+        // `owner_bypass` instead; those that insist opt into the cost.
+        $subject = PermUser::create(['name' => 'Bespoke']);
+        Gate::before(static fn ($user, string $ability): ?bool => (int) $user->getKey() === (int) $subject->getKey() ? true : null);
+
+        $this->actingAs($subject);
+
+        // Default mode does not see it (fails closed: the UI hides what the
+        // server would allow, rather than showing what it would refuse).
+        $this->assertNotContains('posts.view', $this->sharedPermissions()['permissions']);
+
+        config()->set('kinetix.permissions.dynamic_grants', 'sweep');
+
+        $data = $this->sharedPermissions();
+        $this->assertContains('posts.view', $data['permissions']);
+        $this->assertContains('roles.manage', $data['permissions']);
+    }
+
+    public function test_the_off_mode_shares_stored_rows_only(): void
+    {
+        config()->set('kinetix.permissions.dynamic_grants', 'off');
+        config()->set('kinetix.permissions.owner_bypass', [OwnerBypassStub::class, 'check']);
+
+        $owner = PermUser::create(['name' => 'Owner']);
+        $this->actingAs($owner);
+
+        $this->assertSame([], $this->sharedPermissions()['permissions']);
+    }
+
+    public function test_stored_permissions_are_always_shared_whatever_the_mode(): void
+    {
+        $role = Role::findOrCreate('editor', 'web');
+        $role->syncPermissions(['posts.view']);
+
+        $user = PermUser::create(['name' => 'Jane']);
+        $user->assignRole('editor');
+        $this->actingAs($user);
+
+        foreach (['auto', 'sweep', 'off'] as $mode) {
+            config()->set('kinetix.permissions.dynamic_grants', $mode);
+
+            $this->assertContains(
+                'posts.view',
+                $this->sharedPermissions()['permissions'],
+                "stored rows must survive dynamic_grants={$mode}",
+            );
+        }
     }
 
     public function test_the_super_admin_role_is_protected(): void

@@ -13,6 +13,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The `kinetix_permissions` prop no longer asks the Gate about every
+  registered ability on every page load.** The prop has to include abilities
+  granted by a `Gate::before` rather than a stored row — a team owner's, above
+  all — and it discovered them by probing the whole catalog. That is quadratic
+  in disguise: spatie's own `Gate::before` scans the user's permission
+  collection per call, and an ability that isn't synced yet costs a thrown
+  exception on top. On a 280-key catalog it measured **~40ms of pure overhead
+  per full page load**, all of it to discover grants that are all-or-nothing in
+  practice.
+
+  The new `kinetix.permissions.dynamic_grants` decides how they are found:
+  `auto` (the default) answers the owner bypass ONCE — it is scoped to registry
+  keys, so one verdict settles the catalog — and additionally checks abilities
+  the app declared with `Gate::define()`, which `Gate::has()` filters in O(1).
+  Same catalog: **~0.4ms, a 113× improvement.**
+
+  **Behavior change.** An app that registers its own `Gate::before` over
+  registry keys — which [the docs](https://happones.github.io/kinetix/permissions)
+  advise against, since a hand-written blanket bypass also short-circuits model
+  policies — now needs `dynamic_grants => 'sweep'` to keep the old discovery.
+  Nothing changes for `owner_bypass` (the documented path), for stored
+  permissions, or for super-admins. Guessing wrong fails closed: the UI hides
+  something the server would allow, never the reverse. `off` shares stored rows
+  only.
+
+### Added
+
+- **Module-isolation coverage for the four gating layers.** Composing them
+  behind Entitlements in 0.178.0 must not have coupled them, so there is now a
+  suite asserting each works alone: `can()` and the `can:` middleware with
+  billing, flags and entitlements off (and no `plans` table in existence); plan
+  gating and the `kinetix.plan` middleware with **spatie not even registered**;
+  flags and `kinetix.feature` on their own; every gating share inert with all
+  modules off; and the per-request state reset running without any module
+  enabled or a single query.
+
 ## [0.178.0] - 2026-08-27
 
 Gating. Kinetix ships four gating layers — feature flags, plan capabilities,

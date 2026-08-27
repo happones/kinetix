@@ -986,12 +986,34 @@ What to get right for that to hold at scale:
   `--prune` if you want obsolete keys removed.
 - **Per-request cost.** Kinetix's own layer adds no queries beyond spatie's:
   the `kinetix_permissions` prop is computed once per request from the user's
-  (request-cached) relations, skips the dynamic-grant Gate sweep entirely for
-  super-admins, and only Gate-checks registered abilities the user doesn't
-  already hold as stored rows.
-- **Octane / long-running workers.** The super-admin check memoizes per user
-  object via a `WeakMap`, so it never leaks across requests; if a worker
-  mutates a user's super-admin role mid-process, call `SuperAdmin::flush()`.
+  (request-cached) relations.
+- **Dynamic grants (`permissions.dynamic_grants`).** The prop also has to
+  include abilities the Gate grants **without a stored row** — a team owner's,
+  above all — or the SPA would hide features the server authorizes. How it
+  discovers them is configurable, because asking the Gate about every
+  registered ability is quadratic in disguise: spatie's `Gate::before` scans
+  the user's permission collection for each one, and an ability that isn't
+  synced yet costs a thrown exception on top (≈40ms per page load on a 280-key
+  catalog).
+
+  | Mode | Discovers | Cost on a 280-key catalog |
+  | --- | --- | --- |
+  | `auto` *(default)* | the owner bypass (one verdict — it grants every registered ability or none) + abilities defined with `Gate::define()` | ~0.4ms |
+  | `sweep` | additionally every ability, by asking the Gate | ~41ms |
+  | `off` | stored rows only | ~0.2ms |
+
+  `auto` covers every dynamic grant documented on this page. Choose `sweep`
+  only if your app registers its **own** `Gate::before` over registry keys —
+  which §3 advises against anyway, since a hand-written blanket bypass also
+  short-circuits model policies. The failure mode of guessing wrong is safe
+  (the UI hides something the server would allow, never the reverse).
+
+  Super-admins skip all of this: they hold the *role*, and `useKinetixCan`
+  short-circuits on the `isSuperAdmin` flag.
+- **Octane / long-running workers.** The super-admin and owner checks memoize
+  per user object via a `WeakMap`, so they never leak across requests; if a
+  worker mutates a user's role or ownership mid-process, call
+  `SuperAdmin::flush()` / `TeamOwner::flush()`.
 
 ---
 

@@ -119,8 +119,33 @@ Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, defaul
     'owner_bypass'     => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
     'protected_roles'  => null, // null = protect the super_admin_role; or ['super-admin', 'owner']
+    // How `kinetix_permissions` finds abilities the Gate grants with no stored
+    // row: 'auto' (default) | 'sweep' | 'off' — see below.
+    'dynamic_grants'   => env('KINETIX_PERMISSIONS_DYNAMIC_GRANTS', 'auto'),
 ],
 ```
+
+### Dynamic grants (`dynamic_grants`) — do not set this to `sweep` casually
+
+The `kinetix_permissions` prop must include abilities granted by a
+`Gate::before` rather than a stored row (a team owner's, above all), or the SPA
+hides features the server authorizes. Discovering them by asking the Gate about
+EVERY registered ability is quadratic in disguise — spatie's `Gate::before`
+scans the user's permission collection per call, and an unsynced ability costs
+a thrown exception — measured at **~40ms per full page load on a 280-key
+catalog**.
+
+- `auto` (default, ~0.4ms) — the owner bypass answered ONCE (it is scoped to
+  registry keys, so it grants all or none) plus abilities the app declared with
+  `Gate::define()` (`Gate::has()` is an array lookup). Covers every dynamic
+  grant this skill documents.
+- `sweep` (~41ms) — the exhaustive check. Needed ONLY when the app registers
+  its own `Gate::before` over registry keys — which mistake #3 below tells you
+  not to do.
+- `off` — stored rows only.
+
+Guessing wrong fails closed: the UI hides something the server would allow,
+never the reverse.
 
 ### Team owners (`owner_bypass`)
 
