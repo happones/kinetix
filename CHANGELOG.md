@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.179.1] - 2026-08-27
+
+Which gates a bypass actually bypasses. The answer lived only in the code, and
+the two facts people get wrong are opposites — so it is now a table, and every
+cell in it is pinned by a test.
+
 ### Documentation
 
 - **The bypass precedence matrix is written down**
