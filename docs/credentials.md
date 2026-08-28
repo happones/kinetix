@@ -306,21 +306,72 @@ unknown identifier, a wrong password and a stale temporary credential alike, and
 spends the same time on each, so the form is not a directory anyone can
 enumerate. Keep your own error message generic to match.
 
-### 5.3 The consequence: password reset stops working
+### 5.3 What happens to password reset
 
-A user with no email cannot receive a reset link. That is not a detail to
-discover in production — decide which of these you want **before** you ship
-employee accounts without email:
+Short version: **nothing changes for anyone who has an email address.** Adding
+`username` / `phone` to `identity.fields` changes how a login is *resolved*; it
+does not touch the reset flow at all. An owner or admin with an email keeps
+self-service reset exactly as before.
+
+That is not a coincidence — login and reset are different endpoints with
+different fields. `config('fortify.username')` (what you set to `'login'` in
+§5.1) governs the login form. Reset goes through Laravel's own broker, which:
+
+1. looks the user up by the **`email` column**
+   (`EloquentUserProvider::retrieveByCredentials`), and
+2. stores the token **keyed by that email**
+   (`DatabaseTokenRepository::create` → `getEmailForPasswordReset()`), and
+3. delivers to the same address.
+
+So the boundary is per-user, not per-app:
+
+| The user has… | Self-service reset |
+| --- | --- |
+| an email (owner, admins, office staff) | **works, unchanged** |
+| only a username or phone | not available — see below |
+
+### What a username-only user sees
+
+They submit the "forgot password" form, the broker looks for that value in the
+`email` column, finds nobody, and answers with the generic "we can't find a
+user with that email address". Confusing for them, but **safe**: it is the same
+answer an unknown address gets, so the form still isn't an enumerable directory.
+
+Point those people at a help desk instead. Which of these you offer is a
+decision to make **before** you ship accounts without email:
 
 | Option | What it means |
 | --- | --- |
-| **Admin-issued temporary password** | The owner issues one and hands it over; the user must replace it on first use. No delivery channel needed at all — this is what §4 is for, and the reason it exists. |
-| **Reset by SMS** | A Laravel notification on an SMS channel instead of mail. Needs a provider, and the token is as strong as your phone number's security. |
-| **Email required for self-service** | Users without email have no self-service reset, and the help desk issues them a temporary password. |
+| **Admin-issued temporary password** | The owner issues one and hands it over; the user must replace it on first use. No delivery channel needed at all — this is what §4 is for, and the reason it exists. Nothing extra to build. |
+| **Email required for self-service** | Staff without email simply have no self-service path, and the help desk issues them a temporary password. |
+| **Reset by SMS** | Genuinely more work than it sounds — see the warning below. |
 
-Also turn off (or make conditional) email verification for these accounts —
-`MustVerifyEmail` on a user with a null email will loop them on the "verify your
-email" screen forever.
+::: warning "Reset by SMS" is not just swapping the notification channel
+Laravel's reset **token store is keyed by email**: `DatabaseTokenRepository`
+writes, looks up and deletes rows by `getEmailForPasswordReset()`. A user whose
+email is `NULL` cannot have a usable row there — and two such users would
+collide on the same null key.
+
+So a real SMS reset needs its **own token store** (a table keyed by user id or
+phone) and its own controller, not just a notification on a different channel.
+If that is where you are heading, an admin-issued temporary password does the
+same job today with none of that surface — the credential is already single-use
+and already forces a change.
+:::
+
+### Email verification
+
+Turn off — or make conditional — email verification for these accounts.
+`MustVerifyEmail` on a user with a null email loops them on the "verify your
+email" screen forever, with no way out:
+
+```php
+public function hasVerifiedEmail(): bool
+{
+    // Nothing to verify, so nothing to block on.
+    return blank($this->email) || ! is_null($this->email_verified_at);
+}
+```
 
 ## 6. Frontend
 

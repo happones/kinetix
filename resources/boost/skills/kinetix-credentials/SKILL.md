@@ -155,11 +155,26 @@ KinetixIdentity::rules($ignore);              // validation for create/update
   both a valid username and a plausible phone). Ambiguous identity is worse than
   a failed login.
 
-**Plan for the consequence:** a user with no email cannot receive a password
-reset. Pick one before shipping — admin-issued temporary password (what this
-module is for), reset by SMS, or no self-service reset for those accounts. Also
-disable/condition `MustVerifyEmail`, or a null-email user loops on the verify
-screen forever.
+### Password reset: the boundary is per-USER, not per-app
+
+Accepting `username`/`phone` does NOT break reset. Login and reset are different
+endpoints: `fortify.username` governs login, while reset goes through Laravel's
+broker, which looks the user up by the **`email` column** and keys the token by
+it (`DatabaseTokenRepository` → `getEmailForPasswordReset()`).
+
+- Users WITH an email (owner, admins) — self-service reset **works, unchanged**.
+- Users with only a username/phone — the broker finds nobody and returns the
+  generic "no user with that email address". Confusing but safe (still not
+  enumerable). Point them at a help desk.
+
+**Never describe "reset by SMS" as swapping the notification channel.** The
+token store is keyed by email, so a null-email user has no usable row and two
+of them collide on the same null key. Real SMS reset needs its OWN token store
+and controller. An admin-issued temporary password does the same job today with
+none of that surface.
+
+Also disable/condition `MustVerifyEmail` — a null-email user loops on the verify
+screen forever. `return blank($this->email) || ! is_null($this->email_verified_at);`
 
 ## Files
 

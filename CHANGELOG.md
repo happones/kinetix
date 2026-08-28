@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Clarified what happens to password reset when you accept a username or a
+  phone** ([Credentials §5.3](https://happones.github.io/kinetix/credentials)).
+  The section was headed "password reset stops working", which reads as though
+  it breaks for everyone — it does not. Login and reset are different endpoints:
+  `fortify.username` governs the login form, while reset goes through Laravel's
+  broker, which looks the user up by the **`email` column** and keys the token
+  by it. **Anyone who has an email — the owner, admins, office staff — keeps
+  self-service reset unchanged.** The boundary is per-user, not per-app, and
+  the docs now say so, including what a username-only user actually sees.
+- **Corrected the "reset by SMS" option**, which was described as swapping the
+  notification channel. Laravel's reset token store is *keyed by email*
+  (`DatabaseTokenRepository` → `getEmailForPasswordReset()`), so a null-email
+  user has no usable row and two of them collide on the same null key. A real
+  SMS reset needs its own token store and controller — materially more work
+  than the old wording implied, and worth knowing before choosing it over an
+  admin-issued temporary password.
+
 ## [0.180.1] - 2026-08-28
 
 ### Fixed
