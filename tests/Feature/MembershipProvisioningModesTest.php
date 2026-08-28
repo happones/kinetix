@@ -16,6 +16,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
@@ -42,6 +43,20 @@ class ModeUser extends Authenticatable
             'password_changed_at'  => 'datetime',
             'must_change_password' => 'boolean',
         ];
+    }
+}
+
+/**
+ * Stands in for the host's team pivot: Kinetix never writes it, it calls this.
+ */
+class ModeAttacher
+{
+    /** @var array<int, array{0: mixed, 1: mixed}> */
+    public static array $calls = [];
+
+    public function attach(mixed $user, MemberProvision $provision): void
+    {
+        static::$calls[] = [$user->getKey(), $provision->team_id];
     }
 }
 
@@ -382,6 +397,64 @@ class MembershipProvisioningModesTest extends TestCase
         $this->assertStringContainsString('https://example.test/activate/abc', $body);
         $this->assertStringStartsWith('Activate', $body);
         $this->assertSame(['testsms'], $notification->via($provision));
+    }
+
+    // -- Parity between the two provisioning paths -----------------------------
+
+    public function test_direct_provisioning_attaches_to_the_team_like_activation_does(): void
+    {
+        config()->set('kinetix.membership.provisioning', 'direct');
+        config()->set('kinetix.membership.delivery', 'manual');
+        config()->set('kinetix.membership.identifier', 'username');
+        config()->set('kinetix.membership.attach_member', [ModeAttacher::class, 'attach']);
+        ModeAttacher::$calls = [];
+
+        $this->actingAs($this->manager())
+            ->postJson('/_kinetix/members', ['username' => 'juan.perez', 'role' => 'editor'])
+            ->assertCreated();
+
+        $user = ModeUser::query()->where('username', 'juan.perez')->firstOrFail();
+
+        // Kinetix never touches the host's team pivot — it calls the host's
+        // callback. `direct` must do it exactly like `activation`, or a member
+        // created this way belongs to no team.
+        $this->assertSame([[$user->getKey(), null]], ModeAttacher::$calls);
+        $this->assertTrue($user->hasRole('editor'));
+    }
+
+    public function test_activating_a_username_provision_produces_an_account_that_can_sign_in(): void
+    {
+        config()->set('kinetix.membership.identifier', 'username');
+        config()->set('kinetix.membership.attach_member', [ModeAttacher::class, 'attach']);
+        ModeAttacher::$calls = [];
+
+        $provision = MemberProvision::create([
+            'username'   => 'ana.lopez',
+            'role'       => 'editor',
+            'status'     => MemberProvisionStatus::Pending,
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $url = URL::temporarySignedRoute(
+            'kinetix.membership.activate.show',
+            now()->addDay(),
+            ['provision' => $provision->getKey()],
+        );
+
+        $this->post($url, [
+            'name'                  => 'Ana',
+            'password'              => 'secret-password',
+            'password_confirmation' => 'secret-password',
+        ])->assertRedirect();
+
+        $user = ModeUser::query()->where('name', 'Ana')->firstOrFail();
+
+        // Regression: activation used to copy only `email`, so a member
+        // provisioned by username activated into an account with NO identifier
+        // — created, given a role, and unable to ever sign in.
+        $this->assertSame('ana.lopez', $user->username);
+        $this->assertTrue($user->hasRole('editor'));
+        $this->assertSame([[$user->getKey(), null]], ModeAttacher::$calls);
     }
 
     // -- Identifiers -----------------------------------------------------------

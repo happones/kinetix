@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.180.1] - 2026-08-28
+
+### Fixed
+
+- **A member provisioned by username or phone activated into an account nobody
+  could sign in as.** `activate()` copied only `email` onto the new user, so a
+  provision carrying a `username` (or `phone`) produced a User with **no
+  identifier at all** — created, attached to the team, given its role, and
+  unable to ever log in. Both provisioning paths now copy every identifier the
+  provision carries, through one shared helper so they cannot drift apart
+  again. Only `activation` mode was affected; `direct` was already correct.
+- **(published)** `<KinetixMemberActivation>` takes an `identifier` prop —
+  whichever field identifies the member — and no longer renders a blank line
+  when they have no email. `email` is still accepted, so a page that passes it
+  keeps working. The controller sends both.
+
 ## [0.180.0] - 2026-08-27
 
 Staff who have no email address. The starter kit assumes one everywhere, so

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     buttonVariants,
@@ -9,18 +10,29 @@ import KinetixLabel from './KinetixLabel.vue';
 
 /**
  * The public set-password screen a provisioned member lands on from their
- * activation link. Email is fixed (it came from the provision); the member only
- * picks a name and password. `action` is the signed URL the server passed in —
+ * activation link. The identifier is fixed (it came from the provision); the
+ * member only picks a name and password. `action` is the signed URL the server passed in —
  * the form posts back to it, so the signature is preserved.
  *
  * Mount it from the page named by `kinetix.membership.activation_view`
- * (default `Kinetix/MemberActivation`), passing the `email` and `action` props
- * the Membership controller provides.
+ * (default `Kinetix/MemberActivation`), passing the `identifier` and `action`
+ * props the Membership controller provides.
  */
-const props = defineProps<{
-    email: string;
-    action: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        /**
+         * Whichever field identifies this member — an email, a username or a
+         * phone. Prefer it over `email`, which is null for staff who have none.
+         */
+        identifier?: string | null;
+        email?: string | null;
+        action: string;
+    }>(),
+    { identifier: null, email: null },
+);
+
+/** What to show the person so they know whose account they are activating. */
+const shownIdentifier = computed(() => props.identifier ?? props.email ?? '');
 
 const { t } = useI18n();
 
@@ -41,7 +53,9 @@ function submit(): void {
             <h1 class="text-xl font-semibold text-foreground">
                 {{ t('kinetix.activation_title') }}
             </h1>
-            <p class="text-sm text-muted-foreground">{{ email }}</p>
+            <p v-if="shownIdentifier" class="text-sm text-muted-foreground">
+                {{ shownIdentifier }}
+            </p>
         </div>
 
         <form class="space-y-4" @submit.prevent="submit">

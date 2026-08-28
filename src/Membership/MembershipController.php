@@ -245,8 +245,11 @@ class MembershipController
         return Inertia::render(
             (string) config('kinetix.membership.activation_view', 'Kinetix/MemberActivation'),
             [
-                'email'  => $provision->email,
-                'action' => $request->fullUrl(),
+                // `identifier` is whichever field carries it; `email` stays for
+                // apps whose published page still reads that prop.
+                'identifier' => $provision->identifier(),
+                'email'      => $provision->email,
+                'action'     => $request->fullUrl(),
             ],
         );
     }
@@ -273,8 +276,8 @@ class MembershipController
         $userModel = $this->userModel();
 
         $user = $userModel::create([
+            ...$this->identifierAttributes($provision),
             'name'     => $validated['name'],
-            'email'    => $provision->email,
             'password' => Hash::make($validated['password']),
         ]);
 
@@ -488,13 +491,12 @@ class MembershipController
      */
     protected function provisionDirectly(MemberProvision $provision, Request $request): MemberCredential
     {
-        $field     = $this->identifierField();
         $userModel = $this->userModel();
 
         /** @var Model $user */
         $user = $userModel::create([
+            ...$this->identifierAttributes($provision),
             'name' => $provision->name ?? $provision->identifier(),
-            $field => $provision->getAttribute($field),
             // Replaced immediately below; a User is never persisted with a
             // password anyone could guess, not even for one statement.
             'password' => Hash::make(Str::random(40)),
@@ -522,6 +524,31 @@ class MembershipController
         ]);
 
         return $credential;
+    }
+
+    /**
+     * Every identifier the provision carries, to copy onto the new user.
+     *
+     * Shared by both provisioning paths on purpose. When `activate()` hardcoded
+     * `email`, a member provisioned by username activated into an account with
+     * NO identifier at all — created, given a role, and unable to ever sign in.
+     * One helper means the two paths cannot drift like that again.
+     *
+     * @return array<string, string>
+     */
+    protected function identifierAttributes(MemberProvision $provision): array
+    {
+        $attributes = [];
+
+        foreach (['email', 'username', 'phone'] as $field) {
+            $value = $provision->getAttribute($field);
+
+            if (filled($value)) {
+                $attributes[$field] = (string) $value;
+            }
+        }
+
+        return $attributes;
     }
 
     /**
