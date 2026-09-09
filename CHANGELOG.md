@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Record modals open near the top of the screen** **(published)** — the
+  create / edit / view modals of tables, simple resources and relation managers
+  (and the relation-manager attach picker) now anchor 10vh from the top on `sm`
+  and up instead of centering vertically. A centered panel grows in both
+  directions, so every height change — the loading skeleton giving way to the
+  form, a validation error, a conditional field — re-centered the dialog and
+  moved its title and the field under the cursor; anchored, it only grows
+  downward. Mobile stays centered. Confirmations, deletes and the upgrade modal
+  keep the centered shadcn layout.
+  - `KinetixModal` gains `placement: 'center' | 'top'` (default `center`, so a
+    hand-mounted modal is unchanged); with `scroll-body` the panel's height
+    budget shrinks by the offset so the pinned footer never drops below the
+    fold. Docs: [Forms → Forms sit near the top](https://happones.github.io/kinetix/forms).
+
 ## [0.181.0] - 2026-09-08
 
 Rows you can click. An admin list is expected to open a record when you click

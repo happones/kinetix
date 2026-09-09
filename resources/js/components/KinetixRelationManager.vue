@@ -453,6 +453,7 @@ onBeforeUnmount(() => {
             max-width="sm:max-w-md"
             :processing="attaching"
             scroll-body
+            placement="top"
             @update:open="(value) => !value && (isAttachOpen = false)"
         >
             <div class="space-y-3">

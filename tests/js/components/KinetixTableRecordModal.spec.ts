@@ -94,6 +94,11 @@ describe('KinetixTable — the record modal pins its actions', () => {
             '[role="dialog"]',
         ) as HTMLElement;
         expect(dialog).not.toBeNull();
+        // A form the user works in sits near the top, so its height changes
+        // (skeleton → form, validation errors) only grow it downward.
+        expect((dialog.firstElementChild as HTMLElement).className).toContain(
+            'sm:items-start',
+        );
 
         const form = dialog.querySelector('form') as HTMLFormElement;
         expect(form.id).toMatch(/^kinetix-record-form-/);

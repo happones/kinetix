@@ -24,6 +24,13 @@ import ScrollArea from './ScrollArea.vue';
  * the other layout — header and footer pinned, only the body scrolling, in a
  * shadcn ScrollArea — never the only thing keeping content reachable.
  *
+ * `placement` moves the panel: `center` is the registry's vertically centered
+ * dialog; `top` anchors it near the top edge (10vh on ≥sm, centered on mobile
+ * where the keyboard owns the layout). Top is for dialogs the user WORKS in —
+ * a record form whose height changes as it loads, validates or reveals
+ * fields: anchored, it only ever grows downward, so its title and the field
+ * under the cursor stay put instead of re-centering on every change.
+ *
  * Slots: `default` (body), `header` (replaces title/description), `footer`
  * (v4 footer stack: column-reverse on mobile, right-aligned row on ≥sm).
  */
@@ -51,6 +58,13 @@ const props = withDefaults(
          * Combine with a wide `maxWidth`.
          */
         fullscreen?: boolean;
+        /**
+         * Vertical position of the panel: `center` (shadcn default) or `top`
+         * (anchored 10vh from the top on ≥sm; centered on mobile). Use `top`
+         * for forms, whose height changes while the user works in them.
+         * Ignored by `fullscreen`.
+         */
+        placement?: 'center' | 'top';
     }>(),
     {
         title: null,
@@ -60,8 +74,11 @@ const props = withDefaults(
         processing: false,
         scrollBody: false,
         fullscreen: false,
+        placement: 'center',
     },
 );
+
+const isTopAnchored = () => props.placement === 'top' && !props.fullscreen;
 
 const emit = defineEmits<{
     (e: 'update:open', value: boolean): void;
@@ -153,6 +170,9 @@ const { headingId } = useKinetixFocusTrap({
                      footer stay reachable instead of sitting off screen. -->
                 <div
                     class="p-4 flex min-h-full items-center justify-center"
+                    :class="
+                        isTopAnchored() ? 'sm:items-start sm:pt-[10vh]' : ''
+                    "
                     @click.self="close"
                 >
                     <!-- `relative` matters: in the v4 registry the panel
@@ -168,6 +188,12 @@ const { headingId } = useKinetixFocusTrap({
                             maxWidth,
                             scrollBody || fullscreen
                                 ? 'max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto]'
+                                : '',
+                            // Top-anchored: the 10vh offset comes out of the
+                            // panel's budget, or a pinned footer would sit
+                            // below the fold and the wrapper would scroll.
+                            scrollBody && isTopAnchored()
+                                ? 'sm:max-h-[calc(90dvh-1rem)]'
                                 : '',
                             fullscreen ? 'h-[calc(100dvh-2rem)]' : '',
                         ]"

@@ -243,6 +243,29 @@ that renders in flow and must escape the panel — a scrolling body clips it.
 <Screenshot name="modal-scroll" alt="A 16-field form in a modal: the panel is bounded to the viewport, the title and the Cancel/Save footer stay pinned, and the body scrolls" />
 :::
 
+::: tip Forms sit near the top: `placement="top"`
+A shadcn dialog is vertically centered, which is right for a confirmation but
+awkward for a form you work in: a centered panel grows in **both** directions,
+so every height change — the loading skeleton giving way to the fields, a
+validation error appearing, a conditional field revealing itself — re-centers
+the panel and moves the title and the field under your cursor. Anchored to the
+top it only grows downward.
+
+Pass **`placement="top"`** to anchor the panel 10vh from the top on `sm` and
+up (mobile stays centered, the keyboard owns that layout). Kinetix's record
+modals — create / edit / view in tables, simple resources and relation
+managers, plus the relation-manager attach picker — use it by default; short
+dialogs (confirmations, deletes) stay centered. With `scroll-body` the panel's
+height budget shrinks by the same offset, so the pinned footer never drops
+below the fold.
+
+```vue
+<KinetixModal :open="open" title="New event" scroll-body placement="top">
+    <KinetixForm :form="eventForm" flat @submit="submit" />
+</KinetixModal>
+```
+:::
+
 ### 3. Fieldset
 A lighter labelled grouping than `Section` — a bordered `<fieldset>` with a `<legend>`, no card chrome. Supports `columns()` and nesting.
 

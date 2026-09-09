@@ -795,6 +795,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                 max-width="sm:max-w-2xl"
                 :processing="recordProcessing"
                 scroll-body
+                placement="top"
                 @update:open="(value) => !value && closeRecordForm()"
             >
                 <div v-if="isRecordLoading" class="space-y-4">
@@ -846,6 +847,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                 :title="recordLabel || t('kinetix.view')"
                 max-width="sm:max-w-3xl"
                 scroll-body
+                placement="top"
                 @update:open="(value) => !value && closeRecordInfolist()"
             >
                 <div v-if="isRecordLoading" class="space-y-4">

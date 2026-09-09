@@ -99,6 +99,42 @@ describe('KinetixModal — the shell is always bounded', () => {
         ).toContain('-mr-3');
         w.unmount();
     });
+
+    it('centers the panel by default — the shadcn dialog', async () => {
+        const w = mountModal({ scrollBody: true });
+        await w.vm.$nextTick();
+
+        const row = dialog().firstElementChild as HTMLElement;
+        expect(row.className).toContain('items-center');
+        expect(row.className).not.toContain('sm:items-start');
+        expect(panel().className).not.toContain('sm:max-h-[calc(90dvh-1rem)]');
+        w.unmount();
+    });
+
+    it('placement="top" anchors the panel near the top on ≥sm and shrinks a pinned panel by the same offset', async () => {
+        const w = mountModal({ scrollBody: true, placement: 'top' });
+        await w.vm.$nextTick();
+
+        const row = dialog().firstElementChild as HTMLElement;
+        // Mobile keeps the centered row; ≥sm anchors it 10vh from the top.
+        expect(row.className).toContain('items-center');
+        expect(row.className).toContain('sm:items-start');
+        expect(row.className).toContain('sm:pt-[10vh]');
+        // The offset comes out of the panel's height budget, or the pinned
+        // footer would drop below the fold and the wrapper would scroll.
+        expect(panel().className).toContain('max-h-[calc(100dvh-2rem)]');
+        expect(panel().className).toContain('sm:max-h-[calc(90dvh-1rem)]');
+        w.unmount();
+    });
+
+    it('fullscreen ignores placement', async () => {
+        const w = mountModal({ fullscreen: true, placement: 'top' });
+        await w.vm.$nextTick();
+
+        const row = dialog().firstElementChild as HTMLElement;
+        expect(row.className).not.toContain('sm:items-start');
+        w.unmount();
+    });
 });
 
 describe('KinetixSheet — the body is the scroller', () => {
