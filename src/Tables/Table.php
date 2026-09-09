@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables;
 
 use Closure;
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Data\ActionData;
 use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\SummaryData;
 use Happones\Kinetix\Data\TableData;
@@ -95,7 +96,29 @@ class Table implements Arrayable, JsonSerializable
      */
     protected bool $cursorPaginate = false;
 
+    /**
+     * Whole-row click target. Left unset, the row infers one from its `view`
+     * / `edit` record actions (see {@see resolveRecordClick()}); an explicit
+     * `recordUrl(null)` switches the URL channel off for this table.
+     */
     protected ?Closure $recordUrl = null;
+
+    protected bool $hasRecordUrl = false;
+
+    protected bool $shouldOpenRecordUrlInNewTab = false;
+
+    /**
+     * Name of the record action a row click runs when it has no URL — a string,
+     * a per-record closure returning one, or null to switch the channel off.
+     */
+    protected string|Closure|null $recordAction = null;
+
+    protected bool $hasRecordAction = false;
+
+    /**
+     * Tri-state: null defers to `config('kinetix.tables.clickable_rows')`.
+     */
+    protected ?bool $clickableRows = null;
 
     protected bool $isStriped = false;
 
@@ -605,11 +628,56 @@ class Table implements Arrayable, JsonSerializable
         return $this;
     }
 
-    public function recordUrl(Closure $callback): static
+    /**
+     * Make the whole row navigate to a URL resolved per record, or pass `null`
+     * to switch row navigation off for this table (the `view` / `edit` actions
+     * are then no longer inferred as the row's click target).
+     */
+    public function recordUrl(?Closure $callback, bool $shouldOpenInNewTab = false): static
     {
-        $this->recordUrl = $callback;
+        $this->recordUrl                   = $callback;
+        $this->hasRecordUrl                = true;
+        $this->shouldOpenRecordUrlInNewTab = $shouldOpenInNewTab;
 
         return $this;
+    }
+
+    public function openRecordUrlInNewTab(bool $condition = true): static
+    {
+        $this->shouldOpenRecordUrlInNewTab = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Run a record action when the row is clicked and has no URL — e.g. a
+     * modal `view` action. Pass the action's name, a per-record closure
+     * returning one (or null), or `null` to switch the channel off. Only an
+     * action that renders for the record (visible + authorized) is honored.
+     */
+    public function recordAction(string|Closure|null $action): static
+    {
+        $this->recordAction    = $action;
+        $this->hasRecordAction = true;
+
+        return $this;
+    }
+
+    /**
+     * Whether clicking a row opens its record. Defaults to the
+     * `kinetix.tables.clickable_rows` config; `clickableRows(false)` disables
+     * the URL, the action and the `view` / `edit` inference for this table.
+     */
+    public function clickableRows(bool $condition = true): static
+    {
+        $this->clickableRows = $condition;
+
+        return $this;
+    }
+
+    public function hasClickableRows(): bool
+    {
+        return $this->clickableRows ?? (bool) config('kinetix.tables.clickable_rows', true);
     }
 
     public function striped(bool $condition = true): static
@@ -1640,11 +1708,6 @@ class Table implements Arrayable, JsonSerializable
             }
         }
 
-        $recordUrlStr = null;
-        if ($this->recordUrl !== null) {
-            $recordUrlStr = ($this->recordUrl)($record);
-        }
-
         $resolvedActions = [];
         foreach ($this->recordActions as $action) {
             $data = $action->toData($record);
@@ -1652,6 +1715,8 @@ class Table implements Arrayable, JsonSerializable
                 $resolvedActions[] = $data;
             }
         }
+
+        [$recordUrlStr, $recordUrlInNewTab, $recordActionName] = $this->resolveRecordClick($record, $resolvedActions);
 
         return new TableRowData(
             id: $record->getKey(),
@@ -1666,7 +1731,117 @@ class Table implements Arrayable, JsonSerializable
             progressColors: $rowProgressColors,
             viewProps: $rowViewProps,
             urls: $rowUrls,
+            recordUrlInNewTab: $recordUrlInNewTab,
+            recordAction: $recordActionName,
         );
+    }
+
+    /**
+     * What a click on the row does: navigate to a URL, run one of the row's
+     * own actions, or nothing. An explicit `recordUrl()` / `recordAction()`
+     * wins on its channel; a channel left unset is inferred from the first of
+     * the `view` then `edit` actions that renders for this record — a plain
+     * link becomes the row URL, anything else (a modal, a confirmation, a
+     * request) becomes the row action. The URL always takes precedence over
+     * the action on the frontend.
+     *
+     * @param  array<int, ActionData>                         $resolvedActions
+     * @return array{0: string|null, 1: bool, 2: string|null}
+     */
+    protected function resolveRecordClick(Model $record, array $resolvedActions): array
+    {
+        if (! $this->hasClickableRows()) {
+            return [null, false, null];
+        }
+
+        $rowActions = $this->flattenRowActions($resolvedActions);
+
+        $inferredUrl    = null;
+        $inferredNewTab = false;
+        $inferredAction = null;
+        $needsInference = ! $this->hasRecordUrl || ! $this->hasRecordAction;
+
+        if ($needsInference) {
+            foreach (['view', 'edit'] as $name) {
+                $candidate = $rowActions[$name] ?? null;
+
+                if ($candidate === null) {
+                    continue;
+                }
+
+                if ($this->isPlainLink($candidate)) {
+                    $inferredUrl    = $candidate->url;
+                    $inferredNewTab = $candidate->shouldOpenInNewTab;
+                } else {
+                    $inferredAction = $candidate->name;
+                }
+
+                break;
+            }
+        }
+
+        $url    = $this->hasRecordUrl ? ($this->recordUrl === null ? null : ($this->recordUrl)($record)) : $inferredUrl;
+        $newTab = $this->hasRecordUrl ? $this->shouldOpenRecordUrlInNewTab : ($inferredNewTab || $this->shouldOpenRecordUrlInNewTab);
+
+        if ($url !== null) {
+            return [$url, $newTab, null];
+        }
+
+        $action = $inferredAction;
+
+        if ($this->hasRecordAction) {
+            $action = $this->recordAction instanceof Closure
+                ? ($this->recordAction)($record)
+                : $this->recordAction;
+        }
+
+        if ($action !== null && ! isset($rowActions[$action])) {
+            $action = null;
+        }
+
+        return [null, false, $action];
+    }
+
+    /**
+     * The row's rendered actions keyed by name, with grouped actions lifted
+     * out of their dropdown so `view` inside an ActionGroup is still found.
+     *
+     * @param  array<int, ActionData>    $resolvedActions
+     * @return array<string, ActionData>
+     */
+    protected function flattenRowActions(array $resolvedActions): array
+    {
+        $flat = [];
+
+        foreach ($resolvedActions as $data) {
+            if ($data->type === 'group') {
+                foreach ($data->actions ?? [] as $child) {
+                    $flat[$child->name] ??= $child;
+                }
+
+                continue;
+            }
+
+            $flat[$data->name] ??= $data;
+        }
+
+        return $flat;
+    }
+
+    /**
+     * A plain navigation: a URL with no request, event, modal, download,
+     * preview or confirmation attached — safe to reproduce as a row link.
+     */
+    protected function isPlainLink(ActionData $data): bool
+    {
+        return $data->url !== null
+            && $data->inertiaVisit  === null
+            && $data->httpRequest   === null
+            && $data->dispatchEvent === null
+            && $data->modal         === null
+            && ! $data->isDownload
+            && ! $data->isPreview
+            && ! $data->requiresConfirmation;
     }
 
     public function getModelClass(): string

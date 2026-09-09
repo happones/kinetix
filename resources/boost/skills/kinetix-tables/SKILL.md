@@ -42,7 +42,7 @@ Pick by the DATA and whether it should be editable inline — do not default eve
 | Image / avatar / SignaturePad | `ImageColumn` (`->circular()`, `->disk('s3')`, `->preview()`) | — |
 | 0–100 metric / capacity / quota | `ProgressColumn` (`->maxValue()`, `->color(fn …)`) | — |
 | Rating | `TextColumn->formatStateUsing(fn ($v) => str_repeat('★', (int) $v))` — no dedicated column | — |
-| Link per cell | `TextColumn->url(fn ($record) => …)` (whole ROW: `Table::recordUrl()`) | — |
+| Link per cell | `TextColumn->url(fn ($record) => …)` (whole ROW: inferred from the `view`/`edit` action, or `Table::recordUrl()`) | — |
 | Anything bespoke | `ViewColumn->view('MyCell')->props(fn ($record) => …)` | your component emits its own updates |
 | KeyValue / Repeater | `->formatStateUsing()` into a summary string, or `ViewColumn` | — |
 
@@ -79,9 +79,22 @@ namespaced `{relationship}_…`). Rules that differ:
   THROWS (rows would not be attached to the parent).
 - See the **kinetix-resources** skill for the manager itself (modal CRUD, attach/detach).
 
+## Clickable rows (default ON)
+
+A row click opens the record: the `view` record action if the row renders one, else `edit`
+(found inside an `ActionGroup` too). Routed action (`->route()`/`->url()`) → the row navigates;
+modal action (`->modal('view')`) → the row opens that same modal. Unauthorized/hidden actions
+don't count (per record); no view/edit → inert row. Nested controls ("⋯" menu, inline editors,
+checkbox, links) never trigger the row. Keyboard: `Tab` + `Enter`; `Ctrl/Cmd`+click → new tab.
+
+- `->recordUrl(fn ($record) => …, shouldOpenInNewTab: false)` explicit URL (wins over the action);
+  `->openRecordUrlInNewTab()`; `->recordAction('view' | fn ($record): ?string | null)`.
+- Off: `->clickableRows(false)` (table), `->recordUrl(null)` / `->recordAction(null)` (one channel),
+  `kinetix.tables.clickable_rows` = false (app-wide; `->clickableRows()` opts a table back in).
+
 ## Table builder surface (one-liners)
 
-`heading()/description()`, `striped()`, `poll('10s')`, `recordUrl(fn)`, `stickyActions()`,
+`heading()/description()`, `striped()`, `poll('10s')`, `stickyActions()`,
 `reorderable('sort_order')` (drag with a translucent live preview of the landing row, persisted on
 drop, reverted on a cancelled drag), `saveViews(?key)` (per-user presets; key defaults
 to `Model:queryPrefix`), `queryPrefix('tags_')` (multiple tables per page), `stats([...])` (KPI

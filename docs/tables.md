@@ -839,7 +839,7 @@ Table-level methods control refresh, pagination, and row behavior:
 - `simplePaginated(bool $simple = true)`: Paginate **without counting** the result set. See [Large tables](#large-tables-—-simplepaginated).
 - `cursorPaginated(bool $cursor = true)`: Seek-based pagination — no `OFFSET`, constant cost at any depth. See [Deep pagination](#deep-pagination-—-cursorpaginated).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
-- `recordUrl(Closure $callback)`: Makes the whole row clickable, resolving a URL per record: `->recordUrl(fn ($record) => route('posts.edit', $record))`.
+- `recordUrl(?Closure $callback, bool $shouldOpenInNewTab = false)`, `openRecordUrlInNewTab()`, `recordAction(string|Closure|null $action)`, `clickableRows(bool $condition = true)`: What a click on the row does. Left alone, a row opens its record through its own `view` / `edit` action. See [Clickable rows](#clickable-rows).
 - `toolbarLayout(string $layout)`: Toolbar arrangement. The default `'auto'`
   adapts to the **table's own width** (container queries): narrow tables stack
   heading → full-width search → a wrapping row of controls (views / actions /
@@ -849,6 +849,52 @@ Table-level methods control refresh, pagination, and row behavior:
 
 <Screenshot name="table-toolbar" alt="Table toolbar with search, actions, filters and column toggle" />
 - `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
+
+### Clickable rows
+
+Clicking anywhere on a row opens its record, the way an admin list is expected
+to behave. Out of the box the target is **inferred from the row's own record
+actions**: the `view` action when the row has one, otherwise `edit`. A routed
+action (`ViewAction::make()->route('posts.show')` or `->url(...)`) makes the
+row navigate; a modal action (`ViewAction::make()->modal('view')`) makes the row
+open that same modal. Only an action that actually renders for the record
+counts — a row its user may not `view` falls through to `edit`, and a row with
+neither is inert (no pointer cursor, nothing on click). Grouped actions inside
+an `ActionGroup` "⋯" dropdown are found too.
+
+Everything nested in the row keeps its own behaviour and never doubles as a row
+click: the "⋯" actions menu and its items, inline editors, the selection
+checkbox, the reorder handle, links. Rows are keyboard-reachable (`Tab` to the
+row, `Enter` to open) and `Ctrl`/`Cmd`+click opens a URL in a new tab.
+
+```php
+// An explicit URL per record — wins over the inferred target
+Table::make(Post::query())
+    ->recordUrl(fn (Post $post) => route('posts.show', $post));
+
+// … opened in a new tab (also applies to an inferred URL)
+Table::make(Post::query())
+    ->recordUrl(fn (Post $post) => route('posts.show', $post), shouldOpenInNewTab: true);
+Table::make(Post::query())->openRecordUrlInNewTab();
+
+// Run a specific row action instead — by name, or resolved per record
+Table::make(Post::query())->recordAction('view');
+Table::make(Post::query())
+    ->recordAction(fn (Post $post): ?string => $post->isDraft() ? 'edit' : 'view');
+
+// Switch it off
+Table::make(Post::query())->clickableRows(false); // this table: rows are inert
+Table::make(Post::query())->recordUrl(null);      // no navigation (a modal view/edit may still open)
+Table::make(Post::query())->recordAction(null);   // no action (a routed view/edit may still navigate)
+```
+
+- The URL always takes precedence over the action when a row resolves both.
+- `recordAction()` only fires an action the row **renders** — an unauthorized or
+  hidden name is dropped server-side, so the row is not clickable for that user.
+- Turn the default off app-wide with the `kinetix.tables.clickable_rows` config
+  (`KINETIX_TABLES_CLICKABLE_ROWS=false`); a table opts back in with
+  `->clickableRows()`. Explicit `recordUrl()` / `recordAction()` are honored
+  only when the table is clickable.
 
 ### Empty state
 

@@ -1099,6 +1099,13 @@ return [
         // Hard ceiling on the `perPage` a request may ask for, so a crafted
         // ?perPage=10000000 can't hydrate a whole table into one payload.
         'max_per_page' => env('KINETIX_TABLES_MAX_PER_PAGE', 200),
+
+        // Clicking a row opens its record: the `view` action when the row has
+        // one, otherwise `edit` — as a page visit when the action links to a
+        // route, as the same modal when it is a modal action. Set false to
+        // make rows inert everywhere; per table: ->clickableRows(false), or
+        // ->recordUrl(null) / ->recordAction(null) for one channel.
+        'clickable_rows' => env('KINETIX_TABLES_CLICKABLE_ROWS', true),
     ],
 
     'saved_views' => [

@@ -300,6 +300,7 @@ Key rules: resolve the PARENT through `Resource::getEloquentQuery()->findOrFail(
   ```php
   Route::resource('articles', ArticleController::class);
   ```
+- **Row click is on by default**: a resource table row opens its record through its `view` (else `edit`) record action — a `->route()`/`->url()` action navigates, a `->modal('view')` action opens the modal — so you do not wire `recordUrl()` for it. Turn it off with `->clickableRows(false)` (or `kinetix.tables.clickable_rows`); the "⋯" actions menu is unaffected either way. See the **kinetix-tables** skill → Clickable rows.
 - **Thin Actions**: Keep actions simple. Offload all column rendering and layout blueprints to `getTable()` and `getForm()` helpers.
 - **Scope Relationships**: Eager load related records inside the base query (`Article::with('author')`) to prevent N+1 queries during TextColumn rendering.
 - **Validate Confidentially**: Never save validation confirmations like password checks in your model updates. Use `$field->saved(false)` to exclude them.

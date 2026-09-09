@@ -35,5 +35,9 @@ class TableRowData extends Data
         public array $progressColors = [],
         public array $viewProps = [],
         public array $urls = [],
+        /** Open `recordUrl` in a new tab (Table::openRecordUrlInNewTab() or the inferred action's own flag). */
+        public bool $recordUrlInNewTab = false,
+        /** Name of the row action a click runs when there is no `recordUrl` — resolved from `actions`. */
+        public ?string $recordAction = null,
     ) {}
 }

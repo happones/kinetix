@@ -1021,6 +1021,10 @@ export interface KinetixTableRecord {
         { text: string | null; position: 'above' | 'below' }
     >;
     recordUrl: string | null;
+    /** Open `recordUrl` in a new tab (Table::openRecordUrlInNewTab() or the inferred action's own flag). */
+    recordUrlInNewTab?: boolean;
+    /** Name of the row action a click runs when there is no `recordUrl`; resolved from `actions`. */
+    recordAction?: string | null;
     actions?: KinetixAction[];
 }
 

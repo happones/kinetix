@@ -425,6 +425,13 @@ per table:
 resolved, read-only). `--generate` scaffolds an `infolist()` for you; remove the
 method (or the `ViewAction`) to drop the View button.
 
+**Row click.** Clicking a row opens the View modal — or the Edit modal when the
+table has no View action the user may run. Full-page resources get the same
+inference: their rows visit the `show` (else `edit`) route. Disable it per table
+with `->clickableRows(false)`, or app-wide with `kinetix.tables.clickable_rows`;
+the "⋯" actions menu keeps working either way. See
+[Tables → Clickable rows](/tables#clickable-rows).
+
 **Cancel / close.** The form modal's Cancel button (and the backdrop / × button)
 closes the modal and discards its state; the next open rebuilds the form from
 the blueprint (create) or a fresh server fetch (edit), and any validation errors

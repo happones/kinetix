@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
 import { Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -7,6 +6,7 @@ import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixClientTable } from '@/composables/useKinetixClientTable';
 import { isIconOnlyAction, resolveIcon } from '@/composables/useKinetixIcons';
+import { useKinetixRowClick } from '@/composables/useKinetixRowClick';
 import {
     actionButtonVariant,
     buttonVariants,
@@ -127,22 +127,13 @@ const primaryActionClass = (action: { color?: string | null }) =>
         size: 'sm',
     });
 
-const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-
-    if (
-        target.closest('button') ||
-        target.closest('a') ||
-        target.closest('input') ||
-        target.closest('select')
-    ) {
-        return;
-    }
-
-    if (record.recordUrl) {
-        router.visit(record.recordUrl);
-    }
-};
+// Same contract as KinetixTable: the server names the row's target and the
+// row action runs through the same handler as its own button.
+const { isRowClickable, handleRowClick, handleRowKeydown } = useKinetixRowClick(
+    {
+        runAction: (action, record) => handleActionClick(action, record),
+    },
+);
 </script>
 
 <template>
@@ -242,16 +233,17 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                         v-for="(record, rowIndex) in client.pageRecords.value"
                         :key="record.id"
                         class="group transition-colors"
+                        :tabindex="isRowClickable(record) ? 0 : undefined"
                         :class="[
-                            record.recordUrl ? 'cursor-pointer' : '',
                             table.isStriped && rowIndex % 2 === 1
                                 ? 'bg-muted/30'
                                 : 'bg-transparent',
-                            record.recordUrl
-                                ? 'hover:bg-muted/40'
+                            isRowClickable(record)
+                                ? 'cursor-pointer hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50'
                                 : 'hover:bg-muted/30',
                         ]"
                         @click="handleRowClick(record, $event)"
+                        @keydown="handleRowKeydown(record, $event)"
                     >
                         <td
                             v-for="col in columnsToRender"
@@ -282,6 +274,7 @@ const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
                                     ? 'right-0 sticky z-10 border-l border-border bg-card group-hover:bg-muted/30'
                                     : ''
                             "
+                            @click.stop
                         >
                             <div class="gap-2 flex items-center justify-end">
                                 <template

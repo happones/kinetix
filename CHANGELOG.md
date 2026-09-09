@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Clickable table rows** **(published)** — clicking a row opens its record,
+  with the target inferred from the row's own record actions: the `view` action
+  when the row renders one, otherwise `edit`. A routed action
+  (`->route()` / `->url()`) makes the row navigate; a modal action
+  (`->modal('view')`) opens that same modal; actions the user may not run do not
+  count, so a row falls through to `edit` or stays inert per record. Grouped
+  actions inside the "⋯" dropdown are found too. Every nested control keeps its
+  own behaviour — the actions menu, inline editors, the selection checkbox and
+  the reorder handle never double as a row click (the record-actions cell also
+  swallows clicks outright). Rows are keyboard-operable (`Tab` + `Enter`) and
+  `Ctrl`/`Cmd`+click opens a URL in a new tab.
+  - Table API: `recordUrl(?Closure, bool $shouldOpenInNewTab = false)` (now
+    accepts `null` to switch navigation off), `openRecordUrlInNewTab()`,
+    `recordAction(string|Closure|null)` and `clickableRows(bool)`.
+  - Config `kinetix.tables.clickable_rows` (`KINETIX_TABLES_CLICKABLE_ROWS`,
+    default `true`) turns the default off app-wide; a table opts back in with
+    `->clickableRows()`.
+  - `TableRowData` / `KinetixTableRecord` gain `recordUrlInNewTab` and
+    `recordAction`; row activation lives in the new
+    `useKinetixRowClick` composable, shared by `KinetixTable` and the
+    client-side `KinetixDataTable`.
+  - Docs: [Tables → Clickable rows](https://happones.github.io/kinetix/tables#clickable-rows);
+    Boost skills `kinetix-tables` / `kinetix-resources` updated.
+
 ### Documentation
 
 - **Clarified what happens to password reset when you accept a username or a

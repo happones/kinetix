@@ -17,6 +17,7 @@ import { useKinetixColumnVisibility } from '@/composables/useKinetixColumnVisibi
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import { isIconOnlyAction, resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixRecordModals } from '@/composables/useKinetixRecordModals';
+import { useKinetixRowClick } from '@/composables/useKinetixRowClick';
 import { useKinetixRowSelection } from '@/composables/useKinetixRowSelection';
 import {
     actionButtonVariant,
@@ -195,25 +196,6 @@ const clearFilters = () => {
     triggerReload({ filters: {}, page: 1 });
 };
 
-// --- Row click ---------------------------------------------------------------
-const handleRowClick = (record: KinetixTableRecord, event: MouseEvent) => {
-    // Avoid redirect if clicking a button, link, checkbox, or select.
-    const target = event.target as HTMLElement;
-
-    if (
-        target.closest('button') ||
-        target.closest('a') ||
-        target.closest('input') ||
-        target.closest('select')
-    ) {
-        return;
-    }
-
-    if (record.recordUrl) {
-        router.visit(record.recordUrl);
-    }
-};
-
 // --- Record action confirmation ----------------------------------------------
 const {
     pendingAction,
@@ -268,6 +250,16 @@ const handleActionClick = (
 
     requestAction(action, record ? { record } : {});
 };
+
+// --- Row click ---------------------------------------------------------------
+// The server names the target (`recordUrl` / `recordAction`, inferred from the
+// row's view→edit actions unless configured). A row action runs through the
+// same handler as its button, so a modal `view` opens the same modal.
+const { isRowClickable, handleRowClick, handleRowKeydown } = useKinetixRowClick(
+    {
+        runAction: (action, record) => handleActionClick(action, record),
+    },
+);
 
 // --- Row selection + bulk actions --------------------------------------------
 const {
@@ -475,13 +467,16 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                     : undefined
                             "
                             :draggable="table.reorderable || undefined"
+                            :tabindex="isRowClickable(record) ? 0 : undefined"
                             :class="[
-                                record.recordUrl ? 'cursor-pointer' : '',
                                 table.isStriped && rowIndex % 2 === 1
                                     ? 'bg-muted/30'
                                     : 'bg-transparent',
-                                record.recordUrl
-                                    ? 'hover:bg-muted/40'
+                                // A <tr> can't paint a box-shadow ring under
+                                // border-collapse, so the focus indicator is an
+                                // inset outline + the hover tint.
+                                isRowClickable(record)
+                                    ? 'cursor-pointer hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50'
                                     : 'hover:bg-muted/30',
                                 'data-[state=selected]:bg-muted',
                                 draggingId != null && draggingId === record.id
@@ -489,6 +484,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                     : '',
                             ]"
                             @click="handleRowClick(record, $event)"
+                            @keydown="handleRowKeydown(record, $event)"
                             @dragstart="
                                 table.reorderable && onDragStart(rowIndex)
                             "
@@ -565,7 +561,9 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                 </slot>
                             </td>
 
-                            <!-- Record row actions -->
+                            <!-- Record row actions. The cell swallows clicks so
+                                 the "⋯" trigger, its items and the buttons never
+                                 double as a row click. -->
                             <td
                                 v-if="table.recordActions.length > 0"
                                 class="px-6 py-4 text-sm font-medium text-right whitespace-nowrap"
@@ -574,6 +572,7 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                         ? 'right-0 sticky z-10 border-l border-border bg-card group-hover:bg-muted/30'
                                         : ''
                                 "
+                                @click.stop
                             >
                                 <div
                                     class="gap-2 flex items-center justify-end"
