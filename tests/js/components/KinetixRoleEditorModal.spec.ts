@@ -42,6 +42,18 @@ describe('KinetixRoleEditorModal — global toggle', () => {
         wrapper.unmount();
     });
 
+    it('opens anchored near the top, like every form dialog', async () => {
+        const wrapper = await mountModal();
+
+        const dialog = document.body.querySelector(
+            '[role="dialog"]',
+        ) as HTMLElement;
+        expect((dialog.firstElementChild as HTMLElement).className).toContain(
+            'sm:items-start',
+        );
+        wrapper.unmount();
+    });
+
     it('hides the toggle when editing (a role cannot change teams)', async () => {
         const wrapper = await mountModal({
             canCreateGlobal: true,

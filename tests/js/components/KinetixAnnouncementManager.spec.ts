@@ -115,6 +115,13 @@ describe('KinetixAnnouncementManager', () => {
 
         await w.find('button').trigger('click');
         await flushPromises();
+        // A form dialog anchors near the top so it only grows downward.
+        expect(
+            (
+                document.querySelector('[role="dialog"]')
+                    ?.firstElementChild as HTMLElement
+            ).className,
+        ).toContain('sm:items-start');
         await setField('#kinetix-announcement-title', 'Dark mode');
         await setField('#kinetix-announcement-body', 'Toggle it.');
 

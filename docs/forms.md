@@ -254,7 +254,8 @@ top it only grows downward.
 Pass **`placement="top"`** to anchor the panel 10vh from the top on `sm` and
 up (mobile stays centered, the keyboard owns that layout). Kinetix's record
 modals — create / edit / view in tables, simple resources and relation
-managers, plus the relation-manager attach picker — use it by default; short
+managers, the relation-manager attach picker, the role editor and the
+announcement form — use it by default; short
 dialogs (confirmations, deletes) stay centered. With `scroll-body` the panel's
 height budget shrinks by the same offset, so the pinned footer never drops
 below the fold.

@@ -242,6 +242,7 @@ onMounted(load);
             "
             :processing="saving"
             scroll-body
+            placement="top"
             @update:open="editing = $event"
         >
             <form

@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.182.1] - 2026-09-09
+
+### Changed
+
+- **The role editor and the announcement form open near the top too**
+  **(published)** — the two remaining form dialogs now pass
+  `placement="top"`, so every dialog you work in shares the layout introduced
+  in 0.182.0; confirmations and deletes stay centered.
+
 ## [0.182.0] - 2026-09-08
 
 Where a form dialog sits. shadcn centers its dialogs, which is right for a

@@ -246,6 +246,7 @@ function submit(): void {
         max-width="sm:max-w-2xl"
         :processing="saving"
         scroll-body
+        placement="top"
         @update:open="(value: boolean) => emit('update:open', value)"
     >
         <form
