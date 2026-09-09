@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.182.0] - 2026-09-08
+
+Where a form dialog sits. shadcn centers its dialogs, which is right for a
+two-line confirmation and wrong for a form you work in: the record modal opens
+on a loading skeleton, swaps in the fields, then shows validation errors, and a
+centered panel re-centered itself on each of those, moving the title under your
+eyes. Record modals now anchor near the top and only grow downward.
+
 ### Changed
 
 - **Record modals open near the top of the screen** **(published)** — the
