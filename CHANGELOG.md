@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.181.0] - 2026-09-08
+
+Rows you can click. An admin list is expected to open a record when you click
+anywhere on its row, and until now Kinetix only did that when a table wired
+`recordUrl()` by hand — never for the modal view/edit of a simple resource. A
+row now infers its target from its own `view` (else `edit`) action, navigates or
+opens the same modal accordingly, keeps every nested control (the "⋯" menu
+above all) to itself, and can be switched off per table or app-wide.
+
 ### Added
 
 - **Clickable table rows** **(published)** — clicking a row opens its record,
