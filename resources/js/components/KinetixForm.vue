@@ -127,9 +127,12 @@ const onUpdateValue = (name: string, value: any) => {
     precognition?.validate(name);
 };
 
+// Dismissals survive the submit: until the response lands, `page.props.errors`
+// is still the previous bag, so resetting here would re-flag every field the
+// user already fixed. The serverErrors watcher resets them when a fresh bag
+// arrives.
 const onSubmit = (e: Event) => {
     e.preventDefault();
-    dismissed.value = {};
     emit('submit', formValues.value);
 };
 </script>

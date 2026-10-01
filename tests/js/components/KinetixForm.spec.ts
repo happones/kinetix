@@ -93,6 +93,31 @@ describe('KinetixForm', () => {
         expect(wrapper.text()).not.toContain('The email is required.');
     });
 
+    // Inertia only replaces the error bag when the response lands, so while the
+    // request is in flight `page.props.errors` still holds the previous bag.
+    it('keeps a fixed field clean while the submit is in flight, until a fresh error bag arrives', async () => {
+        const wrapper = mountForm();
+        page.props.errors = { email: 'The email is required.' };
+        await nextTick();
+
+        await wrapper.get('input').setValue('me@example.com');
+        await wrapper.get('form').trigger('submit');
+        await nextTick();
+
+        expect(wrapper.text()).not.toContain('The email is required.');
+        expect(wrapper.get('input').attributes('aria-invalid')).not.toBe(
+            'true',
+        );
+
+        // The response fails again — even with the same message, the new bag
+        // re-reveals the error.
+        page.props.errors = { email: 'The email is required.' };
+        await nextTick();
+
+        expect(wrapper.text()).toContain('The email is required.');
+        expect(wrapper.get('input').attributes('aria-invalid')).toBe('true');
+    });
+
     it('emits submit with the current values', async () => {
         const wrapper = mountForm();
         await wrapper.get('input').setValue('me@example.com');

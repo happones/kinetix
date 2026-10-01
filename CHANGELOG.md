@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.182.2] - 2026-09-30
+
+### Fixed
+
+- **Resubmitting a form no longer re-flags the fields you already fixed**
+  **(published)** — after a failed submit, editing a field hides its error,
+  but pressing submit again brought every previous error back in red the
+  instant the request left, before the server had answered: `KinetixForm`
+  reset its dismissals on submit while `page.props.errors` still held the old
+  bag. Dismissals now survive the submit, and only the response's error bag
+  can flag a field again — including one that fails with the same message.
+
 ## [0.182.1] - 2026-09-09
 
 ### Changed
