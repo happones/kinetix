@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.184.0] - 2026-10-01
+
+Relation managers keep to the team. The attach and associate pickers, and the
+records created from a parent's page, now follow the related model's own
+Resource: its scoped query decides what can be offered and accepted, and its
+save hook stamps the tenant columns. Team apps should declare
+`$relatedResource` on their managers (see the security notes below).
+
 ### Added
 
 - **`RelationManager::$relatedResource`**: the related model's Resource. With
