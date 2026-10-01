@@ -89,6 +89,8 @@ $form = Form::make(Post::make())
 
 Two supported paths — pick per endpoint; **rules always live in the form**, never duplicated.
 
+An optional field (no `required()`) that carries rules is validated as `nullable` automatically, so clearing an optional `email()`/`url()`/`numeric()` field passes — don't add `->rules(['nullable'])` by hand. Rule objects (`Password::min(8)`, `Rule::unique()`) can go straight into `->rules([...])`.
+
 **Fluent** (inline in the controller):
 
 ```php

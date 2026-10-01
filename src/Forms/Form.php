@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Validator;
 use JsonSerializable;
 use ReflectionClass;
+use Stringable;
 
 class Form implements Arrayable, JsonSerializable
 {
@@ -202,7 +203,7 @@ class Form implements Arrayable, JsonSerializable
     /**
      * Get all validation rules.
      *
-     * @return array<string, array<int, string>>
+     * @return array<string, array<int, mixed>>
      */
     public function getValidationRules(): array
     {
@@ -371,11 +372,32 @@ class Form implements Arrayable, JsonSerializable
         return new FormData(
             schema: $serializedSchema,
             data: $this->data,
-            rules: $this->getValidationRules(),
+            rules: $this->clientRules(),
             operation: $this->operation,
             precognitive: $this->precognitive,
             validationUrl: $this->validationUrl,
             validationMethod: $this->validationMethod,
+        );
+    }
+
+    /**
+     * The validation rules as they travel to the client: strings only. A rule
+     * object is reduced to its rule string when it has one (`Rule::in()`,
+     * `Rule::unique()`) and left out otherwise, so a custom rule's public
+     * properties never end up in the page props.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function clientRules(): array
+    {
+        return array_map(
+            static fn (array $rules): array => array_values(array_filter(array_map(
+                static fn (mixed $rule): ?string => is_object($rule)
+                    ? ($rule instanceof Stringable ? (string) $rule : null)
+                    : (string) $rule,
+                $rules,
+            ), is_string(...))),
+            $this->getValidationRules(),
         );
     }
 

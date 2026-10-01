@@ -307,20 +307,38 @@ abstract class Field extends Component
     }
 
     /**
-     * @return array<int, string>
+     * The field's resolved validation rules.
+     *
+     * A field that isn't `required` but carries rules is also `nullable`: an
+     * emptied input reaches the validator as null (`ConvertEmptyStringsToNull`),
+     * and without it `email`, `url`, `numeric`, `min:`… would reject the very
+     * emptiness that makes the field optional. Presence rules (`required_if`,
+     * `accepted`, `present`…) are implicit, so they still run alongside it.
+     *
+     * Rule objects (`Password::min(8)`, `Rule::unique()`, a custom
+     * `ValidationRule`) pass through untouched — the validator takes them as-is.
+     *
+     * @return array<int, mixed>
      */
     public function getRules(?Model $record = null): array
     {
         $resolvedRules = [];
         foreach ($this->rules as $rule) {
-            if ($rule instanceof Closure) {
-                $res = $rule($record);
-                if ($res !== null) {
-                    $resolvedRules[] = (string) $res;
-                }
-            } else {
-                $resolvedRules[] = (string) $rule;
+            $resolved = $rule instanceof Closure ? $rule($record) : $rule;
+
+            if ($resolved === null) {
+                continue;
             }
+
+            $resolvedRules[] = is_object($resolved) ? $resolved : (string) $resolved;
+        }
+
+        if (
+            $resolvedRules !== []
+            && ! in_array('required', $resolvedRules, true)
+            && ! in_array('nullable', $resolvedRules, true)
+        ) {
+            array_unshift($resolvedRules, 'nullable');
         }
 
         return $resolvedRules;

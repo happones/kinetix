@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Optional fields accept being left empty** — a field that isn't
+  `required()` but carries rules (`email()`, `url()`, `numeric()`,
+  `minLength()`, `->rules([...])`) rejected the empty value: Laravel turns an
+  emptied input into `null`, and those rules fail on `null`. Such a field is
+  now validated as `nullable` too, so clearing it passes while a filled value
+  is still checked; presence rules (`required_if`, `accepted`…) still run, and
+  rule-less fields stay rule-less (so `validated()` keys are unchanged).
+- **Rule objects in `->rules()` no longer crash** — the documented
+  `->rules([Password::min(8)])` threw "could not be converted to string",
+  because every rule was cast to a string. Rule objects now reach the
+  validator untouched; the form payload sent to the browser carries rule
+  strings only.
+
 ## [0.182.2] - 2026-09-30
 
 ### Fixed

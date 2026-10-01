@@ -1241,6 +1241,13 @@ Chaining these methods on fields automatically populates the validation rules ar
 | `maxLength(int $length)` | `max:{$length}` |
 | `minLength(int $length)` | `min:{$length}` |
 
+**Optional fields accept an empty value.** A field that isn't `required()` but
+carries rules is validated as `nullable` too, so clearing an optional `email()`,
+`url()`, `numeric()` or `minLength()` field passes, while a filled value is still
+checked. (Laravel turns an emptied input into `null`, which those rules would
+otherwise reject.) Presence rules such as `required_if` still apply alongside
+it, and a field with no rules stays rule-free.
+
 ### 2. Conditional `required`
 `required()` also accepts a closure, evaluated on the server against the current record. The field is only required when the closure returns truthy:
 
