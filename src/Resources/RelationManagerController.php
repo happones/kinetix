@@ -6,6 +6,8 @@ namespace Happones\Kinetix\Resources;
 
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -25,8 +27,8 @@ use Illuminate\Support\Facades\Gate;
  * BelongsToMany attach/detach, and HasMany/MorphMany associate/dissociate.
  *
  * Every request is guarded by the manager's signed descriptor (parent model +
- * key + relation + manager class, bound to the user it was minted for,
- * expiring) — the same proven contract the TableRepeater autosave endpoints
+ * key + relation + manager class, bound to the user and team it was minted
+ * for, expiring) — the same proven contract the TableRepeater autosave endpoints
  * use — plus the PARENT's `update` policy (touching children is editing the
  * parent) and, for record CRUD, the CHILD model's own policy when it has one.
  */
@@ -478,20 +480,16 @@ class RelationManagerController
         );
         abort_unless(is_string($relationName) && $relationName !== '', 400, 'Invalid relation.');
 
-        // The descriptor is minted for one user and expires, so it can't be
-        // lifted from another user's page and replayed.
-        $mintedFor = $payload['user'] ?? null;
+        // The descriptor is bound to the user and team it was minted for, and
+        // expires ({@see SignedDescriptor}), so it can't be lifted from another
+        // user's page — or another team's — and replayed.
+        $rejection = SignedDescriptor::rejection($payload, $request);
         abort_if(
-            $mintedFor !== null && (string) $mintedFor !== (string) $request->user()?->getAuthIdentifier(),
+            $rejection !== null,
             403,
-            (string) __('kinetix.table_write_forbidden'),
-        );
-
-        $expiresAt = $payload['expires'] ?? null;
-        abort_if(
-            is_int($expiresAt) && $expiresAt < now()->getTimestamp(),
-            403,
-            (string) __('kinetix.form_session_expired'),
+            $rejection === DescriptorRejection::Expired
+                ? (string) __('kinetix.form_session_expired')
+                : (string) __('kinetix.table_write_forbidden'),
         );
 
         $parent = $parentClass::query()->whereKey($payload['key'] ?? null)->first();

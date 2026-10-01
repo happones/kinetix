@@ -9,11 +9,11 @@ use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\CalendarData;
 use Happones\Kinetix\Data\CalendarEventData;
 use Happones\Kinetix\Support\KinetixTimezone;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Crypt;
 
 /**
  * Builds a month/week/day-view calendar of events from an Eloquent query.
@@ -267,23 +267,17 @@ class Calendar
     /**
      * Mint the signed descriptor {@see CalendarMoveController} trusts: the
      * model, the date columns to rewrite, the ability and scope bounding the
-     * move, plus the user it was minted for and an expiry so a leaked token
-     * isn't replayable by someone else.
+     * move, plus the user/team/expiry binding ({@see SignedDescriptor}) so a
+     * leaked token isn't replayable by someone else.
      */
     protected function buildMoveDescriptor(): string
     {
-        $ttl = config('kinetix.tables.token_ttl', 1440);
-
-        return Crypt::encrypt([
+        return SignedDescriptor::seal([
             'model'       => $this->getModelClass(),
             'dateColumn'  => $this->dateColumn,
             'endColumn'   => $this->endColumn,
             'moveAbility' => $this->moveAbility,
             'moveScope'   => $this->moveScope,
-            'user'        => auth()->id(),
-            'expires'     => is_numeric($ttl) && (int) $ttl > 0
-                ? now()->getTimestamp() + ((int) $ttl * 60)
-                : null,
         ]);
     }
 

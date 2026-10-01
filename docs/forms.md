@@ -551,7 +551,7 @@ so options are fetched on demand instead of shipping a table to the browser.
 ::: warning Scope remote search in a multi-tenant app
 A searchable Select queries the related model directly, so with no bound it will
 happily return every tenant's labels, 20 rows per request. The search descriptor
-is bound to the user it was minted for and expires
+is bound to the user and team it was minted for and expires
 (`kinetix.tables.token_ttl`), but that stops replay — not a legitimate user
 searching too widely. Declare the tenant key:
 

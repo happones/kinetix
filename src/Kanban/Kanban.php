@@ -9,10 +9,10 @@ use Closure;
 use Happones\Kinetix\Data\KanbanCardData;
 use Happones\Kinetix\Data\KanbanColumnData;
 use Happones\Kinetix\Data\KanbanData;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 use UnitEnum;
 
 /**
@@ -175,23 +175,17 @@ class Kanban
     /**
      * Mint the signed descriptor {@see KanbanMoveController} trusts: the model,
      * the status column and allowed keys, the ability and scope bounding the
-     * move, plus the user it was minted for and an expiry so a leaked token
-     * isn't replayable by someone else.
+     * move, plus the user/team/expiry binding ({@see SignedDescriptor}) so a
+     * leaked token isn't replayable by someone else.
      */
     protected function buildMoveDescriptor(): string
     {
-        $ttl = config('kinetix.tables.token_ttl', 1440);
-
-        return Crypt::encrypt([
+        return SignedDescriptor::seal([
             'model'        => $this->getModelClass(),
             'statusColumn' => $this->statusColumn,
             'statuses'     => array_map(strval(...), array_keys($this->statuses)),
             'moveAbility'  => $this->moveAbility,
             'moveScope'    => $this->moveScope,
-            'user'         => auth()->id(),
-            'expires'      => is_numeric($ttl) && (int) $ttl > 0
-                ? now()->getTimestamp() + ((int) $ttl * 60)
-                : null,
         ]);
     }
 

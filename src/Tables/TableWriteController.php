@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables;
 
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -25,10 +27,11 @@ use Throwable;
  * decrypts. The descriptor is the whole basis of trust, so it is defended on
  * four axes, in this order:
  *
- * 1. Binding — the descriptor records the user it was minted for. A token
- *    leaked from an admin's payload is useless to anyone else, so a lower
- *    privileged user cannot replay the wider `columns` allowlist an admin's
- *    table embedded.
+ * 1. Binding — the descriptor records the user it was minted for and the team
+ *    it was minted in ({@see SignedDescriptor}). A token leaked from an admin's
+ *    payload is useless to anyone else, so a lower privileged user cannot
+ *    replay the wider `columns` allowlist an admin's table embedded — nor can
+ *    one team's token be replayed under another team's endpoints.
  * 2. Freshness — descriptors expire (see `kinetix.tables.token_ttl`), bounding
  *    the replay window of a token captured from a long-lived page.
  * 3. Scoping — the record is resolved through the table's own constraints (the
@@ -235,24 +238,17 @@ class TableWriteController
             ], 400);
         }
 
-        // A descriptor is minted for one user. Anyone else presenting it is
-        // replaying a leaked token — and would otherwise inherit the wider
-        // editable-columns allowlist of whoever it was minted for.
-        $mintedFor = $payload['user'] ?? null;
+        // The descriptor is bound to the user and team it was minted for, and
+        // expires ({@see SignedDescriptor}). Anyone else presenting it is
+        // replaying a leaked token.
+        $rejection = SignedDescriptor::rejection($payload, $request);
 
-        if ($mintedFor !== null && (string) $mintedFor !== (string) $request->user()?->getAuthIdentifier()) {
+        if ($rejection !== null) {
             return response()->json([
                 'status'  => 'error',
-                'message' => __('kinetix.table_write_forbidden'),
-            ], 403);
-        }
-
-        $expiresAt = $payload['expires'] ?? null;
-
-        if (is_int($expiresAt) && $expiresAt < now()->getTimestamp()) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => __('kinetix.table_descriptor_expired'),
+                'message' => $rejection === DescriptorRejection::Expired
+                    ? __('kinetix.table_descriptor_expired')
+                    : __('kinetix.table_write_forbidden'),
             ], 403);
         }
 

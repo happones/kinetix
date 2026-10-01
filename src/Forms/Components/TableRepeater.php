@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms\Components;
 
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 
 /**
  * A Repeater rendered as a spreadsheet-style table: each item is a row, each
@@ -125,17 +125,11 @@ class TableRepeater extends Repeater
                 $data->schema ?? [],
             )));
 
-            $ttl = config('kinetix.tables.token_ttl', 1440);
-
-            $data->autosaveToken = Crypt::encrypt([
+            $data->autosaveToken = SignedDescriptor::seal([
                 'parent'   => $record::class,
                 'key'      => $record->getKey(),
                 'relation' => $this->relationship,
                 'columns'  => $columns,
-                'user'     => auth()->id(),
-                'expires'  => is_numeric($ttl) && (int) $ttl > 0
-                    ? now()->getTimestamp() + ((int) $ttl * 60)
-                    : null,
             ]);
         }
 

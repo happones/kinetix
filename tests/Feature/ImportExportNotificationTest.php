@@ -11,13 +11,13 @@ use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Imports\ImportColumn;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -403,7 +403,7 @@ class ImportExportNotificationTest extends TestCase
 
         $this->postJson(route('kinetix.imports.start'), [
             'importer'  => CustomMessageImporter::token(),
-            'fileToken' => Crypt::encryptString('kinetix-imports/widgets.csv'),
+            'fileToken' => SignedDescriptor::seal(['path' => 'kinetix-imports/widgets.csv']),
             'mapping'   => ['name' => 0],
         ])->assertOk()->assertJson([
             'status'  => 'queued',

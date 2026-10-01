@@ -1088,12 +1088,14 @@ return [
         // ->recordModals(Resource::class, source: 'row').
         'record_source' => env('KINETIX_TABLES_RECORD_SOURCE', 'server'),
 
-        // How long (minutes) a table's signed write descriptor stays valid. The
-        // descriptor authorizes inline cell edits, reordering and kanban moves,
-        // and is bound to the user it was minted for, so this bounds the replay
-        // window of a token captured from a long-lived page. Beyond it the
-        // endpoints answer 403 and the page must be reloaded. Null disables
-        // expiry (not recommended).
+        // How long (minutes) a signed endpoint descriptor stays valid. Every
+        // descriptor a page hands the browser — table writes and reordering,
+        // kanban/calendar moves, record modals, relation managers, searchable
+        // selects, uploads, table repeaters, import/export/report launchers —
+        // is bound to the user it was minted for and the team it was minted
+        // in, so this bounds the replay window of a token captured from a
+        // long-lived page. Beyond it the endpoints refuse the token and the
+        // page must be reloaded. Null disables expiry (not recommended).
         'token_ttl' => env('KINETIX_TABLES_TOKEN_TTL', 1440),
 
         // Hard ceiling on the `perPage` a request may ask for, so a crafted

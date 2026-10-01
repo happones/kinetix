@@ -6,6 +6,8 @@ namespace Happones\Kinetix\Forms;
 
 use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,18 +35,17 @@ class SearchController
             return response()->json(['message' => __('kinetix.search_invalid_model')], 400);
         }
 
-        // The descriptor is minted for one user and expires, so it can't be
-        // lifted from someone else's payload and replayed.
-        $mintedFor = $descriptor['user'] ?? null;
+        // The descriptor is bound to the user and team it was minted for, and
+        // expires ({@see SignedDescriptor}), so it can't be lifted from
+        // someone else's payload and replayed.
+        $rejection = SignedDescriptor::rejection($descriptor, $request);
 
-        if ($mintedFor !== null && (string) $mintedFor !== (string) $request->user()?->getAuthIdentifier()) {
-            return response()->json(['message' => __('kinetix.search_forbidden')], 403);
-        }
-
-        $expiresAt = $descriptor['expires'] ?? null;
-
-        if (is_int($expiresAt) && $expiresAt < now()->getTimestamp()) {
-            return response()->json(['message' => __('kinetix.search_expired')], 403);
+        if ($rejection !== null) {
+            return response()->json([
+                'message' => $rejection === DescriptorRejection::Expired
+                    ? __('kinetix.search_expired')
+                    : __('kinetix.search_forbidden'),
+            ], 403);
         }
 
         $labelColumn   = (string) ($descriptor['label'] ?? 'name');

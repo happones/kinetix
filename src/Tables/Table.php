@@ -19,6 +19,7 @@ use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
 use Happones\Kinetix\Tables\Columns\ImageColumn;
@@ -29,7 +30,6 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
 
 class Table implements Arrayable, JsonSerializable
@@ -1177,17 +1177,15 @@ class Table implements Arrayable, JsonSerializable
      * Beyond the model and the editable-columns allowlist, it carries everything
      * {@see TableWriteController} needs to fail closed without the client ever
      * naming a class: the resource (so records resolve through the resource's own
-     * query), the scope bounding the lookup, the ability to enforce, the user it
-     * was minted for (so a leaked token isn't replayable by someone else), and
-     * an expiry.
+     * query), the scope bounding the lookup, the ability to enforce, plus the
+     * user/team/expiry binding ({@see SignedDescriptor}) so a leaked token isn't
+     * replayable by someone else.
      *
      * @param array<int, string> $editableColumns
      */
     protected function buildWriteDescriptor(array $editableColumns): string
     {
-        $ttl = config('kinetix.tables.token_ttl', 1440);
-
-        return Crypt::encrypt([
+        return SignedDescriptor::seal([
             'model'    => $this->getModelClass(),
             'columns'  => $editableColumns,
             'reorder'  => $this->reorderColumn,
@@ -1195,10 +1193,6 @@ class Table implements Arrayable, JsonSerializable
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
             'relation' => $this->writeRelation,
             'ability'  => $this->writeAbility,
-            'user'     => auth()->id(),
-            'expires'  => is_numeric($ttl) && (int) $ttl > 0
-                ? now()->getTimestamp() + ((int) $ttl * 60)
-                : null,
         ]);
     }
 
@@ -1379,7 +1373,7 @@ class Table implements Arrayable, JsonSerializable
 
         return new RecordModalsData(
             enabled: true,
-            token: Crypt::encrypt([
+            token: SignedDescriptor::seal([
                 'model'    => $modelClass,
                 'resource' => $resource,
             ]),

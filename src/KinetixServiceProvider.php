@@ -2062,28 +2062,14 @@ class KinetixServiceProvider extends ServiceProvider
     {
         Inertia::share('kinetix_config', function () {
             $routePrefix = config('kinetix.route_prefix', '_kinetix');
-            $teamKey     = null;
 
-            if (config('kinetix.teams', false)) {
-                // URL segment → the team's ROUTE key (slug/uuid-aware). The
-                // param may be a bound MODEL when the host registered a route
-                // binding, so never interpolate it directly — that fatals with
-                // "Object of class Team could not be converted to string".
-                // `{team}` is accepted too (the Billing routes use that name).
-                $team = request()->route('current_team') ?? request()->route('team');
+            // The team's ROUTE key (slug/uuid-aware) — the same value signed
+            // descriptors are bound to, so an endpoint called under this
+            // prefix always matches the team its descriptor was minted in.
+            $teamKey = KinetixTeams::currentRouteKey();
 
-                if ($team instanceof Model) {
-                    $team = $team->getRouteKey();
-                }
-
-                $team ??= auth()->check() && auth()->user()->currentTeam
-                    ? auth()->user()->currentTeam->getRouteKey()
-                    : null;
-
-                if ($team !== null && $team !== '') {
-                    $teamKey     = $team;
-                    $routePrefix = "{$team}/{$routePrefix}";
-                }
+            if ($teamKey !== null) {
+                $routePrefix = "{$teamKey}/{$routePrefix}";
             }
 
             return [

@@ -9,9 +9,9 @@ use Happones\Kinetix\Data\ImportPreviewData;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
 use Happones\Kinetix\Support\KinetixDisk;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Throwable;
 
 class ImportController
@@ -204,17 +204,23 @@ class ImportController
             settings: $importer->settings(),
             autoMapping: $autoMapping,
             isExactMatch: $importer::isExactMatch($parsed['headers'], $autoMapping),
-            fileToken: Crypt::encryptString($path),
+            fileToken: SignedDescriptor::seal(['path' => $path]),
             totalRows: $total,
         );
     }
 
     /**
-     * Decrypt and sanitize the stored file path from the token.
+     * Decrypt and sanitize the stored file path from the token — which is bound
+     * to the user, team and expiry it was minted with ({@see SignedDescriptor}).
      */
     protected function resolvePath(string $token): string
     {
-        $path = Crypt::decryptString($token);
+        $payload = SignedDescriptor::open($token);
+        $path    = $payload['path'] ?? null;
+
+        if ($payload === null || ! is_string($path) || SignedDescriptor::rejection($payload, request()) !== null) {
+            throw new \RuntimeException('Invalid file token.');
+        }
 
         // Constrain access to the import storage directory to prevent traversal.
         if (! str_starts_with($path, $this->storageDirectory.'/') || str_contains($path, '..')) {

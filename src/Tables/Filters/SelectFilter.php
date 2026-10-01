@@ -6,9 +6,9 @@ namespace Happones\Kinetix\Tables\Filters;
 
 use Closure;
 use Happones\Kinetix\Support\Contracts\HasLabel;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 
 class SelectFilter extends Filter
@@ -242,7 +242,7 @@ class SelectFilter extends Filter
         ];
 
         if ($this->searchModel !== null) {
-            $data['searchToken'] = Crypt::encrypt([
+            $data['searchToken'] = SignedDescriptor::seal([
                 'model'   => $this->searchModel,
                 'label'   => $this->searchLabelColumn,
                 'columns' => $this->searchColumns,

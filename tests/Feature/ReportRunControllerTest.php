@@ -111,6 +111,33 @@ class ReportRunControllerTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_launch_rejects_an_expired_report_token(): void
+    {
+        Queue::fake();
+
+        $token = ReportRunControllerTestReport::token();
+
+        $this->travel((int) config('kinetix.tables.token_ttl') + 1)->minutes();
+
+        $this->postJson(route('kinetix.report-runs.launch'), ['report' => $token])
+            ->assertStatus(422);
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_launch_rejects_a_report_token_minted_for_another_user(): void
+    {
+        Queue::fake();
+
+        $token = ReportRunControllerTestReport::token();
+
+        $this->actingAs(ReportRunControllerUser::create(['name' => 'Grace']))
+            ->postJson(route('kinetix.report-runs.launch'), ['report' => $token])
+            ->assertStatus(422);
+
+        Queue::assertNothingPushed();
+    }
+
     public function test_cancel_marks_a_cancellable_run_cancelled(): void
     {
         $run = ReportRun::create([

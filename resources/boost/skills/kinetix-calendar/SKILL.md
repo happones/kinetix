@@ -71,7 +71,7 @@ Calendar::make(Event::query())
 
 Dragging an event to another day (month view) or hour slot (week/day) POSTs
 `{model, recordId, start}` to `{prefix}/tables/calendar-move` — the signed
-descriptor mirrors Kanban's (user-bound, expiring, columns sealed in). The end
+descriptor mirrors Kanban's (user- and team-bound, expiring, columns sealed in). The end
 column shifts by the same delta so durations survive. While dragging, the
 source chip dims and the hovered cell/slot highlights with a dashed ghost chip
 previewing the landing spot. Moves are optimistic

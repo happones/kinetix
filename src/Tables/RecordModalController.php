@@ -7,11 +7,12 @@ namespace Happones\Kinetix\Tables;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -132,20 +133,29 @@ class RecordModalController
     }
 
     /**
-     * Decode the signed descriptor into the trusted [model, resource] pair.
+     * Decode the signed descriptor into the trusted [model, resource] pair. The
+     * descriptor is bound to the user and team it was minted for, and expires
+     * ({@see SignedDescriptor}).
      *
      * @return array{0: class-string<Model>, 1: class-string<\Happones\Kinetix\Resources\Resource>}
      */
     protected function descriptor(Request $request): array
     {
-        try {
-            $payload = Crypt::decrypt((string) $request->input('token'));
-        } catch (\Throwable) {
-            abort(400, 'Invalid record descriptor.');
-        }
+        $payload = SignedDescriptor::open((string) $request->input('token'));
 
-        $modelClass = is_array($payload) ? ($payload['model'] ?? null) : null;
-        $resource   = is_array($payload) ? ($payload['resource'] ?? null) : null;
+        abort_if($payload === null, 400, 'Invalid record descriptor.');
+
+        $rejection = SignedDescriptor::rejection($payload, $request);
+        abort_if(
+            $rejection !== null,
+            403,
+            $rejection === DescriptorRejection::Expired
+                ? (string) __('kinetix.form_session_expired')
+                : (string) __('kinetix.table_write_forbidden'),
+        );
+
+        $modelClass = $payload['model']    ?? null;
+        $resource   = $payload['resource'] ?? null;
 
         abort_unless(
             is_string($modelClass) && class_exists($modelClass) && is_subclass_of($modelClass, Model::class),

@@ -45,6 +45,39 @@ class KinetixTeams
     }
 
     /**
+     * The active team's ROUTE key — the `{current_team}` segment Kinetix's own
+     * endpoints are called under: the request's segment (a bound model's route
+     * key), else the user's `currentTeam` route key. Null when teams are off or
+     * no team resolves.
+     *
+     * A URL value, not a scoping key — scope data with {@see keyFor()}. It
+     * performs no membership check, and no query on a team-routed request.
+     */
+    public static function currentRouteKey(?Request $request = null): int|string|null
+    {
+        if (! config('kinetix.teams', false)) {
+            return null;
+        }
+
+        $request ??= request();
+
+        // `{team}` is accepted too (the Billing routes use that name). The
+        // param may be a bound MODEL, so it is never interpolated directly.
+        $team = $request->route('current_team') ?? $request->route('team');
+
+        if ($team instanceof Model) {
+            $team = $team->getRouteKey();
+        }
+
+        if ($team === null || $team === '') {
+            $user = $request->user() ?? auth()->user();
+            $team = $user?->currentTeam?->getRouteKey();
+        }
+
+        return $team === '' ? null : $team;
+    }
+
+    /**
      * Resolve the current team's PRIMARY KEY for data scoping. The
      * `{current_team}` route segment is the team's ROUTE key (the host may
      * route teams by slug/uuid — `Team::getRouteKeyName()`), so it must never

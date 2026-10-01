@@ -16,6 +16,7 @@ use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\RelationManagerData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +25,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\Crypt;
 use JsonSerializable;
 use RuntimeException;
 
@@ -398,24 +398,18 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     }
 
     /**
-     * Signed descriptor: parent + relation + manager, bound to the user it was
-     * minted for and expiring — the contract every relation endpoint
+     * Signed descriptor: parent + relation + manager, bound to the user and team
+     * it was minted for and expiring — the contract every relation endpoint
      * (record CRUD, attach/detach, associate/dissociate) re-validates.
      */
     protected function mintDescriptor(): string
     {
-        $ttl = config('kinetix.tables.token_ttl', 1440);
-
-        return Crypt::encrypt([
+        return SignedDescriptor::seal([
             'parent'   => $this->parent::class,
             'key'      => $this->parent->getKey(),
             'relation' => static::$relationship,
             'manager'  => static::class,
             'title'    => static::$recordTitleAttribute,
-            'user'     => auth()->id(),
-            'expires'  => is_numeric($ttl) && (int) $ttl > 0
-                ? now()->getTimestamp() + ((int) $ttl * 60)
-                : null,
         ]);
     }
 

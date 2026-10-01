@@ -6,8 +6,8 @@ namespace Happones\Kinetix\ReportsCenter;
 
 use Carbon\CarbonInterface;
 use Happones\Kinetix\Exports\Exporter;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
 
 /**
@@ -90,9 +90,9 @@ abstract class Report extends Exporter
      */
     public static function fromToken(string $token): self
     {
-        $class = Crypt::decryptString($token);
+        $class = SignedDescriptor::classFrom($token, self::class);
 
-        if (! class_exists($class) || ! is_subclass_of($class, self::class)) {
+        if ($class === null) {
             throw new RuntimeException('Invalid report token.');
         }
 

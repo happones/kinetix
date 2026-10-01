@@ -1051,8 +1051,14 @@ signed descriptor. That descriptor is defended on four axes:
 |---|---|
 | **Scoping** | The record is resolved through the table's own constraints, so a tampered `recordId` outside the table is a 404, not a write. |
 | **Authorization** | The model's policy decides — `update`, or the ability from `writeAbility()`. |
-| **Binding** | The descriptor records the user it was minted for, so a token lifted from an admin's page (with a wider editable-column allowlist) is useless to anyone else. |
+| **Binding** | The descriptor records the user it was minted for, so a token lifted from an admin's page (with a wider editable-column allowlist) is useless to anyone else. With `kinetix.teams` on it also records the team it was minted in, so it can't be replayed under another team's `{current_team}` endpoints (where the same user may hold a wider role). |
 | **Freshness** | Descriptors expire after `kinetix.tables.token_ttl` minutes (default 1440). |
+
+The same user/team/expiry binding guards every descriptor Kinetix hands the
+browser, not just table writes: kanban and calendar moves, record modals,
+relation managers, searchable selects and select filters, uploads, table
+repeaters, and the import/export/report launch tokens. A token that predates
+the binding, or has expired, is refused and the page must be reloaded.
 
 Scoping is automatic for the common case: Kinetix reads the base query's simple
 `where` clauses when it mints the descriptor, so

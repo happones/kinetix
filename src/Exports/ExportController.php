@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Exports;
 
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
@@ -96,16 +97,9 @@ class ExportController
             return $invalid();
         }
 
-        // Bound to the user it was minted for, and expiring.
-        $mintedFor = $payload['user'] ?? null;
-
-        if ($mintedFor !== null && (string) $mintedFor !== (string) $request->user()?->getAuthIdentifier()) {
-            return response()->json(['message' => __('kinetix.export_forbidden')], 403);
-        }
-
-        $expiresAt = $payload['expires'] ?? null;
-
-        if (is_int($expiresAt) && $expiresAt < now()->getTimestamp()) {
+        // Bound to the user it was minted for, and expiring. The export routes
+        // aren't team-prefixed, so the team claim has nothing to compare to.
+        if (SignedDescriptor::rejection($payload, $request) !== null) {
             return response()->json(['message' => __('kinetix.export_forbidden')], 403);
         }
 

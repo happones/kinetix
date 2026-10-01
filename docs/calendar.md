@@ -269,10 +269,11 @@ screen-reader-only instructions element.
 ### How the move is secured
 
 Exactly like [Kanban moves](/kanban#how-the-move-is-secured): `toData()` bakes
-a signed descriptor (`Crypt::encrypt`) of the model, the date columns, the
+a signed descriptor (encrypted) of the model, the date columns, the
 move ability and scope — the endpoint decrypts it and only ever rewrites the
 declared columns, so a client can't tamper with the target model or column.
-The descriptor is user-bound and expires (`kinetix.tables.token_ttl`).
+The descriptor is bound to the user and team it was minted for and expires
+(`kinetix.tables.token_ttl`).
 
 | Method | Route                             | Name                            |
 | ------ | --------------------------------- | ------------------------------- |

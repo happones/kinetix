@@ -25,9 +25,9 @@ class RecordModalsData extends Data
      */
     public function __construct(
         public bool $enabled,
-        // Signed descriptor. Resource scope: encrypted { model, resource }.
-        // Relation scope: the relation manager's descriptor (parent + relation
-        // + manager, user-bound, expiring). Sent with every
+        // Signed descriptor, bound to the user/team/expiry it was minted with.
+        // Resource scope: { model, resource }. Relation scope: the relation
+        // manager's descriptor (parent + relation + manager). Sent with every
         // resolve/store/update/destroy request so the endpoint can trust the
         // target without the client naming it.
         public string $token,

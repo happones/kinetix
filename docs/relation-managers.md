@@ -366,8 +366,8 @@ That's the whole implementation — render the manager on the parent page as in
 **How it stays safe (the contract):**
 
 - Every request carries the manager's **signed descriptor** (parent model +
-  key + relationship + manager class, bound to the user it was minted for,
-  expiring per `kinetix.tables.token_ttl`). The client never names a class.
+  key + relationship + manager class, bound to the user and team it was minted
+  for, expiring per `kinetix.tables.token_ttl`). The client never names a class.
 - **Create goes THROUGH the relationship** — `HasMany`/`MorphMany` stamp the
   foreign key (and morph type); `BelongsToMany` creates the record **and**
   attaches it. A submitted FK is ignored.
@@ -460,8 +460,8 @@ class TagsRelationManager extends RelationManager
   attaching — see §11.
 - **Detach** confirms first and removes **pivot rows only** — the related
   records are never deleted. Row and bulk both work.
-- **Security**: every request re-validates the signed descriptor (user-bound,
-  expiring), loads the parent, and — when the parent model has a policy —
+- **Security**: every request re-validates the signed descriptor (user- and
+  team-bound, expiring), loads the parent, and — when the parent model has a policy —
   requires `update` on the PARENT (attaching/detaching children is editing
   the parent). Non-`BelongsToMany` relations with these actions throw at
   serialize time instead of rendering dead buttons.

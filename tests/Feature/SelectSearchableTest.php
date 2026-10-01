@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Forms\Components\Select;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Application;
@@ -97,7 +98,7 @@ class SelectSearchableTest extends TestCase
         SearchAuthor::create(['name' => 'Ada Lovelace', 'email' => 'ada@x.test']);
         SearchAuthor::create(['name' => 'Alan Turing', 'email' => 'alan@x.test']);
 
-        $token = Crypt::encrypt([
+        $token = SignedDescriptor::seal([
             'model'   => SearchAuthor::class,
             'label'   => 'name',
             'columns' => ['name'],

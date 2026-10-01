@@ -27,6 +27,11 @@ class RecordModalTeam extends Model
     public $timestamps = false;
 
     protected $guarded = [];
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 }
 
 class RecordModalTeamUser extends Authenticatable
@@ -128,6 +133,7 @@ class RecordModalCrudTeamsTest extends TestCase
         Schema::create('rm_teams', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name');
+            $table->string('slug');
         });
 
         Schema::create('rm_users', function (Blueprint $table) {
@@ -142,8 +148,8 @@ class RecordModalCrudTeamsTest extends TestCase
             $table->unsignedInteger('team_id');
         });
 
-        $this->teamA = RecordModalTeam::create(['name' => 'Team A']);
-        $this->teamB = RecordModalTeam::create(['name' => 'Team B']);
+        $this->teamA = RecordModalTeam::create(['name' => 'Team A', 'slug' => 'team-a']);
+        $this->teamB = RecordModalTeam::create(['name' => 'Team B', 'slug' => 'team-b']);
 
         TeamScopedWidget::create(['name' => 'Alpha', 'team_id' => $this->teamA->id]);
         TeamScopedWidget::create(['name' => 'Bravo', 'team_id' => $this->teamB->id]);
@@ -189,6 +195,14 @@ class RecordModalCrudTeamsTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('form.data.name', 'Alpha');
+    }
+
+    public function test_a_descriptor_minted_in_one_team_is_refused_under_another(): void
+    {
+        $this->postJson(
+            route('kinetix.tables.record.resolve', ['current_team' => 'team-b']),
+            ['token' => $this->token(), 'mode' => 'edit', 'id' => 2],
+        )->assertForbidden();
     }
 
     public function test_resolve_rejects_a_record_from_another_team(): void

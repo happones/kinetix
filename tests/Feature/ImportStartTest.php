@@ -8,10 +8,10 @@ use Happones\Kinetix\Actions\ImportAction;
 use Happones\Kinetix\Imports\ImportColumn;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Queue;
 use ReflectionProperty;
 
@@ -51,7 +51,7 @@ class ImportStartTest extends TestCase
 {
     private function fileToken(): string
     {
-        return Crypt::encryptString('kinetix-imports/sample.csv');
+        return SignedDescriptor::seal(['path' => 'kinetix-imports/sample.csv']);
     }
 
     public function test_valid_mapping_dispatches_the_import_job(): void

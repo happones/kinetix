@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms\Components;
 
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 
 class FileUpload extends Field
 {
@@ -115,8 +115,9 @@ class FileUpload extends Field
         $data->maxFiles          = $this->maxFiles;
 
         // Storage configuration is signed so the client cannot tamper with the
-        // target disk/directory or bypass the file constraints on upload.
-        $data->uploadToken = Crypt::encrypt([
+        // target disk/directory or bypass the file constraints on upload, and
+        // bound to the user/team/expiry it was minted with.
+        $data->uploadToken = SignedDescriptor::seal([
             'disk'      => $this->resolveDisk(),
             'directory' => $this->directory,
             'accept'    => $this->acceptedFileTypes,

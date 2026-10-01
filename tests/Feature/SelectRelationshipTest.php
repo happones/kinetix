@@ -8,6 +8,7 @@ use Happones\Kinetix\Forms\Components\CheckboxList;
 use Happones\Kinetix\Forms\Components\Radio;
 use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -231,7 +232,7 @@ class SelectRelationshipTest extends TestCase
 
     public function test_the_search_endpoint_applies_the_token_modifier(): void
     {
-        $token = Crypt::encrypt([
+        $token = SignedDescriptor::seal([
             'model'    => RelAuthor::class,
             'label'    => 'name',
             'columns'  => ['name'],

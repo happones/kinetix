@@ -6,10 +6,10 @@ namespace Happones\Kinetix\Imports;
 
 use Happones\Kinetix\Data\ImportColumnData;
 use Happones\Kinetix\Data\ImportSettingsData;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
@@ -98,21 +98,24 @@ abstract class Importer
     }
 
     /**
-     * A signed token identifying this importer class, safe to send to the frontend.
+     * A signed token identifying this importer class, safe to send to the
+     * frontend. Bound to the user, team and expiry it was minted with
+     * ({@see SignedDescriptor}).
      */
     public static function token(): string
     {
-        return Crypt::encryptString(static::class);
+        return SignedDescriptor::seal(['class' => static::class]);
     }
 
     /**
-     * Resolve an importer instance from a signed token, validating the class.
+     * Resolve an importer instance from a signed token, validating the class
+     * and the token's binding to the current request.
      */
     public static function fromToken(string $token): self
     {
-        $class = Crypt::decryptString($token);
+        $class = SignedDescriptor::classFrom($token, self::class);
 
-        if (! class_exists($class) || ! is_subclass_of($class, self::class)) {
+        if ($class === null) {
             throw new RuntimeException('Invalid importer token.');
         }
 

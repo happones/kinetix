@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms;
 
 use Closure;
+use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
@@ -25,11 +26,10 @@ class UploadController
             'token' => ['required', 'string'],
         ]);
 
-        try {
-            /** @var array<string, mixed> $config */
-            $config = Crypt::decrypt($request->string('token')->toString());
-        } catch (Throwable $e) {
-            return response()->json(['message' => __('kinetix.upload_invalid_field')], 422);
+        $config = $this->config($request);
+
+        if ($config instanceof JsonResponse) {
+            return $config;
         }
 
         $validator = Validator::make(
@@ -63,11 +63,10 @@ class UploadController
             'token' => ['required', 'string'],
         ]);
 
-        try {
-            /** @var array<string, mixed> $config */
-            $config = Crypt::decrypt($request->string('token')->toString());
-        } catch (Throwable $e) {
-            return response()->json(['message' => __('kinetix.upload_invalid_field')], 422);
+        $config = $this->config($request);
+
+        if ($config instanceof JsonResponse) {
+            return $config;
         }
 
         $disk = (string) ($config['disk'] ?? config('kinetix.filesystem.disk', 'public'));
@@ -86,6 +85,34 @@ class UploadController
         Storage::disk($disk)->delete($path);
 
         return response()->json(['status' => 'deleted']);
+    }
+
+    /**
+     * Decode the field's signed storage config — bound to the user and team it
+     * was minted for, and expiring ({@see SignedDescriptor}) — or the error
+     * response to send back.
+     *
+     * @return array<string, mixed>|JsonResponse
+     */
+    protected function config(Request $request): array|JsonResponse
+    {
+        $config = SignedDescriptor::open($request->string('token')->toString());
+
+        if ($config === null) {
+            return response()->json(['message' => __('kinetix.upload_invalid_field')], 422);
+        }
+
+        $rejection = SignedDescriptor::rejection($config, $request);
+
+        if ($rejection !== null) {
+            return response()->json([
+                'message' => $rejection === DescriptorRejection::Expired
+                    ? __('kinetix.form_session_expired')
+                    : __('kinetix.upload_invalid_field'),
+            ], 403);
+        }
+
+        return $config;
     }
 
     /**

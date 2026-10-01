@@ -28,6 +28,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   validator untouched; the form payload sent to the browser carries rule
   strings only.
 
+### Security
+
+- **Every signed endpoint descriptor is bound to the user, the team and an
+  expiry.** Table writes, kanban/calendar moves, relation managers and table
+  repeaters were already user-bound and expiring, but not team-bound — a
+  token minted in one team could be replayed under another team's
+  `{current_team}` endpoints, where the same user may hold a wider role. The
+  record-modal, upload and select-filter search tokens, the import file token
+  and the exporter/importer/report launch tokens carried no binding at all and
+  never expired. All of them now go through one helper (`SignedDescriptor`)
+  that stamps the user, the team's route key and an expiry
+  (`kinetix.tables.token_ttl`), and every endpoint refuses a token minted for
+  someone else, in another team, or past its expiry. Export endpoints are not
+  team-prefixed, so they check user and expiry.
+- **Upgrade note:** tokens minted before this release carry no binding and are
+  refused, so a page left open across the deploy has to be reloaded once. If
+  you mint a descriptor for a Kinetix endpoint yourself (e.g. a search token
+  built with `Crypt::encrypt`), build it with `SignedDescriptor::seal()`
+  instead.
+
 ## [0.182.2] - 2026-09-30
 
 ### Fixed

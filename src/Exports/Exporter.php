@@ -6,10 +6,10 @@ namespace Happones\Kinetix\Exports;
 
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
@@ -22,21 +22,23 @@ abstract class Exporter
 
     /**
      * A signed token identifying this exporter class, safe to send to the
-     * frontend (used by ExportAction to hit the export-start endpoint).
+     * frontend (used by ExportAction to hit the export-start endpoint). Bound
+     * to the user, team and expiry it was minted with ({@see SignedDescriptor}).
      */
     public static function token(): string
     {
-        return Crypt::encryptString(static::class);
+        return SignedDescriptor::seal(['class' => static::class]);
     }
 
     /**
-     * Resolve an exporter instance from a signed token, validating the class.
+     * Resolve an exporter instance from a signed token, validating the class
+     * and the token's binding to the current request.
      */
     public static function fromToken(string $token): self
     {
-        $class = Crypt::decryptString($token);
+        $class = SignedDescriptor::classFrom($token, self::class);
 
-        if (! class_exists($class) || ! is_subclass_of($class, self::class)) {
+        if ($class === null) {
             throw new RuntimeException('Invalid exporter token.');
         }
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Calendar;
 
+use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,8 +21,8 @@ use Throwable;
  * rewrite, the ability to enforce and the calendar's `moveScope()`
  * constraints — so the client never names a class or a column, and a record
  * outside the calendar's scope (e.g. another tenant's) is a 404 rather than a
- * write. The descriptor is bound to the user it was minted for and expires,
- * so a leaked token can't be replayed by someone else.
+ * write. The descriptor is bound to the user and team it was minted for and
+ * expires, so a leaked token can't be replayed by someone else.
  *
  * The end column (when configured) shifts by the same delta as the start, so
  * an event's duration survives the move.
@@ -61,23 +63,17 @@ class CalendarMoveController
             ], 400);
         }
 
-        // A descriptor is minted for one user; anyone else presenting it is
+        // The descriptor is bound to the user and team it was minted for, and
+        // expires ({@see SignedDescriptor}). Anyone else presenting it is
         // replaying a leaked token.
-        $mintedFor = $payload['user'] ?? null;
+        $rejection = SignedDescriptor::rejection($payload, $request);
 
-        if ($mintedFor !== null && (string) $mintedFor !== (string) $request->user()?->getAuthIdentifier()) {
+        if ($rejection !== null) {
             return response()->json([
                 'status'  => 'error',
-                'message' => __('kinetix.table_write_forbidden'),
-            ], 403);
-        }
-
-        $expiresAt = $payload['expires'] ?? null;
-
-        if (is_int($expiresAt) && $expiresAt < now()->getTimestamp()) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => __('kinetix.table_descriptor_expired'),
+                'message' => $rejection === DescriptorRejection::Expired
+                    ? __('kinetix.table_descriptor_expired')
+                    : __('kinetix.table_write_forbidden'),
             ], 403);
         }
 

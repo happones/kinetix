@@ -9,6 +9,7 @@ use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
@@ -287,23 +288,16 @@ class Select extends Field implements ResolvesRelationships
     }
 
     /**
-     * Attach the scope, the user the descriptor was minted for and an expiry, so
-     * a descriptor lifted from one user's payload can't be replayed by another.
+     * Attach the scope and the binding claims ({@see SignedDescriptor}: user,
+     * team, expiry), so a descriptor lifted from another user's payload — or
+     * another team's page — can't be replayed.
      *
      * @param  array<string, mixed> $descriptor
      * @return array<string, mixed>
      */
     protected function bindDescriptor(array $descriptor): array
     {
-        $ttl = config('kinetix.tables.token_ttl', 1440);
-
-        return $descriptor + [
-            'scope'   => $this->searchScope,
-            'user'    => auth()->id(),
-            'expires' => is_numeric($ttl) && (int) $ttl > 0
-                ? now()->getTimestamp() + ((int) $ttl * 60)
-                : null,
-        ];
+        return SignedDescriptor::bind($descriptor + ['scope' => $this->searchScope]);
     }
 
     /**
