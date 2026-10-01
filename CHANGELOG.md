@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.183.0] - 2026-10-01
+
+Trust in what the browser sends back. Every signed descriptor a page hands
+out is now bound to the user, the team and an expiry, so a token can't be
+replayed by someone else, under another team, or forever — and optional form
+fields stop rejecting the empty value that makes them optional. Pages left
+open across the upgrade need one reload (see the upgrade note below).
+
 ### Fixed
 
 - **Optional fields accept being left empty** — a field that isn't
