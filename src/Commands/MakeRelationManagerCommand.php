@@ -79,6 +79,12 @@ class MakeRelationManagerCommand extends GeneratorCommand
             // protected static ?string \$group = 'Attachments';
             // protected static bool \$isCollapsible = true;
 
+            // The related model's Resource: the attach/associate pickers resolve
+            // through its getEloquentQuery() and the create/edit modals run its
+            // mutateFormDataBeforeSave() — set it in team apps so neither
+            // crosses teams.
+            // protected static ?string \$relatedResource = \App\Kinetix\Resources\ItemResource::class;
+
             {$titleAttr}
 
             /**

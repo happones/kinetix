@@ -13,6 +13,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`RelationManager::$relatedResource`**: the related model's Resource. With
+  it set, the attach/associate pickers resolve through its
+  `getEloquentQuery()` and the create/edit modals run its
+  `mutateFormDataBeforeSave()`. Without a resource, override the manager's
+  `getRelatedQuery()` / `mutateFormDataBeforeSave()` (the parent is
+  `$this->parent`). `kinetix:make-relation-manager` scaffolds a commented hint.
+- **Accessor titles in the pickers**: `$recordSelectSearchColumns` names the
+  real columns the attach/associate pickers search and sort by, so
+  `$recordTitleAttribute` can be an accessor (`full_name`) or a
+  `relation.column`. Picker search now escapes LIKE wildcards like every other
+  Kinetix search.
+
+### Security
+
+- **Relation-manager pickers no longer cross teams.** The attach and
+  associate pickers listed every record of the related model, whatever team
+  it belonged to, and the attach/associate endpoints accepted any id sent by
+  hand. Both now go through the manager's related query, and an id outside it
+  is ignored. **Team apps must declare `$relatedResource`** (or override
+  `getRelatedQuery()`) on managers with Attach/Associate actions. Without
+  either, the pickers still query the bare model.
+- **Records created from a relation manager get their tenant columns.**
+  `storeRecord()` wrote through the relationship without the save hook, so a
+  child created from the parent's page got the parent FK but no `team_id`. The
+  create/edit modals now run the related resource's
+  `mutateFormDataBeforeSave()` (`'create'` / `'edit'`) like its own pages and
+  modals do.
+- **Associate accepts only orphans.** The endpoint re-parented any id it was
+  sent, so a forged id could take a record away from another parent without
+  that parent's policy ever being checked. It now accepts exactly what the
+  picker offers.
+- **Upgrade note:** `RelationManager` gains `$relatedResource`,
+  `$recordSelectSearchColumns`, `getRelatedQuery()`,
+  `mutateFormDataBeforeSave()`, `getRelatedResource()`,
+  `getRecordTitleAttribute()` and `getRecordSelectSearchColumns()`. A manager
+  in your app that already declares one of these names with a different
+  signature will fail to load. Rename it.
+
+### Fixed
+
+- **Relation-manager edit/delete on a `BelongsToMany` hit the wrong record**
+  when the pivot table has its own `id`: the lookup selected `*` across the
+  pivot join, so the pivot row's id overwrote the record's and the update or
+  delete went to whichever record shared that id. The lookup now selects the
+  related table's columns only, like the table and cell-edit queries already
+  did.
+
 ## [0.183.0] - 2026-10-01
 
 Trust in what the browser sends back. Every signed descriptor a page hands

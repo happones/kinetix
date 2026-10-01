@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Resources;
 
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
@@ -91,6 +92,11 @@ class RelationManagerController
 
         [$attributes, $pivot] = $this->splitPivotState($relation, $form->getState((array) $request->input('data', [])));
 
+        // The related resource's save hook (or the manager's own override)
+        // stamps server-owned columns — a team_id — exactly as its own pages
+        // and modals do.
+        $attributes = $manager->mutateFormDataBeforeSave($attributes, 'create');
+
         // HasMany/MorphMany stamp the FK (+ morph type); BelongsToMany creates
         // the related record AND attaches it in one step — form fields matching
         // withPivot() columns land on the pivot row, not the related model.
@@ -117,7 +123,7 @@ class RelationManagerController
 
         [$attributes, $pivot] = $this->splitPivotState($relation, $form->getState((array) $request->input('data', [])));
 
-        $record->update($attributes);
+        $record->update($manager->mutateFormDataBeforeSave($attributes, 'edit', $record));
 
         if ($pivot !== [] && $relation instanceof BelongsToMany) {
             $relation->updateExistingPivot($record->getKey(), $pivot);
@@ -152,22 +158,24 @@ class RelationManagerController
     // -- BelongsToMany attach/detach ------------------------------------------
 
     /**
-     * Records that can still be attached: the related model minus what's
-     * already attached, searchable on the descriptor's title attribute.
+     * Records that can still be attached: the manager's related query (the
+     * related resource's scoped query) minus what's already attached,
+     * searchable on the manager's search columns.
      */
     public function attachable(Request $request): JsonResponse
     {
-        [$relation, $payload] = $this->resolve($request, 'belongsToMany');
+        [$relation, $payload, $parent] = $this->resolve($request, 'belongsToMany');
 
+        $manager = $this->manager($payload, $parent);
         $related = $relation->getRelated();
 
-        $query = $related->newQuery()
+        $query = $manager->getRelatedQuery()
             ->whereNotIn(
                 $related->getQualifiedKeyName(),
                 $relation->pluck($related->getQualifiedKeyName()),
             );
 
-        return $this->optionsResponse($query, $payload, $related, $request);
+        return $this->optionsResponse($query, $manager, $request);
     }
 
     public function attach(Request $request): JsonResponse
@@ -182,8 +190,9 @@ class RelationManagerController
         // rebuilt server-side — with no form declared, submitted pivot data is
         // ignored entirely. The same validated state is written to the pivot
         // row of every record being attached.
+        $manager    = $this->manager($payload, $parent);
         $pivot      = [];
-        $attachForm = $this->manager($payload, $parent)->getAttachForm();
+        $attachForm = $manager->getAttachForm();
 
         if ($attachForm !== null) {
             $attachForm->validate((array) $request->input('pivot', []));
@@ -194,10 +203,13 @@ class RelationManagerController
             );
         }
 
-        // Only ids that actually exist on the related model — attach() would
-        // happily insert pivot rows for ghosts on DBs without FK enforcement.
-        $related = $relation->getRelated();
-        $valid   = $related->newQuery()->whereKey($ids)->pluck($related->getKeyName())->all();
+        // Only ids the picker could have offered: records that exist AND sit
+        // inside the manager's related query — attach() would happily insert
+        // pivot rows for ghosts, or for another team's records.
+        $valid = $manager->getRelatedQuery()
+            ->whereKey($ids)
+            ->pluck($relation->getRelated()->getQualifiedKeyName())
+            ->all();
 
         $relation->syncWithoutDetaching($pivot === [] ? $valid : array_fill_keys($valid, $pivot));
 
@@ -220,20 +232,19 @@ class RelationManagerController
     // -- HasMany/MorphMany associate/dissociate --------------------------------
 
     /**
-     * Records that can be associated: related records not yet owned by any
-     * parent (foreign key IS NULL — Filament's default associate scope),
-     * searchable on the descriptor's title attribute.
+     * Records that can be associated: related records inside the manager's
+     * related query (the related resource's scoped query) not yet owned by
+     * any parent (foreign key IS NULL), searchable on the manager's search
+     * columns.
      */
     public function associable(Request $request): JsonResponse
     {
-        [$relation, $payload] = $this->resolve($request, 'associable');
+        [$relation, $payload, $parent] = $this->resolve($request, 'associable');
+
+        $manager = $this->manager($payload, $parent);
 
         /** @var HasMany<Model, Model>|MorphMany<Model, Model> $relation */
-        $related = $relation->getRelated();
-
-        $query = $related->newQuery()->whereNull($relation->getQualifiedForeignKeyName());
-
-        return $this->optionsResponse($query, $payload, $related, $request);
+        return $this->optionsResponse($this->associableQuery($manager, $relation), $manager, $request);
     }
 
     /**
@@ -242,14 +253,16 @@ class RelationManagerController
      */
     public function associate(Request $request): JsonResponse
     {
-        [$relation] = $this->resolve($request, 'associable');
+        [$relation, $payload, $parent] = $this->resolve($request, 'associable');
 
         /** @var HasMany<Model, Model>|MorphMany<Model, Model> $relation */
         $ids = $this->ids($request);
         abort_if($ids === [], 422, 'Nothing to associate.');
 
-        $related = $relation->getRelated();
-        $records = $related->newQuery()->whereKey($ids)->get();
+        // Only what the picker could have offered: in-scope orphans. A forged
+        // id can neither pull in another team's record nor steal a record
+        // another parent owns (whose policy this request never checked).
+        $records = $this->associableQuery($this->manager($payload, $parent), $relation)->whereKey($ids)->get();
 
         foreach ($records as $record) {
             $relation->save($record);
@@ -290,28 +303,47 @@ class RelationManagerController
     // -- Shared plumbing --------------------------------------------------------
 
     /**
-     * Search + label the query into the option list both pickers (attach /
-     * associate) render: `{ options: [{ id, label }] }`, capped at 50.
+     * The associate picker's candidates: in-scope records with no owner.
      *
-     * @param Builder<Model>       $query
-     * @param array<string, mixed> $payload
+     * @param  HasMany<Model, Model>|MorphMany<Model, Model> $relation
+     * @return Builder<Model>
      */
-    protected function optionsResponse($query, array $payload, Model $related, Request $request): JsonResponse
+    protected function associableQuery(RelationManager $manager, HasMany|MorphMany $relation): Builder
     {
-        $title  = $this->titleColumn($payload, $related);
-        $search = trim((string) $request->input('search', ''));
+        return $manager->getRelatedQuery()->whereNull($relation->getQualifiedForeignKeyName());
+    }
 
-        if ($search !== '') {
-            $query->where($title, 'like', "%{$search}%");
+    /**
+     * Search + label the query into the option list both pickers (attach /
+     * associate) render: `{ options: [{ id, label }] }`, capped at 50. Labels
+     * read the title attribute (an accessor or a `relation.column` works);
+     * search and sort use the manager's search columns, which must be real
+     * columns.
+     *
+     * @param Builder<Model> $query
+     */
+    protected function optionsResponse(Builder $query, RelationManager $manager, Request $request): JsonResponse
+    {
+        $model   = $query->getModel();
+        $title   = $manager::getRecordTitleAttribute() ?? $model->getKeyName();
+        $columns = $manager::getRecordSelectSearchColumns() ?: [$model->getKeyName()];
+
+        KinetixQuery::search($query, (string) $request->input('search', ''), $columns);
+        KinetixQuery::eagerLoad($query, [...$columns, $title]);
+
+        // Relation columns search fine but can't ORDER BY without a join.
+        $sortColumns = array_filter($columns, static fn (string $column): bool => ! str_contains($column, '.'));
+
+        foreach ($sortColumns ?: [$model->getKeyName()] as $column) {
+            $query->orderBy($model->qualifyColumn($column));
         }
 
         $options = $query
-            ->orderBy($title)
             ->limit(50)
             ->get()
             ->map(fn (Model $record): array => [
                 'id'    => $record->getKey(),
-                'label' => (string) $record->getAttribute($title),
+                'label' => (string) data_get($record, $title),
             ])
             ->values();
 
@@ -336,16 +368,6 @@ class RelationManagerController
         }
 
         return $ids;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    protected function titleColumn(array $payload, Model $related): string
-    {
-        $column = $payload['title'] ?? null;
-
-        return is_string($column) && $column !== '' ? $column : $related->getKeyName();
     }
 
     /**
@@ -399,8 +421,14 @@ class RelationManagerController
      */
     protected function findRelated(Relation $relation, mixed $id): Model
     {
+        // Qualified select: BelongsToMany joins the pivot, and a bare * lets a
+        // pivot `id` clobber the record's own at hydration — the update or
+        // delete would then hit whichever record shares the pivot row's id.
         /** @var Model|null $record */
-        $record = $relation->getQuery()->whereKey($id)->first();
+        $record = $relation->getQuery()
+            ->select($relation->getRelated()->qualifyColumn('*'))
+            ->whereKey($id)
+            ->first();
 
         abort_if($record === null, 404, (string) __('kinetix.table_record_not_found'));
 

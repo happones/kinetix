@@ -90,7 +90,11 @@ the modal ones in the same table.
 | `getBadge(): int\|string\|null` | Badge next to the title / on the tab (e.g. a count) — see §3 |
 | `getBadgeColor(): ?string` | Accessor for `$badgeColor` |
 | `isVisibleOn(string $page): bool` | Page-level visibility (`'edit'` \| `'view'`) — see §4 |
-| `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label/search by. **Defaults to the primary key when unset — the picker then shows raw ids as labels, so always set it** — see §8/§9 |
+| `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label by (an accessor or `relation.column` works). **Defaults to the primary key when unset — the picker then shows raw ids as labels, so always set it** — see §8/§9 |
+| `protected static $recordSelectSearchColumns` | Real columns the pickers search and sort by (defaults to `[$recordTitleAttribute]`) — set it when the title is an accessor; see §8 |
+| `protected static $relatedResource` | The related model's Resource: pickers and the ids they accept resolve through its `getEloquentQuery()`, create/edit modals run its `mutateFormDataBeforeSave()` — **set it in team apps**, see §7 |
+| `getRelatedQuery(): Builder` | Base query for related records outside the relationship (the pickers) — defaults to the related resource's query; override to scope without one (§7) |
+| `mutateFormDataBeforeSave(array $data, string $operation, ?Model $record)` | Hook for create/edit modal data — defaults to the related resource's hook; override to stamp columns without one (§7) |
 | `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk/footer actions |
 | `protected static $isLazy` | `true` defers the manager to its tab activation — only the tab stub serializes until then (see §12) |
 | `protected static $group` | Group label — managers sharing it render as ONE tab, stacked inside (see §3) |
@@ -374,6 +378,10 @@ That's the whole implementation — render the manager on the parent page as in
 - **Edit/View/Delete resolve THROUGH the relationship** — another parent's
   record id 404s, exactly like the table itself. Deleting a `BelongsToMany`
   record also drops its pivot row.
+- **The related resource's save hook runs** — with `$relatedResource` set,
+  create/edit data passes through its `mutateFormDataBeforeSave()` (`'create'`
+  / `'edit'`) before it is written, exactly like its own pages and modals, so
+  a stamped `team_id` lands on children created here too (§7).
 - **Authorization**: the PARENT's `update` policy gates every endpoint
   (touching children is editing the parent), plus the CHILD model's own
   policy (`view`/`create`/`update`/`delete`) when it has one. The Create
@@ -396,7 +404,9 @@ That's the whole implementation — render the manager on the parent page as in
 
 Relation managers scope **transitively**: the table query is
 `$parent->{relationship}()`, so the children are exactly as isolated as the
-parent record you resolved. That makes parent resolution the whole ballgame:
+parent record you resolved. That makes parent resolution the whole ballgame
+for what the table lists (for what the pickers offer and what creates stamp,
+see the next subsection):
 
 ::: danger Resolve the parent through the resource's scoped query
 Implicit route-model binding (`public function edit(Post $record)`) fetches by
@@ -417,14 +427,60 @@ public function edit(string $record)
 show/update/destroy/restore/forceDelete).
 :::
 
-Two more rules for team apps:
+The same goes for your own routes:
 
 - **Nested CRUD routes must re-scope the parent too** — apply the same
   `getEloquentQuery()` resolution (or `->scopeBindings()` + an ownership
   check) in the nested controllers from §6.
-- **Stamp the team on created children** when the child table has its own
-  `team_id` (creating through `$parent->posts()->create(...)` inherits the
-  parent FK but NOT other tenant columns).
+
+### Records outside the relationship: declare the related resource
+
+The parent scopes everything the table **lists**, but two things reach past
+it: the attach/associate **pickers** offer records that are not children yet,
+and a record **created** from the manager only inherits the parent FK — not
+other tenant columns like `team_id`. Point the manager at the related model's
+Resource and both follow that resource's rules:
+
+```php
+class TutorsRelationManager extends RelationManager
+{
+    protected static string $relationship = 'tutors';
+
+    protected static ?string $relatedResource = TutorResource::class;
+}
+```
+
+- The pickers list — and the attach/associate endpoints accept — only records
+  inside `TutorResource::getEloquentQuery()`. An id outside it (another team's
+  record, sent by hand) is ignored.
+- The create/edit modals pass their data through
+  `TutorResource::mutateFormDataBeforeSave()`, so the `team_id` it stamps on
+  its own pages lands on records created from the manager too. Fields matching
+  `withPivot()` columns are split off first, and on create the parent binding
+  is stamped after the hook.
+- A resource for a different model throws when the manager renders.
+
+No resource for the related model? Override the two seams on the manager —
+the parent record is `$this->parent`:
+
+```php
+public function getRelatedQuery(): Builder
+{
+    return Grade::where('team_id', $this->parent->team_id);
+}
+
+public function mutateFormDataBeforeSave(array $data, string $operation, ?Model $record = null): array
+{
+    return [...$data, 'team_id' => $this->parent->team_id];
+}
+```
+
+::: warning Without either, the pickers see every team
+With no `$relatedResource` and no `getRelatedQuery()` override, the pickers
+query the bare related model — every team's records — and created children
+get no tenant column. Single-tenant apps can leave it; team apps with
+Attach/Associate actions or create modals should not.
+:::
 
 ## 8. BelongsToMany: attach & detach
 
@@ -455,9 +511,22 @@ class TagsRelationManager extends RelationManager
 
 - **Attach** opens a modal listing the related records **not yet attached**
   (searchable on `$recordTitleAttribute`, capped at 50); attaching uses
-  `syncWithoutDetaching`, validating ids against the related model. Give the
+  `syncWithoutDetaching`, accepting only ids inside the manager's related
+  query (`$relatedResource`'s scoped query — see §7). Give the
   action a `->form([...])` of pivot fields to collect pivot data while
   attaching — see §11.
+- **Accessor titles**: the label reads `$recordTitleAttribute` through the
+  model, so an accessor works — but search and sort run in SQL, so name the
+  real columns in `$recordSelectSearchColumns`:
+
+  ```php
+  protected static ?string $recordTitleAttribute = 'full_name';   // accessor
+  protected static array $recordSelectSearchColumns = ['last_name', 'first_name'];
+  ```
+
+  Results sort by those columns in order. A `relation.column` entry
+  (`'user.name'`) searches the relation and is eager-loaded, but isn't used
+  for sorting.
 - **Detach** confirms first and removes **pivot rows only** — the related
   records are never deleted. Row and bulk both work.
 - **Security**: every request re-validates the signed descriptor (user- and
@@ -495,9 +564,11 @@ class TasksRelationManager extends RelationManager
 ```
 
 - **Associate** opens a modal listing the related records **not owned by any
-  parent** (foreign key `NULL`), searchable on
-  `$recordTitleAttribute`; associating stamps the FK (and morph type)
-  server-side via the relationship.
+  parent** (foreign key `NULL`) inside the manager's related query (§7),
+  searchable like the attach picker (§8); associating stamps the FK (and
+  morph type) server-side via the relationship. The endpoint accepts only
+  what the picker offers — an id owned by another parent, or outside the
+  related query, is ignored.
 - **Dissociate** confirms first and **nulls the foreign key** — the related
   records are never deleted. The lookup is relation-scoped, so another
   parent's record ids are ignored.

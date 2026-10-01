@@ -90,10 +90,34 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     protected static bool $isCollapsed = false;
 
     /**
-     * The related-model attribute the attach modal labels and searches by
-     * (Filament's `recordTitleAttribute`). Required for `AttachAction`.
+     * The related-model attribute the attach/associate pickers label by
+     * (Filament's `recordTitleAttribute`). Required for `AttachAction`. It may
+     * be an accessor when {@see $recordSelectSearchColumns} names the real
+     * columns to search and sort by.
      */
     protected static ?string $recordTitleAttribute = null;
+
+    /**
+     * The columns the attach/associate pickers search and sort by. Defaults to
+     * `[$recordTitleAttribute]`; set it when the title is an accessor (e.g.
+     * `['first_name', 'last_name']` behind a `full_name` accessor). Dotted
+     * names (`user.name`) search the relation and are eager-loaded.
+     *
+     * @var array<int, string>
+     */
+    protected static array $recordSelectSearchColumns = [];
+
+    /**
+     * The Resource that owns the RELATED model. Everything the manager reaches
+     * outside the parent's relationship goes through it: the attach/associate
+     * pickers and the ids those endpoints accept resolve through its
+     * `getEloquentQuery()`, and create/edit modal data passes through its
+     * `mutateFormDataBeforeSave()` — so a team-scoped resource keeps the
+     * manager team-scoped too.
+     *
+     * @var class-string<\Happones\Kinetix\Resources\Resource>|null
+     */
+    protected static ?string $relatedResource = null;
 
     protected ?Model $parent = null;
 
@@ -151,6 +175,105 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     public static function getRelationship(): string
     {
         return static::$relationship;
+    }
+
+    /**
+     * @return class-string<\Happones\Kinetix\Resources\Resource>|null
+     */
+    public static function getRelatedResource(): ?string
+    {
+        return static::$relatedResource;
+    }
+
+    public static function getRecordTitleAttribute(): ?string
+    {
+        return static::$recordTitleAttribute;
+    }
+
+    /**
+     * The columns the pickers search and sort by — falls back to the title
+     * attribute.
+     *
+     * @return array<int, string>
+     */
+    public static function getRecordSelectSearchColumns(): array
+    {
+        if (static::$recordSelectSearchColumns !== []) {
+            return static::$recordSelectSearchColumns;
+        }
+
+        return static::$recordTitleAttribute !== null ? [static::$recordTitleAttribute] : [];
+    }
+
+    /**
+     * The base query for related records reached OUTSIDE the parent's
+     * relationship — the attach/associate pickers and the ids those endpoints
+     * accept. Defaults to the related resource's `getEloquentQuery()` (the
+     * same tenant-scoped seam its own pages and modals use), or the bare model
+     * query when no `$relatedResource` is declared. Override to scope it
+     * without a resource:
+     *
+     *     public function getRelatedQuery(): Builder
+     *     {
+     *         return Tutor::where('team_id', $this->parent->team_id);
+     *     }
+     *
+     * @return Builder<Model>
+     */
+    public function getRelatedQuery(): Builder
+    {
+        $resource = $this->relatedResource();
+
+        return $resource !== null
+            ? $resource::getEloquentQuery()
+            : $this->getRelation()->getRelated()->newQuery();
+    }
+
+    /**
+     * Mutate the related record's validated form data before the create/edit
+     * modals write it ('create' | 'edit'). Defaults to the related resource's
+     * `mutateFormDataBeforeSave()`, so server-owned columns it stamps
+     * (`team_id`, …) land on records created from the manager too. Override to
+     * stamp them without a resource — the parent is `$this->parent`. Fields
+     * matching `withPivot()` columns are already split off: this sees the
+     * related model's attributes only. On create the parent binding (FK /
+     * morph / pivot) is stamped after it, so it can't be overridden here.
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function mutateFormDataBeforeSave(array $data, string $operation, ?Model $record = null): array
+    {
+        $resource = $this->relatedResource();
+
+        return $resource !== null
+            ? $resource::mutateFormDataBeforeSave($data, $operation, $record)
+            : $data;
+    }
+
+    /**
+     * The declared related resource, checked against the relation: a resource
+     * for another model would scope the pickers to the wrong table.
+     *
+     * @return class-string<\Happones\Kinetix\Resources\Resource>|null
+     */
+    protected function relatedResource(): ?string
+    {
+        $resource = static::$relatedResource;
+
+        if ($resource === null) {
+            return null;
+        }
+
+        $related = $this->getRelation()->getRelated()::class;
+
+        if (! is_subclass_of($resource, Resource::class) || $resource::getModel() !== $related) {
+            throw new RuntimeException(
+                static::class.'::$relatedResource must be a Resource for '.$related.' — got '.$resource.'.'
+            );
+        }
+
+        return $resource;
     }
 
     /**
@@ -374,6 +497,12 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             ? $this->mintDescriptor()
             : null;
 
+        // A mismatched $relatedResource fails here, at render, rather than
+        // on the first picker/save request.
+        if ($descriptor !== null) {
+            $this->relatedResource();
+        }
+
         if ($modalModes !== [] && $descriptor !== null) {
             $this->wireRecordModals($table, $relation, $descriptor, $modalModes);
         }
@@ -409,7 +538,6 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             'key'      => $this->parent->getKey(),
             'relation' => static::$relationship,
             'manager'  => static::class,
-            'title'    => static::$recordTitleAttribute,
         ]);
     }
 
