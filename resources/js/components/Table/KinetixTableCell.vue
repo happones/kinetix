@@ -31,7 +31,6 @@ const emit = defineEmits<{
         colName: string,
         value: any,
     ): void;
-    (e: 'copy-to-clipboard', value: string): void;
 }>();
 
 /**
@@ -39,7 +38,7 @@ const emit = defineEmits<{
  * resolving by lookup (O(1)) rather than a 12-way `v-if`/`v-else-if` chain keeps
  * the hottest render path flat instead of re-evaluating every branch condition
  * per cell. Each cell shares the `{ col, record }` contract and re-emits
- * `update-cell` / `copy-to-clipboard`.
+ * `update-cell`; copyable cells copy on their own (KinetixCopyable).
  */
 const CELL_COMPONENTS: Record<string, Component> = {
     text: TextCell,
@@ -101,9 +100,6 @@ const onUpdateCell = (
     colName: string,
     value: any,
 ): void => emit('update-cell', recordId, colName, value);
-
-const onCopyToClipboard = (value: string): void =>
-    emit('copy-to-clipboard', value);
 </script>
 
 <template>
@@ -113,6 +109,5 @@ const onCopyToClipboard = (value: string): void =>
         :col="col"
         :record="record"
         @update-cell="onUpdateCell"
-        @copy-to-clipboard="onCopyToClipboard"
     />
 </template>

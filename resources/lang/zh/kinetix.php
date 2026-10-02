@@ -42,6 +42,8 @@ return [
     'showing_range'                     => '显示第 :from 到 :to 条',
     'no_records_found'                  => '未找到记录。',
     'copy'                              => '复制',
+    'copied'                            => '已复制',
+    'copy_failed'                       => '复制失败',
     'reveal'                            => '显示',
     'hide'                              => '隐藏',
     'confirm'                           => '确认',

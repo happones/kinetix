@@ -42,6 +42,8 @@ return [
     'showing_range'                     => 'Affichage de :from à :to',
     'no_records_found'                  => 'Aucun enregistrement trouvé.',
     'copy'                              => 'Copier',
+    'copied'                            => 'Copié !',
+    'copy_failed'                       => 'Impossible de copier',
     'reveal'                            => 'Afficher',
     'hide'                              => 'Masquer',
     'confirm'                           => 'Confirmer',

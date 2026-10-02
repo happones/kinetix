@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Check, Copy, Eye, EyeOff } from '@lucide/vue';
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useKinetixClipboard } from '@/composables/useKinetixClipboard';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 
 /**
@@ -37,35 +38,13 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const revealed = ref(false);
-const copied = ref(false);
+const { status: copyStatus, copy: copyToClipboard } = useKinetixClipboard();
 
 const resolvedType = computed(() =>
     props.revealable && !revealed.value ? 'password' : props.inputType,
 );
 
-let copiedTimer: ReturnType<typeof setTimeout> | null = null;
-
-async function copy(): Promise<void> {
-    try {
-        await navigator.clipboard.writeText(String(props.value ?? ''));
-        copied.value = true;
-
-        if (copiedTimer) {
-            clearTimeout(copiedTimer);
-        }
-
-        copiedTimer = setTimeout(() => (copied.value = false), 1500);
-    } catch {
-        // clipboard unavailable — silently ignore
-    }
-}
-
-onBeforeUnmount(() => {
-    if (copiedTimer) {
-        clearTimeout(copiedTimer);
-        copiedTimer = null;
-    }
-});
+const copy = (): Promise<boolean> => copyToClipboard(String(props.value ?? ''));
 </script>
 
 <template>
@@ -103,7 +82,10 @@ onBeforeUnmount(() => {
                 :aria-label="t('kinetix.copy')"
                 @click="copy"
             >
-                <Check v-if="copied" class="size-4 text-green-500" />
+                <Check
+                    v-if="copyStatus === 'copied'"
+                    class="size-4 text-success"
+                />
                 <Copy v-else class="size-4" />
             </button>
         </div>

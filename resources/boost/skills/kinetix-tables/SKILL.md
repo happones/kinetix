@@ -55,8 +55,10 @@ helper, and enums without any of these methods fall back to `value`/case `name`.
 ## Shared column properties (all types)
 
 `label(__(…))`, `searchable()`, `sortable(bool, ?Closure $using)`, `alignment('left|center|right')`,
-`toggleable($hidden = false)`, `tooltip('static hover text')`, `copyable()` (rendered on
-TextColumn plain + badge and ColorColumn), `state(fn ($record) => …)` / `formatStateUsing()`,
+`toggleable($hidden = false)`, `tooltip('static hover text')`, `copyable()` (TextColumn plain +
+badge and ColorColumn: the value itself is the click-to-copy trigger with a Copy → Copied! tooltip,
+and it wins over a clickable row; `url()`/`html()` values get a copy button beside them instead),
+`state(fn ($record) => …)` / `formatStateUsing()`,
 `summarize(Sum|Average|Count|Range|custom)`.
 
 **Security-relevant:** `visible()/hidden()/can('ability')` GATE the column — a gated column is

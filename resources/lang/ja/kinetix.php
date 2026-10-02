@@ -42,6 +42,8 @@ return [
     'showing_range'                     => ':from 〜 :to 件を表示',
     'no_records_found'                  => 'レコードが見つかりません。',
     'copy'                              => 'コピー',
+    'copied'                            => 'コピーしました',
+    'copy_failed'                       => 'コピーできませんでした',
     'reveal'                            => '表示',
     'hide'                              => '隠す',
     'confirm'                           => '確認',

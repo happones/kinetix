@@ -42,6 +42,8 @@ return [
     'showing_range'                     => 'Showing :from to :to',
     'no_records_found'                  => 'No records found.',
     'copy'                              => 'Copy',
+    'copied'                            => 'Copied!',
+    'copy_failed'                       => 'Couldn\'t copy',
     'reveal'                            => 'Reveal',
     'hide'                              => 'Hide',
     'confirm'                           => 'Confirm',

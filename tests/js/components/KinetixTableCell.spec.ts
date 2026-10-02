@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from './i18n';
 import KinetixTableCell from '@/components/Table/KinetixTableCell.vue';
 import CheckboxInputCell from '@/components/Table/cells/CheckboxInputCell.vue';
@@ -270,16 +270,6 @@ describe('KinetixTableCell component map', () => {
         expect(w.emitted('update-cell')?.[0]).toEqual([7, 'field', true]);
     });
 
-    it('re-emits copy-to-clipboard from a copyable text cell', async () => {
-        const w = mountCell(
-            { type: 'text', isCopyable: true },
-            { field: 'abc' },
-        );
-        await w.find('button').trigger('click');
-
-        expect(w.emitted('copy-to-clipboard')?.[0]).toEqual(['abc']);
-    });
-
     it('renders a text cell description above or below the value', () => {
         const above = mountCell(
             { type: 'text' },
@@ -294,5 +284,126 @@ describe('KinetixTableCell component map', () => {
             { descriptions: { field: { text: 'hint', position: 'below' } } },
         );
         expect(below.findAll('span').at(-1)!.text()).toBe('hint');
+    });
+});
+
+describe('KinetixTableCell copyable cells', () => {
+    const writeText = vi.fn();
+
+    beforeEach(() => {
+        writeText.mockReset().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+    });
+
+    it('makes a plain text value itself the copy trigger', async () => {
+        const w = mountCell(
+            { type: 'text', isCopyable: true },
+            { field: 'ada@acme.dev' },
+        );
+        const trigger = w.get('button');
+
+        expect(trigger.text()).toBe('ada@acme.dev');
+
+        await trigger.trigger('click');
+        await flushPromises();
+
+        expect(writeText).toHaveBeenCalledWith('ada@acme.dev');
+    });
+
+    it('keeps a linked value a link and copies from an icon button', async () => {
+        const w = mountCell(
+            { type: 'text', isCopyable: true },
+            { field: 'acme.dev' },
+            { urls: { field: 'https://acme.dev' } },
+        );
+
+        expect(w.get('a').attributes('href')).toBe('https://acme.dev');
+        expect(w.get('a').element.closest('button')).toBeNull();
+
+        const copy = w.get('button[aria-label="Copy"]');
+        await copy.trigger('click');
+        await flushPromises();
+
+        expect(writeText).toHaveBeenCalledWith('acme.dev');
+    });
+
+    it('copies an html value as its visible text, not its markup', async () => {
+        const w = mountCell(
+            { type: 'text', isCopyable: true, isHtml: true },
+            { field: '<strong>Ada</strong> Lovelace' },
+        );
+
+        await w.get('button[aria-label="Copy"]').trigger('click');
+        await flushPromises();
+
+        expect(writeText).toHaveBeenCalledWith('Ada Lovelace');
+    });
+
+    it('renders no copy trigger for an empty value or a plain column', () => {
+        expect(
+            mountCell({ type: 'text', isCopyable: true }, { field: null })
+                .find('button')
+                .exists(),
+        ).toBe(false);
+        expect(
+            mountCell({ type: 'text' }, { field: 'x' }).find('button').exists(),
+        ).toBe(false);
+    });
+
+    it('makes the badge pills the trigger and copies every item', async () => {
+        const w = mountCell(
+            { type: 'text', isBadge: true, isCopyable: true },
+            { field: ['saas', 'priority'] },
+        );
+        const trigger = w.get('button');
+
+        expect(trigger.text()).toContain('saas');
+        expect(trigger.text()).toContain('priority');
+
+        await trigger.trigger('click');
+        await flushPromises();
+
+        expect(writeText).toHaveBeenCalledWith('saas, priority');
+    });
+
+    it('makes the swatch and hex code the trigger of a copyable color', async () => {
+        const w = mountCell(
+            { type: 'color', isCopyable: true },
+            { field: '#6366f1' },
+        );
+
+        await w.get('button').trigger('click');
+        await flushPromises();
+
+        expect(writeText).toHaveBeenCalledWith('#6366f1');
+        expect(
+            mountCell({ type: 'color' }, { field: '#6366f1' })
+                .find('button')
+                .exists(),
+        ).toBe(false);
+    });
+});
+
+describe('KinetixTableCell text alignment', () => {
+    it.each([
+        ['right', 'items-end'],
+        ['center', 'items-center'],
+    ])('aligns a %s text cell on the flex cross axis', (alignment, cls) => {
+        const w = mountCell({ type: 'text', alignment }, { field: '$249.00' });
+
+        expect(w.get('div').classes()).toContain(cls);
+    });
+
+    it('leaves a left-aligned text cell at the start', () => {
+        const w = mountCell(
+            { type: 'text', alignment: 'left' },
+            { field: 'Acme' },
+        );
+
+        expect(w.get('div').classes()).not.toContain('items-end');
+        expect(w.get('div').classes()).not.toContain('items-center');
     });
 });

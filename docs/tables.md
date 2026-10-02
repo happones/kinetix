@@ -183,7 +183,7 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
     ```
 - `alignment(string $alignment)`: Sets horizontal alignment (`left`, `center`, `right`).
 - `toggleable(bool $isToggleable = true, bool $isToggledHiddenByDefault = false)`: Allows users to hide/show the column.
-- `copyable(bool $condition = true)`: Shows a click-to-copy button on the cell (on hover) that copies its value to the clipboard. Rendered on `TextColumn` (plain **and** badge) and `ColorColumn`.
+- `copyable(bool $condition = true)`: Makes the cell's value click-to-copy. The value itself is the trigger: hovering highlights it, shows a copy icon and a **Copy** tooltip, and clicking (or <kbd>Enter</kbd> when focused) copies it to the clipboard and confirms with a check icon, a **Copied!** tooltip and a screen-reader announcement. The trigger is a button, so on a clickable row a click on the value copies instead of opening the record, and a click anywhere else on the row still opens it. Linked (`url()`) and `html()` values keep their own clicks and get a small copy button beside them instead; `html()` copies the visible text, never the markup. On touch screens the copy icon is always shown. Works on `TextColumn` (plain **and** badge: the pills are the trigger and every item is copied, comma-separated) and on `ColorColumn`.
 - `tooltip(string $tooltip)`: Static hover tooltip (title attribute) — column caveats, units, definitions. Per-record dynamic text belongs in `description()`.
 - `formatStateUsing(Closure $callback)`: Formats the value dynamically on the backend before serialization.
 - `state(Closure|mixed $state)`: Overrides how the raw cell value is resolved — a Closure (`fn ($record) => …`) or a constant — instead of reading the attribute named after the column. `formatStateUsing()` still runs afterwards (alias: `getStateUsing()`):
@@ -242,7 +242,7 @@ Displays image thumbnail previews:
 <Screenshot name="column-color" alt="ColorColumn: color swatches with hex values" />
 
 Displays visual color swatch blocks:
-- `copyable()`: Allows users to click on the color swatch to copy the hex code to their clipboard.
+- `copyable()`: The swatch and its hex code become a click-to-copy trigger (same behaviour as the shared `copyable()` above).
 
 ### 5. `SelectColumn` (Editable)
 

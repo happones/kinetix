@@ -190,7 +190,7 @@ TextEntry::make('role')->inlineLabel();               // label + value on one ro
 | Method | Description |
 |---|---|
 | `->badge(bool = true)` | Render the value as a colored badge |
-| `->copyable(bool = true)` | Show a copy-to-clipboard button |
+| `->copyable(bool = true)` | Make the value click-to-copy: the value itself (or the badge pill) is the trigger, with a **Copy** → **Copied!** tooltip and a screen-reader announcement. A `url()` value stays a link and gets a copy button beside it |
 | `->date(?string $format = null)` | Format a date value — no argument = **localized** to the app locale via `config('kinetix.formats.date')` (isoFormat `ll`); a format string = plain PHP `format()` |
 | `->dateTime(?string $format = null)` | Format a datetime value — same semantics, token `config('kinetix.formats.datetime')` (`lll`) |
 | `->isoDate(?string $format = null)` / `->isoDateTime(?string $format = null)` | Explicit localized isoFormat tokens |
@@ -254,7 +254,7 @@ ColorEntry::make('brand_color')->copyable();   // swatch + hex value
 
 | Method | Description |
 |---|---|
-| `->copyable(bool = true)` | Show a copy-to-clipboard button for the hex value |
+| `->copyable(bool = true)` | Make the swatch and its hex value a click-to-copy trigger (copies the hex value) |
 
 ---
 

@@ -13,6 +13,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Copyable columns: the value is the trigger (published).** A `copyable()`
+  `TextColumn` (plain or badge) or `ColorColumn` no longer hides a tiny copy
+  icon next to the value. The value itself is now the button: hovering
+  highlights it, shows a copy icon and a **Copy** tooltip, and a click (or
+  <kbd>Enter</kbd>) copies it and confirms with a check icon, a **Copied!**
+  tooltip and a screen-reader announcement. A failure says **Couldn't copy**.
+  On a clickable row, a click on the value copies instead of opening the
+  record. Linked (`url()`) and `html()` values keep their own clicks and get a
+  copy button beside them; `html()` now copies the visible text instead of the
+  markup. On touch screens the copy icon is always visible, and a tap shows
+  the confirmation. New `primitives/KinetixCopyable.vue` and
+  `composables/useKinetixClipboard.ts`; `KinetixCopyableInput` shares the
+  clipboard logic. New translation keys `copied` and `copy_failed` in all
+  seven locales.
+- **Copyable infolist entries work the same way (published).** On a
+  `copyable()` `TextEntry` or `ColorEntry`, the value is the trigger, with the
+  same tooltips and announcement as the columns.
+
+### Fixed
+
+- **Copyable cells in `KinetixDataTable` (client-side tables) now copy
+  (published).** Before, the copy button did nothing: the cell emitted an event
+  that this table never listened to.
+- **The clipboard works outside secure contexts.** An app served over plain
+  http (for example a LAN address during development) has no async Clipboard
+  API. Copying now falls back to the legacy selection copy instead of failing
+  silently.
+- **`ColorColumn` no longer shows a pointer cursor or an untranslated English
+  tooltip when the column is not copyable.**
+- **`copyable()` on badge and linked `TextEntry` values now works
+  (published).** Before, it was silently ignored: a badge entry had no copy
+  control at all, and a `url()` entry had no copy button.
+- **`alignment('center' | 'right')` aligns `TextColumn` values (published).**
+  The header moved but the value stayed at the start: the cell is a flex
+  column, so the td's `text-align` never reached its content. Values and their
+  descriptions now follow the column's alignment.
+
 ## [0.184.0] - 2026-10-01
 
 Relation managers keep to the team. The attach and associate pickers, and the

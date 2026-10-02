@@ -278,14 +278,6 @@ const {
 } = useKinetixRowSelection(() => props.table.records);
 
 // --- Inline cell editing -----------------------------------------------------
-const copyToClipboard = (text: string) => {
-    if (!text) {
-        return;
-    }
-
-    navigator.clipboard.writeText(text);
-};
-
 const updateCell = async (
     recordId: string | number,
     columnName: string,
@@ -556,7 +548,6 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                                         :record="record"
                                         :row-index="rowIndex"
                                         @update-cell="updateCell"
-                                        @copy-to-clipboard="copyToClipboard"
                                     />
                                 </slot>
                             </td>

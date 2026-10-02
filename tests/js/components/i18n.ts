@@ -13,6 +13,10 @@ export const i18n = createI18n({
     messages: {
         en: {
             kinetix: {
+                // click-to-copy
+                copy: 'Copy',
+                copied: 'Copied!',
+                copy_failed: "Couldn't copy",
                 // pickers & preview
                 pick_date: 'Pick a date',
                 datetime_placeholder: 'MM/DD/YYYY hh:mm',

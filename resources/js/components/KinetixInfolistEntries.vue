@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Check, Circle, Copy, ExternalLink, Lock } from '@lucide/vue';
-import { computed, onBeforeUnmount, reactive, ref } from 'vue';
+import { Circle, ExternalLink, Lock } from '@lucide/vue';
+import { computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { requestConfidentialUnlock } from '@/composables/useKinetixConfidential';
@@ -22,6 +22,7 @@ import './kinetix-grid.css';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixBadge from './primitives/KinetixBadge.vue';
+import KinetixCopyable from './primitives/KinetixCopyable.vue';
 
 const getTextColorClass = (color?: string | null) =>
     statusTextClass(color, 'text-foreground');
@@ -83,38 +84,6 @@ const resolveIcon = (name?: string | null) =>
 
 const isEmpty = (value: unknown) =>
     value === null || value === undefined || value === '';
-
-const copiedName = ref<string | null>(null);
-let copiedTimer: ReturnType<typeof setTimeout> | null = null;
-
-const copyToClipboard = (entry: KinetixInfolistEntry) => {
-    const value = entry.state;
-
-    if (isEmpty(value)) {
-        return;
-    }
-
-    navigator.clipboard?.writeText(String(value)).then(() => {
-        copiedName.value = entry.name ?? null;
-
-        if (copiedTimer) {
-            clearTimeout(copiedTimer);
-        }
-
-        copiedTimer = setTimeout(() => {
-            if (copiedName.value === (entry.name ?? null)) {
-                copiedName.value = null;
-            }
-        }, 1500);
-    });
-};
-
-onBeforeUnmount(() => {
-    if (copiedTimer) {
-        clearTimeout(copiedTimer);
-        copiedTimer = null;
-    }
-});
 </script>
 
 <template>
@@ -364,65 +333,75 @@ onBeforeUnmount(() => {
                 }"
             />
 
-            <!-- Color entry -->
-            <div
+            <!-- Color entry (copyable: swatch + code are the copy trigger) -->
+            <component
+                :is="entry.isCopyable ? KinetixCopyable : 'div'"
                 v-else-if="entry.type === 'color'"
-                class="gap-2 flex items-center"
+                v-bind="entry.isCopyable ? { value: String(entry.state) } : {}"
+                class="w-fit"
             >
-                <span
-                    class="h-6 w-6 shadow-sm rounded-md border border-border"
-                    :style="{ backgroundColor: String(entry.state) }"
-                />
-                <span class="text-sm font-mono text-foreground">
-                    {{ entry.state }}
-                </span>
-                <button
-                    v-if="entry.isCopyable"
-                    type="button"
-                    class="text-muted-foreground transition-colors hover:text-foreground"
-                    :title="t('kinetix.copy')"
-                    @click="copyToClipboard(entry)"
-                >
-                    <Check
-                        v-if="copiedName === entry.name"
-                        class="h-3.5 w-3.5 text-success"
+                <span class="gap-2 inline-flex items-center">
+                    <span
+                        class="h-6 w-6 shadow-sm rounded-md border border-border"
+                        :style="{ backgroundColor: String(entry.state) }"
+                        aria-hidden="true"
                     />
-                    <Copy v-else class="h-3.5 w-3.5" />
-                </button>
+                    <span class="text-sm font-mono text-foreground">
+                        {{ entry.state }}
+                    </span>
+                </span>
+            </component>
+
+            <!-- Badge text entry (copyable: the pill is the copy trigger) -->
+            <component
+                :is="entry.isCopyable ? KinetixCopyable : 'span'"
+                v-else-if="entry.type === 'text' && entry.isBadge"
+                v-bind="entry.isCopyable ? { value: String(entry.state) } : {}"
+                class="w-fit"
+            >
+                <KinetixBadge :color="entry.color" class="gap-1">
+                    <component
+                        :is="resolveIcon(entry.icon)"
+                        v-if="entry.icon"
+                        class="h-3 w-3"
+                    />
+                    {{ entry.state }}
+                </KinetixBadge>
+            </component>
+
+            <!-- Linked text entry (the link keeps its click; copy sits beside it) -->
+            <div
+                v-else-if="entry.type === 'text' && entry.url"
+                class="gap-1 flex items-center"
+            >
+                <a
+                    :href="entry.url"
+                    :target="entry.openUrlInNewTab ? '_blank' : undefined"
+                    :rel="
+                        entry.openUrlInNewTab
+                            ? 'noopener noreferrer'
+                            : undefined
+                    "
+                    class="gap-1 text-sm font-medium inline-flex w-fit items-center text-info hover:underline"
+                >
+                    <component
+                        :is="resolveIcon(entry.icon)"
+                        v-if="entry.icon"
+                        class="h-3.5 w-3.5"
+                    />
+                    {{ entry.state }}
+                    <ExternalLink
+                        v-if="entry.openUrlInNewTab"
+                        class="h-3 w-3"
+                    />
+                </a>
+                <KinetixCopyable
+                    v-if="entry.isCopyable"
+                    :value="String(entry.state)"
+                />
             </div>
 
-            <!-- Badge text entry -->
-            <KinetixBadge
-                v-else-if="entry.type === 'text' && entry.isBadge"
-                :color="entry.color"
-                class="gap-1 w-fit"
-            >
-                <component
-                    :is="resolveIcon(entry.icon)"
-                    v-if="entry.icon"
-                    class="h-3 w-3"
-                />
-                {{ entry.state }}
-            </KinetixBadge>
-
-            <!-- Linked / plain text entry -->
-            <a
-                v-else-if="entry.type === 'text' && entry.url"
-                :href="entry.url"
-                :target="entry.openUrlInNewTab ? '_blank' : undefined"
-                :rel="entry.openUrlInNewTab ? 'noopener noreferrer' : undefined"
-                class="gap-1 text-sm font-medium inline-flex w-fit items-center text-info hover:underline"
-            >
-                <component
-                    :is="resolveIcon(entry.icon)"
-                    v-if="entry.icon"
-                    class="h-3.5 w-3.5"
-                />
-                {{ entry.state }}
-                <ExternalLink v-if="entry.openUrlInNewTab" class="h-3 w-3" />
-            </a>
-
-            <!-- Plain text entry -->
+            <!-- Plain text entry (copyable: the value is the copy trigger) -->
             <div v-else class="gap-2 flex items-center">
                 <component
                     :is="resolveIcon(entry.icon)"
@@ -430,25 +409,20 @@ onBeforeUnmount(() => {
                     class="h-3.5 w-3.5"
                     :class="getIconColorClass(entry.color)"
                 />
-                <span
-                    class="text-sm font-medium leading-relaxed break-words"
-                    :class="getTextColorClass(entry.color)"
+                <component
+                    :is="entry.isCopyable ? KinetixCopyable : 'span'"
+                    v-bind="
+                        entry.isCopyable ? { value: String(entry.state) } : {}
+                    "
+                    class="min-w-0"
                 >
-                    {{ entry.state }}
-                </span>
-                <button
-                    v-if="entry.isCopyable"
-                    type="button"
-                    class="text-muted-foreground transition-colors hover:text-foreground"
-                    :title="t('kinetix.copy')"
-                    @click="copyToClipboard(entry)"
-                >
-                    <Check
-                        v-if="copiedName === entry.name"
-                        class="h-3.5 w-3.5 text-success"
-                    />
-                    <Copy v-else class="h-3.5 w-3.5" />
-                </button>
+                    <span
+                        class="text-sm font-medium leading-relaxed min-w-0 break-words"
+                        :class="getTextColorClass(entry.color)"
+                    >
+                        {{ entry.state }}
+                    </span>
+                </component>
                 <button
                     v-if="entry.isConfidential"
                     type="button"

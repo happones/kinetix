@@ -42,6 +42,8 @@ return [
     'showing_range'                     => 'Показано с :from по :to',
     'no_records_found'                  => 'Записи не найдены.',
     'copy'                              => 'Копировать',
+    'copied'                            => 'Скопировано',
+    'copy_failed'                       => 'Не удалось скопировать',
     'reveal'                            => 'Показать',
     'hide'                              => 'Скрыть',
     'confirm'                           => 'Подтвердить',

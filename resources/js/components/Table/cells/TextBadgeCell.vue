@@ -1,23 +1,16 @@
 <script setup lang="ts">
-import { Copy } from '@lucide/vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 import type {
     KinetixTableCellColumn,
     KinetixTableCellRecord,
 } from '@/types/kinetix';
 import KinetixBadge from '../../primitives/KinetixBadge.vue';
+import KinetixCopyable from '../../primitives/KinetixCopyable.vue';
 
 const props = defineProps<{
     col: KinetixTableCellColumn;
     record: KinetixTableCellRecord;
 }>();
-
-const emit = defineEmits<{
-    (e: 'copy-to-clipboard', value: string): void;
-}>();
-
-const { t } = useI18n();
 
 // An ARRAY state (TagsInput, CheckboxList, multi-Select) renders one pill per
 // item — the server keeps the array for badge columns on purpose.
@@ -26,30 +19,27 @@ const items = computed<unknown[]>(() => {
 
     return Array.isArray(value) ? value : [value];
 });
+
+const isCopyable = computed<boolean>(
+    () => !!props.col.isCopyable && props.record.values[props.col.name] != null,
+);
 </script>
 
 <template>
-    <span
-        class="group/copy gap-1 inline-flex flex-wrap items-center"
+    <!-- Copyable: the pills themselves are the copy trigger. -->
+    <component
+        :is="isCopyable ? KinetixCopyable : 'span'"
+        v-bind="isCopyable ? { value: items.map(String).join(', ') } : {}"
         :title="col.tooltip ?? undefined"
     >
-        <KinetixBadge
-            v-for="(item, i) in items"
-            :key="i"
-            :color="record.badgeColors[col.name]"
-        >
-            {{ item }}
-        </KinetixBadge>
-        <button
-            v-if="col.isCopyable && record.values[col.name] != null"
-            type="button"
-            class="text-muted-foreground opacity-0 transition-opacity group-focus-within/copy:opacity-100 group-hover/copy:opacity-100 hover:text-foreground focus-visible:opacity-100"
-            :title="t('kinetix.copy')"
-            @click.stop="
-                emit('copy-to-clipboard', items.map(String).join(', '))
-            "
-        >
-            <Copy class="size-3.5" />
-        </button>
-    </span>
+        <span class="gap-1 inline-flex flex-wrap items-center">
+            <KinetixBadge
+                v-for="(item, i) in items"
+                :key="i"
+                :color="record.badgeColors[col.name]"
+            >
+                {{ item }}
+            </KinetixBadge>
+        </span>
+    </component>
 </template>
