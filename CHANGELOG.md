@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.185.0] - 2026-10-01
+
+Copyable values feel like controls. In tables and infolists, the value itself
+is now the copy trigger, with a tooltip that reads Copy and then Copied!. A
+few copy and alignment paths that were silently broken work now. Re-publish
+the components and translations (`--force`) to pick this up.
+
 ### Changed
 
 - **Copyable columns: the value is the trigger (published).** A `copyable()`
