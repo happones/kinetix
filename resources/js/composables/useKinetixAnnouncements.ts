@@ -8,6 +8,7 @@ import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
 import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import type {
     KinetixAnnouncement,
+    KinetixAnnouncementLevelOption,
     KinetixEditableAnnouncement,
     KinetixSharedProps,
 } from '@/types/kinetix';
@@ -230,6 +231,8 @@ export function useKinetixAnnouncementManager() {
     const announcements = ref<KinetixEditableAnnouncement[]>([]);
     /** Inside a team, platform-wide entries are read-only. */
     const teamScoped = ref(false);
+    /** What the level picker offers (`kinetix.announcements.levels`). */
+    const levels = ref<KinetixAnnouncementLevelOption[]>([]);
     const loading = ref(false);
 
     async function load(): Promise<void> {
@@ -239,9 +242,11 @@ export function useKinetixAnnouncementManager() {
             const data = await kinetixFetch<{
                 announcements: KinetixEditableAnnouncement[];
                 teamScoped: boolean;
+                levels?: KinetixAnnouncementLevelOption[];
             }>(`${base()}/manage`);
             announcements.value = data?.announcements ?? [];
             teamScoped.value = data?.teamScoped ?? false;
+            levels.value = data?.levels ?? [];
         } finally {
             loading.value = false;
         }
@@ -263,6 +268,10 @@ export function useKinetixAnnouncementManager() {
                 // draft, `null` expiry never expires.
                 published_at: announcement.publishedAt,
                 expires_at: announcement.expiresAt ?? null,
+                dismissible: announcement.dismissible ?? true,
+                // A button needs both halves; a blank one is no button.
+                action_label: announcement.actionLabel?.trim() || null,
+                action_url: announcement.actionUrl?.trim() || null,
             },
         });
 
@@ -276,7 +285,7 @@ export function useKinetixAnnouncementManager() {
         await load();
     }
 
-    return { announcements, teamScoped, loading, load, save, remove };
+    return { announcements, teamScoped, levels, loading, load, save, remove };
 }
 
 /**
@@ -301,8 +310,15 @@ export function useKinetixAnnouncementFormat() {
         return te(key) ? t(key) : level;
     }
 
-    function levelColor(level: string): KinetixStatusColor {
-        return levelColors[level] ?? 'gray';
+    /**
+     * The entry's color: the server resolves it from config when it can (pass
+     * the entry's `color`); the built-in levels are the fallback.
+     */
+    function levelColor(
+        level: string,
+        resolved?: string | null,
+    ): KinetixStatusColor {
+        return resolved || (levelColors[level] ?? 'gray');
     }
 
     /** The level pill — the shared soft-badge recipe in the level's color. */

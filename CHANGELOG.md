@@ -13,6 +13,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dismissals module: `permanent` closes on every device, no wiring.** With
+  `kinetix.dismissals.enabled` on and the migration published
+  (`--tag=kinetix-dismissals-migrations`), `<KinetixAlert
+  dismiss-mode="permanent">` stores the close per user in
+  `kinetix_dismissals`, with no `persist` callback needed. The user's closed
+  keys ride every Inertia response as `kinetix_dismissals`, so the alert
+  renders closed from the first frame on any device. A `dismiss-duration` makes
+  the close lapse on the server too, and re-opening it takes the close back.
+  Endpoints: `POST {prefix}/dismissals` and `DELETE {prefix}/dismissals/{key}`
+  (behind `auth`). Server side, use
+  `KinetixDismissals::has/dismiss/restore/keysFor`. A `persist` callback still
+  wins when given.
+- **Configurable announcement levels.** `announcements.levels` maps each level
+  to a status color and an icon (`'maintenance' => ['color' => 'warning',
+  'icon' => 'wrench']`). Entries carry the resolved `color` and `icon`, and the
+  authoring form offers the configured levels. A level published from code that
+  the config doesn't list reads as neutral.
+- **Announcement buttons and non-closable notices (published).** An entry can
+  carry a call to action (`action_label` + `action_url`, shown as a button in
+  the banner and a link in the popover) and can be marked not closable
+  (`dismissible`), which hides the banner's close button and "Don't show
+  again" link. Both are set from the manager form or from code:
+  `KinetixAnnouncements::publish(..., dismissible: false, actionLabel: …,
+  actionUrl: …)`. The URL must be an app path or an http(s) link, so
+  `javascript:`, `data:` and protocol-relative URLs are rejected. Re-publish
+  the announcements migrations (`--force`) and migrate. Existing entries stay
+  closable and get no button, and an app that hasn't migrated yet keeps
+  publishing plain entries.
+- **Level-colored banner (published).** `<KinetixAnnouncementBanner
+  variant="soft|outline|accent">` tints the surface and icon with each entry's
+  level. `plain` (the default) keeps today's look. A pinned bar stays opaque
+  under the tint.
+- Translation keys `announcements_field_dismissible`,
+  `announcements_field_dismissible_hint`, `announcements_field_action_label`,
+  `announcements_field_action_url` and `announcements_field_action_hint` in
+  all seven locales.
+
+### Fixed
+
+- **Announcement dates are readable (published).** The banner and the popover
+  set the publish date in `text-muted-foreground/70`, below 4.5:1 contrast. It
+  now uses the muted token at full strength.
+
 ## [0.187.0] - 2026-10-05
 
 Flash, the Inertia way. `KinetixFlash` sends toasts and in-page alerts to the

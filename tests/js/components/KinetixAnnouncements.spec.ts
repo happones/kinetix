@@ -114,4 +114,27 @@ describe('KinetixAnnouncements', () => {
 
         expect(fetchMock).toHaveBeenCalledWith('/_kinetix/announcements');
     });
+
+    it('links each entry’s call to action', async () => {
+        const w = mountIt();
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({
+            announcements: [
+                {
+                    ...announcement,
+                    actionLabel: 'Read the guide',
+                    actionUrl: '/docs/export',
+                },
+            ],
+            unread: 0,
+        });
+        fetchMock.mockResolvedValueOnce({ status: 'success' });
+
+        await w.find('button').trigger('click');
+        await flushPromises();
+
+        const link = document.querySelector('a[href="/docs/export"]');
+        expect(link?.textContent?.trim()).toBe('Read the guide');
+    });
 });

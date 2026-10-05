@@ -128,6 +128,8 @@ export interface KinetixSharedProps {
     kinetix_notifications?: KinetixNotification[];
     /** Session alerts (`keep()` / `untilDismissed()`) for <KinetixFlashAlerts>. */
     kinetix_alerts?: KinetixFlashAlert[];
+    /** Alert keys this user closed for good (Dismissals module); null = off. */
+    kinetix_dismissals?: string[] | null;
     /** Unread badge + banner feed, so neither has to fetch on mount. */
     kinetix_announcements?: KinetixAnnouncementState | null;
     /** The setup checklist, so <KinetixOnboardingChecklist> doesn't fetch on mount. */
@@ -595,9 +597,22 @@ export interface KinetixEditableAnnouncement {
     publishedAt: string | null;
     /** `null` never expires; otherwise the entry leaves the feed on its own. */
     expiresAt?: string | null;
+    /** False for a notice readers must not close. */
+    dismissible?: boolean;
+    /** An optional button: both halves or neither. */
+    actionLabel?: string | null;
+    /** An app path (`/docs/x`) or an http(s) link. */
+    actionUrl?: string | null;
     /** Platform-wide (visible to every team); read-only inside a team. */
     isGlobal?: boolean;
     status?: 'draft' | 'scheduled' | 'published' | 'expired';
+}
+
+/** A level editors can pick (`kinetix.announcements.levels`). */
+export interface KinetixAnnouncementLevelOption {
+    value: string;
+    color: string;
+    icon: string | null;
 }
 
 /** A product announcement ("what's new" entry). */
@@ -608,6 +623,14 @@ export interface KinetixAnnouncement {
     level: string;
     publishedAt: string | null;
     isNew: boolean;
+    /** The level's status color, resolved server-side from config. */
+    color?: string;
+    /** The level's icon name; null/absent = the component's own. */
+    icon?: string | null;
+    /** False for a notice readers must not close. */
+    dismissible?: boolean;
+    actionLabel?: string | null;
+    actionUrl?: string | null;
 }
 
 /**

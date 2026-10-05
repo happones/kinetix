@@ -114,6 +114,8 @@ class AnnouncementController
             'announcements' => $announcements,
             // Inside a team, a platform-wide entry is read-only (see update()).
             'teamScoped' => Announcement::currentTeamId() !== null,
+            // What the level picker offers (`kinetix.announcements.levels`).
+            'levels' => AnnouncementLevels::options(),
         ]);
     }
 
@@ -197,7 +199,39 @@ class AnnouncementController
                 'date',
                 Rule::when(filled($request->input('published_at')), ['after:published_at']),
             ],
+            // A security notice the reader must not close.
+            'dismissible' => ['sometimes', 'boolean'],
+            // An optional call to action; a button needs both halves. The URL
+            // is an app path or an http(s) link — never `javascript:` & co.
+            'action_label' => ['nullable', 'string', 'max:80', 'required_with:action_url'],
+            'action_url'   => [
+                'nullable',
+                'string',
+                'max:2048',
+                'required_with:action_label',
+                static function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (is_string($value) && ! static::isSafeActionUrl($value)) {
+                        $fail(__('validation.url', ['attribute' => $attribute]));
+                    }
+                },
+            ],
         ]);
+    }
+
+    /**
+     * An app-relative path (`/docs/x`, not the protocol-relative `//host`) or
+     * an absolute http(s) URL.
+     */
+    public static function isSafeActionUrl(string $url): bool
+    {
+        if (preg_match('#^/(?![/\\\\])#', $url) === 1) {
+            return true;
+        }
+
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+
+        return in_array(is_string($scheme) ? strtolower($scheme) : null, ['http', 'https'], true)
+            && filter_var($url, FILTER_VALIDATE_URL) !== false;
     }
 
     /**
@@ -218,6 +252,9 @@ class AnnouncementController
             'level'       => $announcement->level,
             'publishedAt' => $publishedAt?->format(\DateTimeInterface::ATOM),
             'expiresAt'   => $announcement->expires_at?->format(\DateTimeInterface::ATOM),
+            'dismissible' => $announcement->getAttribute('dismissible') !== false,
+            'actionLabel' => $announcement->getAttribute('action_label'),
+            'actionUrl'   => $announcement->getAttribute('action_url'),
             'isGlobal'    => $announcement->isGlobal(),
             'status'      => match (true) {
                 $publishedAt === null       => 'draft',

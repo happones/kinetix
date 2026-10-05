@@ -36,7 +36,7 @@ import { cn } from './primitives/cn';
  *
  * Closing it can last as long as you need (`dismissMode`): `hide` (this
  * mount), `session` (this tab), `device` (this browser, synced across tabs),
- * or `permanent` (the account, through your `persist` callback).
+ * or `permanent` (the account: the Dismissals module, or your `persist`).
  * `dontShowAgain` offers both — the ✕ hides it for now, the link closes it for
  * good. `dismissDuration` brings a `session`/`device` close back after N ms.
  *
@@ -74,7 +74,10 @@ const props = withDefaults(
         dismissKey?: string | null;
         /** `session`/`device`: ms until a closed alert comes back. */
         dismissDuration?: number | null;
-        /** `permanent`: store the close server-side; a rejection re-opens it. */
+        /**
+         * `permanent`: store the close server-side; a rejection re-opens it.
+         * Unset, the Dismissals module stores it when enabled.
+         */
         persist?: ((key: string) => unknown | Promise<unknown>) | null;
         /** Add a "Don't show again" link next to the ✕ (permanent close). */
         dontShowAgain?: boolean;
@@ -119,13 +122,19 @@ const { announce } = useKinetixAnnounce();
 const dismissal = useKinetixDismissal(() => props.dismissKey, {
     mode: () => props.dismissMode,
     duration: () => props.dismissDuration,
-    // Read at call time, so a `persist` prop swapped after mount still counts.
-    persist: (key) => props.persist?.(key),
+    // A property getter: read at close time, so a `persist` prop swapped after
+    // mount still counts, and an absent one lets the Dismissals module step in.
+    get persist() {
+        return props.persist ?? null;
+    },
 });
 
-/** `permanent` needs somewhere to persist to; without it, this browser. */
+/**
+ * `permanent` needs somewhere to persist to — your `persist`, or the
+ * Dismissals module. With neither, it is this browser (`device`).
+ */
 function effective(mode: KinetixDismissMode): KinetixDismissMode {
-    return mode === 'permanent' && !props.persist ? 'device' : mode;
+    return mode === 'permanent' && !dismissal.canPersist() ? 'device' : mode;
 }
 
 const transitionProps = useKinetixTransition(() => props.transition);

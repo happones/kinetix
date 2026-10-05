@@ -2550,6 +2550,13 @@ export const specimens: Specimen[] = [
         width: 640,
     },
     {
+        name: 'announcement-banner-colorized',
+        title: 'Announcement banner (level-colored, soft)',
+        component: KinetixAnnouncementBanner,
+        props: { autoplay: 0, variant: 'soft' },
+        width: 640,
+    },
+    {
         name: 'announcement-banner-fixed',
         title: 'Announcement banner (fixed top)',
         component: KinetixAnnouncementBanner,

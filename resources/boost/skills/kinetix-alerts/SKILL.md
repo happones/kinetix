@@ -57,10 +57,18 @@ slide-down · slide-up · scale · collapse · none.
   it). The title is a `<p>` unless `heading-level` is set.
 - Closing: `dismiss-key` is required beyond `hide`. Closes are stored per user
   (`kinetix.dismissed:{userId}:{key}`). `device` syncs across tabs.
-  `dismiss-duration` (ms) brings a `session`/`device` close back.
-  `permanent` without `persist` falls back to `device`. A rejected `persist`
-  re-opens the alert and emits `dismiss-error`. `v-model:open` back to `true`
-  clears a stored close.
+  `dismiss-duration` (ms) brings a `session`/`device` close back. A rejected
+  `persist` re-opens the alert and emits `dismiss-error`. `v-model:open` back
+  to `true` clears a stored close.
+- `permanent` goes to the **Dismissals module** when
+  `kinetix.dismissals.enabled` is on (migration tag
+  `kinetix-dismissals-migrations`, table `kinetix_dismissals`): `POST
+  {prefix}/dismissals {key, minutes?}` and `DELETE {prefix}/dismissals/{key}`
+  (behind `auth`), plus a `kinetix_dismissals` prop with the user's active
+  keys (null = module off). That prop is how an alert renders closed from the
+  first frame on every device. A `persist` callback overrides the module, and
+  with neither one, `permanent` falls back to `device`. Server side:
+  `KinetixDismissals::has/dismiss/restore/keysFor($user, $key)`.
 - On close, focus moves to `focusableNear()` and an announcement says whether
   the close was a dismissal or a hide-for-now.
 - The first render doesn't animate unless `appear` is set.
@@ -112,4 +120,5 @@ KinetixFlash::forget('verify-email');                          // withdraw (not 
 i18n `alert_*` (7 locales). Tests: `KinetixAlert.spec.ts`,
 `KinetixFlashAlerts.spec.ts`, `useKinetixFlash.spec.ts`,
 `useKinetixDismissal.spec.ts`, `useKinetixTransition.spec.ts`,
-`useKinetixReducedMotion.spec.ts`, `KinetixFlashTest`, `MotionShareTest`.
+`useKinetixReducedMotion.spec.ts`, `KinetixFlashTest`, `DismissalsTest`,
+`MotionShareTest`.

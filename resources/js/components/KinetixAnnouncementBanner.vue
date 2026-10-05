@@ -27,8 +27,14 @@ import {
 } from '@/composables/useKinetixAnnouncements';
 import type { KinetixDismissMode } from '@/composables/useKinetixDismissal';
 import { focusableNear } from '@/composables/useKinetixFocusTrap';
+import { resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixReducedMotion } from '@/composables/useKinetixReducedMotion';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import {
+    statusAlertClass,
+    statusTextClass,
+} from '@/composables/useKinetixStatusColor';
+import type { KinetixAlertVariant } from '@/composables/useKinetixStatusColor';
 import { useKinetixTransition } from '@/composables/useKinetixTransition';
 import type { KinetixTransitionPreset } from '@/composables/useKinetixTransition';
 import type { KinetixAnnouncement } from '@/types/kinetix';
@@ -78,6 +84,11 @@ const props = withDefaults(
         /** Max width of the pinned bar (any Tailwind width class). */
         fixedWidthClass?: string;
         /**
+         * `plain` keeps the neutral surface; `soft`, `outline` and `accent`
+         * color it with each entry's level (`kinetix.announcements.levels`).
+         */
+        variant?: 'plain' | KinetixAlertVariant;
+        /**
          * How the banner enters and leaves. Unset = `slide-down` when pinned,
          * `fade` inline.
          */
@@ -97,6 +108,7 @@ const props = withDefaults(
         dontShowAgain: false,
         position: 'inline',
         fixedWidthClass: 'max-w-3xl',
+        variant: 'plain',
         transition: undefined,
         slideTransition: 'fade',
     },
@@ -139,6 +151,27 @@ const count = computed(() => announcements.value.length);
 const rotates = computed(() => count.value > 1);
 const current = computed<KinetixAnnouncement | undefined>(
     () => announcements.value[index.value],
+);
+
+/** The entry's color, resolved server-side from the level config. */
+const currentColor = computed(() =>
+    current.value
+        ? levelColor(current.value.level, current.value.color)
+        : 'gray',
+);
+const colorized = computed(() => props.variant !== 'plain');
+
+/** The configured icon wins; the built-in levels have their own. */
+const iconComponent = computed<Component>(() => {
+    const entry = current.value;
+    const configured = entry?.icon ? resolveIcon(entry.icon) : null;
+
+    return configured ?? levelIcons[entry?.level ?? ''] ?? Megaphone;
+});
+
+/** A notice the editor marked as not closable keeps its ✕ away. */
+const closable = computed(
+    () => props.dismissible && current.value?.dismissible !== false,
 );
 const autoplays = computed(
     () => rotates.value && props.autoplay > 0 && !reducedMotion.value,
@@ -326,7 +359,18 @@ watch(count, (value) => {
                     : 'grid'
             "
         >
-            <div :class="isFixed ? 'contents' : 'min-h-0'">
+            <!-- Pinned: an opaque bar carries the shadow and the width, so a
+                 tinted (colorized) surface never lets the page show through. -->
+            <div
+                :class="
+                    isFixed
+                        ? cn(
+                              'rounded-lg shadow-lg w-full bg-popover',
+                              fixedWidthClass,
+                          )
+                        : 'min-h-0'
+                "
+            >
                 <Alert
                     role="region"
                     aria-roledescription="carousel"
@@ -335,8 +379,11 @@ watch(count, (value) => {
                     :class="
                         cn(
                             'gap-3 flex items-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                            isFixed &&
-                                `shadow-lg bg-popover ${fixedWidthClass}`,
+                            colorized &&
+                                statusAlertClass(
+                                    currentColor,
+                                    variant === 'plain' ? 'soft' : variant,
+                                ),
                             props.class,
                         )
                     "
@@ -349,8 +396,13 @@ watch(count, (value) => {
                 >
                     <span class="mt-0.5 shrink-0" aria-hidden="true">
                         <component
-                            :is="levelIcons[current.level] ?? Megaphone"
-                            class="size-4 text-muted-foreground"
+                            :is="iconComponent"
+                            class="size-4"
+                            :class="
+                                colorized
+                                    ? statusTextClass(currentColor)
+                                    : 'text-muted-foreground'
+                            "
                         />
                     </span>
 
@@ -380,7 +432,7 @@ watch(count, (value) => {
                                             {{ current.title }}
                                         </AlertTitle>
                                         <KinetixBadge
-                                            :color="levelColor(current.level)"
+                                            :color="currentColor"
                                             size="sm"
                                             class="shrink-0"
                                         >
@@ -394,24 +446,55 @@ watch(count, (value) => {
                                         </span>
                                     </div>
 
+                                    <!-- On a tinted surface the muted token
+                                         drops under 4.5:1; foreground holds. -->
                                     <AlertDescription
-                                        class="mt-1 whitespace-pre-line text-muted-foreground"
+                                        class="mt-1 whitespace-pre-line"
+                                        :class="
+                                            colorized
+                                                ? 'text-foreground/80'
+                                                : 'text-muted-foreground'
+                                        "
                                     >
                                         {{ current.body }}
                                     </AlertDescription>
 
                                     <p
                                         v-if="current.publishedAt"
-                                        class="mt-1 text-xs text-muted-foreground/70"
+                                        class="mt-1 text-xs"
+                                        :class="
+                                            colorized
+                                                ? 'text-foreground/70'
+                                                : 'text-muted-foreground'
+                                        "
                                     >
                                         {{ formatDate(current.publishedAt) }}
                                     </p>
+
+                                    <a
+                                        v-if="
+                                            current.actionUrl &&
+                                            current.actionLabel
+                                        "
+                                        :href="current.actionUrl"
+                                        :class="
+                                            cn(
+                                                buttonVariants({
+                                                    variant: 'outline',
+                                                    size: 'sm',
+                                                }),
+                                                'mt-3',
+                                            )
+                                        "
+                                    >
+                                        {{ current.actionLabel }}
+                                    </a>
                                 </div>
                             </Transition>
                         </div>
 
                         <button
-                            v-if="dismissible && dontShowAgain"
+                            v-if="closable && dontShowAgain"
                             type="button"
                             :class="
                                 cn(
@@ -526,7 +609,7 @@ watch(count, (value) => {
                     </div>
 
                     <button
-                        v-if="dismissible"
+                        v-if="closable"
                         type="button"
                         :class="
                             buttonVariants({

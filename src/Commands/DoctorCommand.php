@@ -119,7 +119,7 @@ class DoctorCommand extends Command
         $modules = [
             'permissions', 'membership', 'settings', 'activity', 'webhooks', 'onboarding',
             'wizards', 'billing', 'tours', 'help', 'spotlight', 'reports_center', 'confidential',
-            'entitlements', 'credentials',
+            'entitlements', 'credentials', 'dismissals',
         ];
 
         $enabled = array_values(array_filter(

@@ -17,6 +17,9 @@ use Illuminate\Support\Carbon;
  * @property string      $title
  * @property string      $body
  * @property string      $level
+ * @property bool        $dismissible
+ * @property string|null $action_label
+ * @property string|null $action_url
  * @property Carbon|null $published_at
  * @property Carbon|null $expires_at
  * @property Carbon|null $created_at
@@ -70,6 +73,7 @@ class Announcement extends Model
         return [
             'published_at' => 'datetime',
             'expires_at'   => 'datetime',
+            'dismissible'  => 'boolean',
         ];
     }
 }

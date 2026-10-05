@@ -17,6 +17,7 @@ import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixEmptyState from './KinetixEmptyState.vue';
 import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
+import KinetixSwitch from './primitives/KinetixSwitch.vue';
 
 /**
  * Author announcements from the app instead of from a deploy step: write,
@@ -28,9 +29,10 @@ import KinetixModal from './primitives/KinetixModal.vue';
  */
 const { t } = useI18n();
 const { levelLabel, levelColor, formatDate } = useKinetixAnnouncementFormat();
-const { announcements, teamScoped, loading, load, save, remove } =
+const { announcements, teamScoped, levels, loading, load, save, remove } =
     useKinetixAnnouncementManager();
 
+/** The built-in levels, for a server that predates the configurable ones. */
 const LEVELS = ['info', 'feature', 'fix'];
 
 const blank = (): KinetixEditableAnnouncement => ({
@@ -40,6 +42,9 @@ const blank = (): KinetixEditableAnnouncement => ({
     level: 'info',
     publishedAt: new Date().toISOString(),
     expiresAt: null,
+    dismissible: true,
+    actionLabel: '',
+    actionUrl: '',
 });
 
 const draft = ref<KinetixEditableAnnouncement>(blank());
@@ -78,6 +83,34 @@ const expiresAt = computed({
     },
 });
 
+/**
+ * The configured levels — plus the entry's own when it was published from
+ * code with a level the config doesn't list, so editing never changes it.
+ */
+const levelOptions = computed<string[]>(() => {
+    const configured = levels.value.length
+        ? levels.value.map((level) => level.value)
+        : LEVELS;
+
+    return configured.includes(draft.value.level)
+        ? configured
+        : [...configured, draft.value.level];
+});
+
+/** A level's configured color; the built-in levels are the fallback. */
+const colorOf = (level: string) =>
+    levelColor(
+        level,
+        levels.value.find((option) => option.value === level)?.color,
+    );
+
+const dismissible = computed({
+    get: (): boolean => draft.value.dismissible !== false,
+    set: (value: boolean): void => {
+        draft.value.dismissible = value;
+    },
+});
+
 const statusLabel = (announcement: KinetixEditableAnnouncement): string =>
     t(`kinetix.announcements_status_${announcement.status ?? 'published'}`);
 
@@ -92,7 +125,11 @@ function create(): void {
 }
 
 function edit(announcement: KinetixEditableAnnouncement): void {
-    draft.value = { ...announcement };
+    draft.value = {
+        ...announcement,
+        actionLabel: announcement.actionLabel ?? '',
+        actionUrl: announcement.actionUrl ?? '',
+    };
     error.value = null;
     editing.value = true;
 }
@@ -170,7 +207,7 @@ onMounted(load);
                             {{ a.title }}
                         </span>
                         <KinetixBadge
-                            :color="levelColor(a.level)"
+                            :color="colorOf(a.level)"
                             size="sm"
                             class="shrink-0"
                         >
@@ -307,7 +344,7 @@ onMounted(load);
                             :class="inputClass"
                         >
                             <option
-                                v-for="level in LEVELS"
+                                v-for="level in levelOptions"
                                 :key="level"
                                 :value="level"
                             >
@@ -362,6 +399,76 @@ onMounted(load);
                         {{ t('kinetix.announcements_field_expires_hint') }}
                     </p>
                 </div>
+
+                <div class="gap-3 flex items-start">
+                    <KinetixSwitch
+                        id="kinetix-announcement-dismissible"
+                        v-model="dismissible"
+                        class="mt-0.5"
+                        aria-describedby="kinetix-announcement-dismissible-hint"
+                    />
+                    <div class="gap-1 flex flex-col">
+                        <label
+                            for="kinetix-announcement-dismissible"
+                            class="text-sm font-medium text-foreground"
+                        >
+                            {{ t('kinetix.announcements_field_dismissible') }}
+                        </label>
+                        <p
+                            id="kinetix-announcement-dismissible-hint"
+                            class="text-xs text-muted-foreground"
+                        >
+                            {{
+                                t(
+                                    'kinetix.announcements_field_dismissible_hint',
+                                )
+                            }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="gap-4 sm:grid-cols-2 grid">
+                    <div class="gap-1.5 flex flex-col">
+                        <label
+                            for="kinetix-announcement-action-label"
+                            class="text-sm font-medium text-foreground"
+                        >
+                            {{ t('kinetix.announcements_field_action_label') }}
+                        </label>
+                        <input
+                            id="kinetix-announcement-action-label"
+                            v-model="draft.actionLabel"
+                            type="text"
+                            maxlength="80"
+                            :class="inputClass"
+                            aria-describedby="kinetix-announcement-action-hint"
+                        />
+                    </div>
+
+                    <div class="gap-1.5 flex flex-col">
+                        <label
+                            for="kinetix-announcement-action-url"
+                            class="text-sm font-medium text-foreground"
+                        >
+                            {{ t('kinetix.announcements_field_action_url') }}
+                        </label>
+                        <input
+                            id="kinetix-announcement-action-url"
+                            v-model="draft.actionUrl"
+                            type="text"
+                            inputmode="url"
+                            maxlength="2048"
+                            :class="inputClass"
+                            aria-describedby="kinetix-announcement-action-hint"
+                        />
+                    </div>
+                </div>
+                <p
+                    id="kinetix-announcement-action-hint"
+                    class="-mt-2 text-xs text-muted-foreground"
+                >
+                    {{ t('kinetix.announcements_field_action_hint') }}
+                </p>
             </form>
 
             <template #footer>

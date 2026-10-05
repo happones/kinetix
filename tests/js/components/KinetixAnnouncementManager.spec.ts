@@ -227,4 +227,96 @@ describe('KinetixAnnouncementManager', () => {
         );
         expect(field('#kinetix-announcement-title')).not.toBeNull();
     });
+
+    it('offers the configured levels and keeps an unlisted one when editing', async () => {
+        fetchMock.mockResolvedValueOnce({
+            announcements: [entry({ level: 'from-code' })],
+            teamScoped: false,
+            levels: [
+                { value: 'info', color: 'gray', icon: 'info' },
+                { value: 'maintenance', color: 'warning', icon: 'wrench' },
+            ],
+        });
+        const w = mountIt();
+        await flushPromises();
+
+        await byLabel(w, 'Edit')?.trigger('click');
+        await flushPromises();
+
+        const options = Array.from(
+            document.querySelectorAll('#kinetix-announcement-level option'),
+        ).map((option) => (option as HTMLOptionElement).value);
+
+        expect(options).toEqual(['info', 'maintenance', 'from-code']);
+    });
+
+    it('sends whether readers may close it and the call to action', async () => {
+        fetchMock.mockResolvedValueOnce({
+            announcements: [],
+            teamScoped: false,
+        });
+        const w = mountIt();
+        await flushPromises();
+
+        await w.find('button').trigger('click');
+        await flushPromises();
+        await setField('#kinetix-announcement-title', 'Rotate your keys');
+        await setField(
+            '#kinetix-announcement-body',
+            'A provider leaked tokens.',
+        );
+        await setField('#kinetix-announcement-action-label', 'Rotate now');
+        await setField(
+            '#kinetix-announcement-action-url',
+            ' /settings/tokens ',
+        );
+
+        // The switch is labelled by its <label for>, and starts on.
+        const toggle = document.getElementById(
+            'kinetix-announcement-dismissible',
+        ) as HTMLElement;
+        expect(toggle.getAttribute('aria-checked')).toBe('true');
+        toggle.click();
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({ announcement: entry() });
+        fetchMock.mockResolvedValueOnce({
+            announcements: [],
+            teamScoped: false,
+        });
+        await submitForm();
+
+        expect(fetchMock.mock.calls[1][1].body).toMatchObject({
+            dismissible: false,
+            action_label: 'Rotate now',
+            action_url: '/settings/tokens',
+        });
+    });
+
+    it('sends no button when its fields are left blank', async () => {
+        fetchMock.mockResolvedValueOnce({
+            announcements: [],
+            teamScoped: false,
+        });
+        const w = mountIt();
+        await flushPromises();
+
+        await w.find('button').trigger('click');
+        await flushPromises();
+        await setField('#kinetix-announcement-title', 'Plain');
+        await setField('#kinetix-announcement-body', 'Body');
+
+        fetchMock.mockResolvedValueOnce({ announcement: entry() });
+        fetchMock.mockResolvedValueOnce({
+            announcements: [],
+            teamScoped: false,
+        });
+        await submitForm();
+
+        expect(fetchMock.mock.calls[1][1].body).toMatchObject({
+            dismissible: true,
+            action_label: null,
+            action_url: null,
+        });
+    });
 });

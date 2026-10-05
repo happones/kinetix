@@ -49,6 +49,10 @@ you've decided who may. Define it in `AppServiceProvider`:
 Gate::define('manageKinetixAnnouncements', fn ($user) => $user->isAdmin());
 ```
 
+The form also sets whether readers may close the entry (on by default) and an
+optional button: a label plus an app path (`/docs/…`) or an `https://` link.
+The server accepts nothing else, so a `javascript:` URL can't get in.
+
 An entry with **no publish date is a draft** and a **future date schedules it**;
 neither reaches a reader's feed until its moment arrives. The list shows drafts
 and scheduled entries — the reader endpoints never do.
@@ -85,6 +89,19 @@ KinetixAnnouncements::publish(
 );
 ```
 
+A notice can carry a button, and one readers mustn't close can say so:
+
+```php
+KinetixAnnouncements::publishGlobally(
+    __('notices.rotate_keys_title'),
+    __('notices.rotate_keys_body'),
+    'fix',
+    dismissible: false,                  // no close button in the banner
+    actionLabel: __('notices.rotate_now'),
+    actionUrl: '/settings/tokens',       // an app path or an http(s) link
+);
+```
+
 Only entries with a past `published_at` are shown; a `null` value is a draft.
 `expires_at` is the other end: once it passes, the entry leaves every feed,
 banner and unread count on its own. `null` (the default) never expires — which
@@ -94,6 +111,29 @@ The feed returns the 20 most recent entries; `?limit=` overrides it up to 50,
 and `announcements.feed_limit` changes the default. There is no cursor: a
 "what's new" feed is the last handful of entries, not an archive — and with
 `expires_at` doing its job, old news stops accumulating in the first place.
+
+### Levels
+
+A level picks the entry's color and icon. The defaults are `info` (neutral),
+`feature` (success, sparkles) and `fix` (info, wrench); add your own in config,
+and the authoring form offers them:
+
+```php
+'announcements' => [
+    'levels' => [
+        'info'        => ['color' => 'gray', 'icon' => 'info'],
+        'feature'     => ['color' => 'success', 'icon' => 'sparkles'],
+        'fix'         => ['color' => 'info', 'icon' => 'wrench'],
+        'maintenance' => ['color' => 'warning', 'icon' => 'wrench'],
+    ],
+],
+```
+
+`color` is a status color (`success`, `danger`, `warning`, `info`, `primary`,
+`gray`) and `icon` any icon name Kinetix resolves (see [Icons](/icons)). Label a
+level in your lang file as `kinetix.announcements_level_{slug}`; without one the
+slug shows. An entry published from code with a level the config doesn't list
+reads as neutral.
 
 ### Multi-tenant
 
@@ -118,6 +158,9 @@ Upgrading an existing install:
 php artisan vendor:publish --tag=kinetix-announcements-migrations --force
 php artisan migrate
 ```
+
+The same publish brings the display columns (`dismissible`, `action_label`,
+`action_url`); existing entries stay closable and get no button.
 
 Additive and idempotent — existing entries keep `team_id` NULL, so they stay
 platform-wide and every feed keeps showing them. The same publish brings the
@@ -182,6 +225,7 @@ import KinetixAnnouncementBanner from '@/components/kinetix/KinetixAnnouncementB
 | `dontShowAgain`   | `false`      | Add a "Don't show again" link (closes for good)         |
 | `position`        | `inline`     | `inline` or `fixed-top` (see below)                     |
 | `fixedWidthClass` | `max-w-3xl`  | Width of the pinned bar                                 |
+| `variant`         | `plain`      | `soft`, `outline` or `accent` color the surface by level |
 | `transition`      | per position | Enter/leave preset; `slide-down` pinned, `fade` inline  |
 | `slideTransition` | `fade`       | How one entry gives way to the next                     |
 | `class`           | —            | Merged onto the alert surface                           |
@@ -209,6 +253,23 @@ layout and get it back the moment the banner is dismissed:
     padding-top: var(--kinetix-announcement-banner-height, 0px);
 }
 ```
+
+### Level colors and buttons
+
+`variant="soft"` (or `outline`, `accent`) colors the banner with each entry's
+level, the same surfaces as [`<KinetixAlert>`](/alerts#colors-and-surfaces). The
+default `plain` keeps the neutral surface. A pinned bar stays opaque under a
+tinted surface.
+
+<Screenshot name="announcement-banner-colorized" alt="Announcement banner tinted with its level color, with a Try it button" />
+
+```vue
+<KinetixAnnouncementBanner position="fixed-top" variant="soft" />
+```
+
+An entry with an action shows it as a button under the message, in the banner
+and in the "What's new" popover. An entry marked not closable shows no close
+button and no "Don't show again" link.
 
 ### Closing
 
@@ -337,6 +398,7 @@ one entry. An id from another tenant is a 404 — `dismiss` resolves through the
 same team-scoped query the feed uses.
 
 `manage` returns the authoring list (drafts and scheduled entries included, each
-with a `status` and `isGlobal`) plus `teamScoped`; `store`/`update` take
-`title`, `body`, `level` and a nullable `published_at`. Deleting an
+with a `status` and `isGlobal`) plus `teamScoped` and the configured `levels`;
+`store`/`update` take `title`, `body`, `level`, a nullable `published_at` and
+`expires_at`, and the optional `dismissible`, `action_label` and `action_url`. Deleting an
 announcement also deletes its dismissals.

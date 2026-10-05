@@ -8,6 +8,7 @@ import {
     watch,
 } from 'vue';
 import type { ComputedRef, MaybeRefOrGetter } from 'vue';
+import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
@@ -17,9 +18,10 @@ import type { KinetixSharedProps } from '@/types/kinetix';
  *                 (or the next mount of a persistent layout).
  * - `session`   — this browser tab, until it is closed (sessionStorage).
  * - `device`    — this browser, across tabs and restarts (localStorage).
- * - `permanent` — the account, on every device. The server owns that state,
- *                 so the caller supplies `persist`; without one it degrades
- *                 to `device` rather than pretending.
+ * - `permanent` — the account, on every device. The server owns that state:
+ *                 the Dismissals module (`kinetix.dismissals.enabled`) stores
+ *                 it with no wiring, or the caller supplies `persist`. With
+ *                 neither, it degrades to `device` rather than pretending.
  *
  * `session` and `device` take an optional duration — "hide it for a week" —
  * after which the alert comes back on its own.
@@ -108,17 +110,72 @@ function forgetEntry(scope: StorageScope, key: string): void {
 }
 
 /**
+ * Keys restored in this tab while the page payload still lists them as closed
+ * (it only learns otherwise on the next response).
+ */
+const restoredHere = new Set<string>();
+
+function usePageOrNull(): { props: KinetixSharedProps } | null {
+    try {
+        return usePage<KinetixSharedProps>();
+    } catch {
+        // Mounted outside a full Inertia app (tests, a standalone widget).
+        return null;
+    }
+}
+
+/**
+ * The account-wide ledger: the Dismissals module's keys on the page payload
+ * (`kinetix_dismissals`, null when the module is off) and its endpoints.
+ */
+function useServerLedger(scoped: (key: string) => string) {
+    const page = usePageOrNull();
+
+    const keys = (): string[] | null => page?.props?.kinetix_dismissals ?? null;
+    const base = (): string =>
+        `/${kinetixRoutePrefix(page ?? { props: {} })}/dismissals`;
+
+    return {
+        /** Whether a `permanent` close has a server to go to. */
+        available: (): boolean => Array.isArray(keys()),
+
+        has: (key: string): boolean =>
+            (keys() ?? []).includes(key) && !restoredHere.has(scoped(key)),
+
+        /** `duration` (ms) becomes the close's server-side lifetime. */
+        async dismiss(key: string, duration?: number | null): Promise<void> {
+            await kinetixFetch(base(), {
+                method: 'POST',
+                body: {
+                    key,
+                    minutes:
+                        duration && duration > 0
+                            ? Math.ceil(duration / 60_000)
+                            : null,
+                },
+            });
+
+            restoredHere.delete(scoped(key));
+        },
+
+        async restore(key: string): Promise<void> {
+            restoredHere.add(scoped(key));
+
+            await kinetixFetch(`${base()}/${encodeURIComponent(key)}`, {
+                method: 'DELETE',
+            });
+        },
+    };
+}
+
+/**
  * Who the dismissals belong to: two accounts sharing a browser must not close
  * each other's alerts. Guests share one bucket.
  */
 function useOwner(): () => string {
-    try {
-        const page = usePage<KinetixSharedProps>();
+    const page = usePageOrNull();
 
-        return () => String(page.props?.auth?.user?.id ?? 'guest');
-    } catch {
-        return () => 'guest';
-    }
+    return () => String(page?.props?.auth?.user?.id ?? 'guest');
 }
 
 /**
@@ -133,12 +190,16 @@ export function useKinetixDismissalStore() {
         return `${PREFIX}:${owner()}:${key}`;
     }
 
+    const server = useServerLedger(storageKey);
+
+    /** Closed in this tab, this browser, or — with the module — the account. */
     function isDismissed(key: string): boolean {
         const scoped = storageKey(key);
 
         return (
             readEntry('session', scoped) !== null ||
-            readEntry('device', scoped) !== null
+            readEntry('device', scoped) !== null ||
+            server.has(key)
         );
     }
 
@@ -163,7 +224,7 @@ export function useKinetixDismissalStore() {
         forgetEntry('device', scoped);
     }
 
-    return { isDismissed, remember, forget, storageKey };
+    return { isDismissed, remember, forget, storageKey, server };
 }
 
 export interface KinetixDismissalOptions {
@@ -173,7 +234,9 @@ export interface KinetixDismissalOptions {
     duration?: MaybeRefOrGetter<number | null | undefined>;
     /**
      * `permanent` only: store the dismissal server-side; rejecting undoes it.
-     * A plain function, never a getter — `toValue()` would call it.
+     * Unset, the Dismissals module stores it when enabled. A plain function,
+     * never a getter function — `toValue()` would call it. (A property getter,
+     * `get persist() { … }`, is fine: it is read at close time.)
      */
     persist?: ((key: string) => unknown | Promise<unknown>) | null;
 }
@@ -182,6 +245,8 @@ export interface KinetixDismissal {
     dismissed: ComputedRef<boolean>;
     dismiss: (mode?: KinetixDismissMode) => Promise<void>;
     restore: () => void;
+    /** Whether a `permanent` close reaches a server (a `persist` or the module). */
+    canPersist: () => boolean;
 }
 
 /**
@@ -230,7 +295,12 @@ export function useKinetixDismissal(
             return;
         }
 
-        const persist = options.persist;
+        const persist =
+            options.persist ??
+            (store.server.available()
+                ? (key: string) =>
+                      store.server.dismiss(key, toValue(options.duration))
+                : null);
 
         if (!persist) {
             store.remember(current, 'device');
@@ -258,6 +328,12 @@ export function useKinetixDismissal(
 
         if (current) {
             store.forget(current);
+
+            if (store.server.available()) {
+                // Best effort: the alert is already back on screen, and a
+                // failed call only means it is closed again on the next page.
+                store.server.restore(current).catch(() => {});
+            }
         }
 
         sync();
@@ -281,5 +357,6 @@ export function useKinetixDismissal(
         dismissed: computed(() => hidden.value || stored.value),
         dismiss,
         restore,
+        canPersist: () => !!options.persist || store.server.available(),
     };
 }

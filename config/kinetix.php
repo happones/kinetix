@@ -804,6 +804,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Dismissals (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Remembers, per user and on the server, which alerts they closed for good,
+    | so `<KinetixAlert dismiss-mode="permanent">` stays closed on every device
+    | without a `persist` callback of your own. Requires the migration
+    | (vendor:publish --tag=kinetix-dismissals-migrations).
+    |
+    */
+    'dismissals' => [
+        'enabled' => env('KINETIX_DISMISSALS_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | GDPR self-service (optional)
     |--------------------------------------------------------------------------
     |
@@ -962,6 +977,16 @@ return [
         // How many entries <KinetixAnnouncementBanner> rotates through when the
         // component doesn't pass its own `limit` (hard ceiling: 10).
         'banner_limit' => env('KINETIX_ANNOUNCEMENTS_BANNER_LIMIT', 3),
+
+        // The levels editors pick from, each with the status color (success ·
+        // danger · warning · info · primary · gray) and icon it shows with.
+        // Add your own; label one in your lang file as
+        // `kinetix.announcements_level_{slug}`.
+        'levels' => [
+            'info'    => ['color' => 'gray', 'icon' => 'info'],
+            'feature' => ['color' => 'success', 'icon' => 'sparkles'],
+            'fix'     => ['color' => 'info', 'icon' => 'wrench'],
+        ],
 
         // Ship the unread count + banner feed on every Inertia response, so the
         // header trigger and the banner render from the page payload instead of

@@ -123,7 +123,7 @@ function onOpen(next: boolean): void {
                                 {{ a.title }}
                             </h3>
                             <KinetixBadge
-                                :color="levelColor(a.level)"
+                                :color="levelColor(a.level, a.color)"
                                 size="sm"
                                 class="shrink-0"
                             >
@@ -135,9 +135,16 @@ function onOpen(next: boolean): void {
                         >
                             {{ a.body }}
                         </p>
-                        <p class="mt-1 text-xs text-muted-foreground/70">
+                        <p class="mt-1 text-xs text-muted-foreground">
                             {{ formatDate(a.publishedAt) }}
                         </p>
+                        <a
+                            v-if="a.actionUrl && a.actionLabel"
+                            :href="a.actionUrl"
+                            class="mt-1 text-sm font-medium inline-block text-primary underline-offset-4 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                        >
+                            {{ a.actionLabel }}
+                        </a>
                     </article>
                 </ScrollArea>
             </PopoverContent>

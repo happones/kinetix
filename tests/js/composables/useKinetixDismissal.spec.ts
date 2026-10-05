@@ -4,6 +4,12 @@ import { effectScope, ref } from 'vue';
 const pageProps: Record<string, unknown> = { auth: { user: { id: 7 } } };
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: pageProps }) }));
 
+const fetchMock = vi.fn();
+vi.mock('@/composables/useKinetixHttp', () => ({
+    kinetixFetch: (...args: unknown[]) => fetchMock(...args),
+    kinetixRoutePrefix: () => '_kinetix',
+}));
+
 import {
     useKinetixDismissal,
     useKinetixDismissalStore,
@@ -177,5 +183,71 @@ describe('useKinetixDismissal', () => {
 
         expect(first.value.dismissed.value).toBe(true);
         first.stop();
+    });
+});
+
+describe('useKinetixDismissal — the Dismissals module', () => {
+    beforeEach(() => {
+        sessionStorage.clear();
+        localStorage.clear();
+        fetchMock.mockReset();
+        pageProps.kinetix_dismissals = [];
+    });
+
+    afterEach(() => {
+        delete pageProps.kinetix_dismissals;
+    });
+
+    it('keeps an alert closed on every device from the first render', () => {
+        pageProps.kinetix_dismissals = ['complete-profile'];
+
+        const alert = inScope(() => useKinetixDismissal('complete-profile'));
+
+        expect(alert.value.dismissed.value).toBe(true);
+        alert.stop();
+    });
+
+    it('stores a permanent close with no persist callback of its own', async () => {
+        fetchMock.mockResolvedValueOnce({ dismissed: true });
+        const alert = inScope(() =>
+            useKinetixDismissal('beta', {
+                mode: 'permanent',
+                duration: 30 * 60_000,
+            }),
+        );
+
+        expect(alert.value.canPersist()).toBe(true);
+        await alert.value.dismiss();
+
+        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/dismissals', {
+            method: 'POST',
+            body: { key: 'beta', minutes: 30 },
+        });
+        expect(localStorage.length).toBe(0);
+        alert.stop();
+    });
+
+    it('restoring takes the close back even before the payload catches up', () => {
+        pageProps.kinetix_dismissals = ['promo'];
+        fetchMock.mockResolvedValueOnce({ restored: true });
+        const alert = inScope(() => useKinetixDismissal('promo'));
+
+        alert.value.restore();
+
+        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/dismissals/promo', {
+            method: 'DELETE',
+        });
+        expect(alert.value.dismissed.value).toBe(false);
+        alert.stop();
+    });
+
+    it('with the module off, a permanent close has nowhere to go', () => {
+        delete pageProps.kinetix_dismissals;
+        const alert = inScope(() =>
+            useKinetixDismissal('x', { mode: 'permanent' }),
+        );
+
+        expect(alert.value.canPersist()).toBe(false);
+        alert.stop();
     });
 });

@@ -414,4 +414,85 @@ describe('KinetixAnnouncementBanner', () => {
         expect(buttonWithLabel(w, 'Pause rotation')).toBeUndefined();
         expect(buttonWithLabel(w, 'Next announcement')).toBeTruthy();
     });
+
+    it('keeps the close button away from a notice marked not closable', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [
+                {
+                    ...announcement(1, 'Rotate your keys', 'fix'),
+                    dismissible: false,
+                },
+            ],
+        };
+        const w = mountIt({ dontShowAgain: true });
+        await flushPromises();
+
+        expect(buttonWithLabel(w, 'Dismiss')).toBeUndefined();
+        expect(w.text()).not.toContain('Don’t show again');
+    });
+
+    it('renders the entry’s call to action as a link', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [
+                {
+                    ...announcement(1, 'New export'),
+                    actionLabel: 'Read the guide',
+                    actionUrl: '/docs/export',
+                },
+            ],
+        };
+        const w = mountIt();
+        await flushPromises();
+
+        const link = w.find('a[href="/docs/export"]');
+        expect(link.text()).toBe('Read the guide');
+    });
+
+    it('colors the surface with the entry’s level when asked', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [
+                {
+                    ...announcement(1, 'Maintenance tonight', 'maintenance'),
+                    color: 'warning',
+                    icon: 'wrench',
+                },
+            ],
+        };
+
+        const plain = mountIt();
+        await flushPromises();
+        expect(plain.find('[data-slot="alert"]').classes()).not.toContain(
+            'bg-warning/10',
+        );
+
+        const soft = mountIt({ variant: 'soft' });
+        await flushPromises();
+        expect(soft.find('[data-slot="alert"]').classes()).toContain(
+            'bg-warning/10',
+        );
+        // The level pill takes the server-resolved color too.
+        expect(soft.html()).toContain('text-warning');
+    });
+
+    it('keeps a pinned bar opaque under a tinted surface', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [{ ...announcement(1, 'Pinned'), color: 'info' }],
+        };
+        const w = mountIt({ position: 'fixed-top', variant: 'soft' });
+        await flushPromises();
+
+        const bar = w.find('div.fixed > div');
+        expect(bar.classes()).toEqual(
+            expect.arrayContaining(['bg-popover', 'shadow-lg', 'max-w-3xl']),
+        );
+        w.unmount();
+    });
 });

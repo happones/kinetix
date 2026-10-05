@@ -91,7 +91,7 @@ stays closed:
 | `hide` (default) | Until this component mounts again (next page)     | —              |
 | `session`        | For this browser tab, until it is closed          | `dismissKey`   |
 | `device`         | In this browser, across tabs and restarts         | `dismissKey`   |
-| `permanent`      | For the account, on every device                  | `dismissKey` + `persist` |
+| `permanent`      | For the account, on every device                  | `dismissKey` + the Dismissals module or `persist` |
 
 ```vue
 <!-- Gone for this tab -->
@@ -115,11 +115,64 @@ alert in the user's other open tabs too.
 
 ### For good, on every device
 
-Only your server can remember a close across devices, so `permanent` takes a
-`persist` callback that stores it. Closing is optimistic: the alert goes away
-at once, and comes back if `persist` rejects (the component emits
-`dismiss-error`). Without a `persist` callback, `permanent` behaves like
-`device`.
+Only a server can remember a close across devices. Turn on the **Dismissals**
+module and `permanent` needs no wiring at all:
+
+```bash
+php artisan vendor:publish --tag=kinetix-dismissals-migrations
+php artisan migrate
+```
+
+```php
+// config/kinetix.php
+'dismissals' => [
+    'enabled' => env('KINETIX_DISMISSALS_ENABLED', true),
+],
+```
+
+```vue
+<KinetixAlert
+    color="info"
+    :title="t('profile.complete_title')"
+    dismissible
+    dismiss-mode="permanent"
+    dismiss-key="complete-profile"
+/>
+```
+
+The close is stored per user (`kinetix_dismissals` table), and every Inertia
+response carries the user's closed keys as the `kinetix_dismissals` prop, so
+the alert renders closed from the first frame on every device. With a
+`dismiss-duration` the close lapses on the server too ("remind me in 30 days").
+Re-opening it through `v-model:open` takes the close back. To skip an alert
+on the server entirely:
+
+```php
+use Happones\Kinetix\Dismissals\KinetixDismissals;
+
+if (! KinetixDismissals::has($request->user(), 'complete-profile')) {
+    // …share what the alert needs
+}
+
+KinetixDismissals::dismiss($user, 'complete-profile', now()->addDays(30));
+KinetixDismissals::restore($user, 'complete-profile');
+```
+
+| Method   | Route                          | Name                          |
+| -------- | ------------------------------ | ----------------------------- |
+| `POST`   | `{prefix}/dismissals`          | `kinetix.dismissals.store`    |
+| `DELETE` | `{prefix}/dismissals/{key}`    | `kinetix.dismissals.destroy`  |
+
+Both are behind your `kinetix.middleware` (`auth`). Keys are what you pass as
+`dismiss-key`: letters, digits and `. _ : -`, up to 191 characters.
+
+Closing is optimistic: the alert goes away at once and comes back if the
+server rejects the close (the component emits `dismiss-error`).
+
+#### Your own storage
+
+To store closes somewhere else, pass a `persist` callback. It wins over the
+module. Without either one, `permanent` behaves like `device`.
 
 ```vue
 <script setup lang="ts">
@@ -144,16 +197,16 @@ const saveDismissal = (key: string) =>
 </template>
 ```
 
-Render the alert only when your server says it isn't dismissed. A page that
-Back or Forward restores from the browser history still carries the props it
-had before the close, so the tab also remembers the close and keeps the alert
-hidden on that page.
+Then render the alert only when your server says it isn't closed. Either way,
+a page that Back or Forward restores from the browser history still carries
+the props it had before the close, so the tab also remembers the close and
+keeps the alert hidden on that page.
 
 ### Hide for now, or don't show again
 
 `dont-show-again` gives the user both choices: the ✕ follows `dismissMode`
 (typically `session`), and a **Don't show again** link closes it for good
-(`permanent` with `persist`, `device` without):
+(`permanent` with the Dismissals module or a `persist`, `device` without):
 
 ```vue
 <KinetixAlert
@@ -324,7 +377,7 @@ sources above. Use it for motion CSS can't stop, such as a timer.
 | `dismiss-mode`     | `hide`  | `hide` · `session` · `device` · `permanent` |
 | `dismiss-key`      | —       | Unique name, required to remember a close |
 | `dismiss-duration` | —       | ms until a `session`/`device` close lapses |
-| `persist`          | —       | `(key) => Promise` for `permanent` |
+| `persist`          | —       | `(key) => Promise` for `permanent` (overrides the Dismissals module) |
 | `dont-show-again`  | `false` | Add the "Don't show again" link |
 | `transition`       | `fade`  | Animation preset (see above) |
 | `appear`           | `false` | Animate the first render too |

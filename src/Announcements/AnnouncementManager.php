@@ -167,6 +167,9 @@ class AnnouncementManager
         ?CarbonInterface $publishedAt = null,
         bool $global = false,
         ?CarbonInterface $expiresAt = null,
+        bool $dismissible = true,
+        ?string $actionLabel = null,
+        ?string $actionUrl = null,
     ): Announcement {
         $attributes = [
             'title'        => $title,
@@ -175,6 +178,17 @@ class AnnouncementManager
             'published_at' => $publishedAt ?? now(),
             'expires_at'   => $expiresAt,
         ];
+
+        // Written only when they differ from the column defaults, so an app
+        // that hasn't run the display-fields migration keeps publishing.
+        if (! $dismissible) {
+            $attributes['dismissible'] = false;
+        }
+
+        if ($actionLabel !== null && $actionUrl !== null) {
+            $attributes['action_label'] = $actionLabel;
+            $attributes['action_url']   = $actionUrl;
+        }
 
         if (KinetixTeams::enabledFor('announcements')) {
             $attributes['team_id'] = $global ? null : Announcement::currentTeamId();

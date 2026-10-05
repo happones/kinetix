@@ -65,6 +65,8 @@ use Happones\Kinetix\Credentials\PasswordController;
 use Happones\Kinetix\Credentials\PasswordObserver;
 use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Data\AccessibilityData;
+use Happones\Kinetix\Dismissals\DismissalController;
+use Happones\Kinetix\Dismissals\KinetixDismissals;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Entitlements\Middleware\EnsureEntitled;
 use Happones\Kinetix\Exports\ExportController;
@@ -537,13 +539,20 @@ class KinetixServiceProvider extends ServiceProvider
             // plus the tenant column — separate file so apps that already
             // migrated pick it up on the next publish).
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php'              => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'      => database_path('migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php' => database_path('migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'    => database_path('migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'   => database_path('migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000031_add_expires_at_to_kinetix_announcements_table.php'   => database_path('migrations/2026_01_01_000031_add_expires_at_to_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000014_create_kinetix_announcements_table.php'                => database_path('migrations/2026_01_01_000014_create_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'        => database_path('migrations/2026_01_01_000025_add_team_id_to_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php'   => database_path('migrations/2026_01_01_000028_add_team_id_to_kinetix_announcement_views_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'      => database_path('migrations/2026_01_01_000029_create_kinetix_announcement_dismissals_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'     => database_path('migrations/2026_01_01_000030_add_feed_index_to_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000031_add_expires_at_to_kinetix_announcements_table.php'     => database_path('migrations/2026_01_01_000031_add_expires_at_to_kinetix_announcements_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000037_add_display_fields_to_kinetix_announcements_table.php' => database_path('migrations/2026_01_01_000037_add_display_fields_to_kinetix_announcements_table.php'),
             ], 'kinetix-announcements-migrations');
+
+            // Publish the optional Dismissals module's migration (alerts closed
+            // for good, on every device).
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000036_create_kinetix_dismissals_table.php' => database_path('migrations/2026_01_01_000036_create_kinetix_dismissals_table.php'),
+            ], 'kinetix-dismissals-migrations');
 
             // Publish the optional locale column migration (language switcher).
             $this->publishes([
@@ -605,6 +614,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Closing a session alert (KinetixFlash::alert()->untilDismissed())
         $this->registerFlashRoutes();
+
+        // Alerts closed for good, on every device (optional module)
+        $this->registerDismissals();
 
         // Register endpoints for table inline edits
         $this->registerTableRoutes();
@@ -2147,6 +2159,19 @@ class KinetixServiceProvider extends ServiceProvider
         // `flash` instead. <KinetixFlashAlerts /> renders both.
         Inertia::share('kinetix_alerts', fn (): array => KinetixFlash::persistentAlerts());
 
+        // The alerts this user closed for good, so a `permanent` <KinetixAlert>
+        // never renders again on any device. Null = the module is off, which
+        // tells the client a permanent close has no server to go to.
+        Inertia::share('kinetix_dismissals', function (): ?array {
+            $user = auth()->user();
+
+            if (! config('kinetix.dismissals.enabled', false) || ! $user instanceof Model) {
+                return null;
+            }
+
+            return KinetixDismissals::keysFor($user);
+        });
+
         Inertia::share('kinetix_notifications', function () {
             $isDatabase = (bool) config('kinetix.notifications.database', false);
             $limit      = (int) config('kinetix.notifications.limit', 15);
@@ -2601,6 +2626,38 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('{id}/dismiss', [FlashController::class, 'dismiss'])
                     ->where('id', '[A-Za-z0-9._:-]{1,100}')
                     ->name('kinetix.flash.dismiss');
+            });
+    }
+
+    /**
+     * Wire the optional Dismissals module: the endpoints a `permanent`
+     * `<KinetixAlert>` close reports to. The keys reach the page through the
+     * `kinetix_dismissals` prop.
+     */
+    protected function registerDismissals(): void
+    {
+        if (! config('kinetix.dismissals.enabled', false)) {
+            return;
+        }
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = '{current_team}/'.$prefix;
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        Route::middleware($middleware)
+            ->prefix("{$prefix}/dismissals")
+            ->group(function () {
+                Route::post('/', [DismissalController::class, 'store'])->name('kinetix.dismissals.store');
+                Route::delete('{key}', [DismissalController::class, 'destroy'])
+                    ->where('key', '[A-Za-z0-9._:-]{1,191}')
+                    ->name('kinetix.dismissals.destroy');
             });
     }
 

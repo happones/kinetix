@@ -24,18 +24,57 @@ class KinetixAnnouncements
 
     /**
      * Publish to the active team (or globally in a single-tenant app).
+     *
+     * `$dismissible: false` keeps the banner's close button away (a security
+     * notice); `$actionLabel` + `$actionUrl` add a button — an app path or an
+     * http(s) link.
      */
-    public static function publish(string $title, string $body, string $level = 'info', ?CarbonInterface $publishedAt = null, ?CarbonInterface $expiresAt = null): Announcement
-    {
-        return static::manager()->create($title, $body, $level, $publishedAt, expiresAt: $expiresAt);
+    public static function publish(
+        string $title,
+        string $body,
+        string $level = 'info',
+        ?CarbonInterface $publishedAt = null,
+        ?CarbonInterface $expiresAt = null,
+        bool $dismissible = true,
+        ?string $actionLabel = null,
+        ?string $actionUrl = null,
+    ): Announcement {
+        return static::manager()->create(
+            $title,
+            $body,
+            $level,
+            $publishedAt,
+            expiresAt: $expiresAt,
+            dismissible: $dismissible,
+            actionLabel: $actionLabel,
+            actionUrl: $actionUrl,
+        );
     }
 
     /**
      * Publish a platform-wide announcement that every team's feed shows —
      * the usual choice from a deploy step or seeder, which has no team context.
      */
-    public static function publishGlobally(string $title, string $body, string $level = 'info', ?CarbonInterface $publishedAt = null, ?CarbonInterface $expiresAt = null): Announcement
-    {
-        return static::manager()->create($title, $body, $level, $publishedAt, global: true, expiresAt: $expiresAt);
+    public static function publishGlobally(
+        string $title,
+        string $body,
+        string $level = 'info',
+        ?CarbonInterface $publishedAt = null,
+        ?CarbonInterface $expiresAt = null,
+        bool $dismissible = true,
+        ?string $actionLabel = null,
+        ?string $actionUrl = null,
+    ): Announcement {
+        return static::manager()->create(
+            $title,
+            $body,
+            $level,
+            $publishedAt,
+            global: true,
+            expiresAt: $expiresAt,
+            dismissible: $dismissible,
+            actionLabel: $actionLabel,
+            actionUrl: $actionUrl,
+        );
     }
 }

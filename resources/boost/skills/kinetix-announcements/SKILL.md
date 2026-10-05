@@ -121,6 +121,22 @@ the layout can reserve the space with
 `useKinetixAnnouncementFormat()` → `{ levelColor, levelClass, levelLabel, formatDate }`
 (level → status color for `<KinetixBadge>`, labels, dates in the app's locale).
 
+**Levels, buttons, closable (v0.188):** `announcements.levels` config maps
+each level slug to `['color' => status color, 'icon' => icon name]` (defaults
+info/gray, feature/success+sparkles, fix/info+wrench). `AnnouncementLevels::for()`
+resolves it server-side into `AnnouncementData.color`/`icon`; unlisted levels
+read gray. Per entry: `dismissible` (false hides the banner's ✕ and "Don't
+show again") and a call to action (`action_label` + `action_url`, both or
+neither; an app path or an http(s) URL only, checked by
+`AnnouncementController::isSafeActionUrl`). From code:
+`publish(..., dismissible: false, actionLabel: …, actionUrl: …)`. The
+banner's `variant="soft|outline|accent"` colors the surface by level
+(`statusAlertClass`), `plain` is the default; a pinned bar keeps an opaque
+`bg-popover` wrapper under the tint. The manage endpoint returns `levels` for
+the picker. Migration `000037_add_display_fields` is on the
+`kinetix-announcements-migrations` tag; new columns are only written when
+non-default, so an un-migrated app keeps publishing.
+
 i18n `announcements_*` (7 locales).
 
 ## Cost per mount
