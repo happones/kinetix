@@ -79,6 +79,37 @@ export interface KinetixConfig {
     broadcasting: Record<string, unknown> | null;
 }
 
+/** A toast flashed with `KinetixFlash::toast()` (or `useKinetixFlash()`). */
+export interface KinetixFlashToast {
+    id: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    message: string;
+    description?: string | null;
+    /** ms on screen; null = the toaster's default. */
+    duration?: number | null;
+}
+
+/** An in-page alert flashed with `KinetixFlash::alert()`. */
+export interface KinetixFlashAlert {
+    id: string;
+    title: string;
+    description?: string | null;
+    color: 'success' | 'danger' | 'warning' | 'info' | 'primary' | 'gray';
+    variant?: 'soft' | 'outline' | 'accent';
+    icon?: string | null;
+    dismissible: boolean;
+    /** Lives in the session (`keep()` / `untilDismissed()`), not the flash. */
+    persistent: boolean;
+    /** Session alerts only: where closing it is reported. */
+    dismissUrl?: string;
+}
+
+/** What Kinetix puts under Inertia's page-level `flash.kinetix`. */
+export interface KinetixFlashPayload {
+    toasts?: KinetixFlashToast[];
+    alerts?: KinetixFlashAlert[];
+}
+
 /**
  * Inertia shared props Kinetix relies on. Pass to `usePage<KinetixSharedProps>()`
  * to type `kinetix_config` / `kinetix_notifications` / `auth` without `as any`.
@@ -95,6 +126,8 @@ export interface KinetixSharedProps {
         id: string;
     } | null;
     kinetix_notifications?: KinetixNotification[];
+    /** Session alerts (`keep()` / `untilDismissed()`) for <KinetixFlashAlerts>. */
+    kinetix_alerts?: KinetixFlashAlert[];
     /** Unread badge + banner feed, so neither has to fetch on mount. */
     kinetix_announcements?: KinetixAnnouncementState | null;
     /** The setup checklist, so <KinetixOnboardingChecklist> doesn't fetch on mount. */

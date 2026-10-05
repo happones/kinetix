@@ -98,6 +98,27 @@ php artisan kinetix:send-notification "Alert Title" "Alert description message" 
 
 ---
 
+## Flash toasts (`KinetixFlash`, Inertia's flash channel)
+
+For new code, flash toasts through `KinetixFlash`. It writes to Inertia's
+page-level `flash.kinetix.toasts`, which is never stored in the browser
+history (Back can't replay it). Several toasts in one request all show, and
+each can take a description and a duration:
+
+```php
+use Happones\Kinetix\Flash\KinetixFlash;
+
+KinetixFlash::success(__('invoices.sent'));
+KinetixFlash::error(__('app.sync_failed'), __('app.sync_failed_hint'));
+KinetixFlash::toast(__('imports.queued'), 'info', duration: 8000);
+return back();
+```
+
+On the client, `useKinetixFlash().success(…)` does the same with no request
+(`router.flash`). `<KinetixToaster />` reads both the flash the page arrived
+with and every later `flash` event, and dedupes by id. For an in-page alert
+instead of a toast, use `KinetixFlash::alert()` (kinetix-alerts skill).
+
 ## Server-flashed toasts (`kinetix_toast` protocol)
 
 Any controller redirect can fire a themed toast with zero client wiring —
@@ -115,7 +136,9 @@ return back()->with('kinetix_toast', ['type' => 'error', 'message' => __('app.sy
 Rules that matter:
 
 - **The server stamps a uuid per flash**, so the same message twice in a row
-  still fires twice — never add your own dedupe.
+  still fires twice — never add your own dedupe. The prop lives in the
+  browser history; the toaster remembers shown ids for the tab, so Back
+  stays silent.
 - An unknown `type` falls back to `success`; a payload without a string
   `message` is dropped silently.
 - The Kinetix record endpoints (simple-resource modals, relation-manager

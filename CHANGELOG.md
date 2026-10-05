@@ -13,6 +13,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`KinetixFlash`: toasts and alerts over Inertia's flash channel.**
+  `KinetixFlash::success()` / `error()` / `warning()` / `info()` /
+  `toast($message, $type, $description, $duration)` flash a toast for the next
+  page. `KinetixFlash::alert($title, $color)` flashes an in-page alert; its
+  builder takes `->description()`, `->color()` (or `->success()` etc.),
+  `->variant()`, `->icon()`, `->dismissible()` and `->id()`, and sends itself
+  at the end of the statement. Both travel on Inertia's page-level
+  `flash.kinetix`, which the browser history never stores, so Back can't
+  replay them. Several in one request all show.
+- **Alerts that outlive one page.** `->keep($visits)` shows an alert on the
+  next page and that many visits after it. `->untilDismissed()` shows it on
+  every page until the user closes it. They live in the session and reach the
+  page as the new `kinetix_alerts` prop. A prefetch (hovering a link) doesn't
+  use up a showing. A closed stable `->id()` stays closed for the session, so
+  re-sending it on every request is safe. `KinetixFlash::forget($id)`
+  withdraws one without counting it as closed. Closing goes through
+  `POST {prefix}/flash/{id}/dismiss` (`kinetix.flash.dismiss`), which needs
+  the session but no login, so it works on guest pages too.
+- **`<KinetixFlashAlerts>` (published).** The outlet for flashed alerts:
+  mount it once where page messages belong. One-shot alerts are collected
+  from the `flash` event, so a poll or partial reload doesn't wipe them, and
+  they leave when the user moves to another page. Session alerts report their
+  close to the server, and the tab remembers it for pages restored from
+  history. New one-shot alerts are announced to screen readers (`danger`
+  alerts already are, as `role="alert"`).
+- **`useKinetixFlash()` (published).** Flash toasts and alerts from the client
+  with no request (`router.flash`), shown by the same toaster and outlet.
+  `onKinetixFlash(handler)` hands over the current page's flash, then every
+  new one.
+
+### Changed
+
+- **`<KinetixToaster>` shows flash-channel toasts too (published),** including
+  their description and duration, deduped by id against the `kinetix_toast`
+  ones. `->with('kinetix_toast', …)` keeps working unchanged.
+
 ## [0.186.0] - 2026-10-05
 
 In-page alerts, closes that last as long as you choose, and motion you can turn

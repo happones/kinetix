@@ -70,6 +70,8 @@ use Happones\Kinetix\Entitlements\Middleware\EnsureEntitled;
 use Happones\Kinetix\Exports\ExportController;
 use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
+use Happones\Kinetix\Flash\FlashController;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\SearchController;
 use Happones\Kinetix\Forms\TableRepeaterController;
 use Happones\Kinetix\Forms\UploadController;
@@ -600,6 +602,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register endpoints for database notifications actions
         $this->registerNotificationRoutes();
+
+        // Closing a session alert (KinetixFlash::alert()->untilDismissed())
+        $this->registerFlashRoutes();
 
         // Register endpoints for table inline edits
         $this->registerTableRoutes();
@@ -2137,6 +2142,11 @@ class KinetixServiceProvider extends ServiceProvider
             ];
         });
 
+        // Alerts that outlive one page (KinetixFlash::alert()->keep() /
+        // ->untilDismissed()); one-shot toasts and alerts ride Inertia's own
+        // `flash` instead. <KinetixFlashAlerts /> renders both.
+        Inertia::share('kinetix_alerts', fn (): array => KinetixFlash::persistentAlerts());
+
         Inertia::share('kinetix_notifications', function () {
             $isDatabase = (bool) config('kinetix.notifications.database', false);
             $limit      = (int) config('kinetix.notifications.limit', 15);
@@ -2575,6 +2585,25 @@ class KinetixServiceProvider extends ServiceProvider
     /**
      * Register routing for handling notification actions in the database.
      */
+    /**
+     * The close endpoint of the session alerts. Not team-prefixed and not
+     * behind `auth`: the alerts belong to the session, not to a team or an
+     * account, and they show on guest pages too. The URL ships with each
+     * alert, so the client never builds it.
+     */
+    protected function registerFlashRoutes(): void
+    {
+        $prefix = config('kinetix.route_prefix', '_kinetix');
+
+        Route::middleware(['web'])
+            ->prefix("{$prefix}/flash")
+            ->group(function () {
+                Route::post('{id}/dismiss', [FlashController::class, 'dismiss'])
+                    ->where('id', '[A-Za-z0-9._:-]{1,100}')
+                    ->name('kinetix.flash.dismiss');
+            });
+    }
+
     protected function registerNotificationRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');

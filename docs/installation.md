@@ -347,6 +347,7 @@ until it's in the layout:
 | `<KinetixImpersonationBanner />` | "Return to your account" bar while impersonating | [Impersonation](/impersonation) |
 | `<KinetixConfidentialUnlock />` | Header widget for the confidential-fields reveal gate | [Confidential](/confidential) |
 | `<KinetixSkipLink />` | Skip-to-content link — place it **first** in the layout | [Accessibility](/accessibility) |
+| `<KinetixFlashAlerts />` | Alerts flashed with `KinetixFlash::alert()` — place it where page messages belong | [Alerts](/alerts#flashed-from-the-server) |
 | `<KinetixAnnouncements />` | "What's new" trigger for your header | [Announcements](/announcements) |
 | `<KinetixAnnouncementBanner />` | Announcements as a banner — in the page flow or pinned to the top (`position="fixed-top"`) | [Announcements](/announcements) |
 | `<KinetixAnnouncementManager />` | Write/schedule announcements from an admin page (`manageKinetixAnnouncements`) | [Announcements](/announcements) |

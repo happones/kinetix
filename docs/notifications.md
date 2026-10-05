@@ -475,6 +475,29 @@ import KinetixToaster from '@/components/kinetix/KinetixToaster.vue';
 
 It forwards all `vue-sonner` Toaster props (`position`, `richColors`, `duration`, `expand`, …). The styling **redefines the CSS variables vue-sonner reads** (`--normal-bg`/`--normal-text`/`--normal-border` → `--popover`/`--popover-foreground`/`--border`) rather than overriding classes — class overrides lose the CSS-specificity battle when `vue-sonner/style.css` loads after Tailwind, which is the usual cause of a stubbornly white toast in dark mode. Since those tokens flip with `.dark`, the toast follows your theme automatically — no `theme` prop wiring needed.
 
+### Flash toasts (`KinetixFlash`)
+
+`<KinetixToaster />` shows the toasts any controller flashes for the next page,
+with no client wiring:
+
+```php
+use Happones\Kinetix\Flash\KinetixFlash;
+
+KinetixFlash::success(__('invoices.sent'));
+KinetixFlash::error(__('app.sync_failed'), __('app.sync_failed_hint')); // + description
+KinetixFlash::toast(__('imports.queued'), 'info', duration: 8000);       // any type, ms
+
+return back();
+```
+
+They travel on Inertia's own flash channel, which the browser history never
+stores, so pressing Back can't replay a toast. Several toasts in one request
+all show. From the client, `useKinetixFlash()` flashes the same way without a
+request: `useKinetixFlash().success(t('app.copied'))`.
+
+For a message that should stay on the page rather than pop up and fade, flash
+an alert instead — see [Alerts → Flashed from the server](/alerts#flashed-from-the-server).
+
 ### Server-flashed toasts (`kinetix_toast`)
 
 `<KinetixToaster />` also watches the `kinetix_toast` flash prop, so ANY
@@ -494,7 +517,9 @@ on every create/update/delete/restore, using the generic
 `kinetix.record_created` / `record_updated` / `record_deleted` /
 `record_restored` / `record_force_deleted` messages — edit the scaffolded
 `->with('kinetix_toast', …)` lines to customize per resource. The server
-stamps a uuid per flash, so the same message twice in a row still fires.
+stamps a uuid per flash, so the same message twice in a row still fires. This
+prop is a page prop, so the history keeps it; the toaster remembers every id it
+has shown, so a page restored by Back stays silent.
 
 ---
 

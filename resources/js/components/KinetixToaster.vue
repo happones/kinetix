@@ -18,9 +18,11 @@ function remember(id: string): void {
 
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { watch } from 'vue';
+import { onBeforeUnmount, watch } from 'vue';
 import { toast, Toaster } from 'vue-sonner';
 import type { ToasterProps } from 'vue-sonner';
+import { onKinetixFlash } from '@/composables/useKinetixFlash';
+import type { KinetixFlashToast } from '@/types/kinetix';
 
 /**
  * Toaster pre-styled with shadcn semantic tokens, so Kinetix toasts (export /
@@ -42,16 +44,37 @@ import type { ToasterProps } from 'vue-sonner';
  * Back/Forward restores the page WITH its old toast. Every uuid already shown
  * is remembered for the life of the tab, so a restored page stays silent.
  *
+ * It shows the toasts of Inertia's own flash channel too — `KinetixFlash::
+ * success()` and friends on the server, `useKinetixFlash()` on the client —
+ * which the history never stores in the first place.
+ *
  * Mount once in your layout: <KinetixToaster />. Forwards all vue-sonner
  * Toaster props (position, richColors, duration, …).
  */
 defineProps<ToasterProps>();
 
-type FlashToast = {
-    type: 'success' | 'error' | 'info' | 'warning';
-    message: string;
-    id: string;
-};
+type FlashToast = Pick<KinetixFlashToast, 'id' | 'type' | 'message'> &
+    Partial<Pick<KinetixFlashToast, 'description' | 'duration'>>;
+
+function show(flash: FlashToast | null | undefined): void {
+    if (!flash?.message || shown.has(flash.id)) {
+        return;
+    }
+
+    remember(flash.id);
+
+    const fire = toast[flash.type] ?? toast.success;
+    const options = {
+        ...(flash.description ? { description: flash.description } : {}),
+        ...(flash.duration ? { duration: flash.duration } : {}),
+    };
+
+    if (Object.keys(options).length > 0) {
+        fire(flash.message, options);
+    } else {
+        fire(flash.message);
+    }
+}
 
 // Defensive access: the component may mount outside a full Inertia app (tests).
 let page: { props?: Record<string, unknown> } | null = null;
@@ -65,19 +88,13 @@ try {
 if (page) {
     watch(
         () => page?.props?.kinetix_toast as FlashToast | null | undefined,
-        (flash) => {
-            if (!flash?.message || shown.has(flash.id)) {
-                return;
-            }
-
-            remember(flash.id);
-
-            const show = toast[flash.type] ?? toast.success;
-            show(flash.message);
-        },
+        show,
         { immediate: true },
     );
 }
+
+const stopFlash = onKinetixFlash((payload) => payload.toasts?.forEach(show));
+onBeforeUnmount(stopFlash);
 </script>
 
 <template>

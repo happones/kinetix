@@ -1,6 +1,6 @@
 ---
 name: kinetix-alerts
-description: "In-page status alerts (<KinetixAlert>): success/danger/warning/info/primary/gray on soft/outline/accent surfaces, close modes (hide/session/device/permanent, timed, \"don't show again\"), named transition presets that stop under reduced motion, and screen-reader/colorblind-safe semantics. Activates when showing an inline notice, callout, warning box or dismissible banner inside a page."
+description: "In-page status alerts (<KinetixAlert>) and server-flashed alerts (KinetixFlash::alert + <KinetixFlashAlerts>, one-shot / keep / untilDismissed): success/danger/warning/info/primary/gray on soft/outline/accent surfaces, close modes (hide/session/device/permanent, timed, \"don't show again\"), named transition presets that stop under reduced motion, and screen-reader/colorblind-safe semantics. Activates when showing an inline notice, callout, warning box or dismissible banner inside a page."
 license: MIT
 metadata:
   author: happones
@@ -15,7 +15,7 @@ Activate this skill when:
 - Making a notice closable for this page, this tab, this browser, or for good.
 - Animating something that appears/disappears (reuse the transition presets).
 
-For transient feedback after an action use a toast (`->with('kinetix_toast', …)`
+For transient feedback after an action use a toast (`KinetixFlash::success()`
 or `Notification::make()`), not an alert. For product news use announcements.
 
 ## Documentation
@@ -65,6 +65,36 @@ slide-down · slide-up · scale · collapse · none.
   the close was a dismissal or a hide-for-now.
 - The first render doesn't animate unless `appear` is set.
 
+## Flashed from the server
+
+`<KinetixFlashAlerts />` (mounted once, where page messages belong) renders the
+alerts a controller flashes:
+
+```php
+use Happones\Kinetix\Flash\KinetixFlash;
+
+KinetixFlash::alert(__('billing.payment_failed'), 'danger')   // sends itself at statement end
+    ->description(__('billing.payment_failed_body'));          // ->variant() ->icon() ->dismissible(false) ->id()
+
+KinetixFlash::alert(__('auth.verify_email'), 'warning')->id('verify-email')->untilDismissed();
+KinetixFlash::alert(__('onboarding.welcome'), 'success')->keep(2);   // next page + 2 more visits
+KinetixFlash::forget('verify-email');                          // withdraw (not "closed by user")
+```
+
+- Default = one-shot over Inertia's `flash.kinetix.alerts`, never in history.
+  The outlet collects them from the `flash` event, not from `page.flash`,
+  because a poll or partial reload replaces that with `{}`. They stay while
+  the path is the same and are cleared on `navigate` to another path.
+- `keep(n)` / `untilDismissed()` → session (`kinetix_flash_alerts`) → shared
+  prop `kinetix_alerts`, each with a server-made `dismissUrl`
+  (`POST {prefix}/flash/{id}/dismiss`, `web` only, no team segment, guest-safe).
+  A prefetch doesn't count as a showing. A closed stable `id` is remembered
+  for the session, so re-sending it every request is safe.
+- Client one-shot: `useKinetixFlash().alert(title, { color, description })`.
+  `onKinetixFlash(handler)` gives the current page's flash and then every new
+  one (it returns the unsubscribe).
+- One-shot arrivals are announced (except `danger`, already `role="alert"`).
+
 ## Composables
 
 - `useKinetixDismissal(key, { mode, duration, persist })` →
@@ -80,5 +110,6 @@ slide-down · slide-up · scale · collapse · none.
   `kinetix.motion = 'reduced'`.
 
 i18n `alert_*` (7 locales). Tests: `KinetixAlert.spec.ts`,
+`KinetixFlashAlerts.spec.ts`, `useKinetixFlash.spec.ts`,
 `useKinetixDismissal.spec.ts`, `useKinetixTransition.spec.ts`,
-`useKinetixReducedMotion.spec.ts`, `MotionShareTest`.
+`useKinetixReducedMotion.spec.ts`, `KinetixFlashTest`, `MotionShareTest`.

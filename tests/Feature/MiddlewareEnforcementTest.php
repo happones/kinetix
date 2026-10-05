@@ -131,6 +131,9 @@ class MiddlewareEnforcementTest extends TestCase
             // Auth-optional by design so the language switcher works on the login
             // screen. It only writes the session/user locale, and the value is
             // checked against the configured locales.
-            || $name === 'kinetix.locale.update';
+            || $name === 'kinetix.locale.update'
+            // Session alerts show on guest pages too. Closing one only removes
+            // an entry from the requester's OWN session (CSRF still applies).
+            || $name === 'kinetix.flash.dismiss';
     }
 }

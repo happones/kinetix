@@ -177,6 +177,69 @@ when it doesn't.
 
 ---
 
+## Flashed from the server
+
+A controller can send an alert to the next page, the way it sends a toast.
+Mount the outlet once, where page-level messages belong (under the page header
+is typical):
+
+```vue
+<KinetixFlashAlerts />
+```
+
+```php
+use Happones\Kinetix\Flash\KinetixFlash;
+
+KinetixFlash::alert(__('billing.payment_failed'), 'danger')
+    ->description(__('billing.payment_failed_body'));
+
+return back();
+```
+
+The builder sends itself when the statement ends; `->send()` exists for when
+you want to be explicit. It takes `->description()`, `->color()` (or
+`->success()` / `->danger()` / `->warning()` / `->info()`), `->variant()`,
+`->icon()`, `->dismissible(false)` and `->id()`.
+
+By default the alert shows on the **next page only**. It travels on Inertia's
+flash channel, which the browser history never stores, so Back doesn't bring
+it back. It stays through polls and partial reloads of that page and leaves
+when the user moves to another one.
+
+### Keep it longer
+
+| Call                | Shows                                                   |
+| ------------------- | ------------------------------------------------------- |
+| (default)           | On the next page                                        |
+| `->keep(2)`         | On the next page and the 2 page visits after it         |
+| `->untilDismissed()`| On every page until the user closes it (this session)   |
+
+```php
+// Every page until it's closed — safe to send on every request (a middleware,
+// say): an id the user already closed stays closed for the session.
+KinetixFlash::alert(__('auth.verify_email'), 'warning')
+    ->id('verify-email')
+    ->untilDismissed();
+
+// The app fixed it on its own: withdraw it without counting it as closed.
+KinetixFlash::forget('verify-email');
+```
+
+Kept alerts live in the session and reach the page as the `kinetix_alerts`
+prop. Closing one is reported to `POST {prefix}/flash/{id}/dismiss` (route
+`kinetix.flash.dismiss`), which needs the session but no login, so it works on
+guest pages too. Hovering a link that prefetches the next page doesn't use up a
+showing of a `keep()` alert.
+
+From the client, `useKinetixFlash().alert(title, { color, description })`
+flashes a one-shot alert without a request.
+
+New one-shot alerts are announced to screen readers when they arrive. A
+`danger` alert already interrupts as `role="alert"`, so it isn't announced
+twice.
+
+---
+
 ## Animations
 
 `transition` picks how the alert enters and leaves:

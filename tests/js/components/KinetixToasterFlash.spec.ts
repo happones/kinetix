@@ -15,8 +15,22 @@ vi.mock('vue-sonner', () => ({
 }));
 
 // A mutable page-props stand-in so tests can push flash toasts in.
-const page = reactive<{ props: Record<string, unknown> }>({ props: {} });
-vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
+const page = reactive<{
+    props: Record<string, unknown>;
+    flash?: Record<string, unknown>;
+}>({ props: {} });
+type Handler = (event: { detail: { flash: unknown } }) => void;
+const flashHandlers = new Set<Handler>();
+vi.mock('@inertiajs/vue3', () => ({
+    usePage: () => page,
+    router: {
+        on: (_: string, handler: Handler) => {
+            flashHandlers.add(handler);
+
+            return () => flashHandlers.delete(handler);
+        },
+    },
+}));
 
 import KinetixToaster from '@/components/KinetixToaster.vue';
 
@@ -142,5 +156,54 @@ describe('KinetixToaster flash → toast', () => {
         expect(toastFns.success).toHaveBeenCalledTimes(1);
 
         second.unmount();
+    });
+
+    it('shows toasts from Inertia flash — on arrival and on later flashes', async () => {
+        page.flash = {
+            kinetix: {
+                toasts: [
+                    {
+                        id: 'flash-1',
+                        type: 'success',
+                        message: 'Invoice sent.',
+                    },
+                ],
+            },
+        };
+        const wrapper = mount(KinetixToaster);
+        expect(toastFns.success).toHaveBeenCalledWith('Invoice sent.');
+
+        flashHandlers.forEach((h) =>
+            h({
+                detail: {
+                    flash: {
+                        kinetix: {
+                            toasts: [
+                                {
+                                    id: 'flash-2',
+                                    type: 'error',
+                                    message: 'Sync failed',
+                                    description: 'Try again in a minute.',
+                                    duration: 8000,
+                                },
+                            ],
+                        },
+                    },
+                },
+            }),
+        );
+
+        expect(toastFns.error).toHaveBeenCalledWith('Sync failed', {
+            description: 'Try again in a minute.',
+            duration: 8000,
+        });
+
+        // The same flash delivered twice (page + event) toasts once.
+        flashHandlers.forEach((h) => h({ detail: { flash: page.flash } }));
+        expect(toastFns.success).toHaveBeenCalledTimes(1);
+
+        wrapper.unmount();
+        expect(flashHandlers.size).toBe(0);
+        page.flash = undefined;
     });
 });
