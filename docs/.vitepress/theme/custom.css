@@ -58,3 +58,95 @@ html.dark .kx-shot-light {
 html.dark .kx-shot-dark {
   display: block;
 }
+
+/* ---- Zoom: diagrams (svg-pan-zoom viewer) and images (medium-zoom) ----
+   DocZoom.vue marks every rendered diagram and content image with
+   [data-kx-zoom] and makes it a keyboard-operable button. */
+.vp-doc .mermaid[data-kx-zoom],
+.vp-doc img[data-kx-zoom] {
+  cursor: zoom-in;
+}
+.vp-doc .mermaid[data-kx-zoom] {
+  border-radius: 8px;
+  transition: background-color 0.15s;
+}
+.vp-doc .mermaid[data-kx-zoom]:hover {
+  background-color: var(--vp-c-bg-soft);
+}
+.vp-doc .mermaid[data-kx-zoom]:focus-visible,
+.vp-doc img[data-kx-zoom]:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 4px;
+}
+
+/* Above the nav bar (z 30) and the sidebar. */
+.medium-zoom-overlay {
+  z-index: 100;
+}
+.medium-zoom-image--opened {
+  z-index: 101;
+}
+
+.kx-diagram-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--vp-c-bg);
+}
+.kx-diagram-zoom__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+.kx-diagram-zoom__toolbar button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+}
+.kx-diagram-zoom__toolbar button:hover {
+  border-color: var(--vp-c-brand-1);
+}
+.kx-diagram-zoom__toolbar button:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+.kx-diagram-zoom__hint {
+  flex: 1;
+  margin: 0;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+}
+.kx-diagram-zoom__stage {
+  min-height: 0;
+  overflow: hidden;
+  /* Gestures belong to the viewer, not the page. */
+  touch-action: none;
+  cursor: grab;
+}
+.kx-diagram-zoom__stage:active {
+  cursor: grabbing;
+}
+.kx-diagram-zoom__stage svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+@media (max-width: 640px) {
+  .kx-diagram-zoom__hint {
+    display: none;
+  }
+  .kx-diagram-zoom__toolbar {
+    justify-content: flex-end;
+  }
+}
