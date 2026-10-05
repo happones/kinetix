@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.191.1] - 2026-10-05
+
+**Upgrade from 0.187.0–0.191.0 if your app runs `inertiajs/inertia-laravel`
+2.x.** On those versions `KinetixFlash` called a class that only exists in
+inertia-laravel 3. Any flash (a toast after saving a record modal or a
+relation-manager form, the password change, the forced-change and upsell
+redirects) failed with a server error instead of redirecting. On
+inertia-laravel 3 nothing was wrong, which is why it passed locally. CI's
+lowest-dependency runs caught it. This release works on every version Kinetix
+supports.
+
 ### Fixed
 
 - **`KinetixFlash` works on inertia-laravel 2.x.** The flash session key no
