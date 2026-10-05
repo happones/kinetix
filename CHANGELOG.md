@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.190.0] - 2026-10-05
+
+Kinetix's own toasts move to Inertia's flash channel, and two notices get
+their right color. Nothing changes on screen for an app using
+`<KinetixToaster>`.
+
 ### Changed
 
 - **Kinetix's own toasts ride Inertia's flash channel.** The record modals,
