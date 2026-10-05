@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.187.0] - 2026-10-05
+
+Flash, the Inertia way. `KinetixFlash` sends toasts and in-page alerts to the
+next page over Inertia's own flash channel, which the browser history never
+stores, so Back can't replay them. Alerts can also last for a few visits or
+until the user closes them, and `<KinetixFlashAlerts>` shows them where page
+messages belong. Re-publish the components (`--force`) to pick this up.
+
 ### Added
 
 - **`KinetixFlash`: toasts and alerts over Inertia's flash channel.**
