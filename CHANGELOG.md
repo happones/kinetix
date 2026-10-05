@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.186.0] - 2026-10-05
+
+In-page alerts, closes that last as long as you choose, and motion you can turn
+off. A new `<KinetixAlert>` covers every status color. The announcement banner
+can hide an entry for now or for good, and keeps it closed when Back/Forward
+restores a page. Four bugs are fixed: a flashed toast replayed on Back, a
+"persistent" notification that closed after 4 seconds, auto-rotation that
+ignored the user's Reduce motion preference, and the banner's lost focus on
+close. Re-publish the components, translations and config (`--force`) to pick
+this up.
+
 ### Added
 
 - **`<KinetixAlert>` (published).** An in-page alert in the Kinetix status
