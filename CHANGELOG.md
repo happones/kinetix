@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.185.1] - 2026-10-05
+
+The announcement banner now rotates as many entries as
+`announcements.banner_limit` says, and keeps rendering from the page payload
+when that isn't 3. Re-publish the components (`--force`) to pick this up.
+
 ### Fixed
 
 - **The announcement banner follows `announcements.banner_limit` (published).**
