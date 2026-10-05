@@ -29,7 +29,10 @@ import type { KinetixDismissMode } from '@/composables/useKinetixDismissal';
 import { focusableNear } from '@/composables/useKinetixFocusTrap';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixReducedMotion } from '@/composables/useKinetixReducedMotion';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import {
+    buttonVariants,
+    markdownContentClass,
+} from '@/composables/useKinetixShadcnVariants';
 import {
     statusAlertClass,
     statusTextClass,
@@ -454,14 +457,22 @@ watch(count, (value) => {
                                     <!-- On a tinted surface the muted token
                                          drops under 4.5:1; foreground holds. -->
                                     <AlertDescription
-                                        class="mt-1 whitespace-pre-line"
+                                        class="mt-1"
                                         :class="
                                             colorized
                                                 ? 'text-foreground/80'
                                                 : 'text-muted-foreground'
                                         "
                                     >
-                                        {{ current.body }}
+                                        <!-- eslint-disable-next-line vue/no-v-html -- server-sanitized markdown -->
+                                        <div
+                                            v-if="current.bodyHtml"
+                                            :class="markdownContentClass"
+                                            v-html="current.bodyHtml"
+                                        />
+                                        <p v-else class="whitespace-pre-line">
+                                            {{ current.body }}
+                                        </p>
                                     </AlertDescription>
 
                                     <p

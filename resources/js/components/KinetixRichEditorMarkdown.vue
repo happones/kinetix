@@ -2,7 +2,10 @@
 import { Eye, Pencil } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { inputClass } from '@/composables/useKinetixShadcnVariants';
+import {
+    inputClass,
+    markdownContentClass,
+} from '@/composables/useKinetixShadcnVariants';
 
 /**
  * Zero-dependency Markdown editor: a textarea with a live preview tab. Stores the
@@ -150,7 +153,10 @@ function onInput(event: Event): void {
         />
         <div
             v-else
-            class="kx-md min-h-32 px-3 py-2 text-sm [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_ul]:pl-5 [&_ol]:pl-5 [&_blockquote]:pl-3 [&_code]:rounded [&_code]:px-1 text-foreground [&_a]:text-primary [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:text-muted-foreground [&_code]:bg-muted [&_ol]:list-decimal [&_ul]:list-disc"
+            :class="[
+                'kx-md min-h-32 px-3 py-2 text-sm text-foreground',
+                markdownContentClass,
+            ]"
             v-html="preview"
         />
     </div>

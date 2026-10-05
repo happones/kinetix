@@ -233,6 +233,8 @@ export function useKinetixAnnouncementManager() {
     const teamScoped = ref(false);
     /** What the level picker offers (`kinetix.announcements.levels`). */
     const levels = ref<KinetixAnnouncementLevelOption[]>([]);
+    /** Whether bodies render as Markdown (`announcements.markdown`). */
+    const markdown = ref(false);
     const loading = ref(false);
 
     async function load(): Promise<void> {
@@ -243,10 +245,12 @@ export function useKinetixAnnouncementManager() {
                 announcements: KinetixEditableAnnouncement[];
                 teamScoped: boolean;
                 levels?: KinetixAnnouncementLevelOption[];
+                markdown?: boolean;
             }>(`${base()}/manage`);
             announcements.value = data?.announcements ?? [];
             teamScoped.value = data?.teamScoped ?? false;
             levels.value = data?.levels ?? [];
+            markdown.value = data?.markdown ?? false;
         } finally {
             loading.value = false;
         }
@@ -285,7 +289,16 @@ export function useKinetixAnnouncementManager() {
         await load();
     }
 
-    return { announcements, teamScoped, levels, loading, load, save, remove };
+    return {
+        announcements,
+        teamScoped,
+        levels,
+        markdown,
+        loading,
+        load,
+        save,
+        remove,
+    };
 }
 
 /**

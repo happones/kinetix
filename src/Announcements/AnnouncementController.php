@@ -116,6 +116,8 @@ class AnnouncementController
             'teamScoped' => Announcement::currentTeamId() !== null,
             // What the level picker offers (`kinetix.announcements.levels`).
             'levels' => AnnouncementLevels::options(),
+            // Whether the body is Markdown, so the form can say so.
+            'markdown' => (bool) config('kinetix.announcements.markdown', true),
         ]);
     }
 

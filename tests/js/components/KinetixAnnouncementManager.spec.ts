@@ -319,4 +319,25 @@ describe('KinetixAnnouncementManager', () => {
             action_url: null,
         });
     });
+
+    it('says the body takes Markdown only when the server renders it', async () => {
+        fetchMock.mockResolvedValueOnce({
+            announcements: [],
+            teamScoped: false,
+            markdown: true,
+        });
+        const w = mountIt();
+        await flushPromises();
+
+        await w.find('button').trigger('click');
+        await flushPromises();
+
+        const body = field('#kinetix-announcement-body');
+        expect(body.getAttribute('aria-describedby')).toBe(
+            'kinetix-announcement-body-hint',
+        );
+        expect(
+            document.getElementById('kinetix-announcement-body-hint'),
+        ).not.toBeNull();
+    });
 });

@@ -310,6 +310,7 @@ return [
     'announcements_global_readonly'        => 'Общее объявление — редактируйте вне команды',
     'announcements_field_title'            => 'Заголовок',
     'announcements_field_body'             => 'Сообщение',
+    'announcements_field_body_hint'        => 'Поддерживается Markdown: **жирный**, _курсив_, [ссылка](/docs), - списки.',
     'announcements_field_level'            => 'Уровень',
     'announcements_field_published_at'     => 'Опубликовать',
     'announcements_field_published_hint'   => 'Оставьте пустым, чтобы сохранить черновик; будущая дата запланирует публикацию.',

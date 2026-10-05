@@ -335,6 +335,7 @@ return [
     'announcements_global_readonly'        => 'De plataforma: edítalo fuera de un equipo',
     'announcements_field_title'            => 'Título',
     'announcements_field_body'             => 'Mensaje',
+    'announcements_field_body_hint'        => 'Admite Markdown: **negritas**, _cursivas_, [un enlace](/docs), - listas.',
     'announcements_field_level'            => 'Nivel',
     'announcements_field_published_at'     => 'Publicar el',
     'announcements_field_published_hint'   => 'Déjalo vacío para mantenerlo como borrador; una fecha futura lo programa.',

@@ -495,4 +495,33 @@ describe('KinetixAnnouncementBanner', () => {
         );
         w.unmount();
     });
+
+    it('renders the server-sanitized Markdown body, or the text as typed', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [
+                {
+                    ...announcement(1, 'Exports'),
+                    body: 'Now **faster**',
+                    bodyHtml: '<p>Now <strong>faster</strong></p>',
+                },
+            ],
+        };
+        const rich = mountIt();
+        await flushPromises();
+        expect(rich.find('strong').text()).toBe('faster');
+        expect(rich.text()).not.toContain('**');
+        rich.unmount();
+
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [{ ...announcement(2, 'Plain'), body: '**as typed**' }],
+        };
+        const plain = mountIt();
+        await flushPromises();
+        expect(plain.text()).toContain('**as typed**');
+        expect(plain.find('strong').exists()).toBe(false);
+    });
 });

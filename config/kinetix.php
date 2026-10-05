@@ -978,6 +978,11 @@ return [
         // component doesn't pass its own `limit` (hard ceiling: 10).
         'banner_limit' => env('KINETIX_ANNOUNCEMENTS_BANNER_LIMIT', 3),
 
+        // Bodies are Markdown (bold, italics, links, lists), rendered to safe
+        // HTML on the server: raw HTML is stripped and javascript:/data: links
+        // are dropped. Off = plain text, exactly as typed.
+        'markdown' => env('KINETIX_ANNOUNCEMENTS_MARKDOWN', true),
+
         // The levels editors pick from, each with the status color (success ·
         // danger · warning · info · primary · gray) and icon it shows with.
         // Add your own; label one in your lang file as

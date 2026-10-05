@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Help;
 
+use Happones\Kinetix\Support\SafeMarkdown;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -222,10 +223,7 @@ class HelpManager
         $markdown = $this->stripFrontMatter($markdown);
         $markdown = $this->applyBlockGates($markdown, $user);
 
-        $html = (string) Str::markdown($markdown, [
-            'html_input'         => 'strip',
-            'allow_unsafe_links' => false,
-        ]);
+        $html = SafeMarkdown::toHtml($markdown);
 
         return $this->rewriteScreenshots($html, $resolved['locale']);
     }

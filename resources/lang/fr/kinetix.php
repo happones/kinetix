@@ -335,6 +335,7 @@ return [
     'announcements_global_readonly'        => 'Annonce de plateforme — modifiez-la hors d’une équipe',
     'announcements_field_title'            => 'Titre',
     'announcements_field_body'             => 'Message',
+    'announcements_field_body_hint'        => 'Le Markdown fonctionne : **gras**, _italique_, [un lien](/docs), - listes.',
     'announcements_field_level'            => 'Niveau',
     'announcements_field_published_at'     => 'Publier le',
     'announcements_field_published_hint'   => 'Laissez vide pour un brouillon ; une date future la programme.',

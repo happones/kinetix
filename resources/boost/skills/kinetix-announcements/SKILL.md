@@ -137,6 +137,16 @@ the picker. Migration `000037_add_display_fields` is on the
 `kinetix-announcements-migrations` tag; new columns are only written when
 non-default, so an un-migrated app keeps publishing.
 
+**Markdown bodies (v0.191):** `announcements.markdown` (default true) renders
+`body` server-side through `Support\SafeMarkdown::toHtml($body, lineBreaks:
+true)` into `AnnouncementData.bodyHtml` (GFM; raw HTML stripped,
+javascript:/data: links dropped; single newlines stay `<br>`). The banner and
+popover `v-html` it with `markdownContentClass` (the shared Markdown
+typography in `useKinetixShadcnVariants`, also used by the rich editor's
+preview), and fall back to `body` with `whitespace-pre-line` when it's null.
+The manage response carries `markdown` so the form can show its hint. Never
+`v-html` an unsanitized body.
+
 i18n `announcements_*` (7 locales).
 
 ## Cost per mount

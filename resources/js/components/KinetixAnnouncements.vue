@@ -14,6 +14,7 @@ import {
 } from '@/composables/useKinetixAnnouncements';
 import {
     buttonVariants,
+    markdownContentClass,
     triggerCountBadgeClass,
 } from '@/composables/useKinetixShadcnVariants';
 import KinetixBadge from './primitives/KinetixBadge.vue';
@@ -130,7 +131,15 @@ function onOpen(next: boolean): void {
                                 {{ levelLabel(a.level) }}
                             </KinetixBadge>
                         </div>
+                        <!-- eslint-disable-next-line vue/no-v-html -- server-sanitized markdown -->
+                        <div
+                            v-if="a.bodyHtml"
+                            class="mt-1 text-sm text-muted-foreground"
+                            :class="markdownContentClass"
+                            v-html="a.bodyHtml"
+                        />
                         <p
+                            v-else
                             class="mt-1 text-sm whitespace-pre-line text-muted-foreground"
                         >
                             {{ a.body }}

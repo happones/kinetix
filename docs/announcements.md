@@ -112,6 +112,31 @@ and `announcements.feed_limit` changes the default. There is no cursor: a
 "what's new" feed is the last handful of entries, not an archive — and with
 `expires_at` doing its job, old news stops accumulating in the first place.
 
+### Markdown bodies
+
+A body is Markdown: **bold**, _italics_, links, lists and code all render, in
+the banner and the "What's new" popover. The server renders it to safe HTML
+(raw HTML in the body is stripped, and `javascript:` / `data:` links are
+dropped), and a single line break stays a line break, so a body written as
+plain text reads exactly as before. The authoring form says so under the
+message field.
+
+```php
+KinetixAnnouncements::publish(
+    __('news.exports_title'),
+    __('news.exports_body'), // "Exports are **3× faster**. See [the guide](/docs/export)."
+    'feature',
+);
+```
+
+Turn it off to show bodies exactly as typed:
+
+```php
+'announcements' => [
+    'markdown' => env('KINETIX_ANNOUNCEMENTS_MARKDOWN', true),
+],
+```
+
 ### Levels
 
 A level picks the entry's color and icon. The defaults are `info` (neutral),
@@ -392,6 +417,9 @@ The feed is scoped to the active team plus the platform-wide entries:
 | `PUT`    | `{prefix}/announcements/{id}`         | `kinetix.announcements.update`  | `manageKinetixAnnouncements` |
 | `DELETE` | `{prefix}/announcements/{id}`         | `kinetix.announcements.destroy` | `manageKinetixAnnouncements` |
 
+Every reader entry carries `bodyHtml` (the rendered Markdown, or null when
+`markdown` is off) next to the raw `body`.
+
 `index` returns the published feed (each with an `isNew` flag) plus the `unread`
 count; `banner` returns the published entries the user hasn't dismissed
 (`?limit=`, `?levels=feature,fix`); `seen` marks the feed read; `dismiss` hides
@@ -399,7 +427,8 @@ one entry. An id from another tenant is a 404 — `dismiss` resolves through the
 same team-scoped query the feed uses.
 
 `manage` returns the authoring list (drafts and scheduled entries included, each
-with a `status` and `isGlobal`) plus `teamScoped` and the configured `levels`;
+with a `status` and `isGlobal`) plus `teamScoped`, the configured `levels` and
+whether bodies are `markdown`;
 `store`/`update` take `title`, `body`, `level`, a nullable `published_at` and
 `expires_at`, and the optional `dismissible`, `action_label` and `action_url`. Deleting an
 announcement also deletes its dismissals.

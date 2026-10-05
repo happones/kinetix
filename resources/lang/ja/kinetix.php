@@ -310,6 +310,7 @@ return [
     'announcements_global_readonly'        => '全体向け — チーム外で編集してください',
     'announcements_field_title'            => 'タイトル',
     'announcements_field_body'             => '本文',
+    'announcements_field_body_hint'        => 'Markdown が使えます：**太字**、_斜体_、[リンク](/docs)、- リスト。',
     'announcements_field_level'            => 'レベル',
     'announcements_field_published_at'     => '公開日時',
     'announcements_field_published_hint'   => '空欄なら下書きのまま、未来の日時を指定すると予約公開になります。',

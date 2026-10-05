@@ -666,7 +666,9 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
                 {
                     id: 1,
                     title: 'Dark mode is here 🌙',
-                    body: 'Toggle it from the header — your choice is remembered across devices.',
+                    body: 'Toggle it from the header — your choice is **remembered across devices**.',
+                    bodyHtml:
+                        '<p>Toggle it from the header — your choice is <strong>remembered across devices</strong>.</p>',
                     level: 'feature',
                     color: 'success',
                     icon: 'sparkles',

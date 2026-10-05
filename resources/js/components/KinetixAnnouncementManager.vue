@@ -29,8 +29,16 @@ import KinetixSwitch from './primitives/KinetixSwitch.vue';
  */
 const { t } = useI18n();
 const { levelLabel, levelColor, formatDate } = useKinetixAnnouncementFormat();
-const { announcements, teamScoped, levels, loading, load, save, remove } =
-    useKinetixAnnouncementManager();
+const {
+    announcements,
+    teamScoped,
+    levels,
+    markdown,
+    loading,
+    load,
+    save,
+    remove,
+} = useKinetixAnnouncementManager();
 
 /** The built-in levels, for a server that predates the configurable ones. */
 const LEVELS = ['info', 'feature', 'fix'];
@@ -327,7 +335,19 @@ onMounted(load);
                         rows="4"
                         required
                         :class="textareaClass"
+                        :aria-describedby="
+                            markdown
+                                ? 'kinetix-announcement-body-hint'
+                                : undefined
+                        "
                     />
+                    <p
+                        v-if="markdown"
+                        id="kinetix-announcement-body-hint"
+                        class="text-xs text-muted-foreground"
+                    >
+                        {{ t('kinetix.announcements_field_body_hint') }}
+                    </p>
                 </div>
 
                 <div class="gap-4 sm:grid-cols-2 grid">

@@ -310,6 +310,7 @@ return [
     'announcements_global_readonly'        => '全平台公告 — 请在团队之外编辑',
     'announcements_field_title'            => '标题',
     'announcements_field_body'             => '内容',
+    'announcements_field_body_hint'        => '支持 Markdown：**粗体**、_斜体_、[链接](/docs)、- 列表。',
     'announcements_field_level'            => '级别',
     'announcements_field_published_at'     => '发布时间',
     'announcements_field_published_hint'   => '留空则保存为草稿；填写将来的时间即为排期发布。',

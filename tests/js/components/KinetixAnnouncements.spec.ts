@@ -137,4 +137,28 @@ describe('KinetixAnnouncements', () => {
         const link = document.querySelector('a[href="/docs/export"]');
         expect(link?.textContent?.trim()).toBe('Read the guide');
     });
+
+    it('renders the Markdown body the server sanitized', async () => {
+        const w = mountIt();
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({
+            announcements: [
+                {
+                    ...announcement,
+                    body: 'See [the guide](/docs)',
+                    bodyHtml: '<p>See <a href="/docs">the guide</a></p>',
+                },
+            ],
+            unread: 0,
+        });
+        fetchMock.mockResolvedValueOnce({ status: 'success' });
+
+        await w.find('button').trigger('click');
+        await flushPromises();
+
+        expect(document.querySelector('a[href="/docs"]')?.textContent).toBe(
+            'the guide',
+        );
+    });
 });

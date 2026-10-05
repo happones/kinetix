@@ -126,6 +126,33 @@ class AnnouncementDisplayTest extends TestCase
         $this->assertSame('/settings/tokens', $entry->actionUrl);
     }
 
+    public function test_the_body_ships_as_safe_html_rendered_from_markdown(): void
+    {
+        KinetixAnnouncements::publish(
+            'Exports',
+            "Now **3× faster**.\nSee [the guide](/docs/export).\n\n<script>alert(1)</script>",
+        );
+
+        $html = (string) $this->bannerEntry()->bodyHtml;
+
+        $this->assertStringContainsString('<strong>3× faster</strong>', $html);
+        // A plain newline still breaks the line, as the text field did.
+        $this->assertStringContainsString('<br />', $html);
+        $this->assertStringContainsString('<a href="/docs/export">the guide</a>', $html);
+        $this->assertStringNotContainsString('<script', $html);
+    }
+
+    public function test_markdown_can_be_turned_off(): void
+    {
+        config()->set('kinetix.announcements.markdown', false);
+        KinetixAnnouncements::publish('Plain', '**as typed**');
+
+        $entry = $this->bannerEntry();
+
+        $this->assertNull($entry->bodyHtml);
+        $this->assertSame('**as typed**', $entry->body);
+    }
+
     public function test_a_plain_entry_stays_closable_without_a_button(): void
     {
         KinetixAnnouncements::publish('v2', 'Faster search.');

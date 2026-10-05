@@ -631,6 +631,11 @@ export interface KinetixAnnouncement {
     dismissible?: boolean;
     actionLabel?: string | null;
     actionUrl?: string | null;
+    /**
+     * The body as server-sanitized HTML (rendered from Markdown); absent when
+     * `announcements.markdown` is off — then `body` is shown as typed.
+     */
+    bodyHtml?: string | null;
 }
 
 /**

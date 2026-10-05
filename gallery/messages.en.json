@@ -305,6 +305,7 @@
         "announcements_global_readonly": "Platform-wide — edit it outside a team",
         "announcements_field_title": "Title",
         "announcements_field_body": "Message",
+        "announcements_field_body_hint": "Markdown works: **bold**, _italic_, [a link](/docs), - lists.",
         "announcements_field_level": "Level",
         "announcements_field_published_at": "Publish at",
         "announcements_field_published_hint": "Leave empty to keep it a draft; a future date schedules it.",

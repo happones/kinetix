@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Markdown announcement bodies (published).** A body can use bold,
+  italics, links, lists and code. The server renders it to safe HTML (raw
+  HTML stripped, `javascript:` and `data:` links dropped) as `bodyHtml`, and
+  the banner and the "What's new" popover show it. A single line break stays
+  a line break, so a body written as plain text reads exactly as before. The
+  authoring form says the field takes Markdown. `announcements.markdown`
+  (`KINETIX_ANNOUNCEMENTS_MARKDOWN`, default on) turns it off, showing bodies
+  exactly as typed. New translation key `announcements_field_body_hint` in
+  all seven locales.
+- **`Support\SafeMarkdown`.** One home for Markdown → safe HTML, built once
+  per process and reused. The Help Center renders through it too, with the
+  same output as before.
+
+### Changed
+
+- **The rich editor's Markdown preview and announcement bodies share one
+  typography recipe (published)** (`markdownContentClass`). The preview
+  gains a little space between blocks; links get a medium weight and offset
+  underline.
+
 ## [0.190.0] - 2026-10-05
 
 Kinetix's own toasts move to Inertia's flash channel, and two notices get

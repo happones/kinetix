@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Data;
 
 use Happones\Kinetix\Announcements\Announcement;
 use Happones\Kinetix\Announcements\AnnouncementLevels;
+use Happones\Kinetix\Support\SafeMarkdown;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -27,6 +28,11 @@ class AnnouncementData extends Data
         public bool $dismissible = true,
         public ?string $actionLabel = null,
         public ?string $actionUrl = null,
+        /**
+         * The body rendered from Markdown to safe HTML (raw HTML stripped,
+         * unsafe links dropped); null when `announcements.markdown` is off.
+         */
+        public ?string $bodyHtml = null,
     ) {}
 
     public static function fromModel(Announcement $announcement, bool $isNew): self
@@ -51,6 +57,11 @@ class AnnouncementData extends Data
             // A button needs both halves.
             actionLabel: is_string($actionLabel) && is_string($actionUrl) ? $actionLabel : null,
             actionUrl: is_string($actionLabel)   && is_string($actionUrl) ? $actionUrl : null,
+            // A single newline stays a line break, so a body written as plain
+            // text reads exactly as it did before Markdown.
+            bodyHtml: config('kinetix.announcements.markdown', true)
+                ? SafeMarkdown::toHtml($announcement->body, lineBreaks: true)
+                : null,
         );
     }
 }

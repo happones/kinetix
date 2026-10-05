@@ -335,6 +335,7 @@ return [
     'announcements_global_readonly'        => 'Da plataforma — edite fora de uma equipe',
     'announcements_field_title'            => 'Título',
     'announcements_field_body'             => 'Mensagem',
+    'announcements_field_body_hint'        => 'Aceita Markdown: **negrito**, _itálico_, [um link](/docs), - listas.',
     'announcements_field_level'            => 'Nível',
     'announcements_field_published_at'     => 'Publicar em',
     'announcements_field_published_hint'   => 'Deixe vazio para manter como rascunho; uma data futura agenda.',

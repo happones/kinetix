@@ -157,6 +157,14 @@ export const textareaClass =
  * names are per-primitive, e.g.
  * `max-h-(--reka-select-content-available-height) origin-(--reka-select-content-transform-origin)`.
  */
+/**
+ * Typography for rendered Markdown (`v-html` of server-sanitized HTML): the
+ * one recipe for the rich editor's preview and announcement bodies. Blocks
+ * get a little air between them, lists their markers, links an underline.
+ */
+export const markdownContentClass =
+    '[&>*+*]:mt-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_ul]:pl-5 [&_ol]:pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_blockquote]:pl-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:px-1 [&_code]:bg-muted [&_a]:underline [&_a]:underline-offset-4 [&_a]:font-medium [&_a]:text-primary';
+
 export const popoverAnimationClass =
     'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2';
 
