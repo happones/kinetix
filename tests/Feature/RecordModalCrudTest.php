@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Components\TextEntry;
@@ -15,7 +16,6 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Inertia\Support\SessionKey;
 
 class RecordModalWidget extends Model
 {
@@ -118,7 +118,7 @@ class RecordModalCrudTest extends TestCase
         // The toast rides Inertia's flash, which Back can't replay. (Read off
         // the store: these routes run without `web`, so the test response
         // has no started session to assert against.)
-        $this->assertSame((string) __('kinetix.record_created'), session(SessionKey::FLASH_DATA.'.kinetix.toasts.0.message'));
+        $this->assertSame((string) __('kinetix.record_created'), KinetixFlash::flashed()['toasts'][0]['message'] ?? null);
         $this->assertNull(session('kinetix_toast'));
 
         $this->assertDatabaseHas('record_modal_widgets', ['name' => 'Created']);

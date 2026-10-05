@@ -28,26 +28,83 @@ export function kinetixFlashOf(flash: unknown): KinetixFlashPayload {
 }
 
 /**
+ * Ids already handed over from the `kinetix_flash` prop. That channel is a
+ * page prop (an inertia-laravel older than 2.0.16 has no flash), so the
+ * browser history keeps it: without this, Back would deliver it again.
+ */
+const deliveredFromProps = new Set<string>();
+
+/** The not-yet-delivered part of a `kinetix_flash` prop payload. */
+function freshFromProps(value: unknown): KinetixFlashPayload | null {
+    if (value === null || typeof value !== 'object') {
+        return null;
+    }
+
+    const payload = value as KinetixFlashPayload;
+    const fresh = <T extends { id: string }>(entries: T[] | undefined): T[] =>
+        (entries ?? []).filter((entry) => {
+            if (deliveredFromProps.has(entry.id)) {
+                return false;
+            }
+
+            deliveredFromProps.add(entry.id);
+
+            return true;
+        });
+
+    const toasts = fresh(payload.toasts);
+    const alerts = fresh(payload.alerts);
+
+    return toasts.length || alerts.length ? { toasts, alerts } : null;
+}
+
+/**
  * Call `handler` with the flash the current page arrived with, then with every
  * new one. Returns the unsubscribe — call it on unmount. Safe outside a full
  * Inertia app (tests, a standalone widget): it then just does nothing.
+ *
+ * On an inertia-laravel without a flash channel the server sends the same
+ * payload as the `kinetix_flash` prop; it is delivered here too, once per id.
  */
 export function onKinetixFlash(
     handler: (payload: KinetixFlashPayload) => void,
 ): () => void {
+    const fromProps = (props: Record<string, unknown> | undefined): void => {
+        const fresh = freshFromProps(props?.kinetix_flash);
+
+        if (fresh) {
+            handler(fresh);
+        }
+    };
+
     try {
-        handler(kinetixFlashOf(usePage().flash));
+        const page = usePage();
+        handler(kinetixFlashOf(page.flash));
+        fromProps(page.props as Record<string, unknown>);
     } catch {
         // No page to read.
     }
 
+    const stops: Array<() => void> = [];
+
     try {
-        return router.on('flash', (event) =>
-            handler(kinetixFlashOf(event.detail.flash)),
+        stops.push(
+            router.on('flash', (event) =>
+                handler(kinetixFlashOf(event.detail.flash)),
+            ),
+            router.on('navigate', (event) =>
+                fromProps(
+                    event.detail?.page?.props as
+                        | Record<string, unknown>
+                        | undefined,
+                ),
+            ),
         );
     } catch {
-        return () => {};
+        // Outside a full Inertia app there are no visits to follow.
     }
+
+    return () => stops.forEach((stop) => stop());
 }
 
 /** `crypto.randomUUID` only exists in secure contexts (https / localhost). */

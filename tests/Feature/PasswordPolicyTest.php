@@ -9,6 +9,7 @@ use Happones\Kinetix\Credentials\PasswordHistory;
 use Happones\Kinetix\Credentials\PasswordObserver;
 use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Credentials\Rules\NotAPreviousPassword;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
@@ -19,7 +20,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\View;
 use Inertia\Inertia;
-use Inertia\Support\SessionKey;
 
 class PwUser extends Authenticatable
 {
@@ -412,8 +412,9 @@ class PasswordPolicyTest extends TestCase
         KinetixPasswords::forceChange($user);
 
         $this->actingAs($user->fresh())->get('/pw-app')
-            ->assertRedirect(route('kinetix.password.change.show'))
-            ->assertSessionHas(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type', 'warning');
+            ->assertRedirect(route('kinetix.password.change.show'));
+
+        $this->assertSame('warning', KinetixFlash::flashed()['toasts'][0]['type'] ?? null);
     }
 
     public function test_the_middleware_answers_json_with_423_instead_of_a_redirect(): void

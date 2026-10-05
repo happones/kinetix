@@ -11,6 +11,7 @@ use Happones\Kinetix\Entitlements\DenialReason;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Entitlements\KinetixEntitlements;
 use Happones\Kinetix\Features\KinetixFeatures;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Support\Memo;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
@@ -20,7 +21,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
-use Inertia\Support\SessionKey;
 
 class EntUser extends Authenticatable
 {
@@ -362,8 +362,9 @@ class EntitlementsTest extends TestCase
             ->get('/ent-api', fn () => 'never');
 
         $this->actingAs($this->user())->get('/ent-api')
-            ->assertRedirect('/billing')
-            ->assertSessionHas(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type', 'info');
+            ->assertRedirect('/billing');
+
+        $this->assertSame('info', KinetixFlash::flashed()['toasts'][0]['type'] ?? null);
     }
 
     public function test_the_middleware_403s_a_plan_denial_on_json(): void

@@ -71,8 +71,6 @@ function receive(alerts: KinetixFlashAlert[] | undefined): void {
     }
 }
 
-const stopFlash = onKinetixFlash((payload) => receive(payload.alerts));
-
 // A one-shot alert belongs to the page it arrived on. `navigate` fires before
 // the visit's own `flash`, so a redirect clears the old page's alerts and then
 // receives its own. Same path (a poll, a filter) = same page: they stay.
@@ -90,6 +88,11 @@ try {
 } catch {
     // Outside a full Inertia app there is no navigation to follow.
 }
+
+// Registered AFTER the path watcher: on a visit to another page the old alerts
+// are cleared first, then the new page's (from a `kinetix_flash` prop, which
+// arrives with `navigate` too) are received.
+const stopFlash = onKinetixFlash((payload) => receive(payload.alerts));
 
 onBeforeUnmount(() => {
     stopFlash();

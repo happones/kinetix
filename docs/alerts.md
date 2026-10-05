@@ -296,6 +296,12 @@ showing of a `keep()` alert.
 From the client, `useKinetixFlash().alert(title, { color, description })`
 flashes a one-shot alert without a request.
 
+Inertia's flash channel exists from inertia-laravel 2.0.16 on. On an older 2.x
+the same toasts and alerts ride a `kinetix_flash` page prop instead; the
+toaster and the outlet read it, once per id, so nothing changes in your code.
+In a test, `KinetixFlash::flashed()` returns what is waiting for the next page
+whichever channel carries it.
+
 New one-shot alerts are announced to screen readers when they arrive. A
 `danger` alert already interrupts as `role="alert"`, so it isn't announced
 twice.

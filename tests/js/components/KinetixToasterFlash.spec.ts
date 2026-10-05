@@ -24,7 +24,11 @@ const flashHandlers = new Set<Handler>();
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => page,
     router: {
-        on: (_: string, handler: Handler) => {
+        on: (name: string, handler: Handler) => {
+            if (name !== 'flash') {
+                return () => {};
+            }
+
             flashHandlers.add(handler);
 
             return () => flashHandlers.delete(handler);

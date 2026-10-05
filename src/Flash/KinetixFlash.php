@@ -28,6 +28,10 @@ use Inertia\Support\SessionKey;
  * in the session and ride the `kinetix_alerts` prop instead, since they are
  * state rather than a one-off event.
  *
+ * inertia-laravel only has a flash channel from 2.0.16 on. On an older 2.x the
+ * payload rides the `kinetix_flash` page prop instead (`legacyPayload()`), and
+ * the client dedupes it by id so a page restored from history stays quiet.
+ *
  * @phpstan-type FlashToast array{id: string, type: string, message: string, description: string|null, duration: int|null}
  * @phpstan-type FlashAlert array{id: string, title: string, description: string|null, color: string, variant: string, icon: string|null, dismissible: bool, persistent: bool}
  * @phpstan-type StoredAlert array{alert: FlashAlert, showings: int|null}
@@ -36,6 +40,9 @@ class KinetixFlash
 {
     /** The key under Inertia's page-level `flash`. */
     public const FLASH_KEY = 'kinetix';
+
+    /** Where the payload waits when Inertia has no flash channel (< 2.0.16). */
+    public const LEGACY_SESSION_KEY = 'kinetix_flash';
 
     /** Session key of the alerts that outlive one page. */
     public const ALERTS_SESSION_KEY = 'kinetix_flash_alerts';
@@ -108,18 +115,75 @@ class KinetixFlash
      */
     public static function push(string $bucket, array $entry): void
     {
-        // Read the store `Inertia::flash()` writes to — `getFlashed()` asks the
-        // request's session, which a queued job or a test may not have.
-        $flashed = session()->get(SessionKey::FLASH_DATA, []);
-        $current = is_array($flashed) ? ($flashed[self::FLASH_KEY] ?? []) : [];
-        $current = is_array($current) ? $current : [];
+        $current = static::flashed();
 
         $entries   = is_array($current[$bucket] ?? null) ? $current[$bucket] : [];
         $entries[] = $entry;
 
         $current[$bucket] = $entries;
 
-        Inertia::flash(self::FLASH_KEY, $current);
+        if (static::inertiaHasFlash()) {
+            Inertia::flash(self::FLASH_KEY, $current);
+
+            return;
+        }
+
+        session()->flash(self::LEGACY_SESSION_KEY, $current);
+    }
+
+    /**
+     * What is waiting for the next page — `['toasts' => […], 'alerts' => […]]`
+     * — whichever channel carries it.
+     *
+     * Read off the session store `Inertia::flash()` writes to, not through
+     * `Inertia::getFlashed()`, which asks the REQUEST's session: a queued job
+     * or a test may not have one.
+     *
+     * @return array<string, mixed>
+     */
+    public static function flashed(): array
+    {
+        $payload = static::inertiaHasFlash()
+            ? (session()->get(static::inertiaFlashKey(), [])[self::FLASH_KEY] ?? [])
+            : session()->get(self::LEGACY_SESSION_KEY, []);
+
+        return is_array($payload) ? $payload : [];
+    }
+
+    /**
+     * The payload for the `kinetix_flash` prop — only when Inertia can't carry
+     * flash itself; null otherwise, so a current install ships nothing extra.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function legacyPayload(): ?array
+    {
+        if (static::inertiaHasFlash()) {
+            return null;
+        }
+
+        $payload = static::flashed();
+
+        return $payload === [] ? null : $payload;
+    }
+
+    /**
+     * Whether the installed inertia-laravel has `Inertia::flash()` (2.0.16+).
+     * Asked of the bound factory: Kinetix supports `^2.0|^3.0`, and only the
+     * running app knows which one it got.
+     */
+    public static function inertiaHasFlash(): bool
+    {
+        return method_exists(Inertia::getFacadeRoot(), 'flash');
+    }
+
+    /**
+     * Inertia's flash session key: a class constant on v3, an enum on 2.0.16+,
+     * the same string either way.
+     */
+    protected static function inertiaFlashKey(): string
+    {
+        return class_exists(SessionKey::class) ? SessionKey::FLASH_DATA : 'inertia.flash_data';
     }
 
     /**

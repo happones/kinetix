@@ -1,18 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-type Handler = (event: { detail: { flash: unknown } }) => void;
+type Handler = (event: { detail: Record<string, unknown> }) => void;
 
-const page = { flash: {} as Record<string, unknown> };
+const page = {
+    flash: {} as Record<string, unknown>,
+    props: {} as Record<string, unknown>,
+};
 const handlers = new Set<Handler>();
+const navigateHandlers = new Set<Handler>();
 const flashCalls: unknown[] = [];
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => page,
     router: {
-        on: (_: string, handler: Handler) => {
-            handlers.add(handler);
+        on: (name: string, handler: Handler) => {
+            const set = name === 'navigate' ? navigateHandlers : handlers;
+            set.add(handler);
 
-            return () => handlers.delete(handler);
+            return () => set.delete(handler);
         },
         flash: (updater: (current: Record<string, unknown>) => unknown) => {
             const next = updater(page.flash);
@@ -41,7 +46,9 @@ describe('kinetixFlashOf', () => {
 describe('onKinetixFlash', () => {
     beforeEach(() => {
         handlers.clear();
+        navigateHandlers.clear();
         page.flash = {};
+        page.props = {};
     });
 
     it('hands over the flash the page arrived with, then every new one', () => {
@@ -60,6 +67,43 @@ describe('onKinetixFlash', () => {
 
         stop();
         expect(handlers.size).toBe(0);
+        expect(navigateHandlers.size).toBe(0);
+    });
+
+    it('delivers the kinetix_flash prop of an older server once per id', () => {
+        // inertia-laravel < 2.0.16 has no flash channel: the payload is a prop.
+        page.props = {
+            kinetix_flash: { toasts: [{ id: 'legacy-1', message: 'Saved' }] },
+        };
+        const seen: unknown[] = [];
+
+        const stop = onKinetixFlash((payload) => seen.push(payload));
+
+        // A later visit carries a new one…
+        navigateHandlers.forEach((h) =>
+            h({
+                detail: {
+                    page: {
+                        props: {
+                            kinetix_flash: {
+                                alerts: [{ id: 'legacy-2', title: 'Heads up' }],
+                            },
+                        },
+                    },
+                },
+            }),
+        );
+        // …and Back restores the first page, props and all.
+        navigateHandlers.forEach((h) =>
+            h({ detail: { page: { props: page.props } } }),
+        );
+
+        expect(seen).toEqual([
+            {},
+            { toasts: [{ id: 'legacy-1', message: 'Saved' }], alerts: [] },
+            { toasts: [], alerts: [{ id: 'legacy-2', title: 'Heads up' }] },
+        ]);
+        stop();
     });
 });
 

@@ -11,6 +11,7 @@ use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\DissociateAction;
 use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Actions\ViewAction;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Components\TextEntry;
@@ -24,7 +25,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
-use Inertia\Support\SessionKey;
 use RuntimeException;
 
 class RmcProject extends Model
@@ -321,7 +321,7 @@ class RelationRecordCrudTest extends TestCase
             'data' => ['title' => 'New task', 'project_id' => 999],
         ])->assertRedirect('/projects/1/edit');
 
-        $this->assertSame('success', session(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type'));
+        $this->assertSame('success', KinetixFlash::flashed()['toasts'][0]['type'] ?? null);
 
         $task = RmcTask::sole();
         $this->assertSame('New task', $task->title);

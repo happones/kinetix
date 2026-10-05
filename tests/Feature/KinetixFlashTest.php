@@ -9,7 +9,6 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Inertia\Support\SessionKey;
 
 /**
  * KinetixFlash: one-shot toasts and alerts over Inertia's flash channel (never
@@ -23,9 +22,7 @@ class KinetixFlashTest extends TestCase
      */
     private function flashed(): array
     {
-        $flash = session(SessionKey::FLASH_DATA, [])[KinetixFlash::FLASH_KEY] ?? [];
-
-        return is_array($flash) ? $flash : [];
+        return KinetixFlash::flashed();
     }
 
     /**
@@ -211,6 +208,42 @@ class KinetixFlashTest extends TestCase
 
         $this->assertCount(1, $alerts);
         $this->assertSame('Maintenance tonight', $alerts[0]['title']);
+    }
+
+    public function test_without_an_inertia_flash_channel_the_payload_rides_a_prop(): void
+    {
+        // inertia-laravel < 2.0.16: the bound factory has no flash().
+        $factory = Inertia::getFacadeRoot();
+        Inertia::swap(new class
+        {
+            public function share(): void {}
+        });
+
+        try {
+            $this->assertFalse(KinetixFlash::inertiaHasFlash());
+
+            KinetixFlash::success('Saved.');
+            KinetixFlash::alert('Heads up', 'warning');
+
+            $payload = KinetixFlash::legacyPayload();
+
+            $this->assertSame('Saved.', $payload['toasts'][0]['message'] ?? null);
+            $this->assertSame('Heads up', $payload['alerts'][0]['title'] ?? null);
+            $this->assertSame($payload, KinetixFlash::flashed());
+        } finally {
+            Inertia::swap($factory);
+        }
+    }
+
+    public function test_with_an_inertia_flash_channel_the_prop_stays_null(): void
+    {
+        if (! KinetixFlash::inertiaHasFlash()) {
+            $this->markTestSkipped('The installed inertia-laravel predates Inertia::flash() (2.0.16).');
+        }
+
+        KinetixFlash::success('Saved.');
+
+        $this->assertNull(KinetixFlash::legacyPayload());
     }
 
     public function test_the_close_endpoint_ignores_the_team_prefix(): void

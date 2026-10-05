@@ -2159,6 +2159,10 @@ class KinetixServiceProvider extends ServiceProvider
         // `flash` instead. <KinetixFlashAlerts /> renders both.
         Inertia::share('kinetix_alerts', fn (): array => KinetixFlash::persistentAlerts());
 
+        // One-shot toasts and alerts on an inertia-laravel without a flash
+        // channel (< 2.0.16). Null on anything newer, where they ride `flash`.
+        Inertia::share('kinetix_flash', fn (): ?array => KinetixFlash::legacyPayload());
+
         // The alerts this user closed for good, so a `permanent` <KinetixAlert>
         // never renders again on any device. Null = the module is off, which
         // tells the client a permanent close has no server to go to.

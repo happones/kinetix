@@ -191,4 +191,29 @@ describe('KinetixFlashAlerts', () => {
         expect(handlers.flash.size).toBe(0);
         expect(handlers.navigate.size).toBe(0);
     });
+
+    it('takes the kinetix_flash prop of an older server, clearing the old page first', async () => {
+        page.props = {
+            kinetix_flash: { alerts: [alert('legacy-a', 'Old page alert')] },
+        };
+        const w = mountIt();
+        expect(w.text()).toContain('Old page alert');
+
+        // A visit to another page whose props carry its own alert.
+        fire('navigate', {
+            page: {
+                url: '/customers',
+                props: {
+                    kinetix_flash: {
+                        alerts: [alert('legacy-b', 'New page alert')],
+                    },
+                },
+            },
+        });
+        await flushPromises();
+
+        expect(w.text()).not.toContain('Old page alert');
+        expect(w.text()).toContain('New page alert');
+        w.unmount();
+    });
 });

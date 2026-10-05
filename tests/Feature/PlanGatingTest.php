@@ -8,6 +8,7 @@ use Happones\Kinetix\Billing\Concerns\EnforcesPlanLimits;
 use Happones\Kinetix\Billing\Concerns\HasPlan;
 use Happones\Kinetix\Billing\Exceptions\PlanLimitExceededException;
 use Happones\Kinetix\Billing\Plan;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,7 +16,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
-use Inertia\Support\SessionKey;
 
 class PgUser extends Authenticatable
 {
@@ -134,8 +134,9 @@ class PlanGatingTest extends TestCase
         // Denied WEB request with an upgrade URL: the upsell redirect.
         config()->set('kinetix.billing.upgrade_url', '/billing');
         $this->actingAs($user)->get('/pg-api')
-            ->assertRedirect('/billing')
-            ->assertSessionHas(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type', 'info');
+            ->assertRedirect('/billing');
+
+        $this->assertSame('info', KinetixFlash::flashed()['toasts'][0]['type'] ?? null);
 
         // Allowed once the plan grants the capability.
         Plan::query()->update(['features' => json_encode(['capabilities' => ['api' => true]])]);

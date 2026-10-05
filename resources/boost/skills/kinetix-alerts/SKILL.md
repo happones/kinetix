@@ -109,6 +109,12 @@ KinetixFlash::forget('verify-email');                          // withdraw (not 
   `onKinetixFlash(handler)` gives the current page's flash and then every new
   one (it returns the unsubscribe).
 - One-shot arrivals are announced (except `danger`, already `role="alert"`).
+- Kinetix supports inertia-laravel `^2.0|^3.0`. Before 2.0.16 there is no
+  `Inertia::flash()`, so the payload goes to session `kinetix_flash` and is
+  shared as the `kinetix_flash` prop (`KinetixFlash::legacyPayload()`, null on
+  newer versions). `onKinetixFlash` delivers it once per id. Never reference
+  `Inertia\Support\SessionKey` (v3-only) without `class_exists`. Assert flashes in
+  tests with `KinetixFlash::flashed()`, which works on both channels.
 
 ## Composables
 

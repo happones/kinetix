@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`KinetixFlash` works on inertia-laravel 2.x.** The flash session key no
+  longer depends on the v3-only `Inertia\Support\SessionKey` class. On
+  inertia-laravel older than 2.0.16, which has no flash channel at all, the
+  toasts and alerts ride a `kinetix_flash` page prop instead. `<KinetixToaster>`
+  and `<KinetixFlashAlerts>` pick them up, once per id, so a page restored
+  from history stays quiet. On anything newer that prop is `null`.
+- **`KinetixFlash::flashed()`** returns what is waiting for the next page
+  whichever channel carries it, so a test can assert a flash without
+  depending on Inertia's internals.
+
 ## [0.191.0] - 2026-10-05
 
 Announcements speak Markdown. Bodies can use bold, italics, links and lists,

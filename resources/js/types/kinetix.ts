@@ -128,6 +128,11 @@ export interface KinetixSharedProps {
     kinetix_notifications?: KinetixNotification[];
     /** Session alerts (`keep()` / `untilDismissed()`) for <KinetixFlashAlerts>. */
     kinetix_alerts?: KinetixFlashAlert[];
+    /**
+     * One-shot toasts/alerts when the server's inertia-laravel has no flash
+     * channel (< 2.0.16); null otherwise. `onKinetixFlash` delivers it.
+     */
+    kinetix_flash?: KinetixFlashPayload | null;
     /** Alert keys this user closed for good (Dismissals module); null = off. */
     kinetix_dismissals?: string[] | null;
     /** Unread badge + banner feed, so neither has to fetch on mount. */
