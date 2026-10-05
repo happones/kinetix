@@ -2097,6 +2097,9 @@ class KinetixServiceProvider extends ServiceProvider
                     'enabled' => (bool) config('kinetix.notifications.sound.enabled', true),
                     'path'    => config('kinetix.notifications.sound.path', '/vendor/kinetix/notification.wav'),
                 ],
+                // `reduced` stills the JS-driven motion (transition presets,
+                // auto-rotation) for everyone; anything else is `full`.
+                'motion' => config('kinetix.motion') === 'reduced' ? 'reduced' : 'full',
                 // The palette's own gate has to agree with the endpoint's, or
                 // it fires requests the server answers with an empty payload.
                 'spotlight' => [

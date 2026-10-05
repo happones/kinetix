@@ -20,6 +20,8 @@ vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
 
 import KinetixToaster from '@/components/KinetixToaster.vue';
 
+// Shown uuids are remembered for the life of the module (the tab), so every
+// test uses its own — exactly as the server never reuses one.
 describe('KinetixToaster flash → toast', () => {
     beforeEach(() => {
         page.props = {};
@@ -50,7 +52,7 @@ describe('KinetixToaster flash → toast', () => {
         page.props.kinetix_toast = {
             type: 'success',
             message: 'Saved.',
-            id: 'uuid-1',
+            id: 'uuid-repeat-1',
         };
         await nextTick();
 
@@ -58,7 +60,7 @@ describe('KinetixToaster flash → toast', () => {
         page.props.kinetix_toast = {
             type: 'success',
             message: 'Saved.',
-            id: 'uuid-1',
+            id: 'uuid-repeat-1',
         };
         await nextTick();
 
@@ -68,7 +70,7 @@ describe('KinetixToaster flash → toast', () => {
         page.props.kinetix_toast = {
             type: 'success',
             message: 'Saved.',
-            id: 'uuid-2',
+            id: 'uuid-repeat-2',
         };
         await nextTick();
 
@@ -108,5 +110,37 @@ describe('KinetixToaster flash → toast', () => {
         );
 
         wrapper.unmount();
+    });
+
+    it('stays silent when Back/Forward restores a page that still carries its old toast', async () => {
+        const first = mount(KinetixToaster);
+
+        page.props.kinetix_toast = {
+            type: 'success',
+            message: 'Invoice sent.',
+            id: 'uuid-history',
+        };
+        await nextTick();
+        expect(toastFns.success).toHaveBeenCalledTimes(1);
+
+        // The user navigates on (a fresh layout, no toast)…
+        first.unmount();
+        page.props = {};
+        const second = mount(KinetixToaster);
+        await nextTick();
+
+        // …then presses Back: Inertia restores the props from history.
+        page.props = {
+            kinetix_toast: {
+                type: 'success',
+                message: 'Invoice sent.',
+                id: 'uuid-history',
+            },
+        };
+        await nextTick();
+
+        expect(toastFns.success).toHaveBeenCalledTimes(1);
+
+        second.unmount();
     });
 });

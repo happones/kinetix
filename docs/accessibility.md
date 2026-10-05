@@ -152,6 +152,23 @@ announce("Saved");                 // polite
 announce("Upload failed", true);   // assertive (interrupts)
 ```
 
+### Motion in JavaScript
+
+The preference and the OS setting stop CSS animations through the plugin's
+global guard. Motion that runs in JavaScript — a carousel's rotation timer, a
+Vue `<Transition>` — asks `useKinetixReducedMotion()` instead: a reactive
+`boolean` that is `true` under the OS setting, the user's **Reduce motion**
+preference, or the app-wide `kinetix.motion = 'reduced'` config. Kinetix's
+alert and banner animations ([Alerts → Animations](/alerts#animations)) and
+the announcement banner's auto-rotation follow it.
+
+```ts
+import { useKinetixReducedMotion } from '@/composables/useKinetixReducedMotion';
+
+const reduced = useKinetixReducedMotion();
+// if (!reduced.value) startAutoplay();
+```
+
 ---
 
 ## Endpoints

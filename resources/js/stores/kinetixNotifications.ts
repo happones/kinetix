@@ -9,6 +9,23 @@ import type {
     KinetixSharedProps,
 } from '@/types/kinetix';
 
+/** What a toast shows for when the payload doesn't say. */
+const DEFAULT_TOAST_DURATION = 4000;
+
+/**
+ * `Notification::persistent()` ships `duration: null` — the toast stays until
+ * the user closes it. Only a missing (or nonsensical) duration falls back.
+ */
+export function toastDuration(duration: number | null | undefined): number {
+    if (duration === null) {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    return duration !== undefined && duration > 0
+        ? duration
+        : DEFAULT_TOAST_DURATION;
+}
+
 export const useNotificationsStore = defineStore('kinetixNotifications', () => {
     const notifications = ref<KinetixNotification[]>([]);
     const isOpen = ref(false);
@@ -114,7 +131,7 @@ export const useNotificationsStore = defineStore('kinetixNotifications', () => {
         try {
             const options: any = {
                 description: notif.description,
-                duration: notif.duration || 4000,
+                duration: toastDuration(notif.duration),
             };
 
             if (notif.actions && notif.actions.length > 0) {

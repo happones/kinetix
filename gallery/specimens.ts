@@ -24,6 +24,7 @@ import KinetixSignaturePad from '@/components/KinetixSignaturePad.vue';
 import KinetixPhoneInput from '@/components/KinetixPhoneInput.vue';
 import KinetixModeToggle from '@/components/KinetixModeToggle.vue';
 import KinetixAccessibilityMenu from '@/components/KinetixAccessibilityMenu.vue';
+import KinetixAlert from '@/components/KinetixAlert.vue';
 import KinetixAnnouncementBanner from '@/components/KinetixAnnouncementBanner.vue';
 import KinetixAnnouncementManager from '@/components/KinetixAnnouncementManager.vue';
 import KinetixAnnouncements from '@/components/KinetixAnnouncements.vue';
@@ -1718,6 +1719,84 @@ const HeaderControls: Component = {
         ]),
 };
 
+// Every status color on the default (soft) surface, then the other two
+// surfaces and the close affordances — the contrast story is "color on the
+// surface, text on the foreground tokens", which only shows side by side.
+const AlertColors: Component = {
+    name: 'AlertColors',
+    render: () =>
+        h('div', { class: 'grid gap-3' }, [
+            h(KinetixAlert, {
+                color: 'success',
+                title: 'Changes saved',
+                description: 'Your billing details were updated.',
+            }),
+            h(KinetixAlert, {
+                color: 'info',
+                title: 'Scheduled maintenance',
+                description: 'Sunday 02:00–04:00 UTC. Exports will pause.',
+            }),
+            h(KinetixAlert, {
+                color: 'warning',
+                title: 'Your trial ends in 3 days',
+                description: 'Add a payment method to keep your workspace.',
+            }),
+            h(KinetixAlert, {
+                color: 'danger',
+                title: 'Payment failed',
+                description: 'We could not charge the card ending in 4242.',
+            }),
+            h(KinetixAlert, {
+                color: 'gray',
+                title: 'Read-only record',
+                description:
+                    'This invoice was finalized and can no longer change.',
+            }),
+        ]),
+};
+
+const AlertVariants: Component = {
+    name: 'AlertVariants',
+    render: () =>
+        h('div', { class: 'grid gap-3' }, [
+            h(KinetixAlert, {
+                color: 'info',
+                variant: 'outline',
+                title: 'Outline surface',
+                description: 'Plain background, status-colored border.',
+            }),
+            h(KinetixAlert, {
+                color: 'warning',
+                variant: 'accent',
+                title: 'Accent surface',
+                description: 'Card background with a thick status edge.',
+            }),
+            h(
+                KinetixAlert,
+                {
+                    color: 'primary',
+                    title: 'Try the new dashboard',
+                    description: 'Hide it for now, or never see it again.',
+                    dismissible: true,
+                    dismissMode: 'session',
+                    dismissKey: 'gallery-new-dashboard',
+                    dontShowAgain: true,
+                },
+                {
+                    actions: () =>
+                        h(
+                            'button',
+                            {
+                                type: 'button',
+                                class: 'inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground',
+                            },
+                            'Open it',
+                        ),
+                },
+            ),
+        ]),
+};
+
 // Import wizard fixtures. The reading-options form is the case that used to
 // break: viewport breakpoints squeezed four columns into a dialog that is ~720px
 // wide whatever the screen, so the labels wrapped and the row lost its baseline.
@@ -2450,6 +2529,18 @@ export const specimens: Specimen[] = [
         component: KinetixAnnouncementManager,
         width: 720,
         frame: 'card',
+    },
+    {
+        name: 'alert-colors',
+        title: 'Alerts — status colors (soft)',
+        component: AlertColors,
+        width: 640,
+    },
+    {
+        name: 'alert-variants',
+        title: 'Alerts — outline, accent, dismissible with actions',
+        component: AlertVariants,
+        width: 640,
     },
     {
         name: 'announcement-banner',

@@ -342,7 +342,19 @@ return [
     'announcements_field_expires_hint'   => 'Laissez vide pour la garder indéfiniment dans le fil.',
     'announcements_status_expired'       => 'Expirée',
     'announcements_delete_confirm'       => 'Supprimer cette annonce ?',
-    'unread_count'                       => '{count} non lus',
+
+    // Alerts (<KinetixAlert>, and the announcement banner's close actions).
+    'alert_dismiss'         => 'Ignorer',
+    'alert_hide'            => 'Masquer pour l’instant',
+    'alert_dont_show_again' => 'Ne plus afficher',
+    'alert_dismissed'       => 'Message ignoré.',
+    'alert_hidden'          => 'Message masqué pour l’instant.',
+    'alert_label_success'   => 'Succès :',
+    'alert_label_danger'    => 'Erreur :',
+    'alert_label_warning'   => 'Avertissement :',
+    'alert_label_info'      => 'Information :',
+
+    'unread_count' => '{count} non lus',
 
     // Rôles et permissions
     'save'                        => 'Enregistrer',

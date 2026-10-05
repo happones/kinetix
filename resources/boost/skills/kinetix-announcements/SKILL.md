@@ -97,18 +97,29 @@ seen (clearing the badge). `useKinetixAnnouncements()` →
 `{ announcements, unread, loading, load, markSeen }`.
 
 The banner rotates one entry at a time (arrows, dots, pause button, left/right
-keys), pauses on hover/focus, and drops auto-rotation under
-`prefers-reduced-motion`. Dismissing is **per announcement** and server-side —
-it does not mark the feed read.
+keys), pauses on hover/focus, and drops auto-rotation under reduced motion
+(`useKinetixReducedMotion`: OS setting, the user's `kx-reduce-motion`
+preference, or `kinetix.motion = 'reduced'`). Closing is **per announcement**
+and does not mark the feed read; `dismissMode` sets how long it lasts —
+`permanent` (default, server-side, every device) · `device` · `session` ·
+`hide`, with `dismissDuration` (ms) for a close that comes back on its own.
+`dontShowAgain` pairs a temporary ✕ (`dismissMode="session"`) with a
+"Don't show again" link that closes the entry for good. Every close is also
+written to the tab's dismissal ledger, so a page restored by Back/Forward
+(whose history payload still holds the entry) keeps it closed. Entry and slide
+motion are `useKinetixTransition` presets (`transition`, `slideTransition`;
+`none` disables). Focus stays on the banner after a close while entries remain
+and moves to the next control after the last one; closes are announced.
 
 `position="fixed-top"` pins it to the viewport (below Kinetix's overlays) and
 publishes its height as `--kinetix-announcement-banner-height` on `<html>`, so
 the layout can reserve the space with
 `padding-top: var(--kinetix-announcement-banner-height, 0px)`.
 `fixedWidthClass` (default `max-w-3xl`) sizes the pinned bar. `useKinetixAnnouncementBanner({ limit, levels })`
-→ `{ announcements, loading, load, dismiss }`;
-`useKinetixAnnouncementFormat()` → `{ levelClass, levelLabel, formatDate }`
-(shared level colours/labels + dates in the app's locale).
+→ `{ announcements, loading, load, dismiss(entry, mode = 'permanent', duration) }`
+— hydrated synchronously from the payload and following later responses;
+`useKinetixAnnouncementFormat()` → `{ levelColor, levelClass, levelLabel, formatDate }`
+(level → status color for `<KinetixBadge>`, labels, dates in the app's locale).
 
 i18n `announcements_*` (7 locales).
 

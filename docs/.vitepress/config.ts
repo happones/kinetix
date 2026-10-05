@@ -93,6 +93,7 @@ export default withMermaid(
           { text: "Notifications", link: "/notifications" },
           { text: "Mail Templates", link: "/mail-templates" },
           { text: "Notification Preferences", link: "/notification-preferences" },
+          { text: "Alerts", link: "/alerts" },
           { text: "Announcements", link: "/announcements" },
           { text: "Cookie Consent", link: "/cookie-consent" },
           { text: "Spotlight", link: "/spotlight" },

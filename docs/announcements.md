@@ -177,8 +177,13 @@ import KinetixAnnouncementBanner from '@/components/kinetix/KinetixAnnouncementB
 | `levels`          | all          | Restrict to these levels                                |
 | `autoplay`        | `8000`       | Rotation interval in ms; `0` turns auto-rotation off    |
 | `dismissible`     | `true`       | Show the close button                                   |
+| `dismissMode`     | `permanent`  | How long a close lasts (see [Closing](#closing))        |
+| `dismissDuration` | —            | ms until a `session`/`device` close lapses              |
+| `dontShowAgain`   | `false`      | Add a "Don't show again" link (closes for good)         |
 | `position`        | `inline`     | `inline` or `fixed-top` (see below)                     |
 | `fixedWidthClass` | `max-w-3xl`  | Width of the pinned bar                                 |
+| `transition`      | per position | Enter/leave preset; `slide-down` pinned, `fade` inline  |
+| `slideTransition` | `fade`       | How one entry gives way to the next                     |
 | `class`           | —            | Merged onto the alert surface                           |
 
 ### Pinned to the top
@@ -205,15 +210,51 @@ layout and get it back the moment the banner is dismissed:
 }
 ```
 
-**Dismissing is per announcement**, unlike the popover's single "I read the
-feed" timestamp: closing a banner hides *that* entry for that user, on every
-device, and leaves the unread badge alone. Rotation pauses on hover and on
-keyboard focus, has an explicit pause button, and is turned off entirely for
-users who ask their OS for reduced motion — who still get the arrows and dots.
-Left/right arrow keys move between entries.
+### Closing
+
+**Closing is per announcement**, unlike the popover's single "I read the feed"
+timestamp: it hides *that* entry and leaves the unread badge alone. By default
+it lasts, for that user on every device. `dismissMode` makes it shorter:
+
+| `dismissMode`         | The entry stays closed                       |
+| --------------------- | -------------------------------------------- |
+| `permanent` (default) | For the account, on every device (server)    |
+| `device`              | In this browser, across tabs and restarts    |
+| `session`             | For this browser tab                         |
+| `hide`                | Until the banner mounts again (next page)    |
+
+A `device` or `session` close takes `dismissDuration` (ms) to come back on its
+own. A "maintenance tonight" entry can be hidden for an hour without being
+gone for good.
+
+`dontShowAgain` lets the user pick: the ✕ hides the entry for now, and a
+**Don't show again** link closes it for good.
+
+```vue
+<KinetixAnnouncementBanner dismiss-mode="session" dont-show-again />
+```
+
+The banner renders from the page payload, and Inertia keeps that payload in
+the browser history, so pressing Back used to bring a closed entry back with
+the page it was on. The tab now remembers every close and filters any payload
+through it.
+
+### Motion and keyboard
+
+Rotation pauses on hover and on keyboard focus, has an explicit pause button,
+and is turned off entirely under reduced motion: the OS setting, the user's
+**Reduce motion** preference, or `kinetix.motion = 'reduced'`. Those users
+still get the arrows and dots. Left/right arrow keys move between entries.
+The enter/leave and slide-change animations are presets
+([Alerts → Animations](/alerts#animations)); `none` turns either off.
+
+When the close button had focus, focus stays on the banner while other entries
+remain, so the next one is read out. After the last one it moves to the next
+control on the page. Each close is announced to screen readers.
 
 `useKinetixAnnouncementBanner({ limit, levels })` exposes
 `{ announcements, loading, load, dismiss }` if you'd rather build your own.
+`dismiss(entry, mode = 'permanent', duration = null)` takes the same modes.
 
 The default `limit` comes from config when the component doesn't pass one —
 set it there rather than on the component. The page payload carries

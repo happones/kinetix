@@ -342,7 +342,19 @@ return [
     'announcements_field_expires_hint'   => 'Leave empty to keep it in the feed forever.',
     'announcements_status_expired'       => 'Expired',
     'announcements_delete_confirm'       => 'Delete this announcement?',
-    'unread_count'                       => '{count} unread',
+
+    // Alerts (<KinetixAlert>, and the announcement banner's close actions).
+    'alert_dismiss'         => 'Dismiss',
+    'alert_hide'            => 'Hide for now',
+    'alert_dont_show_again' => 'Don’t show again',
+    'alert_dismissed'       => 'Message dismissed.',
+    'alert_hidden'          => 'Message hidden for now.',
+    'alert_label_success'   => 'Success:',
+    'alert_label_danger'    => 'Error:',
+    'alert_label_warning'   => 'Warning:',
+    'alert_label_info'      => 'Information:',
+
+    'unread_count' => '{count} unread',
 
     // Roles & permissions
     'save'                        => 'Save',

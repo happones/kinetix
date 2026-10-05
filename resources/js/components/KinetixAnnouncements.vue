@@ -16,6 +16,7 @@ import {
     buttonVariants,
     triggerCountBadgeClass,
 } from '@/composables/useKinetixShadcnVariants';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 import ScrollArea from './primitives/ScrollArea.vue';
 
 /**
@@ -26,7 +27,7 @@ import ScrollArea from './primitives/ScrollArea.vue';
 const { t } = useI18n();
 const { announcements, unread, loading, loadOnce, markSeen } =
     useKinetixAnnouncements();
-const { levelClass, levelLabel, formatDate } = useKinetixAnnouncementFormat();
+const { levelColor, levelLabel, formatDate } = useKinetixAnnouncementFormat();
 
 const open = ref(false);
 
@@ -121,12 +122,13 @@ function onOpen(next: boolean): void {
                                 </span>
                                 {{ a.title }}
                             </h3>
-                            <span
-                                class="px-2 py-0.5 font-medium shrink-0 rounded-full text-[10px]"
-                                :class="levelClass(a.level)"
+                            <KinetixBadge
+                                :color="levelColor(a.level)"
+                                size="sm"
+                                class="shrink-0"
                             >
                                 {{ levelLabel(a.level) }}
-                            </span>
+                            </KinetixBadge>
                         </div>
                         <p
                             class="mt-1 text-sm whitespace-pre-line text-muted-foreground"

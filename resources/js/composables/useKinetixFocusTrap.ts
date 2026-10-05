@@ -19,6 +19,46 @@ const FOCUSABLE_SELECTOR = [
     '[tabindex]:not([tabindex^="-"])',
 ].join(',');
 
+/**
+ * Where focus belongs once `element` leaves the page while holding it (a
+ * dismissed alert, a removed row): the next tab stop after it, else the last
+ * one before it. Without this, focus falls to `<body>` and a keyboard user
+ * starts over from the top of the page.
+ */
+export function focusableNear(element: Element): HTMLElement | null {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const stops = Array.from(
+        document.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+    ).filter(
+        (stop) =>
+            !element.contains(stop) &&
+            stop.closest('[hidden], [inert], [aria-hidden="true"]') === null,
+    );
+
+    const after = stops.find(
+        (stop) =>
+            (element.compareDocumentPosition(stop) &
+                Node.DOCUMENT_POSITION_FOLLOWING) !==
+            0,
+    );
+
+    return (
+        after ??
+        stops
+            .filter(
+                (stop) =>
+                    (element.compareDocumentPosition(stop) &
+                        Node.DOCUMENT_POSITION_PRECEDING) !==
+                    0,
+            )
+            .pop() ??
+        null
+    );
+}
+
 export interface UseKinetixFocusTrapOptions {
     /** Reactive getter for whether the dialog is open. */
     active: () => boolean;

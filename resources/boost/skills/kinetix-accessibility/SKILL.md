@@ -61,6 +61,14 @@ php artisan vendor:publish --tag=kinetix-accessibility-migrations && php artisan
 - `<KinetixSkipLink target="#main" />` — visually hidden until focused.
 - `useKinetixAnnounce()` → `announce(message, assertive?)` via a shared ARIA
   live region for SR-only announcements (toasts, counts, removed rows).
+- `useKinetixReducedMotion()` → reactive `boolean` for motion CSS can't stop
+  (timers, `<Transition>` durations): OS `prefers-reduced-motion` OR the
+  `kx-reduce-motion` class OR `kinetix.motion = 'reduced'` (config, shared as
+  `kinetix_config.motion`). One shared media listener + class observer,
+  released with the last consumer. `useKinetixTransition(preset)` builds on it
+  (`fade` · `slide-down` · `slide-up` · `scale` · `collapse` · `none`).
+- `focusableNear(el)` (from `useKinetixFocusTrap`) → where focus goes when a
+  focused element leaves the page (next tab stop, else previous).
 
 i18n `a11y_*` / `skip_to_content` (en/es/fr/pt). Tests: `AccessibilityTest`,
 `useKinetixAccessibility.spec.ts`.

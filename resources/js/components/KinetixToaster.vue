@@ -1,3 +1,21 @@
+<script lang="ts">
+/**
+ * Uuids already toasted. Module-level (a plain `<script>`, not `setup`), so it
+ * outlives a layout that re-creates the toaster on every page; bounded, since
+ * a long session flashes a lot.
+ */
+const SHOWN_LIMIT = 50;
+const shown = new Set<string>();
+
+function remember(id: string): void {
+    shown.add(id);
+
+    if (shown.size > SHOWN_LIMIT) {
+        shown.delete(shown.values().next().value as string);
+    }
+}
+</script>
+
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { watch } from 'vue';
@@ -19,6 +37,10 @@ import type { ToasterProps } from 'vue-sonner';
  * can `->with('kinetix_toast', __('kinetix.record_created'))` — or
  * `['type' => 'error', 'message' => …]` — and the message shows here. The
  * server stamps a uuid per flash, so the same text twice in a row still fires.
+ *
+ * The prop rides the page props, which Inertia keeps in the browser history:
+ * Back/Forward restores the page WITH its old toast. Every uuid already shown
+ * is remembered for the life of the tab, so a restored page stays silent.
  *
  * Mount once in your layout: <KinetixToaster />. Forwards all vue-sonner
  * Toaster props (position, richColors, duration, …).
@@ -43,10 +65,12 @@ try {
 if (page) {
     watch(
         () => page?.props?.kinetix_toast as FlashToast | null | undefined,
-        (flash, previous) => {
-            if (!flash?.message || flash.id === previous?.id) {
+        (flash) => {
+            if (!flash?.message || shown.has(flash.id)) {
                 return;
             }
+
+            remember(flash.id);
 
             const show = toast[flash.type] ?? toast.success;
             show(flash.message);

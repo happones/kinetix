@@ -52,7 +52,7 @@ const onBroadcastNotification = (notification: Record<string, unknown>) => {
         description: notification.description as string | undefined,
         status:
             (notification.status as KinetixNotification['status']) ?? 'info',
-        duration: notification.duration as number | undefined,
+        duration: notification.duration as number | null | undefined,
         created_at:
             (notification.created_at as string) ?? new Date().toISOString(),
         actions: (notification.actions as KinetixAction[]) ?? [],

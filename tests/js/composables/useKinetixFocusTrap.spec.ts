@@ -1,7 +1,10 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineComponent, h, nextTick, ref } from 'vue';
-import { useKinetixFocusTrap } from '@/composables/useKinetixFocusTrap';
+import {
+    focusableNear,
+    useKinetixFocusTrap,
+} from '@/composables/useKinetixFocusTrap';
 
 /**
  * A minimal stand-in for the hand-rolled dialogs: a panel with three buttons,
@@ -184,5 +187,36 @@ describe('useKinetixFocusTrap', () => {
 
         expect(first).toMatch(/^kinetix-dialog-/);
         expect(second).not.toBe(first);
+    });
+});
+
+describe('focusableNear', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    it('picks the next tab stop after the leaving element, skipping its own', () => {
+        document.body.innerHTML = `
+            <button id="before">Before</button>
+            <div id="leaving"><button id="inside">Close</button></div>
+            <button id="hidden" hidden>Hidden</button>
+            <a id="after" href="#">After</a>
+        `;
+
+        expect(focusableNear(document.getElementById('leaving')!)?.id).toBe(
+            'after',
+        );
+    });
+
+    it('falls back to the last tab stop before it at the end of the page', () => {
+        document.body.innerHTML = `
+            <button id="first">First</button>
+            <button id="before">Before</button>
+            <div id="leaving"><button>Close</button></div>
+        `;
+
+        expect(focusableNear(document.getElementById('leaving')!)?.id).toBe(
+            'before',
+        );
     });
 });

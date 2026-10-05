@@ -15,6 +15,7 @@ import type { KinetixEditableAnnouncement } from '@/types/kinetix';
 import KinetixButton from './KinetixButton.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixEmptyState from './KinetixEmptyState.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
 
 /**
@@ -26,7 +27,7 @@ import KinetixModal from './primitives/KinetixModal.vue';
  * reaches a reader's feed until its moment arrives.
  */
 const { t } = useI18n();
-const { levelLabel, levelClass, formatDate } = useKinetixAnnouncementFormat();
+const { levelLabel, levelColor, formatDate } = useKinetixAnnouncementFormat();
 const { announcements, teamScoped, loading, load, save, remove } =
     useKinetixAnnouncementManager();
 
@@ -168,12 +169,13 @@ onMounted(load);
                         <span class="text-sm font-medium text-foreground">
                             {{ a.title }}
                         </span>
-                        <span
-                            class="px-2 py-0.5 font-medium shrink-0 rounded-full text-[10px]"
-                            :class="levelClass(a.level)"
+                        <KinetixBadge
+                            :color="levelColor(a.level)"
+                            size="sm"
+                            class="shrink-0"
                         >
                             {{ levelLabel(a.level) }}
-                        </span>
+                        </KinetixBadge>
                         <span
                             class="px-2 py-0.5 font-medium shrink-0 rounded-full border border-border text-[10px] text-muted-foreground"
                         >

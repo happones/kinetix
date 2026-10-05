@@ -13,6 +13,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`<KinetixAlert>` (published).** An in-page alert in the Kinetix status
+  colors (`success`, `danger`, `warning`, `info`, `primary`, `gray`) on three
+  surfaces (`soft`, `outline`, `accent`). It takes an icon (one per color by
+  default, any registered name, or none), a title, a message, and `#actions`,
+  `#title` and `#icon` slots. Only the surface and the icon take the color;
+  text stays on the foreground tokens, so every variant keeps 4.5:1 contrast
+  in light and dark mode. `danger` renders as `role="alert"` and every other
+  color as `role="status"`; `region` and `none` are available too. A
+  translated, visually hidden prefix ("Warning:") means the status is never
+  carried by color alone. `heading-level` renders the title as a real heading
+  when it belongs in the page outline. See `docs/alerts.md`.
+- **Dismiss modes (published).** A closed alert stays closed according to
+  `dismiss-mode`: `hide` (this mount), `session` (this tab), `device` (this
+  browser, synced across open tabs) or `permanent` (the account, through a
+  `persist` callback; falls back to `device` without one). `dismiss-duration`
+  brings a `session`/`device` close back after a while. `dont-show-again`
+  pairs a temporary ✕ with a "Don't show again" link. Closes are stored per
+  signed-in user. A `permanent` close is optimistic and re-opens if `persist`
+  rejects. The logic is available on its own as `useKinetixDismissal()` and
+  `useKinetixDismissalStore()`.
+- **Transition presets (published).** `useKinetixTransition(preset)` returns
+  `<Transition>` props for `fade`, `slide-down`, `slide-up`, `scale`,
+  `collapse` (animates the height, so content below glides instead of
+  jumping) and `none`. All presets run within 150–300ms. `KinetixAlert` takes
+  them as `transition` (plus `appear`); the announcement banner as
+  `transition` and `slideTransition`.
+- **`useKinetixReducedMotion()` and `kinetix.motion` (published).** A reactive
+  check for motion that CSS can't stop. It is true when the OS setting, the
+  user's Reduce motion preference or the new app-wide
+  `kinetix.motion = 'reduced'` config (`KINETIX_MOTION`, shared as
+  `kinetix_config.motion`) asks for it. Every transition preset and the
+  banner's auto-rotation follow it.
+- **The announcement banner closes for as long as you choose (published).**
+  `dismissMode` (`permanent` by default, as before; `device`, `session`,
+  `hide`), `dismissDuration` and `dontShowAgain`. The composable's
+  `dismiss(entry, mode, duration)` takes the same modes.
+- **`focusableNear(element)`** in `useKinetixFocusTrap`. When a focused
+  element removes itself, focus goes to the next tab stop (or the previous
+  one at the end of the page) instead of `<body>`.
+- Translation keys `alert_dismiss`, `alert_hide`, `alert_dont_show_again`,
+  `alert_dismissed`, `alert_hidden` and `alert_label_{success,danger,warning,info}`
+  in all seven locales.
+
+### Changed
+
+- **The announcement banner renders on its first render (published).** It
+  used to hydrate from the page payload on mount, so it replayed its enter
+  transition on every page load and was never in the SSR output. It now
+  hydrates during setup, and in a persistent layout it follows the payload of
+  later responses instead of keeping the first one.
+- **Inline banners animate in and out (published).** They default to `fade`.
+  A pinned banner slides down on enter and up on leave instead of travelling
+  its full height.
+- **Level pills use `<KinetixBadge>` (published).** In the banner, the "What's
+  new" popover and the manager, each level maps to a status color through the
+  new `levelColor()`. `levelClass()` now returns the shared soft-badge recipe,
+  which adds the badge's subtle border.
+- **`<KinetixTrialNotice>` is a `KinetixAlert` (published).** It used a raw
+  `text-blue-500` icon and an assertive `role="alert"` for a static notice. It
+  now uses the `info` token and `role="status"`.
+- `primitives/AlertTitle` takes `as` (default `h5`), and `primitives/Alert`
+  accepts `role: null` for no role.
+
+### Fixed
+
+- **A flashed toast no longer replays on Back/Forward (published).**
+  `kinetix_toast` is a page prop, and Inertia keeps page props in the browser
+  history, so restoring a page showed its toast again. `<KinetixToaster>` now
+  remembers every flash id it has shown for the life of the tab.
+- **A dismissed banner entry no longer comes back on Back/Forward
+  (published).** The restored page payload still held it. Every close is now
+  written to the tab's dismissal ledger, and each payload is filtered through
+  it.
+- **`Notification::persistent()` stays on screen (published).** It sends
+  `duration: null`, which the toast read as "use the 4s default". `null` now
+  keeps the toast open until it is closed; only a missing duration falls back.
+- **Banner auto-rotation honors the user's Reduce motion preference
+  (published).** It only checked the OS setting, once, at setup. The
+  `kx-reduce-motion` CSS guard stopped the transitions but not the rotation
+  timer.
+- **Closing a banner entry no longer drops keyboard focus (published).** The
+  removed close button left focus on `<body>`. Focus now stays on the banner
+  while entries remain and moves to the next control after the last one, and
+  each close is announced to screen readers.
+
 ## [0.185.1] - 2026-10-05
 
 The announcement banner now rotates as many entries as

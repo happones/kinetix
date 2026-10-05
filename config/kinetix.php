@@ -791,6 +791,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Motion
+    |--------------------------------------------------------------------------
+    |
+    | `full` animates alerts and banners with their transition presets and lets
+    | carousels auto-rotate; `reduced` stills all of it for every user. The OS
+    | `prefers-reduced-motion` setting and each user's accessibility preference
+    | are honored either way — this is the app-wide switch on top of them.
+    |
+    */
+    'motion' => env('KINETIX_MOTION', 'full'), // full | reduced
+
+    /*
+    |--------------------------------------------------------------------------
     | GDPR self-service (optional)
     |--------------------------------------------------------------------------
     |

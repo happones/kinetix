@@ -342,7 +342,19 @@ return [
     'announcements_field_expires_hint'   => 'Déjalo vacío para que se quede en el feed para siempre.',
     'announcements_status_expired'       => 'Caducado',
     'announcements_delete_confirm'       => '¿Eliminar este anuncio?',
-    'unread_count'                       => '{count} sin leer',
+
+    // Alerts (<KinetixAlert>, and the announcement banner's close actions).
+    'alert_dismiss'         => 'Descartar',
+    'alert_hide'            => 'Ocultar por ahora',
+    'alert_dont_show_again' => 'No volver a mostrar',
+    'alert_dismissed'       => 'Mensaje descartado.',
+    'alert_hidden'          => 'Mensaje oculto por ahora.',
+    'alert_label_success'   => 'Éxito:',
+    'alert_label_danger'    => 'Error:',
+    'alert_label_warning'   => 'Advertencia:',
+    'alert_label_info'      => 'Información:',
+
+    'unread_count' => '{count} sin leer',
 
     // Roles y permisos
     'save'                        => 'Guardar',

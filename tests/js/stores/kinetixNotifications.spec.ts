@@ -23,7 +23,10 @@ vi.mock('vue-sonner', () => ({
 }));
 
 import { toast } from 'vue-sonner';
-import { useNotificationsStore } from '@/stores/kinetixNotifications';
+import {
+    toastDuration,
+    useNotificationsStore,
+} from '@/stores/kinetixNotifications';
 
 describe('notifications store — sendRequest (database mode)', () => {
     beforeEach(() => {
@@ -124,5 +127,34 @@ describe('notifications store — syncFromProps (database mode)', () => {
         expect(toast.success).toHaveBeenCalledWith('New', expect.anything());
         expect(toast.info).not.toHaveBeenCalled();
         expect(store.notifications).toHaveLength(3);
+    });
+});
+
+describe('notifications store — toast duration', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia());
+        vi.clearAllMocks();
+    });
+
+    it('keeps a persistent() notification (duration null) on screen until closed', () => {
+        useNotificationsStore().triggerToast({
+            id: 'p',
+            title: 'Backup failed',
+            status: 'danger',
+            duration: null,
+            created_at: '2026-10-05T00:00:00Z',
+        });
+
+        expect(toast.error).toHaveBeenCalledWith(
+            'Backup failed',
+            expect.objectContaining({ duration: Number.POSITIVE_INFINITY }),
+        );
+    });
+
+    it('uses the given duration, and the default only when none is given', () => {
+        expect(toastDuration(6000)).toBe(6000);
+        expect(toastDuration(undefined)).toBe(4000);
+        expect(toastDuration(0)).toBe(4000);
+        expect(toastDuration(null)).toBe(Number.POSITIVE_INFINITY);
     });
 });

@@ -1,8 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick, reactive } from 'vue';
 import { createI18n } from 'vue-i18n';
 
-const pageProps: Record<string, unknown> = {};
+// Reactive like Inertia's page, so a new response's payload can be pushed in.
+const pageProps = reactive<Record<string, unknown>>({});
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: pageProps }) }));
 const fetchMock = vi.fn();
 vi.mock('@/composables/useKinetixHttp', () => ({
@@ -30,6 +32,10 @@ const i18n = createI18n({
                 announcements_play: 'Resume rotation',
                 announcements_slide_position: '{current} of {total}',
                 announcements_go_to: 'Show: {title}',
+                alert_hide: 'Hide for now',
+                alert_dont_show_again: 'Don’t show again',
+                alert_dismissed: 'Message dismissed.',
+                alert_hidden: 'Message hidden for now.',
             },
         },
     },
@@ -57,6 +63,9 @@ describe('KinetixAnnouncementBanner', () => {
     beforeEach(() => {
         fetchMock.mockReset();
         pageProps.kinetix_announcements = undefined;
+        sessionStorage.clear();
+        localStorage.clear();
+        document.documentElement.classList.remove('kx-reduce-motion');
     });
 
     it('renders from the page payload without a request of its own', async () => {
@@ -247,5 +256,162 @@ describe('KinetixAnnouncementBanner', () => {
         // Still on the entry it was showing when the user hit pause.
         expect(w.text()).toContain('Second');
         vi.useRealTimers();
+    });
+
+    it('renders on its first render, before any mount-time work', () => {
+        pageProps.kinetix_announcements = {
+            unread: 1,
+            bannerLimit: 3,
+            banner: [announcement(9, 'Already there')],
+        };
+
+        // Hydrated during setup: no enter transition replayed per page load,
+        // and an SSR render already contains it.
+        const w = mount(KinetixAnnouncementBanner, {
+            props: { autoplay: 0 },
+            global: { plugins: [i18n] },
+        });
+
+        expect(w.text()).toContain('Already there');
+    });
+
+    it('follows the payload of later responses (persistent layouts)', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [announcement(1, 'First')],
+        };
+        const w = mountIt();
+        await flushPromises();
+
+        pageProps.kinetix_announcements = {
+            unread: 1,
+            bannerLimit: 3,
+            banner: [announcement(2, 'Published since')],
+        };
+        await nextTick();
+
+        expect(w.text()).toContain('Published since');
+    });
+
+    it('keeps a dismissed entry closed when Back restores the old payload', async () => {
+        const payload = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [announcement(1, 'First'), announcement(2, 'Second')],
+        };
+        pageProps.kinetix_announcements = payload;
+        const before = mountIt();
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({ status: 'success' });
+        await buttonWithLabel(before, 'Dismiss')?.trigger('click');
+        await flushPromises();
+        before.unmount();
+
+        // Inertia restores the page from history WITH its old props.
+        pageProps.kinetix_announcements = { ...payload };
+        const after = mountIt();
+        await flushPromises();
+
+        expect(after.text()).not.toContain('First');
+        expect(after.text()).toContain('Second');
+    });
+
+    it('`session` hides for now without telling the server', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [announcement(1, 'Maintenance')],
+        };
+        const first = mountIt({ dismissMode: 'session' });
+        await flushPromises();
+
+        await buttonWithLabel(first, 'Hide for now')?.trigger('click');
+        await flushPromises();
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(first.find('[data-slot="alert"]').exists()).toBe(false);
+        first.unmount();
+
+        // Same tab: still hidden on the next page.
+        const second = mountIt({ dismissMode: 'session' });
+        expect(second.find('[data-slot="alert"]').exists()).toBe(false);
+    });
+
+    it('`hide` is back on the next mount', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [announcement(1, 'Maintenance')],
+        };
+        const first = mountIt({ dismissMode: 'hide' });
+        await buttonWithLabel(first, 'Hide for now')?.trigger('click');
+        await flushPromises();
+        expect(first.find('[data-slot="alert"]').exists()).toBe(false);
+        first.unmount();
+
+        const second = mountIt({ dismissMode: 'hide' });
+        expect(second.text()).toContain('Maintenance');
+    });
+
+    it('`dontShowAgain` adds a link that closes the entry for good', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [announcement(4, 'Beta')],
+        };
+        const w = mountIt({ dismissMode: 'session', dontShowAgain: true });
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({ status: 'success' });
+        await w
+            .findAll('button')
+            .find((b) => b.text() === 'Don’t show again')
+            ?.trigger('click');
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/_kinetix/announcements/4/dismiss',
+            { method: 'POST' },
+        );
+    });
+
+    it('keeps focus on the banner while entries remain after a close', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [announcement(1, 'First'), announcement(2, 'Second')],
+        };
+        const w = mount(KinetixAnnouncementBanner, {
+            props: { autoplay: 0, dismissMode: 'session' },
+            global: { plugins: [i18n] },
+            attachTo: document.body,
+        });
+
+        const close = buttonWithLabel(w, 'Hide for now')!;
+        (close.element as HTMLButtonElement).focus();
+        await close.trigger('click');
+        await flushPromises();
+
+        expect(document.activeElement?.getAttribute('data-slot')).toBe('alert');
+        expect(w.text()).toContain('Second');
+        w.unmount();
+    });
+
+    it("stops auto-rotating for a user who turned on Kinetix's reduced motion", async () => {
+        document.documentElement.classList.add('kx-reduce-motion');
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [announcement(1, 'First'), announcement(2, 'Second')],
+        };
+
+        const w = mountIt({ autoplay: 5000 });
+        await flushPromises();
+
+        // No clock to pause; the arrows stay.
+        expect(buttonWithLabel(w, 'Pause rotation')).toBeUndefined();
+        expect(buttonWithLabel(w, 'Next announcement')).toBeTruthy();
     });
 });

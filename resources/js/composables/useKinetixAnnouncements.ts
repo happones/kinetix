@@ -1,7 +1,11 @@
 import { usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useKinetixDismissalStore } from '@/composables/useKinetixDismissal';
+import type { KinetixDismissMode } from '@/composables/useKinetixDismissal';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import { statusBadgeClass } from '@/composables/useKinetixStatusColor';
+import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
 import type {
     KinetixAnnouncement,
     KinetixEditableAnnouncement,
@@ -71,18 +75,37 @@ export interface KinetixAnnouncementBannerOptions {
 }
 
 /**
- * The banner feed: published entries the user hasn't dismissed yet. Unlike the
- * "what's new" popover, dismissing is per announcement — closing one banner
- * hides that entry for good instead of marking the whole feed read.
+ * The banner feed: published entries the user hasn't closed. Unlike the
+ * "what's new" popover, closing is per announcement, and it lasts as long as
+ * the caller says (`dismiss(entry, mode)`):
+ *
+ * - `permanent` (default) — server-side, for the account, on every device;
+ * - `device` / `session` — this browser / this tab, optionally for a while;
+ * - `hide` — until this banner unmounts.
+ *
+ * The page payload lives in the browser history, so Back/Forward would bring
+ * a closed entry back with the page it was on. Every close is also written to
+ * the tab's dismissal ledger, and every payload is filtered through it.
  */
 export function useKinetixAnnouncementBanner(
     options: KinetixAnnouncementBannerOptions = {},
 ) {
     const page = usePage<KinetixSharedProps>();
     const base = useAnnouncementsBase();
+    const ledger = useKinetixDismissalStore();
 
-    const announcements = ref<KinetixAnnouncement[]>([]);
-    const loading = ref(false);
+    /** Ids closed with `hide` — this instance's memory, nobody else's. */
+    const hiddenHere = new Set<string>();
+
+    const keyOf = (announcement: KinetixAnnouncement): string =>
+        `announcement:${announcement.id}`;
+
+    function stillOpen(list: KinetixAnnouncement[]): KinetixAnnouncement[] {
+        return list.filter(
+            (a) =>
+                !hiddenHere.has(String(a.id)) && !ledger.isDismissed(keyOf(a)),
+        );
+    }
 
     /**
      * The page payload carries the default banner feed, so an un-narrowed
@@ -102,11 +125,30 @@ export function useKinetixAnnouncementBanner(
             : null;
     }
 
+    // Hydrated during setup, not on mount: the first render already holds the
+    // entries, so a page load neither replays the enter transition nor shifts
+    // the layout once the banner pops in.
+    const announcements = ref<KinetixAnnouncement[]>(stillOpen(shared() ?? []));
+    const loading = ref(false);
+
+    // A persistent layout keeps this banner across visits; follow the payload
+    // each response ships instead of freezing on the first one.
+    watch(
+        () => page.props.kinetix_announcements,
+        () => {
+            const hydrated = shared();
+
+            if (hydrated !== null) {
+                announcements.value = stillOpen(hydrated);
+            }
+        },
+    );
+
     async function load(): Promise<void> {
         const hydrated = shared();
 
         if (hydrated !== null) {
-            announcements.value = hydrated;
+            announcements.value = stillOpen(hydrated);
 
             return;
         }
@@ -130,19 +172,36 @@ export function useKinetixAnnouncementBanner(
             const data = await kinetixFetch<{
                 announcements: KinetixAnnouncement[];
             }>(`${base()}/banner${suffix}`);
-            announcements.value = data?.announcements ?? [];
+            announcements.value = stillOpen(data?.announcements ?? []);
         } finally {
             loading.value = false;
         }
     }
 
     /**
-     * Hide one entry. Removed locally first so the banner reacts instantly, and
-     * restored if the server rejects it.
+     * Close one entry. Removed locally first so the banner reacts instantly;
+     * a `permanent` close the server rejects is restored (and re-thrown).
+     * `duration` (ms) makes a `session`/`device` close lapse on its own.
      */
-    async function dismiss(announcement: KinetixAnnouncement): Promise<void> {
+    async function dismiss(
+        announcement: KinetixAnnouncement,
+        mode: KinetixDismissMode = 'permanent',
+        duration: number | null = null,
+    ): Promise<void> {
         const previous = announcements.value;
         announcements.value = previous.filter((a) => a.id !== announcement.id);
+
+        if (mode === 'hide') {
+            hiddenHere.add(String(announcement.id));
+
+            return;
+        }
+
+        if (mode === 'session' || mode === 'device') {
+            ledger.remember(keyOf(announcement), mode, duration);
+
+            return;
+        }
 
         try {
             await kinetixFetch(`${base()}/${announcement.id}/dismiss`, {
@@ -153,6 +212,8 @@ export function useKinetixAnnouncementBanner(
 
             throw error;
         }
+
+        ledger.remember(keyOf(announcement), 'session');
     }
 
     return { announcements, loading, load, dismiss };
@@ -219,17 +280,18 @@ export function useKinetixAnnouncementManager() {
 }
 
 /**
- * Presentation shared by the popover and the banner: level colours, the
+ * Presentation shared by the popover and the banner: level colors, the
  * translated level label, and dates in the app's language rather than the
  * browser's.
  */
 export function useKinetixAnnouncementFormat() {
     const { t, te, locale } = useI18n();
 
-    const levelClasses: Record<string, string> = {
-        feature: 'bg-success/15 text-success',
-        fix: 'bg-info/15 text-info',
-        info: 'bg-muted text-muted-foreground',
+    /** Levels on the shared status palette; unknown levels read neutral. */
+    const levelColors: Record<string, KinetixStatusColor> = {
+        feature: 'success',
+        fix: 'info',
+        info: 'gray',
     };
 
     /** Levels are host-defined, so an unknown one falls back to the slug. */
@@ -239,8 +301,13 @@ export function useKinetixAnnouncementFormat() {
         return te(key) ? t(key) : level;
     }
 
+    function levelColor(level: string): KinetixStatusColor {
+        return levelColors[level] ?? 'gray';
+    }
+
+    /** The level pill — the shared soft-badge recipe in the level's color. */
     function levelClass(level: string): string {
-        return levelClasses[level] ?? levelClasses.info;
+        return statusBadgeClass(levelColor(level));
     }
 
     function formatDate(value: string | null): string {
@@ -249,7 +316,7 @@ export function useKinetixAnnouncementFormat() {
             : '';
     }
 
-    return { levelClass, levelLabel, formatDate };
+    return { levelColor, levelClass, levelLabel, formatDate };
 }
 
 function useAnnouncementsBase(): () => string {
