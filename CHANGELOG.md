@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.189.0] - 2026-10-05
+
+Status colors you can read. The shipped success, warning, info and danger
+tokens now reach 4.5:1 in both themes, as text, as text on a badge's tint and
+as a solid fill, and a test keeps it that way. Red is readable in dark mode,
+and alerts gain a `solid` variant. Status colors look a little deeper in light
+mode. Re-publish the components and styles (`--force`) to pick this up.
+
 ### Added
 
 - **`solid` alerts (published).** `<KinetixAlert variant="solid">` (and
