@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.191.2] - 2026-10-05
+
+A reduced-motion timing fix, and CI fully green again across every PHP,
+dependency and front-end cell. Re-publish the composables (`--force`) to pick
+this up.
+
 ### Fixed
 
 - **Reduce motion applies to a component that mounts right after it's turned
