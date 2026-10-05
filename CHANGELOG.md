@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.188.0] - 2026-10-05
+
+Closes that follow the user, and announcements that say more. With the new
+Dismissals module, an alert closed for good stays closed on every device with
+no wiring. Announcement levels are configurable with their own color and
+icon, an entry can carry a button or refuse to be closed, and the banner can
+take its entry's level color. Re-publish the components, translations and the
+announcements migrations (`--force`), publish the dismissals migration if you
+want the module, then migrate.
+
 ### Added
 
 - **Dismissals module: `permanent` closes on every device, no wiring.** With
