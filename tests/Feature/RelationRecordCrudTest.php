@@ -24,6 +24,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Support\SessionKey;
 use RuntimeException;
 
 class RmcProject extends Model
@@ -319,6 +320,8 @@ class RelationRecordCrudTest extends TestCase
             // A forged project_id must be ignored — the relation stamps it.
             'data' => ['title' => 'New task', 'project_id' => 999],
         ])->assertRedirect('/projects/1/edit');
+
+        $this->assertSame('success', session(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type'));
 
         $task = RmcTask::sole();
         $this->assertSame('New task', $task->title);

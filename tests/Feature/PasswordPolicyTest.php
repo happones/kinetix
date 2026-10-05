@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\View;
 use Inertia\Inertia;
+use Inertia\Support\SessionKey;
 
 class PwUser extends Authenticatable
 {
@@ -412,7 +413,7 @@ class PasswordPolicyTest extends TestCase
 
         $this->actingAs($user->fresh())->get('/pw-app')
             ->assertRedirect(route('kinetix.password.change.show'))
-            ->assertSessionHas('kinetix_toast');
+            ->assertSessionHas(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type', 'warning');
     }
 
     public function test_the_middleware_answers_json_with_423_instead_of_a_redirect(): void

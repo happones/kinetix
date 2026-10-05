@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Credentials;
 
 use Happones\Kinetix\Credentials\Rules\NotAPreviousPassword;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -66,9 +67,9 @@ class PasswordController
         // through, including this one.
         $user->forceFill(['password' => Hash::make((string) $validated['password'])])->save();
 
-        return redirect()
-            ->intended((string) config('kinetix.credentials.passwords.redirect_after', '/'))
-            ->with('kinetix_toast', (string) __('kinetix.password_changed'));
+        KinetixFlash::success((string) __('kinetix.password_changed'));
+
+        return redirect()->intended((string) config('kinetix.credentials.passwords.redirect_after', '/'));
     }
 
     /**

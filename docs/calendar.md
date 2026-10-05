@@ -364,27 +364,35 @@ const submit = (values: Record<string, unknown>) =>
 ```
 
 ```php
+use Happones\Kinetix\Flash\KinetixFlash;
+
 // Store/update/destroy follow the standard toast contract:
 public function store(Request $request)
 {
     $data = $request->validate([...]);
     Event::create($data);
 
-    return back()->with('kinetix_toast', __('kinetix.record_created'));
+    KinetixFlash::success(__('kinetix.record_created'));
+
+    return back();
 }
 
 public function update(Request $request, Event $event)
 {
     $event->update($request->validate([...]));
 
-    return back()->with('kinetix_toast', __('kinetix.record_updated'));
+    KinetixFlash::success(__('kinetix.record_updated'));
+
+    return back();
 }
 
 public function destroy(Event $event)
 {
     $event->delete();
 
-    return back()->with('kinetix_toast', __('kinetix.record_deleted'));
+    KinetixFlash::success(__('kinetix.record_deleted'));
+
+    return back();
 }
 ```
 
@@ -397,7 +405,7 @@ public function destroy(Event $event)
 If events deserve full pages, use `eventActions()` with `inertiaVisit()`
 (see [§5](#_5-event-details-modal-sheet)) for edit/delete from the details
 popup, plus a header action with `->url(route('events.create'))`. The page
-controllers then `redirect()->with('kinetix_toast', …)` exactly like
+controllers then flash `KinetixFlash::success(…)` and redirect, exactly like
 [resource scaffold pages](/resources).
 
 ---

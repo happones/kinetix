@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Billing;
 
+use Happones\Kinetix\Flash\KinetixFlash;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -29,9 +30,9 @@ final class UpsellResponse
         $upgradeUrl = config('kinetix.billing.upgrade_url');
 
         if (! request()->expectsJson() && is_string($upgradeUrl) && $upgradeUrl !== '') {
-            return redirect($upgradeUrl)
-                ->with('message', $message)
-                ->with('kinetix_toast', $message);
+            KinetixFlash::info($message);
+
+            return redirect($upgradeUrl)->with('message', $message);
         }
 
         abort(403, $message);

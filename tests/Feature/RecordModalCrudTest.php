@@ -15,6 +15,7 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Support\SessionKey;
 
 class RecordModalWidget extends Model
 {
@@ -113,6 +114,12 @@ class RecordModalCrudTest extends TestCase
             'token' => $this->token(),
             'data'  => ['name' => 'Created'],
         ])->assertRedirect();
+
+        // The toast rides Inertia's flash, which Back can't replay. (Read off
+        // the store: these routes run without `web`, so the test response
+        // has no started session to assert against.)
+        $this->assertSame((string) __('kinetix.record_created'), session(SessionKey::FLASH_DATA.'.kinetix.toasts.0.message'));
+        $this->assertNull(session('kinetix_toast'));
 
         $this->assertDatabaseHas('record_modal_widgets', ['name' => 'Created']);
     }

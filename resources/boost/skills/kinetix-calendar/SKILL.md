@@ -137,8 +137,8 @@ page listens for `kinetix:event-create` and opens a `KinetixModal` hosting
 `<KinetixForm :form="eventForm" flat @submit="submit" />` (**always pass
 `flat` in modals** — the panel is the surface; Sections must not nest a card
 inside it). `@day-click`/`@slot-click` prefill the start for click-to-create.
-Controllers persist and flash `back()->with('kinetix_toast',
-__('kinetix.record_created'))` (`record_updated`/`record_deleted` for the
-other verbs). Alternative: dedicated pages via `eventActions()` +
-`inertiaVisit()` and `redirect()->with('kinetix_toast', …)`. Full example:
+Controllers persist, flash `KinetixFlash::success(__('kinetix.record_created'))`
+(`record_updated`/`record_deleted` for the other verbs) and `return back()`.
+Alternative: dedicated pages via `eventActions()` + `inertiaVisit()`, with the
+page controllers flashing the same way before they redirect. Full example:
 docs/calendar.md §7.

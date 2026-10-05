@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Resources;
 
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
@@ -104,9 +105,9 @@ class RelationManagerController
             ? $relation->create($attributes, $pivot)
             : $relation->create($attributes);
 
-        return back()
-            ->with('message', (string) __('kinetix.record_created'))
-            ->with('kinetix_toast', (string) __('kinetix.record_created'));
+        KinetixFlash::success((string) __('kinetix.record_created'));
+
+        return back()->with('message', (string) __('kinetix.record_created'));
     }
 
     public function updateRecord(Request $request): RedirectResponse
@@ -129,9 +130,9 @@ class RelationManagerController
             $relation->updateExistingPivot($record->getKey(), $pivot);
         }
 
-        return back()
-            ->with('message', (string) __('kinetix.record_updated'))
-            ->with('kinetix_toast', (string) __('kinetix.record_updated'));
+        KinetixFlash::success((string) __('kinetix.record_updated'));
+
+        return back()->with('message', (string) __('kinetix.record_updated'));
     }
 
     public function destroyRecord(Request $request): RedirectResponse
@@ -150,9 +151,9 @@ class RelationManagerController
 
         $record->delete();
 
-        return back()
-            ->with('message', (string) __('kinetix.record_deleted'))
-            ->with('kinetix_toast', (string) __('kinetix.record_deleted'));
+        KinetixFlash::success((string) __('kinetix.record_deleted'));
+
+        return back()->with('message', (string) __('kinetix.record_deleted'));
     }
 
     // -- BelongsToMany attach/detach ------------------------------------------

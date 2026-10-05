@@ -171,13 +171,17 @@ const submit = (values: Record<string, unknown>) =>
 ```
 
 ```php
+use Happones\Kinetix\Flash\KinetixFlash;
+
 // Store/update/destroy follow the standard toast contract:
 public function store(Request $request)
 {
     $data = $request->validate([...]);
     Task::create($data + ['status' => 'todo']);
 
-    return back()->with('kinetix_toast', __('kinetix.record_created'));
+    KinetixFlash::success(__('kinetix.record_created'));
+
+    return back();
 }
 ```
 
@@ -190,7 +194,7 @@ public function store(Request $request)
 
 If tasks deserve full pages, wire `card-click` to `router.visit(route('tasks.edit', card.id))`
 and add a header action with `->url(route('tasks.create'))` — the page
-controllers then `redirect()->with('kinetix_toast', …)` exactly like
+controllers then flash `KinetixFlash::success(…)` and redirect, exactly like
 [resource scaffold pages](/resources).
 
 ---

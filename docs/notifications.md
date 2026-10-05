@@ -511,15 +511,21 @@ return redirect($url)->with('kinetix_toast', __('kinetix.record_created'));
 return back()->with('kinetix_toast', ['type' => 'error', 'message' => __('app.sync_failed')]);
 ```
 
-The Kinetix record endpoints (simple-resource modals, relation-manager modal
-CRUD) and the `kinetix:make-resource` scaffolded controllers already flash it
-on every create/update/delete/restore, using the generic
-`kinetix.record_created` / `record_updated` / `record_deleted` /
-`record_restored` / `record_force_deleted` messages — edit the scaffolded
-`->with('kinetix_toast', …)` lines to customize per resource. The server
-stamps a uuid per flash, so the same message twice in a row still fires. This
-prop is a page prop, so the history keeps it; the toaster remembers every id it
-has shown, so a page restored by Back stays silent.
+It keeps working for your own code. The server stamps a uuid per flash, so
+the same message twice in a row still fires. This prop is a page prop, so the
+history keeps it; the toaster remembers every id it has shown, so a page
+restored by Back stays silent.
+
+Kinetix's own endpoints flash through `KinetixFlash` instead: the record
+endpoints (simple-resource modals, relation-manager modal CRUD), the password
+change, the forced-password-change redirect (a **warning**) and the plan
+upsell redirect (an **info**). So do the `kinetix:make-resource` scaffolded
+controllers, with the generic `kinetix.record_created` / `record_updated` /
+`record_deleted` / `record_restored` / `record_force_deleted` messages — edit
+the scaffolded `KinetixFlash::success(…)` lines to customize per resource. A
+custom toaster of your own that reads `kinetix_toast` should read
+`flash.kinetix.toasts` too (`onKinetixFlash()` hands both the current page's
+and every later flash).
 
 ---
 

@@ -395,8 +395,8 @@ onUnmounted(() => window.removeEventListener('kinetix:event-create', open));
 </template>
 ```
 
-The controller persists and flashes a toast (`back()->with('kinetix_toast',
-__('kinetix.record_created'))`). Full worked examples live in the
+The controller persists and flashes a toast
+(`KinetixFlash::success(__('kinetix.record_created'))`, then `return back()`). Full worked examples live in the
 [Kanban](/kanban#adding-editing-cards) and
 [Calendar](/calendar#_7-creating-editing-events) guides.
 

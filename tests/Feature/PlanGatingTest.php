@@ -15,6 +15,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
+use Inertia\Support\SessionKey;
 
 class PgUser extends Authenticatable
 {
@@ -134,7 +135,7 @@ class PlanGatingTest extends TestCase
         config()->set('kinetix.billing.upgrade_url', '/billing');
         $this->actingAs($user)->get('/pg-api')
             ->assertRedirect('/billing')
-            ->assertSessionHas('kinetix_toast');
+            ->assertSessionHas(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type', 'info');
 
         // Allowed once the plan grants the capability.
         Plan::query()->update(['features' => json_encode(['capabilities' => ['api' => true]])]);

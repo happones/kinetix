@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Credentials\Middleware;
 
 use Closure;
 use Happones\Kinetix\Credentials\PasswordPolicy;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -69,9 +70,11 @@ class EnsurePasswordIsCurrent
             abort(423, $message);
         }
 
-        return redirect()
-            ->route('kinetix.password.change.show')
-            ->with('kinetix_toast', $message);
+        // A warning, not a success: the user is being sent somewhere they
+        // didn't ask to go.
+        KinetixFlash::warning($message);
+
+        return redirect()->route('kinetix.password.change.show');
     }
 
     protected function isExempt(Request $request): bool

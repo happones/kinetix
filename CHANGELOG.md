@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Kinetix's own toasts ride Inertia's flash channel.** The record modals,
+  the relation-manager modal CRUD, the password change, the forced password
+  change redirect and the plan-upsell redirect now flash through
+  `KinetixFlash` instead of `->with('kinetix_toast', …)`. `<KinetixToaster>`
+  shows both, so nothing changes on screen. A custom toaster of your own that
+  only reads the `kinetix_toast` prop should also read `flash.kinetix.toasts`
+  (`onKinetixFlash()` delivers them). `->with('kinetix_toast', …)` stays
+  supported for your own code.
+- **`kinetix:make-resource` scaffolds `KinetixFlash::success(…)`.** Newly
+  generated controllers flash their create/update/delete/restore toasts
+  through `KinetixFlash`. Controllers you already generated keep working
+  unchanged.
+
+### Fixed
+
+- **The forced-password-change and plan-upsell notices had the wrong color.**
+  Both flashed a bare string, which reads as a success, so "your password
+  expired" and "upgrade to use this" showed as green toasts. They now show
+  as a warning and an info toast.
+
 ## [0.189.0] - 2026-10-05
 
 Status colors you can read. The shipped success, warning, info and danger

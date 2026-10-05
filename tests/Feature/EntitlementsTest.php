@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Support\SessionKey;
 
 class EntUser extends Authenticatable
 {
@@ -362,7 +363,7 @@ class EntitlementsTest extends TestCase
 
         $this->actingAs($this->user())->get('/ent-api')
             ->assertRedirect('/billing')
-            ->assertSessionHas('kinetix_toast');
+            ->assertSessionHas(SessionKey::FLASH_DATA.'.kinetix.toasts.0.type', 'info');
     }
 
     public function test_the_middleware_403s_a_plan_denial_on_json(): void

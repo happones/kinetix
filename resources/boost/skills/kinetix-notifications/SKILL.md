@@ -141,12 +141,14 @@ Rules that matter:
   stays silent.
 - An unknown `type` falls back to `success`; a payload without a string
   `message` is dropped silently.
-- The Kinetix record endpoints (simple-resource modals, relation-manager
-  modal CRUD) and `kinetix:make-resource` controllers already flash it with
-  the generic `kinetix.record_created` / `record_updated` / `record_deleted`
-  / `record_restored` / `record_force_deleted` keys — customize by editing
-  the `->with('kinetix_toast', …)` line, never by adding a second toast
-  mechanism.
+- Kinetix's own endpoints (record modals, relation-manager modal CRUD,
+  password change, forced-change redirect = warning, plan upsell = info) and
+  the `kinetix:make-resource` controllers flash through
+  `KinetixFlash::success(…)` with the generic `kinetix.record_created` /
+  `record_updated` / `record_deleted` / `record_restored` /
+  `record_force_deleted` keys. Customize by editing those lines, never by
+  adding a second toast mechanism. `kinetix_toast` stays supported for host
+  code.
 - **Two hard prerequisites** (each fails as "toasts don't show" / "toasts
   render as unstyled plain text"): `<KinetixToaster />` mounted exactly once
   in the layout, and `@import 'vue-sonner/style.css';` in

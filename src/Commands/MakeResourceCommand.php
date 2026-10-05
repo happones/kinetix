@@ -584,9 +584,11 @@ PHP;
 
         \$record->restore();
 
+        KinetixFlash::success(__('kinetix.record_restored'));
+
         // getUrl() keeps the {current_team} segment — a bare route() call
         // throws under a team-prefixed group (missing required parameter).
-        return redirect({$resourceClass}::getUrl('index'))->with('kinetix_toast', __('kinetix.record_restored'));
+        return redirect({$resourceClass}::getUrl('index'));
     }
 
     public function forceDelete({$teamParam}string \$id)
@@ -596,7 +598,9 @@ PHP;
 
         \$record->forceDelete();
 
-        return redirect({$resourceClass}::getUrl('index'))->with('kinetix_toast', __('kinetix.record_force_deleted'));
+        KinetixFlash::success(__('kinetix.record_force_deleted'));
+
+        return redirect({$resourceClass}::getUrl('index'));
     }
 PHP;
         }
@@ -656,6 +660,7 @@ use App\Models\\{$modelName};
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Tables\Table;
@@ -709,11 +714,12 @@ class {$modelName}Controller extends Controller
         // applies to these pages AND the in-table modal endpoint alike.
         \$record = {$modelName}::create({$resourceClass}::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'create'));
 
+        // The toast message — customize freely; <KinetixToaster /> shows it.
+        KinetixFlash::success(__('kinetix.record_created'));
+
         // Destination configurable on the resource — getRedirectUrlAfterCreate()
         // (defaults to the index).
-        // The toast message — customize freely; <KinetixToaster /> shows it.
-        return redirect({$resourceClass}::getRedirectUrlAfterCreate(\$record))
-            ->with('kinetix_toast', __('kinetix.record_created'));
+        return redirect({$resourceClass}::getRedirectUrlAfterCreate(\$record));
     }
 
     public function show({$teamParam}string \$record)
@@ -773,8 +779,9 @@ class {$modelName}Controller extends Controller
 
         // Destination configurable on the resource — getRedirectUrlAfterSave()
         // (defaults to staying on the edit page).
-        return redirect({$resourceClass}::getRedirectUrlAfterSave(\$record))
-            ->with('kinetix_toast', __('kinetix.record_updated'));
+        KinetixFlash::success(__('kinetix.record_updated'));
+
+        return redirect({$resourceClass}::getRedirectUrlAfterSave(\$record));
     }
 
     public function destroy({$teamParam}string \$record)
@@ -784,9 +791,11 @@ class {$modelName}Controller extends Controller
 
         \$record->delete();
 
+        KinetixFlash::success(__('kinetix.record_deleted'));
+
         // getUrl() keeps the {current_team} segment — a bare route() call
         // throws under a team-prefixed group (missing required parameter).
-        return redirect({$resourceClass}::getUrl('index'))->with('kinetix_toast', __('kinetix.record_deleted'));
+        return redirect({$resourceClass}::getUrl('index'));
     }
 {$softDeletesMethods}{$authorizeHelper}
 }
