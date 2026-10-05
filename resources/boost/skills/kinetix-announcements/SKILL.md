@@ -119,7 +119,8 @@ i18n `announcements_*` (7 locales).
 `announcements.share` is false) feeds both components, so neither fetches on
 mount. The popover loads its list once, on open; the banner fetches only when
 narrowed past the shared shape (`levels`, or a `limit` other than
-`banner_limit`).
+`banner_limit`). Leave `limit` unset to follow `banner_limit` — change the
+rotation size in config, not on the component.
 
 ## UUID / ULID Host Models
 

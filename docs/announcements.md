@@ -164,11 +164,7 @@ import KinetixAnnouncementBanner from '@/components/kinetix/KinetixAnnouncementB
 
 <template>
     <!-- Everything is optional: these are the defaults. -->
-    <KinetixAnnouncementBanner
-        :limit="3"
-        :autoplay="8000"
-        dismissible
-    />
+    <KinetixAnnouncementBanner :autoplay="8000" dismissible />
 
     <!-- Only what matters, no rotation clock: -->
     <KinetixAnnouncementBanner :levels="['feature', 'fix']" :autoplay="0" />
@@ -177,7 +173,7 @@ import KinetixAnnouncementBanner from '@/components/kinetix/KinetixAnnouncementB
 
 | Prop              | Default      | What it does                                            |
 | ----------------- | ------------ | ------------------------------------------------------- |
-| `limit`           | `3`          | How many entries rotate (server ceiling: 10)            |
+| `limit`           | config       | How many entries rotate; unset = `banner_limit` (3)     |
 | `levels`          | all          | Restrict to these levels                                |
 | `autoplay`        | `8000`       | Rotation interval in ms; `0` turns auto-rotation off    |
 | `dismissible`     | `true`       | Show the close button                                   |
@@ -219,7 +215,10 @@ Left/right arrow keys move between entries.
 `useKinetixAnnouncementBanner({ limit, levels })` exposes
 `{ announcements, loading, load, dismiss }` if you'd rather build your own.
 
-The default `limit` comes from config when the component doesn't pass one:
+The default `limit` comes from config when the component doesn't pass one —
+set it there rather than on the component. The page payload carries
+`banner_limit` entries, so a banner that follows it renders without a request;
+a `limit` prop that disagrees with it has to fetch on every mount:
 
 ```php
 'announcements' => [

@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The announcement banner follows `announcements.banner_limit` (published).**
+  `<KinetixAnnouncementBanner>` defaulted its `limit` prop to `3`, so the
+  config value never applied to a banner mounted without one: it rotated 3
+  entries whatever `banner_limit` said. And whenever `banner_limit` was not 3,
+  the banner couldn't render from the page payload and fetched on every mount.
+  An unset `limit` now means the configured one. A banner that passes its own
+  `limit` behaves as before. Re-publish the components (`--force`) to pick
+  this up.
+
 ## [0.185.0] - 2026-10-01
 
 Copyable values feel like controls. In tables and infolists, the value itself

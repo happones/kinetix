@@ -35,7 +35,10 @@ import { cn } from './primitives/cn';
  */
 const props = withDefaults(
     defineProps<{
-        /** How many entries to rotate through (server ceiling: 10). */
+        /**
+         * How many entries to rotate through (server ceiling: 10). Unset, it is
+         * `announcements.banner_limit` — the shape the page payload carries.
+         */
         limit?: number;
         /** Only show these levels; empty = every level. */
         levels?: string[];
@@ -53,7 +56,9 @@ const props = withDefaults(
         class?: string;
     }>(),
     {
-        limit: 3,
+        // No default limit: a hardcoded one would override the config and
+        // force a fetch on every mount whenever the two disagree.
+        limit: undefined,
         autoplay: 8000,
         dismissible: true,
         position: 'inline',

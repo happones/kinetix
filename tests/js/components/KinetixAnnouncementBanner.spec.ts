@@ -73,6 +73,29 @@ describe('KinetixAnnouncementBanner', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it('follows the configured banner_limit when no limit is passed', async () => {
+        const entries = Array.from({ length: 7 }, (_, i) =>
+            announcement(i + 1, `Entry ${i + 1}`),
+        );
+        pageProps.kinetix_announcements = {
+            unread: 7,
+            bannerLimit: 7,
+            banner: entries,
+        };
+
+        const w = mountIt();
+        await flushPromises();
+
+        // A hardcoded default limit would disagree with the config, fetch, and
+        // cut the rotation to its own size.
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(
+            w
+                .findAll('button')
+                .filter((b) => b.attributes('aria-label')?.startsWith('Show:')),
+        ).toHaveLength(7);
+    });
+
     it('asks the server once it is narrowed past what the payload holds', async () => {
         pageProps.kinetix_announcements = {
             unread: 1,
@@ -84,8 +107,9 @@ describe('KinetixAnnouncementBanner', () => {
         mountIt({ levels: ['fix'] });
         await flushPromises();
 
+        // No limit of its own: the server applies `banner_limit`.
         expect(fetchMock).toHaveBeenCalledWith(
-            '/_kinetix/announcements/banner?limit=3&levels=fix',
+            '/_kinetix/announcements/banner?levels=fix',
         );
     });
 

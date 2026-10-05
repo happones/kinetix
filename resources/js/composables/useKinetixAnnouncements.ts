@@ -61,7 +61,10 @@ export function useKinetixAnnouncements() {
 }
 
 export interface KinetixAnnouncementBannerOptions {
-    /** How many entries to rotate through (server ceiling: 10). */
+    /**
+     * How many entries to rotate through (server ceiling: 10). Unset, the
+     * server's `announcements.banner_limit` applies.
+     */
     limit?: number;
     /** Restrict to these levels; empty = every level. */
     levels?: string[];
