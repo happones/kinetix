@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.191.0] - 2026-10-05
+
+Announcements speak Markdown. Bodies can use bold, italics, links and lists,
+rendered on the server to safe HTML; a body written as plain text reads as
+before. Re-publish the components and translations (`--force`) to pick this
+up.
+
 ### Added
 
 - **Markdown announcement bodies (published).** A body can use bold,
