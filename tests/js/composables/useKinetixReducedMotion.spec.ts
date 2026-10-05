@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, nextTick } from 'vue';
+import { effectScope } from 'vue';
 
 const pageProps: Record<string, unknown> = {};
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: pageProps }) }));
@@ -59,11 +59,10 @@ describe('useKinetixReducedMotion', () => {
         const reduced = scope.run(() => useKinetixReducedMotion())!;
 
         document.documentElement.classList.add('kx-reduce-motion');
-        // MutationObserver callbacks are microtasks.
-        await nextTick();
-        await Promise.resolve();
 
-        expect(reduced.value).toBe(true);
+        // The observer delivers on its own schedule — wait for it rather than
+        // assume a microtask (that assumption was flaky under CI load).
+        await vi.waitFor(() => expect(reduced.value).toBe(true));
 
         scope.stop();
     });
@@ -78,6 +77,23 @@ describe('useKinetixReducedMotion', () => {
         expect(reduced.value).toBe(true);
 
         scope.stop();
+    });
+
+    it('a consumer mounting right after a class change sees it at once', () => {
+        stubMedia(false);
+        const first = effectScope();
+        first.run(() => useKinetixReducedMotion());
+
+        // The class lands, and before the shared observer reports it, a new
+        // component asks.
+        document.documentElement.classList.add('kx-reduce-motion');
+        const second = effectScope();
+        const reduced = second.run(() => useKinetixReducedMotion())!;
+
+        expect(reduced.value).toBe(true);
+
+        first.stop();
+        second.stop();
     });
 
     it('releases the shared media listener with the last consumer', () => {

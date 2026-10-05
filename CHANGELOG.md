@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Reduce motion applies to a component that mounts right after it's turned
+  on (published).** `useKinetixReducedMotion()` learns about the user's
+  `kx-reduce-motion` class from a shared observer that reports changes
+  asynchronously. A component mounting in that gap (an announcement banner
+  rendered right after the preference was switched on) read the old value and
+  could start auto-rotating. Every new consumer now reads the current state
+  when it subscribes. This also made a front-end test flaky under CI load
+  (v0.191.1's front-end job). The observer tests now wait for the
+  notification instead of assuming it lands within a microtask.
+
 ## [0.191.1] - 2026-10-05
 
 **Upgrade from 0.187.0–0.191.0 if your app runs `inertiajs/inertia-laravel`

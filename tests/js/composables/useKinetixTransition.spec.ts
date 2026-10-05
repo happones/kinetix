@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { effectScope, nextTick, ref } from 'vue';
+import { effectScope, ref } from 'vue';
 
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: {} }) }));
 
@@ -65,10 +65,10 @@ describe('useKinetixTransition', () => {
         expect(transition.value.enterFromClass).toBe('opacity-0');
 
         document.documentElement.classList.add('kx-reduce-motion');
-        await nextTick();
-        await Promise.resolve();
 
-        expect(transition.value).toEqual({ css: false });
+        await vi.waitFor(() =>
+            expect(transition.value).toEqual({ css: false }),
+        );
 
         scope.stop();
     });

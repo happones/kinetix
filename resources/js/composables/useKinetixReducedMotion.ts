@@ -40,6 +40,15 @@ function syncPreference(): void {
         document.documentElement.classList.contains(PREFERENCE_CLASS);
 }
 
+function resync(): void {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
+    syncSystem();
+    syncPreference();
+}
+
 function attach(): void {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
         return;
@@ -83,6 +92,11 @@ export function useKinetixReducedMotion(): ComputedRef<boolean> {
 
     if (consumers === 0) {
         attach();
+    } else {
+        // The shared observer reports a class change asynchronously; a
+        // component mounting right after the change must not render with the
+        // stale value (and autoplay for a user who just asked for less motion).
+        resync();
     }
 
     // A caller outside any effect scope never releases its share, which only
