@@ -86,8 +86,10 @@ const props = withDefaults(
         /**
          * `plain` keeps the neutral surface; `soft`, `outline` and `accent`
          * color it with each entry's level (`kinetix.announcements.levels`).
+         * No `solid`: the carousel's dots and arrows are drawn for a light
+         * surface.
          */
-        variant?: 'plain' | KinetixAlertVariant;
+        variant?: 'plain' | Exclude<KinetixAlertVariant, 'solid'>;
         /**
          * How the banner enters and leaves. Unset = `slide-down` when pinned,
          * `fade` inline.
@@ -160,6 +162,12 @@ const currentColor = computed(() =>
         : 'gray',
 );
 const colorized = computed(() => props.variant !== 'plain');
+/** The tinted surface; anything unexpected (a stray `solid`) reads as soft. */
+const surface = computed<Exclude<KinetixAlertVariant, 'solid'>>(() =>
+    props.variant === 'outline' || props.variant === 'accent'
+        ? props.variant
+        : 'soft',
+);
 
 /** The configured icon wins; the built-in levels have their own. */
 const iconComponent = computed<Component>(() => {
@@ -380,10 +388,7 @@ watch(count, (value) => {
                         cn(
                             'gap-3 flex items-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
                             colorized &&
-                                statusAlertClass(
-                                    currentColor,
-                                    variant === 'plain' ? 'soft' : variant,
-                                ),
+                                statusAlertClass(currentColor, surface),
                             props.class,
                         )
                     "

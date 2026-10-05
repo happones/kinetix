@@ -56,7 +56,9 @@ const INTERACTIVE_TEXT: Record<string, string> = {
 const SOLID_BUTTON: Record<string, string> = {
     success:
         'bg-success text-success-foreground hover:bg-success/90 focus-visible:ring-success/20',
-    danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20',
+    // White on red, dimmed in dark mode — the shadcn destructive recipe, which
+    // holds whatever red the host's theme defines.
+    danger: 'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60',
     warning:
         'bg-warning text-warning-foreground hover:bg-warning/90 focus-visible:ring-warning/20',
     info: 'bg-info text-info-foreground hover:bg-info/90 focus-visible:ring-info/20',
@@ -72,12 +74,12 @@ const FILL: Record<string, string> = {
 };
 
 /**
- * Alert surfaces. Only the surface carries the status color — title and body
- * text stay on the foreground tokens, which is what keeps every variant above
- * 4.5:1 in BOTH themes (status text on its own 10% tint does not, for every
- * status). The icon takes the status color (`statusTextClass`).
+ * Alert surfaces. On `soft` / `outline` / `accent` only the surface carries
+ * the status color — title and body stay on the foreground tokens, and the
+ * icon takes the status color (`statusTextClass`). `solid` fills the surface
+ * and sets its own text color; content on it inherits (`text-current`).
  */
-export type KinetixAlertVariant = 'soft' | 'outline' | 'accent';
+export type KinetixAlertVariant = 'soft' | 'outline' | 'accent' | 'solid';
 
 const ALERT_SOFT: Record<string, string> = {
     success: 'border-success/30 bg-success/10',
@@ -103,10 +105,23 @@ const ALERT_ACCENT: Record<string, string> = {
     primary: 'border-border border-l-4 border-l-primary bg-card',
 };
 
+/**
+ * A solid fill carries its own text color — the status token's -foreground
+ * pair (danger: white on a dimmed-in-dark red, like the destructive button).
+ */
+const ALERT_SOLID: Record<string, string> = {
+    success: 'border-transparent bg-success text-success-foreground',
+    danger: 'border-transparent bg-destructive text-white dark:bg-destructive/60',
+    warning: 'border-transparent bg-warning text-warning-foreground',
+    info: 'border-transparent bg-info text-info-foreground',
+    primary: 'border-transparent bg-primary text-primary-foreground',
+};
+
 const ALERT_FALLBACK: Record<KinetixAlertVariant, string> = {
     soft: 'border-border bg-muted/50',
     outline: 'border-border bg-background',
     accent: 'border-border border-l-4 border-l-muted-foreground bg-card',
+    solid: 'border-transparent bg-foreground text-background',
 };
 
 /** The alert surface for a status (`gray`/unknown = the neutral surface). */
@@ -119,7 +134,9 @@ export function statusAlertClass(
             ? ALERT_OUTLINE
             : variant === 'accent'
               ? ALERT_ACCENT
-              : ALERT_SOFT;
+              : variant === 'solid'
+                ? ALERT_SOLID
+                : ALERT_SOFT;
 
     return (
         map[color as string] ?? ALERT_FALLBACK[variant] ?? ALERT_FALLBACK.soft

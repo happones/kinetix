@@ -161,7 +161,7 @@ async function handleAdd(): Promise<void> {
                     <button
                         v-if="selectedId === pm.id"
                         type="button"
-                        class="-right-2 -top-2 p-1 shadow-lg absolute z-20 rounded-full bg-destructive text-destructive-foreground"
+                        class="-right-2 -top-2 p-1 shadow-lg text-white absolute z-20 rounded-full bg-destructive dark:bg-destructive/60"
                         @click.stop="emit('remove', pm.id)"
                     >
                         <Trash2 class="h-3 w-3" />

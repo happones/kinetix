@@ -29,10 +29,12 @@ import { cn } from './primitives/cn';
  * and optional actions — the one alert recipe every Kinetix notice builds on.
  *
  * Colors are the Kinetix status colors (`success` · `danger` · `warning` ·
- * `info` · `primary` · `gray`) on three surfaces (`soft` · `outline` ·
- * `accent`). Only the surface takes the color; text stays on the foreground
- * tokens so it reads in both themes, and the status is never color alone —
- * the icon and a visually-hidden "Warning:"-style prefix carry it too.
+ * `info` · `primary` · `gray`) on four surfaces (`soft` · `outline` ·
+ * `accent` · `solid`). On the first three only the surface takes the color
+ * and text stays on the foreground tokens; `solid` fills it and everything on
+ * it takes the fill's own text color. Every pair reads at 4.5:1 in both
+ * themes, and the status is never color alone — the icon and a
+ * visually-hidden "Warning:"-style prefix carry it too.
  *
  * Closing it can last as long as you need (`dismissMode`): `hide` (this
  * mount), `session` (this tab), `device` (this browser, synced across tabs),
@@ -231,6 +233,9 @@ const closeLabel = computed(() =>
 
 const root = ref<HTMLElement | null>(null);
 
+/** On a solid fill, everything inherits the fill's text color. */
+const solid = computed(() => props.variant === 'solid');
+
 async function close(mode: KinetixDismissMode): Promise<void> {
     const element = root.value;
     const focused =
@@ -301,10 +306,12 @@ watch(open, (isOpen, wasOpen) => {
                                 :is="iconComponent"
                                 class="size-4"
                                 :class="
-                                    statusTextClass(
-                                        color,
-                                        'text-muted-foreground',
-                                    )
+                                    solid
+                                        ? 'text-current'
+                                        : statusTextClass(
+                                              color,
+                                              'text-muted-foreground',
+                                          )
                                 "
                             />
                         </slot>
@@ -326,7 +333,10 @@ watch(open, (isOpen, wasOpen) => {
                         <AlertDescription
                             v-if="hasBody"
                             :class="
-                                cn('text-foreground/80', hasTitle && 'mt-1')
+                                cn(
+                                    !solid && 'text-foreground/80',
+                                    hasTitle && 'mt-1',
+                                )
                             "
                         >
                             <span
@@ -351,10 +361,10 @@ watch(open, (isOpen, wasOpen) => {
                                 :class="
                                     cn(
                                         buttonVariants({
-                                            variant: 'link',
+                                            variant: 'ghost-current',
                                             size: 'sm',
                                         }),
-                                        'px-0 text-foreground/80',
+                                        '-ml-2 underline underline-offset-4',
                                     )
                                 "
                                 @click="close('permanent')"
@@ -369,7 +379,7 @@ watch(open, (isOpen, wasOpen) => {
                         type="button"
                         :class="
                             buttonVariants({
-                                variant: 'ghost',
+                                variant: solid ? 'ghost-current' : 'ghost',
                                 size: 'icon-sm',
                             })
                         "

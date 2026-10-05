@@ -45,7 +45,7 @@ export function useKinetixWizardStatus(
     // Computed here since a per-step color can't be a static Tailwind class.
     const indicatorClass = (step: KinetixWizardStep, index: number): string => {
         if (hasError(index)) {
-            return 'bg-destructive text-white ring-2 ring-destructive/30';
+            return 'bg-destructive text-white ring-2 ring-destructive/30 dark:bg-destructive/60';
         }
 
         if (statusOf(index) === 'upcoming') {

@@ -81,6 +81,40 @@ describe('KinetixAlert', () => {
         accent.unmount();
     });
 
+    it('a solid fill sets its own text color and everything on it inherits', () => {
+        const w = mountIt({
+            color: 'success',
+            variant: 'solid',
+            dismissible: true,
+        });
+
+        expect(surface(w).classes()).toEqual(
+            expect.arrayContaining(['bg-success', 'text-success-foreground']),
+        );
+        expect(w.find('[data-slot="alert"] > span svg').classes()).toContain(
+            'text-current',
+        );
+        expect(
+            w.find('[data-slot="alert-description"]').classes(),
+        ).not.toContain('text-foreground/80');
+        // The close button keeps the fill's text color instead of accent gray.
+        expect(button(w, 'Hide for now')?.classes()).toContain('text-current');
+        w.unmount();
+    });
+
+    it('a solid danger fill dims in dark mode to carry white text', () => {
+        const w = mountIt({ color: 'danger', variant: 'solid' });
+
+        expect(surface(w).classes()).toEqual(
+            expect.arrayContaining([
+                'bg-destructive',
+                'text-white',
+                'dark:bg-destructive/60',
+            ]),
+        );
+        w.unmount();
+    });
+
     it('never relies on color alone: decorative icon + hidden status prefix', () => {
         const w = mountIt({ color: 'danger' });
 

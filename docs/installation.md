@@ -429,22 +429,41 @@ fallback tokens (`--tag=kinetix-styles`) and import `resources/css/kinetix.css`.
 ### Status tokens (`success` · `warning` · `info`)
 
 shadcn ships `destructive` but no success/warning/info colors, so Kinetix adds
-three themeable tokens used by badges, stat chips, modals, notifications and action
-colors. If your app defines its own tokens but not these three, add them so
-Tailwind generates the `*-success` / `*-warning` / `*-info` utilities:
+three themeable tokens used by badges, stat chips, alerts, modals,
+notifications and action colors. If your app defines its own tokens but not
+these three, add them, and map them in `@theme` so Tailwind generates the
+`*-success` / `*-warning` / `*-info` utilities:
 
 ```css
 :root {
-  --success: 142 76% 36%;  --success-foreground: 0 0% 100%;
-  --warning: 26 90% 37%;   --warning-foreground: 0 0% 100%;
-  --info:    200 98% 39%;  --info-foreground: 0 0% 100%;
+  --success: 142 72% 27%;  --success-foreground: 0 0% 100%;
+  --warning: 26 90% 33%;   --warning-foreground: 0 0% 100%;
+  --info:    201 96% 32%;  --info-foreground: 0 0% 100%;
 }
 .dark {
-  --success: 142 69% 58%;  --warning: 43 96% 56%;  --info: 198 93% 60%;
+  --success: 142 69% 58%;  --success-foreground: 142 80% 10%;
+  --warning: 43 96% 56%;   --warning-foreground: 26 83% 14%;
+  --info:    198 93% 60%;  --info-foreground: 204 80% 16%;
+}
+
+@theme inline {
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
 }
 ```
 
 `danger` maps to the built-in `destructive` token.
+
+Each status is used three ways, and the values above read at 4.5:1 or better
+in both themes for all three: as text on the page, as text on its own 10% tint
+(badges), and as a solid fill under its `-foreground` (buttons, solid alerts).
+If you re-skin them, check those three pairings in light **and** dark. White
+text on `destructive` follows shadcn's recipe (`text-white` with
+`dark:bg-destructive/60`), so it reads whatever red your theme defines.
 
 ### Z-index scale
 

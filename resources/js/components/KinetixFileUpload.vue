@@ -222,7 +222,7 @@ const remove = async (path: string) => {
                 <button
                     v-if="!disabled"
                     type="button"
-                    class="-right-2 -top-2 h-5 w-5 text-white shadow absolute flex items-center justify-center rounded-full bg-destructive hover:bg-destructive/90"
+                    class="-right-2 -top-2 h-5 w-5 text-white shadow absolute flex items-center justify-center rounded-full bg-destructive hover:bg-destructive/90 dark:bg-destructive/60"
                     :aria-label="t('kinetix.remove')"
                     @click="remove(path)"
                 >

@@ -56,7 +56,7 @@ const { statusOf, hasError, stepDisabled, stepKey } = useKinetixWizardStatus({
                 class="size-5 text-xs font-semibold flex shrink-0 items-center justify-center rounded-full"
                 :class="
                     hasError(i)
-                        ? 'text-white bg-destructive'
+                        ? 'text-white bg-destructive dark:bg-destructive/60'
                         : statusOf(i) === 'active'
                           ? 'bg-primary-foreground/20'
                           : 'bg-muted'

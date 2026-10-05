@@ -47,7 +47,7 @@ const { statusOf, hasError, stepDisabled, stepKey } = useKinetixWizardStatus({
                     class="size-9 text-sm font-semibold flex items-center justify-center rounded-full transition-all"
                     :class="
                         hasError(i)
-                            ? 'text-white bg-destructive ring-2 ring-destructive/30'
+                            ? 'text-white bg-destructive ring-2 ring-destructive/30 dark:bg-destructive/60'
                             : gradient
                               ? statusOf(i) !== 'upcoming'
                                   ? 'to-fuchsia-500 text-white shadow-md bg-gradient-to-br from-primary'

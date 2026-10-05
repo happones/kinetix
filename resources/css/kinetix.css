@@ -27,7 +27,9 @@
     --muted-foreground: 240 3.8% 46.1%;
     --accent: 240 4.8% 95.9%;
     --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 72.2% 50.6%;
+    /* Deep enough that the red reads as TEXT (and on its own 10% tint) at
+       4.5:1, and carries white text as a solid fill. */
+    --destructive: 0 74% 42%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
@@ -35,12 +37,15 @@
     --radius: 0.5rem;
 
     /* Kinetix status tokens — shadcn has no success/warning/info, so Kinetix
-       ships them. Override these in your own theme to re-skin status colors. */
-    --success: 142 76% 36%;
+       ships them. Override these in your own theme to re-skin status colors.
+       Every status passes 4.5:1 three ways in BOTH themes: as text on the
+       page, as text on its own 10% tint (badges), and under its -foreground
+       as a solid fill (tests/js/statusTokenContrast.spec.ts keeps it so). */
+    --success: 142 72% 27%;
     --success-foreground: 0 0% 100%;
-    --warning: 26 90% 37%;
+    --warning: 26 90% 33%;
     --warning-foreground: 0 0% 100%;
-    --info: 200 98% 39%;
+    --info: 201 96% 32%;
     --info-foreground: 0 0% 100%;
 
     /* Categorical chart series colors (shadcn --chart-N convention, extended
@@ -71,8 +76,11 @@
     --muted-foreground: 240 5% 64.9%;
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    /* A bright red: the old dark one read at ~2:1 as text on the dark page.
+       As a fill it takes dark text, like the other status tones; components
+       that put WHITE on it dim the fill instead (dark:bg-destructive/60). */
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 0 75% 15%;
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;

@@ -47,7 +47,7 @@ class KinetixFlash
 
     public const ALERT_COLORS = ['success', 'danger', 'warning', 'info', 'primary', 'gray'];
 
-    public const ALERT_VARIANTS = ['soft', 'outline', 'accent'];
+    public const ALERT_VARIANTS = ['soft', 'outline', 'accent', 'solid'];
 
     /**
      * How many closed ids the session remembers — enough for any real page,

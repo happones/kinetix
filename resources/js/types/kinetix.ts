@@ -95,7 +95,7 @@ export interface KinetixFlashAlert {
     title: string;
     description?: string | null;
     color: 'success' | 'danger' | 'warning' | 'info' | 'primary' | 'gray';
-    variant?: 'soft' | 'outline' | 'accent';
+    variant?: 'soft' | 'outline' | 'accent' | 'solid';
     icon?: string | null;
     dismissible: boolean;
     /** Lives in the session (`keep()` / `untilDismissed()`), not the flash. */

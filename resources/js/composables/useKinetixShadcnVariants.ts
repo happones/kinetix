@@ -18,7 +18,10 @@ export type ButtonVariant =
     // Kinetix status variants (extend shadcn with the success/warning/info tokens).
     | 'success'
     | 'warning'
-    | 'info';
+    | 'info'
+    // A ghost that keeps the surrounding text color — for controls sitting on
+    // a colored fill (a solid alert), where accent-gray would clash.
+    | 'ghost-current';
 
 export type ButtonSize =
     | 'default'
@@ -45,6 +48,7 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
     warning:
         'bg-warning text-warning-foreground hover:bg-warning/90 focus-visible:ring-warning/20',
     info: 'bg-info text-info-foreground hover:bg-info/90 focus-visible:ring-info/20',
+    'ghost-current': 'text-current hover:bg-current/15',
 };
 
 /**

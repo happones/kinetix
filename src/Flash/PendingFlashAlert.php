@@ -74,7 +74,7 @@ class PendingFlashAlert
         return $this->color('info');
     }
 
-    /** `soft` (default) · `outline` · `accent`. */
+    /** `soft` (default) · `outline` · `accent` · `solid`. */
     public function variant(string $variant): static
     {
         $this->variant = in_array($variant, KinetixFlash::ALERT_VARIANTS, true) ? $variant : 'soft';

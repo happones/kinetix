@@ -13,6 +13,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`solid` alerts (published).** `<KinetixAlert variant="solid">` (and
+  `KinetixFlash::alert()->variant('solid')`) fills the surface with the
+  status color. The icon, text and close button take the fill's own text
+  color. The `danger` fill carries white text, dimmed in dark mode the way the
+  destructive button is. The announcement banner takes no `solid`: its
+  carousel controls are drawn for a light surface.
+- **`ghost-current` button variant (published).** A ghost button that keeps
+  the surrounding text color, for controls sitting on a colored fill.
+- **A contrast guard for the status tokens.**
+  `tests/js/statusTokenContrast.spec.ts` parses `kinetix.css` and checks, in
+  both themes, every status as text on the page, as text on its own badge
+  tint, and as a solid fill under its `-foreground`, plus the white-on-red
+  recipe, all at 4.5:1.
+
+### Fixed
+
+- **Status colors now pass WCAG AA (published, `kinetix.css`).** With the
+  shipped tokens, green and blue text failed 4.5:1 on a light page (3.35:1 and
+  4.11:1). Every status badge failed on its own tint (3.0–4.4:1), and white
+  text on a green or blue button failed too. The light `--success`,
+  `--warning`, `--info` and `--destructive` are now a few steps deeper (all
+  pairs at 4.9:1 or better), so every status reads a little darker in light
+  mode. If you copied the status tokens from the installation guide, update
+  them to the new values there.
+- **Red is readable in dark mode (published, `kinetix.css`).** The dark
+  `--destructive` was a dark red at ~2:1 against the page, so every danger
+  text, icon and outline was barely visible. It is now a bright red (7.2:1),
+  and its dark-mode `-foreground` is a dark red, so the token pair works as a
+  fill too.
+- **White on red holds in any theme (published).** The wizard error steps, the
+  file-upload and media-library remove buttons, the payment-method remove
+  button and the `danger` action button put white text or icons on a solid
+  red. They now use shadcn's destructive recipe (`text-white` with
+  `dark:bg-destructive/60`), which reads with any red a theme defines.
+- **The installation guide's status-token snippet** was missing the dark-mode
+  `-foreground` values and the `@theme` mapping Tailwind v4 needs to generate
+  the utilities. Both are in it now.
+
 ## [0.188.0] - 2026-10-05
 
 Closes that follow the user, and announcements that say more. With the new

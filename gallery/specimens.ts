@@ -1755,6 +1755,34 @@ const AlertColors: Component = {
         ]),
 };
 
+// Every status as a solid fill — the pairing the contrast guard checks.
+const AlertSolid: Component = {
+    name: 'AlertSolid',
+    render: () =>
+        h(
+            'div',
+            { class: 'grid gap-3' },
+            (
+                [
+                    'success',
+                    'info',
+                    'warning',
+                    'danger',
+                    'primary',
+                    'gray',
+                ] as const
+            ).map((color) =>
+                h(KinetixAlert, {
+                    color,
+                    variant: 'solid',
+                    title: `Solid ${color}`,
+                    description: 'The fill carries its own text color.',
+                    dismissible: color === 'danger',
+                }),
+            ),
+        ),
+};
+
 const AlertVariants: Component = {
     name: 'AlertVariants',
     render: () =>
@@ -2534,6 +2562,12 @@ export const specimens: Specimen[] = [
         name: 'alert-colors',
         title: 'Alerts — status colors (soft)',
         component: AlertColors,
+        width: 640,
+    },
+    {
+        name: 'alert-solid',
+        title: 'Alerts — solid fills',
+        component: AlertSolid,
         width: 640,
     },
     {

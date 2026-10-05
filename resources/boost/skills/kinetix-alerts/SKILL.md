@@ -46,10 +46,17 @@ outline · accent. `dismiss-mode`: hide · session · device · permanent
 (`persist` = `(key) => Promise` stores a permanent close). `transition`: fade ·
 slide-down · slide-up · scale · collapse · none.
 
-- The color goes on the surface and the icon only. Title and body stay on the
-  foreground tokens, which keeps the contrast valid in both themes. Surface
-  classes come from `statusAlertClass(color, variant)` in
-  `useKinetixStatusColor`. Never hand-roll an alert box: build on
+- `soft` / `outline` / `accent`: the color goes on the surface and the icon
+  only; title and body stay on the foreground tokens. `solid`: the fill sets
+  its own text color (`-foreground`; danger = `text-white` +
+  `dark:bg-destructive/60`), and the icon, text and close button inherit it
+  (`text-current`, button variant `ghost-current`). Surface classes come from
+  `statusAlertClass(color, variant)` in `useKinetixStatusColor`. The banner
+  takes no `solid` (its carousel controls are drawn for light surfaces).
+- Contrast is guarded by `tests/js/statusTokenContrast.spec.ts`, which parses
+  `kinetix.css` and checks text-on-page, text-on-tint, solid fill and the
+  white-on-red recipe at 4.5:1 in BOTH themes. Re-tuning a token means this
+  test passes. Never hand-roll an alert box: build on
   `KinetixAlert`, or on `statusAlertClass` with the `primitives/Alert*` parts.
 - `role="auto"`: `danger` → `alert`, other colors → `status`. `region` uses the
   title as its accessible name. A translated, visually-hidden prefix

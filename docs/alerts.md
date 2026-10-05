@@ -58,6 +58,7 @@ adds buttons or links under the message:
 | `soft` (default) | Tinted background with a matching border        |
 | `outline`        | Plain background, status-colored border         |
 | `accent`         | Card background with a thick status-colored edge |
+| `solid`          | Filled with the status color; text takes the fill's own color |
 
 <Screenshot name="alert-variants" alt="Outline and accent alerts, and a dismissible alert with an action and a Don't show again link" />
 
@@ -67,12 +68,20 @@ adds buttons or links under the message:
 <KinetixAlert color="danger" variant="accent" title="Payment failed" />
 ```
 
-Only the surface and the icon take the color. The title and message stay on
-the foreground tokens, which is what keeps every variant readable (4.5:1 or
-better) in both light and dark mode — status-colored text on its own tint does
-not pass for every status. The colors come from the same `--success`,
-`--warning`, `--info` and `--destructive` tokens as the rest of Kinetix, so a
-theme override changes alerts too.
+On `soft`, `outline` and `accent` only the surface and the icon take the
+color; the title and message stay on the foreground tokens. `solid` fills the
+surface, and the icon, text and close button take the fill's own text color
+(the status token's `-foreground`; white on red for `danger`, which dims in
+dark mode the way the destructive button does).
+
+<Screenshot name="alert-solid" alt="Solid success, info, warning, danger, primary and gray alerts" />
+
+Every pairing reads at 4.5:1 or better in both light and dark mode with the
+tokens Kinetix ships, and a test keeps it that way. The colors come from the
+same `--success`, `--warning`, `--info` and `--destructive` tokens as the rest
+of Kinetix, so a theme override changes alerts too. If you override them,
+keep the same three pairings readable (see
+[Installation → Theming](/installation#theming)).
 
 The icon follows the color (a check for `success`, an alert circle for
 `danger`, a triangle for `warning`, an info circle otherwise). Pass any
@@ -365,7 +374,7 @@ sources above. Use it for motion CSS can't stop, such as a timer.
 | Prop               | Default | What it does |
 | ------------------ | ------- | ------------ |
 | `color`            | `gray`  | `success` · `danger` · `warning` · `info` · `primary` · `gray` |
-| `variant`          | `soft`  | `soft` · `outline` · `accent` |
+| `variant`          | `soft`  | `soft` · `outline` · `accent` · `solid` |
 | `icon`             | per color | Icon name, component, or `false` |
 | `title`            | —       | Title text (or `#title`) |
 | `description`      | —       | Message text (or the default slot) |

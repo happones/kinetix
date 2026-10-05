@@ -259,7 +259,8 @@ layout and get it back the moment the banner is dismissed:
 `variant="soft"` (or `outline`, `accent`) colors the banner with each entry's
 level, the same surfaces as [`<KinetixAlert>`](/alerts#colors-and-surfaces). The
 default `plain` keeps the neutral surface. A pinned bar stays opaque under a
-tinted surface.
+tinted surface. There is no `solid` banner: the carousel's dots and arrows are
+drawn for a light surface.
 
 <Screenshot name="announcement-banner-colorized" alt="Announcement banner tinted with its level color, with a Try it button" />
 
