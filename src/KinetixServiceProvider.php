@@ -74,6 +74,7 @@ use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
 use Happones\Kinetix\Flash\FlashController;
 use Happones\Kinetix\Flash\KinetixFlash;
+use Happones\Kinetix\Forms\FormRecomputeController;
 use Happones\Kinetix\Forms\SearchController;
 use Happones\Kinetix\Forms\TableRepeaterController;
 use Happones\Kinetix\Forms\UploadController;
@@ -2853,6 +2854,12 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::post('search', SearchController::class)
                     ->name('kinetix.forms.search');
+
+                // Server-driven reactivity ($get/$set): rebuilds the form from
+                // its signed descriptor and returns the schema recomputed
+                // against the in-flight state.
+                Route::post('recompute', FormRecomputeController::class)
+                    ->name('kinetix.forms.recompute');
             });
     }
 

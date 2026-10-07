@@ -26,5 +26,10 @@ class FormData extends Data
         public bool $precognitive = false,
         public ?string $validationUrl = null,
         public string $validationMethod = 'post',
+        // Signed descriptor the server-driven reactivity loop ($get/$set) uses
+        // to rebuild THIS form and recompute its schema from an in-flight
+        // state. Non-null only when the form is reconstructible (a Form
+        // subclass, or ->reactiveVia(resource:…)) AND has a live() field.
+        public ?string $recomputeDescriptor = null,
     ) {}
 }

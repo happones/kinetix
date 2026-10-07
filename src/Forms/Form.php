@@ -7,7 +7,9 @@ namespace Happones\Kinetix\Forms;
 use Happones\Kinetix\Data\FormData;
 use Happones\Kinetix\Forms\Components\Component;
 use Happones\Kinetix\Forms\Components\Field;
+use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Validator;
@@ -52,6 +54,29 @@ class Form implements Arrayable, JsonSerializable
     protected ?string $validationUrl = null;
 
     protected string $validationMethod = 'post';
+
+    /**
+     * Explicit reconstruction source for the reactivity loop, when the form
+     * isn't a `Form` subclass that can rebuild itself: the resource whose
+     * `form()` produced this schema. Set by Kinetix (record modals / resource
+     * pages); a hand-built inline `Form::make()` with no source stays
+     * non-reactive (its closures can't be rebuilt server-side).
+     */
+    protected ?string $reactiveResource = null;
+
+    /**
+     * Opt a resource-built or inline form into the reactivity loop by naming
+     * the class that can rebuild it server-side. A `Form` SUBCLASS needs no
+     * call — it rebuilds via `new static($record)`.
+     *
+     * @param class-string<\Happones\Kinetix\Resources\Resource> $resource
+     */
+    public function reactiveVia(string $resource): static
+    {
+        $this->reactiveResource = $resource;
+
+        return $this;
+    }
 
     public function __construct(?Model $record = null)
     {
@@ -472,7 +497,51 @@ class Form implements Arrayable, JsonSerializable
             precognitive: $this->precognitive,
             validationUrl: $this->validationUrl,
             validationMethod: $this->validationMethod,
+            recomputeDescriptor: $this->buildRecomputeDescriptor(),
         );
+    }
+
+    /**
+     * Seal the descriptor the reactivity endpoint rebuilds this form from, or
+     * null when the form isn't reactive. Reactive requires BOTH:
+     *   - at least one `live()` field (nothing to react to otherwise), and
+     *   - a reconstruction source: a `Form` SUBCLASS (rebuilt via
+     *     `new static($record)`) or an explicit `reactiveVia(resource)`.
+     *
+     * An anonymous inline `Form::make()->schema([...])` has neither, so its
+     * closures can't be re-run server-side and it stays non-reactive. The
+     * descriptor carries only class references + the record id (never a
+     * closure), bound to the user/team/expiry like every signed descriptor.
+     */
+    protected function buildRecomputeDescriptor(): ?string
+    {
+        $hasLive = false;
+
+        foreach ($this->getFields() as $field) {
+            if ($field->isLive()) {
+                $hasLive = true;
+
+                break;
+            }
+        }
+
+        if (! $hasLive) {
+            return null;
+        }
+
+        $isFormSubclass = static::class !== Form::class;
+
+        if (! $isFormSubclass && $this->reactiveResource === null) {
+            return null;
+        }
+
+        return SignedDescriptor::seal([
+            'formClass' => $isFormSubclass ? static::class : null,
+            'resource'  => $this->reactiveResource,
+            'operation' => $this->operation,
+            'model'     => $this->model,
+            'recordId'  => $this->record?->getKey(),
+        ]);
     }
 
     /**
