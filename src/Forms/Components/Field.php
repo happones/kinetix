@@ -69,6 +69,114 @@ abstract class Field extends Component
 
     protected ?Closure $dehydrateStateUsing = null;
 
+    /**
+     * Client-side conditional rules keyed by effect — each maps to a
+     * {@see FieldCondition} comparing ANOTHER field's live value. Serialized to
+     * the browser (so KinetixForm shows/hides/disables/requires live) and
+     * mirrored into server-side validation (so the client is never the only
+     * guard).
+     *
+     * @var array{visible?: FieldCondition, hidden?: FieldCondition, required?: FieldCondition, disabled?: FieldCondition}
+     */
+    protected array $conditions = [];
+
+    /**
+     * Show this field only while another field's value satisfies the condition
+     * (hidden otherwise). Client-side and live; the server excludes the field
+     * from validation/state when the condition fails, so a conditionally-hidden
+     * value is never required and never persisted.
+     *
+     *     TextInput::make('company_name')->visibleWhen('type', 'company');
+     *     TextInput::make('vat')->visibleWhen('country', ['ES', 'FR'], 'in');
+     */
+    public function visibleWhen(string $field, mixed $value = true, string $operator = FieldCondition::EQUALS): static
+    {
+        $this->conditions['visible'] = new FieldCondition($field, $operator, $value);
+
+        return $this;
+    }
+
+    /**
+     * Hide this field while another field's value satisfies the condition
+     * (the inverse of {@see visibleWhen()}).
+     */
+    public function hiddenWhen(string $field, mixed $value = true, string $operator = FieldCondition::EQUALS): static
+    {
+        $this->conditions['hidden'] = new FieldCondition($field, $operator, $value);
+
+        return $this;
+    }
+
+    /**
+     * Require this field only while another field's value satisfies the
+     * condition. Enforced on the client (live `required`) and the server
+     * (Laravel `required_if`/conditional rule).
+     *
+     *     TextInput::make('reason')->requiredWhen('status', 'rejected');
+     */
+    public function requiredWhen(string $field, mixed $value = true, string $operator = FieldCondition::EQUALS): static
+    {
+        $this->conditions['required'] = new FieldCondition($field, $operator, $value);
+
+        return $this;
+    }
+
+    /**
+     * Disable this field while another field's value satisfies the condition.
+     * Purely a UI affordance (a disabled input still round-trips its current
+     * value); pair with {@see visibleWhen()} to also drop it from the payload.
+     */
+    public function disabledWhen(string $field, mixed $value = true, string $operator = FieldCondition::EQUALS): static
+    {
+        $this->conditions['disabled'] = new FieldCondition($field, $operator, $value);
+
+        return $this;
+    }
+
+    /**
+     * The serialized conditions for the client, or null when none are set.
+     *
+     * @return array<string, array{field: string, operator: string, value: mixed}>|null
+     */
+    public function getConditionsData(): ?array
+    {
+        if ($this->conditions === []) {
+            return null;
+        }
+
+        return array_map(static fn (FieldCondition $c): array => $c->toArray(), $this->conditions);
+    }
+
+    /**
+     * Whether this field is conditionally EXCLUDED for a given data set — its
+     * `visibleWhen` fails or its `hiddenWhen` holds. A excluded field is dropped
+     * from server-side rules and state, exactly like a statically hidden one.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function isConditionallyExcluded(array $data): bool
+    {
+        if (isset($this->conditions['visible']) && ! $this->conditions['visible']->passes($data)) {
+            return true;
+        }
+
+        if (isset($this->conditions['hidden']) && $this->conditions['hidden']->passes($data)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether this field is conditionally required for a given data set.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function isConditionallyRequired(array $data): bool
+    {
+        return isset($this->conditions['required']) && $this->conditions['required']->passes($data);
+    }
+
     public function afterStateHydrated(Closure $callback): static
     {
         $this->afterStateHydrated = $callback;
@@ -470,6 +578,7 @@ abstract class Field extends Component
             weekdayFormat: $this->rangeConfig()['weekdayFormat'],
             fixedWeeks: $this->rangeConfig()['fixedWeeks'],
             weekStartsOn: $this->rangeConfig()['weekStartsOn'] ?? null,
+            conditions: $this->getConditionsData(),
         );
     }
 

@@ -119,5 +119,9 @@ class FormFieldData extends Data
         public ?array $signatureConfig = null,
         // PhoneInput — {defaultCountry, countries:[{code,name,dial}]}.
         public ?array $phoneConfig = null,
+        // Client-side conditional rules keyed by effect (visible/hidden/
+        // required/disabled); each is {field, operator, value}. Evaluated live
+        // by KinetixForm against the current form state. Null = unconditional.
+        public ?array $conditions = null,
     ) {}
 }

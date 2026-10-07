@@ -366,6 +366,34 @@ Fields reside in the `Happones\Kinetix\Forms\Components` namespace. They all inh
 - `extraAttributes(array $attributes)`: Custom HTML attributes merged onto the field's outer container.
 - `extraFieldWrapperAttributes(array $attributes)`: Custom HTML attributes merged onto the field wrapper (label + control group).
 
+#### Conditional fields
+
+Show, hide, require or disable a field based on **another field's live value** —
+evaluated client-side (no round-trip) and enforced again on the server:
+
+- `visibleWhen(string $field, mixed $value = true, string $operator = 'equals')`
+- `hiddenWhen(string $field, mixed $value = true, string $operator = 'equals')`
+- `requiredWhen(string $field, mixed $value = true, string $operator = 'equals')`
+- `disabledWhen(string $field, mixed $value = true, string $operator = 'equals')`
+
+```php
+Select::make('type')->options(['person' => 'Person', 'company' => 'Company']);
+TextInput::make('company_name')->visibleWhen('type', 'company');
+TextInput::make('vat')->visibleWhen('country', ['ES', 'FR'], 'in');
+TextInput::make('reason')->requiredWhen('status', 'rejected');
+```
+
+Operators: `equals`, `notEquals`, `in`, `notIn`, `truthy`, `falsy`, `filled`,
+`blank`. The condition ships as plain data (not a closure), so `KinetixForm`
+re-evaluates it instantly as the user types. The server mirrors it: a
+conditionally **hidden** field is excluded from validation and never persisted
+(a smuggled value never reaches the model), and a conditionally **required**
+one gains `required` on submit — the client is a UX layer, not the guard.
+
+> This is the client-side slice of form reactivity. The server-driven
+> `$get`/`$set` loop (recomputing options from the database on change) is
+> future work; `live()` / `afterStateUpdated()` are not yet wired.
+
 ---
 
 ### 1. `TextInput`

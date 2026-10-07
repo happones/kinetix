@@ -203,16 +203,38 @@ class Form implements Arrayable, JsonSerializable
     /**
      * Get all validation rules.
      *
+     * @param  array<string, mixed>             $data The submitted values, so conditional
+     *                                                rules (visibleWhen/requiredWhen) can be
+     *                                                evaluated server-side.
      * @return array<string, array<int, mixed>>
      */
-    public function getValidationRules(): array
+    public function getValidationRules(array $data = []): array
     {
         $rules  = [];
         $fields = $this->getFields();
         foreach ($fields as $name => $field) {
-            if (! $field->isHidden($this->operation, $this->record)) {
-                $rules[$name] = $field->getRules($this->record);
+            if ($field->isHidden($this->operation, $this->record)) {
+                continue;
             }
+
+            // A conditionally-hidden field is excluded from validation
+            // entirely — its rules (incl. a static `required`) must not block a
+            // submit where the field isn't even shown.
+            if ($field->isConditionallyExcluded($data)) {
+                continue;
+            }
+
+            $fieldRules = $field->getRules($this->record);
+
+            // A conditionally-required field gains `required` server-side when
+            // its condition holds (and loses the client-only `nullable` that
+            // getRules() prepends for an optional field).
+            if ($field->isConditionallyRequired($data) && ! in_array('required', $fieldRules, true)) {
+                $fieldRules = array_values(array_filter($fieldRules, static fn ($r): bool => $r !== 'nullable'));
+                array_unshift($fieldRules, 'required');
+            }
+
+            $rules[$name] = $fieldRules;
         }
 
         return $rules;
@@ -273,7 +295,7 @@ class Form implements Arrayable, JsonSerializable
 
         return Validator::make(
             $data,
-            $this->getValidationRules(),
+            $this->getValidationRules($data),
             $this->getValidationMessages(),
             $this->getValidationAttributes(),
         );
@@ -301,10 +323,18 @@ class Form implements Arrayable, JsonSerializable
         $fields = $this->getFields();
 
         foreach ($fields as $name => $field) {
-            if (! $field->isHidden($this->operation, $this->record) && $field->isSaved()) {
-                $value        = $data[$name] ?? $field->getDefaultValue($this->record);
-                $state[$name] = $field->dehydrate($value, $this->record);
+            if ($field->isHidden($this->operation, $this->record) || ! $field->isSaved()) {
+                continue;
             }
+
+            // A conditionally-hidden field is not persisted — a smuggled value
+            // for a field the form never showed never reaches the model.
+            if ($field->isConditionallyExcluded($data)) {
+                continue;
+            }
+
+            $value        = $data[$name] ?? $field->getDefaultValue($this->record);
+            $state[$name] = $field->dehydrate($value, $this->record);
         }
 
         return $state;

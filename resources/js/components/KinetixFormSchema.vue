@@ -2,6 +2,7 @@
 import { Plus, Trash2, ChevronUp, ChevronDown } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
 import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
 import './kinetix-grid.css';
 import {
@@ -56,10 +57,44 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
         values: () => props.values,
         emit: (name, value) => emit('update:value', name, value),
     });
+
+// Conditional visibility/disable/require (visibleWhen/hiddenWhen/…), evaluated
+// live against the current form values. Invisible nodes are dropped from the
+// render (so a hidden field holds no focus and submits no value via the schema
+// walk); a conditionally disabled/required field gets its flag merged in. Nodes
+// without conditions pass through untouched (same object reference).
+const { resolve } = useKinetixFieldConditions();
+
+const renderSchema = computed(() =>
+    props.schema
+        .map((comp) => {
+            if (!comp || !comp.conditions) {
+                return comp;
+            }
+
+            const { visible, disabled, required } = resolve(comp, props.values);
+
+            if (!visible) {
+                return null;
+            }
+
+            // Only clone when a flag actually changes, to keep renders cheap.
+            if (!disabled && required === null) {
+                return comp;
+            }
+
+            return {
+                ...comp,
+                isDisabled: disabled || comp.isDisabled,
+                isRequired: required === null ? comp.isRequired : required,
+            };
+        })
+        .filter((comp) => comp !== null),
+);
 </script>
 
 <template>
-    <template v-for="(comp, index) in schema" :key="index">
+    <template v-for="(comp, index) in renderSchema" :key="index">
         <!-- Grid Layout (host wrapper measures the grid's own width) -->
         <div
             v-if="comp.type === 'grid'"

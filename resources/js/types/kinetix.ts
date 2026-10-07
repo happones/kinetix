@@ -1,3 +1,23 @@
+/**
+/**
+ * A serialized conditional rule comparing another field's live value. Drives
+ * client-side conditional visibility/disable/require in KinetixForm (see
+ * `useKinetixFieldConditions`). Mirrors PHP's `FieldCondition`.
+ */
+export interface KinetixFieldCondition {
+    field: string;
+    operator:
+        | 'equals'
+        | 'notEquals'
+        | 'in'
+        | 'notIn'
+        | 'truthy'
+        | 'falsy'
+        | 'filled'
+        | 'blank';
+    value?: unknown;
+}
+
 export interface KinetixAction {
     name: string;
     label: string;

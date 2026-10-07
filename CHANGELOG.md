@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.199.0] - 2026-10-07
+
+Conditional form fields — show, hide, require or disable a field based on
+another field's live value, with no server round-trip. Re-publish the
+components (`--force`) to pick this up. Existing APIs are unchanged.
+
+### Added
+
+- **Conditional fields (published).** `visibleWhen()`, `hiddenWhen()`,
+  `requiredWhen()` and `disabledWhen()` on any form field, comparing another
+  field's value:
+
+  ```php
+  TextInput::make('company_name')->visibleWhen('type', 'company');
+  TextInput::make('vat')->visibleWhen('country', ['ES', 'FR'], 'in');
+  TextInput::make('reason')->requiredWhen('status', 'rejected');
+  ```
+
+  The condition serializes as plain data (no closure), so `KinetixForm`
+  evaluates it live against the current values — showing/hiding/disabling and
+  toggling `required` instantly, no round-trip. Operators: `equals`,
+  `notEquals`, `in`, `notIn`, `truthy`, `falsy`, `filled`, `blank`.
+
+  Crucially the **server enforces the same condition**: a conditionally hidden
+  field is excluded from validation and never persisted (a smuggled value for a
+  field the form didn't show never reaches the model), and a conditionally
+  required one gains `required` on submit. The client is a UX layer, not the
+  guard.
+
+  This is the client-side slice of form reactivity; the server-driven
+  `$get`/`$set` loop (recomputing options from the database, etc.) remains
+  future work — `live()` / `afterStateUpdated()` are still annotated as
+  not-yet-wired.
+
 ## [0.198.0] - 2026-10-07
 
 Two Filament-parity table features: actions that collect input in a modal form
