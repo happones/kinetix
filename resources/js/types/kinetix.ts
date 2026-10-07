@@ -76,6 +76,8 @@ export interface KinetixFormActionForm {
     precognitive?: boolean;
     validationUrl?: string | null;
     validationMethod?: string;
+    /** Signed descriptor for server-driven reactivity ($get/$set). */
+    recomputeDescriptor?: string | null;
 }
 
 export interface KinetixNotification {

@@ -6,6 +6,7 @@ import {
     firstErroredField,
     focusField,
 } from '@/composables/useKinetixFormErrors';
+import { useKinetixFormReactivity } from '@/composables/useKinetixFormReactivity';
 import { useKinetixPrecognition } from '@/composables/useKinetixPrecognition';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import KinetixFormSchema from './KinetixFormSchema.vue';
@@ -19,6 +20,8 @@ const props = defineProps<{
         precognitive?: boolean;
         validationUrl?: string | null;
         validationMethod?: string;
+        /** Signed descriptor for server-driven reactivity ($get/$set). */
+        recomputeDescriptor?: string | null;
     };
     /**
      * Endpoint for live (Precognition) validation. Falls back to the form's
@@ -43,6 +46,51 @@ const { t } = useI18n();
 const page = usePage();
 
 const formValues = ref<Record<string, any>>({ ...props.form.data });
+
+// The rendered schema. Starts as the server's initial schema and is replaced
+// in place by each server-driven recompute (dependent options, conditional
+// visibility that needs the DB, etc.). Kept separate from props so a recompute
+// never has to wait for a full Inertia round-trip.
+const liveSchema = ref<any[]>(props.form.schema);
+
+// Re-sync the schema if the form is re-rendered from the server (e.g. a failed
+// submit re-serializes it), unless the user is mid-recompute.
+watch(
+    () => props.form.schema,
+    (schema) => {
+        liveSchema.value = schema;
+    },
+);
+
+// Flatten the schema to find a field's `isLive` flag by name (recursing into
+// layout containers), so a value change knows whether to trigger a recompute.
+const isFieldLive = (
+    name: string,
+    nodes: any[] = liveSchema.value,
+): boolean => {
+    for (const node of nodes) {
+        if (node?.name === name) {
+            return !!node.isLive;
+        }
+
+        if (Array.isArray(node?.schema) && isFieldLive(name, node.schema)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+const { onFieldChange } = useKinetixFormReactivity({
+    descriptor: () => props.form.recomputeDescriptor,
+    getValues: () => formValues.value,
+    onSchema: (schema) => {
+        liveSchema.value = schema as any[];
+    },
+    onChanges: (changes) => {
+        formValues.value = { ...formValues.value, ...changes };
+    },
+});
 
 // Server (Inertia) validation errors from the last submit. Fields the user has
 // since edited are dismissed so a stale message doesn't linger under an input
@@ -125,6 +173,9 @@ const onUpdateValue = (name: string, value: any) => {
     }
 
     precognition?.validate(name);
+
+    // A live field drives the server-driven reactivity loop (debounced).
+    onFieldChange(isFieldLive(name));
 };
 
 // Dismissals survive the submit: until the response lands, `page.props.errors`
@@ -143,7 +194,7 @@ const onSubmit = (e: Event) => {
              full width, and Grid::make(2) opts into columns. -->
         <div class="kinetix-form-root gap-4 grid grid-cols-1">
             <KinetixFormSchema
-                :schema="form.schema"
+                :schema="liveSchema"
                 :values="formValues"
                 :errors="errors"
                 :flat="flat"
