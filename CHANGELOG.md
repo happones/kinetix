@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.192.0] - 2026-10-06
+
+The announcement banner fits a phone. Re-publish the components (`--force`) to
+pick this up, and drop any `@container` class workaround on the banner.
+
 ### Fixed
 
 - **The announcement banner no longer pushes a phone's page sideways
