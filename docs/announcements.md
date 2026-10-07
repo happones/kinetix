@@ -253,7 +253,25 @@ import KinetixAnnouncementBanner from '@/components/kinetix/KinetixAnnouncementB
 | `variant`         | `plain`      | `soft`, `outline` or `accent` color the surface by level |
 | `transition`      | per position | Enter/leave preset; `slide-down` pinned, `fade` inline  |
 | `slideTransition` | `fade`       | How one entry gives way to the next                     |
+| `indicators`      | `auto`       | `dots`, `counter` ("2 / 7") or `auto` (see below)       |
 | `class`           | —            | Merged onto the alert surface                           |
+
+### On a phone
+
+The banner takes its width from the page, never from its controls, so it fits
+any column without pushing the page sideways. A rotating banner shows one dot
+per entry — each a 24px target, the WCAG minimum — next to the arrows; once the
+controls have less than 25rem of room (a phone, a narrow sidebar), `auto` swaps
+the dots for a "2 / 7" counter. The arrows, the pause button and the
+screen-reader position ("2 of 7") stay. `indicators="dots"` keeps the dots at
+every width (they wrap onto a second line instead of overflowing), and
+`indicators="counter"` always shows the counter.
+
+```vue
+<KinetixAnnouncementBanner indicators="counter" />
+```
+
+A long word, URL or button label wraps too.
 
 ### Pinned to the top
 

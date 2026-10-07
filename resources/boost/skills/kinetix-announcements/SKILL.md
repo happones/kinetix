@@ -110,6 +110,11 @@ written to the tab's dismissal ledger, so a page restored by Back/Forward
 motion are `useKinetixTransition` presets (`transition`, `slideTransition`;
 `none` disables). Focus stays on the banner after a close while entries remain
 and moves to the next control after the last one; closes are announced.
+The banner takes its width from its container (a `minmax(0,1fr)` grid; the
+controls are a query container and wrap), so it never widens a phone's page.
+`indicators`: `auto` (default — dots while the controls have ≥ 25rem, a
+"2 / 7" counter below), `dots` or `counter`; the slide label keeps the
+position for screen readers.
 
 `position="fixed-top"` pins it to the viewport (below Kinetix's overlays) and
 publishes its height as `--kinetix-announcement-banner-height` on `<html>`, so

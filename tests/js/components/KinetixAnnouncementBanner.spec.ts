@@ -209,6 +209,87 @@ describe('KinetixAnnouncementBanner', () => {
         ).toBe('');
     });
 
+    it('takes its width from the page, never from its controls', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 7,
+            banner: Array.from({ length: 7 }, (_, i) =>
+                announcement(i + 1, `Entry ${i + 1}`),
+            ),
+        };
+        const inline = mountIt();
+        await flushPromises();
+
+        // An `auto` column would grow to the controls' min-content width.
+        expect(inline.find('div.grid').classes()).toContain(
+            'grid-cols-[minmax(0,1fr)]',
+        );
+        expect(inline.find('div.grid > div').classes()).toContain('min-w-0');
+        // The controls are a query container and wrap rather than overflow.
+        const controls = inline.find('.\\@container');
+        expect(controls.exists()).toBe(true);
+        expect(controls.find('div').classes()).toContain('flex-wrap');
+        inline.unmount();
+
+        const pinned = mountIt({ position: 'fixed-top' });
+        await flushPromises();
+        expect(pinned.find('div.fixed > div').classes()).toContain('min-w-0');
+        pinned.unmount();
+    });
+
+    it('swaps the dots for a counter on a narrow banner (`auto`)', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [
+                announcement(1, 'First'),
+                announcement(2, 'Second'),
+                announcement(3, 'Third'),
+            ],
+        };
+        const w = mountIt();
+        await flushPromises();
+        await buttonWithLabel(w, 'Next announcement')?.trigger('click');
+
+        const dots = buttonWithLabel(w, 'Show: First')!.element.parentElement!;
+        expect(dots.className).toContain('hidden');
+        expect(dots.className).toContain('@min-[25rem]:flex');
+
+        const counter = w.find('[data-slot="counter"]');
+        expect(counter.text()).toBe('2 / 3');
+        expect(counter.classes()).toContain('@min-[25rem]:hidden');
+        // The slide's label already gives the position to a screen reader.
+        expect(counter.attributes('aria-hidden')).toBe('true');
+        expect(
+            w.find('[aria-roledescription="slide"]').attributes('aria-label'),
+        ).toBe('2 of 3');
+    });
+
+    it('can keep the dots or the counter at every width', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 2,
+            banner: [announcement(1, 'First'), announcement(2, 'Second')],
+        };
+        const dots = mountIt({ indicators: 'dots' });
+        await flushPromises();
+        const group = buttonWithLabel(dots, 'Show: First')!.element
+            .parentElement!;
+        expect(group.classList.contains('flex')).toBe(true);
+        expect(group.classList.contains('hidden')).toBe(false);
+        expect(dots.find('[data-slot="counter"]').exists()).toBe(false);
+        dots.unmount();
+
+        const counter = mountIt({ indicators: 'counter' });
+        await flushPromises();
+        expect(buttonWithLabel(counter, 'Show: First')).toBeUndefined();
+        const label = counter.find('[data-slot="counter"]');
+        expect(label.text()).toBe('1 / 2');
+        expect(label.classes()).not.toContain('@min-[25rem]:hidden');
+        // The arrows stay either way.
+        expect(buttonWithLabel(counter, 'Next announcement')).toBeTruthy();
+    });
+
     it('pins to the top and publishes its height for the layout to reserve', async () => {
         fetchMock.mockResolvedValueOnce({
             announcements: [announcement(1, 'Pinned')],

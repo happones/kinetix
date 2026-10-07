@@ -100,6 +100,12 @@ const props = withDefaults(
         transition?: KinetixTransitionPreset;
         /** How one entry gives way to the next while rotating. */
         slideTransition?: KinetixTransitionPreset;
+        /**
+         * Where the carousel is: `dots` (one button per entry), `counter`
+         * ("2 / 7") or `auto` — dots while the controls have room for all of
+         * them, the counter on a narrow banner (a phone).
+         */
+        indicators?: 'auto' | 'dots' | 'counter';
         class?: string;
     }>(),
     {
@@ -116,6 +122,7 @@ const props = withDefaults(
         variant: 'plain',
         transition: undefined,
         slideTransition: 'fade',
+        indicators: 'auto',
     },
 );
 
@@ -359,7 +366,10 @@ watch(count, (value) => {
 <template>
     <!-- The wrapper is what gets pinned; `inline` leaves it a plain grid so the
          `collapse` preset can animate its height, and the banner keeps
-         behaving like any other element in the page. -->
+         behaving like any other element in the page. Its one column is
+         `minmax(0, 1fr)`: the banner takes its width from the page, never
+         the other way round (an `auto` column grows to the content's
+         min-content width and pushes a phone's page sideways). -->
     <Transition v-bind="enterLeave">
         <div
             v-if="current"
@@ -367,7 +377,7 @@ watch(count, (value) => {
             :class="
                 isFixed
                     ? 'inset-x-0 top-0 p-4 fixed z-40 flex justify-center'
-                    : 'grid'
+                    : 'grid grid-cols-[minmax(0,1fr)]'
             "
         >
             <!-- Pinned: an opaque bar carries the shadow and the width, so a
@@ -376,10 +386,10 @@ watch(count, (value) => {
                 :class="
                     isFixed
                         ? cn(
-                              'rounded-lg shadow-lg w-full bg-popover',
+                              'min-w-0 rounded-lg shadow-lg w-full bg-popover',
                               fixedWidthClass,
                           )
-                        : 'min-h-0'
+                        : 'min-h-0 min-w-0'
                 "
             >
                 <Alert
@@ -414,7 +424,8 @@ watch(count, (value) => {
                         />
                     </span>
 
-                    <div class="min-w-0 flex-1">
+                    <!-- A long word or URL breaks instead of overflowing. -->
+                    <div class="min-w-0 flex-1 break-words">
                         <div
                             role="group"
                             aria-roledescription="slide"
@@ -499,7 +510,8 @@ watch(count, (value) => {
                                                     variant: 'outline',
                                                     size: 'sm',
                                                 }),
-                                                'mt-3',
+                                                // A long label wraps.
+                                                'mt-3 min-h-8 py-1 h-auto max-w-full whitespace-normal',
                                             )
                                         "
                                     >
@@ -526,101 +538,134 @@ watch(count, (value) => {
                             {{ t('kinetix.alert_dont_show_again') }}
                         </button>
 
-                        <div
-                            v-if="rotates"
-                            class="gap-1 mt-3 flex items-center"
-                        >
-                            <button
-                                type="button"
-                                :class="
-                                    buttonVariants({
-                                        variant: 'ghost',
-                                        size: 'icon-sm',
-                                    })
-                                "
-                                :aria-label="
-                                    t('kinetix.announcements_previous')
-                                "
-                                @click="move(-1)"
-                            >
-                                <ChevronLeft
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                            </button>
-
-                            <div class="gap-1 px-1 flex items-center">
+                        <!-- A query container: the controls fit the width
+                             they are given and never set it. One 24px dot per
+                             entry (the WCAG 2.5.8 minimum target) next to the
+                             arrows and pause needs 7rem + 1.75rem per entry —
+                             24.5rem at the server's ten — so below 25rem
+                             `auto` swaps the dots for a counter. -->
+                        <div v-if="rotates" class="mt-3 @container">
+                            <div class="gap-1 flex flex-wrap items-center">
                                 <button
-                                    v-for="(a, i) in announcements"
-                                    :key="String(a.id)"
                                     type="button"
-                                    class="size-6 grid place-items-center rounded-full focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                                    :aria-current="
-                                        i === index ? 'true' : undefined
-                                    "
-                                    :aria-label="
-                                        t('kinetix.announcements_go_to', {
-                                            title: a.title,
+                                    :class="
+                                        buttonVariants({
+                                            variant: 'ghost',
+                                            size: 'icon-sm',
                                         })
                                     "
-                                    @click="select(i)"
+                                    :aria-label="
+                                        t('kinetix.announcements_previous')
+                                    "
+                                    @click="move(-1)"
                                 >
-                                    <span
-                                        class="size-1.5 rounded-full transition-colors"
-                                        :class="
-                                            i === index
-                                                ? 'bg-primary'
-                                                : 'bg-muted-foreground/40'
+                                    <ChevronLeft
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+
+                                <div
+                                    v-if="indicators !== 'counter'"
+                                    class="gap-1 px-1 flex-wrap items-center"
+                                    :class="
+                                        indicators === 'auto'
+                                            ? 'hidden @min-[25rem]:flex'
+                                            : 'flex'
+                                    "
+                                >
+                                    <button
+                                        v-for="(a, i) in announcements"
+                                        :key="String(a.id)"
+                                        type="button"
+                                        class="size-6 grid place-items-center rounded-full focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                                        :aria-current="
+                                            i === index ? 'true' : undefined
                                         "
+                                        :aria-label="
+                                            t('kinetix.announcements_go_to', {
+                                                title: a.title,
+                                            })
+                                        "
+                                        @click="select(i)"
+                                    >
+                                        <span
+                                            class="size-1.5 rounded-full transition-colors"
+                                            :class="
+                                                i === index
+                                                    ? 'bg-primary'
+                                                    : 'bg-muted-foreground/40'
+                                            "
+                                        />
+                                    </button>
+                                </div>
+
+                                <!-- Visual only: the slide's label already says
+                                 "2 of 7" to a screen reader. -->
+                                <span
+                                    v-if="indicators !== 'dots'"
+                                    aria-hidden="true"
+                                    class="px-2 text-sm tabular-nums"
+                                    :class="[
+                                        indicators === 'auto' &&
+                                            '@min-[25rem]:hidden',
+                                        colorized
+                                            ? 'text-foreground/80'
+                                            : 'text-muted-foreground',
+                                    ]"
+                                    data-slot="counter"
+                                >
+                                    {{ index + 1 }} / {{ count }}
+                                </span>
+
+                                <button
+                                    type="button"
+                                    :class="
+                                        buttonVariants({
+                                            variant: 'ghost',
+                                            size: 'icon-sm',
+                                        })
+                                    "
+                                    :aria-label="
+                                        t('kinetix.announcements_next')
+                                    "
+                                    @click="move(1)"
+                                >
+                                    <ChevronRight
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+
+                                <button
+                                    v-if="autoplays"
+                                    type="button"
+                                    :class="
+                                        buttonVariants({
+                                            variant: 'ghost',
+                                            size: 'icon-sm',
+                                        })
+                                    "
+                                    :aria-label="
+                                        paused
+                                            ? t('kinetix.announcements_play')
+                                            : t('kinetix.announcements_pause')
+                                    "
+                                    :aria-pressed="paused"
+                                    @click="paused = !paused"
+                                >
+                                    <Play
+                                        v-if="paused"
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    <Pause
+                                        v-else
+                                        class="size-4"
+                                        aria-hidden="true"
                                     />
                                 </button>
                             </div>
-
-                            <button
-                                type="button"
-                                :class="
-                                    buttonVariants({
-                                        variant: 'ghost',
-                                        size: 'icon-sm',
-                                    })
-                                "
-                                :aria-label="t('kinetix.announcements_next')"
-                                @click="move(1)"
-                            >
-                                <ChevronRight
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                            </button>
-
-                            <button
-                                v-if="autoplays"
-                                type="button"
-                                :class="
-                                    buttonVariants({
-                                        variant: 'ghost',
-                                        size: 'icon-sm',
-                                    })
-                                "
-                                :aria-label="
-                                    paused
-                                        ? t('kinetix.announcements_play')
-                                        : t('kinetix.announcements_pause')
-                                "
-                                :aria-pressed="paused"
-                                @click="paused = !paused"
-                            >
-                                <Play
-                                    v-if="paused"
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                                <Pause
-                                    v-else
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                            </button>
                         </div>
                     </div>
 

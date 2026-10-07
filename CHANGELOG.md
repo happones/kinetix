@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The announcement banner no longer pushes a phone's page sideways
+  (published).** A banner rotating several entries had one 24px dot per entry
+  in a row that could not wrap, and its inline wrapper was a grid with an
+  `auto` column, which grows to fit its content. Together they made the banner
+  at least `216 + 28 × entries` px wide: 412px for 7 entries, wider than any
+  phone. The pinned (`fixed-top`) bar cut its controls off instead. The banner
+  now takes its width from its container (a `minmax(0, 1fr)` column, `min-w-0`
+  on the pinned bar). The controls are a query container that wraps. A long
+  word, URL or button label wraps too. A `class` workaround that hid the dots
+  with `@container` can go.
+
+### Added
+
+- **`indicators` on `<KinetixAnnouncementBanner>` (published).** `auto` (the
+  default) shows the dots while the controls have at least 25rem of room, and a
+  "2 / 7" counter below that (a phone, a narrow column). `dots` and `counter`
+  pin one or the other. The arrows, the pause button and the screen-reader
+  position ("2 of 7") stay in every mode.
+
 ## [0.191.2] - 2026-10-05
 
 A reduced-motion timing fix, and CI fully green again across every PHP,
