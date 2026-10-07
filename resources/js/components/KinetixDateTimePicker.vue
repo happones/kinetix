@@ -205,14 +205,17 @@ const done = () => {
 };
 
 // Mobile-first hit areas: ~40px tall touch rows (44px incl. gap), compact
-// squares from `sm:` up. touch-manipulation kills the 300ms tap delay.
+// 32px squares from `sm:` up. `sm:w-full` stretches a button to fill a wide
+// column, but `sm:min-w-8` floors its width at 32px so a narrow column can't
+// shrink it below WCAG 2.5.8's 24px target. touch-manipulation kills the
+// 300ms tap delay.
 const timeBtn = (active: boolean) =>
     cn(
         buttonVariants({
             variant: active ? 'default' : 'ghost',
             size: 'icon-sm',
         }),
-        'h-10 w-12 sm:h-8 sm:w-full shrink-0 touch-manipulation',
+        'h-10 w-12 sm:h-8 sm:w-full sm:min-w-8 shrink-0 touch-manipulation',
     );
 
 // Reveal the selected hour/minute in their scroll columns when the popover opens.

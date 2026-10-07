@@ -198,10 +198,15 @@ const { headingId } = useKinetixFocusTrap({
                             fullscreen ? 'h-[calc(100dvh-2rem)]' : '',
                         ]"
                     >
+                        <!-- v4's close icon is size-4, but a bare 16px icon
+                             is a 16×16 hit target (below WCAG 2.5.8's 24px
+                             floor and awkward on touch). Wrap it in a 24×24
+                             flex box so the icon stays v4-sized while the
+                             pointer/finger gets a compliant target. -->
                         <button
                             v-if="showCloseButton"
                             type="button"
-                            class="top-4 right-4 rounded-xs [&_svg:not([class*='size-'])]:size-4 absolute opacity-70 ring-offset-background transition-opacity outline-none hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                            class="top-4 right-4 rounded-xs [&_svg:not([class*='size-'])]:size-4 size-6 absolute flex touch-manipulation items-center justify-center opacity-70 ring-offset-background transition-opacity outline-none hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0"
                             :disabled="processing"
                             :aria-label="t('kinetix.close')"
                             @click="close"

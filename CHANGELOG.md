@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.194.0] - 2026-10-07
+
+The last two touch targets below the WCAG minimum, found by a full
+`npm run audit:mobile` sweep (every gallery specimen at 320, 375, 430 and
+1280px). The overflow sweep stayed clean — nothing pushes a phone's page
+sideways. Re-publish the components (`--force`) to pick this up. Desktop
+layout is unchanged.
+
+### Fixed
+
+- **Modal close button (published).** The ✕ was a bare 16×16px target — below
+  WCAG 2.5.8's 24px floor and awkward on touch. It is wrapped in a 24×24
+  (`size-6`) flex box with `touch-manipulation`, so the icon stays v4-sized
+  (`size-4`) while the pointer and finger get a compliant target. Affects every
+  Kinetix modal (`KinetixModal`).
+- **Time picker columns (published).** The hour/minute/AM-PM buttons in
+  `KinetixTimePicker` and `KinetixDateTimePicker` collapsed to ~16px wide from
+  `sm:` up, where `sm:w-full` resolved against a narrow column. A `sm:min-w-8`
+  floor keeps them at least 32px wide while still stretching to fill a wider
+  column. Mobile rows (`w-12`, 48px) are unchanged.
+
 ## [0.193.0] - 2026-10-06
 
 Every component fits a phone. A sweep of the whole gallery at 320, 375 and
