@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.193.0] - 2026-10-06
+
+Every component fits a phone. A sweep of the whole gallery at 320, 375 and
+430px found seven layouts that pushed the page sideways and one target below
+the WCAG minimum; all are fixed and guarded. Re-publish the components and
+composables (`--force`) to pick this up.
+
 ### Fixed
 
 A sweep of every component at phone widths (320, 375 and 430px), after the
