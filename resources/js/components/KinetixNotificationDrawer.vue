@@ -95,7 +95,9 @@ onMounted(() => {
                 </div>
 
                 <!-- List / Empty state -->
-                <div class="flex-1 divide-y divide-border overflow-y-auto">
+                <div
+                    class="kinetix-notification-scroll flex-1 divide-y divide-border overflow-y-auto"
+                >
                     <div
                         v-if="notifications.length === 0"
                         class="gap-2 px-6 py-20 flex h-full flex-col items-center justify-center text-center"
@@ -125,3 +127,29 @@ onMounted(() => {
         </Transition>
     </Teleport>
 </template>
+
+<style scoped>
+/* Thin scrollbar for the notification list only. Scoped to this scroller (the
+   style rides the teleported panel's scope hash) so it no longer paints the
+   app's global scrollbar — the previous rules lived in an un-scopeable
+   `::-webkit-scrollbar` block that leaked document-wide. An app can reuse its
+   own themed scrollbar by setting --kx-scrollbar-thumb up the tree; the
+   defaults keep the original look. */
+.kinetix-notification-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--kx-scrollbar-thumb, #e5e5e5) transparent;
+}
+.kinetix-notification-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+.kinetix-notification-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.kinetix-notification-scroll::-webkit-scrollbar-thumb {
+    border-radius: 2px;
+    background: var(--kx-scrollbar-thumb, #e5e5e5);
+}
+:global(.dark) .kinetix-notification-scroll::-webkit-scrollbar-thumb {
+    background: var(--kx-scrollbar-thumb, #262626);
+}
+</style>

@@ -885,11 +885,15 @@ const moveRowKeyboard = (index: number, delta: number): void => {
     width: 100%;
 }
 
-/* shadcn-style scrollbar: thin, rounded, muted thumb (tokens resolve in
-   shadcn-vue v4 apps and via the published kinetix.css fallback). */
+/* shadcn-style scrollbar: thin, rounded, muted thumb. An app with a themed
+   global scrollbar can reuse its own design by setting --kx-scrollbar-thumb /
+   --kx-scrollbar-thumb-hover (anywhere up the tree); the defaults keep the
+   shadcn look — tokens resolve in shadcn-vue v4 apps and via the published
+   kinetix.css fallback. */
 .kinetix-scroll-x {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border, #d4d4d8) transparent;
+    scrollbar-color: var(--kx-scrollbar-thumb, var(--color-border, #d4d4d8))
+        transparent;
 }
 .kinetix-scroll-x::-webkit-scrollbar {
     height: 0.625rem;
@@ -902,9 +906,12 @@ const moveRowKeyboard = (index: number, delta: number): void => {
     border-radius: 9999px;
     border: 2px solid transparent;
     background-clip: content-box;
-    background-color: var(--color-border, #d4d4d8);
+    background-color: var(--kx-scrollbar-thumb, var(--color-border, #d4d4d8));
 }
 .kinetix-scroll-x:hover::-webkit-scrollbar-thumb {
-    background-color: var(--color-muted-foreground, #a1a1aa);
+    background-color: var(
+        --kx-scrollbar-thumb-hover,
+        var(--color-muted-foreground, #a1a1aa)
+    );
 }
 </style>

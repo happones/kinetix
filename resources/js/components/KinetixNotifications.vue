@@ -221,20 +221,3 @@ onUnmounted(() => {
         <KinetixNotificationDrawer />
     </div>
 </template>
-
-<style scoped>
-/* Scrollbar styling */
-::-webkit-scrollbar {
-    width: 4px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: #e5e5e5;
-    border-radius: 2px;
-}
-.dark ::-webkit-scrollbar-thumb {
-    background: #262626;
-}
-</style>

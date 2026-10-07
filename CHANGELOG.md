@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.195.0] - 2026-10-07
+
+The table and the notification panel stop imposing their own scrollbar on an
+app that themes its scrollbar globally. Both now read overridable
+`--kx-scrollbar-thumb` / `--kx-scrollbar-thumb-hover` tokens, defaulting to the
+previous look — so they're unchanged out of the box, but an app can reuse its
+own design without touching the published file. Re-publish the components
+(`--force`) to pick this up.
+
+### Fixed
+
+- **Table scrollbar (published).** `.kinetix-scroll-x` now reads
+  `--kx-scrollbar-thumb` / `--kx-scrollbar-thumb-hover` (and feeds the first to
+  Firefox's `scrollbar-color`), falling back to the shadcn `--color-border` /
+  `--color-muted-foreground` it used before. An app with a themed global
+  scrollbar can reuse its design by setting those tokens up the tree.
+- **Notification panel scrollbar (published).** The scrollbar styling lived in
+  an un-scopeable `::-webkit-scrollbar` block in `KinetixNotifications.vue`
+  that leaked document-wide, repainting the app's own scrollbar — not just the
+  panel's. It now lives on the drawer's actual scroller
+  (`.kinetix-notification-scroll` in `KinetixNotificationDrawer.vue`, scoped so
+  it no longer touches the global scrollbar) and reads `--kx-scrollbar-thumb`,
+  defaulting to the original `#e5e5e5` (light) / `#262626` (dark).
+
 ## [0.194.0] - 2026-10-07
 
 The last two touch targets below the WCAG minimum, found by a full
