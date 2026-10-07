@@ -385,8 +385,10 @@ const pieTooltipTemplate = (d: KinetixChartSlice | null): string => {
                 metrics.length
             "
         >
-            <div class="gap-3 flex items-start justify-between">
-                <div class="min-w-0">
+            <!-- The title keeps at least 12rem; below that the metrics and
+                 actions wrap under it instead of pushing out of the card. -->
+            <div class="gap-3 flex flex-wrap items-start justify-between">
+                <div class="min-w-0 basis-48 flex-1">
                     <CardTitle v-if="widget.title" class="text-base">{{
                         widget.title
                     }}</CardTitle>
@@ -394,7 +396,7 @@ const pieTooltipTemplate = (d: KinetixChartSlice | null): string => {
                         {{ widget.description }}
                     </CardDescription>
                 </div>
-                <div class="gap-4 flex shrink-0 items-center">
+                <div class="gap-4 ml-auto flex shrink-0 flex-wrap items-center">
                     <!-- Header metrics (e.g. DESKTOP / MOBILE totals) -->
                     <div
                         v-for="(metric, i) in metrics"

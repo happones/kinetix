@@ -7,6 +7,10 @@ import {
     gridColumnVars,
     resolveColumns,
 } from '@/composables/useKinetixResponsiveGrid';
+import {
+    tabsListClass,
+    tabsTriggerClass,
+} from '@/composables/useKinetixShadcnVariants';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 
 /**
@@ -59,15 +63,16 @@ watch(
 
 <template>
     <TabsRoot v-model="active" class="w-full">
-        <TabsList
-            class="h-9 rounded-lg p-1 inline-flex items-center justify-center bg-muted text-muted-foreground"
-        >
+        <TabsList :class="tabsListClass">
             <TabsTrigger
                 v-for="(tab, index) in props.tabs"
                 :key="index"
                 :value="String(index)"
                 :aria-invalid="tabHasError(index) || undefined"
-                class="gap-1.5 px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 aria-[invalid=true]:text-destructive data-[state=active]:bg-background data-[state=active]:text-foreground"
+                :class="[
+                    tabsTriggerClass,
+                    'aria-[invalid=true]:text-destructive',
+                ]"
             >
                 <component
                     :is="resolveIcon(tab.icon)"

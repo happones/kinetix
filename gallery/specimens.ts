@@ -234,7 +234,7 @@ const TimezonePickerShowcase: Component = {
                 node,
             ]);
 
-        return h('div', { class: 'flex w-80 flex-col gap-5' }, [
+        return h('div', { class: 'flex w-80 max-w-full flex-col gap-5' }, [
             field(
                 'Default — grouped, current time',
                 h(KinetixTimezonePicker, {

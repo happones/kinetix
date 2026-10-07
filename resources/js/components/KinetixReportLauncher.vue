@@ -40,7 +40,7 @@ async function runNow(type: ReportTypeData): Promise<void> {
 </script>
 
 <template>
-    <div class="gap-4 sm:grid-cols-2 lg:grid-cols-3 grid">
+    <div class="gap-4 sm:grid-cols-2 lg:grid-cols-3 grid grid-cols-1">
         <Card v-for="type in types" :key="type.token">
             <CardHeader>
                 <CardTitle>{{ type.label }}</CardTitle>

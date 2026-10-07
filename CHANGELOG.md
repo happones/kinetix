@@ -13,6 +13,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+A sweep of every component at phone widths (320, 375 and 430px), after the
+announcement banner. These were all pushing the page sideways or spilling out
+of their card on a phone. Desktop is unchanged.
+
+- **Kanban (published).** On a phone the page grew by up to 351px. A card's
+  screen-reader text is absolutely positioned, and nothing inside the board's
+  horizontal scroller was positioned, so off-screen columns escaped the clip.
+  The scroller is now `relative`. Columns are `min(18rem, 85vw)` wide, so on a
+  phone the next column peeks in instead of the first one being cut off.
+- **Webhook manager (published).** The endpoint actions now wrap. The URL drops
+  under the name when both don't fit, and each truncates. Before, the URL's
+  `truncate` did nothing on an inline span.
+- **Chart widget header (published).** The metrics and actions wrap under the
+  title (which keeps 12rem) instead of sticking out of the card.
+- **PDF template editor (published).** The editor has one `minmax(0, 1fr)`
+  column below `xl`, and its Save / Reset / PDF row wraps.
+- **Tab strips (published).** The reports center and form tabs now scroll
+  sideways past their container, like the relation-manager tabs already did.
+  All three share `tabsListClass` / `tabsTriggerClass` from
+  `useKinetixShadcnVariants`.
+- **Announcement manager header, PIN input (published).** The "New announcement"
+  button wraps under the title. The PIN boxes shrink to fit a narrow card.
+- **Responsive grids (published).** Eleven grids in the help center, the roles
+  overview and matrix, the permission matrix, the report launcher, the mail
+  templates and the announcement form gained `grid-cols-1`. A bare
+  `grid sm:grid-cols-2` leaves phones an implicit `auto` column that grows to its
+  content instead of the screen. `tests/js/mobileLayout.spec.ts` now rejects
+  that pattern, and any tab strip that isn't `tabsListClass`.
+- **Tag chips (published).** The ✕ that removes a tag was a 12×12px target. It
+  is 24×24 now (the WCAG 2.5.8 minimum) without making the chip bigger
+  (`tagRemoveButtonClass`). It is also named after its tag ("Remove tag: php").
+  In `<KinetixTagsInput>` it had no accessible name at all.
+
+### Added
+
+- **`npm run audit:mobile`** (repo tooling). It renders every gallery specimen
+  at 320/375/430/1280px and fails on anything that spills past the screen.
+
 ## [0.192.0] - 2026-10-06
 
 The announcement banner fits a phone. Re-publish the components (`--force`) to

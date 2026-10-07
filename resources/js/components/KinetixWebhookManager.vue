@@ -260,16 +260,21 @@ const logColor = (success: boolean): KinetixStatusColor =>
                 class="p-3"
             >
                 <div class="gap-2 flex flex-wrap items-center justify-between">
-                    <div class="min-w-0">
-                        <span class="text-sm font-medium text-foreground">{{
-                            endpoint.name
-                        }}</span>
+                    <!-- The URL goes under the name when both don't fit on
+                         one line, and each truncates past the row's width. -->
+                    <div
+                        class="gap-x-2 min-w-0 flex max-w-full flex-wrap items-baseline"
+                    >
                         <span
-                            class="ml-2 text-xs truncate text-muted-foreground"
+                            class="text-sm font-medium max-w-full truncate text-foreground"
+                            >{{ endpoint.name }}</span
+                        >
+                        <span
+                            class="text-xs max-w-full truncate text-muted-foreground"
                             >{{ endpoint.url }}</span
                         >
                     </div>
-                    <div class="gap-2 flex items-center">
+                    <div class="gap-2 flex flex-wrap items-center">
                         <span
                             v-if="!endpoint.active"
                             class="px-2 py-0.5 text-xs rounded-full bg-muted text-muted-foreground"

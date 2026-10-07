@@ -176,7 +176,7 @@ onMounted(load);
 
 <template>
     <div class="gap-4 flex flex-col">
-        <div class="gap-2 flex items-center justify-between">
+        <div class="gap-2 flex flex-wrap items-center justify-between">
             <h2 class="text-base font-semibold text-foreground">
                 {{ t('kinetix.announcements_manage_title') }}
             </h2>
@@ -350,7 +350,7 @@ onMounted(load);
                     </p>
                 </div>
 
-                <div class="gap-4 sm:grid-cols-2 grid">
+                <div class="gap-4 sm:grid-cols-2 grid grid-cols-1">
                     <div class="gap-1.5 flex flex-col">
                         <label
                             for="kinetix-announcement-level"
@@ -447,7 +447,7 @@ onMounted(load);
                     </div>
                 </div>
 
-                <div class="gap-4 sm:grid-cols-2 grid">
+                <div class="gap-4 sm:grid-cols-2 grid grid-cols-1">
                     <div class="gap-1.5 flex flex-col">
                         <label
                             for="kinetix-announcement-action-label"

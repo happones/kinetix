@@ -2,6 +2,7 @@
 import { X } from '@lucide/vue';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { tagRemoveButtonClass } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTags } from '@/composables/useKinetixTags';
 
 /**
@@ -87,11 +88,11 @@ function onBackspace(): void {
                 {{ tag }}
                 <button
                     type="button"
-                    class="text-muted-foreground hover:text-foreground"
-                    :aria-label="t('kinetix.tag_remove')"
+                    :class="tagRemoveButtonClass"
+                    :aria-label="`${t('kinetix.tag_remove')}: ${tag}`"
                     @click="removeAt(i)"
                 >
-                    <X class="size-3" />
+                    <X class="size-3" aria-hidden="true" />
                 </button>
             </span>
 

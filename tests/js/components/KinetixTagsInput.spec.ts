@@ -1,10 +1,22 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
+import { createI18n } from 'vue-i18n';
 import KinetixTagsInput from '@/components/KinetixTagsInput.vue';
+
+const i18n = createI18n({
+    legacy: false,
+    locale: 'en',
+    missingWarn: false,
+    fallbackWarn: false,
+    messages: { en: { kinetix: { tag_remove: 'Remove tag' } } },
+});
+
+const mountTags = (options: { props: Record<string, unknown> }) =>
+    mount(KinetixTagsInput, { ...options, global: { plugins: [i18n] } });
 
 describe('KinetixTagsInput', () => {
     it('renders the existing tags', () => {
-        const wrapper = mount(KinetixTagsInput, {
+        const wrapper = mountTags({
             props: { value: ['php', 'vue'] },
         });
 
@@ -13,7 +25,7 @@ describe('KinetixTagsInput', () => {
     });
 
     it('adds a tag on Enter and emits the updated array', async () => {
-        const wrapper = mount(KinetixTagsInput, { props: { value: [] } });
+        const wrapper = mountTags({ props: { value: [] } });
         const input = wrapper.find('input');
 
         await input.setValue('design');
@@ -23,7 +35,7 @@ describe('KinetixTagsInput', () => {
     });
 
     it('does not add a duplicate tag', async () => {
-        const wrapper = mount(KinetixTagsInput, { props: { value: ['php'] } });
+        const wrapper = mountTags({ props: { value: ['php'] } });
         const input = wrapper.find('input');
 
         await input.setValue('php');
@@ -33,7 +45,7 @@ describe('KinetixTagsInput', () => {
     });
 
     it('removes a tag when its remove button is clicked', async () => {
-        const wrapper = mount(KinetixTagsInput, {
+        const wrapper = mountTags({
             props: { value: ['php', 'vue'] },
         });
 
@@ -43,7 +55,7 @@ describe('KinetixTagsInput', () => {
     });
 
     it('removes the last tag on Backspace when the input is empty', async () => {
-        const wrapper = mount(KinetixTagsInput, {
+        const wrapper = mountTags({
             props: { value: ['a', 'b'] },
         });
 
@@ -53,10 +65,21 @@ describe('KinetixTagsInput', () => {
     });
 
     it('hides remove buttons when disabled', () => {
-        const wrapper = mount(KinetixTagsInput, {
+        const wrapper = mountTags({
             props: { value: ['php'], disabled: true },
         });
 
         expect(wrapper.findAll('button')).toHaveLength(0);
+    });
+
+    it('names each remove button after its tag, on a 24px target', () => {
+        const wrapper = mountTags({ props: { value: ['php', 'vue'] } });
+        const remove = wrapper.findAll('button');
+
+        expect(remove.map((b) => b.attributes('aria-label'))).toEqual([
+            'Remove tag: php',
+            'Remove tag: vue',
+        ]);
+        expect(remove[0].classes()).toContain('size-6');
     });
 });

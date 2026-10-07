@@ -47,11 +47,26 @@ const mountIt = () =>
 describe('KinetixKanban', () => {
     it('renders columns with their cards and counts', () => {
         const w = mountIt();
-        expect(w.findAll('.flex.w-72, .w-72').length).toBeGreaterThanOrEqual(3);
+        expect(w.findAll('[data-kanban-column]').length).toBeGreaterThanOrEqual(
+            3,
+        );
         expect(w.text()).toContain('To Do');
         expect(w.text()).toContain('Card A');
         expect(w.text()).toContain('Card C');
         expect(w.findAll('article').length).toBe(2);
+    });
+
+    it('clips its columns inside the board scroller, never the page', () => {
+        const w = mountIt();
+
+        // Positioned: a card's absolutely positioned sr-only text takes the
+        // scroller as its containing block, so off-screen columns stay
+        // clipped instead of widening the whole page on a phone.
+        const board = w.find('.overflow-x-auto');
+        expect(board.classes()).toContain('relative');
+        expect(w.find('[data-kanban-column]').classes()).toContain(
+            'w-[min(18rem,85vw)]',
+        );
     });
 
     it('moves a card to another column and persists the new status', async () => {
@@ -65,7 +80,7 @@ describe('KinetixKanban', () => {
         const columns = w.findAll('[draggable]').length;
         expect(columns).toBeGreaterThan(0);
 
-        const dropZones = w.findAll('.w-72');
+        const dropZones = w.findAll('[data-kanban-column]');
         await dropZones[2].trigger('drop');
         await Promise.resolve();
 

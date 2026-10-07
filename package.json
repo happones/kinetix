@@ -18,6 +18,7 @@
         "gallery:dev": "vite --config vite.gallery.config.ts",
         "screenshots:messages": "php scripts/gen-gallery-messages.php",
         "screenshots": "npm run screenshots:messages && node scripts/screenshots.mjs",
+        "audit:mobile": "node scripts/mobile-audit.mjs",
         "types:check": "vue-tsc --noEmit",
         "prepare": "husky",
         "test:e2e": "node scripts/e2e-relation-managers.mjs",

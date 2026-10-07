@@ -81,7 +81,7 @@ function toggleFeature(feature: KinetixPermissionFeature): void {
             :placeholder="t('kinetix.search_permissions')"
         />
 
-        <div class="gap-4 sm:grid-cols-2 grid">
+        <div class="gap-4 sm:grid-cols-2 grid grid-cols-1">
             <div
                 v-for="feature in filtered"
                 :key="feature.name"

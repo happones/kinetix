@@ -202,7 +202,10 @@ async function onCardKeyboardMove(
             {{ t('kinetix.kanban_keyboard_hint') }}
         </p>
 
-        <div ref="boardEl" class="gap-4 pb-2 flex overflow-x-auto">
+        <!-- `relative`: absolutely positioned descendants (a card's sr-only
+             text) take the scroller as their containing block, so it clips
+             them — otherwise an off-screen column widens the whole page. -->
+        <div ref="boardEl" class="gap-4 pb-2 relative flex overflow-x-auto">
             <KanbanColumn
                 v-for="column in columns"
                 :key="column.key"

@@ -2,6 +2,10 @@
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import {
+    tabsListClass,
+    tabsTriggerClass,
+} from '@/composables/useKinetixShadcnVariants';
 import KinetixReportLauncher from './KinetixReportLauncher.vue';
 import KinetixReportRunsTable from './KinetixReportRunsTable.vue';
 import KinetixReportSchedules from './KinetixReportSchedules.vue';
@@ -18,25 +22,14 @@ const active = ref('launcher');
 
 <template>
     <TabsRoot v-model="active" class="w-full">
-        <TabsList
-            class="h-9 rounded-lg p-1 inline-flex items-center justify-center bg-muted text-muted-foreground"
-        >
-            <TabsTrigger
-                value="launcher"
-                class="px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground"
-            >
+        <TabsList :class="tabsListClass">
+            <TabsTrigger value="launcher" :class="tabsTriggerClass">
                 {{ t('kinetix.report_launcher_title') }}
             </TabsTrigger>
-            <TabsTrigger
-                value="runs"
-                class="px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground"
-            >
+            <TabsTrigger value="runs" :class="tabsTriggerClass">
                 {{ t('kinetix.report_runs_title') }}
             </TabsTrigger>
-            <TabsTrigger
-                value="schedules"
-                class="px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground"
-            >
+            <TabsTrigger value="schedules" :class="tabsTriggerClass">
                 {{ t('kinetix.report_schedules_title') }}
             </TabsTrigger>
         </TabsList>

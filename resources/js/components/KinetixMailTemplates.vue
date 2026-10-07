@@ -143,7 +143,7 @@ async function test(): Promise<void> {
 </script>
 
 <template>
-    <div class="gap-4 md:grid-cols-[16rem_1fr] grid">
+    <div class="gap-4 md:grid-cols-[16rem_1fr] grid grid-cols-1">
         <!-- Template list -->
         <div class="space-y-1">
             <button
@@ -186,7 +186,7 @@ async function test(): Promise<void> {
 
         <!-- Editor + preview -->
         <div class="space-y-4 rounded-xl p-4 border border-border bg-card">
-            <div class="gap-3 sm:grid-cols-2 grid">
+            <div class="gap-3 sm:grid-cols-2 grid grid-cols-1">
                 <label class="text-sm block">
                     <span class="mb-1 font-medium block text-foreground">{{
                         t('kinetix.mail_name')

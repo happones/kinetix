@@ -95,7 +95,7 @@ async function confirmDelete(): Promise<void> {
         </p>
 
         <!-- Role cards -->
-        <div class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid">
+        <div class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
             <div
                 v-for="role in roles"
                 :key="String(role.id)"

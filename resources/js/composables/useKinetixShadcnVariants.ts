@@ -150,14 +150,6 @@ export const textareaClass =
     'border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm';
 
 /**
- * shadcn-vue new-york-v4 floating-surface recipes (single source of truth —
- * never hand-copy these into a component). The animation set is the full v4
- * contract: fade + zoom on open/close plus a directional slide from the
- * anchored side. Each consumer adds its OWN reka viewport vars, since their
- * names are per-primitive, e.g.
- * `max-h-(--reka-select-content-available-height) origin-(--reka-select-content-transform-origin)`.
- */
-/**
  * Typography for rendered Markdown (`v-html` of server-sanitized HTML): the
  * one recipe for the rich editor's preview and announcement bodies. Blocks
  * get a little air between them, lists their markers, links an underline.
@@ -165,6 +157,34 @@ export const textareaClass =
 export const markdownContentClass =
     '[&>*+*]:mt-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_ul]:pl-5 [&_ol]:pl-5 [&_ul]:list-disc [&_ol]:list-decimal [&_blockquote]:pl-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:text-muted-foreground [&_code]:rounded [&_code]:px-1 [&_code]:bg-muted [&_a]:underline [&_a]:underline-offset-4 [&_a]:font-medium [&_a]:text-primary';
 
+/**
+ * shadcn-vue new-york-v4 tab strip. It is as wide as its tabs, up to its
+ * container, and scrolls sideways past that, so a long set of tabs never
+ * widens a phone's page. The strip starts at the start (a centered strip
+ * that overflows clips its first tab out of reach).
+ */
+export const tabsListClass =
+    'h-9 rounded-lg p-1 gap-1 inline-flex max-w-full items-center justify-start overflow-x-auto bg-muted text-muted-foreground';
+
+/**
+ * The ✕ on a tag chip: a 24px target (the WCAG 2.5.8 minimum) around a 12px
+ * icon. The negative margins keep the chip as compact as the icon alone.
+ */
+export const tagRemoveButtonClass =
+    '-my-1 -mr-1.5 size-6 grid shrink-0 place-items-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none';
+
+/** A tab in {@link tabsListClass}. */
+export const tabsTriggerClass =
+    'gap-1.5 px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex cursor-pointer touch-manipulation items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground';
+
+/**
+ * shadcn-vue new-york-v4 floating-surface recipes (single source of truth —
+ * never hand-copy these into a component). The animation set is the full v4
+ * contract: fade + zoom on open/close plus a directional slide from the
+ * anchored side. Each consumer adds its OWN reka viewport vars, since their
+ * names are per-primitive, e.g.
+ * `max-h-(--reka-select-content-available-height) origin-(--reka-select-content-transform-origin)`.
+ */
 export const popoverAnimationClass =
     'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2';
 

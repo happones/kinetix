@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue';
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { tagRemoveButtonClass } from '@/composables/useKinetixShadcnVariants';
 
 const props = withDefaults(
     defineProps<{
@@ -19,6 +21,7 @@ const emit = defineEmits<{
     (e: 'update:value', value: string[]): void;
 }>();
 
+const { t } = useI18n();
 const draft = ref('');
 
 const tags = () => (Array.isArray(props.value) ? props.value : []);
@@ -69,10 +72,11 @@ const onKeydown = (event: KeyboardEvent) => {
             <button
                 v-if="!disabled"
                 type="button"
-                class="text-muted-foreground hover:text-foreground"
+                :class="tagRemoveButtonClass"
+                :aria-label="`${t('kinetix.tag_remove')}: ${tag}`"
                 @click="removeTag(tag)"
             >
-                <X class="h-3 w-3" />
+                <X class="size-3" aria-hidden="true" />
             </button>
         </span>
 

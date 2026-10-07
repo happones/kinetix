@@ -2,6 +2,10 @@
 import { router } from '@inertiajs/vue3';
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
+import {
+    tabsListClass,
+    tabsTriggerClass,
+} from '@/composables/useKinetixShadcnVariants';
 import type { KinetixRelationManagerData } from '@/types/kinetix';
 import KinetixRelationManager from './KinetixRelationManager.vue';
 import KinetixBadge from './primitives/KinetixBadge.vue';
@@ -183,14 +187,12 @@ const activeTab = computed(
             class="space-y-4"
             @update:model-value="selectTab(String($event))"
         >
-            <TabsList
-                class="h-9 rounded-lg p-1 gap-1 inline-flex max-w-full items-center overflow-x-auto bg-muted text-muted-foreground"
-            >
+            <TabsList :class="tabsListClass">
                 <TabsTrigger
                     v-for="tab in tabs"
                     :key="tab.key"
                     :value="tab.key"
-                    class="gap-1.5 px-3 py-1 text-sm font-medium data-[state=active]:shadow-sm inline-flex cursor-pointer touch-manipulation items-center rounded-md whitespace-nowrap transition-all focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none data-[state=active]:bg-background data-[state=active]:text-foreground"
+                    :class="tabsTriggerClass"
                 >
                     {{ tab.title }}
                     <KinetixBadge

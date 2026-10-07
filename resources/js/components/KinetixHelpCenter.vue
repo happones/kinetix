@@ -201,7 +201,7 @@ const groups = computed(() => {
         <template v-else>
             <div
                 v-if="loading"
-                class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid"
+                class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid grid-cols-1"
             >
                 <div
                     v-for="i in 6"
@@ -233,7 +233,7 @@ const groups = computed(() => {
                 <!-- Card grid -->
                 <div
                     v-if="view === 'grid'"
-                    class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid"
+                    class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid grid-cols-1"
                 >
                     <a
                         v-for="entry in items"

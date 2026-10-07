@@ -50,7 +50,7 @@ function onUpdate(values: string[]): void {
             v-for="i in length"
             :key="i"
             :index="i - 1"
-            class="size-10 text-sm shadow-xs rounded-md border border-input bg-transparent text-center text-foreground transition-[color,box-shadow] outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50 dark:bg-input/30"
+            class="w-10 min-w-0 text-sm shadow-xs aspect-square rounded-md border border-input bg-transparent text-center text-foreground transition-[color,box-shadow] outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50 dark:bg-input/30"
         />
     </PinInputRoot>
 </template>

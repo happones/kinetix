@@ -177,7 +177,10 @@ async function confirmDelete(): Promise<void> {
         </div>
 
         <!-- Loading skeleton -->
-        <div v-if="loading" class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid">
+        <div
+            v-if="loading"
+            class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid grid-cols-1"
+        >
             <div
                 v-for="i in 3"
                 :key="i"
@@ -191,7 +194,7 @@ async function confirmDelete(): Promise<void> {
 
         <template v-else>
             <!-- Role cards: what each role can touch, at a glance -->
-            <div class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid">
+            <div class="gap-3 sm:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
                 <div
                     v-for="role in roles"
                     :key="String(roleKey(role))"

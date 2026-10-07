@@ -146,7 +146,12 @@ onBeforeUnmount(() => clearTimeout(debounce));
 </script>
 
 <template>
-    <div v-if="descriptor" class="gap-6 xl:grid-cols-5 grid">
+    <!-- One `minmax(0, 1fr)` column below xl: an implicit `auto` column
+         would grow to the controls' min-content width on a phone. -->
+    <div
+        v-if="descriptor"
+        class="gap-6 xl:grid-cols-5 grid grid-cols-[minmax(0,1fr)]"
+    >
         <!-- Controls -->
         <div class="gap-5 xl:col-span-2 flex flex-col">
             <template v-for="field in descriptor.fields" :key="field.name">
@@ -274,7 +279,7 @@ onBeforeUnmount(() => clearTimeout(debounce));
                 </div>
             </template>
 
-            <div class="gap-2 flex items-center">
+            <div class="gap-2 flex flex-wrap items-center">
                 <button
                     type="button"
                     :class="buttonVariants()"

@@ -121,11 +121,13 @@ const showDropGhost = computed(
 </script>
 
 <template>
+    <!-- 18rem, or 85% of a phone's width so the next column peeks in and
+         says the board scrolls. -->
     <div
         role="group"
         :aria-label="`${column.label} (${column.cards.length})`"
         :data-kanban-column="column.key"
-        class="w-72 rounded-lg flex shrink-0 flex-col border transition-colors"
+        class="rounded-lg flex w-[min(18rem,85vw)] shrink-0 flex-col border transition-colors"
         :class="
             isDragOver
                 ? 'border-primary/50 bg-accent/50 ring-2 ring-primary/30'
