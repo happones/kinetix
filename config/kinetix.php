@@ -1145,6 +1145,11 @@ return [
         // ?perPage=10000000 can't hydrate a whole table into one payload.
         'max_per_page' => env('KINETIX_TABLES_MAX_PER_PAGE', 200),
 
+        // Hard ceiling on how many record ids a single drag-and-drop reorder
+        // request may carry, so one request can't ask the server to resolve
+        // and rewrite an unbounded number of rows. 0 disables the cap.
+        'reorder_max' => env('KINETIX_TABLES_REORDER_MAX', 1000),
+
         // Clicking a row opens its record: the `view` action when the row has
         // one, otherwise `edit` — as a page visit when the action links to a
         // route, as the same modal when it is a modal action. Set false to

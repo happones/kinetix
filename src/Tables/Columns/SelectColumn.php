@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
 use Happones\Kinetix\Support\Contracts\HasLabel;
+use Illuminate\Validation\Rule;
 
 class SelectColumn extends Column
 {
@@ -69,5 +70,23 @@ class SelectColumn extends Column
     public function isEditable(): bool
     {
         return true;
+    }
+
+    /**
+     * A select can only ever submit one of its declared option KEYS. The
+     * rule is derived from the same `getOptions()` the control renders, so a
+     * value for a removed/forbidden option is rejected server-side.
+     *
+     * @return array<int, mixed>
+     */
+    protected function getTypeRules(): array
+    {
+        $keys = array_map('strval', array_keys($this->getOptions()));
+
+        if ($keys === []) {
+            return [];
+        }
+
+        return [Rule::in($keys)];
     }
 }

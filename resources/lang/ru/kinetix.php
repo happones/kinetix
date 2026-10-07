@@ -693,6 +693,8 @@ return [
 
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable' => 'Этот столбец нельзя редактировать.',
+    'table_value_invalid'       => 'Значение недопустимо для этого столбца.',
+    'table_reorder_too_large'   => 'Слишком много строк для одновременной сортировки.',
     'table_record_not_found'    => 'Запись не найдена.',
     'table_write_forbidden'     => 'Это действие не разрешено.',
     'table_invalid_signature'   => 'Недействительная подпись таблицы.',

@@ -13,6 +13,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.196.0] - 2026-10-07
+
+Pre-1.0 hardening of the table write path and form API, plus an opt-in to
+Inertia partial reloads for the drag-and-drop surfaces. Re-publish the
+components, columns, translations and config (`--force`) to pick this up.
+Desktop and existing APIs are unchanged unless noted.
+
+### Security
+
+- **Inline-edit values are validated server-side (published).** The cell-update
+  endpoint used to write the client's value straight to the model
+  (`$record->{$column} = $request->input('value')`). Each editable column now
+  derives a validation rule — a `SelectColumn` constrained to its own options,
+  a `NumberInputColumn` to its `min`/`max`, a `Toggle`/`CheckboxColumn` to
+  `boolean`, a `TextInputColumn` to its input type — plus an explicit
+  `->rules([...])`. The rules are sealed into the table's signed descriptor
+  (the client never supplies them), and an invalid value is a `422` that never
+  touches the model. The pivot-cell path is covered too.
+- **Policy-gated columns are actually stripped (published).** A column with
+  `->authorize('some.ability')` (a policy string, no explicit subject) was
+  deferred and therefore never enforced — the column always leaked. Column
+  authorization is now evaluated at serialization against the user, so the
+  header and every cell value are dropped when the policy denies. `can()`,
+  `visible()` and boolean `authorize()` were already enforced; this closes the
+  policy-string case. Mirrors Filament, where column visibility gates the whole
+  column.
+- **Reorder is bounded.** A drag-and-drop reorder resolved one query per id
+  (an N+1) with no batch limit. It now resolves every id in a single query and
+  rejects a batch larger than `kinetix.tables.reorder_max` (default 1000) with
+  a `422`, so one request can't ask the server to rewrite an unbounded number
+  of rows.
+
+### Added
+
+- **`Column::rules()` (published).** Attach extra server-side validation rules
+  to an inline-editable column, on top of the type's own derived rule.
+- **`reloadOnly` on the drag surfaces (published).** `KinetixKanban`,
+  `KinetixRelationManager(s)` and the calendar move composable accept an
+  optional `reloadOnly` (Inertia prop names). When set, the post-write resync
+  is a partial `router.reload({ only })` instead of a full one — on a
+  dashboard with many props this avoids re-serializing the whole page. Omit it
+  to keep the full reload (unchanged default): the components can't know the
+  host page's prop names, so the optimization is opt-in.
+- **`kinetix.tables.reorder_max` config** (`KINETIX_TABLES_REORDER_MAX`,
+  default 1000; 0 disables the cap).
+
+### Changed
+
+- **`afterStateUpdated()` / `live()` are documented as not-yet-wired.** The
+  server-driven form reactivity loop (`$get`/`$set` recomputing the schema) is
+  not implemented yet; `afterStateUpdated()` was stored but never invoked, and
+  `live()` only records intent. Both are now annotated as no-ops pending
+  reactivity rather than silently promising behaviour they don't deliver — kept
+  on the surface so code written against them keeps working once reactivity
+  lands.
+
 ## [0.195.0] - 2026-10-07
 
 The table and the notification panel stop imposing their own scrollbar on an

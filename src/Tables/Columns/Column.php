@@ -10,6 +10,7 @@ use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
 
 abstract class Column
 {
@@ -222,6 +223,52 @@ abstract class Column
     }
 
     /**
+     * Whether this column should be serialized at all (header + every cell).
+     *
+     * A column is a whole-column structure, not a per-row one — like Filament,
+     * `visible()`/`hidden()`/`authorize()`/`can()` gate the entire column, not
+     * individual cells (there is no per-record pass afterwards to catch a
+     * deferred check). So, unlike actions, a column must NOT defer a
+     * policy-ability `authorize('ability')` when no subject is given: with no
+     * later per-row evaluation, deferring would mean the gate never runs and
+     * the column always leaks. Here an abilitiy with no explicit subject is
+     * checked against the current user with no subject (same contract as
+     * `can()`), so a column gated by a user-level policy is actually stripped.
+     */
+    public function shouldRender(?Model $record = null): bool
+    {
+        return $this->passesVisibility($record)
+            && $this->passesCan()
+            && $this->passesColumnAuthorization($record);
+    }
+
+    /**
+     * Column-level authorization: a boolean/closure gate behaves as in the
+     * shared trait, but a policy-ability string with no explicit subject is
+     * evaluated now (against the user, no subject) instead of being deferred,
+     * because a column has no per-record authorization pass to fall back on.
+     */
+    protected function passesColumnAuthorization(?Model $record = null): bool
+    {
+        if ($this->authorizeUsing === null) {
+            return true;
+        }
+
+        if (is_bool($this->authorizeUsing)) {
+            return $this->authorizeUsing;
+        }
+
+        if ($this->authorizeUsing instanceof Closure) {
+            return (bool) ($this->authorizeUsing)($record);
+        }
+
+        $subject = $this->authorizeArguments ?? $record;
+
+        return Gate::forUser(auth()->user())
+            ->allows($this->authorizeUsing, $subject);
+    }
+
+    /**
      * Convert the column definition to ColumnData.
      */
     public function toData(): ColumnData
@@ -273,6 +320,54 @@ abstract class Column
     public function isEditable(): bool
     {
         return false;
+    }
+
+    /**
+     * @var array<int, mixed>
+     */
+    protected array $rules = [];
+
+    /**
+     * Extra Laravel validation rules the inline-edit value must pass, on top of
+     * the rule the column type derives for itself (a Select's `in:` list, a
+     * Number's `numeric`/min/max, a Toggle's `boolean`). The rules are sealed
+     * into the table's signed descriptor and enforced server-side in
+     * {@see TableWriteController::cellUpdate()} — the client never supplies
+     * them, so they can't be tampered with.
+     *
+     *     TextInputColumn::make('email')->rules(['email', 'max:255']);
+     *
+     * @param array<int, mixed> $rules
+     */
+    public function rules(array $rules): static
+    {
+        $this->rules = array_values($rules);
+
+        return $this;
+    }
+
+    /**
+     * The full server-side validation rule set for an inline edit of this
+     * column: the type's own derived rules first, then any explicit
+     * {@see rules()}. Editable subclasses override {@see getTypeRules()}.
+     *
+     * @return array<int, mixed>
+     */
+    public function getValidationRules(): array
+    {
+        return [...$this->getTypeRules(), ...$this->rules];
+    }
+
+    /**
+     * The validation rules intrinsic to the column TYPE (empty for a plain,
+     * non-editable column). Editable columns override this to constrain the
+     * value to what their control can legitimately produce.
+     *
+     * @return array<int, mixed>
+     */
+    protected function getTypeRules(): array
+    {
+        return [];
     }
 
     /**

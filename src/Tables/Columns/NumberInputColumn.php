@@ -110,4 +110,26 @@ class NumberInputColumn extends Column
     {
         return true;
     }
+
+    /**
+     * Numeric, bounded by the same min/max the stepper enforces client-side.
+     * `nullable` so clearing the field is allowed (the column may be optional);
+     * add `->rules(['required'])` to forbid an empty value.
+     *
+     * @return array<int, mixed>
+     */
+    protected function getTypeRules(): array
+    {
+        $rules = ['nullable', 'numeric'];
+
+        if ($this->min !== null) {
+            $rules[] = 'min:'.$this->min;
+        }
+
+        if ($this->max !== null) {
+            $rules[] = 'max:'.$this->max;
+        }
+
+        return $rules;
+    }
 }

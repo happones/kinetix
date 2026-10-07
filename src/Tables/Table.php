@@ -1093,7 +1093,10 @@ class Table implements Arrayable, JsonSerializable
         $editableColumns = [];
         foreach ($this->columns as $column) {
             if ($column->isEditable()) {
-                $editableColumns[] = $column->getName();
+                // Map name → sealed validation rules, so the write endpoint
+                // enforces them server-side from the signed descriptor (the
+                // client never supplies rules and can't tamper with them).
+                $editableColumns[$column->getName()] = $column->getValidationRules();
             }
         }
 
@@ -1181,7 +1184,8 @@ class Table implements Arrayable, JsonSerializable
      * user/team/expiry binding ({@see SignedDescriptor}) so a leaked token isn't
      * replayable by someone else.
      *
-     * @param array<int, string> $editableColumns
+     * @param array<string, array<int, mixed>> $editableColumns Map of editable
+     *                                                          column name → sealed server-side validation rules.
      */
     protected function buildWriteDescriptor(array $editableColumns): string
     {

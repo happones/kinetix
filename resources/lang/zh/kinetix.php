@@ -693,6 +693,8 @@ return [
 
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable' => '此列不可编辑。',
+    'table_value_invalid'       => '该值对此列无效。',
+    'table_reorder_too_large'   => '一次重新排序的行数过多。',
     'table_record_not_found'    => '未找到记录。',
     'table_write_forbidden'     => '此操作未获授权。',
     'table_invalid_signature'   => '表格签名无效。',

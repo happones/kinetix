@@ -35,6 +35,12 @@ const props = withDefaults(
         managers: KinetixRelationManagerData[];
         /** Auto-tab when more than one manager (default). false = stack. */
         tabs?: boolean;
+        /**
+         * Inertia prop names to refresh after a write, forwarded to each
+         * manager (see `KinetixRelationManager`'s `reloadOnly`). Omit to keep
+         * the full reload.
+         */
+        reloadOnly?: string[];
     }>(),
     {
         tabs: true,
@@ -212,6 +218,7 @@ const activeTab = computed(
                 <KinetixRelationManager
                     v-if="!activeTab.isGroup"
                     :manager="activeTab.managers[0]"
+                    :reload-only="reloadOnly"
                     hide-title
                 />
                 <div v-else class="space-y-8">
@@ -219,6 +226,7 @@ const activeTab = computed(
                         v-for="manager in activeTab.managers"
                         :key="manager.relationship"
                         :manager="manager"
+                        :reload-only="reloadOnly"
                     />
                 </div>
             </div>
@@ -230,6 +238,7 @@ const activeTab = computed(
                 v-for="manager in managers"
                 :key="manager.relationship"
                 :manager="manager"
+                :reload-only="reloadOnly"
             />
         </div>
     </div>

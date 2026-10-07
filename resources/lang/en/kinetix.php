@@ -782,6 +782,8 @@ return [
 
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable' => 'This column is not editable.',
+    'table_value_invalid'       => 'The value is not valid for this column.',
+    'table_reorder_too_large'   => 'Too many rows to reorder at once.',
     'table_record_not_found'    => 'Record not found.',
     'table_write_forbidden'     => 'This action is unauthorized.',
     'table_invalid_signature'   => 'Invalid table signature.',

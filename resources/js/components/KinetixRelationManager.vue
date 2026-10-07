@@ -35,6 +35,13 @@ const props = withDefaults(
         manager: KinetixRelationManagerData;
         /** The tabs host shows the title on the tab — skip the heading. */
         hideTitle?: boolean;
+        /**
+         * Inertia prop names to refresh after attach/detach/associate/
+         * dissociate. When set, those writes trigger a PARTIAL reload
+         * (`router.reload({ only })`) instead of a full one. Name the prop(s)
+         * the host page feeds this manager from. Omit to keep the full reload.
+         */
+        reloadOnly?: string[];
     }>(),
     {
         hideTitle: false,
@@ -43,6 +50,11 @@ const props = withDefaults(
 
 const { t } = useI18n();
 const page = usePage<KinetixSharedProps>();
+
+// Partial reload when the host named the props to refresh, else a full reload
+// (the safe default — this component can't know the host's prop names).
+const reloadOptions = () =>
+    props.reloadOnly?.length ? { only: props.reloadOnly } : {};
 
 // --- Record picker modal (BelongsToMany attach / HasMany associate) ---------
 
@@ -203,7 +215,7 @@ async function submitAttach(pivot?: Record<string, any>): Promise<void> {
 
         toast.success(t(picker[pickerMode.value].done));
         isAttachOpen.value = false;
-        router.reload();
+        router.reload(reloadOptions());
     } catch (e) {
         // Validation problems render inline under the pivot fields; anything
         // else (expired descriptor, forbidden) only has a message to show.
@@ -264,7 +276,7 @@ async function removeRelation(
                     : 'kinetix.dissociated',
             ),
         );
-        router.reload();
+        router.reload(reloadOptions());
     } catch (e) {
         toast.error(
             e instanceof Error && e.message

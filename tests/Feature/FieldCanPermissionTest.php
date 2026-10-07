@@ -155,4 +155,49 @@ class FieldCanPermissionTest extends TestCase
         $this->assertSame(['name', 'salary'], array_column($data['columns'], 'name'));
         $this->assertSame(90000, $data['records'][0]['values']['salary']);
     }
+
+    /**
+     * A column gated with a policy-ability STRING and no explicit subject must
+     * be evaluated against the user at serialization — not deferred like an
+     * action awaiting its record. A column has no per-row authorization pass,
+     * so deferring would mean the gate never runs and the column always leaks.
+     */
+    public function test_a_column_authorized_by_a_policy_ability_is_gated(): void
+    {
+        $table = fn (): array => Table::make(CanFieldEmployee::query())
+            ->columns([
+                TextColumn::make('name'),
+                TextColumn::make('salary')->authorize('employees.viewSalary'),
+            ])
+            ->toArray();
+
+        $this->actingAsViewer();
+        $data = $table();
+        $this->assertSame(['name'], array_column($data['columns'], 'name'));
+        $this->assertArrayNotHasKey('salary', $data['records'][0]['values']);
+
+        $this->actingAsHr();
+        $data = $table();
+        $this->assertSame(['name', 'salary'], array_column($data['columns'], 'name'));
+        $this->assertSame(90000, $data['records'][0]['values']['salary']);
+    }
+
+    /**
+     * `visible(false)` and a record-independent `visible(fn)` both drop the
+     * whole column (header + every cell value).
+     */
+    public function test_a_hidden_column_is_stripped(): void
+    {
+        $table = fn (): array => Table::make(CanFieldEmployee::query())
+            ->columns([
+                TextColumn::make('name'),
+                TextColumn::make('salary')->visible(false),
+            ])
+            ->toArray();
+
+        $this->actingAsViewer();
+        $data = $table();
+        $this->assertSame(['name'], array_column($data['columns'], 'name'));
+        $this->assertArrayNotHasKey('salary', $data['records'][0]['values']);
+    }
 }

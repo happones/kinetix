@@ -15,4 +15,12 @@ class CheckboxColumn extends Column
     {
         return true;
     }
+
+    /**
+     * @return array<int, mixed>
+     */
+    protected function getTypeRules(): array
+    {
+        return ['boolean'];
+    }
 }

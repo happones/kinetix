@@ -77,6 +77,23 @@ class TableReorderTest extends TestCase
         $this->assertSame(3, ReorderWidget::find(2)->sort_order);
     }
 
+    public function test_reorder_rejects_a_batch_over_the_cap(): void
+    {
+        config()->set('kinetix.tables.reorder_max', 2);
+
+        $response = $this->postJson(route('kinetix.tables.reorder'), [
+            'model' => $this->reorderableToken(),
+            'ids'   => [3, 1, 2], // 3 ids > cap of 2
+        ]);
+
+        $response->assertStatus(422);
+
+        // Nothing was rewritten — the original order stands.
+        $this->assertSame(1, ReorderWidget::find(1)->sort_order);
+        $this->assertSame(2, ReorderWidget::find(2)->sort_order);
+        $this->assertSame(3, ReorderWidget::find(3)->sort_order);
+    }
+
     public function test_reorder_is_rejected_when_table_is_not_reorderable(): void
     {
         $response = $this->postJson(route('kinetix.tables.reorder'), [

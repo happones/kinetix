@@ -28,6 +28,12 @@ export interface UseKinetixCalendarEventMoveOptions {
     /** Container auto-scrolled horizontally during touch drags (week grid). */
     scrollContainer: () => HTMLElement | null;
     onMoved?: (event: KinetixCalendarEvent, newStart: string) => void;
+    /**
+     * Inertia prop names to refresh after a move. When set, the post-move
+     * resync is a PARTIAL reload (`router.reload({ only })`) instead of a full
+     * one. Omit to keep the safe full reload.
+     */
+    reloadOnly?: () => string[] | undefined;
 }
 
 export interface UseKinetixCalendarEventMove {
@@ -179,7 +185,8 @@ export function useKinetixCalendarEventMove(
                 },
             );
             options.onMoved?.(event, newStart);
-            router.reload();
+            const only = options.reloadOnly?.();
+            router.reload(only?.length ? { only } : {});
 
             return true;
         } catch {

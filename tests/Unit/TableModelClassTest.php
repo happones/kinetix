@@ -62,6 +62,9 @@ class TableModelClassTest extends TestCase
         $payload = Crypt::decrypt($data->model);
 
         $this->assertSame(TblThing::class, $payload['model']);
-        $this->assertSame(['active'], $payload['columns']);
+        // columns is now a map of editable name → sealed validation rules;
+        // only the editable ToggleColumn is present, carrying its boolean rule.
+        $this->assertSame(['active'], array_keys($payload['columns']));
+        $this->assertSame(['boolean'], $payload['columns']['active']);
     }
 }

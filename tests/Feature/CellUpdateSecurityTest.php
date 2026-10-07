@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Tables\Columns\NumberInputColumn;
+use Happones\Kinetix\Tables\Columns\SelectColumn;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Columns\ToggleColumn;
 use Happones\Kinetix\Tables\Table;
@@ -34,6 +36,8 @@ class CellUpdateSecurityTest extends TestCase
             $table->string('name');
             $table->boolean('is_active')->default(false);
             $table->boolean('is_admin')->default(false);
+            $table->string('role')->default('viewer');
+            $table->integer('qty')->default(0);
         });
     }
 
@@ -108,5 +112,84 @@ class CellUpdateSecurityTest extends TestCase
         ]);
 
         $response->assertStatus(400);
+    }
+
+    /**
+     * A token whose editable columns carry server-side validation rules: a
+     * Select constrained to its options, a Number bounded by min/max.
+     */
+    private function validatingToken(): string
+    {
+        return Table::make(SecWidget::query())
+            ->columns([
+                TextColumn::make('name'),
+                ToggleColumn::make('is_active'),
+                SelectColumn::make('role')
+                    ->options(['viewer' => 'Viewer', 'editor' => 'Editor']),
+                NumberInputColumn::make('qty')
+                    ->min(0)->max(10),
+            ])
+            ->toData()
+            ->model;
+    }
+
+    public function test_a_select_value_outside_its_options_is_rejected(): void
+    {
+        $widget = SecWidget::create(['name' => 'A', 'role' => 'viewer']);
+
+        $response = $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $this->validatingToken(),
+            'recordId' => $widget->id,
+            'column'   => 'role',
+            'value'    => 'superadmin', // not one of the declared options
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertSame('viewer', $widget->fresh()->role);
+    }
+
+    public function test_a_valid_select_value_is_accepted(): void
+    {
+        $widget = SecWidget::create(['name' => 'A', 'role' => 'viewer']);
+
+        $response = $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $this->validatingToken(),
+            'recordId' => $widget->id,
+            'column'   => 'role',
+            'value'    => 'editor',
+        ]);
+
+        $response->assertOk();
+        $this->assertSame('editor', $widget->fresh()->role);
+    }
+
+    public function test_a_toggle_value_that_is_not_boolean_is_rejected(): void
+    {
+        $widget = SecWidget::create(['name' => 'A', 'is_active' => false]);
+
+        $response = $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $this->validatingToken(),
+            'recordId' => $widget->id,
+            'column'   => 'is_active',
+            'value'    => 'not-a-bool',
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertFalse($widget->fresh()->is_active);
+    }
+
+    public function test_a_number_value_outside_its_bounds_is_rejected(): void
+    {
+        $widget = SecWidget::create(['name' => 'A', 'qty' => 5]);
+
+        $response = $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $this->validatingToken(),
+            'recordId' => $widget->id,
+            'column'   => 'qty',
+            'value'    => 999, // exceeds max:10
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertSame(5, $widget->fresh()->qty);
     }
 }

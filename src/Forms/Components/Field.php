@@ -76,6 +76,15 @@ abstract class Field extends Component
         return $this;
     }
 
+    /**
+     * @deprecated NOT YET WIRED. Reserved for the planned server-driven
+     * reactivity loop (`$get`/`$set` recomputing the schema on change). Today
+     * the callback is stored but never invoked — there is no round-trip that
+     * would call it — so setting it has no effect. Kept as a no-op rather than
+     * removed so code written against it keeps working once reactivity lands;
+     * do not rely on it firing until then. For hydration-time transforms use
+     * {@see afterStateHydrated()}, which IS wired.
+     */
     public function afterStateUpdated(Closure $callback): static
     {
         $this->afterStateUpdated = $callback;
@@ -148,6 +157,13 @@ abstract class Field extends Component
         return $this;
     }
 
+    /**
+     * Mark the field "live". The `isLive`/`debounce` flags are serialized to
+     * the client, but the server-driven reactivity loop that would act on them
+     * (recomputing the schema, firing {@see afterStateUpdated()}) is NOT wired
+     * yet, so today this only records intent. Safe to call — it won't error —
+     * but don't expect dependent-field behaviour until reactivity lands.
+     */
     public function live(bool $onBlur = false, ?int $debounce = null): static
     {
         $this->isLive = true;

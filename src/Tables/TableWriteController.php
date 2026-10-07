@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Throwable;
 
 /**
@@ -67,7 +68,7 @@ class TableWriteController
         // attributes even when the token itself is legitimate.
         $editableColumns = $descriptor['columns'];
 
-        if (! in_array($column, $editableColumns, true)) {
+        if (! array_key_exists($column, $editableColumns)) {
             return response()->json([
                 'status'  => 'error',
                 'message' => __('kinetix.table_column_not_editable'),
@@ -90,6 +91,17 @@ class TableWriteController
             ], 403);
         }
 
+        // Validate the incoming value against the rules sealed into the
+        // descriptor (a Select's option list, a Number's bounds, a Toggle's
+        // boolean, plus any explicit ->rules()). The client never supplies the
+        // rules, so they can't be weakened; an invalid value is a 422 and the
+        // model is never touched.
+        $invalid = $this->validateValue($editableColumns[$column], $column, $request->input('value'));
+
+        if ($invalid instanceof JsonResponse) {
+            return $invalid;
+        }
+
         // A dotted column can only be a pivot column of a relation-bound table
         // (`pivot.role`): route it to the pivot row — writing it as a literal
         // attribute would just create junk on the related model.
@@ -101,6 +113,34 @@ class TableWriteController
         $record->save();
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Validate one inline-edit value against the column's sealed rules.
+     * Returns null when it passes, or a 422 JSON response when it fails.
+     *
+     * @param list<mixed> $rules
+     */
+    protected function validateValue(array $rules, string $column, mixed $value): ?JsonResponse
+    {
+        if ($rules === []) {
+            return null;
+        }
+
+        $validator = Validator::make(
+            ['value' => $value],
+            ['value' => $rules],
+        );
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => __('kinetix.table_value_invalid'),
+                'errors'  => $validator->errors()->get('value'),
+            ], 422);
+        }
+
+        return null;
     }
 
     /**
@@ -171,12 +211,29 @@ class TableWriteController
             return response()->json(['status' => 'success']);
         }
 
-        // Resolve every record through the table's scope first, so ids outside
-        // it are silently dropped rather than reordered, then authorize each.
+        // Cap the batch so a single request can't ask the server to resolve and
+        // rewrite an unbounded number of rows (a cheap DoS on a large list).
+        $max = (int) config('kinetix.tables.reorder_max', 1000);
+
+        if ($max > 0 && count($ids) > $max) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => __('kinetix.table_reorder_too_large'),
+            ], 422);
+        }
+
+        // Resolve every record through the table's scope in ONE query (ids
+        // outside it simply don't come back), keyed by id so we can walk the
+        // REQUESTED order — the previous code ran one SELECT per id (N+1).
+        $records = $this->baseQuery($descriptor)
+            ->whereKey($ids)
+            ->get()
+            ->keyBy(static fn (Model $record): string => (string) $record->getKey());
+
         $positions = [];
 
         foreach ($ids as $position => $id) {
-            $record = $this->findRecord($descriptor, $id);
+            $record = $records->get((string) $id);
 
             if ($record === null) {
                 continue;
@@ -209,7 +266,7 @@ class TableWriteController
      * Decrypt and validate the table's signed descriptor, returning either the
      * normalized payload or the JSON error response to send back.
      *
-     * @return array{model: class-string<Model>, columns: array<int, string>, reorder: string|null, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}|JsonResponse
+     * @return array{model: class-string<Model>, columns: array<string, list<mixed>>, reorder: string|null, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}|JsonResponse
      */
     protected function descriptor(Request $request): array|JsonResponse
     {
@@ -263,9 +320,28 @@ class TableWriteController
         $ability  = $payload['ability']  ?? null;
         $relation = $payload['relation'] ?? null;
 
+        // columns is a map of editable column name → sealed validation rules.
+        // Keep only string keys with array rule-lists; a legacy list payload
+        // (plain names, no rules) normalizes to each name ⇒ no extra rules.
+        $normalizedColumns = [];
+
+        if (is_array($columns)) {
+            foreach ($columns as $key => $value) {
+                if (is_string($key)) {
+                    $normalizedColumns[$key] = is_array($value) ? array_values($value) : [];
+
+                    continue;
+                }
+
+                if (is_string($value)) {
+                    $normalizedColumns[$value] = [];
+                }
+            }
+        }
+
         return [
             'model'    => $modelClass,
-            'columns'  => is_array($columns) ? array_values(array_filter($columns, is_string(...))) : [],
+            'columns'  => $normalizedColumns,
             'reorder'  => is_string($payload['reorder'] ?? null) ? $payload['reorder'] : null,
             'resource' => $resource,
             'scope'    => is_array($scope) ? $scope : [],

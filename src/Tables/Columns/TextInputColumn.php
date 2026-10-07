@@ -41,4 +41,21 @@ class TextInputColumn extends Column
     {
         return true;
     }
+
+    /**
+     * Derive a baseline rule from the HTML input type the cell renders, so an
+     * `email`/`url`/`number` cell can't be saved with a value its own control
+     * would reject. Layer stricter rules with {@see rules()}.
+     *
+     * @return array<int, mixed>
+     */
+    protected function getTypeRules(): array
+    {
+        return match ($this->inputType) {
+            'email'  => ['nullable', 'email'],
+            'url'    => ['nullable', 'url'],
+            'number' => ['nullable', 'numeric'],
+            default  => ['nullable', 'string'],
+        };
+    }
 }

@@ -756,6 +756,8 @@ return [
 
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable' => 'Cette colonne n’est pas modifiable.',
+    'table_value_invalid'       => 'La valeur n’est pas valide pour cette colonne.',
+    'table_reorder_too_large'   => 'Trop de lignes à réordonner en une fois.',
     'table_record_not_found'    => 'Enregistrement introuvable.',
     'table_write_forbidden'     => 'Vous n’êtes pas autorisé à effectuer cette action.',
     'table_invalid_signature'   => 'Signature de tableau invalide.',

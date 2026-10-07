@@ -22,7 +22,17 @@ let kanbanUid = 0;
  * error). Uses native HTML5 drag-and-drop on pointer devices and a long-press
  * touch drag on mobile — no extra dependency.
  */
-const props = defineProps<{ kanban: KinetixKanbanData }>();
+const props = defineProps<{
+    kanban: KinetixKanbanData;
+    /**
+     * Inertia prop names to refresh after a move. When set, the post-move
+     * resync is a PARTIAL reload (`router.reload({ only })`) instead of a full
+     * one — on a dashboard with many props this avoids re-serializing the whole
+     * page. Must name the prop(s) the host page feeds this board (and anything
+     * derived from the same data). Omit it to keep the safe full reload.
+     */
+    reloadOnly?: string[];
+}>();
 
 const emit = defineEmits<{
     /** A card was clicked (or Enter-pressed) — e.g. open its record. */
@@ -134,7 +144,9 @@ async function moveCard(
                 status: toKey,
             },
         });
-        router.reload();
+        router.reload(
+            props.reloadOnly?.length ? { only: props.reloadOnly } : {},
+        );
 
         return true;
     } catch {

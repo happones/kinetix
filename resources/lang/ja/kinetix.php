@@ -693,6 +693,8 @@ return [
 
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable' => 'この列は編集できません。',
+    'table_value_invalid'       => 'この列には無効な値です。',
+    'table_reorder_too_large'   => '一度に並べ替える行が多すぎます。',
     'table_record_not_found'    => 'レコードが見つかりません。',
     'table_write_forbidden'     => 'この操作は許可されていません。',
     'table_invalid_signature'   => 'テーブルの署名が無効です。',
