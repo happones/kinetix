@@ -13,6 +13,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.200.0] - 2026-10-07
+
+Server-driven form reactivity — `$get`/`$set`. A `live()` field now recomputes
+the schema on the server as it changes, so dependent options, reactive
+visibility/disable and value side-effects finally work. Re-publish the
+components (`--force`) to pick this up. Existing APIs are unchanged; `live()`
+and `afterStateUpdated()` change from documented no-ops to functional.
+
+### Added
+
+- **`$get` / `$set` reactivity (published).** Mark a field `->live()` and let
+  others react to it:
+
+  ```php
+  Select::make('country')->live()
+      ->options(Country::pluck('name', 'id'))
+      ->afterStateUpdated(fn (Set $set) => $set('state', null));
+
+  Select::make('state')
+      ->options(fn (Get $get) => State::where('country_id', $get('country'))->pluck('name', 'id'));
+  ```
+
+  On change, `KinetixForm` POSTs the current values to the signed
+  `kinetix.forms.recompute` endpoint; the server **rebuilds the form and
+  recomputes its schema** against the live state (dependent options, reactive
+  `visible`/`disabled`), and `afterStateUpdated` pushes derived values back
+  through `$set`. The round-trip is debounced, out-of-order responses are
+  dropped, and the focused field + caret are preserved across the swap.
+
+- **`Get` / `Set` state accessors and `Field::evaluate()`.** Reactive closures
+  receive what they ask for by type or name (`Get $get`, `Set $set`,
+  `Model $record`); a legacy `fn ($record)` keeps working unchanged.
+
+- **`Form::reactiveVia(Resource::class)`.** Opt a resource/inline-built form
+  into reactivity. A `Form` subclass needs no call — it rebuilds itself. In-table
+  record modals mark their resource forms reactive automatically.
+
+### Security
+
+- The recompute endpoint is a **signed descriptor** carrying only class
+  references + the record id (never a closure), bound to the user/team/expiry
+  like every Kinetix endpoint. The server re-runs only the form's **own**
+  closures, rebuilt from its class; a record-bound form is authorized against
+  the host's policy first. The client supplies plain values, never logic.
+
+### Notes
+
+- Reactivity requires a **reconstructible** form: a `Form` subclass or
+  `->reactiveVia()`. An anonymous inline `Form::make()->schema([...])` ships no
+  descriptor and stays non-reactive (its `live()` fields render but don't
+  recompute). Conditional fields (`visibleWhen` etc., v0.199.0) still work on
+  any form — they need no round-trip.
+
 ## [0.199.0] - 2026-10-07
 
 Conditional form fields — show, hide, require or disable a field based on
