@@ -44,7 +44,9 @@ class RecordModalController
         $mode = (string) $request->input('mode', 'edit');
 
         if ($mode === 'create') {
-            $form = $resource::form(Form::make(new $modelClass)->operation('create'))->fill();
+            $form = $resource::form(Form::make(new $modelClass)->operation('create'))
+                ->reactiveVia($resource)
+                ->fill();
 
             return response()->json(['form' => $form->toArray()]);
         }
@@ -62,7 +64,9 @@ class RecordModalController
         // Default: edit — a fresh, filled form (so concurrent edits aren't lost).
         $this->authorize($modelClass, 'update', $record);
 
-        $form = $resource::form(Form::make($record)->operation('edit'))->fill($record);
+        $form = $resource::form(Form::make($record)->operation('edit'))
+            ->reactiveVia($resource)
+            ->fill($record);
 
         return response()->json(['form' => $form->toArray()]);
     }

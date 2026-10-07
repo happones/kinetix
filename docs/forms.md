@@ -390,9 +390,43 @@ conditionally **hidden** field is excluded from validation and never persisted
 (a smuggled value never reaches the model), and a conditionally **required**
 one gains `required` on submit — the client is a UX layer, not the guard.
 
-> This is the client-side slice of form reactivity. The server-driven
-> `$get`/`$set` loop (recomputing options from the database on change) is
-> future work; `live()` / `afterStateUpdated()` are not yet wired.
+#### Server-driven reactivity (`$get` / `$set`)
+
+For logic the client can't do alone — recomputing a select's options from the
+database, prefilling fields — mark a field `->live()` and let other fields read
+the state through `$get` (and push values back through `$set`):
+
+```php
+use Happones\Kinetix\Forms\Support\Get;
+use Happones\Kinetix\Forms\Support\Set;
+
+Select::make('country')
+    ->live()
+    ->options(Country::pluck('name', 'id'))
+    ->afterStateUpdated(fn (Set $set) => $set('state', null)); // clear dependent
+
+Select::make('state')
+    ->options(fn (Get $get) => State::where('country_id', $get('country'))->pluck('name', 'id'));
+```
+
+When `country` changes, `KinetixForm` POSTs the current values to a signed
+endpoint, the server **rebuilds the form and recomputes the schema** (so
+`state`'s options reflect the new country), and `afterStateUpdated` clears the
+stale `state`. The round-trip is debounced, out-of-order responses are
+discarded, and the focused field + caret are preserved across the swap.
+
+A closure receives what it asks for by type or name: `Get $get` / `$get`,
+`Set $set` / `$set`, `Model $record` / `$record` (a legacy `fn ($record)`
+still works).
+
+> **Reactivity needs a reconstructible form.** The server re-runs the form's own
+> closures, so the form must be rebuildable: a **`Form` subclass**
+> (`app/Kinetix/Forms/…`) or a resource form (`Resource::form()`). An anonymous
+> inline `Form::make()->schema([...])` ships no recompute descriptor — its
+> `live()` fields render but don't recompute. Make it a class (or call
+> `->reactiveVia(Resource::class)`) to opt in. Conditional fields above
+> (`visibleWhen` etc.) work on **any** form, inline included — they need no
+> round-trip.
 
 ---
 

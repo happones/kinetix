@@ -187,13 +187,19 @@ abstract class Field extends Component
     }
 
     /**
-     * @deprecated NOT YET WIRED. Reserved for the planned server-driven
-     * reactivity loop (`$get`/`$set` recomputing the schema on change). Today
-     * the callback is stored but never invoked — there is no round-trip that
-     * would call it — so setting it has no effect. Kept as a no-op rather than
-     * removed so code written against it keeps working once reactivity lands;
-     * do not rely on it firing until then. For hydration-time transforms use
-     * {@see afterStateHydrated()}, which IS wired.
+     * Run a callback when this field's value changes, in the server-driven
+     * reactivity loop. Receives a {@see Set} (and optionally a {@see Get}) to
+     * push derived values back to the client — e.g. clearing a dependent select
+     * when its parent changes:
+     *
+     *     Select::make('country')->live()
+     *         ->afterStateUpdated(fn (Set $set) => $set('state', null));
+     *
+     * Fires only when the field is {@see live()} AND the form is reconstructible
+     * server-side (a {@see Form} subclass, or `->reactiveVia(resource)`); an
+     * anonymous inline form can't rebuild its closures, so it never fires there.
+     * For hydration-time transforms (not change-driven) use
+     * {@see afterStateHydrated()}.
      */
     public function afterStateUpdated(Closure $callback): static
     {
@@ -268,11 +274,16 @@ abstract class Field extends Component
     }
 
     /**
-     * Mark the field "live". The `isLive`/`debounce` flags are serialized to
-     * the client, but the server-driven reactivity loop that would act on them
-     * (recomputing the schema, firing {@see afterStateUpdated()}) is NOT wired
-     * yet, so today this only records intent. Safe to call — it won't error —
-     * but don't expect dependent-field behaviour until reactivity lands.
+     * Mark the field "live": a change triggers the server-driven reactivity
+     * loop (debounced), which recomputes the schema with the new state —
+     * re-resolving dependent `options`, reactive `visible`/`disabled`, and
+     * firing {@see afterStateUpdated()}. `$onBlur` defers the trigger to blur;
+     * `$debounce` sets the delay (ms).
+     *
+     * Effective only when the form is reconstructible server-side (a
+     * {@see Form} subclass or `->reactiveVia(resource)`); an anonymous inline
+     * `Form::make()->schema([...])` ships no recompute descriptor, so `live()`
+     * there is inert (the field still renders, it just doesn't recompute).
      */
     public function live(bool $onBlur = false, ?int $debounce = null): static
     {
