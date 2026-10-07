@@ -30,6 +30,8 @@ export interface KinetixAction {
     isIconButton?: boolean;
     /** Opens an in-table record modal instead of navigating/dispatching. */
     modal?: 'create' | 'edit' | 'view' | 'delete' | null;
+    /** Server-side BulkAction: routes to the signed bulk-action endpoint. */
+    isSecureBulk?: boolean;
 }
 
 export interface KinetixNotification {
@@ -1322,6 +1324,8 @@ export interface KinetixTableData {
     recordModals?: KinetixRecordModals | null;
     /** Custom empty state (heading/description/icon/CTAs). Null = default text. */
     emptyState?: KinetixTableEmptyState | null;
+    /** Signed descriptor for server-side (BulkAction) bulk actions. Null = none. */
+    bulkDescriptor?: string | null;
 }
 
 /**

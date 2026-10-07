@@ -114,4 +114,82 @@ class TableEagerLoadTest extends TestCase
 
         $this->assertCount(0, $data['records']);
     }
+
+    public function test_with_eager_loads_a_relation_the_column_scanner_cannot_see(): void
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        // The relation is reached inside a state() closure, so it never appears
+        // in a column name — the derived eager-load can't find it. with()
+        // declares it explicitly.
+        $data = Table::make(EagerPost::query())
+            ->columns([
+                TextColumn::make('title'),
+                TextColumn::make('byline')
+                    ->state(fn (EagerPost $post): string => (string) $post->author->name),
+            ])
+            ->with(['author'])
+            ->toArray();
+
+        $queries = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        // rows + count(*) for pagination + one eager load for the authors —
+        // NOT one per row (which would be 5 extra here).
+        $this->assertLessThanOrEqual(3, $queries, 'with() did not eager-load the relation; it is lazy-loading per row.');
+        $this->assertCount(5, $data['records']);
+        $this->assertSame('Ada', $data['records'][0]['values']['byline'] ?? null);
+    }
+
+    public function test_a_computed_relation_column_without_with_still_n_plus_ones(): void
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        // Same table as above but WITHOUT with() — proves the N+1 is real and
+        // that with() is what fixes it, not some incidental eager-load.
+        Table::make(EagerPost::query())
+            ->columns([
+                TextColumn::make('title'),
+                TextColumn::make('byline')
+                    ->state(fn (EagerPost $post): string => (string) $post->author->name),
+            ])
+            ->toArray();
+
+        $queries = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        // One query per author row on top of the base/count queries.
+        $this->assertGreaterThan(3, $queries, 'Expected a lazy-load per row without with().');
+    }
+
+    public function test_with_de_dupes_and_accumulates_across_calls(): void
+    {
+        $table = Table::make(EagerPost::query())
+            ->with(['author'])
+            ->with(['author', 'author']);
+
+        $reflection = new \ReflectionProperty(Table::class, 'with');
+
+        $this->assertSame(['author'], $reflection->getValue($table));
+    }
+
+    public function test_with_is_a_no_op_when_empty(): void
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $data = Table::make(EagerPost::query())
+            ->columns([TextColumn::make('title')])
+            ->with([])
+            ->toArray();
+
+        $queries = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        // A plain column with an empty with() must not add an eager-load query.
+        $this->assertLessThanOrEqual(2, $queries);
+        $this->assertCount(5, $data['records']);
+    }
 }

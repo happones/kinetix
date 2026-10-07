@@ -755,16 +755,17 @@ return [
     'confidential_password_incorrect' => 'Mot de passe incorrect.',
 
     // Table write endpoints (inline edits, reordering, kanban moves)
-    'table_column_not_editable' => 'Cette colonne n’est pas modifiable.',
-    'table_value_invalid'       => 'La valeur n’est pas valide pour cette colonne.',
-    'table_reorder_too_large'   => 'Trop de lignes à réordonner en une fois.',
-    'table_record_not_found'    => 'Enregistrement introuvable.',
-    'table_write_forbidden'     => 'Vous n’êtes pas autorisé à effectuer cette action.',
-    'table_invalid_signature'   => 'Signature de tableau invalide.',
-    'table_invalid_model'       => 'Classe de modèle invalide.',
-    'table_descriptor_expired'  => 'La session de ce tableau a expiré. Veuillez recharger la page.',
-    'table_not_reorderable'     => 'Ce tableau ne peut pas être réordonné.',
-    'kanban_invalid_status'     => 'Statut invalide.',
+    'table_column_not_editable'     => 'Cette colonne n’est pas modifiable.',
+    'table_value_invalid'           => 'La valeur n’est pas valide pour cette colonne.',
+    'table_bulk_action_not_allowed' => 'Cette action groupée n’est pas autorisée.',
+    'table_reorder_too_large'       => 'Trop de lignes à réordonner en une fois.',
+    'table_record_not_found'        => 'Enregistrement introuvable.',
+    'table_write_forbidden'         => 'Vous n’êtes pas autorisé à effectuer cette action.',
+    'table_invalid_signature'       => 'Signature de tableau invalide.',
+    'table_invalid_model'           => 'Classe de modèle invalide.',
+    'table_descriptor_expired'      => 'La session de ce tableau a expiré. Veuillez recharger la page.',
+    'table_not_reorderable'         => 'Ce tableau ne peut pas être réordonné.',
+    'kanban_invalid_status'         => 'Statut invalide.',
 
     // Import / export / upload endpoints
     'import_invalid'                  => 'Importateur invalide.',

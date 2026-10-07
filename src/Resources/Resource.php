@@ -107,6 +107,84 @@ abstract class Resource
     }
 
     /**
+     * Create-only variant of {@see mutateFormDataBeforeSave()}, applied *after*
+     * it on the 'create' path. Override for logic that only makes sense when a
+     * record is being created (e.g. stamping an `owner_id` from the actor).
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public static function mutateFormDataBeforeCreate(array $data): array
+    {
+        return $data;
+    }
+
+    /**
+     * Edit-only variant of {@see mutateFormDataBeforeSave()}, applied *after* it
+     * on the 'edit' path. Override for logic that only makes sense when updating
+     * an existing record.
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public static function mutateFormDataBeforeUpdate(array $data, Model $record): array
+    {
+        return $data;
+    }
+
+    /**
+     * Lifecycle hook fired after a record is created, inside the same database
+     * transaction as the write (so throwing here rolls the create back). Use it
+     * for side-effects — dispatch an event, log activity, create related rows.
+     * {@see afterSave()} also fires on create, after this.
+     */
+    public static function afterCreate(Model $record): void
+    {
+        //
+    }
+
+    /**
+     * Lifecycle hook fired after a record is updated, inside the same database
+     * transaction as the write (so throwing here rolls the update back).
+     * {@see afterSave()} also fires on update, after this.
+     */
+    public static function afterUpdate(Model $record): void
+    {
+        //
+    }
+
+    /**
+     * Lifecycle hook fired after *either* a create or an update, inside the same
+     * transaction, after the operation-specific {@see afterCreate()} /
+     * {@see afterUpdate()}. Override for behaviour common to both writes (e.g.
+     * recalculating a cached aggregate).
+     */
+    public static function afterSave(Model $record): void
+    {
+        //
+    }
+
+    /**
+     * Lifecycle hook fired before a record is deleted, inside the same
+     * transaction (so throwing here aborts the delete). Use it to detach
+     * relations or guard the deletion.
+     */
+    public static function beforeDelete(Model $record): void
+    {
+        //
+    }
+
+    /**
+     * Lifecycle hook fired after a record is deleted, inside the same
+     * transaction (so throwing here rolls the delete back). Use it to clean up
+     * external resources or dispatch an event.
+     */
+    public static function afterDelete(Model $record): void
+    {
+        //
+    }
+
+    /**
      * URL to redirect to after a record is created (full-page resources).
      * Defaults to the listing; override to keep the user on the record, e.g.
      * `return static::resolveHref('edit', $record);` (edit) or `'show'` (view).

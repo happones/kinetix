@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -83,7 +84,16 @@ class RecordModalController
             'create',
         );
 
-        $resource::getEloquentQuery()->create($data);
+        $data = $resource::mutateFormDataBeforeCreate($data);
+
+        // Persist and fire the create/save hooks inside one transaction, so a
+        // hook that throws rolls the whole write back.
+        DB::transaction(static function () use ($resource, $data): void {
+            $record = $resource::getEloquentQuery()->create($data);
+
+            $resource::afterCreate($record);
+            $resource::afterSave($record);
+        });
 
         KinetixFlash::success((string) __('kinetix.record_created'));
 
@@ -109,7 +119,16 @@ class RecordModalController
             $record,
         );
 
-        $record->update($data);
+        $data = $resource::mutateFormDataBeforeUpdate($data, $record);
+
+        // Persist and fire the update/save hooks inside one transaction, so a
+        // hook that throws rolls the whole write back.
+        DB::transaction(static function () use ($resource, $record, $data): void {
+            $record->update($data);
+
+            $resource::afterUpdate($record);
+            $resource::afterSave($record);
+        });
 
         KinetixFlash::success((string) __('kinetix.record_updated'));
 
@@ -126,7 +145,15 @@ class RecordModalController
         $record = $this->findRecord($resource, $modelClass, $request->input('id'));
         $this->authorize($modelClass, 'delete', $record);
 
-        $record->delete();
+        // beforeDelete/afterDelete bracket the delete in one transaction, so a
+        // throwing hook aborts (before) or rolls back (after) the deletion.
+        DB::transaction(static function () use ($resource, $record): void {
+            $resource::beforeDelete($record);
+
+            $record->delete();
+
+            $resource::afterDelete($record);
+        });
 
         KinetixFlash::success((string) __('kinetix.record_deleted'));
 

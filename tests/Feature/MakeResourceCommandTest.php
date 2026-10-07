@@ -282,9 +282,19 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringContainsString('public function destroy(string $current_team, string $record)', $controller);
 
         // Writes flow through the resource's save hook (which stamps team_id on
-        // create and strips it on edit) instead of an inline array_merge.
-        $this->assertStringContainsString("Post::create(PostResource::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'create'))", $controller);
-        $this->assertStringContainsString("\$record->update(PostResource::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'edit', \$record))", $controller);
+        // create and strips it on edit) instead of an inline array_merge, now
+        // wrapped in the create/update lifecycle hooks + a transaction.
+        $this->assertStringContainsString("PostResource::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'create')", $controller);
+        $this->assertStringContainsString('PostResource::mutateFormDataBeforeCreate(', $controller);
+        $this->assertStringContainsString("PostResource::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'edit', \$record)", $controller);
+        $this->assertStringContainsString('PostResource::mutateFormDataBeforeUpdate(', $controller);
+        // Lifecycle hooks fire inside a DB transaction on every write path.
+        $this->assertStringContainsString('DB::transaction(', $controller);
+        $this->assertStringContainsString('PostResource::afterCreate($record);', $controller);
+        $this->assertStringContainsString('PostResource::afterUpdate($record);', $controller);
+        $this->assertStringContainsString('PostResource::afterSave($record);', $controller);
+        $this->assertStringContainsString('PostResource::beforeDelete($record);', $controller);
+        $this->assertStringContainsString('PostResource::afterDelete($record);', $controller);
 
         $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
         $this->assertStringContainsString("where('team_id', KinetixTeams::currentTeamKey())", $resource);

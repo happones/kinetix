@@ -1,9 +1,26 @@
+import { router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { executeAction } from '@/composables/useKinetixActions';
+import { kinetixFetch } from '@/composables/useKinetixHttp';
 import type { KinetixAction, KinetixTableRecord } from '@/types/kinetix';
+
+/**
+ * Context the table passes so SERVER-SIDE bulk actions (`BulkAction`) run
+ * through Kinetix's signed endpoint instead of a host URL/event. When present
+ * and the fired action is `isSecureBulk`, the composable POSTs the descriptor,
+ * the action name and the selected ids to `/{prefix}/tables/bulk-action` — the
+ * server resolves the ids in-scope, authorizes each, and runs the handler —
+ * then reloads. Omitted (or for a plain action), the declarative path runs.
+ */
+export interface SecureBulkContext {
+    /** `bulkDescriptor` sealed by the table (name→class + scope). */
+    descriptor: () => string | null | undefined;
+    /** Kinetix route prefix (e.g. `{team}/_kinetix`). */
+    routePrefix: () => string;
+}
 
 /**
  * Row selection plus bulk-action orchestration for a Kinetix table. Tracks the
@@ -31,6 +48,7 @@ export interface UseKinetixRowSelection {
 
 export function useKinetixRowSelection(
     records: () => KinetixTableRecord[],
+    secureBulk?: SecureBulkContext,
 ): UseKinetixRowSelection {
     const { t } = useI18n();
     const selectedIds = ref<Set<string | number>>(new Set());
@@ -84,7 +102,25 @@ export function useKinetixRowSelection(
         bulkProcessing.value = true;
 
         try {
-            await executeAction(action, { ids: Array.from(selectedIds.value) });
+            const ids = Array.from(selectedIds.value);
+            const descriptor = secureBulk?.descriptor();
+
+            // A server-side BulkAction routes to the signed endpoint: the
+            // server scopes the ids and authorizes each record before running
+            // the handler. Falls back to the declarative path otherwise.
+            if (action.isSecureBulk && descriptor) {
+                await kinetixFetch(
+                    `/${secureBulk?.routePrefix()}/tables/bulk-action`,
+                    {
+                        method: 'POST',
+                        body: { descriptor, action: action.name, ids },
+                    },
+                );
+                router.reload();
+            } else {
+                await executeAction(action, { ids });
+            }
+
             clearSelection();
         } catch (e) {
             toast.error(

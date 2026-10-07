@@ -665,6 +665,7 @@ use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class {$modelName}Controller extends Controller
@@ -712,7 +713,20 @@ class {$modelName}Controller extends Controller
         // Through the resource's save hook — it stamps server-owned columns
         // (e.g. team_id on a team-aware resource), so customizing the hook
         // applies to these pages AND the in-table modal endpoint alike.
-        \$record = {$modelName}::create({$resourceClass}::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'create'));
+        \$data = {$resourceClass}::mutateFormDataBeforeCreate(
+            {$resourceClass}::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'create'),
+        );
+
+        // Persist + lifecycle hooks (afterCreate/afterSave) in one transaction,
+        // so a throwing hook rolls the write back.
+        \$record = DB::transaction(function () use (\$data) {
+            \$record = {$modelName}::create(\$data);
+
+            {$resourceClass}::afterCreate(\$record);
+            {$resourceClass}::afterSave(\$record);
+
+            return \$record;
+        });
 
         // The toast message — customize freely; <KinetixToaster /> shows it.
         KinetixFlash::success(__('kinetix.record_created'));
@@ -775,7 +789,18 @@ class {$modelName}Controller extends Controller
 
         // The save hook also strips server-owned columns on edit (a submitted
         // team_id can never move the record to another team).
-        \$record->update({$resourceClass}::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'edit', \$record));
+        \$data = {$resourceClass}::mutateFormDataBeforeUpdate(
+            {$resourceClass}::mutateFormDataBeforeSave(\$form->getState(\$request->all()), 'edit', \$record),
+            \$record,
+        );
+
+        // Persist + lifecycle hooks (afterUpdate/afterSave) in one transaction.
+        DB::transaction(function () use (\$record, \$data) {
+            \$record->update(\$data);
+
+            {$resourceClass}::afterUpdate(\$record);
+            {$resourceClass}::afterSave(\$record);
+        });
 
         // Destination configurable on the resource — getRedirectUrlAfterSave()
         // (defaults to staying on the edit page).
@@ -789,7 +814,14 @@ class {$modelName}Controller extends Controller
         \$record = {$resourceClass}::getEloquentQuery()->findOrFail(\$record);
         \$this->authorizeAction('delete', \$record);
 
-        \$record->delete();
+        // beforeDelete/afterDelete bracket the delete in one transaction.
+        DB::transaction(function () use (\$record) {
+            {$resourceClass}::beforeDelete(\$record);
+
+            \$record->delete();
+
+            {$resourceClass}::afterDelete(\$record);
+        });
 
         KinetixFlash::success(__('kinetix.record_deleted'));
 

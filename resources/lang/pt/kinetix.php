@@ -755,16 +755,17 @@ return [
     'confidential_password_incorrect' => 'Senha incorreta.',
 
     // Table write endpoints (inline edits, reordering, kanban moves)
-    'table_column_not_editable' => 'Esta coluna não é editável.',
-    'table_value_invalid'       => 'O valor não é válido para esta coluna.',
-    'table_reorder_too_large'   => 'Linhas demais para reordenar de uma vez.',
-    'table_record_not_found'    => 'Registro não encontrado.',
-    'table_write_forbidden'     => 'Você não tem autorização para esta ação.',
-    'table_invalid_signature'   => 'Assinatura de tabela inválida.',
-    'table_invalid_model'       => 'Classe de modelo inválida.',
-    'table_descriptor_expired'  => 'A sessão desta tabela expirou. Recarregue a página.',
-    'table_not_reorderable'     => 'Esta tabela não permite reordenação.',
-    'kanban_invalid_status'     => 'Status inválido.',
+    'table_column_not_editable'     => 'Esta coluna não é editável.',
+    'table_value_invalid'           => 'O valor não é válido para esta coluna.',
+    'table_bulk_action_not_allowed' => 'Esta ação em massa não é permitida.',
+    'table_reorder_too_large'       => 'Linhas demais para reordenar de uma vez.',
+    'table_record_not_found'        => 'Registro não encontrado.',
+    'table_write_forbidden'         => 'Você não tem autorização para esta ação.',
+    'table_invalid_signature'       => 'Assinatura de tabela inválida.',
+    'table_invalid_model'           => 'Classe de modelo inválida.',
+    'table_descriptor_expired'      => 'A sessão desta tabela expirou. Recarregue a página.',
+    'table_not_reorderable'         => 'Esta tabela não permite reordenação.',
+    'kanban_invalid_status'         => 'Status inválido.',
 
     // Import / export / upload endpoints
     'import_invalid'                  => 'Importador inválido.',

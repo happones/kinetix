@@ -109,6 +109,14 @@ class Action
     }
 
     /**
+     * The action's name (its stable identifier, e.g. for the signed bulk map).
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
      * Set the display label of the action button.
      */
     public function label(string $label): static
@@ -444,6 +452,16 @@ class Action
     }
 
     /**
+     * Whether this action runs server-side through Kinetix's signed bulk
+     * endpoint (true only for {@see BulkAction}).
+     * A plain action is declarative, so this is false.
+     */
+    public function isSecure(): bool
+    {
+        return false;
+    }
+
+    /**
      * Convert the action to ActionData, or null when hidden/unauthorized.
      */
     public function toData(?Model $record = null): ?ActionData
@@ -529,6 +547,7 @@ class Action
             shortcut: $this->shortcut,
             isIconButton: $this->isIconButton,
             modal: $this->modalMode,
+            isSecureBulk: $this->isSecure(),
         );
     }
 

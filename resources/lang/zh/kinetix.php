@@ -692,16 +692,17 @@ return [
     'confidential_password_incorrect' => '密码错误。',
 
     // Table write endpoints (inline edits, reordering, kanban moves)
-    'table_column_not_editable' => '此列不可编辑。',
-    'table_value_invalid'       => '该值对此列无效。',
-    'table_reorder_too_large'   => '一次重新排序的行数过多。',
-    'table_record_not_found'    => '未找到记录。',
-    'table_write_forbidden'     => '此操作未获授权。',
-    'table_invalid_signature'   => '表格签名无效。',
-    'table_invalid_model'       => '模型类无效。',
-    'table_descriptor_expired'  => '表格会话已过期，请重新加载页面。',
-    'table_not_reorderable'     => '此表格不支持重新排序。',
-    'kanban_invalid_status'     => '状态无效。',
+    'table_column_not_editable'     => '此列不可编辑。',
+    'table_value_invalid'           => '该值对此列无效。',
+    'table_bulk_action_not_allowed' => '不允许此批量操作。',
+    'table_reorder_too_large'       => '一次重新排序的行数过多。',
+    'table_record_not_found'        => '未找到记录。',
+    'table_write_forbidden'         => '此操作未获授权。',
+    'table_invalid_signature'       => '表格签名无效。',
+    'table_invalid_model'           => '模型类无效。',
+    'table_descriptor_expired'      => '表格会话已过期，请重新加载页面。',
+    'table_not_reorderable'         => '此表格不支持重新排序。',
+    'kanban_invalid_status'         => '状态无效。',
 
     // Import / export / upload endpoints
     'import_invalid'                  => '导入器无效。',

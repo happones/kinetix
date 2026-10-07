@@ -692,16 +692,17 @@ return [
     'confidential_password_incorrect' => 'パスワードが正しくありません。',
 
     // Table write endpoints (inline edits, reordering, kanban moves)
-    'table_column_not_editable' => 'この列は編集できません。',
-    'table_value_invalid'       => 'この列には無効な値です。',
-    'table_reorder_too_large'   => '一度に並べ替える行が多すぎます。',
-    'table_record_not_found'    => 'レコードが見つかりません。',
-    'table_write_forbidden'     => 'この操作は許可されていません。',
-    'table_invalid_signature'   => 'テーブルの署名が無効です。',
-    'table_invalid_model'       => 'モデルクラスが無効です。',
-    'table_descriptor_expired'  => 'テーブルのセッションが期限切れです。ページを再読み込みしてください。',
-    'table_not_reorderable'     => 'このテーブルは並べ替えできません。',
-    'kanban_invalid_status'     => 'ステータスが無効です。',
+    'table_column_not_editable'     => 'この列は編集できません。',
+    'table_value_invalid'           => 'この列には無効な値です。',
+    'table_bulk_action_not_allowed' => 'この一括操作は許可されていません。',
+    'table_reorder_too_large'       => '一度に並べ替える行が多すぎます。',
+    'table_record_not_found'        => 'レコードが見つかりません。',
+    'table_write_forbidden'         => 'この操作は許可されていません。',
+    'table_invalid_signature'       => 'テーブルの署名が無効です。',
+    'table_invalid_model'           => 'モデルクラスが無効です。',
+    'table_descriptor_expired'      => 'テーブルのセッションが期限切れです。ページを再読み込みしてください。',
+    'table_not_reorderable'         => 'このテーブルは並べ替えできません。',
+    'kanban_invalid_status'         => 'ステータスが無効です。',
 
     // Import / export / upload endpoints
     'import_invalid'                  => 'インポーターが無効です。',

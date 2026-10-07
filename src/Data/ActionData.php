@@ -52,5 +52,9 @@ class ActionData extends Data
         // Opens an in-table record modal ('create'|'edit'|'view'|'delete')
         // instead of navigating/dispatching. See Table::recordModals().
         public ?string $modal = null,
+        // True for a BulkAction: the frontend routes it to the signed
+        // kinetix.tables.bulk-action endpoint (scope + per-record policy)
+        // instead of a host URL/event. See Table::bulkActions().
+        public bool $isSecureBulk = false,
     ) {}
 }

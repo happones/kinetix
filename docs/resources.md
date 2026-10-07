@@ -293,6 +293,89 @@ quick redirects.
     └── Show.vue                        <-- Read-only infolist + header actions
 ```
 
+#### Lifecycle hooks (side-effects without touching the controller)
+
+A resource exposes `static` lifecycle hooks so you can run side-effects —
+dispatch an event, write an audit row, create related records, guard a delete —
+without editing the generated controller. They fire on **both** write paths:
+the generated full-page controller **and** the in-table modal endpoint
+(`Table::recordModals()`), so a hook defined once applies everywhere.
+
+Every hook runs **inside the same database transaction** as the write, so
+throwing from one aborts (or rolls back) the operation — a failed side-effect
+never leaves a half-written record.
+
+```php
+use Illuminate\Database\Eloquent\Model;
+
+class OrderResource extends Resource
+{
+    // --- mutate submitted data before it is written ---
+
+    // Runs on every write (create + edit); see getEloquentQuery/team scoping.
+    public static function mutateFormDataBeforeSave(array $data, string $operation, ?Model $record = null): array
+    {
+        return $data;
+    }
+
+    // Create-only, applied after mutateFormDataBeforeSave().
+    public static function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['reference'] = 'ORD-'.strtoupper(Str::random(8));
+
+        return $data;
+    }
+
+    // Edit-only, applied after mutateFormDataBeforeSave().
+    public static function mutateFormDataBeforeUpdate(array $data, Model $record): array
+    {
+        return $data;
+    }
+
+    // --- react after the write (inside the transaction) ---
+
+    public static function afterCreate(Model $record): void
+    {
+        OrderPlaced::dispatch($record);
+    }
+
+    public static function afterUpdate(Model $record): void
+    {
+        //
+    }
+
+    // Fires on BOTH create and update, after the operation-specific hook above.
+    public static function afterSave(Model $record): void
+    {
+        $record->customer->recalculateTotals();
+    }
+
+    // --- bracket the delete (inside the transaction) ---
+
+    public static function beforeDelete(Model $record): void
+    {
+        // Throw here to veto the deletion.
+        abort_if($record->isLocked(), 422, 'Locked orders cannot be deleted.');
+    }
+
+    public static function afterDelete(Model $record): void
+    {
+        $record->invoices()->delete();
+    }
+}
+```
+
+Firing order per operation:
+
+| Operation | Hooks, in order |
+|---|---|
+| **create** | `mutateFormDataBeforeSave('create')` → `mutateFormDataBeforeCreate` → *write* → `afterCreate` → `afterSave` |
+| **update** | `mutateFormDataBeforeSave('edit')` → `mutateFormDataBeforeUpdate` → *write* → `afterUpdate` → `afterSave` |
+| **delete** | `beforeDelete` → *delete* → `afterDelete` |
+
+All hooks default to a no-op (the `mutate*` variants return `$data` unchanged),
+so overriding is entirely opt-in and existing resources are unaffected.
+
 #### Post-save redirect (configurable)
 
 Where the user lands after create/save is delegated to the resource, so you can

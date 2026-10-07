@@ -275,7 +275,10 @@ const {
     requestBulkAction,
     onBulkConfirm,
     onBulkCancel,
-} = useKinetixRowSelection(() => props.table.records);
+} = useKinetixRowSelection(() => props.table.records, {
+    descriptor: () => props.table.bulkDescriptor,
+    routePrefix: () => routePrefix.value,
+});
 
 // --- Inline cell editing -----------------------------------------------------
 const updateCell = async (

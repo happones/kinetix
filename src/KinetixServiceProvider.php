@@ -135,6 +135,7 @@ use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\Memo;
 use Happones\Kinetix\Support\WeeklySchedule;
+use Happones\Kinetix\Tables\BulkActionController;
 use Happones\Kinetix\Tables\RecordModalController;
 use Happones\Kinetix\Tables\TableWriteController;
 use Happones\Kinetix\Tags\TagController;
@@ -2723,6 +2724,12 @@ class KinetixServiceProvider extends ServiceProvider
 
                 Route::post('reorder', [TableWriteController::class, 'reorder'])
                     ->name('kinetix.tables.reorder');
+
+                // Server-side bulk action over selected rows: resolves ids
+                // through the table's signed scope and authorizes each record
+                // before running the registered BulkAction's handle().
+                Route::post('bulk-action', BulkActionController::class)
+                    ->name('kinetix.tables.bulk-action');
 
                 // Kanban card move: set a record's status column to a target
                 // status, guarded by the board's signed descriptor (statuses,

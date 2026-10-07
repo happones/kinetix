@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.197.0] - 2026-10-07
+
+A safe server-side path for bulk actions, an escape hatch for eager-loading,
+and Filament-style resource lifecycle hooks. Re-publish the components and
+translations (`--force`) to pick this up. Existing APIs are unchanged.
+
+### Security
+
+- **`BulkAction` runs server-side through a signed endpoint (published).** A
+  plain `Action` bulk still POSTs the selected `ids` to a host URL/event (the
+  host secures it). The new `BulkAction` class moves the work into a
+  `handle(Collection $records)` method: the table seals its name → class into a
+  signed descriptor, and the new `BulkActionController` resolves the ids
+  through the table's own scope (ids outside it are dropped), authorizes each
+  record against the host's policy, and only then runs the handler — in a
+  transaction. The browser never names a class or an unscoped record. This is
+  the bulk analogue of the inline-edit/reorder write path.
+
+### Added
+
+- **`BulkAction` + `kinetix.tables.bulk-action` endpoint (published).** Subclass
+  `BulkAction`, implement `handle()`, drop it in `->bulkActions([...])`. The
+  action name defaults to the kebab of the class short name.
+- **`Table::with([...])` (published).** Declare explicit eager-loads on top of
+  the ones derived from dot-notation columns, so a computed column that reaches
+  a relation (`->state(fn ($r) => $r->author->name)`) doesn't lazy-load once
+  per row (N+1). De-dupes and accumulates across calls; a no-op when empty.
+- **Resource lifecycle hooks (published).** `mutateFormDataBeforeCreate()`,
+  `mutateFormDataBeforeUpdate()`, `afterCreate()`, `afterUpdate()`,
+  `afterSave()`, `beforeDelete()` and `afterDelete()` on `Resource`, fired by
+  the in-table record modals (`RecordModalController`) and the generated
+  full-page controller, each inside a transaction — side effects without
+  hacking the generated controller. All default to no-ops, so existing
+  resources are unchanged.
+
 ## [0.196.0] - 2026-10-07
 
 Pre-1.0 hardening of the table write path and form API, plus an opt-in to

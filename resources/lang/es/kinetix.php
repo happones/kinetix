@@ -755,16 +755,17 @@ return [
     'confidential_password_incorrect' => 'Contraseña incorrecta.',
 
     // Table write endpoints (inline edits, reordering, kanban moves)
-    'table_column_not_editable' => 'Esta columna no es editable.',
-    'table_value_invalid'       => 'El valor no es válido para esta columna.',
-    'table_reorder_too_large'   => 'Demasiadas filas para reordenar a la vez.',
-    'table_record_not_found'    => 'Registro no encontrado.',
-    'table_write_forbidden'     => 'No tienes autorización para esta acción.',
-    'table_invalid_signature'   => 'Firma de tabla no válida.',
-    'table_invalid_model'       => 'Clase de modelo no válida.',
-    'table_descriptor_expired'  => 'La sesión de la tabla expiró. Recarga la página.',
-    'table_not_reorderable'     => 'Esta tabla no admite reordenación.',
-    'kanban_invalid_status'     => 'Estado no válido.',
+    'table_column_not_editable'     => 'Esta columna no es editable.',
+    'table_value_invalid'           => 'El valor no es válido para esta columna.',
+    'table_bulk_action_not_allowed' => 'Esta acción masiva no está permitida.',
+    'table_reorder_too_large'       => 'Demasiadas filas para reordenar a la vez.',
+    'table_record_not_found'        => 'Registro no encontrado.',
+    'table_write_forbidden'         => 'No tienes autorización para esta acción.',
+    'table_invalid_signature'       => 'Firma de tabla no válida.',
+    'table_invalid_model'           => 'Clase de modelo no válida.',
+    'table_descriptor_expired'      => 'La sesión de la tabla expiró. Recarga la página.',
+    'table_not_reorderable'         => 'Esta tabla no admite reordenación.',
+    'kanban_invalid_status'         => 'Estado no válido.',
 
     // Import / export / upload endpoints
     'import_invalid'                  => 'Importador no válido.',

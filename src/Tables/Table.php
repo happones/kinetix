@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables;
 
 use Closure;
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Actions\BulkAction;
 use Happones\Kinetix\Data\ActionData;
 use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\SummaryData;
@@ -48,6 +49,18 @@ class Table implements Arrayable, JsonSerializable
      * @var array<int, Filter>
      */
     protected array $filters = [];
+
+    /**
+     * Relations to eager-load on top of the ones derived from dot-notation
+     * columns. Computed columns — `state(fn ($r) => $r->author->name)` or a
+     * `formatStateUsing()` that reaches into a relation — never expose the
+     * relation in their name, so the column-derived eager-load can't see them
+     * and the table lazy-loads once PER ROW (the N+1 this feature exists to
+     * kill). Declaring them here is the explicit escape hatch.
+     *
+     * @var array<int, string>
+     */
+    protected array $with = [];
 
     /**
      * @var array<int, Action>
@@ -264,6 +277,27 @@ class Table implements Arrayable, JsonSerializable
     public function columns(array $columns): static
     {
         $this->columns = $columns;
+
+        return $this;
+    }
+
+    /**
+     * Declare EXPLICIT eager-loads, merged on top of the ones inferred from
+     * dot-notation columns in `getResolvedQuery()`.
+     *
+     * Use this for relations the column scanner can't see — accessed inside a
+     * `state()` / `formatStateUsing()` closure, through an accessor, or nested
+     * (`author.company`) past what a column name reveals. Values are plain
+     * Eloquent `with()` keys, so constrained loads
+     * (`['posts' => fn ($q) => $q->latest()]`) are intentionally NOT accepted
+     * here: this is a string whitelist merged with the derived set. Call it
+     * repeatedly to accumulate rather than overwrite.
+     *
+     * @param array<int, string> $relations
+     */
+    public function with(array $relations): static
+    {
+        $this->with = array_values(array_unique(array_merge($this->with, $relations)));
 
         return $this;
     }
@@ -891,6 +925,16 @@ class Table implements Arrayable, JsonSerializable
             $this->columns,
         ));
 
+        // Explicit eager-loads declared via with(). The column scanner above
+        // can only see relations named in a column; anything reached inside a
+        // state()/formatStateUsing() closure is invisible to it, so these are
+        // the developer's manual escape hatch. Eloquent's with() de-dupes
+        // against relations already queued, so re-stating a derived one is a
+        // harmless no-op; an empty list skips the call entirely.
+        if ($this->with !== []) {
+            $query->with($this->with);
+        }
+
         // Apply searching (grouped OR, LIKE wildcards escaped).
         $search = $this->param('search');
 
@@ -1108,6 +1152,21 @@ class Table implements Arrayable, JsonSerializable
         $bulkActionsData    = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
         $footerActionsData  = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->footerActions)));
 
+        // Seal the name → class map of server-side (BulkAction) bulk actions,
+        // but only those that survived authorization (their ActionData is in
+        // $bulkActionsData) — a user who can't see the action can't invoke it.
+        $visibleBulkNames = array_map(static fn (ActionData $a): string => $a->name, $bulkActionsData);
+        $secureBulk       = [];
+
+        foreach ($this->bulkActions as $action) {
+            if (
+                $action instanceof BulkAction
+                && in_array($action->getName(), $visibleBulkNames, true)
+            ) {
+                $secureBulk[$action->getName()] = $action::class;
+            }
+        }
+
         $state = new TableStateData(
             search: (string) $this->param('search', ''),
             sort: (string) $this->param('sort', ''),
@@ -1144,6 +1203,7 @@ class Table implements Arrayable, JsonSerializable
             clientSide: $this->clientSide,
             recordModals: $this->buildRecordModalsData(),
             emptyState: $this->buildEmptyStateData(),
+            bulkDescriptor: $secureBulk === [] ? null : $this->buildBulkDescriptor($secureBulk),
         );
     }
 
@@ -1193,6 +1253,28 @@ class Table implements Arrayable, JsonSerializable
             'model'    => $this->getModelClass(),
             'columns'  => $editableColumns,
             'reorder'  => $this->reorderColumn,
+            'resource' => $this->recordModalsResource,
+            'scope'    => $this->writeScope ?? $this->captureWriteScope(),
+            'relation' => $this->writeRelation,
+            'ability'  => $this->writeAbility,
+        ]);
+    }
+
+    /**
+     * Mint the signed descriptor the bulk-action endpoint trusts. Mirrors the
+     * write descriptor (model + resource + scope + relation + ability + the
+     * user/team/expiry binding), but its allowlist is the name → class map of
+     * the table's server-side {@see BulkAction}s. {@see BulkActionController}
+     * runs only a class named here, over records resolved through this scope
+     * and authorized one by one — the client names neither class nor record.
+     *
+     * @param array<string, class-string<BulkAction>> $bulkActions
+     */
+    protected function buildBulkDescriptor(array $bulkActions): string
+    {
+        return SignedDescriptor::seal([
+            'model'    => $this->getModelClass(),
+            'bulk'     => $bulkActions,
             'resource' => $this->recordModalsResource,
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
             'relation' => $this->writeRelation,

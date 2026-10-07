@@ -850,6 +850,40 @@ Table-level methods control refresh, pagination, and row behavior:
 <Screenshot name="table-toolbar" alt="Table toolbar with search, actions, filters and column toggle" />
 - `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
 
+### Eager loading relations — `with()`
+
+Dot-notation columns (`author.name`) are eager-loaded automatically: Kinetix
+derives the `with()` from the columns you declared, so a relation column never
+lazy-loads once per row. That inference can only see relations **named in a
+column**, though. A computed column that reaches into a relation inside its
+closure hides the relation from the scanner:
+
+```php
+TextColumn::make('byline')
+    ->state(fn (Post $post) => $post->author->name); // `author` is invisible here
+```
+
+Nothing in the column name says `author`, so the derived eager-load misses it
+and the table lazy-loads the author once per row — the N+1 the feature exists to
+avoid. Declare those relations explicitly with `with()`:
+
+```php
+Table::make(Post::query())
+    ->columns([
+        TextColumn::make('title'),
+        TextColumn::make('byline')->state(fn (Post $post) => $post->author->name),
+    ])
+    ->with(['author']);
+```
+
+- Values are plain Eloquent `with()` keys and merge **on top of** the
+  column-derived set — restating a relation already inferred from a column is a
+  harmless no-op (Eloquent de-dupes).
+- Calls accumulate: `->with(['author'])->with(['tags'])` loads both.
+- Only string keys are accepted here; this is a whitelist, not a place for
+  constrained loads. For a constrained base query, eager-load on the builder you
+  pass in: `Table::make(Post::with(['posts' => fn ($q) => $q->latest()]))`.
+
 ### Clickable rows
 
 Clicking anywhere on a row opens its record, the way an admin list is expected

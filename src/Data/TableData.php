@@ -55,5 +55,9 @@ class TableData extends Data
         public ?RecordModalsData $recordModals = null,
         // Custom empty state (heading/description/icon/CTAs). Null = default text.
         public ?TableEmptyStateData $emptyState = null,
+        // Signed descriptor for server-side (BulkAction) bulk actions: seals
+        // name→class + the table's scope/resource/ability so the bulk endpoint
+        // resolves ids in-scope and authorizes each record. Null = none.
+        public ?string $bulkDescriptor = null,
     ) {}
 }
