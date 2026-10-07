@@ -376,6 +376,71 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
+     * Re-serialize the schema against a partial, in-flight state — the heart of
+     * the server-driven reactivity loop ($get/$set). Given the values the user
+     * has entered so far, it:
+     *
+     *   1. seeds every field's reactive state, so their `options`/`visible`/
+     *      `disabled` closures (which take a {@see Get}) resolve against the
+     *      LIVE values rather than the record;
+     *   2. fires `afterStateUpdated()` for each `live()` field whose value is
+     *      present, letting it push derived values back through a {@see Set}
+     *      (e.g. clearing a dependent select) — collected as `changes`;
+     *   3. returns the freshly serialized schema plus those changes.
+     *
+     * It never runs anything the client sent: the schema and its closures come
+     * from THIS form instance (rebuilt server-side from its class), so the
+     * client only ever supplies plain values.
+     *
+     * @param  array<string, mixed>                                                           $data
+     * @return array{schema: array<int, array<string, mixed>>, changes: array<string, mixed>}
+     */
+    public function recompute(array $data): array
+    {
+        $state   = array_merge($this->data, $data);
+        $changes = [];
+        $fields  = $this->getFields();
+
+        if ($this->model !== null) {
+            foreach ($fields as $field) {
+                if ($field instanceof ResolvesRelationships) {
+                    $field->forModel($this->model);
+                }
+            }
+        }
+
+        // Fire afterStateUpdated for live fields, letting each push derived
+        // values into the shared working state (visible to later reads).
+        foreach ($fields as $name => $field) {
+            if (! $field->isLive()) {
+                continue;
+            }
+
+            $field->runAfterStateUpdated($state, $changes, $this->record);
+        }
+
+        // Seed the (possibly $set-mutated) state into every field so the
+        // re-serialization evaluates reactive closures against it.
+        foreach ($fields as $field) {
+            $field->withReactiveState($state);
+        }
+
+        $serializedSchema = [];
+        foreach ($this->schema as $component) {
+            if ($component instanceof Field) {
+                $component->withReactiveState($state);
+            }
+
+            $componentData = $component->toData($this->operation, $this->record);
+            if ($componentData !== null) {
+                $serializedSchema[] = $componentData->toArray();
+            }
+        }
+
+        return ['schema' => $serializedSchema, 'changes' => $changes];
+    }
+
+    /**
      * Convert to Spatie FormData.
      */
     public function toData(): FormData

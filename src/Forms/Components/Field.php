@@ -6,6 +6,8 @@ namespace Happones\Kinetix\Forms\Components;
 
 use Closure;
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Forms\Support\Get;
+use Happones\Kinetix\Forms\Support\Set;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class Field extends Component
@@ -541,7 +543,7 @@ abstract class Field extends Component
 
         $isDisabled = $this->isDisabled;
         if ($isDisabled instanceof Closure) {
-            $isDisabled = (bool) $isDisabled($record);
+            $isDisabled = (bool) $this->evaluate($isDisabled, $record);
         }
 
         $helperText = $this->helperText instanceof Closure ? ($this->helperText)($record) : $this->helperText;
@@ -621,5 +623,103 @@ abstract class Field extends Component
     public function isSaved(): bool
     {
         return $this->isSaved;
+    }
+
+    /**
+     * Call a user closure injecting the arguments it asks for BY TYPE or NAME,
+     * Filament-style: a parameter typed {@see Get} or named `$get` receives the
+     * state reader, `Set`/`$set` the state writer, `Model`/`$record` the record.
+     *
+     * Backward compatible: a legacy single-parameter closure (`fn ($record) =>
+     * …`, untyped) still receives the record as its first argument, so every
+     * existing `visible`/`disabled`/`options`/`default` closure keeps working
+     * unchanged. Returns the closure's result.
+     */
+    protected function evaluate(
+        Closure $callback,
+        ?Model $record = null,
+        ?Get $get = null,
+        ?Set $set = null,
+    ): mixed {
+        $reflection = new \ReflectionFunction($callback);
+        $parameters = $reflection->getParameters();
+
+        if ($parameters === []) {
+            return $callback();
+        }
+
+        $args = [];
+
+        foreach ($parameters as $index => $parameter) {
+            $type     = $parameter->getType();
+            $typeName = $type instanceof \ReflectionNamedType ? $type->getName() : null;
+            $name     = $parameter->getName();
+
+            $args[] = match (true) {
+                $typeName === Get::class   || $name === 'get'    => $get ?? new Get($this->reactiveState ?? []),
+                $typeName === Set::class   || $name === 'set'    => $set,
+                $typeName === Model::class || $name === 'record' => $record,
+                $typeName === 'array' && $name === 'state'       => $this->reactiveState ?? [],
+                // First untyped/positional parameter of a legacy closure: the
+                // record, preserving `fn ($record) => …` and `fn ($value) => …`
+                // (the latter for formatters that are evaluated elsewhere).
+                $index === 0 => $record,
+                default      => null,
+            };
+        }
+
+        return $callback(...$args);
+    }
+
+    /**
+     * The form's working state during a server-side recompute, so a reactive
+     * closure's `Get` without an explicit instance still reads live values.
+     * Null outside a recompute (the static serialization pass).
+     *
+     * @var array<string, mixed>|null
+     */
+    protected ?array $reactiveState = null;
+
+    /**
+     * Seed the state a recompute evaluates this field's reactive closures
+     * against. Returns $this for chaining inside the Form recompute loop.
+     *
+     * @param array<string, mixed> $state
+     */
+    public function withReactiveState(array $state): static
+    {
+        $this->reactiveState = $state;
+
+        return $this;
+    }
+
+    /**
+     * Whether this field opts into the reactive loop (`->live()`), so the form
+     * knows to re-serialize when it changes.
+     */
+    public function isLive(): bool
+    {
+        return $this->isLive;
+    }
+
+    /**
+     * Fire this field's `afterStateUpdated()` during a recompute, giving it a
+     * {@see Get} over the working state and a {@see Set} that writes derived
+     * values back into both the state and the `$changes` delta the response
+     * ships. No-op when the field declared no callback.
+     *
+     * @param array<string, mixed> $state   Working state (by reference).
+     * @param array<string, mixed> $changes Accumulated deltas (by reference).
+     */
+    public function runAfterStateUpdated(array &$state, array &$changes, ?Model $record = null): void
+    {
+        if ($this->afterStateUpdated === null) {
+            return;
+        }
+
+        $get = new Get($state);
+        $set = new Set($state, $changes);
+
+        $this->evaluate($this->afterStateUpdated, $record, $get, $set);
     }
 }

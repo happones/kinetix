@@ -318,7 +318,7 @@ class Select extends Field implements ResolvesRelationships
         }
 
         if ($this->options instanceof Closure) {
-            return ($this->options)($record);
+            return $this->evaluate($this->options, $record);
         }
 
         if (is_string($this->options) && is_subclass_of($this->options, \UnitEnum::class)) {
