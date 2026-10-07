@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, usePage, usePoll } from '@inertiajs/vue3';
-import { GripVertical } from '@lucide/vue';
+import { ChevronRight, GripVertical } from '@lucide/vue';
 import {
     computed,
     defineAsyncComponent,
@@ -14,6 +14,7 @@ import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixColumnVisibility } from '@/composables/useKinetixColumnVisibility';
+import { useKinetixFormActions } from '@/composables/useKinetixFormActions';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import { isIconOnlyAction, resolveIcon } from '@/composables/useKinetixIcons';
 import { useKinetixRecordModals } from '@/composables/useKinetixRecordModals';
@@ -23,6 +24,7 @@ import {
     actionButtonVariant,
     buttonVariants,
 } from '@/composables/useKinetixShadcnVariants';
+import { useKinetixTableGroups } from '@/composables/useKinetixTableGroups';
 import { useKinetixTableQuery } from '@/composables/useKinetixTableQuery';
 import { useKinetixTableReorder } from '@/composables/useKinetixTableReorder';
 import type {
@@ -232,6 +234,28 @@ const {
     routePrefix: () => routePrefix.value,
 });
 
+// --- Server-side form actions (FormAction) -----------------------------------
+// A record/toolbar action flagged `isFormAction` opens a modal hosting its
+// KinetixForm; submit POSTs the values to the signed form-action endpoint,
+// which validates server-side and reloads the table.
+const {
+    isOpen: isFormActionOpen,
+    processing: formActionProcessing,
+    activeForm: formActionForm,
+    activeAction: formActionAction,
+    handleFormAction,
+    submitForm: submitFormAction,
+    closeForm: closeFormAction,
+} = useKinetixFormActions({
+    descriptor: () => props.table.formActionDescriptor,
+    routePrefix: () => routePrefix.value,
+});
+
+// Unique per table instance: the form-action modal's PINNED footer submit
+// button lives outside the <form>, so it targets it via the native `form`
+// attribute — the actions stay visible while a long schema scrolls.
+const formActionFormId = `kinetix-form-action-${useId()}`;
+
 // Unique per table instance: the modal's PINNED footer submit button lives
 // outside the <form>, so it targets it via the native `form` attribute — the
 // actions stay visible while a long schema scrolls.
@@ -245,6 +269,10 @@ const handleActionClick = (
     record?: KinetixTableRecord,
 ) => {
     if (handleModalAction(action, record)) {
+        return;
+    }
+
+    if (handleFormAction(action, record)) {
         return;
     }
 
@@ -377,6 +405,26 @@ const moveRowKeyboard = (index: number, delta: number): void => {
         }),
     );
 };
+
+// --- Row grouping ------------------------------------------------------------
+// When Table::defaultGroup() is active the server orders same-group rows
+// contiguously and tags each with groupKey/groupLabel; this slices them into
+// collapsible sections. Collapse state is local (survives polling, resets on
+// full reload), matching column visibility.
+const { isGrouped, renderItems, toggleGroup } = useKinetixTableGroups(
+    () => props.table,
+    () => rows.value,
+);
+
+// Full width for a group header row's single cell: data columns + every
+// leading/trailing utility column the body renders.
+const totalColumnSpan = computed(
+    () =>
+        columnsToRender.value.length +
+        (props.table.recordActions.length > 0 ? 1 : 0) +
+        (props.table.bulkActions.length > 0 ? 1 : 0) +
+        (props.table.reorderable ? 1 : 0),
+);
 </script>
 
 <template>
@@ -443,178 +491,265 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                         class="divide-y divide-border"
                         :class="{ 'divide-none': table.isStriped }"
                     >
-                        <!-- v-memo skips re-rendering rows whose identity, selection,
-                         and position are unchanged — a large win on wide/long
-                         tables during selection and polling. Server reloads ship
-                         fresh record objects, so data changes still re-render. -->
-                        <tr
-                            v-for="(record, rowIndex) in rows"
-                            :key="record.id"
-                            v-memo="[
-                                record,
-                                isRowSelected(record.id),
-                                rowIndex,
-                            ]"
-                            class="group transition-colors"
-                            :data-state="
-                                isRowSelected(record.id)
-                                    ? 'selected'
-                                    : undefined
+                        <!-- One loop over renderItems covers both modes: when a
+                         group is active it interleaves collapsible header rows
+                         with their (possibly hidden) data rows; ungrouped it is
+                         a flat list of data rows. Reorder/selection stay on the
+                         flat path (grouping fixes the order). -->
+                        <template
+                            v-for="item in renderItems"
+                            :key="
+                                item.type === 'header'
+                                    ? `group-${item.key}`
+                                    : item.record.id
                             "
-                            :draggable="table.reorderable || undefined"
-                            :tabindex="isRowClickable(record) ? 0 : undefined"
-                            :class="[
-                                table.isStriped && rowIndex % 2 === 1
-                                    ? 'bg-muted/30'
-                                    : 'bg-transparent',
-                                // A <tr> can't paint a box-shadow ring under
-                                // border-collapse, so the focus indicator is an
-                                // inset outline + the hover tint.
-                                isRowClickable(record)
-                                    ? 'cursor-pointer hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50'
-                                    : 'hover:bg-muted/30',
-                                'data-[state=selected]:bg-muted',
-                                draggingId != null && draggingId === record.id
-                                    ? KINETIX_DROP_PREVIEW_CLASS
-                                    : '',
-                            ]"
-                            @click="handleRowClick(record, $event)"
-                            @keydown="handleRowKeydown(record, $event)"
-                            @dragstart="
-                                table.reorderable && onDragStart(rowIndex)
-                            "
-                            @dragover="
-                                table.reorderable &&
-                                onDragOver(rowIndex, $event)
-                            "
-                            @drop="table.reorderable && onDrop()"
-                            @dragend="table.reorderable && onDragEnd()"
                         >
-                            <td
-                                v-if="table.reorderable"
-                                class="w-8 px-2 py-4 text-muted-foreground"
-                                @click.stop
+                            <!-- Collapsible group header spanning the full row. -->
+                            <tr
+                                v-if="item.type === 'header'"
+                                class="bg-muted/40 transition-colors"
                             >
-                                <button
-                                    type="button"
-                                    :aria-label="t('kinetix.reorder')"
-                                    class="p-0.5 flex cursor-grab items-center justify-center rounded-md transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
-                                    @keydown.up.prevent="
-                                        moveRowKeyboard(rowIndex, -1)
-                                    "
-                                    @keydown.down.prevent="
-                                        moveRowKeyboard(rowIndex, 1)
-                                    "
-                                >
-                                    <GripVertical
-                                        class="size-4"
-                                        aria-hidden="true"
-                                    />
-                                </button>
-                            </td>
-                            <td
-                                v-if="table.bulkActions.length > 0"
-                                class="w-10 px-4 py-4"
-                                @click.stop
-                            >
-                                <KinetixCheckbox
-                                    :checked="isRowSelected(record.id)"
-                                    :aria-label="t('kinetix.select_row')"
-                                    @change="toggleRow(record.id, $event)"
-                                />
-                            </td>
-                            <td
-                                v-for="col in columnsToRender"
-                                :key="col.name"
-                                class="px-6 py-4 text-sm font-medium whitespace-nowrap"
+                                <td :colspan="totalColumnSpan" class="p-0">
+                                    <component
+                                        :is="
+                                            item.collapsible ? 'button' : 'div'
+                                        "
+                                        :type="
+                                            item.collapsible
+                                                ? 'button'
+                                                : undefined
+                                        "
+                                        class="gap-2 px-6 py-2.5 text-sm font-semibold flex w-full items-center text-left text-foreground outline-none"
+                                        :class="
+                                            item.collapsible
+                                                ? 'cursor-pointer hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50'
+                                                : ''
+                                        "
+                                        :aria-expanded="
+                                            item.collapsible
+                                                ? !item.collapsed
+                                                : undefined
+                                        "
+                                        @click="
+                                            item.collapsible &&
+                                            toggleGroup(item.key)
+                                        "
+                                    >
+                                        <ChevronRight
+                                            v-if="item.collapsible"
+                                            class="size-4 shrink-0 text-muted-foreground transition-transform"
+                                            :class="
+                                                item.collapsed
+                                                    ? ''
+                                                    : 'rotate-90'
+                                            "
+                                            aria-hidden="true"
+                                        />
+                                        <span>{{
+                                            item.label ||
+                                            t('kinetix.group_none')
+                                        }}</span>
+                                        <span
+                                            class="text-xs font-normal text-muted-foreground"
+                                            >({{ item.count }})</span
+                                        >
+                                    </component>
+                                </td>
+                            </tr>
+
+                            <tr
+                                v-else
+                                class="group transition-colors"
+                                :data-state="
+                                    isRowSelected(item.record.id)
+                                        ? 'selected'
+                                        : undefined
+                                "
+                                :draggable="
+                                    (table.reorderable && !isGrouped) ||
+                                    undefined
+                                "
+                                :tabindex="
+                                    isRowClickable(item.record) ? 0 : undefined
+                                "
                                 :class="[
-                                    col.alignment === 'center'
-                                        ? 'text-center'
-                                        : '',
-                                    col.alignment === 'right'
-                                        ? 'text-right'
-                                        : 'text-left',
-                                    col.type === 'text' && !col.isBadge
-                                        ? 'text-foreground'
+                                    table.isStriped && item.index % 2 === 1
+                                        ? 'bg-muted/30'
+                                        : 'bg-transparent',
+                                    // A <tr> can't paint a box-shadow ring under
+                                    // border-collapse, so the focus indicator is an
+                                    // inset outline + the hover tint.
+                                    isRowClickable(item.record)
+                                        ? 'cursor-pointer hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50'
+                                        : 'hover:bg-muted/30',
+                                    'data-[state=selected]:bg-muted',
+                                    draggingId != null &&
+                                    draggingId === item.record.id
+                                        ? KINETIX_DROP_PREVIEW_CLASS
                                         : '',
                                 ]"
+                                @click="handleRowClick(item.record, $event)"
+                                @keydown="handleRowKeydown(item.record, $event)"
+                                @dragstart="
+                                    table.reorderable &&
+                                    !isGrouped &&
+                                    onDragStart(item.index)
+                                "
+                                @dragover="
+                                    table.reorderable &&
+                                    !isGrouped &&
+                                    onDragOver(item.index, $event)
+                                "
+                                @drop="
+                                    table.reorderable && !isGrouped && onDrop()
+                                "
+                                @dragend="
+                                    table.reorderable &&
+                                    !isGrouped &&
+                                    onDragEnd()
+                                "
                             >
-                                <slot
-                                    :name="`cell-${col.name}`"
-                                    :col="col"
-                                    :record="record"
-                                    :value="record.values[col.name]"
-                                    :row-index="rowIndex"
+                                <td
+                                    v-if="table.reorderable && !isGrouped"
+                                    class="w-8 px-2 py-4 text-muted-foreground"
+                                    @click.stop
                                 >
-                                    <KinetixTableCell
-                                        :col="col"
-                                        :record="record"
-                                        :row-index="rowIndex"
-                                        @update-cell="updateCell"
+                                    <button
+                                        type="button"
+                                        :aria-label="t('kinetix.reorder')"
+                                        class="p-0.5 flex cursor-grab items-center justify-center rounded-md transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
+                                        @keydown.up.prevent="
+                                            moveRowKeyboard(item.index, -1)
+                                        "
+                                        @keydown.down.prevent="
+                                            moveRowKeyboard(item.index, 1)
+                                        "
+                                    >
+                                        <GripVertical
+                                            class="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                </td>
+                                <td
+                                    v-if="table.bulkActions.length > 0"
+                                    class="w-10 px-4 py-4"
+                                    @click.stop
+                                >
+                                    <KinetixCheckbox
+                                        :checked="isRowSelected(item.record.id)"
+                                        :aria-label="t('kinetix.select_row')"
+                                        @change="
+                                            toggleRow(item.record.id, $event)
+                                        "
                                     />
-                                </slot>
-                            </td>
+                                </td>
+                                <td
+                                    v-for="col in columnsToRender"
+                                    :key="col.name"
+                                    class="px-6 py-4 text-sm font-medium whitespace-nowrap"
+                                    :class="[
+                                        col.alignment === 'center'
+                                            ? 'text-center'
+                                            : '',
+                                        col.alignment === 'right'
+                                            ? 'text-right'
+                                            : 'text-left',
+                                        col.type === 'text' && !col.isBadge
+                                            ? 'text-foreground'
+                                            : '',
+                                    ]"
+                                >
+                                    <slot
+                                        :name="`cell-${col.name}`"
+                                        :col="col"
+                                        :record="item.record"
+                                        :value="item.record.values[col.name]"
+                                        :row-index="item.index"
+                                    >
+                                        <KinetixTableCell
+                                            :col="col"
+                                            :record="item.record"
+                                            :row-index="item.index"
+                                            @update-cell="updateCell"
+                                        />
+                                    </slot>
+                                </td>
 
-                            <!-- Record row actions. The cell swallows clicks so
+                                <!-- Record row actions. The cell swallows clicks so
                                  the "⋯" trigger, its items and the buttons never
                                  double as a row click. -->
-                            <td
-                                v-if="table.recordActions.length > 0"
-                                class="px-6 py-4 text-sm font-medium text-right whitespace-nowrap"
-                                :class="
-                                    table.stickyActions
-                                        ? 'right-0 sticky z-10 border-l border-border bg-card group-hover:bg-muted/30'
-                                        : ''
-                                "
-                                @click.stop
-                            >
-                                <div
-                                    class="gap-2 flex items-center justify-end"
+                                <td
+                                    v-if="table.recordActions.length > 0"
+                                    class="px-6 py-4 text-sm font-medium text-right whitespace-nowrap"
+                                    :class="
+                                        table.stickyActions
+                                            ? 'right-0 sticky z-10 border-l border-border bg-card group-hover:bg-muted/30'
+                                            : ''
+                                    "
+                                    @click.stop
                                 >
-                                    <template
-                                        v-for="(action, idx) in record.actions"
-                                        :key="idx"
+                                    <div
+                                        class="gap-2 flex items-center justify-end"
                                     >
-                                        <KinetixActionDropdown
-                                            v-if="action.type === 'group'"
-                                            :group="action"
-                                            :record="record"
-                                            @action-click="handleActionClick"
-                                        />
-                                        <button
-                                            v-else
-                                            :disabled="actionProcessing"
-                                            :class="recordActionClass(action)"
-                                            :title="
-                                                isIconOnlyAction(action)
-                                                    ? action.label
-                                                    : undefined
-                                            "
-                                            :aria-label="
-                                                isIconOnlyAction(action)
-                                                    ? action.label
-                                                    : undefined
-                                            "
-                                            @click.stop="
-                                                handleActionClick(
-                                                    action,
-                                                    record,
-                                                )
-                                            "
+                                        <template
+                                            v-for="(action, idx) in item.record
+                                                .actions"
+                                            :key="idx"
                                         >
-                                            <component
-                                                :is="resolveIcon(action.icon)"
-                                                v-if="resolveIcon(action.icon)"
+                                            <KinetixActionDropdown
+                                                v-if="action.type === 'group'"
+                                                :group="action"
+                                                :record="item.record"
+                                                @action-click="
+                                                    handleActionClick
+                                                "
                                             />
-                                            <span
-                                                v-if="!isIconOnlyAction(action)"
-                                                >{{ action.label }}</span
+                                            <button
+                                                v-else
+                                                :disabled="actionProcessing"
+                                                :class="
+                                                    recordActionClass(action)
+                                                "
+                                                :title="
+                                                    isIconOnlyAction(action)
+                                                        ? action.label
+                                                        : undefined
+                                                "
+                                                :aria-label="
+                                                    isIconOnlyAction(action)
+                                                        ? action.label
+                                                        : undefined
+                                                "
+                                                @click.stop="
+                                                    handleActionClick(
+                                                        action,
+                                                        item.record,
+                                                    )
+                                                "
                                             >
-                                        </button>
-                                    </template>
-                                </div>
-                            </td>
-                        </tr>
+                                                <component
+                                                    :is="
+                                                        resolveIcon(action.icon)
+                                                    "
+                                                    v-if="
+                                                        resolveIcon(action.icon)
+                                                    "
+                                                />
+                                                <span
+                                                    v-if="
+                                                        !isIconOnlyAction(
+                                                            action,
+                                                        )
+                                                    "
+                                                    >{{ action.label }}</span
+                                                >
+                                            </button>
+                                        </template>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
 
                         <!-- Empty State: the configured card (heading /
                              description / icon / CTAs) or the default line. -->
@@ -831,6 +966,60 @@ const moveRowKeyboard = (index: number, delta: number): void => {
                         :loading="recordProcessing"
                     >
                         {{ t('kinetix.save') }}
+                    </KinetixButton>
+                </template>
+            </KinetixModal>
+
+            <!-- Server-side form action modal (FormAction): hosts the action's
+                 KinetixForm; submit POSTs to the signed form-action endpoint,
+                 which validates server-side and reloads the table. -->
+            <KinetixModal
+                :open="isFormActionOpen"
+                :title="
+                    formActionAction?.modalHeading ||
+                    formActionAction?.label ||
+                    ''
+                "
+                :description="formActionAction?.modalDescription"
+                max-width="sm:max-w-2xl"
+                :processing="formActionProcessing"
+                scroll-body
+                placement="top"
+                @update:open="(value) => !value && closeFormAction()"
+            >
+                <KinetixForm
+                    v-if="formActionForm"
+                    :id="formActionFormId"
+                    :form="formActionForm"
+                    flat
+                    @submit="submitFormAction"
+                >
+                    <template #default><span class="hidden"></span></template>
+                </KinetixForm>
+
+                <template #footer>
+                    <KinetixButton
+                        variant="outline"
+                        size="sm"
+                        :disabled="formActionProcessing"
+                        @click="closeFormAction"
+                    >
+                        {{
+                            formActionAction?.modalCancelActionLabel ||
+                            t('kinetix.cancel')
+                        }}
+                    </KinetixButton>
+                    <KinetixButton
+                        v-if="formActionForm"
+                        type="submit"
+                        size="sm"
+                        :form="formActionFormId"
+                        :loading="formActionProcessing"
+                    >
+                        {{
+                            formActionAction?.modalSubmitActionLabel ||
+                            t('kinetix.save')
+                        }}
                     </KinetixButton>
                 </template>
             </KinetixModal>

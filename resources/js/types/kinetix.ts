@@ -32,6 +32,30 @@ export interface KinetixAction {
     modal?: 'create' | 'edit' | 'view' | 'delete' | null;
     /** Server-side BulkAction: routes to the signed bulk-action endpoint. */
     isSecureBulk?: boolean;
+    /**
+     * Server-side FormAction: opens a modal hosting `form` and POSTs the
+     * submitted values to the signed form-action endpoint. See
+     * Table::recordActions()/toolbarActions() with a FormAction subclass.
+     */
+    isFormAction?: boolean;
+    /** The modal's form schema for a FormAction (null otherwise). */
+    form?: KinetixFormActionForm | null;
+}
+
+/**
+ * The serialised form a FormAction opens in its modal — the exact shape
+ * KinetixForm's `form` prop expects (schema + data + rules + operation, plus
+ * the optional Precognition fields). The server reconstructs the same form to
+ * validate the submission, so these rules are informational on the client.
+ */
+export interface KinetixFormActionForm {
+    schema: unknown[];
+    data: Record<string, unknown>;
+    rules: Record<string, unknown>;
+    operation: string;
+    precognitive?: boolean;
+    validationUrl?: string | null;
+    validationMethod?: string;
 }
 
 export interface KinetixNotification {
@@ -1100,6 +1124,10 @@ export interface KinetixTableRecord {
     /** Name of the row action a click runs when there is no `recordUrl`; resolved from `actions`. */
     recordAction?: string | null;
     actions?: KinetixAction[];
+    /** Stable key of the group this row belongs to (Table::group active). Null/absent when ungrouped. */
+    groupKey?: string | number | null;
+    /** Human-readable header title for this row's group. Null/absent when ungrouped. */
+    groupLabel?: string | null;
 }
 
 /** One entry in a KinetixMediaLibrary value (an ordered array of these). */
@@ -1326,6 +1354,22 @@ export interface KinetixTableData {
     emptyState?: KinetixTableEmptyState | null;
     /** Signed descriptor for server-side (BulkAction) bulk actions. Null = none. */
     bulkDescriptor?: string | null;
+    /** Signed descriptor for server-side (FormAction) record/toolbar actions. Null = none. */
+    formActionDescriptor?: string | null;
+    /** Row-grouping definitions offered for this table (Table::groups()). Empty = disabled. */
+    groups?: KinetixTableGroup[];
+    /** Column of the group active on load (Table::defaultGroup() / `?group=`). Null = ungrouped. */
+    defaultGroup?: string | null;
+}
+
+/** One row-grouping definition (Table::groups()). */
+export interface KinetixTableGroup {
+    /** Column the group buckets by — also its stable identity. */
+    column: string;
+    /** Human-readable label for the group as a whole. */
+    label: string;
+    /** Whether the frontend may collapse/expand this group's rows. */
+    collapsible: boolean;
 }
 
 /**

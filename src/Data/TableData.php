@@ -21,6 +21,7 @@ class TableData extends Data
      * @param array<int, int>                        $paginationPageOptions
      * @param array<string, array<int, SummaryData>> $summaries
      * @param array<int, TableStatData>              $stats
+     * @param array<int, GroupData>                  $groups
      */
     public function __construct(
         public ?string $heading,
@@ -59,5 +60,16 @@ class TableData extends Data
         // name→class + the table's scope/resource/ability so the bulk endpoint
         // resolves ids in-scope and authorizes each record. Null = none.
         public ?string $bulkDescriptor = null,
+        // Signed descriptor for server-side (FormAction) record/toolbar actions:
+        // seals name→class + the table's scope/resource/ability so the form
+        // endpoint reconstructs the form, resolves any record in-scope and
+        // authorizes it before running the handler. Null = none.
+        public ?string $formActionDescriptor = null,
+        // Row-grouping definitions offered for this table (Table::groups()).
+        // Empty = grouping disabled.
+        public array $groups = [],
+        // Column of the group active on load (Table::defaultGroup() or the
+        // request's `?group=`). Null = ungrouped.
+        public ?string $defaultGroup = null,
     ) {}
 }

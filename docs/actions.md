@@ -567,7 +567,95 @@ Both are plain `Action`s, so `->color()`, `->icon()`, `->label()`, `->authorize(
 
 ---
 
-## 9. Authorization & visibility
+## 9. Form Actions (server-side modal forms)
+
+A **`FormAction`** opens a modal hosting an arbitrary [`Form`](forms.md) and runs
+a **server-side** handler once the submitted values have been validated and
+dehydrated — the form-first sibling of a [`BulkAction`](tables.md#bulk-actions).
+Use it whenever a table action needs to collect input before it runs (a refund
+amount, a rejection reason, a reschedule date) instead of only confirming.
+
+A plain `Action` modal path is declarative (`requiresConfirmation` only
+confirms); collecting input otherwise means hand-wiring a controller and
+re-implementing scope + policy there. A `FormAction` moves the behaviour into a
+class with a `form()` declaration and a `handle()` method, and Kinetix guarantees
+the record is in-scope and allowed and the values are validated before `handle()`
+runs.
+
+```php
+use Happones\Kinetix\Actions\FormAction;
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Forms\Components\Textarea;
+use Illuminate\Database\Eloquent\Model;
+
+class Refund extends FormAction
+{
+    protected function form(Form $form, ?Model $record = null): Form
+    {
+        return $form->schema([
+            TextInput::make('amount')->numeric()->required(),
+            Textarea::make('reason')->required(),
+        ]);
+    }
+
+    public function handle(array $data, ?Model $record): void
+    {
+        $record?->refund($data['amount'], $data['reason']);
+    }
+}
+```
+
+Register it like any other table action — as a **record action** (the modal acts
+on the row that opened it; `handle()` receives that record) or a **toolbar
+action** (no row; `handle()` receives `null`):
+
+```php
+$table
+    // name defaults to 'refund' (kebab of the class short name)
+    ->recordActions([Refund::make()->label('Refund')->icon('undo')])
+    ->toolbarActions([BulkImport::make()->label('Import batch')]);
+```
+
+A `FormAction` may also live inside an [ActionGroup](#7-action-groups-dropdowns)
+dropdown in `recordActions`/`toolbarActions` — the table seals it just the same.
+
+### How it stays secure
+
+`FormAction` follows the exact signed-descriptor pattern of `BulkAction` and the
+record-modal endpoints — the client never names a class, a record or a
+validation rule:
+
+1. **Allowlist** — the table seals a signed `name → class` map of its visible
+   `FormAction`s (`TableData::formActionDescriptor`). The browser only sends that
+   descriptor, the action name, the optional `recordId` and the form values.
+2. **Scoping** — when a `recordId` is sent it is resolved **through the table's
+   own query/scope**; a record outside the table the user was looking at is
+   refused (404). A toolbar action sends no id and runs record-less.
+3. **Authorization** — a resolved record is authorized against the host's policy
+   (the explicit `writeAbility()`, or `update` when the model has a policy).
+4. **Validation** — the **same** form class is rebuilt server-side and the
+   submitted values are validated and dehydrated against its rules. A failure
+   redirects back so the errors surface in the modal's `KinetixForm`; the handler
+   never runs.
+5. **Transaction** — the trusted state is handed to `handle($data, $record)`
+   inside a `DB::transaction`, so a throwing handler leaves nothing half-applied.
+
+The modal reuses the existing `modalHeading` / `modalDescription` /
+`modalSubmitActionLabel` / `modalCancelActionLabel` chrome, and the schema is
+serialized into the action's payload so the frontend mounts `KinetixForm`
+directly — no extra round-trip to open it.
+
+| Hook / method | Purpose |
+|---|---|
+| `protected form(Form $form, ?Model $record): Form` | Declare the modal's schema. The optional `$record` lets a record action tailor defaults to its row. |
+| `abstract handle(array $data, ?Model $record): void` | Run with the **validated, dehydrated** state and the resolved record (null for a toolbar action). |
+| `FormAction::make(?string $name = null)` | Create it; name defaults to the kebab of the class short name. |
+| `isFormAction(): bool` | `true` — marks it for the signed `kinetix.tables.form-action` endpoint. |
+
+---
+
+## 10. Authorization & visibility
 
 Actions are authorized **on the server**. An action that fails its check is **omitted from the serialized payload entirely** — the frontend never receives it (so it can't be revealed by tampering with the client). This is the recommended approach over sending every action plus a "can" flag to Vue.
 
@@ -608,6 +696,6 @@ return inertia('Posts/Edit', [
 
 ---
 
-## 10. Localization
+## 11. Localization
 
 Default modal labels come from the `kinetix` translation namespace (`confirm`, `cancel`, `confirm_heading`), shipped in English, Spanish, French, and Portuguese.

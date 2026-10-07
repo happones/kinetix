@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.198.0] - 2026-10-07
+
+Two Filament-parity table features: actions that collect input in a modal form
+and run server-side, and row grouping. Re-publish the components and
+translations (`--force`) to pick this up. Existing APIs are unchanged.
+
+### Added
+
+- **`FormAction` — actions with an embedded form (published).** Subclass
+  `FormAction`, declare the schema in `form()` and the behaviour in
+  `handle(array $data, ?Model $record)`. The action opens a modal hosting a
+  `KinetixForm`; on submit the table seals its name → class into a signed
+  descriptor and the new `FormActionController` resolves the record through the
+  table's scope, authorizes it against the host's policy, validates the
+  submitted data with the action's own form, and runs `handle()` in a
+  transaction. Works as a record action (with `$record`) or a toolbar action
+  (without). Same signed-endpoint model as `BulkAction` — the client never
+  names a class or an unscoped record. Plain declarative actions are unchanged.
+- **Row grouping — `Table::groups()` / `defaultGroup()` (published).** Group
+  rows under collapsible headers by a column (dot-notation relations work when
+  eager-loaded — no per-row N+1). `Group::make('status')->label(…)
+  ->collapsible()->date()` with `getTitleFromRecord()` / `getKeyFromRecord()`
+  for custom keys/labels. The active group becomes the primary sort so rows of
+  a group stay contiguous (still allowlisted against sortable columns — no
+  injection). Each row carries its `groupKey`/`groupLabel`; `KinetixTable`
+  renders the group headers with counts, accessibly and without breaking the
+  horizontal scroll. Drag reorder is disabled while grouped.
+
 ## [0.197.0] - 2026-10-07
 
 A safe server-side path for bulk actions, an escape hatch for eager-loading,

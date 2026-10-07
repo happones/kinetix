@@ -39,5 +39,14 @@ class TableRowData extends Data
         public bool $recordUrlInNewTab = false,
         /** Name of the row action a click runs when there is no `recordUrl` — resolved from `actions`. */
         public ?string $recordAction = null,
+        /**
+         * Stable key of the group this row belongs to when a Table::group is
+         * active (the frontend buckets contiguous rows sharing it under one
+         * header, and remembers collapsed state by it). Null when ungrouped or
+         * the record has no group value.
+         */
+        public string|int|null $groupKey = null,
+        /** Human-readable header title for this row's group. Null when ungrouped. */
+        public ?string $groupLabel = null,
     ) {}
 }

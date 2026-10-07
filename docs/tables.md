@@ -1116,6 +1116,87 @@ another's rows, so make sure your base query actually carries it.
 
 ---
 
+## Grouping rows
+
+Group the current dataset's rows under collapsible headers by a column — an
+attribute, or a dot-notation path into an eager-loaded relation — mirroring
+Filament's `->groups([...])` / `->defaultGroup(...)`.
+
+```php
+use Happones\Kinetix\Tables\Group;
+use Happones\Kinetix\Tables\Table;
+
+Table::make(Task::query())
+    ->columns([
+        TextColumn::make('title'),
+        TextColumn::make('status'),
+    ])
+    ->groups([
+        Group::make('status')->label('Status')->collapsible(),
+        Group::make('team.name')->label('Team'),      // relation path
+        'created_at',                                  // bare string = Group::make()
+    ])
+    ->defaultGroup('status');                          // active on load
+```
+
+### How it works
+
+- The server resolves the **active group** for the request (the `?group=` query
+  param when it names a registered group, otherwise `defaultGroup()`), orders the
+  active group's column **first** so same-group rows come out contiguous, and
+  demotes any user sort to order rows *within* each bucket.
+- Each row is tagged server-side with its `groupKey` and `groupLabel`, read off
+  the **already-loaded** record (via `data_get`, dot-notation supported) — a
+  relation group column reuses the table's eager-loading, so grouping never adds
+  a query per row (no N+1).
+- `KinetixTable` slices the contiguous rows into sections and renders one header
+  per group (label + row count). Collapsible groups fold/unfold client-side; the
+  collapsed state is local (survives polling, resets on a full reload).
+
+### `Group` API
+
+| Method | Description |
+|---|---|
+| `Group::make(string $column)` | Group by `$column` (attribute or `relation.attribute`). The column is also the group's stable identity. |
+| `->label(string $label)` | Human-readable label for the group picker. Defaults to a headline of the column. |
+| `->collapsible(bool $condition = true)` | Allow the frontend to collapse/expand this group's rows. |
+| `->getTitleFromRecord(Closure $fn)` | Override the header title: `fn ($record, $value) => …`. |
+| `->getKeyFromRecord(Closure $fn)` | Override the stable bucket key: `fn ($record, $value) => …`. Pair with `getTitleFromRecord()` when the title isn't 1:1 with the key. |
+| `->date(string $format = 'Y-m-d')` | Shortcut: bucket a datetime column by calendar day (key and title are the formatted date). |
+
+```php
+// Group tasks by the day they were created.
+Group::make('created_at')->date();
+
+// Custom title derived from the record.
+Group::make('status')
+    ->getTitleFromRecord(fn ($record, $value) => ucfirst((string) $value));
+```
+
+### Table methods
+
+- `->groups(array $groups)` — register the groups offered (each a `Group` or a
+  bare column string). The set is an allowlist: a `?group=` param can only
+  activate a column that appears here.
+- `->defaultGroup(Group|string|null $group)` — pre-select the active group. A
+  string is developer config, so it auto-registers if `groups()` didn't list it;
+  passing `null` leaves the table ungrouped.
+
+::: tip Security
+Grouping never trusts raw client input: the request's `?group=` param is matched
+against the registered-groups allowlist before it can reach `orderBy`, and group
+keys/titles are computed from already-loaded record values — never from a
+client-supplied class name or column.
+:::
+
+::: warning Client-side mode
+Grouping is a **server-driven** feature. In `clientSide()` (TanStack) mode the
+table renders ungrouped — group the data server-side (the default mode) when you
+need collapsible group headers.
+:::
+
+---
+
 ## Defining a Table as a Class
 
 As an alternative to the inline fluent builder, you can subclass `Table` and override the `build*()` hooks. This keeps controllers thin and makes table definitions reusable.

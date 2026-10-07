@@ -56,5 +56,13 @@ class ActionData extends Data
         // kinetix.tables.bulk-action endpoint (scope + per-record policy)
         // instead of a host URL/event. See Table::bulkActions().
         public bool $isSecureBulk = false,
+        // True for a FormAction: the frontend opens a modal hosting `form` and
+        // POSTs the submitted values to the signed kinetix.tables.form-action
+        // endpoint (scope + per-record policy + server-side validation).
+        public bool $isFormAction = false,
+        // The modal's form schema for a FormAction (null otherwise). Serialised
+        // from the SAME form class the controller reconstructs to validate the
+        // submission, so what the user fills can't drift from what is enforced.
+        public ?FormData $form = null,
     ) {}
 }

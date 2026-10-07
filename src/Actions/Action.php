@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Actions;
 
 use Happones\Kinetix\Data\ActionData;
+use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
@@ -462,6 +463,16 @@ class Action
     }
 
     /**
+     * Whether this action opens a modal hosting a {@see Form}
+     * and runs server-side through Kinetix's signed form endpoint (true only
+     * for {@see FormAction}). A plain action is declarative, so this is false.
+     */
+    public function isFormAction(): bool
+    {
+        return false;
+    }
+
+    /**
      * Convert the action to ActionData, or null when hidden/unauthorized.
      */
     public function toData(?Model $record = null): ?ActionData
@@ -518,6 +529,15 @@ class Action
             }
         }
 
+        // A FormAction carries its modal's form schema so the frontend can
+        // mount a KinetixForm in the modal; the record (if any) lets the schema
+        // tailor its defaults to the row it opened on. The signed descriptor —
+        // not this serialised schema — is what the endpoint trusts; this is
+        // purely what the browser renders.
+        $form = $this->isFormAction() && $this instanceof FormAction
+            ? $this->getForm($record)->toData()
+            : null;
+
         return new ActionData(
             name: $this->name,
             label: $this->label,
@@ -548,6 +568,8 @@ class Action
             isIconButton: $this->isIconButton,
             modal: $this->modalMode,
             isSecureBulk: $this->isSecure(),
+            isFormAction: $this->isFormAction(),
+            form: $form,
         );
     }
 

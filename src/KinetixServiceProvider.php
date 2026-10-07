@@ -136,6 +136,7 @@ use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\Memo;
 use Happones\Kinetix\Support\WeeklySchedule;
 use Happones\Kinetix\Tables\BulkActionController;
+use Happones\Kinetix\Tables\FormActionController;
 use Happones\Kinetix\Tables\RecordModalController;
 use Happones\Kinetix\Tables\TableWriteController;
 use Happones\Kinetix\Tags\TagController;
@@ -2730,6 +2731,12 @@ class KinetixServiceProvider extends ServiceProvider
                 // before running the registered BulkAction's handle().
                 Route::post('bulk-action', BulkActionController::class)
                     ->name('kinetix.tables.bulk-action');
+
+                // Server-side form action: reconstructs the FormAction's form to
+                // validate the submitted values, resolves any record through the
+                // table's signed scope and authorizes it, then runs the handler.
+                Route::post('form-action', FormActionController::class)
+                    ->name('kinetix.tables.form-action');
 
                 // Kanban card move: set a record's status column to a target
                 // status, guarded by the board's signed descriptor (statuses,

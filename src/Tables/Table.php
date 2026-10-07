@@ -6,8 +6,11 @@ namespace Happones\Kinetix\Tables;
 
 use Closure;
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Actions\BulkAction;
+use Happones\Kinetix\Actions\FormAction;
 use Happones\Kinetix\Data\ActionData;
+use Happones\Kinetix\Data\GroupData;
 use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\SummaryData;
 use Happones\Kinetix\Data\TableData;
@@ -207,6 +210,22 @@ class Table implements Arrayable, JsonSerializable
      * @var array<string, mixed>|null
      */
     protected ?array $writeScope = null;
+
+    /**
+     * Row-grouping definitions offered for this table (Filament's
+     * `->groups([...])`). Keyed by group column so a {@see defaultGroup()}
+     * string resolves to one, and the frontend's group picker can list them.
+     *
+     * @var array<string, Group>
+     */
+    protected array $groups = [];
+
+    /**
+     * Column of the group that is ACTIVE for this request — rows are bucketed
+     * and ordered by it. Resolved from {@see defaultGroup()} unless the request
+     * overrides it with an in-allowlist `?group=` param. Null = ungrouped.
+     */
+    protected ?string $activeGroup = null;
 
     /**
      * Create a new table builder instance.
@@ -817,6 +836,88 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Register the row-grouping definitions this table offers (Filament's
+     * `->groups([...])`). A bare string is sugar for `Group::make($string)`.
+     * The frontend lists these in its group picker; none is active until a
+     * {@see defaultGroup()} or an in-allowlist `?group=` param selects one.
+     *
+     *     $table->groups([
+     *         Group::make('status')->collapsible(),
+     *         Group::make('author.name')->label('Author'),
+     *     ]);
+     *
+     * @param array<int, Group|string> $groups
+     */
+    public function groups(array $groups): static
+    {
+        foreach ($groups as $group) {
+            $group = $group instanceof Group ? $group : Group::make($group);
+
+            // Keyed by column so a defaultGroup() string and the request's
+            // `?group=` param resolve against the SAME allowlist — a client can
+            // never activate a group the table did not register.
+            $this->groups[$group->getColumn()] = $group;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Pre-select the group that is active on first load (Filament's
+     * `->defaultGroup(...)`). A string resolves against {@see groups()}; passing
+     * a {@see Group} registers it too, so `defaultGroup()` can stand alone
+     * without a prior `groups()` call. Null leaves the table ungrouped.
+     */
+    public function defaultGroup(Group|string|null $group): static
+    {
+        if ($group === null) {
+            $this->activeGroup = null;
+
+            return $this;
+        }
+
+        if ($group instanceof Group) {
+            $this->groups[$group->getColumn()] = $group;
+            $this->activeGroup                 = $group->getColumn();
+
+            return $this;
+        }
+
+        // A string names a group. Since this is DEVELOPER config (never client
+        // input), auto-register it when `groups()` didn't already — Filament
+        // allows `defaultGroup('status')` to stand alone. Only the request's
+        // `?group=` param is allowlist-checked (see resolveActiveGroup()).
+        if (! isset($this->groups[$group])) {
+            $this->groups[$group] = Group::make($group);
+        }
+
+        $this->activeGroup = $group;
+
+        return $this;
+    }
+
+    /**
+     * The group active for THIS request: the request's `?group=` param when it
+     * names a registered group (so the client can switch grouping), otherwise
+     * the {@see defaultGroup()}. Resolving against the keyed allowlist means a
+     * crafted param can never activate an unregistered column. Null = ungrouped.
+     */
+    protected function resolveActiveGroup(): ?Group
+    {
+        $requested = $this->param($this->queryPrefix.'group');
+
+        if (is_string($requested) && isset($this->groups[$requested])) {
+            return $this->groups[$requested];
+        }
+
+        if ($this->activeGroup !== null && isset($this->groups[$this->activeGroup])) {
+            return $this->groups[$this->activeGroup];
+        }
+
+        return null;
+    }
+
+    /**
      * Policy ability to enforce on inline cell edits and drag-and-drop
      * reordering. By default the model's `update` ability is used whenever it
      * has a policy; pass an explicit ability to require something narrower.
@@ -950,6 +1051,13 @@ class Table implements Arrayable, JsonSerializable
         // Apply sorting
         $this->applySort($query);
 
+        // When a group is active, its column must be the PRIMARY order so rows
+        // of the same bucket come out contiguous — the user's sort (applied
+        // above) then orders rows WITHIN each bucket. Done after applySort
+        // because that calls reorder(), which would otherwise drop a group
+        // order placed before it.
+        $this->applyGroupOrder($query);
+
         // Apply active filters
         $activeFilters = $this->param('filters', []);
         if (is_array($activeFilters)) {
@@ -1034,6 +1142,50 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Make the active group's column the PRIMARY sort so same-bucket rows come
+     * out contiguous (the frontend renders one header, then its rows). Any sort
+     * already applied by {@see applySort()} is preserved and demoted to order
+     * rows WITHIN each bucket — Eloquent appends later `orderBy`s after earlier
+     * ones, so pushing the group order to the FRONT of the orders list is what
+     * guarantees "group first".
+     *
+     * The column is read from the keyed allowlist of registered groups, never
+     * from a raw request value, so no untrusted string reaches `orderBy`.
+     * Relation (dot-notation) group columns reuse the same correlated-subquery
+     * resolver the sortable relation columns use.
+     */
+    protected function applyGroupOrder(Builder $query): void
+    {
+        $group = $this->resolveActiveGroup();
+
+        if ($group === null) {
+            return;
+        }
+
+        $column = $group->getColumn();
+
+        // Snapshot the user's sort orders so the group order can be stitched in
+        // front of them rather than after.
+        $base           = $query->getQuery();
+        $existingOrders = $base->orders ?? [];
+        $base->orders   = [];
+
+        if (str_contains($column, '.')) {
+            // BelongsTo/HasOne relation path → correlated subquery, same as a
+            // sortable relation column. Safe: $column came from the allowlist.
+            KinetixQuery::sortByRelation($query, $column, 'asc');
+        } else {
+            // Qualify so a bare shared name stays unambiguous under a joined
+            // base query (mirrors applySort()).
+            $query->orderBy($query->getModel()->qualifyColumn($column), 'asc');
+        }
+
+        // Re-append the user's sort after the group order: group buckets stay
+        // contiguous, their rows stay in the chosen order.
+        $base->orders = array_merge($base->orders ?? [], $existingOrders);
+    }
+
+    /**
      * Convert the entire table configuration and data to TableData.
      */
     public function toData(): TableData
@@ -1055,6 +1207,11 @@ class Table implements Arrayable, JsonSerializable
 
         $query = $this->getResolvedQuery();
 
+        // Resolve the active group ONCE for the whole payload: formatRecord
+        // reads each row's key/title from it, and it's serialized below so the
+        // frontend knows which group to render under.
+        $activeGroup = $this->resolveActiveGroup();
+
         // Compute column summaries over the full filtered dataset, before
         // pagination narrows the query.
         [$summaries, $hasSummaries] = $this->computeSummaries($query);
@@ -1073,7 +1230,7 @@ class Table implements Arrayable, JsonSerializable
             // Ship the full (capped) set; the browser paginates. Base-query
             // search/sort/filters still apply on load via getResolvedQuery().
             foreach ($query->limit($this->clientSideMax)->get() as $record) {
-                $records[] = $this->formatRecord($record);
+                $records[] = $this->formatRecord($record, $activeGroup);
             }
         } elseif ($this->isPaginated) {
             $pageName = $this->queryPrefix.'page';
@@ -1096,7 +1253,7 @@ class Table implements Arrayable, JsonSerializable
             };
 
             foreach ($paginator->items() as $record) {
-                $records[] = $this->formatRecord($record);
+                $records[] = $this->formatRecord($record, $activeGroup);
             }
 
             $pagination = match (true) {
@@ -1130,7 +1287,7 @@ class Table implements Arrayable, JsonSerializable
             $items = $query->get();
 
             foreach ($items as $record) {
-                $records[] = $this->formatRecord($record);
+                $records[] = $this->formatRecord($record, $activeGroup);
             }
         }
 
@@ -1164,6 +1321,20 @@ class Table implements Arrayable, JsonSerializable
                 && in_array($action->getName(), $visibleBulkNames, true)
             ) {
                 $secureBulk[$action->getName()] = $action::class;
+            }
+        }
+
+        // Seal the name → class map of server-side (FormAction) record and
+        // toolbar actions (flattening ActionGroups, since a FormAction may live
+        // in a dropdown). Only actions that survived authorization are sealed —
+        // a user who can't see the action can't invoke it. A toolbar FormAction
+        // has no row, so it is sealed exactly like a record one; the controller
+        // simply resolves no record when the request carries no recordId.
+        $secureForm = [];
+
+        foreach ($this->collectFormActions([...$this->recordActions, ...$this->toolbarActions]) as $action) {
+            if ($action->shouldRender()) {
+                $secureForm[$action->getName()] = $action::class;
             }
         }
 
@@ -1203,7 +1374,10 @@ class Table implements Arrayable, JsonSerializable
             clientSide: $this->clientSide,
             recordModals: $this->buildRecordModalsData(),
             emptyState: $this->buildEmptyStateData(),
-            bulkDescriptor: $secureBulk === [] ? null : $this->buildBulkDescriptor($secureBulk),
+            bulkDescriptor: $secureBulk       === [] ? null : $this->buildBulkDescriptor($secureBulk),
+            formActionDescriptor: $secureForm === [] ? null : $this->buildFormActionDescriptor($secureForm),
+            groups: array_values(array_map(static fn (Group $group): GroupData => $group->toData(), $this->groups)),
+            defaultGroup: $activeGroup?->getColumn(),
         );
     }
 
@@ -1275,6 +1449,60 @@ class Table implements Arrayable, JsonSerializable
         return SignedDescriptor::seal([
             'model'    => $this->getModelClass(),
             'bulk'     => $bulkActions,
+            'resource' => $this->recordModalsResource,
+            'scope'    => $this->writeScope ?? $this->captureWriteScope(),
+            'relation' => $this->writeRelation,
+            'ability'  => $this->writeAbility,
+        ]);
+    }
+
+    /**
+     * Flatten a set of record/toolbar actions down to the {@see FormAction}s
+     * they contain, descending one level into {@see ActionGroup}s so a
+     * FormAction tucked inside a dropdown is sealed just like a top-level one.
+     *
+     * @param  array<int, Action|ActionGroup> $actions
+     * @return array<int, FormAction>
+     */
+    protected function collectFormActions(array $actions): array
+    {
+        $forms = [];
+
+        foreach ($actions as $action) {
+            if ($action instanceof ActionGroup) {
+                foreach ($action->getActions() as $child) {
+                    if ($child instanceof FormAction) {
+                        $forms[] = $child;
+                    }
+                }
+
+                continue;
+            }
+
+            if ($action instanceof FormAction) {
+                $forms[] = $action;
+            }
+        }
+
+        return $forms;
+    }
+
+    /**
+     * Mint the signed descriptor the form-action endpoint trusts. Mirrors the
+     * bulk descriptor (model + resource + scope + relation + ability + the
+     * user/team/expiry binding), but its allowlist is the name → class map of
+     * the table's server-side {@see FormAction}s. {@see FormActionController}
+     * runs only a class named here: it reconstructs that class's form to
+     * validate the submission, resolves any record through this scope and
+     * authorizes it — the client names neither class, record nor rule.
+     *
+     * @param array<string, class-string<FormAction>> $formActions
+     */
+    protected function buildFormActionDescriptor(array $formActions): string
+    {
+        return SignedDescriptor::seal([
+            'model'    => $this->getModelClass(),
+            'forms'    => $formActions,
             'resource' => $this->recordModalsResource,
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
             'relation' => $this->writeRelation,
@@ -1731,8 +1959,12 @@ class Table implements Arrayable, JsonSerializable
 
     /**
      * Map model instance to frontend-friendly record structure.
+     *
+     * When a group is active, its key/title are read off the ALREADY-LOADED
+     * record (via the Group's dot-notation `data_get`) — never a fresh query —
+     * and shipped on the row so the frontend can bucket it under a header.
      */
-    protected function formatRecord(Model $record): TableRowData
+    protected function formatRecord(Model $record, ?Group $group = null): TableRowData
     {
         if ($this->recordTransformer !== null) {
             $record = ($this->recordTransformer)($record);
@@ -1813,6 +2045,8 @@ class Table implements Arrayable, JsonSerializable
             urls: $rowUrls,
             recordUrlInNewTab: $recordUrlInNewTab,
             recordAction: $recordActionName,
+            groupKey: $group?->resolveKey($record),
+            groupLabel: $group?->resolveTitle($record),
         );
     }
 
