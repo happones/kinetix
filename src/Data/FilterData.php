@@ -36,5 +36,8 @@ class FilterData extends Data
         // Searchable filters specific
         public bool $isSearchable = false,
         public ?string $searchToken = null,
+        // FormFilter specific — a multi-field form (serialized FormFieldData[])
+        // whose values are passed as an array to the filter's query callback.
+        public ?array $schema = null,
     ) {}
 }

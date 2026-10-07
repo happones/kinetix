@@ -6,6 +6,7 @@ import FilterAddressField from './filters/FilterAddressField.vue';
 import FilterCheckboxField from './filters/FilterCheckboxField.vue';
 import FilterDateField from './filters/FilterDateField.vue';
 import FilterDateRangeField from './filters/FilterDateRangeField.vue';
+import FilterFormField from './filters/FilterFormField.vue';
 import FilterMultiSelectField from './filters/FilterMultiSelectField.vue';
 import FilterNumberRangeField from './filters/FilterNumberRangeField.vue';
 import FilterPeriodField from './filters/FilterPeriodField.vue';
@@ -40,6 +41,7 @@ const FIELD_COMPONENTS: Record<KinetixTableFilter['type'], Component> = {
     year: FilterPeriodField,
     week: FilterPeriodField,
     address: FilterAddressField,
+    form: FilterFormField,
 };
 
 const fieldComponent = computed<Component | null>(

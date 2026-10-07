@@ -284,6 +284,10 @@ abstract class Entry extends Component
             isInline: $extra['isInline']             ?? false,
             isConfidential: $extra['isConfidential'] ?? null,
             extraAttributes: $this->extraAttributes ?: null,
+            keyLabel: $extra['keyLabel']               ?? null,
+            valueLabel: $extra['valueLabel']           ?? null,
+            repeatableItems: $extra['repeatableItems'] ?? null,
+            gridColumns: $extra['gridColumns']         ?? null,
         );
     }
 

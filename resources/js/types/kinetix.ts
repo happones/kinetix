@@ -1103,7 +1103,8 @@ export interface KinetixTableFilter {
         | 'month'
         | 'year'
         | 'week'
-        | 'address';
+        | 'address'
+        | 'form';
     options?: Record<string, string>;
     useCalendar?: boolean;
     numberOfMonths?: number;
@@ -1125,6 +1126,8 @@ export interface KinetixTableFilter {
     isSearchable?: boolean;
     searchToken?: string | null;
     weekStartsOn?: number | null;
+    /** FormFilter: serialized form fields rendered inside the filter. */
+    schema?: unknown[];
 }
 
 export interface KinetixTableRecord {
@@ -1285,7 +1288,9 @@ export interface KinetixInfolistEntry {
         | 'grid'
         | 'fieldset'
         | 'tabs'
-        | 'tab';
+        | 'tab'
+        | 'key-value'
+        | 'repeatable';
     name?: string;
     label?: string;
     columnSpan: number | string | Record<string, number | string>;
@@ -1308,6 +1313,12 @@ export interface KinetixInfolistEntry {
     description?: string | null;
     columns?: number | Record<string, number> | null;
     actions?: KinetixAction[];
+    /** KeyValueEntry — optional column headers. */
+    keyLabel?: string | null;
+    valueLabel?: string | null;
+    /** RepeatableEntry — each item's serialized entries + optional grid cols. */
+    repeatableItems?: KinetixInfolistEntry[][] | null;
+    gridColumns?: number | null;
 }
 
 export interface KinetixInfolistData {

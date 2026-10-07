@@ -43,5 +43,11 @@ class InfolistEntryData extends Data
         public int|array|null $columns = null,
         // Section header actions (array of ActionData).
         public ?array $actions = null,
+        // KeyValueEntry — optional column headers for the key/value pairs.
+        public ?string $keyLabel = null,
+        public ?string $valueLabel = null,
+        // RepeatableEntry — each item's serialized entries + optional grid cols.
+        public ?array $repeatableItems = null,
+        public ?int $gridColumns = null,
     ) {}
 }

@@ -111,6 +111,7 @@ class Filter
             weekStartsOn: $extra['weekStartsOn']     ?? null,
             isSearchable: $extra['isSearchable']     ?? false,
             searchToken: $extra['searchToken']       ?? null,
+            schema: $extra['schema']                 ?? null,
         );
     }
 

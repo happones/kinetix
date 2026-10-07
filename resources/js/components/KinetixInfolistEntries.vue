@@ -401,6 +401,80 @@ const isEmpty = (value: unknown) =>
                 />
             </div>
 
+            <!-- Key-value entry: an array/JSON attribute as key → value rows -->
+            <div
+                v-else-if="entry.type === 'key-value'"
+                class="overflow-hidden rounded-md border border-border"
+            >
+                <div
+                    v-if="entry.keyLabel || entry.valueLabel"
+                    class="text-xs font-semibold grid grid-cols-2 gap-px bg-muted/40 text-muted-foreground"
+                >
+                    <div class="px-3 py-1.5">{{ entry.keyLabel }}</div>
+                    <div class="px-3 py-1.5">{{ entry.valueLabel }}</div>
+                </div>
+                <dl class="divide-y divide-border">
+                    <div
+                        v-for="(val, key) in entry.state as Record<
+                            string,
+                            string
+                        >"
+                        :key="key"
+                        class="grid grid-cols-2 gap-px"
+                    >
+                        <dt
+                            class="px-3 py-1.5 text-sm font-medium break-words text-foreground"
+                        >
+                            {{ key }}
+                        </dt>
+                        <dd
+                            class="px-3 py-1.5 text-sm break-words text-muted-foreground"
+                        >
+                            {{ val }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- Repeatable entry: one block of entries per item -->
+            <div v-else-if="entry.type === 'repeatable'" class="space-y-3">
+                <div
+                    v-for="(item, idx) in entry.repeatableItems ?? []"
+                    :key="idx"
+                    class="rounded-lg p-3 border border-border"
+                    :class="entry.gridColumns ? 'gap-3 grid' : 'space-y-2'"
+                    :style="
+                        entry.gridColumns
+                            ? {
+                                  gridTemplateColumns: `repeat(${entry.gridColumns}, minmax(0, 1fr))`,
+                              }
+                            : undefined
+                    "
+                >
+                    <div
+                        v-for="(sub, subIdx) in item as any[]"
+                        :key="subIdx"
+                        class="min-w-0"
+                    >
+                        <div
+                            v-if="sub.label"
+                            class="text-xs font-medium text-muted-foreground"
+                        >
+                            {{ sub.label }}
+                        </div>
+                        <div class="text-sm break-words text-foreground">
+                            {{ sub.state }}
+                        </div>
+                    </div>
+                </div>
+                <p
+                    v-if="(entry.repeatableItems ?? []).length === 0"
+                    class="text-sm text-muted-foreground"
+                >
+                    {{ entry.placeholder ?? '—' }}
+                </p>
+            </div>
+
             <!-- Plain text entry (copyable: the value is the copy trigger) -->
             <div v-else class="gap-2 flex items-center">
                 <component

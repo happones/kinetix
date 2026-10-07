@@ -13,6 +13,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.201.0] - 2026-10-07
+
+Filament-parity polish: composite form filters and two more infolist entries.
+Re-publish the components (`--force`) to pick this up. Existing APIs unchanged.
+
+### Added
+
+- **`FormFilter` — composite filters (published).** A filter rendered as a form
+  of several fields, whose combined values reach the query as an array — the
+  Filament `->form([...])->query(fn ($q, array $data))` pattern:
+
+  ```php
+  FormFilter::make('price')
+      ->schema([
+          NumberField::make('from'),
+          NumberField::make('to'),
+          Select::make('category')->options([...]),
+      ])
+      ->query(fn (Builder $q, array $data) => $q
+          ->when($data['from'] ?? null, fn ($q, $v) => $q->where('price', '>=', $v))
+          ->when($data['to'] ?? null, fn ($q, $v) => $q->where('price', '<=', $v)));
+  ```
+
+  The schema reuses the shared form field components (every input type, plus
+  conditional fields), rendered by `KinetixFormSchema`; blank sub-values are
+  dropped before the callback runs, and an empty filter is a no-op.
+
+- **`KeyValueEntry` (published).** Shows an array/JSON attribute as key → value
+  rows (the read-only counterpart of the KeyValue form field), with optional
+  `keyLabel()` / `valueLabel()` headers; nested values are JSON-encoded.
+
+- **`RepeatableEntry` (published).** Repeats a block of entries once per item of
+  a HasMany/array attribute, resolved through an entry sub-schema (any entry
+  type inside); `->grid(n)` lays each item out in n columns. No per-row N+1 — it
+  reads the already-loaded items.
+
 ## [0.200.0] - 2026-10-07
 
 Server-driven form reactivity — `$get`/`$set`. A `live()` field now recomputes
