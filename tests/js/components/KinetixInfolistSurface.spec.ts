@@ -84,3 +84,77 @@ describe('KinetixInfolist flat mode (view modals)', () => {
         expect(w.find('.bg-card').exists()).toBe(false);
     });
 });
+
+describe('KinetixInfolist key-value & repeatable entries', () => {
+    it('renders a key-value entry as key → value rows with optional headers', () => {
+        const w = mountInfolist([
+            {
+                type: 'key-value',
+                name: 'meta',
+                label: 'Meta',
+                keyLabel: 'Property',
+                valueLabel: 'Value',
+                state: { color: 'red', size: 'L' },
+            },
+        ]);
+
+        const text = w.text();
+        expect(text).toContain('Property');
+        expect(text).toContain('Value');
+        expect(text).toContain('color');
+        expect(text).toContain('red');
+        expect(text).toContain('size');
+        expect(text).toContain('L');
+    });
+
+    it('renders one block per item for a repeatable entry', () => {
+        const w = mountInfolist([
+            {
+                type: 'repeatable',
+                name: 'lines',
+                label: 'Lines',
+                gridColumns: 2,
+                repeatableItems: [
+                    [
+                        {
+                            type: 'text',
+                            name: 'name',
+                            label: 'Name',
+                            state: 'Widget',
+                        },
+                        { type: 'text', name: 'qty', label: 'Qty', state: 2 },
+                    ],
+                    [
+                        {
+                            type: 'text',
+                            name: 'name',
+                            label: 'Name',
+                            state: 'Gadget',
+                        },
+                        { type: 'text', name: 'qty', label: 'Qty', state: 5 },
+                    ],
+                ],
+            },
+        ]);
+
+        const text = w.text();
+        expect(text).toContain('Widget');
+        expect(text).toContain('Gadget');
+        expect(text).toContain('2');
+        expect(text).toContain('5');
+    });
+
+    it('shows a placeholder for an empty repeatable entry', () => {
+        const w = mountInfolist([
+            {
+                type: 'repeatable',
+                name: 'lines',
+                label: 'Lines',
+                placeholder: 'No lines',
+                repeatableItems: [],
+            },
+        ]);
+
+        expect(w.text()).toContain('No lines');
+    });
+});

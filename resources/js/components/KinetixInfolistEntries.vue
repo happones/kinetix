@@ -301,9 +301,11 @@ const isEmpty = (value: unknown) =>
                 {{ entry.label }}
             </span>
 
-            <!-- Empty placeholder -->
+            <!-- Empty placeholder. Skipped for entries whose data isn't in
+                 `state` (repeatable carries `repeatableItems`), so they reach
+                 their own branch instead of being masked as "empty". -->
             <span
-                v-if="isEmpty(entry.state)"
+                v-if="isEmpty(entry.state) && entry.type !== 'repeatable'"
                 class="text-sm text-muted-foreground/70 italic"
             >
                 {{ entry.placeholder ?? '—' }}

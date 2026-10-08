@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.202.0] - 2026-10-07
+
+### Fixed
+
+- **Repeatable infolist entry was masked as empty (published).** The entry
+  renderer short-circuits to the "—" placeholder when an entry's `state` is
+  empty, but a `RepeatableEntry` carries its data in `repeatableItems`, not
+  `state` — so it always rendered the placeholder instead of its items. The
+  empty-state guard now excludes `repeatable`, letting it reach its own branch
+  (which still shows a placeholder when it genuinely has no items). Caught by a
+  new render spec.
+
+### Tests
+
+- Render specs for the features added in 0.201.0: the `form` filter type
+  resolves `FilterFormField` and merges a sub-field into the filter value
+  object; the key-value and repeatable infolist entries render their rows /
+  per-item blocks (and the repeatable empty-state placeholder).
+
 ## [0.201.0] - 2026-10-07
 
 Filament-parity polish: composite form filters and two more infolist entries.

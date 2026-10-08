@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
 import KinetixTableFilterField from '@/components/Table/KinetixTableFilterField.vue';
 import FilterAddressField from '@/components/Table/filters/FilterAddressField.vue';
+import FilterFormField from '@/components/Table/filters/FilterFormField.vue';
 import FilterNumberRangeField from '@/components/Table/filters/FilterNumberRangeField.vue';
 import FilterSelectField from '@/components/Table/filters/FilterSelectField.vue';
 
@@ -90,5 +91,26 @@ describe('KinetixTableFilterField dispatcher', () => {
     it('renders nothing for an unknown filter type', () => {
         const wrapper = mountField(filter({ type: 'nope' }));
         expect(wrapper.find('*').exists()).toBe(false);
+    });
+
+    it('resolves the form field and merges a sub-field into the value object', async () => {
+        const f = filter({
+            type: 'form',
+            schema: [
+                { type: 'text-input', name: 'from', label: 'From' },
+                { type: 'text-input', name: 'to', label: 'To' },
+            ],
+        });
+
+        const wrapper = mountField(f, { from: '5' });
+        expect(wrapper.findComponent(FilterFormField).exists()).toBe(true);
+
+        // Typing into the second field keeps the first and emits the merged object.
+        const toInput = wrapper.find('#to');
+        await toInput.setValue('20');
+
+        expect(wrapper.emitted('update')?.at(-1)).toEqual([
+            { from: '5', to: '20' },
+        ]);
     });
 });
