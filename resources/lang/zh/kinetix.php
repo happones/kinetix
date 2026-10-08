@@ -47,6 +47,8 @@ return [
     'copy_failed'                       => '复制失败',
     'reveal'                            => '显示',
     'hide'                              => '隐藏',
+    'generate'                          => '生成',
+    'show'                              => '显示',
     'confirm'                           => '确认',
     'cancel'                            => '取消',
     'close'                             => '关闭',

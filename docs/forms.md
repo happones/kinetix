@@ -1053,6 +1053,66 @@ SignaturePad::make('signature')->penColor('#1d4ed8')->height(180);
 
 ---
 
+### `GeneratorInput`
+
+A text input with a one-click VALUE GENERATOR beside it — passwords, PINs,
+usernames, or any custom charset. Generation is client-side and crypto-strong
+(uniform, no modulo bias), so nothing round-trips the server. Three presets
+bundle the same underlying knobs (kind + length + charset):
+
+```php
+use Happones\Kinetix\Forms\Components\GeneratorInput;
+
+// Password — toggle classes, exclude look-alikes, copy + mask affordances
+GeneratorInput::make('password')->password(length: 20)->symbols(false)->excludeAmbiguous()->copyable()->masked();
+
+// PIN — numeric | alphanum | alpha
+GeneratorInput::make('pin')->pin(length: 6, mode: 'numeric');
+
+// Username — from a pattern of SIBLING fields (resolved live, like SlugInput),
+// normalized to a safe handle; falls back to a random handle until they fill in
+GeneratorInput::make('username')->username()->pattern('{first_name}.{last_name}')->separator('.');
+```
+
+| Method | Effect |
+| --- | --- |
+| `password(length)` / `pin(length, mode)` / `username(length)` | Preset + kind |
+| `length(n)` | Characters to generate |
+| `lowercase()` / `uppercase()` / `digits()` / `symbols()` | Toggle a password class (pass `false` to drop it) |
+| `symbolSet('…')` | Override the symbol alphabet |
+| `excludeAmbiguous()` | Drop look-alikes (`O/0`, `l/1/I`, …) |
+| `pattern('{a}.{b}')` / `separator('.')` | Username from sibling fields |
+| `copyable()` | Click-to-copy beside the generate button |
+| `masked()` | Hide the value behind a reveal toggle |
+
+#### Standalone — generating into another target
+
+The same generator ships as a component for use **outside** a form, pointed at
+any target. Pass `:input="false"` and a `target` — a writer callback, a CSS
+selector, or an element (its `.value` is set and an `input` event dispatched, so
+a plain `<input>` or another framework picks it up):
+
+```vue
+<script setup lang="ts">
+import KinetixGenerator from '@/components/kinetix/KinetixGenerator.vue';
+</script>
+
+<template>
+  <!-- With its own input (v-model) -->
+  <KinetixGenerator v-model:value="pwd" :config="{ kind: 'password', length: 16 }" copyable />
+
+  <!-- Button only, writing into an external field -->
+  <input id="api-key" />
+  <KinetixGenerator
+    :input="false"
+    target="#api-key"
+    :config="{ kind: 'password', length: 32 }"
+  />
+</template>
+```
+
+---
+
 ### `PhoneInput`
 An international phone field: a **searchable country selector** (flag + dial
 code, from a built-in list of all calling codes) plus a national-number input.

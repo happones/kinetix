@@ -6,6 +6,7 @@ import KinetixBusinessHours from '../KinetixBusinessHours.vue';
 import KinetixCheckboxList from '../KinetixCheckboxList.vue';
 import KinetixDateRangePicker from '../KinetixDateRangePicker.vue';
 import KinetixFileUpload from '../KinetixFileUpload.vue';
+import KinetixGenerator from '../KinetixGenerator.vue';
 import KinetixKeyValue from '../KinetixKeyValue.vue';
 import KinetixMediaLibrary from '../KinetixMediaLibrary.vue';
 import KinetixNumberField from '../KinetixNumberField.vue';
@@ -88,6 +89,16 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         props: (c, values) => ({
             source: c.slugConfig?.from ? values[c.slugConfig.from] : null,
             config: c.slugConfig,
+            disabled: c.isDisabled,
+            placeholder: c.placeholder,
+        }),
+    },
+    'generator-input': {
+        component: KinetixGenerator,
+        props: (c, values) => ({
+            config: c.generatorConfig,
+            // Sibling values power a username `pattern` ({first}.{last}).
+            values,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
         }),

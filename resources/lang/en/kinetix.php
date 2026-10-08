@@ -47,6 +47,8 @@ return [
     'copy_failed'                       => 'Couldn\'t copy',
     'reveal'                            => 'Reveal',
     'hide'                              => 'Hide',
+    'generate'                          => 'Generate',
+    'show'                              => 'Show',
     'confirm'                           => 'Confirm',
     'cancel'                            => 'Cancel',
     'close'                             => 'Close',

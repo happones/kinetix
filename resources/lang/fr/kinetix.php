@@ -47,6 +47,8 @@ return [
     'copy_failed'                       => 'Impossible de copier',
     'reveal'                            => 'Afficher',
     'hide'                              => 'Masquer',
+    'generate'                          => 'Générer',
+    'show'                              => 'Afficher',
     'confirm'                           => 'Confirmer',
     'cancel'                            => 'Annuler',
     'close'                             => 'Fermer',

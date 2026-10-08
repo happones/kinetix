@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.204.0] - 2026-10-07
+
+### Added
+
+- **`GeneratorInput` field + `<KinetixGenerator>` component (published).** A
+  configurable value generator for passwords, PINs, usernames and custom
+  charsets, generated client-side with crypto-strong randomness (rejection
+  sampling — uniform, no modulo bias). Three presets bundle the same knobs:
+
+  ```php
+  GeneratorInput::make('password')->password(length: 20)->symbols(false)->excludeAmbiguous()->copyable()->masked();
+  GeneratorInput::make('pin')->pin(length: 6, mode: 'numeric');
+  GeneratorInput::make('username')->username()->pattern('{first_name}.{last_name}');
+  ```
+
+  The username `pattern` is resolved live from sibling field values (like
+  `SlugInput`'s `from`) and normalized to a safe handle, falling back to a
+  random one until the siblings are filled.
+
+  It works **two ways**: as a form field with its own input (regenerate + copy +
+  reveal), and as a **standalone `<KinetixGenerator>`** component for use outside
+  a form — `:input="false"` plus a `target` (a writer callback, a CSS selector,
+  or an element whose `.value` is set + `input` event dispatched) drives any
+  external input. Styled with the shadcn token contract (`inputClass` /
+  `buttonVariants`), copy via the shared `KinetixCopyable`. The generation
+  engine is a reusable composable, `useKinetixGenerator`.
+
 ## [0.203.0] - 2026-10-07
 
 ### Added

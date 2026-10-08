@@ -47,6 +47,8 @@ return [
     'copy_failed'                       => 'コピーできませんでした',
     'reveal'                            => '表示',
     'hide'                              => '隠す',
+    'generate'                          => '生成',
+    'show'                              => '表示',
     'confirm'                           => '確認',
     'cancel'                            => 'キャンセル',
     'close'                             => '閉じる',

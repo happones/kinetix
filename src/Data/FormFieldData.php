@@ -119,6 +119,9 @@ class FormFieldData extends Data
         public ?array $signatureConfig = null,
         // PhoneInput — {defaultCountry, countries:[{code,name,dial}]}.
         public ?array $phoneConfig = null,
+        // GeneratorInput — {kind, length, charset flags, pinMode, pattern,
+        // separator, copyable, revealable}. Drives the value generator UI.
+        public ?array $generatorConfig = null,
         // Client-side conditional rules keyed by effect (visible/hidden/
         // required/disabled); each is {field, operator, value}. Evaluated live
         // by KinetixForm against the current form state. Null = unconditional.
