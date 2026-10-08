@@ -12,7 +12,7 @@ overlap matrix.
 
 > This document is the current-state map of what's shipped plus what's on the
 > table next. Per-release detail lives in [`CHANGELOG.md`](CHANGELOG.md).
-> Current version: **v0.155.0** — 50+ modules.
+> Current version: **v0.202.0** — 50+ modules.
 
 ---
 
@@ -69,6 +69,10 @@ skill, translations (en/es/fr/pt) and tests.
   completion-gating middleware. `docs/wizard.md`
 - **Table Repeater** — editable table-style form field (deferred + autosave).
   `docs/table-repeater.md`
+- **Business Hours** — a weekly per-day schedule field (enable/disable + time
+  ranges + "apply to all days"), a `WeeklySchedule` value object with
+  `isOpenAt()` / `effectiveSchedule()`, and the `AsWeeklySchedule` cast.
+  `docs/forms.md`
 
 ### Actions & navigation
 - **Actions** — fluent action builder (confirm modals, authorization, events).
@@ -104,6 +108,13 @@ skill, translations (en/es/fr/pt) and tests.
 
 ### SaaS platform
 - **Billing** — Cashier + Stripe subscriptions/plans. `docs/billing.md`
+- **Plan Gating** — capability + quota gating tied to a plan: `planAllows()` /
+  `planLimit()` / `isWithinPlanLimit()` on `HasPlan`, the `kinetix.plan`
+  (`EnsurePlanCapability`) middleware, the `EnforcesPlanLimits` trait, and the
+  `<KinetixPlanGate>` / `<KinetixPlanLock>` upsell components. `docs/billing.md`
+- **Metered Usage & Credits** — a consumption model (`HasMeteredUsage` →
+  `consume()` / `meteredUsage()` / top-up `Credit`s) that feeds the usage-meter
+  and progress widgets. `docs/billing.md`
 - **Membership** — team membership + invitations. `docs/membership.md`
 - **Team Switcher** — active-team switching. `docs/team-switcher.md`
 - **Permissions** — spatie-permission bridge + `<KinetixCan>`.
@@ -143,22 +154,15 @@ skill, translations (en/es/fr/pt) and tests.
 
 ## Planned / candidate features
 
-Recorded for a future dedicated brainstorm — none are started. Ordered by the
-value signalled so far:
+The three candidates previously parked here — **plan-gating**, the
+**weekly business-hours field**, and **metered usage + credits** — have all
+shipped and now live under [Shipped](#shipped). Form reactivity landed too:
+conditional fields (`visibleWhen` / `requiredWhen` / …) and the server-driven
+`$get` / `$set` loop (dependent options, `afterStateUpdated`).
 
-1. **Plan-gating kit (capabilities + limits)** — `Team::planAllows()` /
-   `planLimit()` / `isWithinPlanLimit()`, an `EnsurePlanCapability` middleware,
-   an `EnforcesPlanLimits` trait, a shared `planFeatureState` Inertia prop, and a
-   "module locked + upsell" frontend pattern. Builds on the existing
-   `Billing\Plan` / `HasPlan` foundation. Kinetix ships billing but not
-   feature/quota gating tied to a plan — a near-universal SaaS need.
-2. **Weekly business-hours field** — a per-day editor (enable/disable + time
-   ranges + "apply to all days"), a cast/validator, and `effectiveSchedule()` /
-   `isOpenAt()` helpers. For any booking/appointments app.
-3. **Metered usage + credits** — a consumption model
-   (`meteredUsage()`, `consume…()`-style helpers, top-up credits) feeding the
-   existing usage-meter / progress widgets, which today have no usage-tracking
-   backend to read from.
+No new candidates are committed yet — the next ones will be recorded here after
+a dedicated brainstorm. Per-release detail lives in
+[`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
