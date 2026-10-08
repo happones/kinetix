@@ -71,6 +71,17 @@ and `must_change_password` to `users`, plus `kinetix_password_history`).
 - **`issueTemporary()` returns the plaintext ONCE** (hashed on the way in, like
   a Sanctum token). Show it or reissue.
 - **Only hashes are stored**, ever. Never log or persist a plaintext password.
+- **`issueTemporaryCredential()` returns a `TemporaryCredential`** (plaintext +
+  `expiresAt` + `send($notifiable)` / `sendMail($email)` / `sendVia($channel,
+  $route)`). Deliver it when issued: it can't be serialized, and its queued
+  notification is encrypted. `sendVia()` throws for a channel the notification's
+  `via()` doesn't list.
+- **Credential profiles** (`credentials.profiles.<name>.user_model` + identity):
+  `KinetixIdentity::attempt($login, $pw, 'client')`. An undeclared profile
+  THROWS, never falls back to the default model (a User in the client guard =
+  someone else's account), so validate a profile name that comes from input.
+  Every profile's model is observed and keeps its own password history; give
+  its table the columns with `$table->kinetixPasswordColumns()`.
 
 ## Usage
 

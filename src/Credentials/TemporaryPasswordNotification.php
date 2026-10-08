@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Credentials;
 
+use Carbon\CarbonInterface;
 use Happones\Kinetix\Membership\MemberActivationNotification;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Carbon;
 
 /**
  * Delivers a temporary password to its recipient. Mail out of the box; every
@@ -32,14 +33,28 @@ use Illuminate\Support\Carbon;
  *         }
  *     }
  */
-class TemporaryPasswordNotification extends Notification implements ShouldQueue
+class TemporaryPasswordNotification extends Notification implements ShouldBeEncrypted, ShouldQueue
 {
     use Queueable;
 
+    /**
+     * Queued, the notification is serialized with the plaintext in it:
+     * ShouldBeEncrypted keeps it out of the jobs table, Redis, Horizon and
+     * failed_jobs in readable form.
+     */
     public function __construct(
+        #[\SensitiveParameter]
         public string $password,
-        public ?Carbon $expiresAt = null,
+        public ?CarbonInterface $expiresAt = null,
     ) {}
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return ['password' => '[redacted]', 'expiresAt' => $this->expiresAt?->toIso8601String()];
+    }
 
     /**
      * @return array<int, string>

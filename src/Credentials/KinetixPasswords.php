@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Credentials;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 
 /**
  * Static entry point for the password lifecycle.
@@ -45,7 +45,7 @@ class KinetixPasswords
         return static::policy()->isExpired($user);
     }
 
-    public static function expiresAt(mixed $user): ?Carbon
+    public static function expiresAt(mixed $user): ?CarbonInterface
     {
         return static::policy()->expiresAt($user);
     }
@@ -89,7 +89,7 @@ class KinetixPasswords
         return static::policy()->issueTemporaryCredential($user, $plain);
     }
 
-    public static function temporaryExpiresAt(mixed $user): ?Carbon
+    public static function temporaryExpiresAt(mixed $user): ?CarbonInterface
     {
         return static::policy()->temporaryExpiresAt($user);
     }

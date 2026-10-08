@@ -170,6 +170,19 @@ panel. `KinetixSheet` always pins.
 
 ---
 
+### 6. Conditional fields and reactivity
+
+- `visibleWhen/hiddenWhen/requiredWhen/disabledWhen($field, $value, $operator)`
+  ship as data: the browser and the server evaluate them with the SAME rules
+  (against a boolean → boolean, an untouched toggle is false; else text, `1` =
+  `'1'`, `null` = `''`; a list value matches when it contains the value). An
+  unknown operator throws; `in`/`notIn` need a list. A conditionally hidden
+  field is never validated nor persisted, on every path (FormRequest too).
+- `->live()` + `afterStateUpdated(fn (Set $set) => …)` + `options(fn (Get $get)
+  => …)` need a reconstructible form (a `Form` subclass or a resource form).
+  Only the changed live field's hook runs per recompute, so cascades work;
+  `Get` reads the filled values on the first render as well.
+
 ## Best Practices
 
 - **Constructor Property Injection**: Ensure all fields use promotion parameter reflection.

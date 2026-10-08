@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 /**
  * Who a login string refers to, when "email" is not the only answer.
@@ -63,8 +64,10 @@ class IdentityResolver
      *
      *     KinetixIdentity::for('client')->attempt($login, $password);
      *
-     * A null/unknown profile is the default (top-level config), so existing
-     * single-model apps need nothing.
+     * A null profile (or `default`) is the top-level config, so existing
+     * single-model apps need nothing. An UNKNOWN profile throws: falling back
+     * to the default model would hand a client portal a `User` — and a session
+     * on the client guard holding a User's id is someone else's account.
      */
     public static function for(?string $profile): self
     {
@@ -72,14 +75,22 @@ class IdentityResolver
             return new self;
         }
 
-        /** @var array<string, mixed> $raw */
-        $raw = (array) config("kinetix.credentials.profiles.{$profile}", []);
+        $profiles = (array) config('kinetix.credentials.profiles', []);
+        $raw      = $profiles[$profile] ?? null;
+
+        if (! is_array($raw)) {
+            throw new InvalidArgumentException("Unknown credential profile [{$profile}]. Declare it under kinetix.credentials.profiles.");
+        }
+
+        if (! is_string($raw['user_model'] ?? null) || $raw['user_model'] === '') {
+            throw new InvalidArgumentException("Credential profile [{$profile}] has no user_model.");
+        }
 
         /** @var array<string, mixed> $identity */
         $identity = (array) ($raw['identity'] ?? []);
 
         return new self(array_filter([
-            'user_model'       => $raw['user_model']            ?? null,
+            'user_model'       => $raw['user_model'],
             'fields'           => $identity['fields']           ?? null,
             'phone_country'    => $identity['phone_country']    ?? null,
             'username_pattern' => $identity['username_pattern'] ?? null,

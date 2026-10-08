@@ -11,6 +11,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 
 class ProfUser extends Authenticatable
 {
@@ -107,14 +108,29 @@ class CredentialProfilesTest extends TestCase
         $this->assertNull(KinetixIdentity::attempt('c@example.com', 'secret'));
     }
 
-    public function test_an_unknown_profile_falls_back_to_the_default(): void
+    /**
+     * An unknown profile used to fall back to the default model: a client
+     * portal could log a `User` into the client guard, and that guard then
+     * loads the Client with the User's id — another person's account.
+     */
+    public function test_an_unknown_profile_is_refused(): void
     {
         ProfUser::create(['email' => 'd@example.com', 'password' => Hash::make('pw')]);
 
-        $this->assertInstanceOf(
-            ProfUser::class,
-            KinetixIdentity::resolve('d@example.com', 'nope'),
-        );
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown credential profile [nope]');
+
+        KinetixIdentity::resolve('d@example.com', 'nope');
+    }
+
+    public function test_a_profile_without_a_user_model_is_refused(): void
+    {
+        config()->set('kinetix.credentials.profiles.broken', ['identity' => ['fields' => ['email']]]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Credential profile [broken] has no user_model');
+
+        IdentityResolver::for('broken');
     }
 
     public function test_blueprint_macro_adds_the_password_columns_to_any_table(): void

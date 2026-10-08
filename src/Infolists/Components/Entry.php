@@ -12,6 +12,7 @@ use Happones\Kinetix\Support\Contracts\HasIcon;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
+use WeakMap;
 
 abstract class Entry extends Component
 {
@@ -41,12 +42,23 @@ abstract class Entry extends Component
     protected array $extraAttributes = [];
 
     /**
-     * Memoized raw state keyed by record object id, so the state callback and
-     * relationship lookups run only once per record during serialization.
+     * Memoized raw state per record object, so the state callback and
+     * relationship lookups run only once per record during serialization. A
+     * WeakMap, not an spl_object_id() index: PHP reuses a freed object's id,
+     * so a short-lived record (a RepeatableEntry wraps each array row in one)
+     * would otherwise read the state memoized for an earlier row.
      *
-     * @var array<int|string, mixed>
+     * @var WeakMap<Model, array{0: mixed}>|null
      */
-    private array $rawStateCache = [];
+    private ?WeakMap $rawStateCache = null;
+
+    /**
+     * The memoized raw state for the record-less pass, wrapped so a null state
+     * is memoized too.
+     *
+     * @var array{0: mixed}|null
+     */
+    private ?array $rawStateWithoutRecord = null;
 
     public function __construct(string $name)
     {
@@ -146,10 +158,12 @@ abstract class Entry extends Component
      */
     public function getRawState(?Model $record = null): mixed
     {
-        $cacheKey = $record !== null ? spl_object_id($record) : '__null__';
+        $cached = $record !== null
+            ? ($this->rawStateCache[$record] ?? null)
+            : $this->rawStateWithoutRecord;
 
-        if (array_key_exists($cacheKey, $this->rawStateCache)) {
-            return $this->rawStateCache[$cacheKey];
+        if ($cached !== null) {
+            return $cached[0];
         }
 
         if ($this->getStateUsing !== null) {
@@ -165,7 +179,14 @@ abstract class Entry extends Component
             }
         }
 
-        return $this->rawStateCache[$cacheKey] = $value;
+        if ($record !== null) {
+            $this->rawStateCache ??= new WeakMap;
+            $this->rawStateCache[$record] = [$value];
+        } else {
+            $this->rawStateWithoutRecord = [$value];
+        }
+
+        return $value;
     }
 
     /**

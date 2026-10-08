@@ -8,7 +8,12 @@ use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Forms\Support\Get;
 use Happones\Kinetix\Forms\Support\Set;
+use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * A `Form` subclass is reconstructible, so it opts into the reactivity loop:
@@ -31,6 +36,45 @@ class ReactiveCountryForm extends Form
                     default => [],
                 }),
         ];
+    }
+}
+
+class RcAuthor extends Model
+{
+    protected $table = 'rc_authors';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+}
+
+class RcPost extends Model
+{
+    protected $table = 'rc_posts';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(RcAuthor::class, 'author_id');
+    }
+}
+
+class RcPostResource extends Resource
+{
+    public static function getModel(): string
+    {
+        return RcPost::class;
+    }
+
+    public static function form(Form $form): Form
+    {
+        return $form->schema([
+            Select::make('author_id')->relationship('author', 'name'),
+            Select::make('kind')->live()->options(['a' => 'A']),
+        ]);
     }
 }
 
@@ -87,5 +131,43 @@ class FormRecomputeEndpointTest extends TestCase
         ]);
 
         $response->assertStatus(400);
+    }
+
+    /**
+     * A create form is built around a fresh model (new RcPost). The endpoint
+     * rebuilt it around null, so the relationship Select had no model to
+     * resolve and its options vanished after the first live change.
+     */
+    public function test_a_create_form_keeps_its_relationship_options_after_a_recompute(): void
+    {
+        Schema::create('rc_authors', static function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+        });
+        Schema::create('rc_posts', static function (Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('author_id')->nullable();
+        });
+        RcAuthor::create(['name' => 'Ada']);
+
+        $descriptor = RcPostResource::form(Form::make(new RcPost)->operation('create'))
+            ->reactiveVia(RcPostResource::class)
+            ->toData()
+            ->recomputeDescriptor;
+
+        $response = $this->postJson(route('kinetix.forms.recompute'), [
+            'descriptor' => $descriptor,
+            'data'       => ['kind' => 'a'],
+            'changed'    => ['kind'],
+        ]);
+
+        $response->assertOk();
+
+        $byName = [];
+        foreach ($response->json('schema') as $field) {
+            $byName[$field['name']] = $field;
+        }
+
+        $this->assertSame([1 => 'Ada'], $byName['author_id']['options']);
     }
 }

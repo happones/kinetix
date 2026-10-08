@@ -1,0 +1,514 @@
+[
+    {
+        "operator": "equals",
+        "value": "a",
+        "actual": "a",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": "a",
+        "actual": "b",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": "1",
+        "actual": 1,
+        "expected": true,
+        "note": "a number and its string are equal"
+    },
+    {
+        "operator": "equals",
+        "value": 1,
+        "actual": "1",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": 1.5,
+        "actual": "1.5",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": "1.0",
+        "actual": 1,
+        "expected": false,
+        "note": "compared as canonical text"
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": true,
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": "1",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": 1,
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": "true",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": "yes",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": false,
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": null,
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": "0",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": "",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "actual": "false",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "actual": false,
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "actual": null,
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "actual": "0",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "actual": 0,
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "actual": "",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "actual": true,
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "actual": "1",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": false,
+        "missing": true,
+        "expected": true,
+        "note": "an untouched toggle is off"
+    },
+    {
+        "operator": "equals",
+        "value": true,
+        "missing": true,
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": null,
+        "actual": "",
+        "expected": true,
+        "note": "null and '' are both empty"
+    },
+    {
+        "operator": "equals",
+        "value": "",
+        "actual": null,
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": null,
+        "actual": "a",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": null,
+        "missing": true,
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": "a",
+        "actual": ["a", "b"],
+        "expected": true,
+        "note": "a list contains the value"
+    },
+    {
+        "operator": "equals",
+        "value": "c",
+        "actual": ["a", "b"],
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": ["b", "a"],
+        "actual": ["a", "b"],
+        "expected": true,
+        "note": "two lists: same members"
+    },
+    {
+        "operator": "equals",
+        "value": ["a"],
+        "actual": ["a", "b"],
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": "v",
+        "actual": {
+            "k": "v"
+        },
+        "expected": false,
+        "note": "a map never equals a scalar"
+    },
+    {
+        "operator": "notEquals",
+        "value": "a",
+        "actual": "b",
+        "expected": true
+    },
+    {
+        "operator": "notEquals",
+        "value": "1",
+        "actual": 1,
+        "expected": false
+    },
+    {
+        "operator": "notEquals",
+        "value": false,
+        "actual": null,
+        "expected": false
+    },
+    {
+        "operator": "notEquals",
+        "value": "c",
+        "actual": ["a", "b"],
+        "expected": true
+    },
+    {
+        "operator": "in",
+        "value": ["a", "b"],
+        "actual": "a",
+        "expected": true
+    },
+    {
+        "operator": "in",
+        "value": ["1", "2"],
+        "actual": 1,
+        "expected": true
+    },
+    {
+        "operator": "in",
+        "value": ["a", "b"],
+        "actual": ["x", "b"],
+        "expected": true,
+        "note": "a list intersects"
+    },
+    {
+        "operator": "in",
+        "value": ["a"],
+        "actual": ["x"],
+        "expected": false
+    },
+    {
+        "operator": "in",
+        "value": ["", "a"],
+        "actual": null,
+        "expected": true
+    },
+    {
+        "operator": "in",
+        "value": ["a"],
+        "missing": true,
+        "expected": false
+    },
+    {
+        "operator": "in",
+        "value": [true],
+        "actual": "1",
+        "expected": true
+    },
+    {
+        "operator": "notIn",
+        "value": ["a", "b"],
+        "actual": "c",
+        "expected": true
+    },
+    {
+        "operator": "notIn",
+        "value": ["a", "b"],
+        "actual": "a",
+        "expected": false
+    },
+    {
+        "operator": "notIn",
+        "value": ["a"],
+        "missing": true,
+        "expected": true
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": null,
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": false,
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": 0,
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": "0",
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": "",
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": "false",
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": "  ",
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": [],
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": {},
+        "expected": false
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": "a",
+        "expected": true
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": 1,
+        "expected": true
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": true,
+        "expected": true
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": ["a"],
+        "expected": true
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": {
+            "k": "v"
+        },
+        "expected": true
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "actual": "no",
+        "expected": true
+    },
+    {
+        "operator": "truthy",
+        "value": null,
+        "missing": true,
+        "expected": false
+    },
+    {
+        "operator": "falsy",
+        "value": null,
+        "actual": null,
+        "expected": true
+    },
+    {
+        "operator": "falsy",
+        "value": null,
+        "actual": "0",
+        "expected": true
+    },
+    {
+        "operator": "falsy",
+        "value": null,
+        "actual": "a",
+        "expected": false
+    },
+    {
+        "operator": "falsy",
+        "value": null,
+        "actual": [],
+        "expected": true
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": null,
+        "expected": false
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": "",
+        "expected": false
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": "   ",
+        "expected": false
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": [],
+        "expected": false
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": {},
+        "expected": false
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": 0,
+        "expected": true
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": false,
+        "expected": true
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": "a",
+        "expected": true
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": ["a"],
+        "expected": true
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": {
+            "k": "v"
+        },
+        "expected": true
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "missing": true,
+        "expected": false
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "actual": null,
+        "expected": true
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "actual": "  ",
+        "expected": true
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "actual": 0,
+        "expected": false
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "actual": false,
+        "expected": false
+    }
+]

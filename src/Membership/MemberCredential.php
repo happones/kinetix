@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Membership;
 
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Support\Arrayable;
-use Illuminate\Support\Carbon;
 
 /**
  * What an admin has to hand over when there is no delivery channel — shown
@@ -26,15 +26,15 @@ final class MemberCredential implements Arrayable
         public readonly string $type,
         /** The secret itself. Present only in the response that created it. */
         public readonly string $value,
-        public readonly ?Carbon $expiresAt = null,
+        public readonly ?CarbonInterface $expiresAt = null,
     ) {}
 
-    public static function password(string $plain, ?Carbon $expiresAt = null): self
+    public static function password(string $plain, ?CarbonInterface $expiresAt = null): self
     {
         return new self('password', $plain, $expiresAt);
     }
 
-    public static function link(string $url, ?Carbon $expiresAt = null): self
+    public static function link(string $url, ?CarbonInterface $expiresAt = null): self
     {
         return new self('link', $url, $expiresAt);
     }

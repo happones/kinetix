@@ -24,6 +24,8 @@ abstract class Component
      */
     protected mixed $columnSpan = 'full';
 
+    protected bool $hasExplicitColumnSpan = false;
+
     /**
      * @var string|array<int, string>|null
      */
@@ -41,9 +43,19 @@ abstract class Component
      */
     public function columnSpan(mixed $span): static
     {
-        $this->columnSpan = $span;
+        $this->columnSpan            = $span;
+        $this->hasExplicitColumnSpan = true;
 
         return $this;
+    }
+
+    /**
+     * Whether {@see columnSpan()} was called — a container that lays its
+     * children out in cells (a RepeatableEntry grid) gives the rest one cell.
+     */
+    public function hasExplicitColumnSpan(): bool
+    {
+        return $this->hasExplicitColumnSpan;
     }
 
     /**

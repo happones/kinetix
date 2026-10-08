@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Credentials;
 
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -62,7 +62,7 @@ class PasswordPolicy
      * When this user's password stops being valid, or null when it never does
      * (no policy, or no `password_changed_at` to count from).
      */
-    public function expiresAt(mixed $user): ?Carbon
+    public function expiresAt(mixed $user): ?CarbonInterface
     {
         $days = $this->expiryDays();
 
@@ -76,7 +76,10 @@ class PasswordPolicy
         // as "expired" would lock out every existing account the moment the
         // policy is switched on, so it counts as current until they next change
         // it — run a backfill if you want the policy to apply retroactively.
-        if (! $changedAt instanceof Carbon) {
+        // CarbonInterface, not Illuminate's Carbon: an app on
+        // Date::use(CarbonImmutable::class) casts to CarbonImmutable, and
+        // the narrower check switched expiry off there without a word.
+        if (! $changedAt instanceof CarbonInterface) {
             return null;
         }
 
@@ -151,14 +154,17 @@ class PasswordPolicy
      * credential that was never used should stop working, and Kinetix does not
      * own your login flow.
      */
-    public function issueTemporary(Model $user, ?string $plain = null): string
+    public function issueTemporary(Model $user, #[\SensitiveParameter] ?string $plain = null): string
     {
         $plain ??= $this->generate();
 
-        $user->forceFill([
+        // Through the observer's issuing marker: re-issuing to a user who is
+        // still flagged leaves the flag unchanged, and the observer would
+        // otherwise clear it — making the "temporary" password permanent.
+        PasswordObserver::issuingTemporary($user, static fn (): bool => $user->forceFill([
             'password'             => Hash::make($plain),
             'must_change_password' => true,
-        ])->save();
+        ])->save());
 
         return $plain;
     }
@@ -169,7 +175,7 @@ class PasswordPolicy
      * or a custom channel). The reusable, model-agnostic entry point; works on
      * any authenticatable model, inside Membership or standalone.
      */
-    public function issueTemporaryCredential(Model $user, ?string $plain = null): TemporaryCredential
+    public function issueTemporaryCredential(Model $user, #[\SensitiveParameter] ?string $plain = null): TemporaryCredential
     {
         $plain = $this->issueTemporary($user, $plain);
 
@@ -180,7 +186,7 @@ class PasswordPolicy
      * When an unused temporary credential stops being valid, or null when the
      * user has no pending forced change (or no TTL is configured).
      */
-    public function temporaryExpiresAt(mixed $user): ?Carbon
+    public function temporaryExpiresAt(mixed $user): ?CarbonInterface
     {
         $hours = config('kinetix.credentials.passwords.temporary_ttl_hours');
 
@@ -190,7 +196,7 @@ class PasswordPolicy
 
         $changedAt = $user->getAttribute('password_changed_at');
 
-        return $changedAt instanceof Carbon
+        return $changedAt instanceof CarbonInterface
             ? $changedAt->copy()->addHours(max(1, (int) $hours))
             : null;
     }
@@ -235,7 +241,7 @@ class PasswordPolicy
      * mean the one in use too, and the current hash may not be in the history
      * table yet (it is written there as the change happens).
      */
-    public function wasUsedBefore(mixed $user, string $candidate): bool
+    public function wasUsedBefore(mixed $user, #[\SensitiveParameter] string $candidate): bool
     {
         $depth = $this->historyDepth();
 
@@ -249,8 +255,7 @@ class PasswordPolicy
             return true;
         }
 
-        $hashes = PasswordHistory::query()
-            ->where('user_id', $user->getKey())
+        $hashes = PasswordHistory::of($user)
             ->orderByDesc('id')
             ->limit($depth)
             ->pluck('password');
@@ -283,7 +288,7 @@ class PasswordPolicy
 
         if ($depth > 0 && ! $this->alreadyNewest($user, $hash)) {
             PasswordHistory::query()->create([
-                'user_id'    => $user->getKey(),
+                ...PasswordHistory::ownerAttributes($user),
                 'password'   => $hash,
                 'created_at' => now(),
             ]);
@@ -302,8 +307,7 @@ class PasswordPolicy
      */
     protected function alreadyNewest(Model $user, string $hash): bool
     {
-        return PasswordHistory::query()
-            ->where('user_id', $user->getKey())
+        return PasswordHistory::of($user)
             ->orderByDesc('id')
             ->value('password') === $hash;
     }
@@ -316,14 +320,12 @@ class PasswordPolicy
         // Ordered by the primary key, not `created_at`: several changes inside
         // one second share a timestamp, and "most recent" has to be exact or
         // pruning drops arbitrary rows.
-        $keep = PasswordHistory::query()
-            ->where('user_id', $user->getKey())
+        $keep = PasswordHistory::of($user)
             ->orderByDesc('id')
             ->limit($depth)
             ->pluck('id');
 
-        PasswordHistory::query()
-            ->where('user_id', $user->getKey())
+        PasswordHistory::of($user)
             ->whereNotIn('id', $keep)
             ->delete();
     }
@@ -334,7 +336,9 @@ class PasswordPolicy
      */
     public function forget(Authenticatable|Model $user): void
     {
-        PasswordHistory::query()->where('user_id', $user->getAuthIdentifier())->delete();
+        $user instanceof Model
+            ? PasswordHistory::of($user)->delete()
+            : PasswordHistory::query()->where('user_id', $user->getAuthIdentifier())->delete();
     }
 
     /**

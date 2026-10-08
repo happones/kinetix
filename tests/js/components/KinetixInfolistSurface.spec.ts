@@ -144,6 +144,52 @@ describe('KinetixInfolist key-value & repeatable entries', () => {
         expect(text).toContain('5');
     });
 
+    // Items used to print `{{ sub.state }}` only: an icon showed its name,
+    // a badge lost its pill, a color its swatch.
+    it('renders each item with the full entry renderer, on a responsive grid', () => {
+        const w = mountInfolist([
+            {
+                type: 'repeatable',
+                name: 'lines',
+                label: 'Lines',
+                gridColumns: 3,
+                repeatableItems: [
+                    [
+                        {
+                            type: 'text',
+                            name: 'status',
+                            label: 'Status',
+                            state: 'Shipped',
+                            isBadge: true,
+                            color: 'success',
+                            columnSpan: 1,
+                        },
+                        {
+                            type: 'color',
+                            name: 'swatch',
+                            label: 'Color',
+                            state: '#6366f1',
+                            columnSpan: 1,
+                        },
+                    ],
+                ],
+            },
+        ]);
+
+        const item = w.find('.kinetix-grid-host.rounded-lg');
+        expect(item.exists()).toBe(true);
+        // A badge pill and a color swatch, not bare text.
+        expect(item.findComponent({ name: 'KinetixBadge' }).exists()).toBe(
+            true,
+        );
+        expect(item.find('[style*="background-color"]').exists()).toBe(true);
+
+        // One column when narrow, three from `sm` up.
+        const grid = item.find('.kinetix-grid');
+        expect(grid.attributes('style')).toContain('--kx-cols-base: 1');
+        expect(grid.attributes('style')).toContain('--kx-cols-sm: 3');
+    });
+
     it('shows a placeholder for an empty repeatable entry', () => {
         const w = mountInfolist([
             {

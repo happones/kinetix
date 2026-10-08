@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { nextTick, reactive } from 'vue';
 import { createI18n } from 'vue-i18n';
 import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
+import type { KinetixFieldCondition } from '@/types/kinetix';
+import conditionCases from '../fixtures/field-conditions.json';
 
 const page = reactive<{ props: { errors: Record<string, string> } }>({
     props: { errors: {} },
@@ -132,5 +134,39 @@ describe('KinetixForm — conditional fields', () => {
         await nextTick();
 
         expect(wrapper.find('#company_name').exists()).toBe(true);
+    });
+});
+
+/**
+ * The same fixture FieldConditionsTest runs against the PHP evaluator: the
+ * browser and the server must agree on every case, or a field shown here is
+ * dropped on save (or a hidden one blocks the submit).
+ */
+describe('useKinetixFieldConditions — parity with FieldCondition (PHP)', () => {
+    const { passes } = useKinetixFieldConditions();
+
+    it.each(
+        (
+            conditionCases as Array<{
+                operator: string;
+                value: unknown;
+                actual?: unknown;
+                missing?: boolean;
+                expected: boolean;
+            }>
+        ).map((c, i) => [`#${i} ${c.operator}`, c] as const),
+    )('%s', (_name, c) => {
+        const values = c.missing ? {} : { other: c.actual };
+
+        expect(
+            passes(
+                {
+                    field: 'other',
+                    operator: c.operator,
+                    value: c.value,
+                } as KinetixFieldCondition,
+                values,
+            ),
+        ).toBe(c.expected);
     });
 });

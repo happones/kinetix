@@ -175,7 +175,7 @@ const onUpdateValue = (name: string, value: any) => {
     precognition?.validate(name);
 
     // A live field drives the server-driven reactivity loop (debounced).
-    onFieldChange(isFieldLive(name));
+    onFieldChange(isFieldLive(name), name);
 };
 
 // Dismissals survive the submit: until the response lands, `page.props.errors`

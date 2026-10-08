@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Credentials;
 
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
+use InvalidArgumentException;
+use LogicException;
 
 /**
  * A freshly issued temporary password — the plaintext, its expiry, and the
@@ -33,12 +35,13 @@ final class TemporaryCredential implements Arrayable
 {
     public function __construct(
         /** The plaintext credential. Present only on the object that created it. */
+        #[\SensitiveParameter]
         public readonly string $value,
         /** When an UNUSED credential stops working (null = no TTL configured). */
-        public readonly ?Carbon $expiresAt = null,
+        public readonly ?CarbonInterface $expiresAt = null,
     ) {}
 
-    public static function make(string $value, ?Carbon $expiresAt = null): self
+    public static function make(#[\SensitiveParameter] string $value, ?CarbonInterface $expiresAt = null): self
     {
         return new self($value, $expiresAt);
     }
@@ -61,8 +64,22 @@ final class TemporaryCredential implements Arrayable
      */
     public function sendVia(string $channel, string $route, ?Notification $notification = null): void
     {
-        NotificationFacade::route($channel, $route)
-            ->notify($notification ?? $this->resolveNotification());
+        $notification ??= $this->resolveNotification();
+        $notifiable = NotificationFacade::route($channel, $route);
+
+        // A channel the notification doesn't deliver over would be dropped
+        // without a word, and the credential with it.
+        $channels = method_exists($notification, 'via') ? (array) $notification->via($notifiable) : [];
+
+        if (! in_array($channel, $channels, true)) {
+            throw new InvalidArgumentException(sprintf(
+                '%s does not deliver over [%s]. Point kinetix.credentials.passwords.notification at a subclass whose via() includes it.',
+                $notification::class,
+                $channel,
+            ));
+        }
+
+        $notifiable->notify($notification);
     }
 
     /**
@@ -82,10 +99,14 @@ final class TemporaryCredential implements Arrayable
     {
         $configured = config('kinetix.credentials.passwords.notification');
 
+        if ($configured !== null && ! (is_string($configured) && is_a($configured, TemporaryPasswordNotification::class, true))) {
+            throw new InvalidArgumentException(
+                'kinetix.credentials.passwords.notification must be '.TemporaryPasswordNotification::class.' or a subclass of it.',
+            );
+        }
+
         /** @var class-string<TemporaryPasswordNotification> $class */
-        $class = is_string($configured) && is_subclass_of($configured, TemporaryPasswordNotification::class)
-            ? $configured
-            : TemporaryPasswordNotification::class;
+        $class = $configured ?? TemporaryPasswordNotification::class;
 
         return new $class($this->value, $this->expiresAt);
     }
@@ -113,5 +134,17 @@ final class TemporaryCredential implements Arrayable
     public function __debugInfo(): array
     {
         return ['value' => '[redacted]', 'expiresAt' => $this->expiresAt?->toIso8601String()];
+    }
+
+    /**
+     * A temporary credential is for the moment it was issued. Serialized into
+     * a queue payload, a cache entry or a session, its plaintext would sit in
+     * storage — deliver it now ({@see send()}) instead.
+     *
+     * @return array<string, mixed>
+     */
+    public function __serialize(): array
+    {
+        throw new LogicException('A temporary credential cannot be serialized. Deliver it when it is issued: send(), sendMail() or sendVia().');
     }
 }

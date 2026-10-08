@@ -422,9 +422,13 @@ class Form implements Arrayable, JsonSerializable
      *   1. seeds every field's reactive state, so their `options`/`visible`/
      *      `disabled` closures (which take a {@see Get}) resolve against the
      *      LIVE values rather than the record;
-     *   2. fires `afterStateUpdated()` for each `live()` field whose value is
-     *      present, letting it push derived values back through a {@see Set}
-     *      (e.g. clearing a dependent select) — collected as `changes`;
+     *   2. fires `afterStateUpdated()` for the `live()` fields that CHANGED
+     *      (`$changed`), letting them push derived values back through a
+     *      {@see Set} (e.g. clearing a dependent select) — collected as
+     *      `changes`. Firing every live field's hook on every keystroke reset
+     *      cascades: picking a state re-ran the country's "clear the state"
+     *      hook. With no `$changed` (a client from before 0.208) every live
+     *      field's hook runs, as it used to;
      *   3. returns the freshly serialized schema plus those changes.
      *
      * It never runs anything the client sent: the schema and its closures come
@@ -432,9 +436,10 @@ class Form implements Arrayable, JsonSerializable
      * client only ever supplies plain values.
      *
      * @param  array<string, mixed>                                                           $data
+     * @param  list<string>|null                                                              $changed the fields the user changed since the last recompute
      * @return array{schema: array<int, array<string, mixed>>, changes: array<string, mixed>}
      */
-    public function recompute(array $data): array
+    public function recompute(array $data, ?array $changed = null): array
     {
         $state   = array_merge($this->data, $data);
         $changes = [];
@@ -448,10 +453,15 @@ class Form implements Arrayable, JsonSerializable
             }
         }
 
-        // Fire afterStateUpdated for live fields, letting each push derived
-        // values into the shared working state (visible to later reads).
-        foreach ($fields as $name => $field) {
-            if (! $field->isLive()) {
+        // Fire afterStateUpdated for the live fields that changed, in the order
+        // they changed, letting each push derived values into the shared
+        // working state (visible to later reads).
+        $hooks = $changed ?? array_keys($fields);
+
+        foreach ($hooks as $name) {
+            $field = $fields[$name] ?? null;
+
+            if ($field === null || ! $field->isLive()) {
                 continue;
             }
 
@@ -493,6 +503,14 @@ class Form implements Arrayable, JsonSerializable
                     $field->forModel($this->model);
                 }
             }
+        }
+
+        // Seed the form's values into every field, so a `Get` read by an
+        // options/visible closure sees them on the FIRST render too — an edit
+        // form's dependent select, or a create form re-rendered with the old
+        // input after a failed submit, would otherwise start empty.
+        foreach ($this->getFields() as $field) {
+            $field->withReactiveState($this->data);
         }
 
         $serializedSchema = [];

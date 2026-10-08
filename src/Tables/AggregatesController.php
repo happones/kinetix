@@ -20,8 +20,10 @@ use Illuminate\Http\Request;
  * class), re-runs the aggregates over the SAME filtered window the user sees,
  * and returns just `{ stats, summaries, hasSummaries }`. The descriptor is
  * bound to the user/team/expiry like every Kinetix descriptor, and the table's
- * own `getEloquentQuery()` scope + column gating still apply, so no row or
- * column the user couldn't see leaks through its totals.
+ * own `getEloquentQuery()` scope + column gating still apply. A table only
+ * defers when this rebuild matches what the page rendered (same base query,
+ * columns, filters, summarizers and stats — see Table::aggregatesAreDeferred()),
+ * so the totals always describe the rows the user was shown.
  */
 class AggregatesController
 {
@@ -56,7 +58,7 @@ class AggregatesController
         // aggregates describe the window the user is actually looking at.
         $prefix = is_string($payload['queryPrefix'] ?? null) ? $payload['queryPrefix'] : '';
 
-        $table = $resource::table(Table::make($resource::getEloquentQuery()));
+        $table = Table::rebuildFromResource($resource);
 
         if ($prefix !== '') {
             $table->queryPrefix($prefix);

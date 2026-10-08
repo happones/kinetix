@@ -54,7 +54,10 @@ php artisan migrate
 
 That adds `password_changed_at` and `must_change_password` to your `users`
 table, plus the `kinetix_password_history` table (hashes only — see
-[Security](#security)).
+[Security](#security)). Upgrading from before 0.208.0, publish again and
+migrate: a new migration adds the column that keeps each
+[profile's](#_5-4-more-than-one-authenticatable-—-credential-profiles) history
+apart. Until it has run, history works as before, matched by user id alone.
 
 Then append the middleware to your authenticated group:
 
@@ -189,7 +192,7 @@ use `issueTemporaryCredential()`:
 $cred = KinetixPasswords::issueTemporaryCredential($user);
 
 $cred->value;        // the plaintext — show/copy it ONCE
-$cred->expiresAt;    // Carbon|null — when an unused one stops working
+$cred->expiresAt;    // CarbonInterface|null — when an unused one stops working
 $cred->toArray();    // { value, expiresAt } — e.g. to return as an Inertia prop
 
 $cred->send($user);              // notify the model (mail by default)
@@ -198,8 +201,17 @@ $cred->sendVia('vonage', $phone); // or any channel you've registered
 ```
 
 The value is **redacted** in logs, stack traces and `dd()`, so it can't leak by
-accident — only `->value` exposes it. The default delivery is a translatable
-mail; point `credentials.passwords.notification` at a subclass of
+accident — only `->value` exposes it. It can't be serialized either (into a
+queue payload, the cache or the session): deliver it when you issue it. The
+notification is queued **encrypted**, so the plaintext never sits readable in
+the jobs table, Redis, Horizon or `failed_jobs`. `toArray()` does include the
+value, by design; if you return it as an Inertia prop, render that page with
+`Inertia::clearHistory()` (or encrypt history) so the back button can't bring
+it back.
+
+The default delivery is a translatable mail. `sendVia()` / `sendMail()` refuse
+(throw) a channel the notification doesn't list in `via()`, instead of sending
+nothing. Point `credentials.passwords.notification` at a subclass of
 `TemporaryPasswordNotification` to add SMS/other channels (same pattern as
 Membership's activation notification):
 
@@ -449,9 +461,17 @@ KinetixIdentity::for('client')->fields();   // the scoped resolver
 ```
 
 Each profile resolves against **its own** model and identity fields — the same
-email on both tables finds the right record for each. The password lifecycle
-(expiry, history, forced change, [temporary credentials](#delivering-it-the-temporarycredential))
-is model-agnostic and works on every profile's model; give that model the two
+email on both tables finds the right record for each. A profile name that isn't
+declared (or one without a `user_model`) **throws** rather than falling back to
+the default model: a `User` logged into the client guard would load the
+`Client` with the same id. Validate a profile that comes from the request.
+
+The password lifecycle (expiry, history, forced change,
+[temporary credentials](#delivering-it-the-temporarycredential)) applies to
+every profile's model: Kinetix observes each one, and each model keeps its own
+password history even when ids collide (a `Client` #1 never reads a `User` #1's
+passwords). The profiles' models must share the user key type the history
+table was created with (`kinetix.key_types.user`). Give each model the two
 columns with the Blueprint macro:
 
 ```php

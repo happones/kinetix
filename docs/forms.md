@@ -384,11 +384,21 @@ TextInput::make('reason')->requiredWhen('status', 'rejected');
 ```
 
 Operators: `equals`, `notEquals`, `in`, `notIn`, `truthy`, `falsy`, `filled`,
-`blank`. The condition ships as plain data (not a closure), so `KinetixForm`
-re-evaluates it instantly as the user types. The server mirrors it: a
-conditionally **hidden** field is excluded from validation and never persisted
-(a smuggled value never reaches the model), and a conditionally **required**
-one gains `required` on submit — the client is a UX layer, not the guard.
+`blank` (any other name throws, and `in`/`notIn` need a list). The condition
+ships as plain data (not a closure), so `KinetixForm` re-evaluates it instantly
+as the user types. The server mirrors it: a conditionally **hidden** field is
+excluded from validation and never persisted (a smuggled value never reaches
+the model), and a conditionally **required** one gains `required` on submit —
+the client is a UX layer, not the guard.
+
+The browser and the server compare values the same way:
+
+| Operator | Matches when |
+| --- | --- |
+| `equals` / `notEquals` | Against `true`/`false`, the value is read as a boolean (an untouched toggle is `false`; `'1'`, `'on'` and `1` are `true`). Otherwise as text, so `1` equals `'1'` and `null` equals `''`. A list value (checkboxes, a multi-select) matches when it **contains** the value; a key/value map never matches. |
+| `in` / `notIn` | The value is one of the list; a list value matches when it shares any member with it. |
+| `truthy` / `falsy` | Falsy: `null`, `false`, `0`, `''`, `'0'`, `'false'` and an empty list or map. |
+| `filled` / `blank` | Blank: `null`, a whitespace-only string and an empty list or map. Numbers and booleans are always filled. |
 
 #### Server-driven reactivity (`$get` / `$set`)
 
@@ -412,8 +422,14 @@ Select::make('state')
 When `country` changes, `KinetixForm` POSTs the current values to a signed
 endpoint, the server **rebuilds the form and recomputes the schema** (so
 `state`'s options reflect the new country), and `afterStateUpdated` clears the
-stale `state`. The round-trip is debounced, out-of-order responses are
-discarded, and the focused field + caret are preserved across the swap.
+stale `state`. Only the hooks of the live fields that changed run, so a
+cascade (country clears state, state clears city) holds: picking a state
+doesn't re-run the country's hook. The round-trip is debounced, a response
+overtaken by a newer change is discarded, and if the swap blurs the field you
+were in, focus and caret go back to it.
+
+`$get` sees the form's values on the first render too, so an edit form opens
+with its dependent options already resolved.
 
 A closure receives what it asks for by type or name: `Get $get` / `$get`,
 `Set $set` / `$set`, `Model $record` / `$record` (a legacy `fn ($record)`

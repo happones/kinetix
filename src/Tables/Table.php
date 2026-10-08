@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables;
 
 use Closure;
+use DateTimeInterface;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Actions\BulkAction;
@@ -27,6 +28,7 @@ use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
 use Happones\Kinetix\Tables\Columns\ImageColumn;
+use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Filters\Filter;
 use Illuminate\Contracts\Pagination\CursorPaginator;
@@ -841,10 +843,68 @@ class Table implements Arrayable, JsonSerializable
         ];
     }
 
-    /** Whether the aggregates are deferred AND the table can be rebuilt. */
+    /**
+     * Whether the aggregates are deferred. Only when the endpoint can rebuild
+     * THIS table: it rebuilds from the resource ({@see rebuildFromResource()}),
+     * so a page that built its table differently — another base query, extra
+     * stats, filters or summarizers — would get totals over other rows. Such a
+     * table computes its aggregates inline instead.
+     */
     protected function aggregatesAreDeferred(): bool
     {
-        return $this->deferStats && $this->recordModalsResource !== null;
+        if (! $this->deferStats || $this->recordModalsResource === null) {
+            return false;
+        }
+
+        return $this->aggregateSignature()
+            === self::rebuildFromResource($this->recordModalsResource)->aggregateSignature();
+    }
+
+    /**
+     * The table the resource builds: what {@see AggregatesController} computes
+     * deferred aggregates from.
+     *
+     * @param class-string<resource> $resource
+     */
+    public static function rebuildFromResource(string $resource): self
+    {
+        return $resource::table(self::make($resource::getEloquentQuery()));
+    }
+
+    /**
+     * Everything deferred aggregates depend on: the base query (SQL and
+     * bindings), the columns the user may see (search reads them), the filters
+     * (the request applies them by name), the summarizers and the stat cards.
+     *
+     * @return array<string, mixed>
+     */
+    protected function aggregateSignature(): array
+    {
+        $query   = $this->getUnfilteredQuery();
+        $columns = array_values(array_filter(
+            $this->columns,
+            static fn (Column $column): bool => $column->shouldRender(),
+        ));
+
+        return [
+            'sql'      => $query->toSql(),
+            'bindings' => array_map(
+                static fn (mixed $binding): mixed => $binding instanceof DateTimeInterface
+                    ? $binding->format('Y-m-d H:i:s')
+                    : $binding,
+                $query->getBindings(),
+            ),
+            'columns' => array_map(static fn (Column $column): array => [
+                $column->getName(),
+                $column->isSearchable(),
+                array_map(
+                    static fn (Summarizer $summarizer): string => $summarizer::class,
+                    $column->getSummarizers(),
+                ),
+            ], $columns),
+            'filters' => array_map(static fn (Filter $filter): string => $filter->getName(), $this->filters),
+            'stats'   => array_map(static fn (TableStat $stat): array => $stat->signature(), $this->stats),
+        ];
     }
 
     protected bool $deferStats = false;

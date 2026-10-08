@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { getCurrentInstance, onBeforeUnmount, ref } from 'vue';
 import type { Ref } from 'vue';
 import {
     isKinetixAbort,
@@ -31,14 +31,17 @@ export interface UseKinetixFormReactivityOptions {
  * values to `kinetix.forms.recompute` and applies the recomputed schema and any
  * `afterStateUpdated` changes.
  *
- * Three things keep it smooth:
- *   - DEBOUNCE: rapid typing collapses into one request.
- *   - ABORT + VERSIONING: each request aborts the previous and carries a
- *     sequence number, so an out-of-order response is discarded (no flash of
- *     a stale schema).
- *   - FOCUS PRESERVATION: the active field + caret are captured before the
- *     schema swaps and restored after, so re-rendering doesn't blur the input
- *     the user is in.
+ * What keeps it correct and smooth:
+ *   - DEBOUNCE: rapid typing collapses into one request, which names the live
+ *     fields that changed (`changed`) so only THEIR afterStateUpdated hooks
+ *     run on the server.
+ *   - ABORT + VERSIONING: a new live change aborts the request in flight and
+ *     invalidates its response at once (not only when the next request is
+ *     sent), so values computed from what the user has since replaced never
+ *     land.
+ *   - FOCUS PRESERVATION: if the schema swap blurs the input the user was in,
+ *     focus and caret go back to it. Focus the user moved elsewhere is left
+ *     alone.
  *
  * A form with no descriptor (not reactive) makes `onFieldChange` a no-op.
  */
@@ -51,6 +54,8 @@ export function useKinetixFormReactivity(
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
     let seq = 0;
+    // Live fields changed since the last request, in the order they changed.
+    let changed: string[] = [];
 
     const captureFocus = (): { id: string; start: number | null } | null => {
         const el = document.activeElement as
@@ -81,7 +86,16 @@ export function useKinetixFormReactivity(
                 | HTMLTextAreaElement
                 | null;
 
-            if (!el) {
+            // Only repair focus the swap took away: if it is still on this
+            // input (the user may have typed on), or the user moved it to
+            // another element, leave it where it is.
+            const active = document.activeElement;
+
+            if (
+                !el ||
+                active === el ||
+                (active !== null && active !== document.body)
+            ) {
                 return;
             }
 
@@ -110,6 +124,8 @@ export function useKinetixFormReactivity(
         controller?.abort();
         controller = new AbortController();
         const mySeq = ++seq;
+        const fields = changed;
+        changed = [];
 
         recomputing.value = true;
         const focus = captureFocus();
@@ -119,7 +135,11 @@ export function useKinetixFormReactivity(
                 `/${kinetixRoutePrefix(page)}/forms/recompute`,
                 {
                     method: 'POST',
-                    body: { descriptor, data: options.getValues() },
+                    body: {
+                        descriptor,
+                        data: options.getValues(),
+                        changed: fields,
+                    },
                     signal: controller.signal,
                 },
             );
@@ -157,10 +177,23 @@ export function useKinetixFormReactivity(
      * Call after a field updates. Only `live` fields trigger a recompute;
      * everything else is ignored.
      */
-    const onFieldChange = (isLive: boolean | undefined): void => {
+    const onFieldChange = (
+        isLive: boolean | undefined,
+        name?: string,
+    ): void => {
         if (!isLive || !options.descriptor()) {
             return;
         }
+
+        if (name && !changed.includes(name)) {
+            changed.push(name);
+        }
+
+        // A response computed from the value the user just replaced must not
+        // land: drop the request in flight now, not when the next one is sent.
+        controller?.abort();
+        controller = null;
+        seq++;
 
         if (timer) {
             clearTimeout(timer);
@@ -169,5 +202,19 @@ export function useKinetixFormReactivity(
         timer = setTimeout(() => void send(), options.debounce ?? 300);
     };
 
-    return { onFieldChange, recomputing };
+    const dispose = (): void => {
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+
+        controller?.abort();
+        controller = null;
+    };
+
+    if (getCurrentInstance()) {
+        onBeforeUnmount(dispose);
+    }
+
+    return { onFieldChange, recomputing, dispose };
 }

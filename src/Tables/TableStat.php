@@ -305,6 +305,26 @@ class TableStat
     /**
      * Whether this card renders for the current user.
      */
+    /**
+     * What this card computes, for comparing two definitions of the same table
+     * (see Table::aggregateSignature()). A using() closure can't be compared,
+     * so only its presence counts.
+     *
+     * @return array<string, mixed>
+     */
+    public function signature(): array
+    {
+        return [
+            'label'          => $this->label,
+            'aggregate'      => $this->aggregate,
+            'column'         => $this->column,
+            'conditions'     => $this->conditions,
+            'nullConditions' => $this->nullConditions,
+            'ignoresFilters' => $this->ignoresFilters,
+            'using'          => $this->using !== null,
+        ];
+    }
+
     public function shouldRender(): bool
     {
         if ($this->isHidden instanceof Closure ? (bool) ($this->isHidden)() : $this->isHidden) {

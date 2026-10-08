@@ -119,4 +119,35 @@ class TableDeferStatsTest extends TestCase
 
         $response->assertStatus(400);
     }
+
+    /**
+     * The endpoint rebuilds from the resource. A page that narrowed the base
+     * query used to defer anyway, and its totals then covered rows it never
+     * showed (here: 2 books instead of 1). Now it computes them inline.
+     */
+    public function test_a_page_that_narrows_the_query_computes_its_aggregates_inline(): void
+    {
+        $data = AggBookResource::table(Table::make(AggBook::query()->where('title', 'A')))
+            ->deferStats()
+            ->toData();
+
+        $this->assertFalse($data->deferStats);
+        $this->assertNull($data->aggregatesDescriptor);
+        $this->assertSame('2', (string) $data->summaries['copies'][0]->value);
+        $this->assertSame('1', (string) $data->stats[0]->value);
+    }
+
+    public function test_a_page_that_adds_stats_computes_its_aggregates_inline(): void
+    {
+        $data = AggBookResource::table(Table::make(AggBook::query()))
+            ->stats([
+                TableStat::make('Total')->count(),
+                TableStat::make('Copies')->sum('copies'),
+            ])
+            ->deferStats()
+            ->toData();
+
+        $this->assertFalse($data->deferStats);
+        $this->assertCount(2, $data->stats);
+    }
 }

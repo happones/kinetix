@@ -4,11 +4,54 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Unit;
 
+use ArrayObject;
 use Happones\Kinetix\Infolists\Components\KeyValueEntry;
 use Happones\Kinetix\Infolists\Components\RepeatableEntry;
 use Happones\Kinetix\Infolists\Components\TextEntry;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+class KvOrder extends Model
+{
+    protected $table = 'kv_orders';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    public function lines(): HasMany
+    {
+        return $this->hasMany(KvLine::class, 'order_id');
+    }
+}
+
+class KvLine extends Model
+{
+    protected $table = 'kv_lines';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(KvProduct::class, 'product_id');
+    }
+}
+
+class KvProduct extends Model
+{
+    protected $table = 'kv_products';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+}
 
 class KvRecord extends Model
 {
@@ -82,5 +125,104 @@ class InfolistKeyValueRepeatableTest extends TestCase
             ->toData('view', $record);
 
         $this->assertSame([], $data->repeatableItems);
+    }
+
+    /**
+     * Each array row is wrapped in a short-lived model. The raw-state memo was
+     * keyed by spl_object_id(), which PHP reuses once an object is freed, so
+     * later rows read an earlier row's value.
+     */
+    public function test_every_array_row_resolves_its_own_values(): void
+    {
+        $names  = ['Widget', 'Gadget', 'Gizmo', 'Doohickey', 'Sprocket', 'Flange', 'Grommet'];
+        $record = (new KvRecord)->forceFill([
+            'lines' => array_map(static fn (string $name): array => ['name' => $name], $names),
+        ]);
+
+        $data = RepeatableEntry::make('lines')
+            ->schema([TextEntry::make('name')])
+            ->toData('view', $record);
+
+        $this->assertSame($names, array_map(static fn (array $item): mixed => $item[0]['state'], $data->repeatableItems));
+    }
+
+    public function test_key_value_entry_reads_collections_array_objects_and_json_strings(): void
+    {
+        foreach ([collect(['size' => 'L']), new ArrayObject(['size' => 'L']), '{"size":"L"}'] as $value) {
+            $data = KeyValueEntry::make('meta')
+                ->state(static fn (): mixed => $value)
+                ->toData('view', new KvRecord);
+
+            $this->assertSame(['size' => 'L'], $data->state);
+        }
+
+        // Nothing to list: null, so the entry shows its placeholder.
+        $empty = KeyValueEntry::make('meta')
+            ->state(static fn (): array => [])
+            ->toData('view', new KvRecord);
+
+        $this->assertNull($empty->state);
+    }
+
+    public function test_repeated_relations_load_in_one_query_each_even_when_lazy_loading_is_prevented(): void
+    {
+        Schema::create('kv_orders', static function (Blueprint $table): void {
+            $table->increments('id');
+        });
+        Schema::create('kv_products', static function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+        });
+        Schema::create('kv_lines', static function (Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('order_id');
+            $table->unsignedInteger('product_id');
+        });
+
+        $order = KvOrder::create();
+        foreach (['Widget', 'Gadget', 'Gizmo'] as $name) {
+            $order->lines()->create(['product_id' => KvProduct::create(['name' => $name])->id]);
+        }
+
+        $order = KvOrder::query()->find($order->id);
+        Model::preventLazyLoading();
+        DB::enableQueryLog();
+
+        try {
+            $data = RepeatableEntry::make('lines')
+                ->schema([TextEntry::make('product.name')])
+                ->toData('view', $order);
+        } finally {
+            Model::preventLazyLoading(false);
+        }
+
+        $this->assertSame(
+            ['Widget', 'Gadget', 'Gizmo'],
+            array_map(static fn (array $item): mixed => $item[0]['state'], $data->repeatableItems),
+        );
+        // One query for the lines, one for their products.
+        $this->assertCount(2, DB::getQueryLog());
+    }
+
+    public function test_in_a_grid_each_entry_takes_one_cell_unless_it_sets_its_span(): void
+    {
+        $record = (new KvRecord)->forceFill(['lines' => [['name' => 'Widget', 'note' => 'Fragile']]]);
+
+        $data = RepeatableEntry::make('lines')
+            ->schema([
+                TextEntry::make('name'),
+                TextEntry::make('note')->columnSpan('full'),
+            ])
+            ->grid(3)
+            ->toData('view', $record);
+
+        $this->assertSame(1, $data->repeatableItems[0][0]['columnSpan']);
+        $this->assertSame('full', $data->repeatableItems[0][1]['columnSpan']);
+
+        $stacked = RepeatableEntry::make('lines')
+            ->schema([TextEntry::make('name')])
+            ->toData('view', $record);
+
+        $this->assertSame('full', $stacked->repeatableItems[0][0]['columnSpan']);
     }
 }

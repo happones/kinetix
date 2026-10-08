@@ -100,4 +100,103 @@ describe('useKinetixFormReactivity', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+
+    it('names the live fields that changed, in order, so only their hooks run', async () => {
+        fetchMock.mockResolvedValue({ schema: [], changes: {} });
+
+        const { onFieldChange } = useKinetixFormReactivity({
+            descriptor: () => 'signed-token',
+            getValues: () => ({}),
+            onSchema: () => {},
+            onChanges: () => {},
+            debounce: 20,
+        });
+
+        onFieldChange(true, 'country');
+        onFieldChange(true, 'state');
+        onFieldChange(true, 'country');
+        await new Promise((r) => setTimeout(r, 40));
+        await flush();
+
+        const [, opts] = fetchMock.mock.calls[0] as [string, any];
+        expect(opts.body.changed).toEqual(['country', 'state']);
+    });
+
+    // A response computed from a value the user has since replaced used to
+    // land while the next request was still debouncing.
+    it('drops the response of a request a newer change superseded', async () => {
+        let resolveFirst!: (value: unknown) => void;
+        fetchMock.mockImplementationOnce(
+            (_url: string, opts: { signal: AbortSignal }) =>
+                new Promise((resolve, reject) => {
+                    resolveFirst = resolve;
+                    opts.signal.addEventListener('abort', () => {
+                        const error = new Error('aborted');
+                        error.name = 'AbortError';
+                        reject(error);
+                    });
+                }),
+        );
+        const onChanges = vi.fn();
+
+        const { onFieldChange } = useKinetixFormReactivity({
+            descriptor: () => 'signed-token',
+            getValues: () => ({}),
+            onSchema: () => {},
+            onChanges,
+            debounce: 0,
+        });
+
+        onFieldChange(true, 'country');
+        await flush();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        // The user changes the field again before the response arrives…
+        fetchMock.mockReturnValue(new Promise(() => {}));
+        onFieldChange(true, 'country');
+        resolveFirst({ schema: [], changes: { state: null } });
+        await flush();
+
+        // …so the first response's changes never apply.
+        expect(onChanges).not.toHaveBeenCalled();
+    });
+
+    it('gives focus back only when the schema swap took it away', async () => {
+        document.body.innerHTML =
+            '<input id="country" value="es" /><input id="note" />';
+        const country = document.getElementById('country') as HTMLInputElement;
+        const note = document.getElementById('note') as HTMLInputElement;
+        const frame = () => new Promise((r) => requestAnimationFrame(r));
+
+        let resolve!: (value: unknown) => void;
+        fetchMock.mockImplementation(() => new Promise((r) => (resolve = r)));
+
+        const { onFieldChange } = useKinetixFormReactivity({
+            descriptor: () => 'signed-token',
+            getValues: () => ({}),
+            onSchema: () => {},
+            onChanges: () => {},
+            debounce: 0,
+        });
+
+        // The user moved on to another field while the request ran.
+        country.focus();
+        onFieldChange(true, 'country');
+        await flush();
+        note.focus();
+        resolve({ schema: [], changes: {} });
+        await flush();
+        await frame();
+        expect(document.activeElement).toBe(note);
+
+        // The swap blurred the input: focus returns to it.
+        country.focus();
+        onFieldChange(true, 'country');
+        await flush();
+        country.blur();
+        resolve({ schema: [], changes: {} });
+        await flush();
+        await frame();
+        expect(document.activeElement).toBe(country);
+    });
 });

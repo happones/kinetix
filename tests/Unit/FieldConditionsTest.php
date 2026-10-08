@@ -9,6 +9,8 @@ use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Tests\TestCase;
+use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Client-side conditional rules (visibleWhen/hiddenWhen/requiredWhen/
@@ -100,5 +102,52 @@ class FieldConditionsTest extends TestCase
         $this->assertTrue((new FieldCondition('t', FieldCondition::FILLED))->passes(['t' => 'x']));
         $this->assertTrue((new FieldCondition('t', FieldCondition::BLANK))->passes(['t' => '']));
         $this->assertTrue((new FieldCondition('t', FieldCondition::BLANK))->passes([]));
+    }
+
+    /**
+     * The browser and the server evaluate the same conditions, and must agree
+     * — a field the browser shows but the server takes for hidden is dropped
+     * on save, and the reverse blocks the submit on a field nobody can see.
+     * Every case in the shared fixture is also run by
+     * `useKinetixFieldConditions.spec.ts` against the JS evaluator.
+     *
+     * @return iterable<string, array{0: array<string, mixed>}>
+     */
+    public static function sharedConditionCases(): iterable
+    {
+        $cases = json_decode((string) file_get_contents(__DIR__.'/../js/fixtures/field-conditions.json'), true);
+
+        foreach ($cases as $index => $case) {
+            yield "#{$index} {$case['operator']}" => [$case];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $case
+     */
+    #[DataProvider('sharedConditionCases')]
+    public function test_conditions_evaluate_as_the_shared_fixture_says(array $case): void
+    {
+        $data = ($case['missing'] ?? false) ? [] : ['other' => $case['actual']];
+
+        $this->assertSame(
+            $case['expected'],
+            (new FieldCondition('other', $case['operator'], $case['value']))->passes($data),
+            json_encode($case),
+        );
+    }
+
+    public function test_an_unknown_operator_is_refused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new FieldCondition('type', 'equal', 'company');
+    }
+
+    public function test_in_needs_a_list(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new FieldCondition('country', FieldCondition::IN, 'MX');
     }
 }

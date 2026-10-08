@@ -51,7 +51,16 @@ class FormRecomputeController
             return $form;
         }
 
-        $result = $form->recompute((array) $request->input('data', []));
+        // Which live fields the user changed since the last recompute: only
+        // their afterStateUpdated hooks run. Absent (an older client), all do.
+        $changed = $request->input('changed');
+        $changed = match (true) {
+            is_array($changed)  => array_values(array_filter($changed, 'is_string')),
+            is_string($changed) => [$changed],
+            default             => null,
+        };
+
+        $result = $form->recompute((array) $request->input('data', []), $changed);
 
         return response()->json($result);
     }
@@ -95,6 +104,13 @@ class FormRecomputeController
         }
 
         $operation = is_string($payload['operation'] ?? null) ? $payload['operation'] : 'create';
+
+        // A create form was built around a fresh model instance (that is how
+        // Kinetix builds every create form). Rebuilding it around null lost
+        // the model, and with it every relationship Select's options.
+        if ($record === null && is_string($modelClass) && is_subclass_of($modelClass, Model::class)) {
+            $record = new $modelClass;
+        }
 
         // A Form subclass rebuilds itself; a resource form comes from form().
         $formClass = $payload['formClass'] ?? null;

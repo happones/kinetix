@@ -62,6 +62,7 @@ use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
 use Happones\Kinetix\Credentials\IdentityResolver;
 use Happones\Kinetix\Credentials\Middleware\EnsurePasswordIsCurrent;
 use Happones\Kinetix\Credentials\PasswordController;
+use Happones\Kinetix\Credentials\PasswordHistory;
 use Happones\Kinetix\Credentials\PasswordObserver;
 use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Data\AccessibilityData;
@@ -487,8 +488,9 @@ class KinetixServiceProvider extends ServiceProvider
             ], 'kinetix-membership-migrations');
 
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000032_create_kinetix_password_history_table.php'      => database_path('migrations/2026_01_01_000032_create_kinetix_password_history_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php' => database_path('migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000032_create_kinetix_password_history_table.php'                      => database_path('migrations/2026_01_01_000032_create_kinetix_password_history_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php'                 => database_path('migrations/2026_01_01_000033_add_kinetix_password_fields_to_users_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000038_add_authenticatable_type_to_kinetix_password_history_table.php' => database_path('migrations/2026_01_01_000038_add_authenticatable_type_to_kinetix_password_history_table.php'),
             ], 'kinetix-credentials-migrations');
 
             $this->publishes([
@@ -888,16 +890,37 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        // The policy's bookkeeping hangs off the user model's own events, so it
-        // holds whatever changes a password — Fortify, a reset, a seeder.
-        $userModel = (string) config('kinetix.credentials.user_model')
-            ?: (string) config('kinetix.membership.user_model', 'App\\Models\\User');
-
-        if (class_exists($userModel) && method_exists($userModel, 'observe')) {
-            $userModel::observe(PasswordObserver::class);
+        // The policy's bookkeeping hangs off each authenticatable model's own
+        // events, so it holds whatever changes a password — Fortify, a reset, a
+        // seeder — for the default user model AND every credential profile's.
+        foreach ($this->credentialModels() as $model) {
+            if (class_exists($model) && method_exists($model, 'observe')) {
+                $model::observe(PasswordObserver::class);
+            }
         }
 
         $this->registerCredentialsRoutes();
+    }
+
+    /**
+     * The default user model plus every credential profile's model.
+     *
+     * @return list<string>
+     */
+    protected function credentialModels(): array
+    {
+        $models = [
+            (string) config('kinetix.credentials.user_model')
+                ?: (string) config('kinetix.membership.user_model', 'App\\Models\\User'),
+        ];
+
+        foreach ((array) config('kinetix.credentials.profiles', []) as $profile) {
+            if (is_array($profile) && is_string($profile['user_model'] ?? null)) {
+                $models[] = $profile['user_model'];
+            }
+        }
+
+        return array_values(array_unique(array_filter($models)));
     }
 
     /**
@@ -2920,6 +2943,7 @@ class KinetixServiceProvider extends ServiceProvider
             // The password observer memoizes whether the users table carries
             // the policy columns; a migration between requests must be seen.
             PasswordObserver::flush();
+            PasswordHistory::flush();
         };
 
         $reset();

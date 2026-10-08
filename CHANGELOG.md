@@ -13,6 +13,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.208.0] - 2026-10-08
+
+The second half of the 0.194–0.207 review. Forms now evaluate their conditions
+the same way in the browser and on the server, and their reactivity no longer
+undoes itself. Credential profiles get the whole password lifecycle, with no
+way for one account type to leak into another. Repeatable entries render, and
+deferred table totals always describe the rows on screen.
+
+**Upgrading:**
+- Re-publish the components (`--force`).
+- With credentials enabled, publish `kinetix-credentials-migrations` again and
+  migrate. A new, additive migration keeps each profile's password history
+  apart. Until it runs, history works as before.
+
+### Security
+
+- **Credential profiles fail closed.** An undeclared profile, or one without a
+  `user_model`, used to fall back to the default model. A client portal could
+  then log a `User` into its guard, and that guard loads the `Client` with the
+  same id: someone else's account. `IdentityResolver::for()` (and every
+  `KinetixIdentity` call with a profile) now throws. Validate a profile name
+  that comes from input.
+- **Password history is per model.** History rows were keyed by user id alone,
+  so `Client` #1 and `User` #1 shared one history. A client's change-password
+  form could test guesses against the staff member's passwords, and forgetting
+  one account erased the other's. Rows now carry the model type (new
+  `authenticatable_type` column); untyped rows stay with the default user
+  model.
+- **The queued temporary-password notification is encrypted**
+  (`ShouldBeEncrypted`). The plaintext no longer sits readable in the jobs
+  table, Redis, Horizon or `failed_jobs`. The parameters that carry it are
+  `#[\SensitiveParameter]`, so stack traces don't show it. A
+  `TemporaryCredential` refuses to be serialized: deliver it when you issue it.
+- **Deferred aggregates no longer describe rows the page didn't show.** The
+  aggregates endpoint rebuilds the table from its resource, so a page that
+  narrowed the base query (or added stats, filters or summarizers) got totals
+  over other rows. A table now defers only when that rebuild matches what it
+  rendered (`Table::aggregatesAreDeferred()`); otherwise it computes its
+  aggregates inline.
+- **A FormRequest can't be fooled by a condition's type juggling.** See the
+  condition parity entry below. The server's verdict on whether a field is
+  hidden is now exactly the browser's.
+
+### Fixed
+
+- **Conditional fields disagreed between the browser and the server.** The two
+  evaluators cast values differently, with several effects:
+  - A multi-value field (checkboxes, a multi-select) in a condition was a 500
+    ("Array to string conversion").
+  - `hiddenWhen('active', false)` showed the field in the browser for an
+    untouched toggle while the server dropped what was typed.
+  - `visibleWhen('flag')` hid a field the server still required, which blocked
+    the submit.
+
+  Both sides now share one comparator, documented in forms.md and pinned by
+  `tests/js/fixtures/field-conditions.json`, which PHPUnit and vitest both run
+  (83 cases):
+  - against a boolean, values compare as booleans;
+  - otherwise as text, with `null` equal to `''`;
+  - a list matches by containment.
+
+  An unknown operator now throws, and `in`/`notIn` require a list.
+- **`afterStateUpdated` ran for every live field on every recompute.** Picking a
+  state re-ran the country's "clear the state" hook, so cascading selects could
+  not work. The client now sends the live fields that changed (`changed`), and
+  only their hooks run. A client from before this release still gets the old
+  behaviour.
+- **A create form lost its relationship options after the first recompute.** The
+  endpoint rebuilt it around no model. It now uses a fresh instance, like every
+  Kinetix create form.
+- **`$get` read nothing on the first render.** An edit form opened with its
+  dependent select empty until the parent field was touched. The form seeds its
+  values before serializing.
+- **A recompute response could overwrite newer input.** A response that arrived
+  while the next change was still debouncing applied changes computed from the
+  replaced value. A live change now aborts and invalidates the request in
+  flight. Focus is only repaired when the schema swap took it: focus the user
+  moved elsewhere is left alone. Timers and requests are cleaned up on
+  unmount.
+- **Credential profiles had no password lifecycle.** Only the default user model
+  was observed, so for a profile's model:
+  - temporary credentials never expired;
+  - expiry never applied;
+  - choosing a new password left the user stuck in the forced change.
+
+  Every profile's model is now observed, and the observer's schema check is
+  remembered per table.
+- **Password expiry was silently off with `CarbonImmutable`.**
+  `PasswordPolicy` checked `instanceof Illuminate\Support\Carbon`, so apps on
+  `Date::use(CarbonImmutable::class)` never expired a password. Their temporary
+  credentials carried no expiry either. The checks and the public signatures
+  now use `CarbonInterface`.
+- **Re-issuing a temporary password made it permanent.** On a user still
+  flagged for a forced change, the flag didn't change on the second issue, and
+  the observer cleared it. Issuing now marks the save explicitly.
+- **Temporary credential delivery could send nothing.** `sendVia()` /
+  `sendMail()` on a channel the notification's `via()` doesn't list now throw
+  instead of dropping the credential. A misconfigured
+  `credentials.passwords.notification` class throws too.
+- **`RepeatableEntry` showed the wrong rows, as plain text.**
+  - The raw-state memo was keyed by `spl_object_id()`, which PHP reuses once a
+    row's temporary model is freed, so later rows repeated earlier ones. It is
+    now a `WeakMap`.
+  - Items are rendered by the full entry renderer, so badges, icons, colors,
+    links, copy and confidential locks look as they do elsewhere.
+  - `grid(n)` collapses to one column when the item is narrow.
+  - In a grid, each entry takes one cell unless it sets `columnSpan()`.
+  - The repeated relation, and the relations its entries read through, load in
+    one query each, explicitly, so it also works under
+    `Model::preventLazyLoading()`.
+- **`KeyValueEntry` showed "—" for common casts.** It now reads `AsCollection`,
+  `AsArrayObject` and uncast JSON strings. An empty map shows the placeholder.
+- **Docs.**
+  - forms.md: the condition comparison table and the reactivity behaviour.
+  - tables.md: when `deferStats()` can defer, including that full-page
+    scaffolds need `recordModals()`.
+  - credentials.md: profiles, delivery and encryption.
+  - The forms, tables and credentials skills are updated.
+
 ## [0.207.1] - 2026-10-08
 
 Fixes from a review of 0.194–0.207: two features that silently did the wrong

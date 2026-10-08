@@ -54,6 +54,12 @@ const gridOf = (entry: {
     columns?: number | Record<string, number> | null;
 }): ResponsiveColumns => resolveColumns(entry.columns ?? 12);
 
+/** A RepeatableEntry item's grid: one column, `grid(n)` columns from `sm` up. */
+const repeatableGrid = (entry: KinetixInfolistEntry): ResponsiveColumns =>
+    entry.gridColumns
+        ? resolveColumns({ default: 1, sm: entry.gridColumns })
+        : SINGLE_COLUMN;
+
 const { t } = useI18n();
 
 // Section header actions. Each recursive instance handles the actions of the
@@ -438,35 +444,26 @@ const isEmpty = (value: unknown) =>
                 </dl>
             </div>
 
-            <!-- Repeatable entry: one block of entries per item -->
+            <!-- Repeatable entry: one block per item, each rendered by this
+                 same component so every entry type (badge, icon, color,
+                 link, copy, lock) looks as it does anywhere else. grid(n)
+                 lays the block out in n columns, collapsing to one when the
+                 block is narrow. -->
             <div v-else-if="entry.type === 'repeatable'" class="space-y-3">
                 <div
                     v-for="(item, idx) in entry.repeatableItems ?? []"
                     :key="idx"
-                    class="rounded-lg p-3 border border-border"
-                    :class="entry.gridColumns ? 'gap-3 grid' : 'space-y-2'"
-                    :style="
-                        entry.gridColumns
-                            ? {
-                                  gridTemplateColumns: `repeat(${entry.gridColumns}, minmax(0, 1fr))`,
-                              }
-                            : undefined
-                    "
+                    class="kinetix-grid-host rounded-lg p-3 border border-border"
                 >
                     <div
-                        v-for="(sub, subIdx) in item as any[]"
-                        :key="subIdx"
-                        class="min-w-0"
+                        class="kinetix-grid gap-x-4 gap-y-3 grid"
+                        :style="gridColumnVars(repeatableGrid(entry))"
                     >
-                        <div
-                            v-if="sub.label"
-                            class="text-xs font-medium text-muted-foreground"
-                        >
-                            {{ sub.label }}
-                        </div>
-                        <div class="text-sm break-words text-foreground">
-                            {{ sub.state }}
-                        </div>
+                        <KinetixInfolistEntries
+                            :schema="item"
+                            :parent-columns="repeatableGrid(entry)"
+                            :flat="flat"
+                        />
                     </div>
                 </div>
                 <p

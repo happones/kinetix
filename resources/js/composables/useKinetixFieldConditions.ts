@@ -1,10 +1,108 @@
 import type { KinetixFieldCondition } from '@/types/kinetix';
 
+type Value = unknown;
+
+const isList = (v: Value): v is unknown[] => Array.isArray(v);
+
+const isMap = (v: Value): v is Record<string, unknown> =>
+    v !== null && typeof v === 'object' && !Array.isArray(v);
+
+const text = (v: Value): string => {
+    if (v === null || v === undefined) {
+        return '';
+    }
+
+    if (typeof v === 'boolean') {
+        return v ? '1' : '0';
+    }
+
+    return typeof v === 'string' || typeof v === 'number' ? String(v) : '';
+};
+
+const toBool = (v: Value): boolean => {
+    if (v === null || v === undefined) {
+        return false;
+    }
+
+    if (typeof v === 'boolean') {
+        return v;
+    }
+
+    if (typeof v === 'number') {
+        return v !== 0;
+    }
+
+    if (typeof v === 'string') {
+        return !['', '0', 'false'].includes(v.trim().toLowerCase());
+    }
+
+    if (isList(v)) {
+        return v.length > 0;
+    }
+
+    return isMap(v) ? Object.keys(v).length > 0 : true;
+};
+
+const isBlank = (v: Value): boolean =>
+    v === null ||
+    v === undefined ||
+    (typeof v === 'string' && v.trim() === '') ||
+    (isList(v) && v.length === 0) ||
+    (isMap(v) && Object.keys(v).length === 0);
+
+const same = (a: Value, b: Value): boolean => {
+    if (isList(a) || isList(b) || isMap(a) || isMap(b)) {
+        return false;
+    }
+
+    if (typeof a === 'boolean' || typeof b === 'boolean') {
+        return toBool(a) === toBool(b);
+    }
+
+    return text(a) === text(b);
+};
+
+const sameMembers = (a: unknown[], b: unknown[]): boolean => {
+    const texts = (list: unknown[]) => list.map(text).sort();
+    const [left, right] = [texts(a), texts(b)];
+
+    return left.length === right.length && left.every((t, i) => t === right[i]);
+};
+
+const matches = (actual: Value, expected: Value): boolean => {
+    if (isMap(actual)) {
+        return false;
+    }
+
+    if (isList(actual)) {
+        return isList(expected)
+            ? sameMembers(actual, expected)
+            : actual.some((item) => same(item, expected));
+    }
+
+    return !isList(expected) && same(actual, expected);
+};
+
+const isIn = (actual: Value, list: Value): boolean => {
+    if (!isList(list)) {
+        return false;
+    }
+
+    const candidates = isList(actual) ? actual : isMap(actual) ? [] : [actual];
+
+    return candidates.some((candidate) =>
+        list.some((item) => same(candidate, item)),
+    );
+};
+
 /**
  * Client-side mirror of PHP's `FieldCondition::passes()` — evaluates a
  * serialized condition against the current form values so `KinetixForm` can
  * show/hide/disable/require fields live, with no server round-trip. The server
- * re-checks the same condition on submit, so this is a UX layer, not the guard.
+ * re-checks the same condition on submit, and the two must agree: a field
+ * shown here but hidden there is dropped on save. The semantics (documented on
+ * the PHP class) are pinned by `tests/js/fixtures/field-conditions.json`,
+ * which both test suites run.
  */
 function passes(
     condition: KinetixFieldCondition,
@@ -13,49 +111,27 @@ function passes(
     const actual = values[condition.field];
     const target = condition.value;
 
-    const looseEq = (a: unknown, b: unknown): boolean =>
-        a === b || String(a) === String(b);
-
-    const isTruthy = (v: unknown): boolean =>
-        !(
-            v === null ||
-            v === undefined ||
-            v === false ||
-            v === 0 ||
-            v === '0' ||
-            v === '' ||
-            (Array.isArray(v) && v.length === 0)
-        );
-
-    const isBlank = (v: unknown): boolean =>
-        v === null ||
-        v === undefined ||
-        v === '' ||
-        (Array.isArray(v) && v.length === 0);
-
     switch (condition.operator) {
         case 'equals':
-            return looseEq(actual, target);
+            return matches(actual, target);
         case 'notEquals':
-            return !looseEq(actual, target);
+            return !matches(actual, target);
         case 'in':
-            return (
-                Array.isArray(target) && target.some((t) => looseEq(t, actual))
-            );
+            return isIn(actual, target);
         case 'notIn':
-            return !(
-                Array.isArray(target) && target.some((t) => looseEq(t, actual))
-            );
+            return !isIn(actual, target);
         case 'truthy':
-            return isTruthy(actual);
+            return toBool(actual);
         case 'falsy':
-            return !isTruthy(actual);
+            return !toBool(actual);
         case 'filled':
             return !isBlank(actual);
         case 'blank':
             return isBlank(actual);
         default:
-            return true;
+            // The server refuses unknown operators outright; never show a
+            // field on a condition it can't evaluate.
+            return false;
     }
 }
 

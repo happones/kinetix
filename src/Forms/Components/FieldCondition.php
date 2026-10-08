@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use InvalidArgumentException;
+
 /**
  * A serializable condition comparing ANOTHER field's value — the building block
  * of client-side conditional visibility/disable/require (`visibleWhen()`,
@@ -11,14 +13,24 @@ namespace Happones\Kinetix\Forms\Components;
  *
  * It is deliberately NOT a closure: it ships to the browser as plain data so
  * `KinetixForm` evaluates it live against the current form state (no server
- * round-trip), and it also lowers to a native Laravel rule so the SERVER
- * enforces the same thing on submit (the client is never the only guard).
+ * round-trip), and the SERVER evaluates the same condition on submit to decide
+ * what to validate and persist (the client is never the only guard).
  *
- * Operators:
- *   - `equals` / `notEquals` — strict value comparison;
- *   - `in` / `notIn`         — membership in a list;
- *   - `truthy` / `falsy`     — JS-truthiness of the other field (value ignored);
- *   - `filled` / `blank`     — presence (non-empty / empty).
+ * The two evaluations MUST agree — a field the browser shows but the server
+ * thinks hidden is silently dropped on save. So the semantics are defined once
+ * and pinned by a fixture both test suites run
+ * (`tests/js/fixtures/field-conditions.json`):
+ *
+ *   - `equals` / `notEquals` — against a boolean, both sides compare as
+ *     booleans (an untouched toggle is off); otherwise as text (`1` = `'1'`,
+ *     null = `''`). A list value matches when it CONTAINS the expected value
+ *     (two lists: the same members). A key/value map never equals a scalar.
+ *   - `in` / `notIn`         — any member of the list matches (for a list
+ *     value: the two lists intersect).
+ *   - `truthy` / `falsy`     — falsy is null, false, 0, `''`, `'0'`, `'false'`
+ *     and an empty list or map.
+ *   - `filled` / `blank`     — blank is null, a whitespace-only string and an
+ *     empty list or map; numbers and booleans are always filled.
  */
 final class FieldCondition
 {
@@ -38,11 +50,26 @@ final class FieldCondition
 
     public const BLANK = 'blank';
 
+    public const OPERATORS = [
+        self::EQUALS, self::NOT_EQUALS, self::IN, self::NOT_IN,
+        self::TRUTHY, self::FALSY, self::FILLED, self::BLANK,
+    ];
+
     public function __construct(
         public readonly string $field,
         public readonly string $operator,
         public readonly mixed $value = null,
-    ) {}
+    ) {
+        // A typo used to evaluate as "never" on the server and "always" in
+        // the browser: the field showed, and its value was dropped on save.
+        if (! in_array($operator, self::OPERATORS, true)) {
+            throw new InvalidArgumentException("Unknown condition operator [{$operator}] on [{$field}].");
+        }
+
+        if (in_array($operator, [self::IN, self::NOT_IN], true) && ! is_array($value)) {
+            throw new InvalidArgumentException("The [{$operator}] condition on [{$field}] needs a list of values.");
+        }
+    }
 
     /**
      * Serialize to the shape `KinetixForm` evaluates on the client.
@@ -71,34 +98,116 @@ final class FieldCondition
         $actual = $data[$this->field] ?? null;
 
         return match ($this->operator) {
-            self::EQUALS     => $actual === $this->value || (string) $actual === (string) $this->value,
-            self::NOT_EQUALS => ! ($actual === $this->value || (string) $actual === (string) $this->value),
-            self::IN         => is_array($this->value) && $this->containsLoose($this->value, $actual),
-            self::NOT_IN     => ! (is_array($this->value) && $this->containsLoose($this->value, $actual)),
-            self::TRUTHY     => $this->isTruthy($actual),
-            self::FALSY      => ! $this->isTruthy($actual),
-            self::FILLED     => $actual !== null && $actual !== '' && $actual !== [],
-            self::BLANK      => $actual === null || $actual === '' || $actual === [],
-            default          => false,
+            self::EQUALS     => self::matches($actual, $this->value),
+            self::NOT_EQUALS => ! self::matches($actual, $this->value),
+            self::IN         => self::isIn($actual, $this->value),
+            self::NOT_IN     => ! self::isIn($actual, $this->value),
+            self::TRUTHY     => self::toBool($actual),
+            self::FALSY      => ! self::toBool($actual),
+            self::FILLED     => ! self::isBlank($actual),
+            default          => self::isBlank($actual),
         };
     }
 
-    /**
-     * @param array<int, mixed> $haystack
-     */
-    private function containsLoose(array $haystack, mixed $needle): bool
+    private static function matches(mixed $actual, mixed $expected): bool
     {
-        foreach ($haystack as $candidate) {
-            if ($candidate === $needle || (string) $candidate === (string) $needle) {
-                return true;
+        if (is_array($actual)) {
+            if (! array_is_list($actual)) {
+                return false;
+            }
+
+            if (is_array($expected)) {
+                return self::sameMembers($actual, $expected);
+            }
+
+            foreach ($actual as $item) {
+                if (self::same($item, $expected)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return ! is_array($expected) && self::same($actual, $expected);
+    }
+
+    private static function isIn(mixed $actual, mixed $list): bool
+    {
+        if (! is_array($list)) {
+            return false;
+        }
+
+        $candidates = is_array($actual)
+            ? (array_is_list($actual) ? $actual : [])
+            : [$actual];
+
+        foreach ($candidates as $candidate) {
+            foreach ($list as $item) {
+                if (self::same($candidate, $item)) {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    private function isTruthy(mixed $value): bool
+    /**
+     * @param array<int|string, mixed> $a
+     * @param array<int|string, mixed> $b
+     */
+    private static function sameMembers(array $a, array $b): bool
     {
-        return ! in_array($value, [null, false, 0, '0', '', []], true);
+        $texts = static function (array $list): array {
+            $out = array_map(static fn (mixed $item): string => self::text($item), array_values($list));
+            sort($out);
+
+            return $out;
+        };
+
+        return $texts($a) === $texts($b);
+    }
+
+    private static function same(mixed $a, mixed $b): bool
+    {
+        if (is_array($a) || is_array($b) || is_object($a) || is_object($b)) {
+            return false;
+        }
+
+        if (is_bool($a) || is_bool($b)) {
+            return self::toBool($a) === self::toBool($b);
+        }
+
+        return self::text($a) === self::text($b);
+    }
+
+    private static function text(mixed $value): string
+    {
+        return match (true) {
+            $value === null   => '',
+            is_bool($value)   => $value ? '1' : '0',
+            is_scalar($value) => (string) $value,
+            default           => '',
+        };
+    }
+
+    private static function toBool(mixed $value): bool
+    {
+        return match (true) {
+            $value === null                  => false,
+            is_bool($value)                  => $value,
+            is_int($value), is_float($value) => $value != 0,
+            is_string($value)                => ! in_array(strtolower(trim($value)), ['', '0', 'false'], true),
+            is_array($value)                 => $value !== [],
+            default                          => true,
+        };
+    }
+
+    private static function isBlank(mixed $value): bool
+    {
+        return $value === null
+            || (is_string($value) && trim($value) === '')
+            || $value === [];
     }
 }

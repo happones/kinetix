@@ -888,13 +888,17 @@ public static function table(Table $table): Table
 }
 ```
 
-Deferral needs a **reconstructible** table — one backed by a resource
-(`recordModals(Resource::class)`, which resource tables set anyway), so the
-endpoint can rebuild it server-side to recompute the totals. On a plain inline
-`Table::make(...)` with no resource, `deferStats()` is a safe no-op (the
-aggregates ship inline as before). The endpoint is bound to the user/team/expiry
-and re-applies the table's own scope and column gating, so no row or column the
-user couldn't see leaks through its totals.
+Deferral needs a **reconstructible** table: one backed by a resource through
+`recordModals(Resource::class)`, so the endpoint can rebuild it server-side to
+recompute the totals. A full-page scaffold that doesn't use record modals has to
+call `recordModals()` for this. The endpoint rebuilds the table exactly as
+`Resource::table()` builds it, so the page's table must be built that way too:
+if the page narrows the base query or adds stats, filters or summarizers on top,
+the rebuild would describe other rows. Such a table computes its aggregates
+inline instead, as does a plain `Table::make(...)` with no resource, where
+`deferStats()` is a no-op. The endpoint is bound to the user/team/expiry and
+re-applies the table's own scope and column gating, so no row or column the user
+couldn't see leaks through its totals.
 
 ---
 
