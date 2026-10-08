@@ -137,4 +137,33 @@ describe('KinetixGenerator', () => {
         expect(wrapper.classes()).toContain('mt-2');
         expect(wrapper.attributes('aria-invalid')).toBeUndefined();
     });
+
+    it('names its preset picker and shows translated preset names', () => {
+        const named = createI18n({
+            legacy: false,
+            locale: 'es',
+            missingWarn: false,
+            fallbackWarn: false,
+            messages: {
+                es: {
+                    kinetix: {
+                        generate: 'Generar',
+                        generator_preset: 'Tipo',
+                        generator_preset_password_strong: 'Contraseña segura',
+                    },
+                },
+            },
+        });
+        const wrapper = mount(KinetixGenerator, {
+            props: { presets: ['password-strong', 'uuid'] },
+            global: { plugins: [named] },
+        });
+
+        const select = wrapper.find('select');
+        expect(select.attributes('aria-label')).toBe('Tipo');
+        expect(select.findAll('option').map((o) => o.text())).toEqual([
+            'Contraseña segura',
+            'uuid',
+        ]);
+    });
 });

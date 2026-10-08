@@ -431,6 +431,18 @@ were in, focus and caret go back to it.
 `$get` sees the form's values on the first render too, so an edit form opens
 with its dependent options already resolved.
 
+- `live(onBlur: true)` recomputes when focus leaves the field, and
+  `live(debounce: 1000)` waits that long after the last change; plain `live()`
+  waits 300ms.
+- `$set('items.0.qty', 5)` updates just that value; the rest of `items` stays.
+- The endpoint is rate limited per user (`kinetix.forms.recompute_throttle`,
+  default `120,1`: 120 requests a minute).
+- A wizard's "Next" checks the step's required fields as they are shown: a
+  field its condition hides doesn't block, and a `requiredWhen` field blocks
+  while its condition holds.
+- A Repeater item stores only the fields its own conditions show; conditions
+  inside an item read that item's values.
+
 A closure receives what it asks for by type or name: `Get $get` / `$get`,
 `Set $set` / `$set`, `Model $record` / `$record` (a legacy `fn ($record)`
 still works).

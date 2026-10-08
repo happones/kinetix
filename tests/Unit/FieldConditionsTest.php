@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Unit;
 
 use Happones\Kinetix\Forms\Components\FieldCondition;
+use Happones\Kinetix\Forms\Components\Repeater;
 use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
@@ -149,5 +150,29 @@ class FieldConditionsTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         new FieldCondition('country', FieldCondition::IN, 'MX');
+    }
+
+    /**
+     * A repeater item's fields show and hide against THAT item's values in the
+     * browser; the server stored a hidden field's value with the item anyway.
+     */
+    public function test_a_repeater_item_drops_the_values_its_conditions_hide(): void
+    {
+        $form = Form::make()->schema([
+            Repeater::make('contacts')->schema([
+                Select::make('type')->options(['person' => 'Person', 'company' => 'Company']),
+                TextInput::make('company')->visibleWhen('type', 'company'),
+            ]),
+        ]);
+
+        $state = $form->getState(['contacts' => [
+            ['type' => 'person', 'company' => 'Leftover', 'uuid' => 'a1'],
+            ['type' => 'company', 'company' => 'Acme'],
+        ]]);
+
+        $this->assertSame([
+            ['type' => 'person', 'uuid' => 'a1'],
+            ['type' => 'company', 'company' => 'Acme'],
+        ], $state['contacts']);
     }
 }

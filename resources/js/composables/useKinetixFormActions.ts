@@ -1,5 +1,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { toast } from 'vue-sonner';
+import { kinetixFetch } from '@/composables/useKinetixHttp';
 import type { KinetixAction, KinetixTableRecord } from '@/types/kinetix';
 
 interface FormActionOptions {
@@ -32,6 +34,10 @@ export function useKinetixFormActions(options: FormActionOptions) {
 
     const isOpen = ref(false);
     const processing = ref(false);
+    /** The form of a row action is being fetched (the modal shows a skeleton). */
+    const loading = ref(false);
+    // Bumped on every open and close: a fetch only fills the modal it opened.
+    let openSeq = 0;
     // The form DTO mounted in the modal (schema/data/rules/operation); kept
     // `any` like the rest of the form layer so KinetixForm's prop types match.
     const activeForm = ref<any>(null);
@@ -67,7 +73,17 @@ export function useKinetixFormActions(options: FormActionOptions) {
         action: KinetixAction,
         record?: KinetixTableRecord,
     ): boolean => {
-        if (!action.isFormAction || !action.form || !options.descriptor()) {
+        if (!action.isFormAction || !options.descriptor()) {
+            return false;
+        }
+
+        if (action.formOnOpen && record) {
+            void openFetched(action, record);
+
+            return true;
+        }
+
+        if (!action.form) {
             return false;
         }
 
@@ -82,6 +98,51 @@ export function useKinetixFormActions(options: FormActionOptions) {
         isOpen.value = true;
 
         return true;
+    };
+
+    /**
+     * A row's FormAction ships without its form: fetch the form for this row
+     * now, through the same checks a submission passes.
+     */
+    const openFetched = async (
+        action: KinetixAction,
+        record: KinetixTableRecord,
+    ): Promise<void> => {
+        clearStaleErrors();
+        const opened = ++openSeq;
+        activeAction.value = action;
+        activeRecordId.value = record.id;
+        activeForm.value = null;
+        loading.value = true;
+        isOpen.value = true;
+
+        try {
+            const data = await kinetixFetch<{ form?: any }>(
+                `${submitUrl()}/form`,
+                {
+                    method: 'POST',
+                    body: {
+                        descriptor: options.descriptor(),
+                        action: action.name,
+                        recordId: record.id,
+                    },
+                },
+            );
+
+            // A modal closed (or another opened) meanwhile isn't refilled.
+            if (opened === openSeq && data?.form) {
+                activeForm.value = data.form;
+            }
+        } catch (e) {
+            if (opened === openSeq) {
+                isOpen.value = false;
+                toast.error(e instanceof Error ? e.message : String(e));
+            }
+        } finally {
+            if (opened === openSeq) {
+                loading.value = false;
+            }
+        }
     };
 
     const submitForm = (values: Record<string, any>) => {
@@ -129,6 +190,9 @@ export function useKinetixFormActions(options: FormActionOptions) {
             return;
         }
 
+        openSeq++;
+        loading.value = false;
+
         isOpen.value = false;
         activeForm.value = null;
         activeAction.value = null;
@@ -138,6 +202,7 @@ export function useKinetixFormActions(options: FormActionOptions) {
     return {
         isOpen,
         processing,
+        loading,
         activeForm,
         activeAction,
         handleFormAction,

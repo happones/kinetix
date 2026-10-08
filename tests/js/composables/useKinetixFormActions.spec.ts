@@ -9,6 +9,16 @@ vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props: { errors: {} } }),
 }));
 
+const fetchMock = vi.fn();
+vi.mock('@/composables/useKinetixHttp', () => ({
+    kinetixFetch: (...args: unknown[]) => fetchMock(...args),
+}));
+const toastError = vi.fn();
+vi.mock('vue-sonner', () => ({
+    toast: { error: (m: string) => toastError(m) },
+}));
+
+import { flushPromises } from '@vue/test-utils';
 import { useKinetixFormActions } from '@/composables/useKinetixFormActions';
 
 const formAction = (overrides: Record<string, unknown> = {}) =>
@@ -117,5 +127,59 @@ describe('useKinetixFormActions', () => {
         expect(api.isOpen.value).toBe(false);
         expect(api.activeForm.value).toBeNull();
         expect(api.activeAction.value).toBeNull();
+    });
+
+    // A row's action ships without its form (one form per row cost a query
+    // per row for a relationship Select): it is fetched for that row on open.
+    it('fetches a row action form when its modal opens', async () => {
+        fetchMock.mockResolvedValueOnce({
+            form: {
+                schema: [],
+                data: { name: 'Row 7' },
+                rules: {},
+                operation: 'x',
+            },
+        });
+        const api = mountComposable();
+
+        const handled = api.handleFormAction(
+            formAction({ form: null, formOnOpen: true }),
+            { id: 7 } as any,
+        );
+
+        expect(handled).toBe(true);
+        expect(api.isOpen.value).toBe(true);
+        expect(api.loading.value).toBe(true);
+
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/_kinetix/tables/form-action/form',
+            expect.objectContaining({
+                method: 'POST',
+                body: {
+                    descriptor: 'DESCRIPTOR',
+                    action: 'rename-widget',
+                    recordId: 7,
+                },
+            }),
+        );
+        expect(api.loading.value).toBe(false);
+        expect(api.activeForm.value.data).toEqual({ name: 'Row 7' });
+    });
+
+    it('closes and says why when the row form is refused', async () => {
+        fetchMock.mockRejectedValueOnce(
+            new Error('This action is unauthorized.'),
+        );
+        const api = mountComposable();
+
+        api.handleFormAction(formAction({ form: null, formOnOpen: true }), {
+            id: 7,
+        } as any);
+        await flushPromises();
+
+        expect(api.isOpen.value).toBe(false);
+        expect(toastError).toHaveBeenCalledWith('This action is unauthorized.');
     });
 });

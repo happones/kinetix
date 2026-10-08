@@ -343,6 +343,10 @@ KinetixTable dynamically generates slots for each column in the format `cell-{co
 </KinetixTable>
 ```
 
+Rows are memoized: selecting a row or polling re-renders only the rows that
+changed. A cell slot may read your page's own state, which the table can't
+track, so with any `cell-*` slot every row re-renders as before.
+
 ---
 
 ## Table Filters Reference

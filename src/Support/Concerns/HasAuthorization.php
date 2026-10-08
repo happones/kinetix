@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use ReflectionFunction;
+use Throwable;
 
 /**
  * Visibility + Laravel-policy authorization for actions, evaluated server-side.
@@ -139,8 +140,11 @@ trait HasAuthorization
     }
 
     /**
-     * Run a gate closure with the given record, or null when its first
-     * parameter is typed for a record and can't take the null it would get.
+     * Run a gate closure with the given record, or null when it can't run
+     * without one: its first parameter is typed for a record, or it uses the
+     * record it didn't get (`fn ($record) => $record->isDraft()`). That one is
+     * reported, not thrown — a misplaced gate fails closed instead of taking
+     * the whole page down.
      */
     private static function runGateWith(Closure $gate, ?Model $record): ?bool
     {
@@ -156,7 +160,17 @@ trait HasAuthorization
             return null;
         }
 
-        return (bool) $gate($record);
+        if ($record !== null) {
+            return (bool) $gate($record);
+        }
+
+        try {
+            return (bool) $gate($record);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**

@@ -1348,6 +1348,12 @@ class Table implements Arrayable, JsonSerializable
      */
     public function toData(): TableData
     {
+        // Row FormActions ship without their form; the modal fetches it for
+        // its row on open (see FormAction::resolveFormOnOpen()).
+        foreach ($this->collectFormActions($this->recordActions) as $formAction) {
+            $formAction->resolveFormOnOpen();
+        }
+
         // Authorization evidence for the server-side action endpoints, filled
         // while rows serialize (see recordActionGrants()) and sealed below.
         $this->formActionGrants = [];
@@ -1488,10 +1494,16 @@ class Table implements Arrayable, JsonSerializable
         $columnsData = array_map(fn ($c) => $c->toData(), $this->columns);
         $filtersData = array_map(fn ($f) => $f->toData(), $this->filters);
         // Drop actions the current user is not authorized to see.
-        $recordActionsData  = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->recordActions)));
-        $toolbarActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->toolbarActions)));
-        $bulkActionsData    = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
-        $footerActionsData  = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->footerActions)));
+        $recordActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->recordActions)));
+        // A toolbar action never gets a record, so its visible()/hidden()
+        // closures run now (with none) instead of being deferred to a row pass
+        // that never comes — the button and its endpoint agree.
+        $toolbarActionsData = array_values(array_filter(array_map(
+            static fn ($a) => $a->passesVisibilityWithoutDeferral() ? $a->toData() : null,
+            $this->toolbarActions,
+        )));
+        $bulkActionsData   = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
+        $footerActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->footerActions)));
 
         // Seal the server-side actions this user may run, with what the
         // endpoints need to re-check them (see SealedAction).

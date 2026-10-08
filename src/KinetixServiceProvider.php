@@ -2831,6 +2831,8 @@ class KinetixServiceProvider extends ServiceProvider
                 // table's signed scope and authorizes it, then runs the handler.
                 Route::post('form-action', FormActionController::class)
                     ->name('kinetix.tables.form-action');
+                Route::post('form-action/form', [FormActionController::class, 'form'])
+                    ->name('kinetix.tables.form-action.form');
 
                 // Kanban card move: set a record's status column to a target
                 // status, guarded by the board's signed descriptor (statuses,
@@ -2951,8 +2953,15 @@ class KinetixServiceProvider extends ServiceProvider
                 // Server-driven reactivity ($get/$set): rebuilds the form from
                 // its signed descriptor and returns the schema recomputed
                 // against the in-flight state.
-                Route::post('recompute', FormRecomputeController::class)
+                // Throttled like Spotlight: every debounced keystroke in a
+                // live field is a request that rebuilds the whole form.
+                $recompute = Route::post('recompute', FormRecomputeController::class)
                     ->name('kinetix.forms.recompute');
+                $throttle = config('kinetix.forms.recompute_throttle', '120,1');
+
+                if ($throttle !== null && $throttle !== '') {
+                    $recompute->middleware('throttle:'.$throttle);
+                }
             });
     }
 

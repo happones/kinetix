@@ -26,6 +26,42 @@ export interface UseKinetixFormReactivityOptions {
 }
 
 /**
+ * Apply a recompute's `changes` to the form values. Keys are field names or
+ * dot paths into nested state (`items.0.qty`): a path updates just that
+ * value, copying the containers on its way, so the rest of the array or
+ * object it lives in survives.
+ */
+export function applyFormChanges(
+    values: Record<string, unknown>,
+    changes: Record<string, unknown>,
+): Record<string, unknown> {
+    const next: Record<string, unknown> = { ...values };
+
+    for (const [path, value] of Object.entries(changes)) {
+        const keys = path.split('.');
+        let target: any = next;
+
+        keys.slice(0, -1).forEach((key, i) => {
+            const current = target[key];
+            const copy = Array.isArray(current)
+                ? [...current]
+                : current !== null && typeof current === 'object'
+                  ? { ...current }
+                  : /^\d+$/.test(keys[i + 1])
+                    ? []
+                    : {};
+
+            target[key] = copy;
+            target = copy;
+        });
+
+        target[keys[keys.length - 1]] = value;
+    }
+
+    return next;
+}
+
+/**
  * The client half of server-driven form reactivity ($get/$set). When a
  * `live()` field changes, it POSTs the form's signed descriptor + the current
  * values to `kinetix.forms.recompute` and applies the recomputed schema and any
@@ -180,6 +216,7 @@ export function useKinetixFormReactivity(
     const onFieldChange = (
         isLive: boolean | undefined,
         name?: string,
+        debounce?: number,
     ): void => {
         if (!isLive || !options.descriptor()) {
             return;
@@ -199,7 +236,11 @@ export function useKinetixFormReactivity(
             clearTimeout(timer);
         }
 
-        timer = setTimeout(() => void send(), options.debounce ?? 300);
+        // A field's own `live(debounce: …)` wins over the form default.
+        timer = setTimeout(
+            () => void send(),
+            debounce ?? options.debounce ?? 300,
+        );
     };
 
     const dispose = (): void => {

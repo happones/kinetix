@@ -104,6 +104,26 @@ abstract class FormAction extends Action
     }
 
     /**
+     * Set by a table on its row FormActions: each row then ships the action
+     * without its form, and the modal fetches the form for that row when it
+     * opens (`kinetix.tables.form-action.form`). One form per row — with a
+     * relationship Select's options query each — is what a page paid before.
+     */
+    protected bool $resolvesFormOnOpen = false;
+
+    public function resolveFormOnOpen(bool $condition = true): static
+    {
+        $this->resolvesFormOnOpen = $condition;
+
+        return $this;
+    }
+
+    public function resolvesFormOnOpen(): bool
+    {
+        return $this->resolvesFormOnOpen;
+    }
+
+    /**
      * Build the action's {@see Form}, optionally bound to a record. Shared by
      * {@see toData()} (serialise the schema for the client) and
      * {@see FormActionController} (reconstruct it to validate the submission),

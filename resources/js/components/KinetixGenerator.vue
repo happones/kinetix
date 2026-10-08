@@ -69,7 +69,14 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: 'update:value', value: string): void }>();
 
-const { t } = useI18n();
+const { t, te } = useI18n();
+
+/** A preset's translated name; a name with no translation shows as-is. */
+const presetLabel = (name: string): string => {
+    const key = `kinetix.generator_preset_${name.replace(/-/g, '_')}`;
+
+    return te(key) ? t(key) : name;
+};
 
 // Preset picker (opt-in). The active preset's config merges over the base.
 const presetNames = computed<string[]>(() =>
@@ -201,11 +208,11 @@ const onPresetChange = (event: Event): void => {
             :value="activePreset"
             :disabled="disabled"
             :class="cn(inputClass, 'cursor-pointer')"
-            :aria-label="t('kinetix.generate')"
+            :aria-label="t('kinetix.generator_preset')"
             @change="onPresetChange"
         >
             <option v-for="name in presetNames" :key="name" :value="name">
-                {{ name }}
+                {{ presetLabel(name) }}
             </option>
         </select>
 

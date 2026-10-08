@@ -82,12 +82,11 @@ class FormReactivityTest extends TestCase
         $this->assertSame('fallback', $get('missing', 'fallback'));
         $this->assertSame(['a' => 1, 'nested' => ['b' => 2]], $get());
 
-        $state   = ['x' => 1];
-        $changes = [];
-        $set     = new Set($state, $changes);
+        $state = ['x' => 1];
+        $set   = new Set($state);
         $set('y', 9);
         $this->assertSame(9, $state['y']);
-        $this->assertSame(['y' => 9], $changes);
+        $this->assertSame(['y' => 9], $set->changes());
     }
 
     public function test_a_record_closure_still_works_unchanged(): void
@@ -145,5 +144,22 @@ class FormReactivityTest extends TestCase
         $schema = $this->dependentForm()->fill(['country' => 'fr'])->toArray()['schema'];
 
         $this->assertSame(['par' => 'Paris'], $this->schemaByName($schema)['state']['options']);
+    }
+
+    /**
+     * A nested write shipped nested (`['items' => [['qty' => 5]]]`), and the
+     * client's merge replaced the whole array with it.
+     */
+    public function test_a_nested_set_ships_by_path(): void
+    {
+        $state = ['items' => [['name' => 'A', 'qty' => 1], ['name' => 'B', 'qty' => 2]]];
+        $set   = new Set($state);
+
+        $set('items.0.qty', 5);
+
+        $this->assertSame(['items.0.qty' => 5], $set->changes());
+        // The working state is still updated in place for later reads.
+        $this->assertSame(5, $state['items'][0]['qty']);
+        $this->assertSame('B', $state['items'][1]['name']);
     }
 }

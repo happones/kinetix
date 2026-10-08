@@ -653,6 +653,11 @@ The endpoint runs a fresh instance built from the class. The label, icon and
 gates you chain on the table travel with it; any other setting doesn't, so keep
 the behaviour in `form()` and `handle()`.
 
+A record action's form isn't part of each row: the modal fetches it for its
+row when it opens (a brief skeleton shows), through the same checks as a
+submission. A page of rows no longer builds — and queries options for — one
+form per row. A toolbar action, a single instance, still ships its form.
+
 The modal reuses the existing `modalHeading` / `modalDescription` /
 `modalSubmitActionLabel` / `modalCancelActionLabel` chrome, and the schema is
 serialized into the action's payload so the frontend mounts `KinetixForm`

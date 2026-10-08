@@ -422,8 +422,20 @@ class Form implements Arrayable, JsonSerializable
      */
     public function getFields(): array
     {
+        return self::fieldsIn($this->schema);
+    }
+
+    /**
+     * The fields among `$components`, through their layout components (a
+     * Repeater is a field: its sub-schema is not walked).
+     *
+     * @param  array<int, Component> $components
+     * @return array<string, Field>
+     */
+    public static function fieldsIn(array $components): array
+    {
         $fields = [];
-        $this->extractFields($this->schema, $fields);
+        self::collectFields($components, $fields);
 
         return $fields;
     }
@@ -434,7 +446,7 @@ class Form implements Arrayable, JsonSerializable
      * @param array<int, Component> $components
      * @param array<string, Field>  $fields
      */
-    protected function extractFields(array $components, array &$fields): void
+    protected static function collectFields(array $components, array &$fields): void
     {
         foreach ($components as $component) {
             if ($component instanceof Field) {
@@ -444,7 +456,7 @@ class Form implements Arrayable, JsonSerializable
                 if ($refClass->hasProperty('schema')) {
                     $prop = $refClass->getProperty('schema');
                     $prop->setAccessible(true);
-                    $this->extractFields($prop->getValue($component), $fields);
+                    self::collectFields($prop->getValue($component), $fields);
                 }
             }
         }

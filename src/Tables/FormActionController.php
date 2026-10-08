@@ -13,6 +13,7 @@ use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -54,6 +55,53 @@ class FormActionController
 {
     public function __invoke(Request $request): RedirectResponse
     {
+        [$action, $record] = $this->resolveInvocation($request);
+
+        // Rebuild the SAME form the table serialised, so validation runs against
+        // the declared rules — not anything the client sent. validate() throws a
+        // ValidationException on failure, which Inertia turns into a redirect
+        // back with the error bag the modal's KinetixForm renders.
+        $form = $action->getForm($record);
+
+        $submitted = (array) $request->input('data', []);
+        $form->validate($submitted);
+
+        $state = $form->getState($submitted);
+
+        DB::transaction(static function () use ($action, $state, $record): void {
+            $action->handle($state, $record);
+        });
+
+        KinetixFlash::success((string) __('kinetix.form_action_completed'));
+
+        return back()->with('message', (string) __('kinetix.form_action_completed'));
+    }
+
+    /**
+     * The form a row's FormAction opens with, fetched when its modal opens (a
+     * table ships row actions without their form). The same checks as a
+     * submission decide who may see it: the sealed action for this context,
+     * the record through the table's scope, the rows it rendered on, its
+     * ability.
+     */
+    public function form(Request $request): JsonResponse
+    {
+        [$action, $record] = $this->resolveInvocation($request);
+
+        return response()->json(['form' => $action->getForm($record)->toData()->toArray()]);
+    }
+
+    /**
+     * The action and record a request names, after every check: a valid
+     * descriptor, a well-formed record id, an action sealed for that context
+     * (a record action needs its row, a toolbar action takes none), the
+     * record resolved through the table's scope, and the action's grants and
+     * ability.
+     *
+     * @return array{0: FormAction, 1: Model|null}
+     */
+    protected function resolveInvocation(Request $request): array
+    {
         $descriptor = $this->descriptor($request);
 
         $name = (string) $request->input('action');
@@ -94,24 +142,7 @@ class FormActionController
         /** @var FormAction $action */
         $action = $sealed->class::make($name);
 
-        // Rebuild the SAME form the table serialised, so validation runs against
-        // the declared rules — not anything the client sent. validate() throws a
-        // ValidationException on failure, which Inertia turns into a redirect
-        // back with the error bag the modal's KinetixForm renders.
-        $form = $action->getForm($record);
-
-        $submitted = (array) $request->input('data', []);
-        $form->validate($submitted);
-
-        $state = $form->getState($submitted);
-
-        DB::transaction(static function () use ($action, $state, $record): void {
-            $action->handle($state, $record);
-        });
-
-        KinetixFlash::success((string) __('kinetix.form_action_completed'));
-
-        return back()->with('message', (string) __('kinetix.form_action_completed'));
+        return [$action, $record];
     }
 
     /**

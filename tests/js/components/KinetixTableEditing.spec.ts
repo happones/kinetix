@@ -150,4 +150,81 @@ describe('KinetixTable editing and layout', () => {
 
         wrapper.unmount();
     });
+
+    describe('row memoization', () => {
+        // Every data row translates its select checkbox's label once per
+        // render, so counting the translations counts row renders.
+        let rowRenders = 0;
+        const counting = createI18n({
+            legacy: false,
+            locale: 'en',
+            missingWarn: false,
+            fallbackWarn: false,
+            messages: {
+                en: {
+                    kinetix: {
+                        select_row: () => {
+                            rowRenders++;
+
+                            return 'Select row';
+                        },
+                    },
+                },
+            },
+        });
+        const selectable = () =>
+            baseTable({
+                bulkActions: [{ name: 'archive', label: 'Archive' }],
+                records: [
+                    record(1, 'Alpha', 'a'),
+                    record(2, 'Beta', 'a'),
+                    record(3, 'Gamma', 'a'),
+                ],
+            });
+
+        it('re-renders only the row whose selection changed', async () => {
+            const wrapper = mount(KinetixTable, {
+                props: { table: selectable() },
+                global: { plugins: [counting] },
+            });
+            rowRenders = 0;
+
+            await wrapper
+                .findAll('tbody [role="checkbox"]')[0]
+                .trigger('click');
+
+            expect(rowRenders).toBe(1);
+        });
+
+        it('re-renders every row when the host renders cells itself', async () => {
+            const wrapper = mount(KinetixTable, {
+                props: { table: selectable() },
+                slots: { 'cell-name': '<b>custom</b>' },
+                global: { plugins: [counting] },
+            });
+            rowRenders = 0;
+
+            await wrapper
+                .findAll('tbody [role="checkbox"]')[0]
+                .trigger('click');
+
+            expect(rowRenders).toBe(3);
+        });
+
+        it('shows fresh values after a reload', async () => {
+            const wrapper = mount(KinetixTable, {
+                props: { table: selectable() },
+                global: { plugins: [counting] },
+            });
+
+            await wrapper.setProps({
+                table: {
+                    ...selectable(),
+                    records: [record(1, 'Renamed', 'a')],
+                },
+            });
+
+            expect(wrapper.find('tbody').text()).toContain('Renamed');
+        });
+    });
 });

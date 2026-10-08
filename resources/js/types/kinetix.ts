@@ -60,6 +60,8 @@ export interface KinetixAction {
     isFormAction?: boolean;
     /** The modal's form schema for a FormAction (null otherwise). */
     form?: KinetixFormActionForm | null;
+    /** A row's FormAction: `form` is fetched for the row when the modal opens. */
+    formOnOpen?: boolean;
 }
 
 /**

@@ -729,8 +729,12 @@ abstract class Field extends Component
         }
 
         $get = new Get($state);
-        $set = new Set($state, $changes);
+        $set = new Set($state);
 
         $this->evaluate($this->afterStateUpdated, $record, $get, $set);
+
+        foreach ($set->changes() as $path => $value) {
+            $changes[$path] = $value;
+        }
     }
 }

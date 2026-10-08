@@ -10,7 +10,10 @@ vi.mock('@/composables/useKinetixHttp', () => ({
 }));
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: {} }) }));
 
-import { useKinetixFormReactivity } from '@/composables/useKinetixFormReactivity';
+import {
+    applyFormChanges,
+    useKinetixFormReactivity,
+} from '@/composables/useKinetixFormReactivity';
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -198,5 +201,35 @@ describe('useKinetixFormReactivity', () => {
         await flush();
         await frame();
         expect(document.activeElement).toBe(country);
+    });
+});
+
+describe('applyFormChanges', () => {
+    it('updates a nested value by path and keeps its siblings', () => {
+        const values = {
+            title: 'Order',
+            items: [
+                { name: 'A', qty: 1 },
+                { name: 'B', qty: 2 },
+            ],
+        };
+
+        const next = applyFormChanges(values, { 'items.0.qty': 5, title: 'X' });
+
+        expect(next).toEqual({
+            title: 'X',
+            items: [
+                { name: 'A', qty: 5 },
+                { name: 'B', qty: 2 },
+            ],
+        });
+        // The original values are not mutated.
+        expect(values.items[0].qty).toBe(1);
+    });
+
+    it('creates the containers a path needs', () => {
+        expect(applyFormChanges({}, { 'meta.tags.0': 'x' })).toEqual({
+            meta: { tags: ['x'] },
+        });
     });
 });

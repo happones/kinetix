@@ -1219,6 +1219,11 @@ return [
         // is truncated and a warning is logged — declare the field
         // `searchable()` instead so options are fetched on demand.
         'relationship_options_limit' => env('KINETIX_RELATIONSHIP_OPTIONS_LIMIT', 200),
+
+        // Rate limit of the live-field recompute endpoint (`attempts,minutes`,
+        // per user). Each debounced change of a `live()` field rebuilds the
+        // form server-side. Null disables it.
+        'recompute_throttle' => env('KINETIX_FORMS_RECOMPUTE_THROTTLE', '120,1'),
     ],
 
     /*

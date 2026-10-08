@@ -13,6 +13,7 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -80,6 +81,14 @@ class RcPostResource extends Resource
 
 class FormRecomputeEndpointTest extends TestCase
 {
+    protected function defineEnvironment($app): void
+    {
+        parent::defineEnvironment($app);
+
+        // The endpoint is throttled, and throttling needs a cache store.
+        $app['config']->set('cache.default', 'array');
+    }
+
     private function descriptor(): string
     {
         return ReactiveCountryForm::make()->toData()->recomputeDescriptor ?? '';
@@ -169,5 +178,13 @@ class FormRecomputeEndpointTest extends TestCase
         }
 
         $this->assertSame([1 => 'Ada'], $byName['author_id']['options']);
+    }
+
+    /** Every debounced keystroke in a live field rebuilds the form. */
+    public function test_the_endpoint_is_rate_limited(): void
+    {
+        $middleware = Route::getRoutes()->getByName('kinetix.forms.recompute')->gatherMiddleware();
+
+        $this->assertContains('throttle:120,1', $middleware);
     }
 }

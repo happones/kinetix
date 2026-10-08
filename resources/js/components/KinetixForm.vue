@@ -6,7 +6,10 @@ import {
     firstErroredField,
     focusField,
 } from '@/composables/useKinetixFormErrors';
-import { useKinetixFormReactivity } from '@/composables/useKinetixFormReactivity';
+import {
+    applyFormChanges,
+    useKinetixFormReactivity,
+} from '@/composables/useKinetixFormReactivity';
 import { useKinetixPrecognition } from '@/composables/useKinetixPrecognition';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import KinetixFormSchema from './KinetixFormSchema.vue';
@@ -62,23 +65,36 @@ watch(
     },
 );
 
-// Flatten the schema to find a field's `isLive` flag by name (recursing into
-// layout containers), so a value change knows whether to trigger a recompute.
-const isFieldLive = (
-    name: string,
-    nodes: any[] = liveSchema.value,
-): boolean => {
+// Find a field's schema node by name (recursing into layout containers), so a
+// value change knows whether — and when — to trigger a recompute.
+const findField = (name: string, nodes: any[] = liveSchema.value): any => {
     for (const node of nodes) {
         if (node?.name === name) {
-            return !!node.isLive;
+            return node;
         }
 
-        if (Array.isArray(node?.schema) && isFieldLive(name, node.schema)) {
-            return true;
+        const nested = Array.isArray(node?.schema)
+            ? findField(name, node.schema)
+            : null;
+
+        if (nested) {
+            return nested;
         }
     }
 
-    return false;
+    return null;
+};
+
+// `live(onBlur: true)` ships `debounce: -1`: its change recomputes when focus
+// leaves the field, not on every keystroke.
+const pendingOnBlur = new Set<string>();
+
+const onFocusOut = () => {
+    for (const name of pendingOnBlur) {
+        onFieldChange(true, name, 0);
+    }
+
+    pendingOnBlur.clear();
 };
 
 const { onFieldChange } = useKinetixFormReactivity({
@@ -88,7 +104,7 @@ const { onFieldChange } = useKinetixFormReactivity({
         liveSchema.value = schema as any[];
     },
     onChanges: (changes) => {
-        formValues.value = { ...formValues.value, ...changes };
+        formValues.value = applyFormChanges(formValues.value, changes);
     },
 });
 
@@ -175,7 +191,17 @@ const onUpdateValue = (name: string, value: any) => {
     precognition?.validate(name);
 
     // A live field drives the server-driven reactivity loop (debounced).
-    onFieldChange(isFieldLive(name), name);
+    const field = findField(name);
+
+    if (field?.isLive && field.debounce === -1) {
+        pendingOnBlur.add(name);
+    } else {
+        onFieldChange(
+            !!field?.isLive,
+            name,
+            typeof field?.debounce === 'number' ? field.debounce : undefined,
+        );
+    }
 };
 
 // Dismissals survive the submit: until the response lands, `page.props.errors`
@@ -189,7 +215,7 @@ const onSubmit = (e: Event) => {
 </script>
 
 <template>
-    <form @submit="onSubmit" class="space-y-6">
+    <form @submit="onSubmit" @focusout="onFocusOut" class="space-y-6">
         <!-- 1-column root: a field's default span of 1 is the
              full width, and Grid::make(2) opts into columns. -->
         <div class="kinetix-form-root gap-4 grid grid-cols-1">

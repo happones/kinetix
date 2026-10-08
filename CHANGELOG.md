@@ -13,6 +13,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.211.0] - 2026-10-08
+
+The last leftovers of the 0.194–0.207 review: table rows are memoized again,
+row action forms load on demand, and form reactivity honours its options.
+Re-publish the components (`--force`).
+
+### Fixed
+
+- **Table rows re-rendered on every selection and poll.** The row `v-memo`
+  dropped in 0.198.0 is back.
+  - Header and data rows now share one memoized `<tr v-for>`. Vue can't memoize
+    a `<template v-for>` holding `v-if`/`v-else`.
+  - The key comes from a function. Vue's compiler pastes a ternary `:key`
+    unparenthesized into its memo guard, which crashed the render.
+  - The memo covers everything a row reads: record, selection, position, drag
+    state, columns, edit revision, action lock, table config and locale.
+  - A table with `cell-*` slots re-renders every row, because a slot can read
+    state the table can't see.
+- **A page built one FormAction form per row.** Each row serialized its
+  action's whole form, and a relationship Select ran its options query once per
+  row. Row actions now ship without their form. The modal fetches it for its
+  row on open (`kinetix.tables.form-action.form`) through the same checks as a
+  submission, with a skeleton meanwhile. Toolbar actions keep their inline
+  form.
+- **Toolbar buttons and their endpoint disagreed.** A toolbar action's
+  `visible()`/`hidden()` closure was never run, so the button showed even when
+  the endpoint refused. A toolbar has no record, so its closures now run with
+  none, like a column's. A closure that needs the record it didn't get counts as
+  hidden and is reported, instead of failing the page.
+- **Form reactivity options:**
+  - `live(onBlur: true)` and `live(debounce: …)` were serialized and then
+    ignored; every live change recomputed 300ms after the keystroke. Blur
+    fields now recompute when focus leaves them, and a field's own debounce
+    wins.
+  - `$set('items.0.qty', 5)` shipped nested, and the client's merge replaced
+    the whole `items` array. Changes now ship by path and apply by path
+    (`applyFormChanges()`).
+  - The recompute endpoint is rate limited per user
+    (`kinetix.forms.recompute_throttle`, default `120,1`; null disables it).
+- **A wizard step blocked on fields nobody could see.** "Next" checked raw
+  `isRequired` flags: a required field hidden by its condition blocked, and a
+  `requiredWhen` field never did. It now checks the step as shown.
+- **A Repeater stored condition-hidden values.** Fields inside an item show and
+  hide against that item's values in the browser. The server now drops a hidden
+  field's value from the item on save, too. Keys no field declares are kept.
+- **The generator's preset picker read "Generate" and showed raw keys.** It is
+  labelled "Preset" and lists translated preset names (`generator_preset_*`, all
+  7 locales).
+
 ## [0.210.0] - 2026-10-08
 
 The generator's passwords become real credentials, and forms stop shipping

@@ -8,6 +8,7 @@ import {
     onMounted,
     ref,
     useId,
+    useSlots,
     watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -28,6 +29,7 @@ import {
 } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTableAggregates } from '@/composables/useKinetixTableAggregates';
 import { useKinetixTableGroups } from '@/composables/useKinetixTableGroups';
+import type { KinetixGroupRenderItem } from '@/composables/useKinetixTableGroups';
 import { useKinetixTableQuery } from '@/composables/useKinetixTableQuery';
 import { useKinetixTableReorder } from '@/composables/useKinetixTableReorder';
 import type {
@@ -67,7 +69,8 @@ const KinetixDataTable = defineAsyncComponent(
     () => import('./KinetixDataTable.vue'),
 );
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
+const slots = useSlots();
 const page = usePage();
 const routePrefix = computed(
     () => (page.props.kinetix_config as any)?.route_prefix ?? '_kinetix',
@@ -244,6 +247,7 @@ const {
 const {
     isOpen: isFormActionOpen,
     processing: formActionProcessing,
+    loading: formActionLoading,
     activeForm: formActionForm,
     activeAction: formActionAction,
     handleFormAction,
@@ -472,6 +476,69 @@ const canReorder = computed(
     () => !!props.table.reorderable && !isGrouped.value,
 );
 
+// --- Row rendering ------------------------------------------------------------
+const rowClass = (record: KinetixTableRecord, index: number): unknown[] => [
+    'group transition-colors',
+    props.table.isStriped && index % 2 === 1 ? 'bg-muted/30' : 'bg-transparent',
+    // A <tr> can't paint a box-shadow ring under border-collapse, so the
+    // focus indicator is an inset outline + the hover tint.
+    isRowClickable(record)
+        ? 'cursor-pointer hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50'
+        : 'hover:bg-muted/30',
+    'data-[state=selected]:bg-muted',
+    draggingId.value != null && draggingId.value === record.id
+        ? KINETIX_DROP_PREVIEW_CLASS
+        : '',
+];
+
+// A host's `cell-*` slot may read its own state, which no memo key can see:
+// with one, rows always re-render.
+const hasCellSlots = computed(() =>
+    Object.keys(slots).some((name) => name.startsWith('cell-')),
+);
+
+/**
+ * A function, not an inline ternary: with v-memo, Vue's compiler splices the
+ * `:key` expression into its cache guard unparenthesized, and a ternary there
+ * swallows the guard (`key === a ? b : c && isMemoSame(...)`).
+ */
+const itemKey = (item: KinetixGroupRenderItem): string | number =>
+    item.type === 'header' ? `group-${item.key}` : item.record.id;
+
+/**
+ * What a rendered row depends on, for v-memo. Everything the row template
+ * reads must be here, or the row goes stale: the record (a reload ships fresh
+ * objects), its selection, position and drag state, the visible columns, the
+ * edit revision, the processing lock on its action buttons, the table config
+ * and the locale. A fresh `{}` defeats the memo when cell slots are in play.
+ */
+const memoKey = (item: KinetixGroupRenderItem): unknown[] =>
+    item.type === 'header'
+        ? [
+              'header',
+              item.key,
+              item.label,
+              item.count,
+              item.collapsed,
+              item.collapsible,
+              totalColumnSpan.value,
+              locale.value,
+          ]
+        : [
+              'row',
+              item.record,
+              isRowSelected(item.record.id),
+              item.index,
+              draggingId.value === item.record.id,
+              columnsToRender.value,
+              canReorder.value,
+              cellRevision.value,
+              actionProcessing.value,
+              props.table,
+              locale.value,
+              hasCellSlots.value ? {} : 0,
+          ];
+
 // Full width for a group header row's single cell: data columns + every
 // leading/trailing utility column the body renders.
 const totalColumnSpan = computed(
@@ -571,106 +638,108 @@ const totalColumnSpan = computed(
                          with their (possibly hidden) data rows; ungrouped it is
                          a flat list of data rows. Reorder/selection stay on the
                          flat path (grouping fixes the order). -->
-                        <template
+                        <!-- One <tr> per render item, header or data row, so
+                             v-memo sits on the v-for element itself (Vue can't
+                             memoize a <template v-for> holding v-if/v-else).
+                             A row re-renders only when its record, selection,
+                             position, columns, drag state, edit revision or
+                             the table config change — a large win on long
+                             tables during selection and polling. -->
+                        <tr
                             v-for="item in renderItems"
-                            :key="
+                            :key="itemKey(item)"
+                            v-memo="memoKey(item)"
+                            :class="
                                 item.type === 'header'
-                                    ? `group-${item.key}`
-                                    : item.record.id
+                                    ? 'bg-muted/40 transition-colors'
+                                    : rowClass(item.record, item.index)
+                            "
+                            :data-state="
+                                item.type === 'row' &&
+                                isRowSelected(item.record.id)
+                                    ? 'selected'
+                                    : undefined
+                            "
+                            :draggable="
+                                (item.type === 'row' && canReorder) || undefined
+                            "
+                            :tabindex="
+                                item.type === 'row' &&
+                                isRowClickable(item.record)
+                                    ? 0
+                                    : undefined
+                            "
+                            @click="
+                                item.type === 'row' &&
+                                handleRowClick(item.record, $event)
+                            "
+                            @keydown="
+                                item.type === 'row' &&
+                                handleRowKeydown(item.record, $event)
+                            "
+                            @dragstart="
+                                item.type === 'row' &&
+                                canReorder &&
+                                onDragStart(item.index)
+                            "
+                            @dragover="
+                                item.type === 'row' &&
+                                canReorder &&
+                                onDragOver(item.index, $event)
+                            "
+                            @drop="
+                                item.type === 'row' && canReorder && onDrop()
+                            "
+                            @dragend="
+                                item.type === 'row' && canReorder && onDragEnd()
                             "
                         >
                             <!-- Collapsible group header spanning the full row. -->
-                            <tr
+                            <td
                                 v-if="item.type === 'header'"
-                                class="bg-muted/40 transition-colors"
+                                :colspan="totalColumnSpan"
+                                class="p-0"
                             >
-                                <td :colspan="totalColumnSpan" class="p-0">
-                                    <component
-                                        :is="
-                                            item.collapsible ? 'button' : 'div'
-                                        "
-                                        :type="
-                                            item.collapsible
-                                                ? 'button'
-                                                : undefined
-                                        "
-                                        class="gap-2 px-6 py-2.5 text-sm font-semibold flex w-full items-center text-left text-foreground outline-none"
+                                <component
+                                    :is="item.collapsible ? 'button' : 'div'"
+                                    :type="
+                                        item.collapsible ? 'button' : undefined
+                                    "
+                                    class="gap-2 px-6 py-2.5 text-sm font-semibold flex w-full items-center text-left text-foreground outline-none"
+                                    :class="
+                                        item.collapsible
+                                            ? 'cursor-pointer hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50'
+                                            : ''
+                                    "
+                                    :aria-expanded="
+                                        item.collapsible
+                                            ? !item.collapsed
+                                            : undefined
+                                    "
+                                    @click="
+                                        item.collapsible &&
+                                        toggleGroup(item.key)
+                                    "
+                                >
+                                    <ChevronRight
+                                        v-if="item.collapsible"
+                                        class="size-4 shrink-0 text-muted-foreground transition-transform"
                                         :class="
-                                            item.collapsible
-                                                ? 'cursor-pointer hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50'
-                                                : ''
+                                            item.collapsed ? '' : 'rotate-90'
                                         "
-                                        :aria-expanded="
-                                            item.collapsible
-                                                ? !item.collapsed
-                                                : undefined
-                                        "
-                                        @click="
-                                            item.collapsible &&
-                                            toggleGroup(item.key)
-                                        "
+                                        aria-hidden="true"
+                                    />
+                                    <span>{{
+                                        item.label || t('kinetix.group_none')
+                                    }}</span>
+                                    <span
+                                        class="text-xs font-normal text-muted-foreground"
+                                        >({{ item.count }})</span
                                     >
-                                        <ChevronRight
-                                            v-if="item.collapsible"
-                                            class="size-4 shrink-0 text-muted-foreground transition-transform"
-                                            :class="
-                                                item.collapsed
-                                                    ? ''
-                                                    : 'rotate-90'
-                                            "
-                                            aria-hidden="true"
-                                        />
-                                        <span>{{
-                                            item.label ||
-                                            t('kinetix.group_none')
-                                        }}</span>
-                                        <span
-                                            class="text-xs font-normal text-muted-foreground"
-                                            >({{ item.count }})</span
-                                        >
-                                    </component>
-                                </td>
-                            </tr>
+                                </component>
+                            </td>
 
-                            <tr
-                                v-else
-                                class="group transition-colors"
-                                :data-state="
-                                    isRowSelected(item.record.id)
-                                        ? 'selected'
-                                        : undefined
-                                "
-                                :draggable="canReorder || undefined"
-                                :tabindex="
-                                    isRowClickable(item.record) ? 0 : undefined
-                                "
-                                :class="[
-                                    table.isStriped && item.index % 2 === 1
-                                        ? 'bg-muted/30'
-                                        : 'bg-transparent',
-                                    // A <tr> can't paint a box-shadow ring under
-                                    // border-collapse, so the focus indicator is an
-                                    // inset outline + the hover tint.
-                                    isRowClickable(item.record)
-                                        ? 'cursor-pointer hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/50'
-                                        : 'hover:bg-muted/30',
-                                    'data-[state=selected]:bg-muted',
-                                    draggingId != null &&
-                                    draggingId === item.record.id
-                                        ? KINETIX_DROP_PREVIEW_CLASS
-                                        : '',
-                                ]"
-                                @click="handleRowClick(item.record, $event)"
-                                @keydown="handleRowKeydown(item.record, $event)"
-                                @dragstart="
-                                    canReorder && onDragStart(item.index)
-                                "
-                                @dragover="
-                                    canReorder && onDragOver(item.index, $event)
-                                "
-                                @drop="canReorder && onDrop()"
-                                @dragend="canReorder && onDragEnd()"
-                            >
+                            <template v-else>
                                 <td
                                     v-if="canReorder"
                                     class="w-8 px-2 py-4 text-muted-foreground"
@@ -811,8 +880,8 @@ const totalColumnSpan = computed(
                                         </template>
                                     </div>
                                 </td>
-                            </tr>
-                        </template>
+                            </template>
+                        </tr>
 
                         <!-- Empty State: the configured card (heading /
                              description / icon / CTAs) or the default line. -->
@@ -1050,8 +1119,16 @@ const totalColumnSpan = computed(
                 placement="top"
                 @update:open="(value) => !value && closeFormAction()"
             >
+                <div v-if="formActionLoading" class="space-y-4">
+                    <div class="h-9 animate-pulse rounded-md bg-muted"></div>
+                    <div class="h-9 animate-pulse rounded-md bg-muted"></div>
+                    <div
+                        class="h-9 animate-pulse w-2/3 rounded-md bg-muted"
+                    ></div>
+                </div>
+
                 <KinetixForm
-                    v-if="formActionForm"
+                    v-else-if="formActionForm"
                     :id="formActionFormId"
                     :form="formActionForm"
                     flat

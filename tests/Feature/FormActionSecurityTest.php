@@ -350,5 +350,52 @@ class FormActionSecurityTest extends TestCase
             ->toData();
 
         $this->assertNull($data->formActionDescriptor);
+        // The button agrees with the endpoint: it isn't shown either.
+        $this->assertSame([], $data->toolbarActions);
+    }
+
+    public function test_a_toolbar_gate_that_needs_a_record_hides_the_action_without_failing(): void
+    {
+        $data = Table::make(FormWidgetRecord::query())
+            ->toolbarActions([
+                RenameWidget::make()->visible(fn ($record): bool => $record->name === 'x'),
+                RenameWidget::make('rename-all'),
+            ])
+            ->toData();
+
+        $this->assertSame(['rename-all'], array_map(static fn ($a) => $a->name, $data->toolbarActions));
+    }
+
+    /**
+     * Each row used to carry its action's whole form — a relationship Select
+     * ran its options query once per row. Rows now ship the action alone and
+     * the modal fetches the form for its row.
+     */
+    public function test_a_row_action_ships_without_its_form_and_fetches_it_on_open(): void
+    {
+        FormWidgetRecord::create(['name' => 'Mine']);
+        FormWidgetRecord::create(['name' => 'Theirs']);
+
+        $data = Table::make(FormWidgetRecord::query())
+            ->recordActions([RenameWidget::make()->visible(fn (FormWidgetRecord $record): bool => $record->name === 'Mine')])
+            ->toolbarActions([RenameWidget::make('rename-all')])
+            ->toData();
+
+        $rowAction = $data->records[0]->actions[0];
+        $this->assertNull($rowAction->form);
+        $this->assertTrue($rowAction->formOnOpen);
+        // The toolbar's single instance still ships its form.
+        $this->assertNotNull($data->toolbarActions[0]->form);
+
+        $fetch = fn (int $id) => $this->postJson(route('kinetix.tables.form-action.form'), [
+            'descriptor' => $data->formActionDescriptor,
+            'action'     => 'rename-widget',
+            'recordId'   => $id,
+        ]);
+
+        $fetch(1)->assertOk()->assertJsonPath('form.schema.0.name', 'name');
+        // The same checks as a submission: not on a row it didn't render on.
+        $fetch(2)->assertForbidden();
+        $fetch(99)->assertNotFound();
     }
 }

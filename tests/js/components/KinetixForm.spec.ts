@@ -9,6 +9,12 @@ const page = reactive<{ props: { errors: Record<string, string> } }>({
 });
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => page }));
 
+const recomputeFetch = vi.fn();
+vi.mock('@/composables/useKinetixHttp', async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    kinetixFetch: (...args: unknown[]) => recomputeFetch(...args),
+}));
+
 import KinetixForm from '@/components/KinetixForm.vue';
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} } });
@@ -219,5 +225,69 @@ describe('KinetixForm', () => {
         expect((wrapper.get('input').element as HTMLInputElement).value).toBe(
             'saved@example.com',
         );
+    });
+
+    // live(onBlur: true) ships `debounce: -1`, and live(debounce: …) its own
+    // delay. The client used to ignore both and recompute 300ms after every
+    // keystroke.
+    describe('live() timing', () => {
+        const liveForm = (debounce: number | null) => ({
+            schema: [
+                {
+                    type: 'text-input',
+                    name: 'city',
+                    label: 'City',
+                    isLive: true,
+                    debounce,
+                },
+            ],
+            data: { city: '' },
+            rules: {},
+            operation: 'create',
+            recomputeDescriptor: 'signed',
+        });
+
+        it('waits for blur when the field is live on blur', async () => {
+            vi.useFakeTimers();
+            recomputeFetch.mockReset().mockResolvedValue({
+                schema: [],
+                changes: {},
+            });
+            const wrapper = mount(KinetixForm, {
+                props: { form: liveForm(-1) },
+                global: { plugins: [i18n] },
+            });
+
+            await wrapper.get('input').setValue('Paris');
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(recomputeFetch).not.toHaveBeenCalled();
+
+            await wrapper.get('input').trigger('focusout');
+            await vi.advanceTimersByTimeAsync(10);
+            expect(recomputeFetch).toHaveBeenCalledTimes(1);
+
+            vi.useRealTimers();
+        });
+
+        it("uses the field's own debounce", async () => {
+            vi.useFakeTimers();
+            recomputeFetch.mockReset().mockResolvedValue({
+                schema: [],
+                changes: {},
+            });
+            const wrapper = mount(KinetixForm, {
+                props: { form: liveForm(1000) },
+                global: { plugins: [i18n] },
+            });
+
+            await wrapper.get('input').setValue('Paris');
+            await vi.advanceTimersByTimeAsync(500);
+            expect(recomputeFetch).not.toHaveBeenCalled();
+
+            await vi.advanceTimersByTimeAsync(600);
+            expect(recomputeFetch).toHaveBeenCalledTimes(1);
+
+            vi.useRealTimers();
+        });
     });
 });

@@ -534,7 +534,11 @@ class Action
         // tailor its defaults to the row it opened on. The signed descriptor —
         // not this serialised schema — is what the endpoint trusts; this is
         // purely what the browser renders.
-        $form = $this->isFormAction() && $this instanceof FormAction
+        $formOnOpen = $record !== null
+            && $this instanceof FormAction
+            && $this->resolvesFormOnOpen();
+
+        $form = $this->isFormAction() && $this instanceof FormAction && ! $formOnOpen
             ? $this->getForm($record)->toData()
             : null;
 
@@ -570,6 +574,7 @@ class Action
             isSecureBulk: $this->isSecure(),
             isFormAction: $this->isFormAction(),
             form: $form,
+            formOnOpen: $formOnOpen,
         );
     }
 

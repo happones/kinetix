@@ -64,5 +64,9 @@ class ActionData extends Data
         // from the SAME form class the controller reconstructs to validate the
         // submission, so what the user fills can't drift from what is enforced.
         public ?FormData $form = null,
+        // A row's FormAction ships no `form`: the modal fetches it from
+        // kinetix.tables.form-action.form when it opens, so a page of rows
+        // doesn't serialise (and query options for) one form per row.
+        public bool $formOnOpen = false,
     ) {}
 }

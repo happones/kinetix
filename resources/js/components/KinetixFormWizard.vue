@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
 import { schemaHasError } from '@/composables/useKinetixFormErrors';
 import {
     gridColumnVars,
@@ -70,6 +71,8 @@ watch(
     { deep: true },
 );
 
+const { resolve } = useKinetixFieldConditions();
+
 const isFilled = (v: any): boolean =>
     !(
         v === null ||
@@ -78,15 +81,27 @@ const isFilled = (v: any): boolean =>
         (Array.isArray(v) && v.length === 0)
     );
 
+/**
+ * The fields of a step that must be filled to move on, as the form shows them
+ * NOW: a conditionally hidden field never blocks (the user can't see it) and
+ * a `requiredWhen` field blocks only while its condition holds — the same
+ * conditions the server applies on submit.
+ */
 function requiredNames(nodes: any[]): string[] {
     const names: string[] = [];
     const walk = (arr: any[]) => {
         for (const n of arr) {
+            const effect = resolve(n, props.values);
+
+            if (!effect.visible) {
+                continue;
+            }
+
             if (Array.isArray(n.schema)) {
                 walk(n.schema);
             }
 
-            if (n.name && n.isRequired) {
+            if (n.name && (effect.required ?? n.isRequired)) {
                 names.push(n.name);
             }
         }
