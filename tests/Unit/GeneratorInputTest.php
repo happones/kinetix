@@ -76,4 +76,52 @@ class GeneratorInputTest extends TestCase
         $schema = Form::make()->schema([GeneratorInput::make('x')->password()])->toArray()['schema'];
         $this->assertSame('generator-input', $schema[0]['type']);
     }
+
+    public function test_named_preset_is_serialized(): void
+    {
+        $cfg = $this->configOf(GeneratorInput::make('token')->preset('api-key'));
+
+        $this->assertSame('api-key', $cfg['preset']);
+    }
+
+    public function test_custom_alphabet_sets_charset_strategy(): void
+    {
+        $cfg = $this->configOf(GeneratorInput::make('code')->custom(alphabet: 'ABC123', length: 8));
+
+        $this->assertSame('charset', $cfg['strategy']);
+        $this->assertSame('ABC123', $cfg['alphabet']);
+        $this->assertSame(8, $cfg['length']);
+    }
+
+    public function test_custom_mask_sets_mask_strategy(): void
+    {
+        $cfg = $this->configOf(GeneratorInput::make('ref')->custom(mask: 'INV-####-AA'));
+
+        $this->assertSame('mask', $cfg['strategy']);
+        $this->assertSame('INV-####-AA', $cfg['mask']);
+    }
+
+    public function test_words_strategy_serializes_its_knobs(): void
+    {
+        $cfg = $this->configOf(GeneratorInput::make('nick')->words(2, separator: '_', appendDigits: 3));
+
+        $this->assertSame('words', $cfg['strategy']);
+        $this->assertSame(2, $cfg['words']);
+        $this->assertSame('_', $cfg['wordSeparator']);
+        $this->assertSame(3, $cfg['appendDigits']);
+    }
+
+    public function test_prefix_is_serialized(): void
+    {
+        $cfg = $this->configOf(GeneratorInput::make('k')->preset('api-key')->valuePrefix('live_'));
+
+        $this->assertSame('live_', $cfg['prefix']);
+    }
+
+    public function test_preset_catalog_constant_lists_the_presets(): void
+    {
+        $this->assertContains('uuid', GeneratorInput::PRESETS);
+        $this->assertContains('license-key', GeneratorInput::PRESETS);
+        $this->assertContains('password-strong', GeneratorInput::PRESETS);
+    }
 }

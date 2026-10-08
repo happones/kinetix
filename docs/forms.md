@@ -1056,12 +1056,13 @@ SignaturePad::make('signature')->penColor('#1d4ed8')->height(180);
 ### `GeneratorInput`
 
 A text input with a one-click VALUE GENERATOR beside it — passwords, PINs,
-usernames, or any custom charset. Generation is client-side and crypto-strong
-(uniform, no modulo bias), so nothing round-trips the server. Three presets
-bundle the same underlying knobs (kind + length + charset):
+usernames, tokens, or any custom charset. Generation is client-side and
+crypto-strong (uniform, no modulo bias), so nothing round-trips the server. It
+ships a catalog of **presets** (compose by data, add one in a single place) plus
+a fully **custom** escape hatch.
 
-<Demo title="Try it — password generator">
-  <KinetixGenerator :config="{ kind: 'password', length: 16, copyable: true, revealable: false }" copyable />
+<Demo title="Try it — pick a preset">
+  <KinetixGenerator :config="{ copyable: true }" :presets="true" copyable />
 </Demo>
 
 ```php
@@ -1088,6 +1089,40 @@ GeneratorInput::make('username')->username()->pattern('{first_name}.{last_name}'
 | `pattern('{a}.{b}')` / `separator('.')` | Username from sibling fields |
 | `copyable()` | Click-to-copy beside the generate button |
 | `masked()` | Hide the value behind a reveal toggle |
+
+#### Presets
+
+Pick a ready-made generator by name — explicit knobs set afterwards still win
+(`->preset('password-strong')->length(24)`):
+
+```php
+GeneratorInput::make('token')->preset('api-key');       // sk_… 40 base62
+GeneratorInput::make('serial')->preset('license-key');  // XXXX-XXXX-XXXX-XXXX
+GeneratorInput::make('id')->preset('uuid');             // RFC-4122 v4
+GeneratorInput::make('nick')->preset('handle-memorable'); // brave-otter-42
+```
+
+| Group | Presets |
+| --- | --- |
+| Passwords | `password-strong`, `password-simple`, `password-memorable`, `passphrase` |
+| PINs / codes | `pin-4`, `pin-6`, `otp`, `pin-alphanum` |
+| Usernames | `handle`, `handle-memorable` (+ `username()->pattern(…)`) |
+| Tokens / ids | `uuid`, `hex`, `hex-64`, `nanoid`, `api-key`, `license-key`, `slug` |
+
+#### Custom
+
+When no preset fits, describe your own — an explicit alphabet, a mask template,
+memorable words, or a value prefix:
+
+```php
+GeneratorInput::make('code')->custom(alphabet: 'ABCDEF0123', length: 8);
+GeneratorInput::make('ref')->custom(mask: 'INV-####-AA');   // # digit, A upper, a lower, * alnum, H hex
+GeneratorInput::make('nickname')->words(2, separator: '-', appendDigits: 2);
+GeneratorInput::make('key')->preset('nanoid')->valuePrefix('tok_');
+```
+
+The standalone `<KinetixGenerator>` can show a live **preset picker** with
+`:presets="true"` (or an array of names) — handy for a "generate anything" tool.
 
 #### Standalone — generating into another target
 

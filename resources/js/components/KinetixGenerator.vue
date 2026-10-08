@@ -2,7 +2,10 @@
 import { Eye, EyeOff, RefreshCw } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useKinetixGenerator } from '@/composables/useKinetixGenerator';
+import {
+    useKinetixGenerator,
+    GENERATOR_PRESETS,
+} from '@/composables/useKinetixGenerator';
 import type { KinetixGeneratorConfig } from '@/composables/useKinetixGenerator';
 import {
     buttonVariants,
@@ -37,6 +40,12 @@ const props = withDefaults(
         input?: boolean;
         /** Mode 2 target: a writer callback, a CSS selector, or an element. */
         target?: ((value: string) => void) | string | HTMLInputElement | null;
+        /**
+         * Show a preset picker. `true` lists every catalog preset; an array
+         * limits it to those names. The chosen preset's config merges over
+         * `config`, so the reader can switch password/pin/uuid/… live.
+         */
+        presets?: boolean | string[];
         disabled?: boolean;
         placeholder?: string | null;
     }>(),
@@ -46,6 +55,7 @@ const props = withDefaults(
         values: () => ({}),
         input: true,
         target: null,
+        presets: false,
         disabled: false,
         placeholder: null,
     },
@@ -54,10 +64,33 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: 'update:value', value: string): void }>();
 
 const { t } = useI18n();
-const { generate } = useKinetixGenerator(() => props.config ?? {});
 
-const revealable = computed<boolean>(() => props.config?.revealable !== false);
-const copyable = computed<boolean>(() => !!props.config?.copyable);
+// Preset picker (opt-in). The active preset's config merges over the base.
+const presetNames = computed<string[]>(() =>
+    Array.isArray(props.presets)
+        ? props.presets
+        : props.presets
+          ? Object.keys(GENERATOR_PRESETS)
+          : [],
+);
+const activePreset = ref<string>(
+    props.config?.preset ?? presetNames.value[0] ?? '',
+);
+
+const effectiveConfig = computed<KinetixGeneratorConfig>(() => {
+    const base = props.config ?? {};
+
+    return presetNames.value.length && activePreset.value
+        ? { ...base, preset: activePreset.value }
+        : base;
+});
+
+const { generate } = useKinetixGenerator(() => effectiveConfig.value);
+
+const revealable = computed<boolean>(
+    () => effectiveConfig.value.revealable !== false,
+);
+const copyable = computed<boolean>(() => !!effectiveConfig.value.copyable);
 const revealed = ref(false);
 
 const inputType = computed<string>(() =>
@@ -102,58 +135,84 @@ const onGenerate = (): void => {
 const onInput = (event: Event): void => {
     emit('update:value', (event.target as HTMLInputElement).value);
 };
+
+/** Switching the preset regenerates immediately, so the change is visible. */
+const onPresetChange = (event: Event): void => {
+    activePreset.value = (event.target as HTMLSelectElement).value;
+    onGenerate();
+};
 </script>
 
 <template>
-    <div class="gap-2 flex items-center">
-        <!-- Mode 1: built-in input -->
-        <div v-if="input" class="min-w-0 relative flex-1">
-            <input
-                :value="value ?? ''"
-                :type="inputType"
-                :disabled="disabled"
-                :placeholder="placeholder ?? ''"
+    <div class="space-y-2">
+        <!-- Optional preset picker -->
+        <select
+            v-if="presetNames.length"
+            :value="activePreset"
+            :disabled="disabled"
+            :class="cn(inputClass, 'cursor-pointer')"
+            :aria-label="t('kinetix.generate')"
+            @change="onPresetChange"
+        >
+            <option v-for="name in presetNames" :key="name" :value="name">
+                {{ name }}
+            </option>
+        </select>
+
+        <div class="gap-2 flex items-center">
+            <!-- Mode 1: built-in input -->
+            <div v-if="input" class="min-w-0 relative flex-1">
+                <input
+                    :value="value ?? ''"
+                    :type="inputType"
+                    :disabled="disabled"
+                    :placeholder="placeholder ?? ''"
+                    :class="
+                        cn(
+                            inputClass,
+                            (revealable && copyable) || !revealable
+                                ? 'pr-10'
+                                : '',
+                        )
+                    "
+                    autocomplete="off"
+                    spellcheck="false"
+                    @input="onInput"
+                />
+                <!-- Reveal toggle (only when masked) -->
+                <button
+                    v-if="!revealable"
+                    type="button"
+                    :aria-label="
+                        revealed ? t('kinetix.hide') : t('kinetix.show')
+                    "
+                    class="right-2 size-6 absolute top-1/2 flex -translate-y-1/2 touch-manipulation items-center justify-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    :disabled="disabled"
+                    @click="revealed = !revealed"
+                >
+                    <component :is="revealed ? EyeOff : Eye" class="size-4" />
+                </button>
+            </div>
+
+            <!-- Copy (optional) -->
+            <KinetixCopyable v-if="copyable && value" :value="String(value)" />
+
+            <!-- Regenerate -->
+            <button
+                type="button"
                 :class="
                     cn(
-                        inputClass,
-                        (revealable && copyable) || !revealable ? 'pr-10' : '',
+                        buttonVariants({ variant: 'outline', size: 'icon' }),
+                        'shrink-0 touch-manipulation',
                     )
                 "
-                autocomplete="off"
-                spellcheck="false"
-                @input="onInput"
-            />
-            <!-- Reveal toggle (only when masked) -->
-            <button
-                v-if="!revealable"
-                type="button"
-                :aria-label="revealed ? t('kinetix.hide') : t('kinetix.show')"
-                class="right-2 size-6 absolute top-1/2 flex -translate-y-1/2 touch-manipulation items-center justify-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                :aria-label="t('kinetix.generate')"
+                :title="t('kinetix.generate')"
                 :disabled="disabled"
-                @click="revealed = !revealed"
+                @click="onGenerate"
             >
-                <component :is="revealed ? EyeOff : Eye" class="size-4" />
+                <RefreshCw class="size-4" />
             </button>
         </div>
-
-        <!-- Copy (optional) -->
-        <KinetixCopyable v-if="copyable && value" :value="String(value)" />
-
-        <!-- Regenerate -->
-        <button
-            type="button"
-            :class="
-                cn(
-                    buttonVariants({ variant: 'outline', size: 'icon' }),
-                    'shrink-0 touch-manipulation',
-                )
-            "
-            :aria-label="t('kinetix.generate')"
-            :title="t('kinetix.generate')"
-            :disabled="disabled"
-            @click="onGenerate"
-        >
-            <RefreshCw class="size-4" />
-        </button>
     </div>
 </template>

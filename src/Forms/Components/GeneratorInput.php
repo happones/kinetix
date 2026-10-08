@@ -67,9 +67,136 @@ class GeneratorInput extends Field
     /** Keep the generated value visible (false masks it, like a password). */
     protected bool $revealable = true;
 
+    /**
+     * Named preset from the catalog (`password-strong`, `uuid`, `api-key`,
+     * `license-key`, `otp`, `nanoid`, `handle-memorable`, …). Null = built from
+     * the legacy kind + knobs. See {@see preset()} and the frontend
+     * `GENERATOR_PRESETS`.
+     */
+    protected ?string $preset = null;
+
+    /** charset | mask | words | uuid | template (null = derived). */
+    protected ?string $strategy = null;
+
+    /** Explicit alphabet (overrides the class flags) for a custom charset. */
+    protected ?string $alphabet = null;
+
+    /** Mask template for the `mask` strategy (`#`,`A`,`a`,`*`,`H` + literals). */
+    protected ?string $mask = null;
+
+    protected ?int $words = null;
+
+    protected ?string $wordSeparator = null;
+
+    protected ?int $appendDigits = null;
+
+    /** Prefix glued before the value (e.g. `sk_` for an API key). */
+    protected ?string $valuePrefix = null;
+
     protected function getType(): string
     {
         return 'generator-input';
+    }
+
+    /**
+     * The names of the built-in presets (mirrors the frontend `GENERATOR_PRESETS`).
+     * The actual composition lives on the client — the field only needs to pass
+     * the name through, so the catalog stays in ONE place.
+     *
+     * @var list<string>
+     */
+    public const PRESETS = [
+        'password-strong', 'password-simple', 'password-memorable', 'passphrase',
+        'pin-4', 'pin-6', 'otp', 'pin-alphanum',
+        'handle', 'handle-memorable',
+        'uuid', 'hex', 'hex-64', 'nanoid', 'api-key', 'license-key', 'slug',
+    ];
+
+    /**
+     * Use a named preset from the catalog. Explicit knobs set afterwards still
+     * win, so `->preset('password-strong')->length(24)` overrides just the
+     * length.
+     *
+     *     GeneratorInput::make('token')->preset('api-key');
+     *     GeneratorInput::make('serial')->preset('license-key');
+     */
+    public function preset(string $name): static
+    {
+        $this->preset = $name;
+
+        return $this;
+    }
+
+    /**
+     * A fully custom generator: pass either an explicit `alphabet` (+ length)
+     * or a `mask` template. This is the escape hatch when no preset fits.
+     *
+     *     GeneratorInput::make('code')->custom(alphabet: 'ABCDEF0123', length: 8);
+     *     GeneratorInput::make('ref')->custom(mask: 'INV-####-AA');
+     */
+    public function custom(?string $alphabet = null, int $length = 16, ?string $mask = null): static
+    {
+        if ($mask !== null) {
+            $this->strategy = 'mask';
+            $this->mask     = $mask;
+
+            return $this;
+        }
+
+        $this->strategy = 'charset';
+        $this->alphabet = $alphabet;
+        $this->length   = max(1, $length);
+
+        return $this;
+    }
+
+    /**
+     * A mask template for the `mask` strategy: `#` digit, `A` upper, `a` lower,
+     * `*` alphanumeric, `H` hex; any other character is a literal.
+     */
+    public function mask(string $mask): static
+    {
+        $this->strategy = 'mask';
+        $this->mask     = $mask;
+
+        return $this;
+    }
+
+    /**
+     * An explicit alphabet for the `charset` strategy (overrides class flags).
+     */
+    public function alphabet(string $alphabet): static
+    {
+        $this->strategy = 'charset';
+        $this->alphabet = $alphabet;
+
+        return $this;
+    }
+
+    /**
+     * A memorable `adjective-noun…` value, optionally with trailing digits.
+     *
+     *     GeneratorInput::make('nickname')->words(2, separator: '-', appendDigits: 2);
+     */
+    public function words(int $count = 3, string $separator = '-', int $appendDigits = 0): static
+    {
+        $this->strategy      = 'words';
+        $this->words         = max(1, $count);
+        $this->wordSeparator = $separator;
+        $this->appendDigits  = max(0, $appendDigits);
+
+        return $this;
+    }
+
+    /**
+     * Glue a fixed prefix before the generated value (`sk_`, `INV-`, …). This
+     * is part of the value, distinct from the field's visual {@see Field::prefix()}.
+     */
+    public function valuePrefix(string $prefix): static
+    {
+        $this->valuePrefix = $prefix;
+
+        return $this;
     }
 
     /**
@@ -208,16 +335,24 @@ class GeneratorInput extends Field
 
         $data->generatorConfig = [
             'kind'             => $this->kind,
+            'preset'           => $this->preset,
+            'strategy'         => $this->strategy,
             'length'           => $this->length,
             'lowercase'        => $this->lowercase,
             'uppercase'        => $this->uppercase,
             'digits'           => $this->digits,
             'symbols'          => $this->symbols,
             'symbolSet'        => $this->symbolSet,
+            'alphabet'         => $this->alphabet,
             'excludeAmbiguous' => $this->excludeAmbiguous,
             'pinMode'          => $this->pinMode,
+            'mask'             => $this->mask,
+            'words'            => $this->words,
+            'wordSeparator'    => $this->wordSeparator,
+            'appendDigits'     => $this->appendDigits,
             'pattern'          => $this->pattern,
             'separator'        => $this->separator,
+            'prefix'           => $this->valuePrefix,
             'copyable'         => $this->copyable,
             'revealable'       => $this->revealable,
         ];

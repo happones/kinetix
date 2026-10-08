@@ -71,4 +71,24 @@ describe('KinetixGenerator', () => {
         await wrapper.find('button[aria-label="Show"]').trigger('click');
         expect(wrapper.find('input').attributes('type')).toBe('text');
     });
+
+    it('renders a preset picker and regenerates on change', async () => {
+        const wrapper = mountGen({ presets: ['uuid', 'otp'] });
+
+        const select = wrapper.find('select');
+        expect(select.exists()).toBe(true);
+        expect(select.findAll('option')).toHaveLength(2);
+
+        // Switch to the OTP preset — it regenerates and emits a 6-digit code.
+        await select.setValue('otp');
+
+        const emitted = wrapper.emitted('update:value');
+        expect(emitted).toBeTruthy();
+        expect(String(emitted!.at(-1)![0])).toMatch(/^\d{6}$/);
+    });
+
+    it('has no preset picker by default', () => {
+        const wrapper = mountGen({ config: { kind: 'password' } });
+        expect(wrapper.find('select').exists()).toBe(false);
+    });
 });

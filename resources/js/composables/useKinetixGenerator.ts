@@ -4,25 +4,60 @@
  * so it's trivially testable and reusable.
  *
  * Randomness comes from `crypto.getRandomValues` with REJECTION SAMPLING, so
- * the character distribution is uniform (no modulo bias). Three kinds:
- *   - password: a mixed-class random string (lower/upper/digits/symbols);
- *   - pin: a fixed-length code (numeric / alphanum / alpha);
- *   - username: a pattern of `{field}` tokens filled from sibling values and
- *     normalized to a safe handle, or a random handle when there's no pattern.
+ * the character distribution is uniform (no modulo bias).
+ *
+ * The engine is built from a handful of PRIMITIVES (`strategy`) that the
+ * presets compose by DATA, not code — adding a preset is one entry in
+ * {@link GENERATOR_PRESETS}, never a new branch:
+ *   - charset   — N chars from an alphabet (passwords, PINs, hex, nanoid, …);
+ *   - mask      — a template of class tokens (`#` digit, `A` upper, `a` lower,
+ *                 `*` alnum, `H` hex) with literals kept (license keys, OTPs);
+ *   - words     — memorable `adjective-noun-####` style handles/passphrases;
+ *   - uuid      — RFC-4122 v4;
+ *   - template  — a `{field}` pattern filled from sibling values (usernames).
  */
 
+export type GeneratorStrategy =
+    | 'charset'
+    | 'mask'
+    | 'words'
+    | 'uuid'
+    | 'template';
+
 export interface KinetixGeneratorConfig {
+    /**
+     * Legacy kind (password | pin | username) — still honoured. New configs use
+     * `preset` and/or `strategy`.
+     */
     kind?: 'password' | 'pin' | 'username';
+    /** Named preset from {@link GENERATOR_PRESETS}. */
+    preset?: string;
+    /** Generation primitive; derived from the preset/kind when omitted. */
+    strategy?: GeneratorStrategy;
     length?: number;
+    // charset knobs
     lowercase?: boolean;
     uppercase?: boolean;
     digits?: boolean;
     symbols?: boolean;
+    /** An explicit alphabet (overrides the class flags entirely). */
+    alphabet?: string | null;
     symbolSet?: string | null;
     excludeAmbiguous?: boolean;
+    /** Legacy PIN alphabet selector. */
     pinMode?: 'alpha' | 'alphanum' | 'numeric';
+    // mask knobs
+    mask?: string | null;
+    // words knobs
+    words?: number;
+    wordSeparator?: string;
+    appendDigits?: number;
+    // template (username) knobs
     pattern?: string | null;
     separator?: string | null;
+    /** Prefix glued before the generated value (e.g. `sk_` for an API key). */
+    prefix?: string | null;
+    // UI
     copyable?: boolean;
     revealable?: boolean;
 }
@@ -30,8 +65,65 @@ export interface KinetixGeneratorConfig {
 const LOWER = 'abcdefghijklmnopqrstuvwxyz';
 const UPPER = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const DIGITS = '0123456789';
+const HEX = '0123456789abcdef';
 const SYMBOLS = '!@#$%^&*()-_=+[]{};:,.?';
+const BASE62 = LOWER + UPPER + DIGITS;
+// nanoid's url-safe alphabet.
+const NANOID = BASE62 + '_-';
 const AMBIGUOUS = /[O0oIl1|]/g;
+
+const ADJECTIVES = [
+    'brave',
+    'calm',
+    'clever',
+    'eager',
+    'gentle',
+    'happy',
+    'jolly',
+    'kind',
+    'lively',
+    'merry',
+    'nimble',
+    'proud',
+    'quick',
+    'quiet',
+    'swift',
+    'witty',
+    'bright',
+    'bold',
+    'cosmic',
+    'golden',
+    'silver',
+    'noble',
+    'royal',
+    'wild',
+];
+const NOUNS = [
+    'otter',
+    'falcon',
+    'tiger',
+    'panda',
+    'eagle',
+    'fox',
+    'wolf',
+    'lynx',
+    'heron',
+    'raven',
+    'koala',
+    'bison',
+    'moose',
+    'orca',
+    'gecko',
+    'ibis',
+    'comet',
+    'nebula',
+    'quartz',
+    'cedar',
+    'maple',
+    'river',
+    'ember',
+    'storm',
+];
 
 /** A uniformly-random integer in [0, max) via rejection sampling. */
 function randomInt(max: number): number {
@@ -42,8 +134,6 @@ function randomInt(max: number): number {
     const limit = Math.floor(0xffffffff / max) * max;
     const buf = new Uint32Array(1);
 
-    // Reject values in the final, partial bucket so each outcome is equally
-    // likely (plain `% max` would bias the low values).
     let n = 0;
 
     do {
@@ -52,6 +142,10 @@ function randomInt(max: number): number {
     } while (n >= limit);
 
     return n % max;
+}
+
+function pick<T>(items: readonly T[]): T {
+    return items[randomInt(items.length)];
 }
 
 /** Pick `length` chars uniformly from `alphabet`. */
@@ -69,7 +163,26 @@ function randomString(alphabet: string, length: number): string {
     return out;
 }
 
-function passwordAlphabet(config: KinetixGeneratorConfig): string {
+/** The alphabet a charset config generates from. */
+function charsetAlphabet(config: KinetixGeneratorConfig): string {
+    if (config.alphabet) {
+        return config.excludeAmbiguous
+            ? config.alphabet.replace(AMBIGUOUS, '')
+            : config.alphabet;
+    }
+
+    // Legacy PIN alphabet selector.
+    if (config.pinMode) {
+        switch (config.pinMode) {
+            case 'alpha':
+                return LOWER + UPPER;
+            case 'alphanum':
+                return BASE62;
+            default:
+                return DIGITS;
+        }
+    }
+
     let alphabet = '';
 
     if (config.lowercase !== false) {
@@ -88,7 +201,6 @@ function passwordAlphabet(config: KinetixGeneratorConfig): string {
         alphabet += config.symbolSet || SYMBOLS;
     }
 
-    // Fall back to lowercase+digits if every class was switched off.
     if (!alphabet) {
         alphabet = LOWER + DIGITS;
     }
@@ -100,15 +212,72 @@ function passwordAlphabet(config: KinetixGeneratorConfig): string {
     return alphabet;
 }
 
-function pinAlphabet(mode: KinetixGeneratorConfig['pinMode']): string {
-    switch (mode) {
-        case 'alpha':
-            return LOWER + UPPER;
-        case 'alphanum':
-            return LOWER + UPPER + DIGITS;
-        default:
-            return DIGITS;
+/** Fill a mask template: class tokens become random chars, literals stay. */
+function fromMask(mask: string): string {
+    let out = '';
+
+    for (const ch of mask) {
+        switch (ch) {
+            case '#':
+                out += DIGITS[randomInt(10)];
+                break;
+            case 'A':
+                out += UPPER[randomInt(26)];
+                break;
+            case 'a':
+                out += LOWER[randomInt(26)];
+                break;
+            case '*':
+                out += BASE62[randomInt(BASE62.length)];
+                break;
+            case 'H':
+                out += HEX[randomInt(16)].toUpperCase();
+                break;
+            default:
+                out += ch; // literal (separators, fixed chars)
+        }
     }
+
+    return out;
+}
+
+/** RFC-4122 v4 UUID. */
+function uuidV4(): string {
+    const b = new Uint8Array(16);
+    crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    const hex = [...b].map((n) => n.toString(16).padStart(2, '0'));
+
+    return (
+        hex.slice(0, 4).join('') +
+        '-' +
+        hex.slice(4, 6).join('') +
+        '-' +
+        hex.slice(6, 8).join('') +
+        '-' +
+        hex.slice(8, 10).join('') +
+        '-' +
+        hex.slice(10, 16).join('')
+    );
+}
+
+function memorableWords(config: KinetixGeneratorConfig): string {
+    const count = Math.max(1, config.words ?? 2);
+    const sep = config.wordSeparator ?? '-';
+    const parts: string[] = [];
+
+    for (let i = 0; i < count; i++) {
+        parts.push(i % 2 === 0 ? pick(ADJECTIVES) : pick(NOUNS));
+    }
+
+    let out = parts.join(sep);
+
+    if (config.appendDigits && config.appendDigits > 0) {
+        out += sep + randomString(DIGITS, config.appendDigits);
+    }
+
+    return out;
 }
 
 /** Normalize arbitrary text into a safe username/handle. */
@@ -119,7 +288,7 @@ export function normalizeHandle(text: string, separator = '.'): string {
     return (text ?? '')
         .toString()
         .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '') // strip accents
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9]+/g, sep)
@@ -127,10 +296,6 @@ export function normalizeHandle(text: string, separator = '.'): string {
         .replace(new RegExp(`^${escaped}|${escaped}$`, 'g'), '');
 }
 
-/**
- * Build a username from a `{field}` pattern and the form's sibling values.
- * Tokens with no matching value drop out; the whole result is normalized.
- */
 function usernameFromPattern(
     pattern: string,
     values: Record<string, unknown>,
@@ -145,36 +310,134 @@ function usernameFromPattern(
     return normalizeHandle(filled, separator);
 }
 
+/**
+ * The preset catalog — the whole point of the "many presets + custom" design.
+ * Each is just DATA composing a primitive; add one here and it's available
+ * everywhere (field, standalone, the demo picker) with no engine change.
+ */
+export const GENERATOR_PRESETS: Record<string, KinetixGeneratorConfig> = {
+    // Passwords
+    'password-strong': {
+        strategy: 'charset',
+        length: 16,
+        lowercase: true,
+        uppercase: true,
+        digits: true,
+        symbols: true,
+    },
+    'password-simple': {
+        strategy: 'charset',
+        length: 14,
+        lowercase: true,
+        uppercase: true,
+        digits: true,
+        symbols: false,
+        excludeAmbiguous: true,
+    },
+    'password-memorable': {
+        strategy: 'words',
+        words: 3,
+        wordSeparator: '-',
+        appendDigits: 2,
+    },
+    passphrase: { strategy: 'words', words: 4, wordSeparator: ' ' },
+    // PINs / codes
+    'pin-4': { strategy: 'charset', length: 4, alphabet: DIGITS },
+    'pin-6': { strategy: 'charset', length: 6, alphabet: DIGITS },
+    otp: { strategy: 'charset', length: 6, alphabet: DIGITS },
+    'pin-alphanum': {
+        strategy: 'charset',
+        length: 6,
+        alphabet: BASE62,
+        excludeAmbiguous: true,
+    },
+    // Usernames / handles
+    handle: { strategy: 'charset', length: 10, alphabet: LOWER + DIGITS },
+    'handle-memorable': {
+        strategy: 'words',
+        words: 2,
+        wordSeparator: '-',
+        appendDigits: 2,
+    },
+    // Tokens / ids
+    uuid: { strategy: 'uuid' },
+    hex: { strategy: 'charset', length: 32, alphabet: HEX },
+    'hex-64': { strategy: 'charset', length: 64, alphabet: HEX },
+    nanoid: { strategy: 'charset', length: 21, alphabet: NANOID },
+    'api-key': {
+        strategy: 'charset',
+        length: 40,
+        alphabet: BASE62,
+        prefix: 'sk_',
+    },
+    'license-key': { strategy: 'mask', mask: '****-****-****-****' },
+    slug: { strategy: 'charset', length: 8, alphabet: LOWER + DIGITS },
+};
+
+/** Resolve the effective config: preset base + legacy kind + explicit overrides. */
+export function resolveGeneratorConfig(
+    config: KinetixGeneratorConfig,
+): KinetixGeneratorConfig {
+    const base = config.preset ? (GENERATOR_PRESETS[config.preset] ?? {}) : {};
+
+    // Legacy kinds map onto a strategy so old configs keep working untouched.
+    let legacy: KinetixGeneratorConfig = {};
+
+    if (!config.preset && !config.strategy) {
+        if (config.kind === 'pin') {
+            legacy = { strategy: 'charset' };
+        } else if (config.kind === 'username') {
+            legacy = {
+                strategy: config.pattern ? 'template' : 'charset',
+                alphabet: config.pattern ? null : LOWER + DIGITS,
+            };
+        } else {
+            legacy = { strategy: 'charset' };
+        }
+    }
+
+    // Explicit config wins over the preset; preset wins over legacy defaults.
+    return { ...legacy, ...base, ...config };
+}
+
 export function useKinetixGenerator(getConfig: () => KinetixGeneratorConfig) {
     const generate = (values: Record<string, unknown> = {}): string => {
-        const config = getConfig() ?? {};
+        const config = resolveGeneratorConfig(getConfig() ?? {});
         const length = Math.max(1, config.length ?? 16);
+        const prefix = config.prefix ?? '';
 
-        if (config.kind === 'pin') {
-            return randomString(pinAlphabet(config.pinMode), length);
-        }
+        switch (config.strategy) {
+            case 'uuid':
+                return prefix + uuidV4();
 
-        if (config.kind === 'username') {
-            if (config.pattern) {
-                const fromPattern = usernameFromPattern(
-                    config.pattern,
-                    values,
-                    config.separator || '.',
-                );
+            case 'mask':
+                return prefix + fromMask(config.mask || '****-****');
 
-                // Fall back to a random handle if the pattern resolved empty
-                // (siblings not filled in yet).
-                if (fromPattern) {
-                    return fromPattern;
+            case 'words':
+                return prefix + memorableWords(config);
+
+            case 'template': {
+                if (config.pattern) {
+                    const fromPattern = usernameFromPattern(
+                        config.pattern,
+                        values,
+                        config.separator || '.',
+                    );
+
+                    if (fromPattern) {
+                        return prefix + fromPattern;
+                    }
                 }
+
+                // Fall back to a random handle when the pattern is empty.
+                return prefix + randomString(LOWER + DIGITS, length);
             }
 
-            return randomString(LOWER + DIGITS, length);
+            case 'charset':
+            default:
+                return prefix + randomString(charsetAlphabet(config), length);
         }
-
-        // Default: password.
-        return randomString(passwordAlphabet(config), length);
     };
 
-    return { generate, normalizeHandle };
+    return { generate, normalizeHandle, presets: GENERATOR_PRESETS };
 }

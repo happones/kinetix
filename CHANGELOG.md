@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.205.0] - 2026-10-08
+
+### Added
+
+- **Generator presets catalog + custom (published).** The value generator grows
+  from three kinds to a **catalog of presets** composed by data (add one in a
+  single place), plus a fully custom escape hatch. Presets: `password-strong` /
+  `password-simple` / `password-memorable` / `passphrase`, `pin-4` / `pin-6` /
+  `otp` / `pin-alphanum`, `handle` / `handle-memorable`, and tokens/ids
+  `uuid` / `hex` / `hex-64` / `nanoid` / `api-key` / `license-key` / `slug`.
+
+  ```php
+  GeneratorInput::make('token')->preset('api-key');       // sk_… base62
+  GeneratorInput::make('serial')->preset('license-key');  // XXXX-XXXX-XXXX-XXXX
+  GeneratorInput::make('id')->preset('uuid');
+  GeneratorInput::make('ref')->custom(mask: 'INV-####-AA');
+  GeneratorInput::make('nick')->words(2, separator: '-', appendDigits: 2);
+  ```
+
+  New engine primitives back them — `charset`, `mask` (`#`/`A`/`a`/`*`/`H` +
+  literals), `words` (memorable adjective-noun), `uuid` (RFC-4122 v4),
+  `template` (username pattern) — plus `->custom()`, `->mask()`, `->alphabet()`,
+  `->words()`, `->valuePrefix()` and `->preset()`. The standalone
+  `<KinetixGenerator>` gains an optional live **preset picker** (`:presets`).
+
+  Existing `password()` / `pin()` / `username()` calls are unchanged — the
+  legacy `kind` config still resolves through the new engine.
+
 ## [0.204.0] - 2026-10-07
 
 ### Added
