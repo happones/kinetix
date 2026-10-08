@@ -756,6 +756,8 @@ export interface KinetixKanbanData {
     heading: string | null;
     columns: KinetixKanbanColumn[];
     model: string;
+    /** Cards can be ordered within their column (Kanban::reorderable()). */
+    reorderable?: boolean;
 }
 
 /** A saved table view — a named snapshot of the table's state. */

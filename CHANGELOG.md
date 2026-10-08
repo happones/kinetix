@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.213.0] - 2026-10-08
+
+Kanban cards can now be ordered within their column. Re-publish the components
+(`--force`) and the translations.
+
+### Added
+
+- **`Kanban::reorderable('sort_order')`** keeps a manual order of cards within
+  each column.
+  - Cards are shown in that order, then by key.
+  - **(published)** A card drops at the slot under the pointer (or the finger,
+    on touch), with the dashed ghost previewing exactly where it will land.
+    Dragging within its own column reorders it.
+  - **(published)** The up/down arrow keys move a focused card one place
+    earlier or later in its column. The new place is announced
+    (`kanban_moved_to_position`), and the keyboard hint covers the new keys
+    (`kanban_keyboard_hint_reorder`), in 7 locales.
+  - The move posts the destination column's new `order`. The status and the
+    positions are saved in one transaction, write-checked for every card whose
+    position changes. A refused order leaves the card's status untouched too.
+  - Cards trade the positions they already hold, so cards a narrower board
+    doesn't show keep theirs. A column with no positions yet is numbered once,
+    within the board's `moveScope()`.
+- `useKinetixTouchDrag` takes an optional `onMove(key, x, y)`, fired on every
+  move while dragging, for targets that place the item at a point within
+  themselves.
+
+### Changed
+
+- Table row reorder and kanban card order share one implementation,
+  `Support\ManualOrder` (the position-trading algorithm from 0.211.1). Table
+  behaviour is unchanged.
+
 ## [0.212.0] - 2026-10-08
 
 Notification preferences are now applied when Kinetix sends, not just saved.

@@ -292,6 +292,9 @@ return [
     'kanban_keyboard_hint' => 'Use as setas para a esquerda e para a direita para mover este cartão para a coluna anterior ou seguinte.',
     'kanban_move_failed'   => 'Não foi possível mover o cartão. Tente novamente.',
 
+    'kanban_keyboard_hint_reorder' => 'Use as setas para a esquerda e para a direita para mover este cartão para a coluna anterior ou seguinte, e as setas para cima e para baixo para mudar o lugar dele na coluna.',
+    'kanban_moved_to_position'     => 'Movido para a posição :position de :total',
+
     // Event calendar
     'calendar_today'      => 'Hoje',
     'calendar_prev'       => 'Mês anterior',

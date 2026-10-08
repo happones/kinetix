@@ -292,6 +292,9 @@ return [
     'kanban_keyboard_hint' => 'Utilisez les flèches gauche et droite pour déplacer cette carte vers la colonne précédente ou suivante.',
     'kanban_move_failed'   => 'Impossible de déplacer la carte. Veuillez réessayer.',
 
+    'kanban_keyboard_hint_reorder' => 'Utilisez les flèches gauche et droite pour déplacer cette carte vers la colonne précédente ou suivante, et les flèches haut et bas pour changer sa place dans la colonne.',
+    'kanban_moved_to_position'     => 'Déplacée en position :position sur :total',
+
     // Event calendar
     'calendar_today'      => 'Aujourd’hui',
     'calendar_prev'       => 'Mois précédent',

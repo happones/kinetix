@@ -292,6 +292,9 @@ return [
     'kanban_keyboard_hint' => 'Usa las flechas izquierda y derecha para mover esta tarjeta a la columna anterior o siguiente.',
     'kanban_move_failed'   => 'No se pudo mover la tarjeta. Inténtalo de nuevo.',
 
+    'kanban_keyboard_hint_reorder' => 'Usa las flechas izquierda y derecha para mover esta tarjeta a la columna anterior o siguiente, y las flechas arriba y abajo para cambiar su lugar en la columna.',
+    'kanban_moved_to_position'     => 'Movida a la posición :position de :total',
+
     // Event calendar
     'calendar_today'      => 'Hoy',
     'calendar_prev'       => 'Mes anterior',

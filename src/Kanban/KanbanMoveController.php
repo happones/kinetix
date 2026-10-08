@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Kanban;
 
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\ManualOrder;
+use Happones\Kinetix\Support\ManualOrderRefused;
 use Happones\Kinetix\Support\SignedDescriptor;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Throwable;
 
@@ -81,21 +85,26 @@ class KanbanMoveController
             ], 403);
         }
 
-        // The board's moveScope() constraints bound the lookup — a record
-        // outside them (e.g. another tenant's) is a 404.
-        $query = $modelClass::query();
+        // The board's moveScope() constraints bound every lookup — a record
+        // outside them (e.g. another tenant's) is a 404. A fresh builder per
+        // use: find() and where() mutate the one they run on.
+        $scope = static function () use ($modelClass, $moveScope): Builder {
+            $query = $modelClass::query();
 
-        if (is_array($moveScope)) {
-            foreach ($moveScope as $column => $value) {
-                $query->where((string) $column, $value);
+            if (is_array($moveScope)) {
+                foreach ($moveScope as $column => $value) {
+                    $query->where((string) $column, $value);
+                }
             }
-        }
+
+            return $query;
+        };
 
         $recordId = $request->input('recordId');
 
         // An array id would make find() return a Collection; reject it here
         // rather than letting a type error surface as a 500.
-        $record = is_scalar($recordId) ? $query->find($recordId) : null;
+        $record = is_scalar($recordId) ? $scope()->find($recordId) : null;
 
         if ($record === null) {
             return response()->json([
@@ -110,15 +119,82 @@ class KanbanMoveController
             ? $moveAbility
             : (Gate::getPolicyFor($modelClass) !== null ? 'update' : null);
 
-        if ($ability !== null && Gate::forUser($request->user())->denies($ability, $record)) {
+        $mayWrite = static fn (Model $card): bool => $ability === null
+            || Gate::forUser($request->user())->allows($ability, $card);
+
+        if (! $mayWrite($record)) {
             return response()->json([
                 'status'  => 'error',
                 'message' => __('kinetix.table_write_forbidden'),
             ], 403);
         }
 
-        $record->{$statusColumn} = $status;
-        $record->save();
+        $orderColumn = $payload['orderColumn'] ?? null;
+        $order       = $request->input('order');
+
+        if (! is_string($orderColumn) || $orderColumn === '' || ! is_array($order)) {
+            $record->{$statusColumn} = $status;
+            $record->save();
+
+            return response()->json(['status' => 'success']);
+        }
+
+        // A reorderable board sends the destination column's cards in their
+        // new order. Reject nested arrays outright, and let a repeated id
+        // claim one position; a dragged card missing from the list lands at
+        // its end.
+        $ids = collect($order)
+            ->push($record->getKey())
+            ->filter(static fn (mixed $id): bool => is_scalar($id))
+            ->unique(static fn (mixed $id): string => (string) $id)
+            ->values()
+            ->all();
+
+        $max = (int) config('kinetix.tables.reorder_max', 1000);
+
+        if ($max > 0 && count($ids) > $max) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => __('kinetix.table_reorder_too_large'),
+            ], 422);
+        }
+
+        // The status and the order land together or not at all.
+        try {
+            DB::transaction(function () use ($record, $statusColumn, $status, $scope, $ids, $orderColumn, $mayWrite, $max): void {
+                $record->{$statusColumn} = $status;
+                $record->save();
+
+                $column = static fn (): Builder => $scope()->where($record->qualifyColumn($statusColumn), $status);
+                $cards  = $column()->whereKey($ids)->get()
+                    ->keyBy(static fn (Model $card): string => (string) $card->getKey());
+
+                $moved = [];
+
+                foreach ($ids as $id) {
+                    $card = $cards->get((string) $id);
+
+                    if ($card === null) {
+                        continue;
+                    }
+
+                    if (! $mayWrite($card)) {
+                        throw ManualOrderRefused::forbidden();
+                    }
+
+                    $moved[] = $card;
+                }
+
+                if ($moved !== []) {
+                    ManualOrder::save(ManualOrder::positions($column, $moved, $orderColumn, $mayWrite, $max), $orderColumn);
+                }
+            });
+        } catch (ManualOrderRefused $refused) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $refused->getMessage(),
+            ], $refused->getCode());
+        }
 
         return response()->json(['status' => 'success']);
     }

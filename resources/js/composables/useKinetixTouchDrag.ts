@@ -11,6 +11,12 @@ export interface KinetixTouchDragOptions<T> {
     onStart?: (payload: T) => void;
     /** Fired whenever the drop key under the finger changes (null = none). */
     onHover?: (key: string | null) => void;
+    /**
+     * Fired on every move while dragging, with the drop key and the finger's
+     * viewport position — for targets that place the item at a point within
+     * themselves (a slot in a kanban column), not just on the target.
+     */
+    onMove?: (key: string | null, x: number, y: number) => void;
     /** Fired on release with the drop key under the finger (null = cancel). */
     onDrop: (payload: T, key: string | null) => void;
     /** Container auto-scrolled horizontally while dragging near its edges. */
@@ -127,6 +133,7 @@ export function useKinetixTouchDrag<T>(
         navigator.vibrate?.(10);
         options.onStart?.(payload);
         setHoverKey(hitTest(lastX, lastY));
+        options.onMove?.(hoverKey, lastX, lastY);
         edgeScrollLoop();
     };
 
@@ -176,6 +183,7 @@ export function useKinetixTouchDrag<T>(
         }
 
         setHoverKey(hitTest(event.clientX, event.clientY));
+        options.onMove?.(hoverKey, event.clientX, event.clientY);
     };
 
     // Once the drag is active the page must not scroll under it. `touchmove`

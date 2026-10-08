@@ -18,7 +18,8 @@ use UnitEnum;
 /**
  * A drag-and-drop board: records grouped into columns by a status attribute.
  * Dragging a card to another column persists the new status (guarded by a signed
- * descriptor, like the editable table cells).
+ * descriptor, like the editable table cells); a reorderable() board also
+ * persists the card's place within its column.
  *
  *     Kanban::make(Task::query())
  *         ->statusColumn('status')
@@ -49,6 +50,8 @@ class Kanban
      * @var array<string, mixed>
      */
     protected array $moveScope = [];
+
+    protected ?string $orderColumn = null;
 
     public function __construct(protected mixed $queryOrModel) {}
 
@@ -139,6 +142,19 @@ class Kanban
         return $this;
     }
 
+    /**
+     * Let cards be dragged into an order within their column, persisted to an
+     * integer column (`sort_order` by default). Cards are shown in that order,
+     * then by key. Moves trade the positions the column's cards already hold,
+     * so cards a narrower board doesn't show keep theirs.
+     */
+    public function reorderable(string $column = 'sort_order'): static
+    {
+        $this->orderColumn = $column;
+
+        return $this;
+    }
+
     public function toData(): KanbanData
     {
         $records = $this->records();
@@ -169,6 +185,7 @@ class Kanban
             heading: $this->heading,
             columns: $columns,
             model: $this->buildMoveDescriptor(),
+            reorderable: $this->orderColumn !== null,
         );
     }
 
@@ -186,6 +203,7 @@ class Kanban
             'statuses'     => array_map(strval(...), array_keys($this->statuses)),
             'moveAbility'  => $this->moveAbility,
             'moveScope'    => $this->moveScope,
+            'orderColumn'  => $this->orderColumn,
         ]);
     }
 
@@ -217,6 +235,15 @@ class Kanban
 
         if ($this->modifyQuery !== null) {
             ($this->modifyQuery)($query);
+        }
+
+        if ($this->orderColumn !== null) {
+            // The manual order wins over any order the query ships; the key
+            // breaks ties (a fresh column of zeros).
+            $model = $query->getModel();
+            $query->reorder()
+                ->orderBy($model->qualifyColumn($this->orderColumn))
+                ->orderBy($model->getQualifiedKeyName());
         }
 
         return $query->get();

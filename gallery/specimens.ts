@@ -3710,6 +3710,9 @@ export const specimens: Specimen[] = [
             kanban: {
                 heading: null,
                 model: 'demo',
+                // Cards drop at the slot under the pointer and reorder within
+                // their column.
+                reorderable: true,
                 columns: [
                     {
                         key: 'todo',

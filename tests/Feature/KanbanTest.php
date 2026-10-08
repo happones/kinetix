@@ -11,6 +11,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 
 enum KanbanPhase: string
 {
@@ -62,6 +63,7 @@ class KanbanTest extends TestCase
             $table->increments('id');
             $table->string('title');
             $table->string('status')->default('todo');
+            $table->integer('sort_order')->default(0);
         });
 
         KanbanTask::create(['title' => 'A', 'status' => 'todo']);
@@ -222,6 +224,126 @@ class KanbanTest extends TestCase
 
         $this->assertSame('done', $task->fresh()->status);
     }
+
+    private function reorderableBoard(): Kanban
+    {
+        return $this->board()->reorderable('sort_order');
+    }
+
+    /**
+     * @param list<int> $order
+     */
+    private function move(string $title, string $status, array $order, ?Kanban $board = null): TestResponse
+    {
+        return $this->actingAs(KanbanUser::firstOrCreate(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/kanban-move', [
+                'model'    => ($board ?? $this->reorderableBoard())->toData()->model,
+                'recordId' => $this->task($title)->id,
+                'status'   => $status,
+                'order'    => $order,
+            ]);
+    }
+
+    private function task(string $title): KanbanTask
+    {
+        return KanbanTask::where('title', $title)->firstOrFail();
+    }
+
+    /**
+     * @param array<string, int> $positions title => position
+     */
+    private function position(array $positions): void
+    {
+        foreach ($positions as $title => $position) {
+            $this->task($title)->update(['sort_order' => $position]);
+        }
+    }
+
+    public function test_a_reorderable_board_shows_cards_in_their_saved_order(): void
+    {
+        $this->position(['A' => 2, 'C' => 1]);
+
+        $data = $this->reorderableBoard()->toData();
+
+        $this->assertTrue($data->reorderable);
+        $this->assertSame(['C', 'A'], array_map(fn ($card) => $card->title, $data->columns[0]->cards));
+        $this->assertFalse($this->board()->toData()->reorderable);
+    }
+
+    public function test_a_card_dropped_into_another_column_trades_positions_with_it(): void
+    {
+        $this->position(['A' => 10, 'B' => 20, 'C' => 30]);
+
+        // A lands below B in "doing".
+        $this->move('A', 'doing', [$this->task('B')->id, $this->task('A')->id])->assertOk();
+
+        $this->assertSame('doing', $this->task('A')->status);
+        $this->assertSame(10, $this->task('B')->sort_order);
+        $this->assertSame(20, $this->task('A')->sort_order);
+        $this->assertSame(30, $this->task('C')->sort_order);
+    }
+
+    public function test_a_card_reorders_within_its_own_column(): void
+    {
+        $this->position(['A' => 1, 'C' => 2]);
+
+        $this->move('C', 'todo', [$this->task('C')->id, $this->task('A')->id])->assertOk();
+
+        $this->assertSame(1, $this->task('C')->sort_order);
+        $this->assertSame(2, $this->task('A')->sort_order);
+        $this->assertSame('todo', $this->task('C')->status);
+    }
+
+    /**
+     * A fresh column of zeros has nothing to trade: the destination column is
+     * numbered in the order it was shown (zeros, then by key).
+     */
+    public function test_an_unnumbered_column_is_numbered_in_the_order_shown(): void
+    {
+        // B lands between A and C in "todo".
+        $this->move('B', 'todo', [$this->task('A')->id, $this->task('B')->id, $this->task('C')->id])->assertOk();
+
+        $this->assertSame('todo', $this->task('B')->status);
+        $this->assertSame(
+            ['A' => 1, 'B' => 2, 'C' => 3],
+            KanbanTask::orderBy('title')->pluck('sort_order', 'title')->all(),
+        );
+    }
+
+    public function test_cards_outside_the_destination_column_keep_their_positions(): void
+    {
+        $this->position(['A' => 1, 'B' => 5, 'C' => 2]);
+
+        // B is in "doing": listing it in the todo order changes nothing for it.
+        $this->move('A', 'todo', [$this->task('B')->id, $this->task('C')->id, $this->task('A')->id])->assertOk();
+
+        $this->assertSame(5, $this->task('B')->sort_order);
+        $this->assertSame('doing', $this->task('B')->status);
+        $this->assertSame(1, $this->task('C')->sort_order);
+        $this->assertSame(2, $this->task('A')->sort_order);
+    }
+
+    public function test_a_refused_order_keeps_the_card_in_its_column(): void
+    {
+        Gate::policy(KanbanTask::class, KanbanTaskLockedCPolicy::class);
+
+        // Numbering "todo" would rewrite C, which this user may not write.
+        $this->move('B', 'todo', [$this->task('B')->id, $this->task('A')->id, $this->task('C')->id])
+            ->assertForbidden();
+
+        $this->assertSame('doing', $this->task('B')->status);
+        $this->assertSame([0, 0, 0], KanbanTask::orderBy('id')->pluck('sort_order')->all());
+    }
+
+    public function test_a_plain_board_ignores_an_order(): void
+    {
+        $this->position(['A' => 1, 'C' => 2]);
+
+        $this->move('C', 'done', [$this->task('C')->id], $this->board())->assertOk();
+
+        $this->assertSame('done', $this->task('C')->status);
+        $this->assertSame(2, $this->task('C')->sort_order);
+    }
 }
 
 class KanbanTaskDenyPolicy
@@ -234,5 +356,13 @@ class KanbanTaskDenyPolicy
     public function moveCard(KanbanUser $user, KanbanTask $task): bool
     {
         return true;
+    }
+}
+
+class KanbanTaskLockedCPolicy
+{
+    public function update(KanbanUser $user, KanbanTask $task): bool
+    {
+        return $task->title !== 'C';
     }
 }

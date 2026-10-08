@@ -75,6 +75,16 @@ optimistic (revert + toast on failure) and trigger a `router.reload()` on
 success. Keyboard: left/right arrows move a focused card between columns;
 Enter fires `card-click`. i18n `kanban_*` (en/es/fr/pt/zh/ja/ru).
 
+`->reorderable('sort_order')` keeps a manual order within each column:
+- cards show in that order, then by key;
+- a drop lands at the slot under the pointer or finger, with the ghost at that slot;
+- dragging within a column reorders it, and up/down arrows move a card one place;
+- the move posts the destination column's `order`, and status + positions save
+  in one transaction (write-checked, all-or-nothing);
+- positions are traded via the shared `Support\ManualOrder` (same as table
+  reorder), so cards a narrower board hides keep theirs, and an unnumbered
+  column is numbered once within `moveScope()`.
+
 ## Adding & editing cards (CRUD wiring)
 
 The board only moves cards; CRUD is regular page wiring. Preferred: an

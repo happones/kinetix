@@ -13,13 +13,16 @@ import type {
     KinetixSharedProps,
 } from '@/types/kinetix';
 import KanbanColumn from './Kanban/KanbanColumn.vue';
+import { kanbanDropIndex, placeCard } from './Kanban/kanbanDropIndex';
 
 let kanbanUid = 0;
 
 /**
  * A drag-and-drop board. Cards are grouped into columns by status; dragging a
  * card to another column persists the new status (optimistic, reverting on
- * error). Uses native HTML5 drag-and-drop on pointer devices and a long-press
+ * error). On a reorderable board a card drops at the slot under the pointer and
+ * can be reordered within its column; the column's new order is persisted with
+ * the move. Uses native HTML5 drag-and-drop on pointer devices and a long-press
  * touch drag on mobile — no extra dependency.
  */
 const props = defineProps<{
@@ -64,12 +67,27 @@ watch(
 
 const dragging = ref<{ card: KinetixKanbanCard; from: string } | null>(null);
 
+// The slot under the pointer on a reorderable board: which column, and where
+// in it. Native drags report it from the column's dragover, touch drags from
+// the finger's position.
+const dropSlot = ref<{ key: string; index: number } | null>(null);
+
+function setDropSlot(key: string, index: number): void {
+    if (dropSlot.value?.key !== key || dropSlot.value.index !== index) {
+        dropSlot.value = { key, index };
+    }
+}
+
+const dropIndexFor = (key: string): number | null =>
+    dropSlot.value?.key === key ? dropSlot.value.index : null;
+
 function onDragStart(card: KinetixKanbanCard, from: string): void {
     dragging.value = { card, from };
 }
 
 function onDragEnd(): void {
     dragging.value = null;
+    dropSlot.value = null;
 }
 
 // --- Touch drag (long-press) -----------------------------------------------
@@ -91,11 +109,25 @@ const touchDrag = useKinetixTouchDrag<{
     onHover: (key) => {
         touchDropKey.value = key;
     },
+    onMove: (key, _x, y) => {
+        const columnEl =
+            key !== null && props.kanban.reorderable
+                ? boardEl.value?.querySelector(
+                      `[data-kanban-column="${CSS.escape(key)}"]`,
+                  )
+                : null;
+
+        if (key !== null && columnEl) {
+            setDropSlot(key, kanbanDropIndex(columnEl, y));
+        }
+    },
     onDrop: (drag, key) => {
+        const index = key !== null ? dropIndexFor(key) : null;
         dragging.value = null;
+        dropSlot.value = null;
 
         if (key !== null) {
-            moveCard(drag.card, drag.from, key);
+            moveCard(drag.card, drag.from, key, index);
         }
     },
 });
@@ -112,15 +144,21 @@ function onCardPointerDown(
 }
 
 /**
- * Move a card between columns (optimistic, reverting on error). Shared by the
- * pointer drop and the keyboard alternative; resolves to whether it stuck.
+ * Move a card (optimistic, reverting on error). Shared by the pointer drop and
+ * the keyboard alternative; resolves to whether it stuck. `index` is the slot
+ * in the destination column, counted before the card leaves its place; it
+ * only applies on a reorderable board, where it may also be the card's own
+ * column. Elsewhere the card appends to another column.
  */
 async function moveCard(
     card: KinetixKanbanCard,
     fromKey: string,
     toKey: string,
+    index: number | null = null,
 ): Promise<boolean> {
-    if (fromKey === toKey) {
+    const reorderable = !!props.kanban.reorderable;
+
+    if (fromKey === toKey && !reorderable) {
         return false;
     }
 
@@ -131,9 +169,25 @@ async function moveCard(
         return false;
     }
 
-    // Optimistic move.
-    fromCol.cards = fromCol.cards.filter((c) => c.id !== card.id);
-    toCol.cards = [...toCol.cards, card];
+    const placed = placeCard(
+        toCol.cards,
+        card,
+        reorderable ? (index ?? toCol.cards.length) : toCol.cards.length,
+    );
+
+    if (placed === null) {
+        return false;
+    }
+
+    // Optimistic move; the previous lists put it back exactly on failure.
+    const previousFrom = fromCol.cards;
+    const previousTo = toCol.cards;
+
+    if (fromCol !== toCol) {
+        fromCol.cards = fromCol.cards.filter((c) => c.id !== card.id);
+    }
+
+    toCol.cards = placed;
 
     try {
         await kinetixFetch(`/${kinetixRoutePrefix(page)}/tables/kanban-move`, {
@@ -142,6 +196,7 @@ async function moveCard(
                 model: props.kanban.model,
                 recordId: card.id,
                 status: toKey,
+                ...(reorderable ? { order: placed.map((c) => c.id) } : {}),
             },
         });
         router.reload(
@@ -150,9 +205,8 @@ async function moveCard(
 
         return true;
     } catch {
-        // Revert on failure.
-        toCol.cards = toCol.cards.filter((c) => c.id !== card.id);
-        fromCol.cards = [...fromCol.cards, card];
+        fromCol.cards = previousFrom;
+        toCol.cards = previousTo;
         toast.error(t('kinetix.kanban_move_failed'));
 
         return false;
@@ -161,13 +215,15 @@ async function moveCard(
 
 async function onDrop(toKey: string): Promise<void> {
     const drag = dragging.value;
+    const index = dropIndexFor(toKey);
     dragging.value = null;
+    dropSlot.value = null;
 
     if (!drag) {
         return;
     }
 
-    await moveCard(drag.card, drag.from, toKey);
+    await moveCard(drag.card, drag.from, toKey, index);
 }
 
 // --- Keyboard alternative to dragging ------------------------------------------
@@ -194,8 +250,45 @@ async function onCardKeyboardMove(
     }
 
     announce(t('kinetix.kanban_moved_to', { column: toCol.label }));
+    await refocusCard(card);
+}
 
-    // The card re-renders inside its new column; put focus back on it.
+/** Up/down on a reorderable board: one place earlier or later in the column. */
+async function onCardKeyboardReorder(
+    card: KinetixKanbanCard,
+    columnKey: string,
+    delta: -1 | 1,
+): Promise<void> {
+    const column = columns.find((c) => c.key === columnKey);
+    const from = column?.cards.findIndex((c) => c.id === card.id) ?? -1;
+
+    if (!column || from === -1) {
+        return;
+    }
+
+    // Slots count before the card leaves its place: one down is two ahead.
+    const moved = await moveCard(
+        card,
+        columnKey,
+        columnKey,
+        delta === 1 ? from + 2 : from - 1,
+    );
+
+    if (!moved) {
+        return;
+    }
+
+    announce(
+        t('kinetix.kanban_moved_to_position', {
+            position: column.cards.findIndex((c) => c.id === card.id) + 1,
+            total: column.cards.length,
+        }),
+    );
+    await refocusCard(card);
+}
+
+/** The card re-renders in its new place; put focus back on it. */
+async function refocusCard(card: KinetixKanbanCard): Promise<void> {
     await nextTick();
     document
         .querySelector<HTMLElement>(`[data-kanban-card="${card.id}"]`)
@@ -211,7 +304,11 @@ async function onCardKeyboardMove(
 
         <!-- Screen-reader instructions every card points at (aria-describedby). -->
         <p :id="hintId" class="sr-only">
-            {{ t('kinetix.kanban_keyboard_hint') }}
+            {{
+                kanban.reorderable
+                    ? t('kinetix.kanban_keyboard_hint_reorder')
+                    : t('kinetix.kanban_keyboard_hint')
+            }}
         </p>
 
         <!-- `relative`: absolutely positioned descendants (a card's sr-only
@@ -226,6 +323,9 @@ async function onCardKeyboardMove(
                 :dragging-card="dragging?.card ?? null"
                 :dragging-from-key="dragging?.from ?? null"
                 :touch-drop-target="touchDropKey === column.key"
+                :reorderable="!!kanban.reorderable"
+                :drop-index="dropIndexFor(column.key)"
+                @drop-index="(index) => setDropSlot(column.key, index)"
                 @card-dragstart="(card) => onDragStart(card, column.key)"
                 @card-dragend="onDragEnd"
                 @card-click="(card) => emit('card-click', card, column.key)"
@@ -235,6 +335,10 @@ async function onCardKeyboardMove(
                 @card-move="
                     (card, direction) =>
                         onCardKeyboardMove(card, column.key, direction)
+                "
+                @card-reorder="
+                    (card, delta) =>
+                        onCardKeyboardReorder(card, column.key, delta)
                 "
                 @drop="onDrop(column.key)"
             />

@@ -228,3 +228,199 @@ describe('KinetixKanban card clicks and drag feedback', () => {
         expect(card.classes()).not.toContain('opacity-40');
     });
 });
+
+describe('KinetixKanban reorderable boards', () => {
+    const board = () => ({
+        heading: null,
+        model: 'signed-descriptor',
+        reorderable: true,
+        columns: [
+            {
+                key: 'todo',
+                label: 'To Do',
+                color: null,
+                cards: [
+                    { id: 1, title: 'Card A', description: null },
+                    { id: 2, title: 'Card C', description: null },
+                ],
+            },
+            {
+                key: 'doing',
+                label: 'In Progress',
+                color: null,
+                cards: [
+                    { id: 3, title: 'Card X', description: null },
+                    { id: 4, title: 'Card Y', description: null },
+                ],
+            },
+        ],
+    });
+
+    const mountBoard = (data = board()) =>
+        mount(KinetixKanban, {
+            props: { kanban: data },
+            global: { plugins: [i18n] },
+            attachTo: document.body,
+        });
+
+    // happy-dom lays nothing out: give each card an 80px box, 100px apart.
+    const layOut = (w: ReturnType<typeof mountBoard>): void => {
+        for (const column of w.findAll('[data-kanban-column]')) {
+            column.findAll('article').forEach((card, i) => {
+                card.element.getBoundingClientRect = () =>
+                    ({ top: i * 100, height: 80 }) as DOMRect;
+            });
+        }
+    };
+
+    const lastMove = () =>
+        fetchMock.mock.calls
+            .filter((c) => String(c[0]).endsWith('/tables/kanban-move'))
+            .at(-1);
+
+    const titles = (w: ReturnType<typeof mountBoard>, key: string) =>
+        w
+            .get(`[data-kanban-column="${key}"]`)
+            .findAll('article')
+            .map((a) => a.find('p').text());
+
+    it('drops a card at the slot under the pointer and sends the column order', async () => {
+        fetchMock.mockClear();
+        const w = mountBoard();
+        layOut(w);
+
+        await w.findAll('article')[0].trigger('dragstart'); // Card A
+        const doing = w.get('[data-kanban-column="doing"]');
+        await doing.trigger('dragenter');
+        await doing.trigger('dragover', { clientY: 90 }); // between X and Y
+
+        // The ghost previews the slot: after X, before Y.
+        const slots = doing
+            .findAll('article, .kx-drop-ghost')
+            .map((el) =>
+                el.classes().includes('kx-drop-ghost')
+                    ? 'ghost'
+                    : el.find('p').text(),
+            );
+        expect(slots).toEqual(['Card X', 'ghost', 'Card Y']);
+
+        await doing.trigger('drop');
+        await Promise.resolve();
+
+        expect(lastMove()![1].body).toMatchObject({
+            recordId: 1,
+            status: 'doing',
+            order: [3, 1, 4],
+        });
+        expect(titles(w, 'doing')).toEqual(['Card X', 'Card A', 'Card Y']);
+        w.unmount();
+    });
+
+    it('reorders a card within its own column', async () => {
+        fetchMock.mockClear();
+        const w = mountBoard();
+        layOut(w);
+
+        await w.findAll('article')[0].trigger('dragstart'); // Card A
+        const todo = w.get('[data-kanban-column="todo"]');
+        await todo.trigger('dragenter');
+        await todo.trigger('dragover', { clientY: 170 }); // below Card C
+
+        await todo.trigger('drop');
+        await Promise.resolve();
+
+        expect(lastMove()![1].body).toMatchObject({
+            recordId: 1,
+            status: 'todo',
+            order: [2, 1],
+        });
+        expect(titles(w, 'todo')).toEqual(['Card C', 'Card A']);
+        w.unmount();
+    });
+
+    it('a drop that leaves the card where it is sends nothing and shows no ghost', async () => {
+        fetchMock.mockClear();
+        const w = mountBoard();
+        layOut(w);
+
+        await w.findAll('article')[0].trigger('dragstart'); // Card A
+        const todo = w.get('[data-kanban-column="todo"]');
+        await todo.trigger('dragenter');
+        await todo.trigger('dragover', { clientY: 10 }); // its own slot
+
+        expect(todo.find('.kx-drop-ghost').exists()).toBe(false);
+
+        await todo.trigger('drop');
+        await Promise.resolve();
+
+        expect(lastMove()).toBeUndefined();
+        w.unmount();
+    });
+
+    it('moves a card with the up and down arrow keys', async () => {
+        fetchMock.mockClear();
+        const w = mountBoard();
+
+        await w.findAll('article')[0].trigger('keydown', { key: 'ArrowDown' });
+        await Promise.resolve();
+
+        expect(lastMove()![1].body).toMatchObject({
+            recordId: 1,
+            status: 'todo',
+            order: [2, 1],
+        });
+        expect(titles(w, 'todo')).toEqual(['Card C', 'Card A']);
+
+        // Already last: a no-op.
+        fetchMock.mockClear();
+        await w
+            .get('[data-kanban-card="1"]')
+            .trigger('keydown', { key: 'ArrowDown' });
+        await Promise.resolve();
+        expect(lastMove()).toBeUndefined();
+        w.unmount();
+    });
+
+    it('puts both columns back exactly when the move is refused', async () => {
+        fetchMock.mockClear();
+        fetchMock.mockRejectedValueOnce(new Error('nope'));
+        const w = mountBoard();
+        layOut(w);
+
+        await w.findAll('article')[0].trigger('dragstart'); // Card A
+        const doing = w.get('[data-kanban-column="doing"]');
+        await doing.trigger('dragenter');
+        await doing.trigger('dragover', { clientY: 10 }); // above X
+        await doing.trigger('drop');
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(titles(w, 'todo')).toEqual(['Card A', 'Card C']);
+        expect(titles(w, 'doing')).toEqual(['Card X', 'Card Y']);
+        w.unmount();
+    });
+
+    it('a plain board appends, sends no order and ignores the up and down keys', async () => {
+        fetchMock.mockClear();
+        const w = mountBoard({ ...board(), reorderable: false });
+        layOut(w);
+
+        await w.findAll('article')[0].trigger('dragstart'); // Card A
+        const doing = w.get('[data-kanban-column="doing"]');
+        await doing.trigger('dragenter');
+        await doing.trigger('dragover', { clientY: 10 });
+        await doing.trigger('drop');
+        await Promise.resolve();
+
+        expect(lastMove()![1].body.order).toBeUndefined();
+        expect(titles(w, 'doing')).toEqual(['Card X', 'Card Y', 'Card A']);
+
+        fetchMock.mockClear();
+        await w
+            .get('[data-kanban-card="2"]')
+            .trigger('keydown', { key: 'ArrowUp' });
+        await Promise.resolve();
+        expect(lastMove()).toBeUndefined();
+        w.unmount();
+    });
+});

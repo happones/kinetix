@@ -18,5 +18,7 @@ class KanbanData extends Data
         public array $columns,
         /** Encrypted descriptor {model, statusColumn, statuses} for the move endpoint. */
         public string $model,
+        /** Whether cards can be ordered within their column (Kanban::reorderable()). */
+        public bool $reorderable = false,
     ) {}
 }

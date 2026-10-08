@@ -271,6 +271,8 @@ return [
     'kanban_card'                       => '可拖动卡片',
     'kanban_keyboard_hint'              => '使用左右方向键将此卡片移动到上一列或下一列。',
     'kanban_move_failed'                => '无法移动卡片。请重试。',
+    'kanban_keyboard_hint_reorder'      => '使用左右方向键将此卡片移动到上一列或下一列，使用上下方向键调整它在列中的位置。',
+    'kanban_moved_to_position'          => '已移动到第 :position 位，共 :total 位',
     'calendar_today'                    => '今天',
     'calendar_prev'                     => '上个月',
     'calendar_next'                     => '下个月',

@@ -43,6 +43,37 @@ return Inertia::render('Tasks/Board', ['board' => $board->toData()]);
 - **`cardTitle`** / **`cardDescription`** — an attribute name or a closure.
 - **`query`** — modify the base query (filters, eager loads).
 - **`moveScope`** / **`authorizeMove`** — guard who can move which records (see below).
+- **`reorderable`** — let cards be ordered within their column (see below).
+
+### Ordering cards within a column
+
+By default a card dropped on another column lands at its end, and the order
+inside a column is whatever the query returns. Call `reorderable()` to keep a
+manual order in an integer column (`sort_order` by default):
+
+```php
+Kanban::make(Task::query())
+    ->statuses([...])
+    ->reorderable(); // or ->reorderable('position')
+```
+
+- Cards are shown in that order, then by key. It wins over any order the
+  board's query ships.
+- A card drops at the slot under the pointer, with a dashed ghost previewing
+  exactly where it will land. Dragging within its own column reorders it.
+  Touch drags pick the slot under the finger.
+- The **up/down arrow keys** move a focused card one place earlier or later in
+  its column. The new place is announced ("Moved to position 2 of 5").
+- The move sends the destination column's new order. The status and the order
+  are saved in one transaction, through the model so observers fire, and with
+  the same write check (`authorizeMove`, or the policy's `update`) for every
+  card whose position changes. A refused order also leaves the card's status
+  untouched.
+- The cards **trade the positions they already hold**, so cards the board
+  doesn't show (another project's, behind `->query()`) keep theirs. A column
+  with no positions yet (all `0`, `null`s, repeats) is numbered `1..n` once in
+  the order it was shown, within the board's `moveScope()`. Set `moveScope()`
+  to the board's boundary so that numbering never reaches past it.
 
 ### Enum status columns
 
@@ -250,8 +281,9 @@ The board is fully keyboard-operable — no pointer required:
 
 - Every card is focusable (`Tab`); **left/right arrow keys move the focused
   card to the previous/next column**, and <kbd>Enter</kbd> activates it
-  (`card-click`). The move is announced through the shared live region and
-  focus follows the card into its new column.
+  (`card-click`). On a `reorderable()` board, **up/down arrow keys move it
+  within its column**. Each move is announced through the shared live region
+  and focus follows the card to its new place.
 - Cards expose `aria-roledescription` ("draggable card") and point their
   `aria-describedby` at a screen-reader-only instructions element, so
   assistive-tech users learn the arrow-key affordance on focus.

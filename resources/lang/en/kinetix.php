@@ -292,6 +292,9 @@ return [
     'kanban_keyboard_hint' => 'Use the left and right arrow keys to move this card to the previous or next column.',
     'kanban_move_failed'   => 'Could not move the card. Please try again.',
 
+    'kanban_keyboard_hint_reorder' => 'Use the left and right arrow keys to move this card to the previous or next column, and the up and down arrow keys to change its place in the column.',
+    'kanban_moved_to_position'     => 'Moved to position :position of :total',
+
     // Event calendar
     'calendar_today'      => 'Today',
     'calendar_prev'       => 'Previous month',

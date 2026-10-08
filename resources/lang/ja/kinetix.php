@@ -271,6 +271,8 @@ return [
     'kanban_card'                       => 'ドラッグ可能なカード',
     'kanban_keyboard_hint'              => '左右の矢印キーでこのカードを前後の列に移動できます。',
     'kanban_move_failed'                => 'カードを移動できませんでした。もう一度お試しください。',
+    'kanban_keyboard_hint_reorder'      => '左右の矢印キーでこのカードを前後の列に移動し、上下の矢印キーで列内の位置を変更できます。',
+    'kanban_moved_to_position'          => ':total 件中 :position 番目に移動しました',
     'calendar_today'                    => '今日',
     'calendar_prev'                     => '前月',
     'calendar_next'                     => '翌月',
