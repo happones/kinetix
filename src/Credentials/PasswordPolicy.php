@@ -164,6 +164,19 @@ class PasswordPolicy
     }
 
     /**
+     * Issue a temporary password and return it as a {@see TemporaryCredential}
+     * — the plaintext plus its expiry and the means to deliver it (copy, mail,
+     * or a custom channel). The reusable, model-agnostic entry point; works on
+     * any authenticatable model, inside Membership or standalone.
+     */
+    public function issueTemporaryCredential(Model $user, ?string $plain = null): TemporaryCredential
+    {
+        $plain = $this->issueTemporary($user, $plain);
+
+        return new TemporaryCredential($plain, $this->temporaryExpiresAt($user));
+    }
+
+    /**
      * When an unused temporary credential stops being valid, or null when the
      * user has no pending forced change (or no TTL is configured).
      */

@@ -533,6 +533,12 @@ return [
             // KinetixPasswords::temporaryHasExpired($user).
             'temporary_ttl_hours' => env('KINETIX_PASSWORD_TEMPORARY_TTL', 48),
 
+            // The notification a TemporaryCredential sends (mail by default).
+            // Point this at a subclass of TemporaryPasswordNotification to add
+            // an SMS/other channel — see docs/credentials.md. Null = the
+            // built-in mail notification.
+            'notification' => null,
+
             // Days before expiry that the UI starts warning (0 = never warn).
             'warn_before_days' => env('KINETIX_PASSWORD_WARN_DAYS', 7),
 

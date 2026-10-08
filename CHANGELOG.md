@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.206.0] - 2026-10-08
+
+### Added
+
+- **Reusable temporary credentials with delivery (published).**
+  `KinetixPasswords::issueTemporaryCredential($user)` returns a
+  `TemporaryCredential` — the plaintext, its **expiry window**, and the means to
+  **deliver** it — so the temporary-password flow is no longer locked inside
+  Membership:
+
+  ```php
+  $cred = KinetixPasswords::issueTemporaryCredential($user);
+  $cred->value;                     // show/copy ONCE
+  $cred->expiresAt;                 // when an unused one stops working
+  $cred->send($user);               // notify the model (mail by default)
+  $cred->sendMail('ops@acme.dev');  // or an off-model address
+  $cred->sendVia('vonage', $phone); // or any registered channel
+  ```
+
+  The plaintext is **redacted** in logs/traces/`dd()`. Delivery is a
+  translatable `TemporaryPasswordNotification` (mail) — point
+  `credentials.passwords.notification` at a subclass to add SMS/other channels,
+  the same pattern as Membership's activation notification. Everything is
+  **model-agnostic**: works on a `Client`, `Customer` or any authenticatable
+  model with the two password columns, not only `User`. The existing
+  `issueTemporary()` (returns a string) is unchanged.
+
 ## [0.205.0] - 2026-10-08
 
 ### Added

@@ -74,6 +74,21 @@ class KinetixPasswords
         return static::policy()->issueTemporary($user, $plain);
     }
 
+    /**
+     * Issue a temporary password as a {@see TemporaryCredential} — plaintext +
+     * expiry + delivery (copy / mail / custom channel). Reusable on any
+     * authenticatable model, no Membership flow needed:
+     *
+     *     $cred = KinetixPasswords::issueTemporaryCredential($client);
+     *     $cred->send($client);          // notify the model
+     *     $cred->sendMail('ops@a.co');   // or an off-model address
+     *     return $cred->value;           // or hand/copy it ONCE
+     */
+    public static function issueTemporaryCredential(Model $user, ?string $plain = null): TemporaryCredential
+    {
+        return static::policy()->issueTemporaryCredential($user, $plain);
+    }
+
     public static function temporaryExpiresAt(mixed $user): ?Carbon
     {
         return static::policy()->temporaryExpiresAt($user);

@@ -179,6 +179,48 @@ them to the change screen on their first request — and that screen does **not*
 ask for the current password, because an admin chose it and repeating it back
 proves nothing.
 
+### Delivering it — the `TemporaryCredential`
+
+`issueTemporary()` returns the bare string. When you want the credential as a
+first-class object — its **validity window** and the **means to deliver it** —
+use `issueTemporaryCredential()`:
+
+```php
+$cred = KinetixPasswords::issueTemporaryCredential($user);
+
+$cred->value;        // the plaintext — show/copy it ONCE
+$cred->expiresAt;    // Carbon|null — when an unused one stops working
+$cred->toArray();    // { value, expiresAt } — e.g. to return as an Inertia prop
+
+$cred->send($user);              // notify the model (mail by default)
+$cred->sendMail('ops@acme.dev'); // or an off-model address
+$cred->sendVia('vonage', $phone); // or any channel you've registered
+```
+
+The value is **redacted** in logs, stack traces and `dd()`, so it can't leak by
+accident — only `->value` exposes it. The default delivery is a translatable
+mail; point `credentials.passwords.notification` at a subclass of
+`TemporaryPasswordNotification` to add SMS/other channels (same pattern as
+Membership's activation notification):
+
+```php
+// config/kinetix.php → credentials.passwords.notification
+class SmsTemporaryPassword extends TemporaryPasswordNotification
+{
+    public function via(object $notifiable): array { return ['vonage']; }
+    public function toVonage(object $notifiable): VonageMessage
+    {
+        return (new VonageMessage)->content($this->smsContent());
+    }
+}
+```
+
+> **Any authenticatable model.** All of this is model-agnostic — set
+> `credentials.user_model` (or just pass the model) and it works on a `Client`,
+> `Customer` or any model with the two password columns, not only `User`.
+> Add the columns to that model's table (the published migration targets
+> `users`; copy it for another table).
+
 ### Expiring an unused temporary credential
 
 Kinetix does not own your login, so it cannot refuse a stale one for you.
