@@ -1,0 +1,17 @@
+/*
+ * Styles for LIVE component demos in the docs (<Demo>). Tailwind scans the
+ * Kinetix component source so their utility classes exist, and the shadcn/
+ * Kinetix design tokens are imported so a mounted component looks exactly as it
+ * does in an app. Scoped to `.kinetix-demo` so it never restyles VitePress.
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Generate the utilities the Kinetix components use. */
+@source "../../../resources/js";
+
+/* shadcn/Kinetix design tokens (light + dark). */
+@import "../../../resources/css/kinetix.css";
+
+/* VitePress toggles `.dark` on <html>, which the token file already keys off. */
+@custom-variant dark (&:is(.dark *));

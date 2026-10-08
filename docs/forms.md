@@ -1060,6 +1060,10 @@ usernames, or any custom charset. Generation is client-side and crypto-strong
 (uniform, no modulo bias), so nothing round-trips the server. Three presets
 bundle the same underlying knobs (kind + length + charset):
 
+<Demo title="Try it — password generator">
+  <KinetixGenerator :config="{ kind: 'password', length: 16, copyable: true, revealable: false }" copyable />
+</Demo>
+
 ```php
 use Happones\Kinetix\Forms\Components\GeneratorInput;
 

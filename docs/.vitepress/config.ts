@@ -1,5 +1,10 @@
 import { defineConfig } from "vitepress";
+import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
 import { withMermaid } from "vitepress-plugin-mermaid";
+
+// Resolve paths relative to this config file (docs/.vitepress/).
+const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 // Project pages are served from https://happones.github.io/kinetix/.
 // If you use a custom domain (CNAME) or a different repo name, change `base`.
@@ -12,6 +17,28 @@ export default withMermaid(
     lang: "en-US",
     cleanUrls: true,
     lastUpdated: true,
+    // Live component demos: Kinetix components import from `@`, Inertia, the
+    // Kinetix HTTP composable and Echo. Alias the last three to the gallery's
+    // stubs so a component mounts in the docs with no backend, and load the
+    // shadcn design tokens via Tailwind so it looks exactly as it does in-app.
+    vite: {
+      plugins: [tailwindcss()],
+      // vue-i18n reads these Vue feature flags at install time; VitePress's
+      // Node SSR render doesn't define them, so set them explicitly.
+      define: {
+        __VUE_PROD_DEVTOOLS__: false,
+        __VUE_OPTIONS_API__: true,
+        __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+      },
+      resolve: {
+        alias: [
+          { find: "@/composables/useKinetixHttp", replacement: r("../../gallery/stubs/http.ts") },
+          { find: "@inertiajs/vue3", replacement: r("../../gallery/stubs/inertia.ts") },
+          { find: "@laravel/echo-vue", replacement: r("../../gallery/stubs/echo.ts") },
+          { find: "@", replacement: r("../../resources/js") },
+        ],
+      },
+    },
     head: [
       ["link", { rel: "icon", href: "/kinetix/icon.png" }],
       ["meta", { name: "theme-color", content: "#2bb89a" }],
