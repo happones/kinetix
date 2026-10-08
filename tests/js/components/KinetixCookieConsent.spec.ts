@@ -29,12 +29,15 @@ const i18n = createI18n({
     },
 });
 
+// An expiry in the past, not `max-age=0`: happy-dom stamps max-age=0 as
+// "expires now" and only drops cookies that expired strictly before now, so a
+// read in the same millisecond still saw an empty-valued cookie.
 function clearCookies(): void {
     document.cookie.split(';').forEach((c) => {
         const name = c.split('=')[0]?.trim();
 
         if (name) {
-            document.cookie = `${name}=;path=/;max-age=0`;
+            document.cookie = `${name}=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT`;
         }
     });
 }
