@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.206.1] - 2026-10-08
+
+### Fixed
+
+- **`FilterFormField` broke the host build when components are published to a
+  subdirectory (published).** The composite-filter field (added with
+  `FormFilter` in 0.201.0) imported `KinetixFormSchema` through the
+  `@/components/` alias instead of a relative path like every other component.
+  When an app publishes Kinetix components under a subdirectory (e.g.
+  `@/components/kinetix/`), that alias resolved to a non-existent path and the
+  Vite/Rolldown build failed. Now a relative import (`../../KinetixFormSchema.vue`),
+  immune to where the host publishes the files. A new `intraPackageImports`
+  test scans every component and fails if any sibling is imported via
+  `@/components/` again. Thanks to the reporter.
+
 ## [0.206.0] - 2026-10-08
 
 ### Added

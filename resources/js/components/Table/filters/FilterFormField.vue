@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import KinetixFormSchema from '@/components/KinetixFormSchema.vue';
 import type { KinetixTableFilter } from '@/types/kinetix';
+import KinetixFormSchema from '../../KinetixFormSchema.vue';
 
 /**
  * Renders a FormFilter's multi-field schema with the shared KinetixFormSchema,
