@@ -36,6 +36,57 @@ use Illuminate\Validation\Rule;
 class IdentityResolver
 {
     /**
+     * Per-profile overrides for {@see for()}. Empty = read the top-level
+     * `credentials.*` config, which IS the implicit `default` profile — so the
+     * container singleton (constructed with no args) behaves exactly as before.
+     *
+     * @param array{user_model?: string, fields?: array<int, string>, phone_country?: string, username_pattern?: string} $config
+     */
+    public function __construct(private array $config = []) {}
+
+    /**
+     * A resolver scoped to a named credential PROFILE — a second authenticatable
+     * (a `Client`, a `Customer`) with its own model and identity rules, living
+     * alongside the default `User`:
+     *
+     *     // config/kinetix.php
+     *     'credentials' => [
+     *         'user_model' => App\Models\User::class,   // the default profile
+     *         'identity'   => ['fields' => ['email']],
+     *         'profiles'   => [
+     *             'client' => [
+     *                 'user_model' => App\Models\Client::class,
+     *                 'identity'   => ['fields' => ['email', 'phone'], 'phone_country' => 'MX'],
+     *             ],
+     *         ],
+     *     ];
+     *
+     *     KinetixIdentity::for('client')->attempt($login, $password);
+     *
+     * A null/unknown profile is the default (top-level config), so existing
+     * single-model apps need nothing.
+     */
+    public static function for(?string $profile): self
+    {
+        if ($profile === null || $profile === '' || $profile === 'default') {
+            return new self;
+        }
+
+        /** @var array<string, mixed> $raw */
+        $raw = (array) config("kinetix.credentials.profiles.{$profile}", []);
+
+        /** @var array<string, mixed> $identity */
+        $identity = (array) ($raw['identity'] ?? []);
+
+        return new self(array_filter([
+            'user_model'       => $raw['user_model']            ?? null,
+            'fields'           => $identity['fields']           ?? null,
+            'phone_country'    => $identity['phone_country']    ?? null,
+            'username_pattern' => $identity['username_pattern'] ?? null,
+        ], static fn ($v): bool => $v !== null));
+    }
+
+    /**
      * The columns a login may be matched against, in priority order.
      *
      * @return array<int, string>
@@ -43,7 +94,8 @@ class IdentityResolver
     public function fields(): array
     {
         /** @var array<int, string> $fields */
-        $fields = (array) config('kinetix.credentials.identity.fields', ['email']);
+        $fields = $this->config['fields']
+            ?? (array) config('kinetix.credentials.identity.fields', ['email']);
 
         $allowed = array_values(array_intersect(['email', 'username', 'phone'], $fields));
 
@@ -116,7 +168,7 @@ class IdentityResolver
             return '+'.$digits;
         }
 
-        $country = (string) config('kinetix.credentials.identity.phone_country', '');
+        $country = $this->phoneCountry();
         $dial    = $country === '' ? null : DialCodes::for($country);
 
         // With no default country there is nothing to prepend — keep the digits
@@ -156,7 +208,7 @@ class IdentityResolver
         }
 
         $digits  = preg_replace('/\D+/', '', $raw) ?? '';
-        $country = (string) config('kinetix.credentials.identity.phone_country', '');
+        $country = $this->phoneCountry();
         $dial    = $country === '' ? null : DialCodes::for($country);
 
         if ($dial === null || ! str_starts_with($digits, $dial)) {
@@ -235,10 +287,17 @@ class IdentityResolver
      */
     public function usernamePattern(): string
     {
-        return (string) config(
+        return (string) ($this->config['username_pattern'] ?? config(
             'kinetix.credentials.identity.username_pattern',
             '/^[a-zA-Z0-9._-]{3,32}$/',
-        );
+        ));
+    }
+
+    /** The default country for a phone typed without a country code. */
+    protected function phoneCountry(): string
+    {
+        return (string) ($this->config['phone_country']
+            ?? config('kinetix.credentials.identity.phone_country', ''));
     }
 
     // -----------------------------------------------------------------
@@ -382,7 +441,8 @@ class IdentityResolver
     public function userModel(): ?string
     {
         /** @var class-string<Model>|null $model */
-        $model = config('kinetix.credentials.user_model')
+        $model = ($this->config['user_model'] ?? null)
+            ?: config('kinetix.credentials.user_model')
             ?: config('kinetix.membership.user_model', 'App\\Models\\User');
 
         return is_string($model) && class_exists($model) ? $model : null;

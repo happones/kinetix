@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.207.0] - 2026-10-08
+
+### Added
+
+- **Credential profiles — more than one authenticatable (published).**
+  Credentials no longer assumes a single `User`. Declare extra **profiles** for
+  other authenticatables (a `Client` portal, a `Customer` login), each with its
+  own model and identity fields; the top-level config stays the implicit
+  `default`:
+
+  ```php
+  'credentials' => [
+      'user_model' => App\Models\User::class,
+      'profiles'   => [
+          'client' => [
+              'user_model' => App\Models\Client::class,
+              'identity'   => ['fields' => ['email', 'phone'], 'phone_country' => 'MX'],
+          ],
+      ],
+  ];
+  ```
+
+  `KinetixIdentity::attempt($login, $pw, 'client')` (and `resolve()`,
+  `rules()`, `for()`) scope to a profile — each resolves against its own model
+  and fields, so the same email on two tables finds the right record for each.
+  A new `Blueprint` macro `kinetixPasswordColumns()` adds the password-lifecycle
+  columns to any table, so a non-`User` model gets expiry/forced-change/temporary
+  support with no bespoke migration. Single-model apps are unchanged — omit
+  `profiles` and everything behaves as before.
+
+  Together with 0.206.0's reusable `TemporaryCredential`, the credential module
+  is now fully model- and guard-agnostic.
+
 ## [0.206.1] - 2026-10-08
 
 ### Fixed

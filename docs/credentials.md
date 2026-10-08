@@ -415,6 +415,51 @@ public function hasVerifiedEmail(): bool
 }
 ```
 
+### 5.4 More than one authenticatable — credential profiles
+
+Some apps log in **two** kinds of account: your staff `User` and, say, a
+customer-facing `Client` portal — different models, different tables, maybe
+different identity fields. Declare each extra one as a **profile**; the
+top-level config stays the implicit `default`:
+
+```php
+// config/kinetix.php
+'credentials' => [
+    'user_model' => App\Models\User::class,          // default profile
+    'identity'   => ['fields' => ['email']],
+    'profiles'   => [
+        'client' => [
+            'user_model' => App\Models\Client::class,
+            'identity'   => ['fields' => ['email', 'phone'], 'phone_country' => 'MX'],
+        ],
+    ],
+];
+```
+
+Point each guard's Fortify (or login action) at the matching profile:
+
+```php
+// the client guard's authenticateUsing
+KinetixIdentity::attempt($login, $password, 'client');
+
+// anywhere you resolve or validate for that profile
+KinetixIdentity::resolve($login, 'client');
+KinetixIdentity::rules($ignore, 'client');
+KinetixIdentity::for('client')->fields();   // the scoped resolver
+```
+
+Each profile resolves against **its own** model and identity fields — the same
+email on both tables finds the right record for each. The password lifecycle
+(expiry, history, forced change, [temporary credentials](#delivering-it-the-temporarycredential))
+is model-agnostic and works on every profile's model; give that model the two
+columns with the Blueprint macro:
+
+```php
+Schema::table('clients', fn (Blueprint $t) => $t->kinetixPasswordColumns());
+```
+
+Single-model apps need none of this — omit `profiles` and nothing changes.
+
 ## 6. Frontend
 
 The policy travels on the `kinetix_credentials` Inertia prop, so a banner can

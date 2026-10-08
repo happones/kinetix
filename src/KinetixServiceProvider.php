@@ -158,6 +158,7 @@ use Happones\Kinetix\Wizards\Middleware\EnsureWizardCompleted;
 use Happones\Kinetix\Wizards\WizardController;
 use Happones\Kinetix\Wizards\WizardManager;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
@@ -366,6 +367,25 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register package translation namespace
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'kinetix');
+
+        // Blueprint macro: add the password-lifecycle columns to ANY table, so
+        // a non-User authenticatable (a `clients`/`customers` table backing a
+        // credential profile) gets the same `password_changed_at` +
+        // `must_change_password` the policy reads — no bespoke migration.
+        //
+        //     Schema::table('clients', fn (Blueprint $t) => $t->kinetixPasswordColumns());
+        if (! Blueprint::hasMacro('kinetixPasswordColumns')) {
+            Blueprint::macro('kinetixPasswordColumns', function (): void {
+                /** @var Blueprint $this */
+                $this->timestamp('password_changed_at')->nullable();
+                $this->boolean('must_change_password')->default(false);
+            });
+
+            Blueprint::macro('dropKinetixPasswordColumns', function (): void {
+                /** @var Blueprint $this */
+                $this->dropColumn(['password_changed_at', 'must_change_password']);
+            });
+        }
 
         // Weekly business-hours structure (the BusinessHours field seeds it;
         // usable on any host validator too). String-registered so it survives

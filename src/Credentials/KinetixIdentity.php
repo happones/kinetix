@@ -29,6 +29,22 @@ class KinetixIdentity
     }
 
     /**
+     * A resolver scoped to a named credential PROFILE (a second authenticatable
+     * like `Client`/`Customer` with its own model + identity rules). Null/default
+     * returns the container's default resolver — exactly today's behaviour.
+     *
+     *     KinetixIdentity::for('client')->attempt($login, $password);
+     */
+    public static function for(?string $profile = null): IdentityResolver
+    {
+        if ($profile === null || $profile === '' || $profile === 'default') {
+            return static::resolver();
+        }
+
+        return IdentityResolver::for($profile);
+    }
+
+    /**
      * The columns a login may be matched against (default `['email']`).
      *
      * @return array<int, string>
@@ -65,23 +81,26 @@ class KinetixIdentity
      *
      * @return array<int, string>
      */
-    public static function classify(?string $login): array
+    public static function classify(?string $login, ?string $profile = null): array
     {
-        return static::resolver()->classify($login);
+        return static::for($profile)->classify($login);
     }
 
-    public static function resolve(?string $login): ?Model
+    public static function resolve(?string $login, ?string $profile = null): ?Model
     {
-        return static::resolver()->resolve($login);
+        return static::for($profile)->resolve($login);
     }
 
     /**
      * Resolve a login and verify the password. Null for every failure — one
      * outcome, so the form is not a directory anyone can enumerate.
+     *
+     * Pass `$profile` to authenticate against a non-default model (a `Client`,
+     * a `Customer`): `KinetixIdentity::attempt($login, $pw, 'client')`.
      */
-    public static function attempt(?string $login, ?string $password): ?Model
+    public static function attempt(?string $login, ?string $password, ?string $profile = null): ?Model
     {
-        return static::resolver()->attempt($login, $password);
+        return static::for($profile)->attempt($login, $password);
     }
 
     /**
@@ -90,8 +109,8 @@ class KinetixIdentity
      * @param  Model|int|string|null            $ignore the record being updated
      * @return array<string, array<int, mixed>>
      */
-    public static function rules(mixed $ignore = null): array
+    public static function rules(mixed $ignore = null, ?string $profile = null): array
     {
-        return static::resolver()->rules($ignore);
+        return static::for($profile)->rules($ignore);
     }
 }

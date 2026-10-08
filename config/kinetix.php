@@ -499,6 +499,20 @@ return [
         // `membership.user_model`, then App\Models\User.
         'user_model' => env('KINETIX_CREDENTIALS_USER_MODEL'),
 
+        // Additional credential PROFILES — a second authenticatable alongside
+        // the default User (a Client portal, a Customer login), each with its
+        // own model and identity rules. Resolve one with
+        // KinetixIdentity::for('client')->attempt(...). The top-level config
+        // above is the implicit `default` profile.
+        //
+        //   'profiles' => [
+        //       'client' => [
+        //           'user_model' => App\Models\Client::class,
+        //           'identity'   => ['fields' => ['email', 'phone'], 'phone_country' => 'MX'],
+        //       ],
+        //   ],
+        'profiles' => [],
+
         // What a person may sign in with. ['email'] is exactly today's
         // behavior; add 'username' / 'phone' for staff who have no email
         // address. Publish the columns with `--tag=kinetix-identity-migrations`
