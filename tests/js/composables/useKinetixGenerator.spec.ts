@@ -4,6 +4,8 @@ import {
     normalizeHandle,
     GENERATOR_PRESETS,
 } from '@/composables/useKinetixGenerator';
+import type { KinetixGeneratorConfig } from '@/composables/useKinetixGenerator';
+import contract from '../fixtures/generator-configs.json';
 
 describe('useKinetixGenerator', () => {
     it('generates a password of the requested length from the enabled classes', () => {
@@ -146,5 +148,102 @@ describe('useKinetixGenerator — presets & strategies', () => {
 
     it('GENERATOR_PRESETS is a non-empty catalog', () => {
         expect(Object.keys(GENERATOR_PRESETS).length).toBeGreaterThan(10);
+    });
+});
+
+/**
+ * The PHP field and this engine share one contract: tests/js/fixtures/
+ * generator-configs.json holds what GeneratorInput::toData() really emits
+ * (GeneratorInputTest asserts that side). Generating from those exact
+ * payloads catches a mismatch neither side's own tests can see — hand-built
+ * configs here hid that every PHP preset generated 16 digits.
+ */
+describe('useKinetixGenerator — contract with GeneratorInput (PHP)', () => {
+    const SAMPLES = 200;
+    const sample = (name: string, values: Record<string, unknown> = {}) => {
+        const { generate } = useKinetixGenerator(
+            () => contract[name] as KinetixGeneratorConfig,
+        );
+
+        return Array.from({ length: SAMPLES }, () => generate(values));
+    };
+    const union = (values: string[]) => values.join('');
+
+    const expectations: Record<string, (values: string[]) => void> = {
+        'legacy-default': (v) => {
+            v.forEach((s) => expect(s).toHaveLength(16));
+            expect(union(v)).toMatch(/[a-z]/);
+            expect(union(v)).toMatch(/[A-Z]/);
+            expect(union(v)).toMatch(/[^A-Za-z0-9]/);
+        },
+        'legacy-password-24-no-symbols': (v) => {
+            v.forEach((s) => expect(s).toMatch(/^[A-Za-z0-9]{24}$/));
+            expect(union(v)).toMatch(/[a-z]/);
+        },
+        'legacy-pin-alphanum': (v) => {
+            v.forEach((s) => expect(s).toMatch(/^[A-Za-z0-9]{4}$/));
+            expect(union(v)).toMatch(/[A-Za-z]/);
+        },
+        'legacy-pin-numeric': (v) =>
+            v.forEach((s) => expect(s).toMatch(/^\d{6}$/)),
+        'legacy-username-pattern': (v) =>
+            v.forEach((s) => expect(s).toBe('ada.lovelace')),
+        'legacy-username-random': (v) =>
+            v.forEach((s) => expect(s).toMatch(/^[a-z0-9]{10}$/)),
+        'preset-uuid': (v) =>
+            v.forEach((s) =>
+                expect(s).toMatch(
+                    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+                ),
+            ),
+        'preset-api-key': (v) =>
+            v.forEach((s) => expect(s).toMatch(/^sk_[A-Za-z0-9]{40}$/)),
+        'preset-license-key': (v) =>
+            v.forEach((s) =>
+                expect(s).toMatch(/^[A-Za-z0-9]{4}(-[A-Za-z0-9]{4}){3}$/),
+            ),
+        'preset-password-simple': (v) =>
+            v.forEach((s) => {
+                expect(s).toMatch(/^[A-Za-z0-9]{14}$/);
+                expect(s).not.toMatch(/[O0oIl1]/);
+            }),
+        'preset-password-strong-24': (v) => {
+            v.forEach((s) => expect(s).toHaveLength(24));
+            expect(union(v)).toMatch(/[^A-Za-z0-9]/);
+        },
+        'preset-passphrase': (v) =>
+            v.forEach((s) => expect(s).toMatch(/^[a-z]+( [a-z]+){3}$/)),
+        'custom-alphabet': (v) =>
+            v.forEach((s) => expect(s).toMatch(/^[ABC123]{8}$/)),
+        'custom-mask': (v) =>
+            v.forEach((s) => expect(s).toMatch(/^INV-\d{4}-[A-Z]{2}$/)),
+        words: (v) =>
+            v.forEach((s) => expect(s).toMatch(/^[a-z]+_[a-z]+_\d{3}$/)),
+    };
+
+    it('has an expectation for every fixture entry', () => {
+        expect(Object.keys(expectations).sort()).toEqual(
+            Object.keys(contract).sort(),
+        );
+    });
+
+    it.each(Object.keys(expectations))(
+        'generates the right shape from the PHP payload: %s',
+        (name) => {
+            expectations[name](
+                sample(name, { first: 'Ada', last: 'Lovelace' }),
+            );
+        },
+    );
+
+    it('never lets a null knob override the preset', () => {
+        const { generate } = useKinetixGenerator(() => ({
+            preset: 'uuid',
+            strategy: null as never,
+            alphabet: null,
+            mask: null,
+        }));
+
+        expect(generate()).toMatch(/^[0-9a-f]{8}-/);
     });
 });

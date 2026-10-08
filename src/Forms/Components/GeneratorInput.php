@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Forms\Components;
 
 use Happones\Kinetix\Data\FormFieldData;
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 
 /**
  * A text input with a one-click VALUE GENERATOR beside it — passwords, PINs,
@@ -93,6 +94,15 @@ class GeneratorInput extends Field
     /** Prefix glued before the value (e.g. `sk_` for an API key). */
     protected ?string $valuePrefix = null;
 
+    /**
+     * Knobs set explicitly, by config key. With a preset or strategy only
+     * these are sent, so a property default (length 16, symbols on, …) never
+     * overrides what the preset defines.
+     *
+     * @var array<string, true>
+     */
+    protected array $explicitKnobs = [];
+
     protected function getType(): string
     {
         return 'generator-input';
@@ -122,6 +132,14 @@ class GeneratorInput extends Field
      */
     public function preset(string $name): static
     {
+        if (! in_array($name, self::PRESETS, true)) {
+            throw new InvalidArgumentException(sprintf(
+                'Unknown generator preset [%s]. Available presets: %s.',
+                $name,
+                implode(', ', self::PRESETS),
+            ));
+        }
+
         $this->preset = $name;
 
         return $this;
@@ -140,14 +158,14 @@ class GeneratorInput extends Field
             $this->strategy = 'mask';
             $this->mask     = $mask;
 
-            return $this;
+            return $this->explicit('mask');
         }
 
         $this->strategy = 'charset';
         $this->alphabet = $alphabet;
         $this->length   = max(1, $length);
 
-        return $this;
+        return $this->explicit('alphabet', 'length');
     }
 
     /**
@@ -159,7 +177,7 @@ class GeneratorInput extends Field
         $this->strategy = 'mask';
         $this->mask     = $mask;
 
-        return $this;
+        return $this->explicit('mask');
     }
 
     /**
@@ -170,7 +188,7 @@ class GeneratorInput extends Field
         $this->strategy = 'charset';
         $this->alphabet = $alphabet;
 
-        return $this;
+        return $this->explicit('alphabet');
     }
 
     /**
@@ -185,7 +203,7 @@ class GeneratorInput extends Field
         $this->wordSeparator = $separator;
         $this->appendDigits  = max(0, $appendDigits);
 
-        return $this;
+        return $this->explicit('words', 'wordSeparator', 'appendDigits');
     }
 
     /**
@@ -209,7 +227,7 @@ class GeneratorInput extends Field
         $this->length     = max(1, $length);
         $this->revealable = true;
 
-        return $this;
+        return $this->explicit('length');
     }
 
     /**
@@ -221,7 +239,7 @@ class GeneratorInput extends Field
         $this->length  = max(1, $length);
         $this->pinMode = in_array($mode, ['alpha', 'alphanum', 'numeric'], true) ? $mode : 'numeric';
 
-        return $this;
+        return $this->explicit('length');
     }
 
     /**
@@ -233,7 +251,7 @@ class GeneratorInput extends Field
         $this->kind   = 'username';
         $this->length = max(1, $length);
 
-        return $this;
+        return $this->explicit('length');
     }
 
     /**
@@ -245,49 +263,49 @@ class GeneratorInput extends Field
     {
         $this->pattern = $pattern;
 
-        return $this;
+        return $this->explicit('pattern');
     }
 
     public function separator(string $separator): static
     {
         $this->separator = $separator;
 
-        return $this;
+        return $this->explicit('separator');
     }
 
     public function length(int $length): static
     {
         $this->length = max(1, $length);
 
-        return $this;
+        return $this->explicit('length');
     }
 
     public function lowercase(bool $condition = true): static
     {
         $this->lowercase = $condition;
 
-        return $this;
+        return $this->explicit('lowercase');
     }
 
     public function uppercase(bool $condition = true): static
     {
         $this->uppercase = $condition;
 
-        return $this;
+        return $this->explicit('uppercase');
     }
 
     public function digits(bool $condition = true): static
     {
         $this->digits = $condition;
 
-        return $this;
+        return $this->explicit('digits');
     }
 
     public function symbols(bool $condition = true): static
     {
         $this->symbols = $condition;
 
-        return $this;
+        return $this->explicit('symbols');
     }
 
     /**
@@ -298,14 +316,14 @@ class GeneratorInput extends Field
         $this->symbolSet = $symbols;
         $this->symbols   = true;
 
-        return $this;
+        return $this->explicit('symbolSet', 'symbols');
     }
 
     public function excludeAmbiguous(bool $condition = true): static
     {
         $this->excludeAmbiguous = $condition;
 
-        return $this;
+        return $this->explicit('excludeAmbiguous');
     }
 
     public function copyable(bool $condition = true): static
@@ -325,6 +343,18 @@ class GeneratorInput extends Field
         return $this;
     }
 
+    /**
+     * Record config keys as explicitly set, so they override a preset.
+     */
+    protected function explicit(string ...$keys): static
+    {
+        foreach ($keys as $key) {
+            $this->explicitKnobs[$key] = true;
+        }
+
+        return $this;
+    }
+
     public function toData(string $operation, ?Model $record = null): ?FormFieldData
     {
         $data = parent::toData($operation, $record);
@@ -333,10 +363,7 @@ class GeneratorInput extends Field
             return null;
         }
 
-        $data->generatorConfig = [
-            'kind'             => $this->kind,
-            'preset'           => $this->preset,
-            'strategy'         => $this->strategy,
+        $knobs = [
             'length'           => $this->length,
             'lowercase'        => $this->lowercase,
             'uppercase'        => $this->uppercase,
@@ -345,17 +372,28 @@ class GeneratorInput extends Field
             'symbolSet'        => $this->symbolSet,
             'alphabet'         => $this->alphabet,
             'excludeAmbiguous' => $this->excludeAmbiguous,
-            'pinMode'          => $this->pinMode,
             'mask'             => $this->mask,
             'words'            => $this->words,
             'wordSeparator'    => $this->wordSeparator,
             'appendDigits'     => $this->appendDigits,
             'pattern'          => $this->pattern,
             'separator'        => $this->separator,
-            'prefix'           => $this->valuePrefix,
-            'copyable'         => $this->copyable,
-            'revealable'       => $this->revealable,
         ];
+
+        // A preset or strategy carries its own defaults: send only what was
+        // set on top of it. Without one, the legacy kind reads the full set,
+        // exactly as before presets existed.
+        $config = $this->preset !== null || $this->strategy !== null
+            ? ['preset' => $this->preset, 'strategy' => $this->strategy] + array_intersect_key($knobs, $this->explicitKnobs)
+            : ['kind' => $this->kind, 'pinMode' => $this->pinMode]       + $knobs;
+
+        $config += [
+            'prefix'     => $this->valuePrefix,
+            'copyable'   => $this->copyable,
+            'revealable' => $this->revealable,
+        ];
+
+        $data->generatorConfig = array_filter($config, static fn (mixed $value): bool => $value !== null);
 
         return $data;
     }

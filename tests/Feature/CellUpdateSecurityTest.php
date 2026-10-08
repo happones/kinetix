@@ -192,4 +192,34 @@ class CellUpdateSecurityTest extends TestCase
         $response->assertStatus(422);
         $this->assertSame(5, $widget->fresh()->qty);
     }
+
+    /**
+     * A column has no per-record pass: a record-independent visible()/hidden()
+     * closure used to be deferred forever, so the column shipped and — when
+     * editable — accepted writes from users the closure was meant to exclude.
+     */
+    public function test_a_column_hidden_by_a_closure_is_not_writable(): void
+    {
+        $widget = SecWidget::create(['name' => 'A']);
+
+        $token = Table::make(SecWidget::query())
+            ->columns([
+                TextColumn::make('name'),
+                SelectColumn::make('role')
+                    ->options(['viewer' => 'Viewer', 'admin' => 'Admin'])
+                    ->visible(fn (): bool => false),
+            ])
+            ->toData()
+            ->model;
+
+        $response = $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $token,
+            'recordId' => $widget->id,
+            'column'   => 'role',
+            'value'    => 'admin',
+        ]);
+
+        $response->assertForbidden();
+        $this->assertSame('viewer', $widget->fresh()->role);
+    }
 }

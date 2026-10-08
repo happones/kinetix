@@ -200,4 +200,27 @@ class FieldCanPermissionTest extends TestCase
         $this->assertSame(['name'], array_column($data['columns'], 'name'));
         $this->assertArrayNotHasKey('salary', $data['records'][0]['values']);
     }
+
+    /**
+     * A column has no per-record pass to defer a closure to, so it runs with
+     * no record: `fn ()` and an untyped `fn ($record)` decide now, and one
+     * typed for a record the column never has fails closed.
+     */
+    public function test_a_column_visibility_closure_runs_without_a_record(): void
+    {
+        $this->actingAsViewer();
+
+        $data = Table::make(CanFieldEmployee::query())
+            ->columns([
+                TextColumn::make('name'),
+                TextColumn::make('salary')->visible(fn (): bool => false),
+                TextColumn::make('bonus')->hidden(fn ($record): bool => true),
+                TextColumn::make('typed')->visible(fn (CanFieldEmployee $record): bool => true),
+                TextColumn::make('email')->visible(fn ($record): bool => $record === null),
+            ])
+            ->toArray();
+
+        $this->assertSame(['name', 'email'], array_column($data['columns'], 'name'));
+        $this->assertArrayNotHasKey('salary', $data['records'][0]['values']);
+    }
 }

@@ -1239,6 +1239,10 @@ export async function kinetixFetch<T = unknown>(
     return (hit ? (hit.data as T) : null) ?? null;
 }
 
+export function isKinetixAbort(error: unknown): boolean {
+    return error instanceof DOMException && error.name === 'AbortError';
+}
+
 export function kinetixRoutePrefix(): string {
     return '_kinetix';
 }

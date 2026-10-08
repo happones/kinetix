@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
@@ -8,6 +8,13 @@ vi.mock('@inertiajs/vue3', () => ({
     }),
     router: { get: vi.fn(), visit: vi.fn(), reload: vi.fn() },
     usePoll: () => ({ start: vi.fn(), stop: vi.fn() }),
+}));
+
+const fetchMock = vi.fn();
+
+vi.mock('@/composables/useKinetixHttp', async (importOriginal) => ({
+    ...(await importOriginal<Record<string, unknown>>()),
+    kinetixFetch: (...args: unknown[]) => fetchMock(...args),
 }));
 
 import KinetixTable from '@/components/KinetixTable.vue';
@@ -83,6 +90,56 @@ describe('KinetixTable summary footer', () => {
         expect(foot.text()).toContain('Avg: 200');
         // The leading summary-less column shows the Total label.
         expect(foot.text()).toContain('Total');
+    });
+
+    // A search, filter or page change replaces the table prop in place
+    // (preserveState). The footer must follow it — v0.203.0 seeded it once
+    // and kept showing the first page's totals.
+    it('follows the table prop when a reload brings new totals', async () => {
+        const wrapper = mountTable(table);
+
+        await wrapper.setProps({
+            table: {
+                ...table,
+                summaries: { price: [{ label: 'Sum', value: '75' }] },
+            },
+        });
+
+        expect(wrapper.find('tfoot').text()).toContain('Sum: 75');
+        expect(wrapper.find('tfoot').text()).not.toContain('Sum: 600');
+    });
+
+    it('refetches deferred aggregates on every reload', async () => {
+        fetchMock.mockReset();
+        fetchMock
+            .mockResolvedValueOnce({
+                stats: [],
+                summaries: { price: [{ label: 'Sum', value: '600' }] },
+                hasSummaries: true,
+            })
+            .mockResolvedValueOnce({
+                stats: [],
+                summaries: { price: [{ label: 'Sum', value: '75' }] },
+                hasSummaries: true,
+            });
+        const deferred = {
+            ...table,
+            summaries: {},
+            hasSummaries: false,
+            deferStats: true,
+            aggregatesDescriptor: 'signed',
+        };
+
+        const wrapper = mountTable(deferred);
+        await flushPromises();
+        expect(wrapper.find('tfoot').text()).toContain('Sum: 600');
+
+        // A filter change: the server ships a fresh (still empty) table.
+        await wrapper.setProps({ table: { ...deferred } });
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(wrapper.find('tfoot').text()).toContain('Sum: 75');
     });
 
     it('renders no tfoot when the table has no summaries', () => {

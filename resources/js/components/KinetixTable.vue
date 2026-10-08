@@ -4,6 +4,7 @@ import { ChevronRight, GripVertical } from '@lucide/vue';
 import {
     computed,
     defineAsyncComponent,
+    onBeforeUnmount,
     onMounted,
     ref,
     useId,
@@ -363,9 +364,10 @@ const parsePollInterval = (poll: string | null | undefined): number => {
 const pollInterval = parsePollInterval(props.table.poll);
 const poll = usePoll(pollInterval || 60000, {}, { autoStart: false });
 
-// Deferred aggregates (Table::deferStats()): stats/summaries arrive empty with
-// a signed descriptor; fetch them after first paint. When not deferred the refs
-// seed from the inline values and nothing is fetched.
+// Aggregates (stats + summaries). Inline ones are read live from the prop;
+// deferred ones (Table::deferStats()) arrive empty with a signed descriptor and
+// are fetched after first paint — and again on every reload, so the totals
+// always describe the rows on screen.
 const aggregates = useKinetixTableAggregates({
     descriptor: () =>
         props.table.deferStats ? props.table.aggregatesDescriptor : null,
@@ -391,6 +393,20 @@ onMounted(() => {
         void aggregates.load();
     }
 });
+
+// Every search, filter, sort, page change or poll swaps the table prop (with
+// preserveState the component stays mounted): refetch deferred aggregates for
+// the new window. load() aborts the previous request.
+watch(
+    () => props.table,
+    () => {
+        if (props.table.deferStats) {
+            void aggregates.load();
+        }
+    },
+);
+
+onBeforeUnmount(() => aggregates.cancel());
 
 // --- Row reordering ----------------------------------------------------------
 const {
@@ -451,7 +467,11 @@ const totalColumnSpan = computed(
         <!-- KPI cards (Table::stats()), above the table in both variants. -->
         <!-- Deferred: show a skeleton row until the aggregates land. -->
         <div
-            v-if="table.deferStats && aggregates.loading.value"
+            v-if="
+                table.deferStats &&
+                aggregates.loading.value &&
+                !aggregates.loaded.value
+            "
             class="mb-4 gap-4 sm:grid-cols-2 lg:grid-cols-4 grid grid-cols-1"
             aria-hidden="true"
         >

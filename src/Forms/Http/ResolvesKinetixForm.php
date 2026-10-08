@@ -41,7 +41,13 @@ trait ResolvesKinetixForm
      */
     public function rules(): array
     {
-        return array_merge($this->kinetixForm()->getValidationRules(), $this->additionalRules());
+        // Conditional rules read the submitted values, exactly like
+        // dehydratedState() does. Evaluated against nothing, a visibleWhen()
+        // field lost its rules here while dehydratedState() still persisted it.
+        return array_merge(
+            $this->kinetixForm()->getValidationRulesForInput($this->all()),
+            $this->additionalRules(),
+        );
     }
 
     /**

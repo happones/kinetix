@@ -7,6 +7,8 @@ namespace Happones\Kinetix\Tests\Unit;
 use Happones\Kinetix\Forms\Components\GeneratorInput;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Tests\TestCase;
+use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * GeneratorInput serializes a `generatorConfig` the frontend generator reads;
@@ -123,5 +125,99 @@ class GeneratorInputTest extends TestCase
         $this->assertContains('uuid', GeneratorInput::PRESETS);
         $this->assertContains('license-key', GeneratorInput::PRESETS);
         $this->assertContains('password-strong', GeneratorInput::PRESETS);
+    }
+
+    public function test_preset_catalog_constant_matches_the_frontend_catalog(): void
+    {
+        $source = (string) file_get_contents(__DIR__.'/../../resources/js/composables/useKinetixGenerator.ts');
+        preg_match('/GENERATOR_PRESETS[^=]*=\s*\{(.*?)\n\};/s', $source, $catalog);
+        preg_match_all("/^    '?([a-z0-9-]+)'?: \\{/m", $catalog[1] ?? '', $keys);
+
+        $this->assertEqualsCanonicalizing($keys[1], GeneratorInput::PRESETS);
+    }
+
+    public function test_an_unknown_preset_is_rejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown generator preset [pasword-strong]');
+
+        GeneratorInput::make('password')->preset('pasword-strong');
+    }
+
+    public function test_a_preset_config_omits_the_defaults_it_would_override(): void
+    {
+        $cfg = $this->configOf(GeneratorInput::make('token')->preset('api-key'));
+
+        // A default length 16 / pinMode numeric here overrode the preset and
+        // made every preset generate 16 digits.
+        $this->assertArrayNotHasKey('length', $cfg);
+        $this->assertArrayNotHasKey('pinMode', $cfg);
+        $this->assertArrayNotHasKey('strategy', $cfg);
+        $this->assertArrayNotHasKey('symbols', $cfg);
+    }
+
+    /**
+     * The generator config is a contract between this class and the frontend
+     * engine. Both sides check the same fixture: here the serialized output
+     * must equal it, and `useKinetixGenerator.spec.ts` generates from each
+     * entry and asserts the value's shape. Change one side, update the fixture,
+     * and the other side's test tells you whether they still agree.
+     *
+     * @return array<string, callable(): GeneratorInput>
+     */
+    private static function contractBuilders(): array
+    {
+        return [
+            'legacy-default'                => fn () => GeneratorInput::make('x'),
+            'legacy-password-24-no-symbols' => fn () => GeneratorInput::make('x')->password(24)->symbols(false),
+            'legacy-pin-alphanum'           => fn () => GeneratorInput::make('x')->pin(4, 'alphanum'),
+            'legacy-pin-numeric'            => fn () => GeneratorInput::make('x')->pin(6),
+            'legacy-username-pattern'       => fn () => GeneratorInput::make('x')->username()->pattern('{first}.{last}'),
+            'legacy-username-random'        => fn () => GeneratorInput::make('x')->username(10),
+            'preset-uuid'                   => fn () => GeneratorInput::make('x')->preset('uuid'),
+            'preset-api-key'                => fn () => GeneratorInput::make('x')->preset('api-key'),
+            'preset-license-key'            => fn () => GeneratorInput::make('x')->preset('license-key'),
+            'preset-password-simple'        => fn () => GeneratorInput::make('x')->preset('password-simple'),
+            'preset-password-strong-24'     => fn () => GeneratorInput::make('x')->preset('password-strong')->length(24),
+            'preset-passphrase'             => fn () => GeneratorInput::make('x')->preset('passphrase'),
+            'custom-alphabet'               => fn () => GeneratorInput::make('x')->custom(alphabet: 'ABC123', length: 8),
+            'custom-mask'                   => fn () => GeneratorInput::make('x')->custom(mask: 'INV-####-AA'),
+            'words'                         => fn () => GeneratorInput::make('x')->words(2, '_', 3),
+        ];
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: callable(): GeneratorInput}>
+     */
+    public static function contractCases(): iterable
+    {
+        foreach (self::contractBuilders() as $name => $build) {
+            yield $name => [$name, $build];
+        }
+    }
+
+    /**
+     * @param callable(): GeneratorInput $build
+     */
+    #[DataProvider('contractCases')]
+    public function test_serialized_config_matches_the_shared_contract_fixture(string $name, callable $build): void
+    {
+        $fixture = json_decode((string) file_get_contents(__DIR__.'/../js/fixtures/generator-configs.json'), true);
+
+        $this->assertArrayHasKey($name, $fixture);
+
+        $expected = $fixture[$name];
+        $actual   = $this->configOf($build());
+        ksort($expected);
+        ksort($actual);
+
+        $this->assertSame($expected, $actual);
+    }
+
+    public function test_every_contract_fixture_entry_has_a_php_case(): void
+    {
+        $fixture = json_decode((string) file_get_contents(__DIR__.'/../js/fixtures/generator-configs.json'), true);
+
+        $this->assertEqualsCanonicalizing(array_keys($fixture), array_keys(self::contractBuilders()));
     }
 }

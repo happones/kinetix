@@ -17,7 +17,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Throwable;
 
 /**
@@ -31,13 +30,16 @@ use Throwable;
  * 3. Allowlist — only an action NAMED in the descriptor's sealed name→class map
  *    may run, and only the class the table registered for it. The client can't
  *    name an arbitrary class.
- * 4. Scoping — when a recordId is sent it is resolved THROUGH the table's own
- *    constraints (resource query / captured where-scope / parent relation), so
- *    a record outside the table the user was looking at is refused. A toolbar
- *    FormAction sends no recordId and runs record-less.
- * 5. Authorization — a resolved record is authorized against the host's policy
- *    (the explicit `writeAbility()`, or `update` when the model has a policy)
- *    before the handler sees it.
+ * 4. Scoping — a RECORD action must send a recordId, resolved THROUGH the
+ *    table's own constraints (resource query / captured where-scope / parent
+ *    relation), so a record outside the table the user was looking at is
+ *    refused; it also has to be a row the action rendered on. A TOOLBAR action
+ *    sends none and runs record-less. The two are sealed apart, so neither can
+ *    be invoked as the other.
+ * 5. Authorization — against the action's own `authorize('ability')` when it
+ *    has one (per record, or against the model class for a toolbar run), else
+ *    the table's `writeAbility()`, or `update` when the model has a policy
+ *    ({@see SealedAction}).
  * 6. Validation — the SAME form class is rebuilt server-side and the submitted
  *    values are validated and dehydrated against its rules. The client never
  *    supplies rules and can't skip them; a failed validation redirects back so
@@ -56,37 +58,41 @@ class FormActionController
 
         $name = (string) $request->input('action');
 
-        // Only an action named in the sealed map may run — and only via the
-        // class the table registered for it.
-        $class = $descriptor['forms'][$name] ?? null;
+        // A record action names its row, a toolbar action names none. Anything
+        // else (an array, an object) is malformed — never a reason to fall back
+        // to running the action record-less.
+        $recordId = $request->input('recordId');
 
         abort_unless(
-            is_string($class) && is_subclass_of($class, FormAction::class),
-            403,
-            (string) __('kinetix.form_action_not_allowed'),
+            $recordId === null || is_string($recordId) || is_int($recordId),
+            400,
+            (string) __('kinetix.table_record_not_found'),
         );
 
-        // Resolve the record (if any) through the table's scope: a record action
-        // sends its id, a toolbar action sends none. An id outside the scope
-        // simply doesn't come back, so it is refused rather than silently acted
-        // on.
-        $recordId = $request->input('recordId');
-        $record   = null;
+        // Only an action named in the sealed map FOR THIS CONTEXT may run, and
+        // only via the class the table registered for it.
+        $sealed = $descriptor['forms'][$recordId === null ? 'toolbar' : 'record'][$name] ?? null;
 
-        if ($recordId !== null && (is_string($recordId) || is_int($recordId))) {
+        abort_if($sealed === null, 403, (string) __('kinetix.form_action_not_allowed'));
+
+        // Resolve the record through the table's scope. An id outside it simply
+        // doesn't come back, so it is refused rather than silently acted on.
+        $record = null;
+
+        if ($recordId !== null) {
             $record = $this->baseQuery($descriptor)->whereKey($recordId)->first();
 
             abort_if($record === null, 404, (string) __('kinetix.table_record_not_found'));
-
-            abort_unless(
-                $this->authorize($descriptor, $record),
-                403,
-                (string) __('kinetix.table_write_forbidden'),
-            );
         }
 
+        abort_unless(
+            $sealed->authorizes($record, $descriptor['model'], $descriptor['ability']),
+            403,
+            (string) __('kinetix.table_write_forbidden'),
+        );
+
         /** @var FormAction $action */
-        $action = $class::make($name);
+        $action = $sealed->class::make($name);
 
         // Rebuild the SAME form the table serialised, so validation runs against
         // the declared rules — not anything the client sent. validate() throws a
@@ -113,7 +119,7 @@ class FormActionController
      * (not a JSON body) so a bad token short-circuits with the right status,
      * matching the Inertia-redirect shape of this endpoint.
      *
-     * @return array{model: class-string<Model>, forms: array<string, class-string<FormAction>>, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}
+     * @return array{model: class-string<Model>, forms: array{record: array<string, SealedAction>, toolbar: array<string, SealedAction>}, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}
      */
     protected function descriptor(Request $request): array
     {
@@ -154,13 +160,21 @@ class FormActionController
         $ability  = $payload['ability']  ?? null;
         $relation = $payload['relation'] ?? null;
 
-        // Keep only string name → FormAction-subclass pairs.
-        $normalizedForms = [];
+        // Keep only well-formed name → sealed FormAction entries, per context.
+        $normalizedForms = ['record' => [], 'toolbar' => []];
 
-        if (is_array($forms)) {
-            foreach ($forms as $actionName => $actionClass) {
-                if (is_string($actionName) && is_string($actionClass) && is_subclass_of($actionClass, FormAction::class)) {
-                    $normalizedForms[$actionName] = $actionClass;
+        foreach (array_keys($normalizedForms) as $context) {
+            $entries = is_array($forms) ? ($forms[$context] ?? []) : [];
+
+            if (! is_array($entries)) {
+                continue;
+            }
+
+            foreach ($entries as $actionName => $entry) {
+                $sealedAction = SealedAction::fromPayload($entry, FormAction::class);
+
+                if (is_string($actionName) && $sealedAction !== null) {
+                    $normalizedForms[$context][$actionName] = $sealedAction;
                 }
             }
         }
@@ -242,24 +256,5 @@ class FormActionController
         abort_unless($relationObject->getRelated()::class === $modelClass, 400, 'Relation model mismatch.');
 
         return $relationObject->getQuery()->select($relationObject->getRelated()->qualifyColumn('*'));
-    }
-
-    /**
-     * Authorize the resolved record through the host's policy — the explicit
-     * ability from writeAbility(), or `update` whenever the model has a policy
-     * at all.
-     *
-     * @param array{model: class-string<Model>, ability: string|null} $descriptor
-     */
-    protected function authorize(array $descriptor, Model $record): bool
-    {
-        $ability = $descriptor['ability']
-            ?? (Gate::getPolicyFor($descriptor['model']) !== null ? 'update' : null);
-
-        if ($ability === null) {
-            return true;
-        }
-
-        return Gate::forUser(request()->user())->allows($ability, $record);
     }
 }

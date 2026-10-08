@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Actions\ActionGroup;
 use Happones\Kinetix\Actions\FormAction;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
@@ -14,6 +15,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 
 class FormActionUser extends Authenticatable
 {
@@ -234,5 +236,119 @@ class FormActionSecurityTest extends TestCase
 
         $response->assertStatus(400);
         $this->assertSame('Old', FormWidgetRecord::find(1)->name);
+    }
+
+    private function runForm(string $descriptor, array $payload = []): TestResponse
+    {
+        return $this->from('/x')->post(route('kinetix.tables.form-action'), [
+            'descriptor' => $descriptor,
+            'action'     => 'rename-widget',
+            'data'       => ['name' => 'Hacked'],
+            ...$payload,
+        ]);
+    }
+
+    public function test_a_record_action_denied_by_its_own_ability_cannot_be_invoked(): void
+    {
+        FormWidgetRecord::create(['name' => 'Mine']);
+        FormWidgetRecord::create(['name' => 'Theirs']);
+        Gate::define('rename-widget', fn ($user, FormWidgetRecord $record): bool => $record->name === 'Mine');
+        $this->actingAs(FormActionUser::create(['name' => 'Bob']));
+
+        // Row 2 hides the action; before 0.207.1 a crafted POST with the
+        // table-wide descriptor still ran it there.
+        $descriptor = $this->descriptorFor(
+            Table::make(FormWidgetRecord::query())
+                ->recordActions([RenameWidget::make()->authorize('rename-widget')]),
+        );
+
+        $this->runForm($descriptor, ['recordId' => 2])->assertForbidden();
+        $this->assertSame('Theirs', FormWidgetRecord::find(2)->name);
+
+        $this->runForm($descriptor, ['recordId' => 1])->assertRedirect('/x');
+        $this->assertSame('Hacked', FormWidgetRecord::find(1)->name);
+    }
+
+    public function test_a_record_action_only_runs_on_rows_it_rendered_for(): void
+    {
+        FormWidgetRecord::create(['name' => 'Editable']);
+        FormWidgetRecord::create(['name' => 'Locked']);
+
+        $descriptor = $this->descriptorFor(
+            Table::make(FormWidgetRecord::query())
+                ->recordActions([
+                    RenameWidget::make()->visible(fn (FormWidgetRecord $record): bool => $record->name !== 'Locked'),
+                ]),
+        );
+
+        $this->runForm($descriptor, ['recordId' => 2])->assertForbidden();
+        $this->assertSame('Locked', FormWidgetRecord::find(2)->name);
+
+        $this->runForm($descriptor, ['recordId' => 1])->assertRedirect('/x');
+        $this->assertSame('Hacked', FormWidgetRecord::find(1)->name);
+    }
+
+    public function test_a_record_action_inside_a_denied_group_cannot_be_invoked(): void
+    {
+        FormWidgetRecord::create(['name' => 'Old']);
+
+        $data = Table::make(FormWidgetRecord::query())
+            ->recordActions([ActionGroup::make([RenameWidget::make()])->authorize(false)])
+            ->toData();
+
+        $this->assertNull($data->formActionDescriptor);
+    }
+
+    public function test_a_record_action_cannot_be_invoked_without_its_record(): void
+    {
+        FormWidgetRecord::create(['name' => 'Old']);
+        Gate::define('rename-widget-ability', fn ($user, $record): bool => false);
+        $this->actingAs(FormActionUser::create(['name' => 'Bob']));
+
+        $descriptor = $this->descriptorFor(
+            Table::make(FormWidgetRecord::query())
+                ->writeAbility('rename-widget-ability')
+                ->recordActions([RenameWidget::make()]),
+        );
+
+        // No recordId used to run handle($data, null) with no policy check.
+        $this->runForm($descriptor)->assertForbidden();
+        // A malformed id is not a reason to run it record-less either.
+        $this->runForm($descriptor, ['recordId' => [1]])->assertStatus(400);
+    }
+
+    public function test_a_toolbar_action_cannot_be_invoked_with_a_record(): void
+    {
+        FormWidgetRecord::create(['name' => 'Old']);
+
+        $descriptor = $this->descriptorFor(
+            Table::make(FormWidgetRecord::query())
+                ->toolbarActions([RenameWidget::make()]),
+        );
+
+        $this->runForm($descriptor, ['recordId' => 1])->assertForbidden();
+        $this->assertSame('Old', FormWidgetRecord::find(1)->name);
+    }
+
+    public function test_a_toolbar_actions_own_ability_is_checked_against_the_model(): void
+    {
+        $this->actingAs(FormActionUser::create(['name' => 'Bob']));
+        Gate::define('rename-widgets', fn ($user, string $model): bool => $model === FormWidgetRecord::class && $user->name === 'Ann');
+
+        $descriptor = $this->descriptorFor(
+            Table::make(FormWidgetRecord::query())
+                ->toolbarActions([RenameWidget::make()->authorize('rename-widgets')]),
+        );
+
+        $this->runForm($descriptor)->assertForbidden();
+    }
+
+    public function test_a_toolbar_actions_visibility_closure_runs_without_a_record(): void
+    {
+        $data = Table::make(FormWidgetRecord::query())
+            ->toolbarActions([RenameWidget::make()->visible(fn ($record): bool => false)])
+            ->toData();
+
+        $this->assertNull($data->formActionDescriptor);
     }
 }

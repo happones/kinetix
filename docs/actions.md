@@ -626,20 +626,32 @@ dropdown in `recordActions`/`toolbarActions` — the table seals it just the sam
 record-modal endpoints — the client never names a class, a record or a
 validation rule:
 
-1. **Allowlist** — the table seals a signed `name → class` map of its visible
-   `FormAction`s (`TableData::formActionDescriptor`). The browser only sends that
-   descriptor, the action name, the optional `recordId` and the form values.
-2. **Scoping** — when a `recordId` is sent it is resolved **through the table's
-   own query/scope**; a record outside the table the user was looking at is
-   refused (404). A toolbar action sends no id and runs record-less.
-3. **Authorization** — a resolved record is authorized against the host's policy
-   (the explicit `writeAbility()`, or `update` when the model has a policy).
+1. **Allowlist** — the table seals a signed map of the `FormAction`s this user
+   can see (`TableData::formActionDescriptor`), record and toolbar actions
+   apart, so neither can be invoked as the other. The browser only sends that
+   descriptor, the action name, the `recordId` (record actions only) and the
+   form values.
+2. **Scoping** — a record action must send a `recordId`. It is resolved
+   **through the table's own query/scope**, so a record outside the table the
+   user was looking at is refused (404), and it has to be one of the rows the
+   action rendered on: whatever hid it there (`authorize()`, a `visible()`
+   closure, its group) blocks a hand-made request too. A toolbar action sends no
+   id and runs record-less.
+3. **Authorization** — `->authorize('ability')` is checked again on the server:
+   against the record, or against the model class for a toolbar action
+   (`Gate::allows('import', Post::class)`). Without one, a record is checked
+   against the table's `writeAbility()`, or `update` when the model has a
+   policy.
 4. **Validation** — the **same** form class is rebuilt server-side and the
    submitted values are validated and dehydrated against its rules. A failure
    redirects back so the errors surface in the modal's `KinetixForm`; the handler
    never runs.
 5. **Transaction** — the trusted state is handed to `handle($data, $record)`
    inside a `DB::transaction`, so a throwing handler leaves nothing half-applied.
+
+The endpoint runs a fresh instance built from the class. The label, icon and
+gates you chain on the table travel with it; any other setting doesn't, so keep
+the behaviour in `form()` and `handle()`.
 
 The modal reuses the existing `modalHeading` / `modalDescription` /
 `modalSubmitActionLabel` / `modalCancelActionLabel` chrome, and the schema is

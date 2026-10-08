@@ -64,6 +64,17 @@ and it wins over a clickable row; `url()`/`html()` values get a copy button besi
 **Security-relevant:** `visible()/hidden()/can('ability')` GATE the column — a gated column is
 stripped from headers, row payloads, the sort allowlist AND the signed editable-columns list, so
 `->can('posts.viewCost')` genuinely hides the data from unauthorized users, not just the pixels.
+A column has no per-row pass, so a `visible()`/`hidden()` closure runs once with no record:
+write `fn () => auth()->user()->isAdmin()`; a closure typed for a record (`fn (Post $record)`)
+can't run and hides the column.
+
+**Server-side actions:** prefer `BulkAction` (bulk) and `FormAction` (record/toolbar modal form)
+over a plain action posting to a host route — Kinetix scopes the ids to the table and authorizes
+them itself. `->authorize('ability')` is re-checked on the endpoint per record (a toolbar
+`FormAction` against the model class) and replaces the table's default `update` check; a record
+`FormAction` only runs on rows it rendered on. The endpoint runs a fresh instance of the class:
+keep behaviour in `handle()`/`form()`, not in setters chained on the table. Names must be unique
+per table.
 
 ## Tables inside relation managers
 

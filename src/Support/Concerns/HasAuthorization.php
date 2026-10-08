@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Support\Concerns;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
+use ReflectionFunction;
 
 /**
  * Visibility + Laravel-policy authorization for actions, evaluated server-side.
@@ -93,9 +94,11 @@ trait HasAuthorization
     protected function passesVisibility(?Model $record = null): bool
     {
         // Record-dependent closures are deferred when there's no record (e.g. the
-        // record-action template pass), so they don't wrongly drop the actions column.
+        // record-action template pass), so they don't wrongly drop the actions
+        // column. A closure that doesn't need a record (`fn () => …`) runs in
+        // every pass — deferring it meant it never ran where no record exists.
         if ($this->isHidden instanceof Closure) {
-            if ($record !== null && ($this->isHidden)($record)) {
+            if ($this->canEvaluateGate($this->isHidden, $record) && ($this->isHidden)($record)) {
                 return false;
             }
         } elseif ($this->isHidden) {
@@ -103,7 +106,7 @@ trait HasAuthorization
         }
 
         if ($this->isVisible instanceof Closure) {
-            if ($record !== null && ! ($this->isVisible)($record)) {
+            if ($this->canEvaluateGate($this->isVisible, $record) && ! ($this->isVisible)($record)) {
                 return false;
             }
         } elseif (! $this->isVisible) {
@@ -111,6 +114,112 @@ trait HasAuthorization
         }
 
         return true;
+    }
+
+    /**
+     * Visibility for something that never gets a per-record pass — a table
+     * column, a toolbar action. A visible()/hidden() closure runs NOW, with the
+     * record if there is one (else null), instead of being deferred to a pass
+     * that will never come. A closure typed for a record it can't receive
+     * (`fn (Post $record)` with no record) fails closed.
+     */
+    public function passesVisibilityWithoutDeferral(?Model $record = null): bool
+    {
+        $hidden = $this->isHidden instanceof Closure
+            ? (self::runGateWith($this->isHidden, $record) ?? true)
+            : $this->isHidden;
+
+        if ($hidden) {
+            return false;
+        }
+
+        return $this->isVisible instanceof Closure
+            ? (self::runGateWith($this->isVisible, $record) ?? false)
+            : $this->isVisible;
+    }
+
+    /**
+     * Run a gate closure with the given record, or null when its first
+     * parameter is typed for a record and can't take the null it would get.
+     */
+    private static function runGateWith(Closure $gate, ?Model $record): ?bool
+    {
+        $first = (new ReflectionFunction($gate))->getParameters()[0] ?? null;
+
+        if (
+            $record === null
+            && $first !== null
+            && ! $first->isOptional()
+            && $first->hasType()
+            && ! $first->allowsNull()
+        ) {
+            return null;
+        }
+
+        return (bool) $gate($record);
+    }
+
+    /**
+     * Whether a gate closure can run in this pass: always with a record, and
+     * without one only when it doesn't need it.
+     */
+    protected function canEvaluateGate(Closure $gate, ?Model $record): bool
+    {
+        return $record !== null || ! self::gateNeedsRecord($gate);
+    }
+
+    /**
+     * A gate closure needs a record when its first parameter is required and
+     * can't take null — `fn ($record)`, `fn (Post $record)`. `fn ()`,
+     * `fn (?Post $record)` and `fn ($record = null)` run without one.
+     */
+    protected static function gateNeedsRecord(Closure $gate): bool
+    {
+        $parameters = (new ReflectionFunction($gate))->getParameters();
+
+        if ($parameters === []) {
+            return false;
+        }
+
+        $first = $parameters[0];
+
+        if ($first->isOptional()) {
+            return false;
+        }
+
+        return ! ($first->hasType() && $first->allowsNull());
+    }
+
+    /**
+     * Whether a visible()/hidden() closure needs a record — a gate the
+     * record-less pass can only defer, so a server-side endpoint must not take
+     * that pass as proof the gate allowed it.
+     */
+    public function hasRecordGates(): bool
+    {
+        foreach ([$this->isVisible, $this->isHidden] as $gate) {
+            if ($gate instanceof Closure && self::gateNeedsRecord($gate)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The policy ability passed to {@see authorize()} as a string, if any.
+     */
+    public function getAuthorizationAbility(): ?string
+    {
+        return is_string($this->authorizeUsing) ? $this->authorizeUsing : null;
+    }
+
+    /**
+     * The explicit subject passed to {@see authorize()} alongside the ability.
+     */
+    public function getAuthorizationArguments(): mixed
+    {
+        return $this->authorizeArguments;
     }
 
     protected function passesAuthorization(?Model $record = null): bool

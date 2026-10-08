@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\BulkAction;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +15,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
+use LogicException;
 
 class BulkActionUser extends Authenticatable
 {
@@ -179,6 +183,123 @@ class BulkActionSecurityTest extends TestCase
         ]);
 
         $response->assertForbidden();
+        $this->assertFalse(BulkWidgetRecord::find(1)->archived);
+    }
+
+    private function runBulk(string $descriptor, array $ids): TestResponse
+    {
+        return $this->postJson(route('kinetix.tables.bulk-action'), [
+            'descriptor' => $descriptor,
+            'action'     => 'archive-selected',
+            'ids'        => $ids,
+        ]);
+    }
+
+    public function test_the_actions_own_ability_is_enforced_per_record(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        BulkWidgetRecord::create(['name' => 'B']);
+        Gate::define('archive-widget', fn ($user, BulkWidgetRecord $record): bool => $record->name !== 'B');
+        $this->actingAs(BulkActionUser::create(['name' => 'Bob']));
+
+        // The endpoint rebuilds the action from its class: before 0.207.1 the
+        // fluent authorize() never reached it and B was archived.
+        $descriptor = $this->descriptorFor(
+            Table::make(BulkWidgetRecord::query())
+                ->bulkActions([ArchiveSelected::make()->authorize('archive-widget')]),
+        );
+
+        $this->runBulk($descriptor, [1, 2])->assertForbidden();
+        $this->assertFalse(BulkWidgetRecord::find(1)->archived);
+        $this->assertFalse(BulkWidgetRecord::find(2)->archived);
+
+        $this->runBulk($descriptor, [1])->assertOk();
+        $this->assertTrue(BulkWidgetRecord::find(1)->archived);
+    }
+
+    public function test_the_actions_own_ability_replaces_the_tables_write_ability(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        Gate::define('bulk-archive', fn ($user, $record): bool => false);
+        Gate::define('archive-widget', fn ($user, $record): bool => true);
+        $this->actingAs(BulkActionUser::create(['name' => 'Bob']));
+
+        $descriptor = $this->descriptorFor(
+            Table::make(BulkWidgetRecord::query())
+                ->writeAbility('bulk-archive')
+                ->bulkActions([ArchiveSelected::make()->authorize('archive-widget')]),
+        );
+
+        $this->runBulk($descriptor, [1])->assertOk();
+        $this->assertTrue(BulkWidgetRecord::find(1)->archived);
+    }
+
+    public function test_a_hidden_bulk_action_is_not_sealed_when_a_visible_action_shares_its_name(): void
+    {
+        $data = Table::make(BulkWidgetRecord::query())
+            ->bulkActions([
+                Action::make('archive-selected')->label('Archive'),
+                ArchiveSelected::make()->authorize(false),
+            ])
+            ->toData();
+
+        $this->assertNull($data->bulkDescriptor);
+    }
+
+    public function test_a_record_dependent_visibility_closure_limits_the_records_it_runs_on(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        BulkWidgetRecord::create(['name' => 'B']);
+
+        $descriptor = $this->descriptorFor(
+            Table::make(BulkWidgetRecord::query())
+                ->bulkActions([
+                    ArchiveSelected::make()->visible(fn (BulkWidgetRecord $record): bool => $record->name !== 'B'),
+                ]),
+        );
+
+        $this->runBulk($descriptor, [1, 2])->assertForbidden();
+        $this->assertFalse(BulkWidgetRecord::find(1)->archived);
+
+        $this->runBulk($descriptor, [1])->assertOk();
+        $this->assertTrue(BulkWidgetRecord::find(1)->archived);
+    }
+
+    public function test_a_record_independent_visibility_closure_is_evaluated(): void
+    {
+        $data = Table::make(BulkWidgetRecord::query())
+            ->bulkActions([ArchiveSelected::make()->visible(fn (): bool => false)])
+            ->toData();
+
+        $this->assertSame([], $data->bulkActions);
+        $this->assertNull($data->bulkDescriptor);
+    }
+
+    public function test_two_bulk_actions_with_the_same_name_are_a_configuration_error(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Two bulk actions on this table are named [archive-selected]');
+
+        Table::make(BulkWidgetRecord::query())
+            ->bulkActions([ArchiveSelected::make(), ArchiveSelected::make()])
+            ->toData();
+    }
+
+    public function test_a_descriptor_sealed_by_an_older_release_is_refused(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+
+        // 0.197–0.207 sealed a bare name → class map, with no authorization.
+        $descriptor = SignedDescriptor::seal([
+            'model'    => BulkWidgetRecord::class,
+            'bulk'     => ['archive-selected' => ArchiveSelected::class],
+            'resource' => null,
+            'scope'    => [],
+            'relation' => null,
+            'ability'  => null,
+        ]);
+
+        $this->runBulk($descriptor, [1])->assertForbidden();
         $this->assertFalse(BulkWidgetRecord::find(1)->archived);
     }
 }

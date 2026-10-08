@@ -237,7 +237,10 @@ abstract class Column
      */
     public function shouldRender(?Model $record = null): bool
     {
-        return $this->passesVisibility($record)
+        // A column has no per-record pass to defer a visible()/hidden()
+        // closure to — deferring meant it never ran and the column (values,
+        // and an editable column's write access) always shipped.
+        return $this->passesVisibilityWithoutDeferral($record)
             && $this->passesCan()
             && $this->passesColumnAuthorization($record);
     }

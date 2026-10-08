@@ -308,6 +308,20 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
+     * The validation rules for a submission: conditional rules
+     * (visibleWhen/requiredWhen/…) read the form's data merged with the
+     * submitted input — the same values {@see getState()} decides persistence
+     * from, so a field the user saw is validated and a hidden one isn't.
+     *
+     * @param  array<string, mixed>             $inputData
+     * @return array<string, array<int, mixed>>
+     */
+    public function getValidationRulesForInput(array $inputData): array
+    {
+        return $this->getValidationRules(array_merge($this->data, $inputData));
+    }
+
+    /**
      * Build a Laravel validator seeded with this form's rules, messages, and
      * attributes. Shared by `validate()` and the FormRequest bridge so every
      * validation path (fluent, FormRequest, Precognition) stays identical.
@@ -320,7 +334,7 @@ class Form implements Arrayable, JsonSerializable
 
         return Validator::make(
             $data,
-            $this->getValidationRules($data),
+            $this->getValidationRulesForInput($inputData),
             $this->getValidationMessages(),
             $this->getValidationAttributes(),
         );

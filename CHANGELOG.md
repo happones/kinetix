@@ -13,6 +13,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.207.1] - 2026-10-08
+
+Fixes from a review of 0.194–0.207: two features that silently did the wrong
+thing, three authorization gaps and the gallery tooling. Re-publish the
+components (`--force`) to pick up the frontend fixes.
+
+### Security
+
+- **`BulkAction` / `FormAction` ignored their own gates on the server.** The
+  endpoints rebuild an action from its bare class, so `->authorize('ability')`,
+  `->visible(fn …)` and an enclosing `ActionGroup`'s gate never reached them:
+  a hand-made POST ran an action the user couldn't see, and a record
+  `FormAction` sent with no `recordId` ran record-less, skipping the policy
+  check. The table now seals, per action, what the endpoint re-checks
+  (`SealedAction`):
+  - `->authorize('ability')` is checked against each record (a toolbar
+    `FormAction` against the model class). It **replaces** the table's default
+    `update` / `writeAbility()` check for that action.
+  - A record `FormAction` only runs on rows it rendered on, so whatever hid it
+    there (an ability, a closure, its group) blocks a crafted request too.
+  - Record and toolbar `FormAction`s are sealed apart: neither can be invoked
+    as the other, and a malformed `recordId` is a 400.
+  - A bulk action with a record-dependent `visible()`/`hidden()` closure only
+    runs on the records it allows.
+  - Visibility is decided per instance. A visible plain action that shares a
+    hidden `BulkAction`'s name no longer lets it through.
+  - Two server-side actions with the same name on one table now throw instead
+    of silently running the wrong class.
+  - Descriptors minted by 0.197–0.207.0 carry no authorization and are
+    refused. A page left open across the upgrade needs a reload.
+- **A column hidden by a closure still shipped.** `visible(fn …)` /
+  `hidden(fn …)` on a column only ran when a record was present, and columns
+  are only ever checked without one. So the column's header and values went to
+  every user, and an editable column accepted writes. The closure now runs
+  once with no record. One typed for a record (`fn (Post $record)`) can't run
+  and hides the column (fails closed). Elsewhere, a `visible()`/`hidden()`
+  closure that takes no record now runs in record-less passes too (toolbar and
+  bulk actions, form fields on create, widgets) instead of being skipped.
+- **The FormRequest bridge validated conditional fields against nothing.**
+  `ResolvesKinetixForm::rules()` evaluated `visibleWhen()`/`requiredWhen()`
+  without the submitted values. A `visibleWhen` field lost its rules while
+  `dehydratedState()` still persisted it, and `requiredWhen` never added
+  `required`. The rules now read the submitted input, the same values
+  `dehydratedState()` uses (`Form::getValidationRulesForInput()`).
+
+### Fixed
+
+- **`GeneratorInput` produced only digits (since 0.205.0, published).** The
+  field shipped every knob, including `strategy: null` and its default
+  `pinMode: 'numeric'`, and the engine let them override the preset.
+  `password()`, `username()` and every preset except PINs, `mask()`, `words()`
+  and `custom(alphabet:)` generated 16 digits; with `masked()` nobody saw it.
+  The field now sends only what was set explicitly on top of a preset. The
+  engine ignores null knobs and reads `pinMode` only for a PIN, which also makes
+  `excludeAmbiguous()` apply to PINs. `preset()` now throws on an unknown
+  name. A shared contract fixture (`tests/js/fixtures/generator-configs.json`)
+  is checked by both PHPUnit (the field's real output) and vitest (what the
+  engine generates from it).
+- **Table stats and summaries froze after the first render (since 0.203.0,
+  published).** The aggregates were seeded once at mount, and a search, filter,
+  sort, page change or poll keeps the table mounted. Every table with
+  `stats()` or `summarize()` kept showing the first page's numbers. Inline
+  aggregates are now read live from the prop. Deferred ones (`deferStats()`)
+  are fetched again on every reload, with the previous request aborted so a
+  slow response can't overwrite a newer one. The skeleton shows from the first
+  paint and only until the first load lands, and a failed fetch no longer
+  surfaces as an unhandled rejection.
+- **The gallery, and with it `npm run audit:mobile`, has been dead since
+  0.200.0.** Its `useKinetixHttp` stub lacked `isKinetixAbort`, so module
+  linking failed and every specimen timed out. Fixed, and
+  `tests/js/galleryStubs.spec.ts` now fails when a stub lacks any name a
+  component imports.
+- **`npm run audit:mobile` also checks touch targets.** Every pointer target is
+  measured against WCAG 2.2's 24×24px minimum (2.5.8), with its spacing,
+  equivalent-label and inline exceptions. The size is probed with the pointer,
+  so padding, an enlarged hit area or a wrapping label count. This is the check
+  0.194.0's sweep relied on, now committed.
+- **Docs.** `BulkAction` is documented in tables.md (actions.md already linked
+  there), along with how column visibility closures behave, and the
+  `FormAction` security section describes the new checks.
+
 ## [0.207.0] - 2026-10-08
 
 ### Added

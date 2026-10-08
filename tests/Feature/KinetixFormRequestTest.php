@@ -38,6 +38,23 @@ class StorePostRequest extends KinetixFormRequest
     }
 }
 
+class StoreCompanyRequest extends KinetixFormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    protected function form(): Form
+    {
+        return Form::make()->schema([
+            TextInput::make('type'),
+            TextInput::make('company_name')->required()->maxLength(5)->visibleWhen('type', 'company'),
+            TextInput::make('vat')->requiredWhen('type', 'company'),
+        ]);
+    }
+}
+
 class KinetixFormRequestTest extends TestCase
 {
     protected function setUp(): void
@@ -46,6 +63,11 @@ class KinetixFormRequestTest extends TestCase
 
         Route::middleware(['web', HandlePrecognitiveRequests::class])
             ->post('/posts', function (StorePostRequest $request) {
+                return response()->json($request->dehydratedState());
+            });
+
+        Route::middleware(['web'])
+            ->post('/companies', function (StoreCompanyRequest $request) {
                 return response()->json($request->dehydratedState());
             });
     }
@@ -116,5 +138,31 @@ class KinetixFormRequestTest extends TestCase
         ])
             ->assertNoContent()
             ->assertHeader('Precognition-Success', 'true');
+    }
+
+    /**
+     * Conditional rules read the submitted values. They used to be evaluated
+     * against nothing, so a visibleWhen() field the user filled in lost its
+     * rules while dehydratedState() still persisted it.
+     */
+    public function test_a_conditionally_visible_field_is_validated_when_shown(): void
+    {
+        $this->postJson('/companies', ['type' => 'company', 'company_name' => 'way-longer-than-five', 'vat' => 'X1'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('company_name');
+    }
+
+    public function test_a_conditionally_required_field_is_required_when_its_condition_holds(): void
+    {
+        $this->postJson('/companies', ['type' => 'company', 'company_name' => 'Acme'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('vat');
+    }
+
+    public function test_a_conditionally_hidden_field_is_neither_validated_nor_persisted(): void
+    {
+        $this->postJson('/companies', ['type' => 'person', 'company_name' => 'way-longer-than-five'])
+            ->assertOk()
+            ->assertJsonMissingPath('company_name');
     }
 }

@@ -35,6 +35,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use JsonSerializable;
+use LogicException;
 
 class Table implements Arrayable, JsonSerializable
 {
@@ -1246,6 +1247,15 @@ class Table implements Arrayable, JsonSerializable
      */
     public function toData(): TableData
     {
+        // Authorization evidence for the server-side action endpoints, filled
+        // while rows serialize (see recordActionGrants()) and sealed below.
+        $this->formActionGrants = [];
+        $this->bulkActionGrants = [];
+        $this->gatedBulkActions = array_values(array_filter(
+            $this->bulkActions,
+            static fn (mixed $action): bool => $action instanceof BulkAction && $action->hasRecordGates(),
+        ));
+
         // Drop columns the current user may not see (visible()/hidden()/can())
         // BEFORE anything downstream runs: headers, row values, summaries,
         // search/sort application and the signed editable-columns list all read
@@ -1375,34 +1385,10 @@ class Table implements Arrayable, JsonSerializable
         $bulkActionsData    = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
         $footerActionsData  = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->footerActions)));
 
-        // Seal the name → class map of server-side (BulkAction) bulk actions,
-        // but only those that survived authorization (their ActionData is in
-        // $bulkActionsData) — a user who can't see the action can't invoke it.
-        $visibleBulkNames = array_map(static fn (ActionData $a): string => $a->name, $bulkActionsData);
-        $secureBulk       = [];
-
-        foreach ($this->bulkActions as $action) {
-            if (
-                $action instanceof BulkAction
-                && in_array($action->getName(), $visibleBulkNames, true)
-            ) {
-                $secureBulk[$action->getName()] = $action::class;
-            }
-        }
-
-        // Seal the name → class map of server-side (FormAction) record and
-        // toolbar actions (flattening ActionGroups, since a FormAction may live
-        // in a dropdown). Only actions that survived authorization are sealed —
-        // a user who can't see the action can't invoke it. A toolbar FormAction
-        // has no row, so it is sealed exactly like a record one; the controller
-        // simply resolves no record when the request carries no recordId.
-        $secureForm = [];
-
-        foreach ($this->collectFormActions([...$this->recordActions, ...$this->toolbarActions]) as $action) {
-            if ($action->shouldRender()) {
-                $secureForm[$action->getName()] = $action::class;
-            }
-        }
+        // Seal the server-side actions this user may run, with what the
+        // endpoints need to re-check them (see SealedAction).
+        $secureBulk = $this->sealBulkActions();
+        $secureForm = $this->sealFormActions($toolbarActionsData);
 
         $state = new TableStateData(
             search: (string) $this->param('search', ''),
@@ -1440,8 +1426,10 @@ class Table implements Arrayable, JsonSerializable
             clientSide: $this->clientSide,
             recordModals: $this->buildRecordModalsData(),
             emptyState: $this->buildEmptyStateData(),
-            bulkDescriptor: $secureBulk       === [] ? null : $this->buildBulkDescriptor($secureBulk),
-            formActionDescriptor: $secureForm === [] ? null : $this->buildFormActionDescriptor($secureForm),
+            bulkDescriptor: $secureBulk                 === [] ? null : $this->buildBulkDescriptor($secureBulk),
+            formActionDescriptor: $secureForm['record'] === [] && $secureForm['toolbar'] === []
+                ? null
+                : $this->buildFormActionDescriptor($secureForm),
             groups: array_values(array_map(static fn (Group $group): GroupData => $group->toData(), $this->groups)),
             defaultGroup: $activeGroup?->getColumn(),
             deferStats: $deferred,
@@ -1505,12 +1493,13 @@ class Table implements Arrayable, JsonSerializable
     /**
      * Mint the signed descriptor the bulk-action endpoint trusts. Mirrors the
      * write descriptor (model + resource + scope + relation + ability + the
-     * user/team/expiry binding), but its allowlist is the name → class map of
-     * the table's server-side {@see BulkAction}s. {@see BulkActionController}
-     * runs only a class named here, over records resolved through this scope
-     * and authorized one by one — the client names neither class nor record.
+     * user/team/expiry binding), but its allowlist is the name → sealed spec
+     * map ({@see SealedAction}) of the table's server-side {@see BulkAction}s.
+     * {@see BulkActionController} runs only a class named here, over records
+     * resolved through this scope and authorized one by one against the
+     * action's own sealed gates — the client names neither class nor record.
      *
-     * @param array<string, class-string<BulkAction>> $bulkActions
+     * @param array<string, array<string, mixed>> $bulkActions
      */
     protected function buildBulkDescriptor(array $bulkActions): string
     {
@@ -1522,6 +1511,160 @@ class Table implements Arrayable, JsonSerializable
             'relation' => $this->writeRelation,
             'ability'  => $this->writeAbility,
         ]);
+    }
+
+    /**
+     * Record keys each record FormAction rendered for on this page, by name.
+     *
+     * @var array<string, list<string>>
+     */
+    protected array $formActionGrants = [];
+
+    /**
+     * Record keys each bulk action with a record-dependent visible()/hidden()
+     * closure allows on this page, by name.
+     *
+     * @var array<string, list<string>>
+     */
+    protected array $bulkActionGrants = [];
+
+    /**
+     * @var list<BulkAction>
+     */
+    protected array $gatedBulkActions = [];
+
+    /**
+     * Note which server-side actions this row allows: every record FormAction
+     * it rendered (whatever gated it — an ability, a closure, its group), and
+     * every bulk action whose record-dependent closure passes for it. The
+     * endpoints rebuild an action from its bare class, so this evidence is the
+     * only way its per-record gates reach them.
+     *
+     * @param array<int, ActionData> $resolvedActions
+     */
+    protected function recordActionGrants(Model $record, array $resolvedActions): void
+    {
+        $key = (string) $record->getKey();
+
+        foreach ($this->renderedFormActionNames($resolvedActions) as $name) {
+            $this->formActionGrants[$name][] = $key;
+        }
+
+        foreach ($this->gatedBulkActions as $action) {
+            if ($action->shouldRender($record)) {
+                $this->bulkActionGrants[$action->getName()][] = $key;
+            }
+        }
+    }
+
+    /**
+     * The names of the FormActions in a rendered action list, groups included.
+     *
+     * @param  array<int, ActionData> $actions
+     * @return list<string>
+     */
+    protected function renderedFormActionNames(array $actions): array
+    {
+        $names = [];
+
+        foreach ($actions as $data) {
+            if ($data->isFormAction) {
+                $names[] = $data->name;
+            }
+
+            if ($data->actions !== null) {
+                array_push($names, ...$this->renderedFormActionNames($data->actions));
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * The sealed map of this user's server-side bulk actions. Each INSTANCE
+     * decides for itself: a visible plain action sharing a name no longer lets
+     * a hidden BulkAction through.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    protected function sealBulkActions(): array
+    {
+        $sealed = [];
+
+        foreach ($this->bulkActions as $action) {
+            if (! $action instanceof BulkAction || ! $action->shouldRender()) {
+                continue;
+            }
+
+            $name = $action->getName();
+
+            if (isset($sealed[$name])) {
+                throw new LogicException("Two bulk actions on this table are named [{$name}]. Give each a distinct name: make('…').");
+            }
+
+            $sealed[$name] = SealedAction::seal(
+                $action,
+                $action->hasRecordGates() ? ($this->bulkActionGrants[$name] ?? []) : null,
+            );
+        }
+
+        return $sealed;
+    }
+
+    /**
+     * The sealed maps of this user's server-side form actions, per context. A
+     * record action carries the keys of the rows it rendered for, so it only
+     * runs on a row where the user saw it. A toolbar action is sealed when it
+     * rendered; it never gets a record, so its visibility closures run now
+     * with none instead of waiting for a pass that won't come.
+     *
+     * @param  array<int, ActionData>                                                                           $toolbarActionsData
+     * @return array{record: array<string, array<string, mixed>>, toolbar: array<string, array<string, mixed>>}
+     */
+    protected function sealFormActions(array $toolbarActionsData): array
+    {
+        $sealed = ['record' => [], 'toolbar' => []];
+
+        foreach ($this->formActionsByName($this->recordActions) as $name => $action) {
+            $grants = $this->formActionGrants[$name] ?? [];
+
+            if ($grants !== []) {
+                $sealed['record'][$name] = SealedAction::seal($action, $grants);
+            }
+        }
+
+        $rendered = $this->renderedFormActionNames($toolbarActionsData);
+
+        foreach ($this->formActionsByName($this->toolbarActions) as $name => $action) {
+            if (in_array($name, $rendered, true) && $action->passesVisibilityWithoutDeferral()) {
+                $sealed['toolbar'][$name] = SealedAction::seal($action);
+            }
+        }
+
+        return $sealed;
+    }
+
+    /**
+     * The FormActions among $actions (groups flattened), keyed by name.
+     *
+     * @param  array<int, Action|ActionGroup> $actions
+     * @return array<string, FormAction>
+     */
+    protected function formActionsByName(array $actions): array
+    {
+        $byName = [];
+
+        foreach ($this->collectFormActions($actions) as $action) {
+            $name = $action->getName();
+
+            if (isset($byName[$name])) {
+                throw new LogicException("Two form actions on this table are named [{$name}]. Give each a distinct name: make('…').");
+            }
+
+            $byName[$name] = $action;
+        }
+
+        return $byName;
     }
 
     /**
@@ -1558,13 +1701,15 @@ class Table implements Arrayable, JsonSerializable
     /**
      * Mint the signed descriptor the form-action endpoint trusts. Mirrors the
      * bulk descriptor (model + resource + scope + relation + ability + the
-     * user/team/expiry binding), but its allowlist is the name → class map of
-     * the table's server-side {@see FormAction}s. {@see FormActionController}
-     * runs only a class named here: it reconstructs that class's form to
-     * validate the submission, resolves any record through this scope and
+     * user/team/expiry binding), but its allowlist is the name → sealed spec
+     * map ({@see SealedAction}) of the table's server-side {@see FormAction}s,
+     * split into record and toolbar actions. {@see FormActionController} runs
+     * only a class named here: it reconstructs that class's form to validate
+     * the submission, resolves the record through this scope (a record action
+     * requires one the user saw it on; a toolbar action takes none) and
      * authorizes it — the client names neither class, record nor rule.
      *
-     * @param array<string, class-string<FormAction>> $formActions
+     * @param array{record: array<string, array<string, mixed>>, toolbar: array<string, array<string, mixed>>} $formActions
      */
     protected function buildFormActionDescriptor(array $formActions): string
     {
@@ -2112,6 +2257,8 @@ class Table implements Arrayable, JsonSerializable
                 $resolvedActions[] = $data;
             }
         }
+
+        $this->recordActionGrants($record, $resolvedActions);
 
         [$recordUrlStr, $recordUrlInNewTab, $recordActionName] = $this->resolveRecordClick($record, $resolvedActions);
 

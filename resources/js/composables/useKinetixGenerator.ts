@@ -171,16 +171,18 @@ function charsetAlphabet(config: KinetixGeneratorConfig): string {
             : config.alphabet;
     }
 
-    // Legacy PIN alphabet selector.
-    if (config.pinMode) {
-        switch (config.pinMode) {
-            case 'alpha':
-                return LOWER + UPPER;
-            case 'alphanum':
-                return BASE62;
-            default:
-                return DIGITS;
-        }
+    // Legacy PIN alphabet selector — only a PIN reads it. The form field ships
+    // its `pinMode` default with every config, so honouring it for any other
+    // kind turned passwords and usernames into digits.
+    if (config.kind === 'pin' && config.pinMode) {
+        const pin =
+            config.pinMode === 'alpha'
+                ? LOWER + UPPER
+                : config.pinMode === 'alphanum'
+                  ? BASE62
+                  : DIGITS;
+
+        return config.excludeAmbiguous ? pin.replace(AMBIGUOUS, '') : pin;
     }
 
     let alphabet = '';
@@ -374,10 +376,21 @@ export const GENERATOR_PRESETS: Record<string, KinetixGeneratorConfig> = {
     slug: { strategy: 'charset', length: 8, alphabet: LOWER + DIGITS },
 };
 
-/** Resolve the effective config: preset base + legacy kind + explicit overrides. */
+/**
+ * Resolve the effective config: preset base + legacy kind + explicit overrides.
+ *
+ * Only knobs that carry a value override: `null`/`undefined` mean "not set",
+ * so a serialized `strategy: null` or `alphabet: null` never wipes out what
+ * the preset (or the legacy kind) defines.
+ */
 export function resolveGeneratorConfig(
-    config: KinetixGeneratorConfig,
+    input: KinetixGeneratorConfig,
 ): KinetixGeneratorConfig {
+    const config = Object.fromEntries(
+        Object.entries(input).filter(
+            ([, value]) => value !== null && value !== undefined,
+        ),
+    ) as KinetixGeneratorConfig;
     const base = config.preset ? (GENERATOR_PRESETS[config.preset] ?? {}) : {};
 
     // Legacy kinds map onto a strategy so old configs keep working untouched.

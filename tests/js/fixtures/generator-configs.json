@@ -1,0 +1,133 @@
+{
+    "legacy-default": {
+        "kind": "password",
+        "pinMode": "numeric",
+        "length": 16,
+        "lowercase": true,
+        "uppercase": true,
+        "digits": true,
+        "symbols": true,
+        "excludeAmbiguous": false,
+        "separator": ".",
+        "copyable": false,
+        "revealable": true
+    },
+    "legacy-password-24-no-symbols": {
+        "kind": "password",
+        "pinMode": "numeric",
+        "length": 24,
+        "lowercase": true,
+        "uppercase": true,
+        "digits": true,
+        "symbols": false,
+        "excludeAmbiguous": false,
+        "separator": ".",
+        "copyable": false,
+        "revealable": true
+    },
+    "legacy-pin-alphanum": {
+        "kind": "pin",
+        "pinMode": "alphanum",
+        "length": 4,
+        "lowercase": true,
+        "uppercase": true,
+        "digits": true,
+        "symbols": true,
+        "excludeAmbiguous": false,
+        "separator": ".",
+        "copyable": false,
+        "revealable": true
+    },
+    "legacy-pin-numeric": {
+        "kind": "pin",
+        "pinMode": "numeric",
+        "length": 6,
+        "lowercase": true,
+        "uppercase": true,
+        "digits": true,
+        "symbols": true,
+        "excludeAmbiguous": false,
+        "separator": ".",
+        "copyable": false,
+        "revealable": true
+    },
+    "legacy-username-pattern": {
+        "kind": "username",
+        "pinMode": "numeric",
+        "length": 12,
+        "lowercase": true,
+        "uppercase": true,
+        "digits": true,
+        "symbols": true,
+        "excludeAmbiguous": false,
+        "separator": ".",
+        "copyable": false,
+        "revealable": true,
+        "pattern": "{first}.{last}"
+    },
+    "legacy-username-random": {
+        "kind": "username",
+        "pinMode": "numeric",
+        "length": 10,
+        "lowercase": true,
+        "uppercase": true,
+        "digits": true,
+        "symbols": true,
+        "excludeAmbiguous": false,
+        "separator": ".",
+        "copyable": false,
+        "revealable": true
+    },
+    "preset-uuid": {
+        "preset": "uuid",
+        "copyable": false,
+        "revealable": true
+    },
+    "preset-api-key": {
+        "preset": "api-key",
+        "copyable": false,
+        "revealable": true
+    },
+    "preset-license-key": {
+        "preset": "license-key",
+        "copyable": false,
+        "revealable": true
+    },
+    "preset-password-simple": {
+        "preset": "password-simple",
+        "copyable": false,
+        "revealable": true
+    },
+    "preset-password-strong-24": {
+        "preset": "password-strong",
+        "length": 24,
+        "copyable": false,
+        "revealable": true
+    },
+    "preset-passphrase": {
+        "preset": "passphrase",
+        "copyable": false,
+        "revealable": true
+    },
+    "custom-alphabet": {
+        "strategy": "charset",
+        "length": 8,
+        "alphabet": "ABC123",
+        "copyable": false,
+        "revealable": true
+    },
+    "custom-mask": {
+        "strategy": "mask",
+        "mask": "INV-####-AA",
+        "copyable": false,
+        "revealable": true
+    },
+    "words": {
+        "strategy": "words",
+        "words": 2,
+        "wordSeparator": "_",
+        "appendDigits": 3,
+        "copyable": false,
+        "revealable": true
+    }
+}

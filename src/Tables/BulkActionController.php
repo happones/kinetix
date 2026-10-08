@@ -16,7 +16,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Throwable;
 
 /**
@@ -32,9 +31,12 @@ use Throwable;
  * 4. Scoping — every id is resolved through the table's own constraints (the
  *    resource query / captured where-scope / parent relation), so an id outside
  *    the table the user was looking at is silently dropped, never acted on.
- * 5. Authorization — each surviving record is authorized against the host's
- *    policy (the explicit `writeAbility()`, or `update` when the model has a
- *    policy), one by one, before the handler sees it.
+ * 5. Authorization — each surviving record is authorized one by one before
+ *    the handler sees it: against the action's own `authorize('ability')`
+ *    when it has one (else the table's `writeAbility()`, or `update` when the
+ *    model has a policy), and — for an action gated by a record-dependent
+ *    `visible()`/`hidden()` closure — only on records that closure allowed
+ *    when the table rendered ({@see SealedAction}).
  *
  * Only then is the authorized {@see Collection} handed to the action's
  * {@see BulkAction::handle()}. The whole run is wrapped in a transaction so a
@@ -54,9 +56,9 @@ class BulkActionController
 
         // Only an action named in the sealed map may run — and only via the
         // class the table registered for it.
-        $class = $descriptor['bulk'][$name] ?? null;
+        $sealed = $descriptor['bulk'][$name] ?? null;
 
-        if (! is_string($class) || ! is_subclass_of($class, BulkAction::class)) {
+        if ($sealed === null) {
             return response()->json([
                 'status'  => 'error',
                 'message' => __('kinetix.table_bulk_action_not_allowed'),
@@ -91,7 +93,7 @@ class BulkActionController
         // Authorize each surviving record; a single denial fails the whole
         // batch closed rather than silently acting on the allowed subset.
         foreach ($records as $record) {
-            if (! $this->authorize($descriptor, $record)) {
+            if (! $sealed->authorizes($record, $descriptor['model'], $descriptor['ability'])) {
                 return response()->json([
                     'status'  => 'error',
                     'message' => __('kinetix.table_write_forbidden'),
@@ -104,7 +106,7 @@ class BulkActionController
         }
 
         /** @var BulkAction $action */
-        $action = $class::make($name);
+        $action = $sealed->class::make($name);
 
         DB::transaction(static function () use ($action, $records): void {
             $action->handle($records);
@@ -116,7 +118,7 @@ class BulkActionController
     /**
      * Decrypt and validate the table's signed bulk descriptor.
      *
-     * @return array{model: class-string<Model>, bulk: array<string, class-string<BulkAction>>, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}|JsonResponse
+     * @return array{model: class-string<Model>, bulk: array<string, SealedAction>, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}|JsonResponse
      */
     protected function descriptor(Request $request): array|JsonResponse
     {
@@ -167,13 +169,15 @@ class BulkActionController
         $ability  = $payload['ability']  ?? null;
         $relation = $payload['relation'] ?? null;
 
-        // Keep only string name → BulkAction-subclass pairs.
+        // Keep only well-formed name → sealed BulkAction entries.
         $normalizedBulk = [];
 
         if (is_array($bulk)) {
-            foreach ($bulk as $actionName => $actionClass) {
-                if (is_string($actionName) && is_string($actionClass) && is_subclass_of($actionClass, BulkAction::class)) {
-                    $normalizedBulk[$actionName] = $actionClass;
+            foreach ($bulk as $actionName => $entry) {
+                $sealedAction = SealedAction::fromPayload($entry, BulkAction::class);
+
+                if (is_string($actionName) && $sealedAction !== null) {
+                    $normalizedBulk[$actionName] = $sealedAction;
                 }
             }
         }
@@ -255,23 +259,5 @@ class BulkActionController
         abort_unless($relationObject->getRelated()::class === $modelClass, 400, 'Relation model mismatch.');
 
         return $relationObject->getQuery()->select($relationObject->getRelated()->qualifyColumn('*'));
-    }
-
-    /**
-     * Authorize one record through the host's policy — the explicit ability
-     * from writeAbility(), or `update` whenever the model has a policy at all.
-     *
-     * @param array{model: class-string<Model>, ability: string|null} $descriptor
-     */
-    protected function authorize(array $descriptor, Model $record): bool
-    {
-        $ability = $descriptor['ability']
-            ?? (Gate::getPolicyFor($descriptor['model']) !== null ? 'update' : null);
-
-        if ($ability === null) {
-            return true;
-        }
-
-        return Gate::forUser(request()->user())->allows($ability, $record);
     }
 }

@@ -1109,6 +1109,9 @@ GeneratorInput::make('nick')->preset('handle-memorable'); // brave-otter-42
 | Usernames | `handle`, `handle-memorable` (+ `username()->pattern(…)`) |
 | Tokens / ids | `uuid`, `hex`, `hex-64`, `nanoid`, `api-key`, `license-key`, `slug` |
 
+An unknown name throws (`GeneratorInput::PRESETS` lists them all), so a typo
+fails where you wrote it instead of silently generating something else.
+
 #### Custom
 
 When no preset fits, describe your own — an explicit alphabet, a mask template,

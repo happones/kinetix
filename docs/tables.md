@@ -181,6 +181,7 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
             ->orderBy('first_name', $direction),
     );
     ```
+- `visible(bool|Closure)` / `hidden(bool|Closure)` / `can(string $permission)` / `authorize(...)`: Gate the **whole column**: header, every cell value and, for an editable column, its write access. A column has no per-row pass, so a closure runs once with no record (`->visible(fn () => auth()->user()->isAdmin())`); one typed for a record (`fn (Post $record)`) can't run without it and hides the column.
 - `alignment(string $alignment)`: Sets horizontal alignment (`left`, `center`, `right`).
 - `toggleable(bool $isToggleable = true, bool $isToggledHiddenByDefault = false)`: Allows users to hide/show the column.
 - `copyable(bool $condition = true)`: Makes the cell's value click-to-copy. The value itself is the trigger: hovering highlights it, shows a copy icon and a **Copy** tooltip, and clicking (or <kbd>Enter</kbd> when focused) copies it to the clipboard and confirms with a check icon, a **Copied!** tooltip and a screen-reader announcement. The trigger is a button, so on a clickable row a click on the value copies instead of opening the record, and a click anywhere else on the row still opens it. Linked (`url()`) and `html()` values keep their own clicks and get a small copy button beside them instead; `html()` copies the visible text, never the markup. On touch screens the copy icon is always shown. Works on `TextColumn` (plain **and** badge: the pills are the trigger and every item is copied, comma-separated) and on `ColorColumn`.
@@ -560,7 +561,48 @@ The selected record ids are sent automatically:
 - **`inertiaVisit`** actions receive them as `ids` in the request payload (`$request->input('ids')`).
 - **`dispatch`** actions receive them in the event detail: `e.detail.ids`.
 
-Destructive bulk actions support `requiresConfirmation()` (a confirmation modal gates them), and they respect `authorize()` / `visible()` like any action — e.g. `->authorize('deleteAny', Post::class)`.
+Destructive bulk actions support `requiresConfirmation()` (a confirmation modal gates them), and they respect `authorize()` / `visible()` like any action — e.g. `->authorize('deleteAny', Post::class)`. A plain bulk action only decides whether the button shows: the route it posts to must still scope and authorize the ids itself. To have Kinetix do that, use a `BulkAction`.
+
+### Server-side bulk actions (`BulkAction`)
+
+A `BulkAction` runs its work on Kinetix's own signed endpoint instead of a route
+you secure by hand. Put the behaviour in `handle()`:
+
+```php
+use Happones\Kinetix\Actions\BulkAction;
+use Illuminate\Support\Collection;
+
+class ArchivePosts extends BulkAction
+{
+    public function handle(Collection $records): void
+    {
+        $records->each->archive();
+    }
+}
+
+$table->bulkActions([
+    ArchivePosts::make()->label('Archive')->icon('archive')->authorize('archive'),
+]);
+```
+
+The endpoint resolves the selected ids through the table's own query (ids
+outside it are dropped), authorizes every record, then calls `handle()` inside a
+transaction:
+
+- `->authorize('ability')` is checked against **each record**
+  (`Gate::allows('archive', $post)`). Without one, the table's `writeAbility()`
+  applies, or `update` when the model has a policy. One denied record fails the
+  whole batch.
+- A `visible()`/`hidden()` closure that takes the record
+  (`fn (Post $record) => …`) limits the action to the records it allows on the
+  page the user saw. One that takes no record (`fn () => …`) decides whether
+  the action exists for this user at all.
+- The endpoint runs a fresh instance built from the class. The label, icon and
+  gates travel with it; any other setting chained on the table's instance
+  doesn't, so configure the behaviour inside the class.
+
+Two server-side actions with the same name on one table are a configuration
+error (Kinetix throws), since the endpoint finds them by name.
 
 **Exporting selected rows:** see the full recipe — one Export action shared between the toolbar (export all) and bulk (export selected `ids`) — in [Import / Export → Recipe: export from a table](import-export.md#recipe-export-from-a-table--toolbar-all--bulk-selected).
 
@@ -1146,8 +1188,8 @@ another's rows, so make sure your base query actually carries it.
 ## Grouping rows
 
 Group the current dataset's rows under collapsible headers by a column — an
-attribute, or a dot-notation path into an eager-loaded relation — mirroring
-Filament's `->groups([...])` / `->defaultGroup(...)`.
+attribute, or a dot-notation path into an eager-loaded relation — with
+`->groups([...])` and `->defaultGroup(...)`.
 
 ```php
 use Happones\Kinetix\Tables\Group;
