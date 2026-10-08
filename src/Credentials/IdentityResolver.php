@@ -98,6 +98,23 @@ class IdentityResolver
     }
 
     /**
+     * The declared profile a user record belongs to (its model is the
+     * profile's `user_model`), or null for the default profile.
+     */
+    public static function profileFor(object $user): ?string
+    {
+        foreach ((array) config('kinetix.credentials.profiles', []) as $name => $profile) {
+            $model = is_array($profile) ? ($profile['user_model'] ?? null) : null;
+
+            if (is_string($name) && is_string($model) && $model !== '' && $user instanceof $model) {
+                return $name;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * The columns a login may be matched against, in priority order.
      *
      * @return array<int, string>

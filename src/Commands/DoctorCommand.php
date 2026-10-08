@@ -16,6 +16,7 @@ use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\PublishedFiles;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
@@ -338,6 +339,68 @@ class DoctorCommand extends Command
                 'Credentials',
                 'passwords.history is capped at '.PasswordPolicy::MAX_HISTORY.' — each remembered password costs a deliberately slow hash comparison on every change',
             );
+        }
+
+        $this->checkCredentialProfiles($policy);
+    }
+
+    /**
+     * Credential profiles get the whole lifecycle, but only with their columns
+     * on THEIR table, the history kept apart, and a guard that reaches the
+     * change screen. Each gap fails silently for that profile's users.
+     */
+    protected function checkCredentialProfiles(PasswordPolicy $policy): void
+    {
+        $profiles = array_filter(
+            (array) config('kinetix.credentials.profiles', []),
+            static fn (mixed $settings, mixed $name): bool => is_string($name) && is_array($settings),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
+        if ($profiles === []) {
+            return;
+        }
+
+        if ($policy->historyDepth() > 0
+            && Schema::hasTable('kinetix_password_history')
+            && ! Schema::hasColumn('kinetix_password_history', 'authenticatable_type')) {
+            $this->warn_(
+                'Credentials',
+                'credential profiles share one password history (matched by id alone) until its type column exists',
+                'php artisan vendor:publish --tag=kinetix-credentials-migrations && php artisan migrate',
+            );
+        }
+
+        $expires = $policy->expiryDays()                                   !== null
+            || config('kinetix.credentials.passwords.temporary_ttl_hours') !== null;
+
+        foreach ($profiles as $name => $settings) {
+            $model = $settings['user_model'] ?? null;
+
+            if (is_string($model) && class_exists($model) && is_subclass_of($model, Model::class)) {
+                $table   = (new $model)->getTable();
+                $missing = array_values(array_filter(
+                    ['password_changed_at', 'must_change_password'],
+                    static fn (string $column): bool => ! Schema::hasColumn($table, $column),
+                ));
+
+                if ($missing !== []) {
+                    $this->warn_(
+                        'Credentials',
+                        "profile \"{$name}\": the {$table} table is missing the password policy columns, so its users get no expiry or forced change",
+                        'Add them in a migration: $table->kinetixPasswordColumns();',
+                        $missing,
+                    );
+                }
+            }
+
+            if ($expires && ! is_string($settings['guard'] ?? null)) {
+                $this->warn_(
+                    'Credentials',
+                    "profile \"{$name}\" declares no guard, so its users can't reach the change-password screen",
+                    "Set credentials.profiles.{$name}.guard to the guard they log in with.",
+                );
+            }
         }
     }
 

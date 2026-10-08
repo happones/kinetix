@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+    GENERATOR_ADJECTIVES,
+    GENERATOR_NOUNS,
+} from '@/composables/kinetixGeneratorWords';
+import {
     useKinetixGenerator,
     normalizeHandle,
+    handleFromPattern,
     GENERATOR_PRESETS,
 } from '@/composables/useKinetixGenerator';
 import type { KinetixGeneratorConfig } from '@/composables/useKinetixGenerator';
@@ -120,7 +125,49 @@ describe('useKinetixGenerator — presets & strategies', () => {
 
     it('memorable preset is adjective-noun words with trailing digits', () => {
         const pw = gen({ preset: 'password-memorable' });
-        expect(pw).toMatch(/^[a-z]+-[a-z]+-[a-z]+-\d{2}$/);
+        expect(pw).toMatch(/^[a-z]+-[a-z]+-[a-z]+-[a-z]+-\d{2}$/);
+    });
+
+    // 24 adjectives × 24 nouns gave a "passphrase" about 18 bits — an
+    // afternoon of guessing. The lists' sizes ARE the entropy: keep them.
+    it('draws words from lists large enough to be a credential', () => {
+        expect(GENERATOR_ADJECTIVES).toHaveLength(256);
+        expect(GENERATOR_NOUNS).toHaveLength(512);
+        expect(new Set(GENERATOR_ADJECTIVES).size).toBe(256);
+        expect(new Set(GENERATOR_NOUNS).size).toBe(512);
+
+        const phrase = gen({ preset: 'passphrase' }).split(' ');
+        expect(phrase).toHaveLength(6);
+        // 3 × 8 bits + 3 × 9 bits.
+        expect(
+            3 * Math.log2(GENERATOR_ADJECTIVES.length) +
+                3 * Math.log2(GENERATOR_NOUNS.length),
+        ).toBeGreaterThanOrEqual(50);
+    });
+
+    // 13.6% of strong passwords used to lack a digit, so the host's own
+    // Password::defaults() rejected the app's generated password.
+    it('uses every enabled class at least once', () => {
+        for (let i = 0; i < 300; i++) {
+            const pw = gen({ preset: 'password-strong', length: 8 });
+
+            expect(pw).toMatch(/[a-z]/);
+            expect(pw).toMatch(/[A-Z]/);
+            expect(pw).toMatch(/\d/);
+            expect(pw).toMatch(/[^A-Za-z0-9]/);
+        }
+    });
+
+    it('builds a handle from a pattern, or nothing until the siblings fill it', () => {
+        const config = { kind: 'username' as const, pattern: '{first}.{last}' };
+
+        expect(
+            handleFromPattern(config, { first: 'Ada', last: 'Lovelace' }),
+        ).toBe('ada.lovelace');
+        expect(handleFromPattern(config, {})).toBe('');
+        expect(handleFromPattern({ preset: 'uuid' }, { first: 'Ada' })).toBe(
+            '',
+        );
     });
 
     it('hex preset is lowercase hex of the right length', () => {
@@ -212,7 +259,7 @@ describe('useKinetixGenerator — contract with GeneratorInput (PHP)', () => {
             expect(union(v)).toMatch(/[^A-Za-z0-9]/);
         },
         'preset-passphrase': (v) =>
-            v.forEach((s) => expect(s).toMatch(/^[a-z]+( [a-z]+){3}$/)),
+            v.forEach((s) => expect(s).toMatch(/^[a-z]+( [a-z]+){5}$/)),
         'custom-alphabet': (v) =>
             v.forEach((s) => expect(s).toMatch(/^[ABC123]{8}$/)),
         'custom-mask': (v) =>

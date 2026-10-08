@@ -1090,7 +1090,7 @@ GeneratorInput::make('password')->password(length: 20)->symbols(false)->excludeA
 // PIN — numeric | alphanum | alpha
 GeneratorInput::make('pin')->pin(length: 6, mode: 'numeric');
 
-// Username — from a pattern of SIBLING fields (resolved live, like SlugInput),
+// Username — from a pattern of SIBLING fields (followed live until edited),
 // normalized to a safe handle; falls back to a random handle until they fill in
 GeneratorInput::make('username')->username()->pattern('{first_name}.{last_name}')->separator('.');
 ```
@@ -1127,6 +1127,27 @@ GeneratorInput::make('nick')->preset('handle-memorable'); // brave-otter-42
 
 An unknown name throws (`GeneratorInput::PRESETS` lists them all), so a typo
 fails where you wrote it instead of silently generating something else.
+
+How strong each password preset is:
+
+| Preset | Shape | Strength |
+| --- | --- | --- |
+| `password-strong` | 16 characters, every class | ~103 bits; uses each of lower, upper, digit and symbol at least once |
+| `password-simple` | 14 letters and digits, no look-alikes | ~81 bits; uses each enabled class at least once |
+| `passphrase` | 6 words (`brave otter calm river …`) | ~51 bits |
+| `password-memorable` | 4 words + 2 digits | ~41 bits |
+
+`handle` and `handle-memorable` make handles, not secrets (~24–52 bits), and
+nothing checks them for collisions: add a `unique` rule to the field.
+
+A username pattern (`username()->pattern('{first_name}.{last_name}')`) fills
+the field in as the user types the sibling fields, and keeps following them
+until the user types a username of their own.
+
+The value is generated in the browser, so treat it like any input: validate it
+on the server, and hash a password before you store it (a `hashed` cast). An
+edit form never sends a hidden attribute such as `password` back to the
+browser; left blank, it keeps the stored value.
 
 #### Custom
 

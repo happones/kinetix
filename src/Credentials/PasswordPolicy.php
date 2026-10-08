@@ -8,6 +8,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 /**
@@ -342,6 +343,28 @@ class PasswordPolicy
     }
 
     /**
+     * The change-password routes for a user: its credential profile's own
+     * (registered when the profile declares a `guard`), else the default ones.
+     * A client on the `client` guard sent to the default routes landed on the
+     * staff login instead of the screen it needed.
+     *
+     * @return array{show: string, update: string}
+     */
+    public function changeRoutes(mixed $user): array
+    {
+        $profile = is_object($user) ? IdentityResolver::profileFor($user) : null;
+
+        if ($profile !== null && Route::has("kinetix.password.{$profile}.change.show")) {
+            return [
+                'show'   => "kinetix.password.{$profile}.change.show",
+                'update' => "kinetix.password.{$profile}.change",
+            ];
+        }
+
+        return ['show' => 'kinetix.password.change.show', 'update' => 'kinetix.password.change'];
+    }
+
+    /**
      * The policy as the frontend sees it (the `kinetix_credentials` prop).
      *
      * @return array{enabled: bool, requiresChange: bool, mustChange: bool, expired: bool, expiring: bool, daysUntilExpiry: ?int, changeUrl: ?string}
@@ -367,7 +390,7 @@ class PasswordPolicy
             'expired'         => $this->isExpired($user),
             'expiring'        => $this->isExpiring($user),
             'daysUntilExpiry' => $this->daysUntilExpiry($user),
-            'changeUrl'       => route('kinetix.password.change.show'),
+            'changeUrl'       => route($this->changeRoutes($user)['show']),
         ];
     }
 }

@@ -13,6 +13,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.210.0] - 2026-10-08
+
+The generator's passwords become real credentials, and forms stop shipping
+password hashes. Credential profiles get their own change-password screen.
+This closes the 0.194–0.207 review. Re-publish the components (`--force`).
+
+### Security
+
+- **Edit forms sent the password hash to the browser.** `Form::fill()` read
+  attributes with `data_get()`, which looks past a model's `$hidden`, so an edit
+  form shipped `password` (and any other hidden attribute) in its props. A
+  revealable generator even showed it as text.
+  - Hidden attributes are no longer read into a form.
+  - On an existing record, a hidden attribute left blank keeps its stored
+    value: it isn't validated or written. A form that used to round-trip the
+    hash keeps working.
+  - A new value is validated and saved as before.
+- **Passphrases were guessable.** The memorable word lists held 24 adjectives
+  and 24 nouns: a four-word `passphrase` was ~18 bits, a memorable password ~20.
+  - The lists are now 256 adjectives and 512 nouns: curated, neutral words of
+    3–7 letters, checked against a dictionary
+    (`composables/kinetixGeneratorWords.ts`).
+  - `passphrase` is 6 words (~51 bits, as strong as a four-word passphrase from
+    the classic 7,776-word lists).
+  - `password-memorable` is 4 words + 2 digits (~41 bits).
+  - Handles keep their shape (2 words + 2 digits).
+
+### Fixed
+
+- **Generated passwords could miss a character class.** `password-strong`
+  lacked a digit 13.6% of the time, so the app's own `Password::defaults()`
+  rejected the value it generated. A class-flag charset now uses every enabled
+  class at least once. Whole strings are resampled until one qualifies, so every
+  qualifying string stays equally likely.
+- **The username didn't follow its pattern.** The docs promised it "resolves
+  live, like SlugInput"; it only appeared on a click. A
+  `username()->pattern(...)` field now fills itself in as the sibling fields
+  are typed, and stops once the user types their own.
+- **The generator field wasn't wired to its label or its errors.** Its input had
+  no `id`, so the field label named nothing. `aria-invalid` and
+  `aria-describedby` landed on the wrapper `div`. They are now on the input.
+- **A credential profile's users couldn't reach the change-password screen.**
+  The screen sat behind the default guard, so a client with an expired or
+  temporary password was sent to the staff login.
+  - A profile that declares a `guard` now gets the screen behind that guard
+    (`/_kinetix/password/{profile}`).
+  - The `kinetix.password` middleware, the screen's form action and the
+    shared `changeUrl` all point at the user's own profile screen.
+- **`kinetix:doctor` checks credential profiles.** It reports:
+  - a profile table missing the password columns;
+  - a profile with no guard while passwords expire;
+  - profiles still sharing one password history because the 0.208.0 migration
+    hasn't run.
+- **Docs.** forms.md now covers the strength of each password preset, that
+  handles aren't checked for collisions, and that a generated value must be
+  validated and hashed on the server. credentials.md covers profile guards.
+
 ## [0.209.0] - 2026-10-08
 
 Tables and resources: the medium findings of the 0.194–0.207 review. Inline

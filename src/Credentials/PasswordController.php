@@ -36,7 +36,7 @@ class PasswordController
         return Inertia::render((string) config('kinetix.credentials.passwords.view', 'Kinetix/PasswordChange'), [
             // The URL travels from the server like every other Kinetix action,
             // so the component never needs Ziggy.
-            'action'          => route('kinetix.password.change'),
+            'action'          => route($this->policy->changeRoutes($user)['update']),
             'mustChange'      => $this->policy->mustChange($user),
             'expired'         => $this->policy->isExpired($user),
             'daysUntilExpiry' => $this->policy->daysUntilExpiry($user),

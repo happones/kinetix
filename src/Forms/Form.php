@@ -150,7 +150,10 @@ class Form implements Arrayable, JsonSerializable
             $fields        = $this->getFields();
             $extractedData = [];
             foreach ($fields as $name => $field) {
-                $value = data_get($data, $name);
+                // A hidden attribute (`password`, `remember_token`, a 2FA
+                // secret) never travels to the browser: data_get() reads past
+                // $hidden, so an edit form used to ship the password hash.
+                $value = $this->isHiddenAttribute($data, $name) ? null : data_get($data, $name);
                 if ($value === null) {
                     $value = $field->getDefaultValue($data);
                 }
@@ -246,6 +249,12 @@ class Form implements Arrayable, JsonSerializable
             // entirely — its rules (incl. a static `required`) must not block a
             // submit where the field isn't even shown.
             if ($field->isConditionallyExcluded($data)) {
+                continue;
+            }
+
+            // A hidden attribute left blank keeps its stored value (see
+            // keepsStoredValue()), so there is nothing to validate.
+            if ($this->keepsStoredValue($name, $data)) {
                 continue;
             }
 
@@ -372,11 +381,38 @@ class Form implements Arrayable, JsonSerializable
                 continue;
             }
 
+            if ($this->keepsStoredValue($name, $data)) {
+                continue;
+            }
+
             $value        = $data[$name] ?? $field->getDefaultValue($this->record);
             $state[$name] = $field->dehydrate($value, $this->record);
         }
 
         return $state;
+    }
+
+    /**
+     * Whether `$name` is an attribute the record hides from serialization.
+     */
+    protected function isHiddenAttribute(Model $record, string $name): bool
+    {
+        return in_array($name, $record->getHidden(), true);
+    }
+
+    /**
+     * A hidden attribute of an existing record that comes back blank keeps the
+     * value it has: the form never sent it, so blank means "unchanged", not
+     * "clear it". (Before, the hash itself made the round trip.)
+     *
+     * @param array<string, mixed> $data
+     */
+    protected function keepsStoredValue(string $name, array $data): bool
+    {
+        return $this->record !== null
+            && $this->record->exists
+            && $this->isHiddenAttribute($this->record, $name)
+            && blank($data[$name] ?? null);
     }
 
     /**

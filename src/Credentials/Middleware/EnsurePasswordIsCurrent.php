@@ -40,8 +40,8 @@ class EnsurePasswordIsCurrent
      * @var array<int, string>
      */
     protected const ALWAYS_EXEMPT = [
-        'kinetix.password.change.show',
-        'kinetix.password.change',
+        // The change screens, the default one and every profile's.
+        'kinetix.password.*',
         'logout',
         'login',
         'password.*',
@@ -74,7 +74,9 @@ class EnsurePasswordIsCurrent
         // didn't ask to go.
         KinetixFlash::warning($message);
 
-        return redirect()->route('kinetix.password.change.show');
+        // The screen behind the user's own guard: a profile's user sent to the
+        // default (staff) one would land on the wrong login.
+        return redirect()->route($this->policy->changeRoutes($user)['show']);
     }
 
     protected function isExempt(Request $request): bool

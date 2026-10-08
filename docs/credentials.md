@@ -478,6 +478,24 @@ columns with the Blueprint macro:
 Schema::table('clients', fn (Blueprint $t) => $t->kinetixPasswordColumns());
 ```
 
+Give a profile its **guard** and its users get the change-password screen
+behind that guard (`/_kinetix/password/client`). The `kinetix.password`
+middleware sends each user to their own profile's screen, so add it after the
+guard's `auth` middleware in that group:
+
+```php
+'client' => [
+    'user_model' => App\Models\Client::class,
+    'guard'      => 'client',
+],
+
+Route::middleware(['web', 'auth:client', 'kinetix.password'])->group(...);
+```
+
+Without a guard the profile still resolves logins, but its users can't reach
+the screen; `kinetix:doctor` reports that, and a profile table missing the
+password columns.
+
 Single-model apps need none of this — omit `profiles` and nothing changes.
 
 ## 6. Frontend

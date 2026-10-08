@@ -96,6 +96,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'generator-input': {
         component: KinetixGenerator,
         props: (c, values) => ({
+            id: c.name,
             config: c.generatorConfig,
             // Sibling values power a username `pattern` ({first}.{last}).
             values,

@@ -17,6 +17,11 @@
  *   - template  — a `{field}` pattern filled from sibling values (usernames).
  */
 
+import {
+    GENERATOR_ADJECTIVES,
+    GENERATOR_NOUNS,
+} from '@/composables/kinetixGeneratorWords';
+
 export type GeneratorStrategy =
     | 'charset'
     | 'mask'
@@ -71,59 +76,6 @@ const BASE62 = LOWER + UPPER + DIGITS;
 // nanoid's url-safe alphabet.
 const NANOID = BASE62 + '_-';
 const AMBIGUOUS = /[O0oIl1|]/g;
-
-const ADJECTIVES = [
-    'brave',
-    'calm',
-    'clever',
-    'eager',
-    'gentle',
-    'happy',
-    'jolly',
-    'kind',
-    'lively',
-    'merry',
-    'nimble',
-    'proud',
-    'quick',
-    'quiet',
-    'swift',
-    'witty',
-    'bright',
-    'bold',
-    'cosmic',
-    'golden',
-    'silver',
-    'noble',
-    'royal',
-    'wild',
-];
-const NOUNS = [
-    'otter',
-    'falcon',
-    'tiger',
-    'panda',
-    'eagle',
-    'fox',
-    'wolf',
-    'lynx',
-    'heron',
-    'raven',
-    'koala',
-    'bison',
-    'moose',
-    'orca',
-    'gecko',
-    'ibis',
-    'comet',
-    'nebula',
-    'quartz',
-    'cedar',
-    'maple',
-    'river',
-    'ember',
-    'storm',
-];
 
 /** A uniformly-random integer in [0, max) via rejection sampling. */
 function randomInt(max: number): number {
@@ -214,6 +166,84 @@ function charsetAlphabet(config: KinetixGeneratorConfig): string {
     return alphabet;
 }
 
+/**
+ * The character classes a class-flag charset draws from (lowercase, uppercase,
+ * digits, symbols — after excludeAmbiguous). Empty for an explicit alphabet or
+ * a PIN, which make no per-class promise.
+ */
+function charsetClasses(config: KinetixGeneratorConfig): string[] {
+    if (config.alphabet || config.kind === 'pin') {
+        return [];
+    }
+
+    const strip = (chars: string) =>
+        config.excludeAmbiguous ? chars.replace(AMBIGUOUS, '') : chars;
+    const classes: string[] = [];
+
+    if (config.lowercase !== false) {
+        classes.push(strip(LOWER));
+    }
+
+    if (config.uppercase !== false) {
+        classes.push(strip(UPPER));
+    }
+
+    if (config.digits !== false) {
+        classes.push(strip(DIGITS));
+    }
+
+    if (config.symbols) {
+        classes.push(strip(config.symbolSet || SYMBOLS));
+    }
+
+    return classes.filter((chars) => chars.length > 0);
+}
+
+/**
+ * A charset value that uses EVERY enabled class at least once — what a
+ * password policy ("mixed case, numbers and symbols") checks. Drawn by
+ * rejection: whole strings are resampled until one qualifies, so every
+ * qualifying string stays equally likely (forcing one character per class
+ * into fixed positions would not). Too short to hold every class: plain draw.
+ */
+function charsetValue(config: KinetixGeneratorConfig, length: number): string {
+    const alphabet = charsetAlphabet(config);
+    const classes = charsetClasses(config);
+
+    if (classes.length < 2 || length < classes.length) {
+        return randomString(alphabet, length);
+    }
+
+    for (;;) {
+        const value = randomString(alphabet, length);
+
+        if (
+            classes.every((chars) => [...value].some((c) => chars.includes(c)))
+        ) {
+            return value;
+        }
+    }
+}
+
+/**
+ * The handle a `{field}` pattern resolves to from sibling values, or `''`
+ * when they don't fill it yet. What a username field follows live.
+ */
+export function handleFromPattern(
+    config: KinetixGeneratorConfig,
+    values: Record<string, unknown>,
+): string {
+    const resolved = resolveGeneratorConfig(config);
+
+    return resolved.strategy === 'template' && resolved.pattern
+        ? usernameFromPattern(
+              resolved.pattern,
+              values,
+              resolved.separator || '.',
+          )
+        : '';
+}
+
 /** Fill a mask template: class tokens become random chars, literals stay. */
 function fromMask(mask: string): string {
     let out = '';
@@ -270,7 +300,9 @@ function memorableWords(config: KinetixGeneratorConfig): string {
     const parts: string[] = [];
 
     for (let i = 0; i < count; i++) {
-        parts.push(i % 2 === 0 ? pick(ADJECTIVES) : pick(NOUNS));
+        parts.push(
+            i % 2 === 0 ? pick(GENERATOR_ADJECTIVES) : pick(GENERATOR_NOUNS),
+        );
     }
 
     let out = parts.join(sep);
@@ -336,13 +368,15 @@ export const GENERATOR_PRESETS: Record<string, KinetixGeneratorConfig> = {
         symbols: false,
         excludeAmbiguous: true,
     },
+    // ~41 bits: two adjectives, two nouns and two digits.
     'password-memorable': {
         strategy: 'words',
-        words: 3,
+        words: 4,
         wordSeparator: '-',
         appendDigits: 2,
     },
-    passphrase: { strategy: 'words', words: 4, wordSeparator: ' ' },
+    // ~51 bits: three adjectives and three nouns.
+    passphrase: { strategy: 'words', words: 6, wordSeparator: ' ' },
     // PINs / codes
     'pin-4': { strategy: 'charset', length: 4, alphabet: DIGITS },
     'pin-6': { strategy: 'charset', length: 6, alphabet: DIGITS },
@@ -448,7 +482,7 @@ export function useKinetixGenerator(getConfig: () => KinetixGeneratorConfig) {
 
             case 'charset':
             default:
-                return prefix + randomString(charsetAlphabet(config), length);
+                return prefix + charsetValue(config, length);
         }
     };
 

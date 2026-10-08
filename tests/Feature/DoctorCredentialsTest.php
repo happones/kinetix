@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Schema;
@@ -165,4 +166,26 @@ class DoctorCredentialsTest extends TestCase
             ->doesntExpectOutputToContain('Credentials')
             ->assertSuccessful();
     }
+
+    public function test_a_profile_without_its_columns_or_a_guard_is_reported(): void
+    {
+        $this->usersTable();
+        Schema::create('doctor_clients', static function (Blueprint $table): void {
+            $table->increments('id');
+        });
+
+        config()->set('kinetix.credentials.passwords.expires_after_days', 30);
+        config()->set('kinetix.credentials.profiles', [
+            'client' => ['user_model' => DoctorClient::class],
+        ]);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('profile "client": the doctor_clients table is missing the password policy columns')
+            ->expectsOutputToContain('profile "client" declares no guard');
+    }
+}
+
+class DoctorClient extends Model
+{
+    protected $table = 'doctor_clients';
 }

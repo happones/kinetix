@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Eye, EyeOff, RefreshCw } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, useAttrs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
+    handleFromPattern,
     useKinetixGenerator,
     GENERATOR_PRESETS,
 } from '@/composables/useKinetixGenerator';
@@ -30,8 +31,12 @@ import KinetixCopyable from './primitives/KinetixCopyable.vue';
  * Generation is client-side and crypto-strong (see `useKinetixGenerator`).
  * Styled with the shadcn token contract (inputClass / buttonVariants).
  */
+defineOptions({ inheritAttrs: false });
+
 const props = withDefaults(
     defineProps<{
+        /** The input's id, so a field label (`for`) names it. */
+        id?: string | null;
         value?: string | null;
         config?: KinetixGeneratorConfig | null;
         /** Sibling form values, for a username `pattern`. */
@@ -50,6 +55,7 @@ const props = withDefaults(
         placeholder?: string | null;
     }>(),
     {
+        id: null,
         value: null,
         config: null,
         values: () => ({}),
@@ -122,6 +128,50 @@ const writeToTarget = (value: string): void => {
     }
 };
 
+// The wrapper keeps class/style; everything else a form field hands down
+// (aria-invalid, aria-describedby) describes the control, so it goes on the
+// input — on the wrapper div it was invisible to assistive tech.
+const attrs = useAttrs();
+const rootAttrs = computed(() => ({ class: attrs.class, style: attrs.style }));
+const controlAttrs = computed(() =>
+    Object.fromEntries(
+        Object.entries(attrs).filter(
+            ([name]) => name !== 'class' && name !== 'style',
+        ),
+    ),
+);
+
+// A `{field}` pattern follows the sibling values live, like a slug: while the
+// field is empty or still holds the last value it filled in itself. Once the
+// user types their own, it stops. Nothing is filled in until the siblings
+// resolve the pattern.
+const lastAuto = ref<string | null>(null);
+
+watch(
+    () => [props.values, effectiveConfig.value] as const,
+    () => {
+        if (props.disabled) {
+            return;
+        }
+
+        const next = handleFromPattern(effectiveConfig.value, props.values);
+        const current = props.value ?? '';
+
+        if (
+            next === '' ||
+            next === current ||
+            (current !== '' && current !== lastAuto.value)
+        ) {
+            return;
+        }
+
+        lastAuto.value = next;
+        emit('update:value', next);
+        writeToTarget(next);
+    },
+    { deep: true, immediate: true },
+);
+
 const onGenerate = (): void => {
     if (props.disabled) {
         return;
@@ -144,7 +194,7 @@ const onPresetChange = (event: Event): void => {
 </script>
 
 <template>
-    <div class="space-y-2">
+    <div class="space-y-2" v-bind="rootAttrs">
         <!-- Optional preset picker -->
         <select
             v-if="presetNames.length"
@@ -163,6 +213,8 @@ const onPresetChange = (event: Event): void => {
             <!-- Mode 1: built-in input -->
             <div v-if="input" class="min-w-0 relative flex-1">
                 <input
+                    :id="id ?? undefined"
+                    v-bind="controlAttrs"
                     :value="value ?? ''"
                     :type="inputType"
                     :disabled="disabled"

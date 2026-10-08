@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Happones\Kinetix\Credentials\KinetixPasswords;
 use Happones\Kinetix\Credentials\PasswordHistory;
 use Happones\Kinetix\Credentials\PasswordObserver;
+use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Credentials\TemporaryCredential;
 use Happones\Kinetix\Credentials\TemporaryPasswordNotification;
 use Happones\Kinetix\Tests\TestCase;
@@ -17,7 +18,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use InvalidArgumentException;
 use LogicException;
 
@@ -62,8 +65,10 @@ class CredentialProfileLifecycleTest extends TestCase
         $app['config']->set('kinetix.credentials.enabled', true);
         $app['config']->set('kinetix.credentials.user_model', LifeUser::class);
         $app['config']->set('kinetix.credentials.profiles', [
-            'client' => ['user_model' => LifeClient::class],
+            'client' => ['user_model' => LifeClient::class, 'guard' => 'client'],
         ]);
+        $app['config']->set('auth.guards.client', ['driver' => 'session', 'provider' => 'clients']);
+        $app['config']->set('auth.providers.clients', ['driver' => 'eloquent', 'model' => LifeClient::class]);
         $app['config']->set('kinetix.credentials.passwords.temporary_ttl_hours', 48);
         $app['config']->set('kinetix.credentials.passwords.expires_after_days', 30);
         $app['config']->set('kinetix.credentials.passwords.history', 3);
@@ -211,5 +216,50 @@ class CredentialProfileLifecycleTest extends TestCase
         $this->expectException(LogicException::class);
 
         serialize(TemporaryCredential::make('s3cret'));
+    }
+
+    /**
+     * The change-password routes sat behind the default guard: a client with
+     * an expired password was sent to the staff login.
+     */
+    public function test_a_profile_with_a_guard_gets_its_own_change_screen(): void
+    {
+        Route::middleware(['web', 'auth:client', 'kinetix.password'])
+            ->get('/portal', fn () => 'portal')
+            ->name('portal.home');
+
+        $client = LifeClient::create(['email' => 'c@example.com', 'password' => Hash::make('first')]);
+        KinetixPasswords::forceChange($client);
+        $client = $client->fresh();
+
+        $this->actingAs($client, 'client')
+            ->get('/portal')
+            ->assertRedirect(route('kinetix.password.client.change.show'));
+
+        // Inertia's root view, for the full-page render.
+        $views = sys_get_temp_dir().'/kinetix-profile-views';
+        is_dir($views) || mkdir($views, 0o777, true);
+        file_put_contents($views.'/app.blade.php', '<html><body>@inertia</body></html>');
+        View::addLocation($views);
+
+        $page = $this->actingAs($client, 'client')
+            ->get(route('kinetix.password.client.change.show'))
+            ->assertOk()
+            ->viewData('page');
+        $this->assertSame(route('kinetix.password.client.change'), $page['props']['action']);
+        $this->assertSame(
+            route('kinetix.password.client.change.show'),
+            app(PasswordPolicy::class)->state($client)['changeUrl'],
+        );
+
+        $this->actingAs($client, 'client')
+            ->post(route('kinetix.password.client.change'), [
+                'password'              => 'A-much-better-one-42!',
+                'password_confirmation' => 'A-much-better-one-42!',
+            ])
+            ->assertRedirect();
+
+        $this->assertFalse((bool) $client->fresh()->must_change_password);
+        $this->assertTrue(Hash::check('A-much-better-one-42!', $client->fresh()->password));
     }
 }

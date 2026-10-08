@@ -91,4 +91,50 @@ describe('KinetixGenerator', () => {
         const wrapper = mountGen({ config: { kind: 'password' } });
         expect(wrapper.find('select').exists()).toBe(false);
     });
+
+    // Documented as "resolves live from sibling values (like SlugInput)", but
+    // the handle only appeared on a click.
+    it('follows its pattern live until the user types their own', async () => {
+        const config = { kind: 'username', pattern: '{first}.{last}' };
+        const wrapper = mountGen({ config, values: {} });
+
+        // Nothing to resolve yet: nothing filled in.
+        expect(wrapper.emitted('update:value')).toBeUndefined();
+
+        await wrapper.setProps({ values: { first: 'Ada', last: 'Lovelace' } });
+        expect(wrapper.emitted('update:value')!.at(-1)).toEqual([
+            'ada.lovelace',
+        ]);
+
+        // The parent applies it; the siblings change again: it follows.
+        await wrapper.setProps({
+            value: 'ada.lovelace',
+            values: { first: 'Ada', last: 'Byron' },
+        });
+        expect(wrapper.emitted('update:value')!.at(-1)).toEqual(['ada.byron']);
+
+        // The user typed their own: it stops following.
+        await wrapper.setProps({ value: 'countess' });
+        await wrapper.setProps({ values: { first: 'Grace', last: 'Hopper' } });
+        expect(wrapper.emitted('update:value')!.at(-1)).toEqual(['ada.byron']);
+    });
+
+    it('puts the id and the error wiring on its input', () => {
+        const wrapper = mount(KinetixGenerator, {
+            props: { id: 'username', config: { kind: 'username' } },
+            attrs: {
+                class: 'mt-2',
+                'aria-invalid': 'true',
+                'aria-describedby': 'username-error',
+            },
+            global: { plugins: [i18n] },
+        });
+
+        const input = wrapper.find('input');
+        expect(input.attributes('id')).toBe('username');
+        expect(input.attributes('aria-invalid')).toBe('true');
+        expect(input.attributes('aria-describedby')).toBe('username-error');
+        expect(wrapper.classes()).toContain('mt-2');
+        expect(wrapper.attributes('aria-invalid')).toBeUndefined();
+    });
 });

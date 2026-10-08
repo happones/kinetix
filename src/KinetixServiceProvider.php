@@ -941,6 +941,49 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('/', [PasswordController::class, 'update'])
                     ->name('kinetix.password.change');
             });
+
+        // A credential profile that names its guard gets the same screen
+        // behind THAT guard, so its users are authenticated as themselves.
+        foreach ((array) config('kinetix.credentials.profiles', []) as $profile => $settings) {
+            $guard = is_array($settings) ? ($settings['guard'] ?? null) : null;
+
+            if (! is_string($profile) || ! is_string($guard) || $guard === '') {
+                continue;
+            }
+
+            Route::middleware($this->withAuthGuard((array) $middleware, $guard))
+                ->prefix("{$prefix}/password/{$profile}")
+                ->group(function () use ($profile) {
+                    Route::get('/', [PasswordController::class, 'show'])
+                        ->name("kinetix.password.{$profile}.change.show");
+                    Route::post('/', [PasswordController::class, 'update'])
+                        ->name("kinetix.password.{$profile}.change");
+                });
+        }
+    }
+
+    /**
+     * The configured middleware with its `auth` entry pointed at `$guard`
+     * (appended when there is none).
+     *
+     * @param  array<int, mixed> $middleware
+     * @return array<int, mixed>
+     */
+    protected function withAuthGuard(array $middleware, string $guard): array
+    {
+        $found = false;
+
+        $middleware = array_map(static function (mixed $entry) use ($guard, &$found): mixed {
+            if (is_string($entry) && ($entry === 'auth' || str_starts_with($entry, 'auth:'))) {
+                $found = true;
+
+                return "auth:{$guard}";
+            }
+
+            return $entry;
+        }, $middleware);
+
+        return $found ? $middleware : [...$middleware, "auth:{$guard}"];
     }
 
     protected function registerMembership(): void
