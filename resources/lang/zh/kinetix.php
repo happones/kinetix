@@ -708,6 +708,7 @@ return [
     'form_action_not_allowed'       => '不允许此操作。',
     'form_action_completed'         => '操作已完成。',
     'table_reorder_too_large'       => '一次重新排序的行数过多。',
+    'table_reorder_unnumbered'      => '此列表尚未保存排序，且过长，无法一次性设置。',
     'table_record_not_found'        => '未找到记录。',
     'table_write_forbidden'         => '此操作未获授权。',
     'table_invalid_signature'       => '表格签名无效。',

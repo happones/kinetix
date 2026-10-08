@@ -17,6 +17,38 @@ const col = (name: string, extra: Record<string, unknown> = {}) => ({
 
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
     {
+        // Deferred table stats: the specimen's KPI cards arrive after the rows.
+        match: /\/tables\/aggregates/,
+        data: {
+            stats: [
+                {
+                    label: 'Products',
+                    value: '1,284',
+                    icon: 'package',
+                    color: 'info',
+                    description: 'In the catalog',
+                },
+                {
+                    label: 'Active',
+                    value: '1,102',
+                    description: '+4% vs last month',
+                    descriptionIcon: 'trending-up',
+                    descriptionColor: 'success',
+                    chart: [1010, 1032, 1048, 1061, 1080, 1102],
+                },
+                {
+                    label: 'Archived',
+                    value: '182',
+                    icon: 'archive',
+                    color: 'warning',
+                    description: 'Hidden from the store',
+                },
+            ],
+            summaries: {},
+            hasSummaries: false,
+        },
+    },
+    {
         // Help article specimen: a Spanish reader on an English-only article,
         // so the fallback notice + language chips both render.
         match: /\/help\/article\//,

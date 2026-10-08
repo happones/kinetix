@@ -197,6 +197,18 @@ class RtpReorderableTasksManager extends RelationManager
     }
 }
 
+class RtpReorderableTagsManager extends RelationManager
+{
+    protected static string $relationship = 'tags';
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->columns([TextColumn::make('name')])
+            ->reorderable('sort_order');
+    }
+}
+
 class RtpFooterExportManager extends RelationManager
 {
     protected static string $relationship = 'tasks';
@@ -371,6 +383,42 @@ class RelationTableParityTest extends TestCase
         $this->assertSame(1, (int) $b->fresh()->sort_order);
         $this->assertSame(2, (int) $a->fresh()->sort_order);
         $this->assertSame(1, (int) $foreign->fresh()->sort_order);
+    }
+
+    /**
+     * Numbering an unnumbered list reads the related rows through the pivot
+     * join, where the pivot's own `id` would collide with the related key.
+     */
+    public function test_an_unnumbered_belongs_to_many_list_is_numbered_through_the_pivot(): void
+    {
+        Schema::table('rtp_tags', function (Blueprint $table) {
+            $table->integer('sort_order')->default(0);
+        });
+
+        $user    = RtpUser::create([]);
+        $mine    = RtpProject::create(['name' => 'Mine']);
+        $other   = RtpProject::create(['name' => 'Other']);
+        $spare   = RtpTag::create(['name' => 'Spare']); // shifts tag ids off pivot ids
+        $tags    = collect(['A', 'B', 'C'])->map(fn (string $name) => RtpTag::create(['name' => $name]));
+        $foreign = RtpTag::create(['name' => 'F']);
+        $mine->tags()->attach($tags->pluck('id'));
+        $other->tags()->attach([$foreign->id, $spare->id]);
+
+        $this->actingAs($user);
+        $data = RtpReorderableTagsManager::make($mine)->toData();
+
+        // The page shows A, B; B is dragged above A.
+        $this->postJson(route('kinetix.tables.reorder'), [
+            'model' => $data->table->model,
+            'ids'   => [$tags[1]->id, $tags[0]->id],
+        ])->assertOk();
+
+        $this->assertSame(
+            ['B' => 1, 'A' => 2, 'C' => 3],
+            RtpTag::query()->whereKey($tags->pluck('id'))->orderBy('sort_order')->pluck('sort_order', 'name')->map(fn ($p) => (int) $p)->all(),
+        );
+        $this->assertSame(0, (int) $foreign->fresh()->sort_order);
+        $this->assertSame(0, (int) $spare->fresh()->sort_order);
     }
 
     public function test_read_only_strips_footer_actions_too(): void

@@ -120,6 +120,33 @@ describe('KinetixTable editing and layout', () => {
         wrapper.unmount();
     });
 
+    // Under a column sort the rows aren't in their saved order, so a drag
+    // rewrote that order without showing it.
+    it('offers the drag handle only while no column sort is active', () => {
+        const unsorted = mountTable(baseTable({ reorderable: true }));
+        expect(unsorted.find('.cursor-grab').exists()).toBe(true);
+        unsorted.unmount();
+
+        const sorted = mountTable(
+            baseTable({
+                reorderable: true,
+                state: {
+                    search: '',
+                    sort: 'name',
+                    direction: 'asc',
+                    filters: {},
+                    perPage: 10,
+                },
+            }),
+        );
+        const headCells = sorted.findAll('thead tr th').length;
+
+        expect(sorted.find('.cursor-grab').exists()).toBe(false);
+        expect(sorted.find('tbody tr').findAll('td').length).toBe(headCells);
+
+        sorted.unmount();
+    });
+
     // A refused value used to be console-only: it stayed in the input,
     // looking saved.
     it('says why a value was refused and shows the stored one again', async () => {

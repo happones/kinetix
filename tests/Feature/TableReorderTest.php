@@ -9,7 +9,11 @@ use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Auth\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 
 class ReorderWidget extends Model
 {
@@ -18,6 +22,14 @@ class ReorderWidget extends Model
     public $timestamps = false;
 
     protected $guarded = [];
+}
+
+class ReorderWidgetPolicy
+{
+    public function update(?User $user, ReorderWidget $widget): bool
+    {
+        return $widget->name !== 'Locked';
+    }
 }
 
 class TableReorderTest extends TestCase
@@ -124,5 +136,166 @@ class TableReorderTest extends TestCase
             ->toData();
 
         $this->assertSame('C', $data->records[0]->values['name']);
+    }
+
+    /**
+     * @param list<int|string|null> $positions one row per position, named R1, R2, …
+     */
+    private function seedRows(array $positions): void
+    {
+        ReorderWidget::query()->delete();
+
+        foreach ($positions as $i => $position) {
+            ReorderWidget::create(['id' => $i + 1, 'name' => 'R'.($i + 1), 'sort_order' => $position]);
+        }
+    }
+
+    /**
+     * @return array<int, int|null> id => position
+     */
+    private function positions(): array
+    {
+        return ReorderWidget::query()->orderBy('id')->pluck('sort_order', 'id')->all();
+    }
+
+    private function reorder(array $ids): TestResponse
+    {
+        return $this->postJson(route('kinetix.tables.reorder'), [
+            'model' => $this->reorderableToken(),
+            'ids'   => $ids,
+        ]);
+    }
+
+    /**
+     * Page two's rows were numbered 1..10 — the positions page one's rows
+     * hold — so a drag there shuffled the two pages together.
+     */
+    public function test_a_reorder_on_page_two_keeps_page_one_in_place(): void
+    {
+        $this->seedRows(range(1, 25));
+
+        $this->reorder([20, 19, 18, 17, 16, 15, 14, 13, 12, 11])->assertOk();
+
+        $positions = $this->positions();
+
+        foreach (range(1, 10) as $id) {
+            $this->assertSame($id, $positions[$id]);
+        }
+
+        foreach (range(11, 20) as $id) {
+            $this->assertSame(31 - $id, $positions[$id]);
+        }
+
+        foreach (range(21, 25) as $id) {
+            $this->assertSame($id, $positions[$id]);
+        }
+    }
+
+    public function test_a_filtered_view_trades_only_the_positions_it_shows(): void
+    {
+        $this->seedRows([10, 20, 30, 40, 50, 60]);
+
+        // A search showing rows 2 and 5 only: 5 moves above 2.
+        $this->reorder([5, 2])->assertOk();
+
+        $this->assertSame(
+            [1 => 10, 2 => 50, 3 => 30, 4 => 40, 5 => 20, 6 => 60],
+            $this->positions(),
+        );
+    }
+
+    /**
+     * A fresh column of zeros has no positions to trade: the list is numbered
+     * in the order the table shows it (zeros, then by key), with the dragged
+     * rows placed where they were.
+     */
+    public function test_an_unnumbered_list_is_numbered_in_the_order_it_was_shown(): void
+    {
+        $this->seedRows(array_fill(0, 25, 0));
+
+        // Page two (ids 11..20 in key order): 15 dragged to its top.
+        $this->reorder([15, 11, 12, 13, 14, 16, 17, 18, 19, 20])->assertOk();
+
+        $expected = [];
+
+        foreach ([...range(1, 10), 15, 11, 12, 13, 14, ...range(16, 25)] as $index => $id) {
+            $expected[$id] = $index + 1;
+        }
+
+        ksort($expected);
+
+        $this->assertSame($expected, $this->positions());
+    }
+
+    public function test_a_position_shared_with_a_row_outside_the_window_numbers_the_list(): void
+    {
+        // Rows 2 and 3 share position 2; the page shows rows 1 and 2 only.
+        $this->seedRows([1, 2, 2, 3]);
+
+        $this->reorder([2, 1])->assertOk();
+
+        $this->assertSame([1 => 2, 2 => 1, 3 => 3, 4 => 4], $this->positions());
+    }
+
+    public function test_an_unnumbered_list_over_the_cap_is_refused_untouched(): void
+    {
+        config()->set('kinetix.tables.reorder_max', 5);
+        $this->seedRows(array_fill(0, 8, 0));
+
+        $this->reorder([2, 1])
+            ->assertStatus(422)
+            ->assertJsonPath('message', __('kinetix.table_reorder_unnumbered'));
+
+        $this->assertSame(array_fill_keys(range(1, 8), 0), $this->positions());
+    }
+
+    public function test_a_repeated_id_takes_one_position(): void
+    {
+        $this->reorder([3, 3, 1, 2])->assertOk();
+
+        $this->assertSame([1 => 2, 2 => 3, 3 => 1], $this->positions());
+    }
+
+    public function test_rows_that_keep_their_position_are_not_saved(): void
+    {
+        $saved = [];
+        ReorderWidget::saved(function (ReorderWidget $widget) use (&$saved): void {
+            $saved[] = $widget->getKey();
+        });
+
+        // A, C, B: A keeps position 1.
+        $this->reorder([1, 3, 2])->assertOk();
+
+        sort($saved);
+        $this->assertSame([2, 3], $saved);
+    }
+
+    public function test_numbering_the_list_needs_write_access_to_every_row_it_moves(): void
+    {
+        Gate::policy(ReorderWidget::class, ReorderWidgetPolicy::class);
+        $this->seedRows([0, 0, 0]);
+        ReorderWidget::query()->whereKey(3)->update(['name' => 'Locked']);
+
+        // Dragging 2 above 1 numbers row 3 too — which this user may not write.
+        $this->reorder([2, 1])->assertForbidden();
+
+        $this->assertSame([1 => 0, 2 => 0, 3 => 0], $this->positions());
+    }
+
+    public function test_rows_sharing_a_position_are_ordered_by_key(): void
+    {
+        $this->seedRows([0, 0, 0]);
+        DB::enableQueryLog();
+
+        Table::make(ReorderWidget::query())
+            ->reorderable('sort_order')
+            ->columns([TextColumn::make('name')])
+            ->toData();
+
+        $select = collect(DB::getQueryLog())
+            ->pluck('query')
+            ->first(static fn (string $sql): bool => str_contains($sql, 'order by'));
+
+        $this->assertStringContainsString('order by "sort_order" asc, "reorder_widgets"."id" asc', (string) $select);
     }
 }

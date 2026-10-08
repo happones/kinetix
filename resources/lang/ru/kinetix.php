@@ -708,6 +708,7 @@ return [
     'form_action_not_allowed'       => 'Это действие не разрешено.',
     'form_action_completed'         => 'Действие выполнено.',
     'table_reorder_too_large'       => 'Слишком много строк для одновременной сортировки.',
+    'table_reorder_unnumbered'      => 'У этого списка ещё нет сохранённого порядка, и он слишком длинный, чтобы задать его за один шаг.',
     'table_record_not_found'        => 'Запись не найдена.',
     'table_write_forbidden'         => 'Это действие не разрешено.',
     'table_invalid_signature'       => 'Недействительная подпись таблицы.',

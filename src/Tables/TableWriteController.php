@@ -87,10 +87,7 @@ class TableWriteController
         }
 
         if (! $this->authorize($descriptor, $record)) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => __('kinetix.table_write_forbidden'),
-            ], 403);
+            return $this->forbiddenWrite();
         }
 
         // Validate the incoming value against the rules sealed into the
@@ -250,11 +247,13 @@ class TableWriteController
         }
 
         // Reject nested arrays outright: `whereKey([[1,2,3]])` would otherwise
-        // mass-assign one position to a whole set of records.
-        $ids = array_values(array_filter(
-            (array) $request->input('ids', []),
-            static fn (mixed $id): bool => is_scalar($id),
-        ));
+        // mass-assign one position to a whole set of records. A repeated id
+        // would claim two positions.
+        $ids = collect((array) $request->input('ids', []))
+            ->filter(static fn (mixed $id): bool => is_scalar($id))
+            ->unique(static fn (mixed $id): string => (string) $id)
+            ->values()
+            ->all();
 
         if ($ids === []) {
             return response()->json(['status' => 'success']);
@@ -279,9 +278,9 @@ class TableWriteController
             ->get()
             ->keyBy(static fn (Model $record): string => (string) $record->getKey());
 
-        $positions = [];
+        $moved = [];
 
-        foreach ($ids as $position => $id) {
+        foreach ($ids as $id) {
             $record = $records->get((string) $id);
 
             if ($record === null) {
@@ -289,26 +288,185 @@ class TableWriteController
             }
 
             if (! $this->authorize($descriptor, $record)) {
-                return response()->json([
-                    'status'  => 'error',
-                    'message' => __('kinetix.table_write_forbidden'),
-                ], 403);
+                return $this->forbiddenWrite();
             }
 
-            $positions[] = [$record, $position + 1];
+            $moved[] = $record;
+        }
+
+        if ($moved === []) {
+            return response()->json(['status' => 'success']);
+        }
+
+        // The ids are one page, one filtered view or one search result — a
+        // window onto the list, not the list. Numbering them 1..n wrote page
+        // two over page one. Their rows trade the positions they already hold;
+        // a list with no usable positions yet is numbered as a whole.
+        $positions = $this->tradedPositions($descriptor, $moved, $reorderColumn)
+            ?? $this->renumberedList($descriptor, $moved, $reorderColumn);
+
+        if ($positions instanceof JsonResponse) {
+            return $positions;
         }
 
         // Save through the model (not a query-builder update) so the host's
         // observers and audit-log listeners still fire, in one transaction so a
-        // partial reorder can't be left behind.
+        // partial reorder can't be left behind. A row that keeps its position
+        // isn't saved, so it fires no events.
         DB::transaction(function () use ($positions, $reorderColumn): void {
             foreach ($positions as [$record, $position]) {
+                if (self::samePosition($record->getAttribute($reorderColumn), $position)) {
+                    continue;
+                }
+
                 $record->{$reorderColumn} = $position;
                 $record->save();
             }
         });
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * The positions the moved rows already hold, handed out again in the new
+     * order: rows outside the window keep theirs, so a reorder on page two, in
+     * a filtered view or in a search result leaves the rest of the list where
+     * it was. Null when there is nothing to trade — a row without a position,
+     * two rows sharing one, or a row outside the window sharing one.
+     *
+     * @param  array<string, mixed>               $descriptor
+     * @param  list<Model>                        $moved
+     * @return list<array{Model, int|float}>|null
+     */
+    protected function tradedPositions(array $descriptor, array $moved, string $column): ?array
+    {
+        $slots = [];
+
+        foreach ($moved as $record) {
+            $value = $record->getAttribute($column);
+
+            if (! is_int($value) && ! is_float($value) && ! (is_string($value) && is_numeric($value))) {
+                return null;
+            }
+
+            $slots[(string) ($value + 0)] = $value + 0;
+        }
+
+        if (count($slots) !== count($moved)) {
+            return null;
+        }
+
+        $sharedOutside = $this->baseQuery($descriptor)
+            ->whereKeyNot(array_map(static fn (Model $record): mixed => $record->getKey(), $moved))
+            ->whereIn($moved[0]->qualifyColumn($column), array_values($slots))
+            ->exists();
+
+        if ($sharedOutside) {
+            return null;
+        }
+
+        $values = array_values($slots);
+        sort($values, SORT_NUMERIC);
+
+        return array_map(
+            static fn (Model $record, int|float $position): array => [$record, $position],
+            $moved,
+            $values,
+        );
+    }
+
+    /**
+     * Number the whole list 1..n in the order the table shows it (the column,
+     * then the key — see Table::applySort()), with the moved rows placed into
+     * the places they held. Only reached while the column holds no usable
+     * positions (fresh zeros, nulls, repeats); afterwards every reorder trades.
+     * Bounded by `reorder_max`, and every row it renumbers must pass the same
+     * write check as the moved ones.
+     *
+     * @param  array<string, mixed>                 $descriptor
+     * @param  list<Model>                          $moved
+     * @return list<array{Model, int}>|JsonResponse
+     */
+    protected function renumberedList(array $descriptor, array $moved, string $column): array|JsonResponse
+    {
+        $max      = (int) config('kinetix.tables.reorder_max', 1000);
+        $model    = $moved[0];
+        $position = $model->qualifyColumn($column);
+
+        $rows = $this->baseQuery($descriptor)
+            ->reorder()
+            ->orderBy($position)
+            ->orderBy($model->getQualifiedKeyName())
+            ->select([$model->getQualifiedKeyName().' as kinetix_key', $position.' as kinetix_position'])
+            ->when($max > 0, static fn (Builder $query): Builder => $query->limit($max + 1))
+            ->toBase()
+            ->get();
+
+        if ($max > 0 && $rows->count() > $max) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => __('kinetix.table_reorder_unnumbered'),
+            ], 422);
+        }
+
+        $order   = $rows->map(static fn (object $row): string => (string) $row->kinetix_key)->all();
+        $current = $rows->mapWithKeys(static fn (object $row): array => [(string) $row->kinetix_key => $row->kinetix_position])->all();
+
+        $movedByKey = [];
+
+        foreach ($moved as $record) {
+            $movedByKey[(string) $record->getKey()] = $record;
+        }
+
+        // The places the moved rows held, in list order, take them in the
+        // requested order.
+        $places = array_keys(array_intersect($order, array_keys($movedByKey)));
+
+        foreach ($places as $i => $place) {
+            $order[$place] = (string) $moved[$i]->getKey();
+        }
+
+        $positions = [];
+        $others    = [];
+
+        foreach (array_values($order) as $index => $key) {
+            if (self::samePosition($current[$key] ?? null, $index + 1)) {
+                continue;
+            }
+
+            if (isset($movedByKey[$key])) {
+                $positions[] = [$movedByKey[$key], $index + 1];
+            } else {
+                $others[$key] = $index + 1;
+            }
+        }
+
+        if ($others !== []) {
+            $records = $this->baseQuery($descriptor)->whereKey(array_keys($others))->get();
+
+            foreach ($records as $record) {
+                if (! $this->authorize($descriptor, $record)) {
+                    return $this->forbiddenWrite();
+                }
+
+                $positions[] = [$record, $others[(string) $record->getKey()]];
+            }
+        }
+
+        return $positions;
+    }
+
+    private static function samePosition(mixed $current, int|float $position): bool
+    {
+        return is_numeric($current) && (float) $current === (float) $position;
+    }
+
+    private function forbiddenWrite(): JsonResponse
+    {
+        return response()->json([
+            'status'  => 'error',
+            'message' => __('kinetix.table_write_forbidden'),
+        ], 403);
     }
 
     /**

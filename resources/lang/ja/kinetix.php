@@ -708,6 +708,7 @@ return [
     'form_action_not_allowed'       => 'この操作は許可されていません。',
     'form_action_completed'         => '操作が完了しました。',
     'table_reorder_too_large'       => '一度に並べ替える行が多すぎます。',
+    'table_reorder_unnumbered'      => 'この一覧にはまだ保存された並び順がなく、一度に設定するには長すぎます。',
     'table_record_not_found'        => 'レコードが見つかりません。',
     'table_write_forbidden'         => 'この操作は許可されていません。',
     'table_invalid_signature'       => 'テーブルの署名が無効です。',

@@ -771,6 +771,7 @@ return [
     'form_action_not_allowed'       => 'Cette action n’est pas autorisée.',
     'form_action_completed'         => 'Action terminée.',
     'table_reorder_too_large'       => 'Trop de lignes à réordonner en une fois.',
+    'table_reorder_unnumbered'      => 'Cette liste n\'a pas encore d\'ordre enregistré et elle est trop longue pour en fixer un en une seule fois.',
     'table_record_not_found'        => 'Enregistrement introuvable.',
     'table_write_forbidden'         => 'Vous n’êtes pas autorisé à effectuer cette action.',
     'table_invalid_signature'       => 'Signature de tableau invalide.',

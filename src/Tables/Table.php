@@ -1214,8 +1214,13 @@ class Table implements Arrayable, JsonSerializable
             if ($this->reorderColumn !== null) {
                 // The base query often ships its own order (a relation's
                 // ->orderBy(), a global scope) — it would outrank the manual
-                // order and make drag positions appear to "not stick".
-                $query->reorder()->orderBy($this->reorderColumn);
+                // order and make drag positions appear to "not stick". The
+                // key breaks ties (a fresh column of zeros), or rows sharing a
+                // position could repeat or vanish across pages; the reorder
+                // endpoint numbers such a list in this same order.
+                $query->reorder()
+                    ->orderBy($this->reorderColumn)
+                    ->orderBy($query->getModel()->getQualifiedKeyName());
             }
 
             return;

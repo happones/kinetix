@@ -797,6 +797,7 @@ return [
     'form_action_not_allowed'       => 'This action is not allowed.',
     'form_action_completed'         => 'Action completed.',
     'table_reorder_too_large'       => 'Too many rows to reorder at once.',
+    'table_reorder_unnumbered'      => 'This list has no saved order yet and is too long to set one in a single step.',
     'table_record_not_found'        => 'Record not found.',
     'table_write_forbidden'         => 'This action is unauthorized.',
     'table_invalid_signature'       => 'Invalid table signature.',

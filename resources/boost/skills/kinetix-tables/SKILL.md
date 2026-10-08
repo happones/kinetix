@@ -109,7 +109,8 @@ checkbox, links) never trigger the row. Keyboard: `Tab` + `Enter`; `Ctrl/Cmd`+cl
 
 `heading()/description()`, `striped()`, `poll('10s')`, `stickyActions()`,
 `reorderable('sort_order')` (drag with a translucent live preview of the landing row, persisted on
-drop, reverted on a cancelled drag), `saveViews(?key)` (per-user presets; key defaults
+drop, reverted on a cancelled drag; the dragged rows trade the positions they hold, so paging,
+filters and search are safe; off while a column sort or group is active), `saveViews(?key)` (per-user presets; key defaults
 to `Model:queryPrefix`), `queryPrefix('tags_')` (multiple tables per page), `stats([...])` (KPI
 cards over the same filtered query), `recordModals(Resource::class)` (in-table modal CRUD for
 simple resources — NOT inside relation managers), `simplePaginated()` (no COUNT) /

@@ -472,8 +472,14 @@ const { isGrouped, renderItems, toggleGroup } = useKinetixTableGroups(
 // decides it everywhere — head, body, footer and every colspan — or the grip
 // column exists in some rows and not others and every cell shifts under the
 // wrong header.
+// Off while a group or a column sort is active: a row can't leave its group,
+// and under a sort the rows aren't shown in their saved order, so a drag would
+// rewrite that order without showing it.
 const canReorder = computed(
-    () => !!props.table.reorderable && !isGrouped.value,
+    () =>
+        !!props.table.reorderable &&
+        !isGrouped.value &&
+        !props.table.state.sort,
 );
 
 // --- Row rendering ------------------------------------------------------------

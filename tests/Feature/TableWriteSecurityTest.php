@@ -161,15 +161,18 @@ class TableWriteSecurityTest extends TestCase
     public function test_a_record_outside_the_tables_scope_cannot_be_reordered(): void
     {
         $mine    = ScopedWidget::create(['team_id' => 1, 'name' => 'Mine', 'position' => 1]);
+        $other   = ScopedWidget::create(['team_id' => 1, 'name' => 'Also mine', 'position' => 2]);
         $foreign = ScopedWidget::create(['team_id' => 2, 'name' => 'Theirs', 'position' => 7]);
 
         $this->postJson(route('kinetix.tables.reorder'), [
             'model' => $this->tokenForTeam(1),
-            'ids'   => [$foreign->id, $mine->id],
+            'ids'   => [$foreign->id, $other->id, $mine->id],
         ])->assertOk();
 
-        // The foreign record keeps its position; only the in-scope one moved.
+        // The foreign record keeps its position; only the in-scope ones moved
+        // (trading the positions they held).
         $this->assertSame(7, $foreign->fresh()->position);
+        $this->assertSame(1, $other->fresh()->position);
         $this->assertSame(2, $mine->fresh()->position);
     }
 
@@ -308,6 +311,7 @@ class TableWriteSecurityTest extends TestCase
     public function test_reordering_fires_model_events_so_host_observers_still_run(): void
     {
         $widget = ScopedWidget::create(['team_id' => 1, 'name' => 'Mine', 'position' => 5]);
+        $other  = ScopedWidget::create(['team_id' => 1, 'name' => 'Also mine', 'position' => 6]);
 
         $saved = 0;
         ScopedWidget::saved(function () use (&$saved): void {
@@ -316,10 +320,11 @@ class TableWriteSecurityTest extends TestCase
 
         $this->postJson(route('kinetix.tables.reorder'), [
             'model' => $this->tokenForTeam(1),
-            'ids'   => [$widget->id],
+            'ids'   => [$other->id, $widget->id],
         ])->assertOk();
 
-        $this->assertSame(1, $saved);
-        $this->assertSame(1, $widget->fresh()->position);
+        $this->assertSame(2, $saved);
+        $this->assertSame(6, $widget->fresh()->position);
+        $this->assertSame(5, $other->fresh()->position);
     }
 }

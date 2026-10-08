@@ -1152,6 +1152,38 @@ is baked into the same encrypted token as the table's model, so a request can
 only reorder a table that explicitly opted in via `reorderable()` — the column
 can't be forged from the client (the same guard as inline cell edits).
 
+### Pages, filters and search
+
+A drag only sees the rows on screen: one page, a filtered view or a search
+result. Those rows **trade the positions they already hold** — dragging on page
+two reorders page two and leaves page one, page three and every filtered-out
+row exactly where they were. Rows that keep their position aren't saved, so
+they fire no model events.
+
+- **Sorted by a column?** The drag handle is hidden while a column sort is
+  active (and while a group is), because the rows aren't shown in their saved
+  order. Clear the sort to reorder.
+- **Ties.** Rows that share a position are shown in key order, so a page never
+  repeats or skips a row.
+- **A column with no positions yet** (all `0`, `null`s, repeats) has nothing to
+  trade. The first drag numbers the whole list `1..n` in the order it was
+  shown, with the dragged rows in their new order. Every row it renumbers must
+  pass the same write check as the dragged ones, and a list longer than
+  `kinetix.tables.reorder_max` (default 1000) is refused with a message rather
+  than rewritten. After that, each drag trades.
+
+Give new rows a position when you create them (for example the current maximum
+plus one) so the list stays numbered:
+
+```php
+protected static function booted(): void
+{
+    static::creating(function (Section $section): void {
+        $section->sort_order ??= (int) static::query()->max('sort_order') + 1;
+    });
+}
+```
+
 ### How the write endpoints are guarded
 
 Inline cell edits (`ToggleColumn`, `TextInputColumn`, `SelectColumn`) and

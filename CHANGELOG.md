@@ -13,6 +13,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.211.1] - 2026-10-08
+
+**If you have a reorderable, paginated table, upgrade.** Dragging rows on any
+page but the first wrote positions that belonged to page one, and the two pages
+got mixed together. Re-publish the components (`--force`) and the translations.
+
+### Fixed
+
+- **A drag on page two scrambled page one.** The reorder endpoint numbered the
+  rows it received `1..n`, but those rows are only a window onto the list: one
+  page, a filtered view or a search result.
+  - The dragged rows now **trade the positions they already hold**. Every row
+    outside the window, on other pages or filtered out, keeps its position.
+  - A row that keeps its position is no longer saved, so it fires no model
+    events.
+  - A repeated id in the request takes one position, not two.
+- **A column with no positions yet** (all `0`, `null`s, repeats) has nothing
+  to trade.
+  - The first drag numbers the whole list `1..n` in the order it was shown,
+    with the dragged rows in their new order.
+  - Every row it renumbers must pass the same write check as the dragged ones.
+  - A list longer than `kinetix.tables.reorder_max` (default 1000) is refused
+    with a message (`table_reorder_unnumbered`, 7 locales) and nothing is
+    written.
+- **Rows sharing a position could repeat or vanish across pages.** A
+  reorderable table now breaks ties by key.
+- **(published)** **Dragging under a column sort rewrote an order the table
+  wasn't showing.** `KinetixTable` hides the drag handle while a column sort is
+  active, as it already did while a group is. Clear the sort to reorder.
+
+### Added
+
+- **Gallery specimens** for the UI added since 0.196:
+  - grouped tables;
+  - deferred stats;
+  - form filters and form actions (captured open);
+  - key-value and repeatable infolist entries;
+  - the generator, standalone and as form fields.
+
+  The gallery's message catalog is regenerated, so the generator's preset
+  picker shows its labels.
+
+### Docs
+
+- `docs/tables.md` explains how a reorder behaves with pages, filters, search,
+  sorts and unnumbered columns, with a `creating` hook that gives new rows a
+  position.
+
 ## [0.211.0] - 2026-10-08
 
 The last leftovers of the 0.194–0.207 review: table rows are memoized again,

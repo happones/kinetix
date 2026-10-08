@@ -6,6 +6,7 @@ import KinetixOnboardingChecklist from '@/components/KinetixOnboardingChecklist.
 import KinetixTable from '@/components/KinetixTable.vue';
 import KinetixFormSchema from '@/components/KinetixFormSchema.vue';
 import KinetixInfolist from '@/components/KinetixInfolist.vue';
+import KinetixGenerator from '@/components/KinetixGenerator.vue';
 import KinetixGdprPanel from '@/components/KinetixGdprPanel.vue';
 import KinetixTokenManager from '@/components/KinetixTokenManager.vue';
 import KinetixWebhookManager from '@/components/KinetixWebhookManager.vue';
@@ -1873,6 +1874,127 @@ const pageFooterActions = [
     pageAction({ name: 'save', label: 'Save changes', icon: 'check' }),
 ];
 
+// --- Grouping, deferred stats, form filters and form actions ------------------
+// The toolbar table's columns over rows that actually share a bucket, so the
+// grouped specimen shows real groups (the toolbar table has one row each).
+const catalogRecords = (
+    [
+        [
+            'Standing desk with an unusually long product name',
+            'Furniture',
+            'Active',
+        ],
+        ['Ergonomic chair', 'Furniture', 'Active'],
+        ['Laptop stand', 'Accessories', 'Active'],
+        ['Cable tray', 'Accessories', 'Archived'],
+        ['USB-C dock', 'Electronics', 'Archived'],
+        ['Noise cancelling headphones', 'Electronics', 'Active'],
+    ] as const
+).map(([name, category, status], i) => ({
+    id: i + 1,
+    values: { name, category, status },
+    icons: {},
+    iconColors: {},
+    badgeColors: { status: status === 'Active' ? 'success' : 'warning' },
+    descriptions: {},
+    recordUrl: null,
+    actions: [],
+    groupKey: category,
+    groupLabel: category,
+}));
+
+const catalogTable = (extra: Record<string, unknown> = {}) => ({
+    ...toolbarTable,
+    description: null,
+    filters: [],
+    toolbarActions: [],
+    records: catalogRecords,
+    pagination: { ...toolbarTable.pagination, total: 6, to: 6 },
+    ...extra,
+});
+
+const datePicker = (name: string, label: string) => ({
+    type: 'date-picker',
+    name,
+    label,
+    columnSpan: 'full',
+    isDisabled: false,
+});
+
+// Infolist entries that render other entries: a key-value map (long keys, a
+// nested value) and a repeatable list laid out as a responsive grid.
+const repeatableInfolist = {
+    columns: 1,
+    operation: 'view',
+    schema: [
+        entry({
+            type: 'key-value',
+            name: 'meta',
+            label: 'Metadata',
+            columnSpan: 'full',
+            keyLabel: 'Key',
+            valueLabel: 'Value',
+            state: {
+                'x-request-id-with-a-very-long-header-name':
+                    '2f1c9a7e-4b7d-4a8e-9a4e-91d8f1b0c2aa',
+                region: 'us-east-1',
+                nested: { a: 1, b: [1, 2] },
+            },
+        }),
+        entry({
+            type: 'repeatable',
+            name: 'items',
+            label: 'Line items',
+            columnSpan: 'full',
+            gridColumns: 3,
+            state: null,
+            repeatableItems: [1, 2].map((n) => [
+                entry({
+                    type: 'text',
+                    name: 'name',
+                    label: 'Product',
+                    state: `Product with a long name ${n}`,
+                }),
+                entry({
+                    type: 'text',
+                    name: 'status',
+                    label: 'Status',
+                    state: 'Shipped',
+                    isBadge: true,
+                    color: 'success',
+                }),
+                entry({
+                    type: 'icon',
+                    name: 'flag',
+                    label: 'Flag',
+                    state: 'check',
+                    icon: 'check-circle',
+                    color: 'success',
+                }),
+                entry({
+                    type: 'color',
+                    name: 'swatch',
+                    label: 'Color',
+                    state: '#6366f1',
+                }),
+            ]),
+        }),
+    ],
+};
+
+const generatorField = (
+    name: string,
+    label: string,
+    generatorConfig: Record<string, unknown>,
+) => ({
+    type: 'generator-input',
+    name,
+    label,
+    columnSpan: 'full',
+    isDisabled: false,
+    generatorConfig,
+});
+
 export const specimens: Specimen[] = [
     {
         name: 'page-footer',
@@ -3713,5 +3835,155 @@ export const specimens: Specimen[] = [
         component: KinetixRelationManagers,
         width: 1100,
         props: { managers: relationManagers },
+    },
+    {
+        name: 'table-grouped',
+        title: 'Table — grouped by category (collapsible)',
+        component: KinetixTable,
+        width: 960,
+        props: {
+            table: catalogTable({
+                groups: [
+                    {
+                        column: 'category',
+                        label: 'Category',
+                        collapsible: true,
+                    },
+                ],
+                defaultGroup: 'category',
+            }),
+        },
+    },
+    {
+        name: 'table-deferred-stats',
+        title: 'Table — deferred stats (fetched after the rows)',
+        component: KinetixTable,
+        width: 960,
+        props: {
+            table: catalogTable({
+                deferStats: true,
+                aggregatesDescriptor: 'signed',
+            }),
+        },
+    },
+    {
+        name: 'table-form-filter',
+        title: 'Table — form filters (open)',
+        component: KinetixTable,
+        width: 960,
+        openSelector: '#specimen button:has-text("Filters")',
+        props: {
+            table: catalogTable({
+                filters: [
+                    {
+                        name: 'created',
+                        label: 'Created between',
+                        default: null,
+                        type: 'form',
+                        schema: [
+                            datePicker('from', 'From'),
+                            datePicker('until', 'Until'),
+                        ],
+                    },
+                    {
+                        name: 'owner',
+                        label: 'Owner',
+                        default: null,
+                        type: 'form',
+                        schema: [
+                            ti('first', 'First name', 'full'),
+                            ti('last', 'Last name', 'full'),
+                            ti('email', 'Email', 'full'),
+                        ],
+                    },
+                ],
+            }),
+        },
+    },
+    {
+        name: 'table-form-action',
+        title: 'Table — form action (modal open)',
+        component: KinetixTable,
+        width: 960,
+        openSelector: '#specimen button:has-text("Invite member")',
+        props: {
+            table: catalogTable({
+                formActionDescriptor: 'signed',
+                toolbarActions: [
+                    {
+                        name: 'invite',
+                        label: 'Invite member',
+                        icon: 'plus',
+                        color: null,
+                        type: 'button',
+                        openUrlInNewTab: false,
+                        isFormAction: true,
+                        modalHeading: 'Invite a member',
+                        modalDescription:
+                            'They get an email with a sign-in link.',
+                        form: {
+                            schema: [
+                                ti('name', 'Full name', 'full'),
+                                ti('email', 'Email address', 'full'),
+                                datePicker('starts', 'Starts on'),
+                            ],
+                            data: {},
+                            rules: {},
+                            operation: 'create',
+                        },
+                    },
+                ],
+            }),
+        },
+    },
+    {
+        name: 'infolist-repeatable',
+        title: 'Infolist — key-value + repeatable entries',
+        component: KinetixInfolist,
+        width: 720,
+        props: { infolist: repeatableInfolist },
+    },
+    {
+        name: 'generator',
+        title: 'Generator — standalone with the preset picker',
+        component: KinetixGenerator,
+        frame: 'card',
+        width: 600,
+        props: {
+            presets: true,
+            config: {
+                preset: 'password-strong',
+                length: 24,
+                copyable: true,
+                revealable: true,
+            },
+        },
+    },
+    {
+        name: 'generator-fields',
+        title: 'Generator — fields in a form',
+        component: KinetixFormSchema,
+        width: 700,
+        props: {
+            values: { first: 'José', last: 'Núñez' },
+            errors: {},
+            schema: [
+                ti('first', 'First', 'full'),
+                ti('last', 'Last', 'full'),
+                generatorField('username', 'Username', {
+                    kind: 'username',
+                    pattern: '{first}.{last}',
+                }),
+                generatorField('api_key', 'API key', {
+                    preset: 'api-key',
+                    copyable: true,
+                }),
+                generatorField('passphrase', 'Passphrase', {
+                    preset: 'passphrase',
+                    masked: true,
+                    copyable: true,
+                }),
+            ],
+        },
     },
 ];
