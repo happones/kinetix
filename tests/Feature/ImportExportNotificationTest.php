@@ -11,6 +11,8 @@ use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Imports\ImportColumn;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
+use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
+use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -395,6 +397,31 @@ class ImportExportNotificationTest extends TestCase
         ))->handle();
 
         $this->assertSame(7, $this->latestNotificationData($user)['team']);
+    }
+
+    /**
+     * Kinetix's own notifications carry a preference type: delivered as
+     * before until the host registers it, then each user's choice applies.
+     */
+    public function test_a_registered_export_type_follows_the_recipients_preferences(): void
+    {
+        config()->set('kinetix.notification_preferences.enabled', true);
+        config()->set('kinetix.notification_preferences.channels', ['database' => 'In-app']);
+        (require __DIR__.'/../../database/migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php')->up();
+
+        $user = NotifyRecipient::create(['name' => 'A']);
+        NotifyWidget::create(['name' => 'Ada']);
+        app(NotificationPreferenceManager::class)->update($user, KinetixNotificationPreferences::EXPORTS, 'database', false);
+
+        // Not registered yet: the opt-out has no switch in the matrix, so the
+        // notification goes out as it always did.
+        (new ExportProcessor(NotifyWidgetExporter::class, NotifyRecipient::class, $user->id))->handle();
+        $this->assertSame(1, $user->fresh()->notifications()->count());
+
+        KinetixNotificationPreferences::types([KinetixNotificationPreferences::EXPORTS => 'Exports']);
+
+        (new ExportProcessor(NotifyWidgetExporter::class, NotifyRecipient::class, $user->id))->handle();
+        $this->assertSame(1, $user->fresh()->notifications()->count());
     }
 
     public function test_import_start_endpoint_returns_the_importer_started_message(): void

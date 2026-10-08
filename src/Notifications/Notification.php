@@ -30,6 +30,8 @@ class Notification
 
     protected int|string|null $team = null;
 
+    protected ?string $type = null;
+
     public function __construct()
     {
         $this->id = uniqid('kinetix_', true);
@@ -64,6 +66,24 @@ class Notification
         $this->team = $team;
 
         return $this;
+    }
+
+    /**
+     * The notification type the recipient's preferences are checked against:
+     * a key registered in `kinetix.notification_preferences.types`. Database
+     * and broadcast deliveries skip the channels the recipient turned off for
+     * it. With no type, or one that isn't registered, every channel goes out.
+     */
+    public function type(?string $type): static
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
+    public function getType(): ?string
+    {
+        return $this->type;
     }
 
     /**
@@ -266,7 +286,7 @@ class Notification
 
         if ($recipient !== null && method_exists($recipient, 'notify')) {
             $channels = $isEventDispatched ? ['database', 'broadcast'] : ['database'];
-            $recipient->notify(new KinetixLaravelNotification($this->toArray(), $channels));
+            $recipient->notify(new KinetixLaravelNotification($this->toArray(), $channels, $this->type));
         }
 
         return $this;
@@ -291,7 +311,7 @@ class Notification
         $recipient ??= $this->recipient ?? auth()->user();
 
         if ($recipient !== null && method_exists($recipient, 'notify')) {
-            $recipient->notify(new KinetixLaravelNotification($this->toArray(), ['database', 'broadcast']));
+            $recipient->notify(new KinetixLaravelNotification($this->toArray(), ['database', 'broadcast'], $this->type));
         }
 
         return $this;
@@ -312,7 +332,7 @@ class Notification
      */
     public function toBroadcast(): KinetixLaravelNotification
     {
-        return new KinetixLaravelNotification($this->toArray(), ['database', 'broadcast']);
+        return new KinetixLaravelNotification($this->toArray(), ['database', 'broadcast'], $this->type);
     }
 
     /**

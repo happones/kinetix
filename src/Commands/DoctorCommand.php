@@ -9,6 +9,7 @@ use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Entitlements\Entitlement;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Membership\MemberActivationNotification;
+use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
@@ -59,6 +60,7 @@ class DoctorCommand extends Command
         $this->checkMembershipDelivery();
         $this->checkRoles();
         $this->checkMembership();
+        $this->checkNotificationPreferences();
         $this->checkConfigCallbacks();
         $this->checkTenantColumns();
         $this->checkGlobalData();
@@ -694,6 +696,43 @@ class DoctorCommand extends Command
                 'Provisions are scoped by membership.teams while role rows are scoped by permissions.teams — '
                 .'role assignments may land in the wrong tenant. Align both flags (or leave both null to inherit kinetix.teams).');
         }
+    }
+
+    protected function checkNotificationPreferences(): void
+    {
+        if (! config('kinetix.notification_preferences.enabled', false)) {
+            return;
+        }
+
+        $publish = 'php artisan vendor:publish --tag=kinetix-notification-preferences-migrations && php artisan migrate';
+
+        if (! Schema::hasTable('kinetix_notification_preferences')) {
+            $this->error_('Notification preferences', 'enabled but the preferences table is missing', $publish);
+
+            return;
+        }
+
+        if (! Schema::hasColumn('kinetix_notification_preferences', 'notifiable_type')) {
+            $this->warn_(
+                'Notification preferences',
+                'notifiable models share one row per id (a Client #1 reads a User #1\'s choices) until its type column exists',
+                $publish,
+            );
+        }
+
+        $types = app(NotificationTypeRegistry::class)->all();
+
+        if ($types === []) {
+            $this->warn_(
+                'Notification preferences',
+                'no notification types registered, so the matrix is empty and nothing can be turned off',
+                'List them in kinetix.notification_preferences.types, or call KinetixNotificationPreferences::types([...]) in a provider.',
+            );
+
+            return;
+        }
+
+        $this->ok('Notification preferences', count($types).' type(s) registered');
     }
 
     /**

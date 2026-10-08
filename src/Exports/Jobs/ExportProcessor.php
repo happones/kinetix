@@ -8,6 +8,7 @@ use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Exports\DownloadToken;
 use Happones\Kinetix\Exports\Exporter;
 use Happones\Kinetix\Exports\FileWriter;
+use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Bus\Queueable;
@@ -73,6 +74,7 @@ class ExportProcessor implements ShouldQueue
         $exporter = new $this->exporterClass;
 
         $notification = Notification::make()
+            ->type(KinetixNotificationPreferences::EXPORTS)
             ->title($exporter->getFailedNotificationTitle())
             ->body($exporter->getFailedNotificationBody())
             ->team($this->teamKey)
@@ -163,6 +165,7 @@ class ExportProcessor implements ShouldQueue
         }
 
         $notification = Notification::make()
+            ->type(KinetixNotificationPreferences::EXPORTS)
             ->title($exporter->getCompletedNotificationTitle($exported, $failed))
             ->body($exporter->getCompletedNotificationBody($exported, $failed))
             ->team($this->teamKey)

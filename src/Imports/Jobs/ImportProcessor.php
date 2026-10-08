@@ -10,6 +10,7 @@ use Happones\Kinetix\Exports\DownloadToken;
 use Happones\Kinetix\Exports\FileWriter;
 use Happones\Kinetix\Imports\FileReader;
 use Happones\Kinetix\Imports\Importer;
+use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Bus\Queueable;
@@ -93,6 +94,7 @@ class ImportProcessor implements ShouldQueue
         $importer = (new $this->importerClass)->withContext($this->context);
 
         $notification = Notification::make()
+            ->type(KinetixNotificationPreferences::IMPORTS)
             ->title($importer->getFailedNotificationTitle())
             ->body($importer->getFailedNotificationBody())
             ->team($this->teamKey)
@@ -378,6 +380,7 @@ class ImportProcessor implements ShouldQueue
         }
 
         $notification = Notification::make()
+            ->type(KinetixNotificationPreferences::IMPORTS)
             ->title($importer->getCompletedNotificationTitle($imported, $failed))
             ->body($body)
             ->team($this->teamKey)

@@ -13,6 +13,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.212.0] - 2026-10-08
+
+Notification preferences are now applied when Kinetix sends, not just saved.
+Publish and run the new notification-preferences migration.
+
+### Fixed
+
+- **A user who turned a channel off kept receiving it.** The type × channel
+  matrix was advisory: nothing in Kinetix's send path read it.
+  - `Notification::make()->type('orders')` now filters the database and
+    broadcast deliveries against the recipient's choices. A notification whose
+    every channel is off isn't sent.
+  - The check runs only while `notification_preferences.enabled` is on and the
+    type is registered. With no type, or a type the matrix doesn't show, every
+    channel goes out, so nobody is silenced by a switch they can't see.
+  - The session flash path is never filtered.
+- **A `Client` #1 read and wrote a `User` #1's preferences.** Rows were keyed
+  by id alone. They now belong to a notifiable by key **and** model type.
+  - Migration `000039` adds `notifiable_type` and makes the key unique per
+    type.
+  - Rows written before it stay with the default user model, and that user's
+    next change claims the row.
+  - Until the migration runs, rows match by key alone, as before.
+
+### Added
+
+- **Kinetix's own notifications carry a preference type:**
+  - `KinetixNotificationPreferences::EXPORTS`;
+  - `IMPORTS`;
+  - `REPORTS` (Reports Center runs);
+  - `DATA_EXPORTS` (personal-data exports).
+
+  They are delivered as before until you register the key in
+  `notification_preferences.types`; from then on users can turn them off.
+  Transactional mail (temporary passwords, member activation) has no type and
+  is always sent.
+- **`kinetix:doctor` checks notification preferences:**
+  - the table is missing;
+  - the type column is missing;
+  - the module is on with no types registered.
+
+### Changed
+
+- The key-and-type ownership used by the password history (0.208.0) and now by
+  notification preferences is one shared `OwnedByModelType` concern.
+  `PasswordHistory::of()` and `flush()` are unchanged.
+
 ## [0.211.1] - 2026-10-08
 
 **If you have a reorderable, paginated table, upgrade.** Dragging rows on any

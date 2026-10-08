@@ -98,6 +98,7 @@ use Happones\Kinetix\Locale\Middleware\SetKinetixLocale;
 use Happones\Kinetix\Mail\MailTemplateController;
 use Happones\Kinetix\Media\MediaManager;
 use Happones\Kinetix\Membership\MembershipController;
+use Happones\Kinetix\NotificationPreferences\NotificationPreference;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
@@ -553,7 +554,8 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional Notification Preferences module's migration.
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php' => database_path('migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php'                 => database_path('migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000039_add_notifiable_type_to_kinetix_notification_preferences_table.php' => database_path('migrations/2026_01_01_000039_add_notifiable_type_to_kinetix_notification_preferences_table.php'),
             ], 'kinetix-notification-preferences-migrations');
 
             // Publish the optional Saved Views module's migration.
@@ -2996,6 +2998,7 @@ class KinetixServiceProvider extends ServiceProvider
             // the policy columns; a migration between requests must be seen.
             PasswordObserver::flush();
             PasswordHistory::flush();
+            NotificationPreference::flushOwnerTypeColumn();
         };
 
         $reset();

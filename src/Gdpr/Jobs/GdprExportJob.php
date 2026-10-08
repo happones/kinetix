@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Gdpr\Jobs;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Exports\DownloadToken;
 use Happones\Kinetix\Gdpr\GdprManager;
+use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Bus\Queueable;
@@ -67,6 +68,7 @@ class GdprExportJob implements ShouldQueue
         }
 
         $notification = Notification::make()
+            ->type(KinetixNotificationPreferences::DATA_EXPORTS)
             ->title((string) __('kinetix.gdpr_export_failed'))
             ->body((string) __('kinetix.gdpr_export_failed_body'))
             ->danger();
@@ -114,6 +116,7 @@ class GdprExportJob implements ShouldQueue
     protected function notify(Model $user, string $url): void
     {
         $notification = Notification::make()
+            ->type(KinetixNotificationPreferences::DATA_EXPORTS)
             ->title((string) __('kinetix.gdpr_export_ready'))
             ->body((string) __('kinetix.gdpr_export_ready_body'))
             ->success()

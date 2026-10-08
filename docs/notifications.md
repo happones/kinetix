@@ -149,6 +149,7 @@ Each is a shortcut for `->status('success'|'warning'|'danger'|'info')`, so you c
 | `->iconColor(?string)` | Color of the notification icon | `null` |
 | `->actions(array)` | Attach `Action` buttons/links (see [Actions](#actions)) | `[]` |
 | `->team(int\|string\|null)` | Stamp the team the notification belongs to (see [Team-scoped notifications](#team-scoped-notifications)) | `null` |
+| `->type(?string)` | The [notification preferences](/notification-preferences#kinetix-notifications-follow-the-matrix) type: database/broadcast deliveries skip the channels the recipient turned off for it | `null` |
 
 ```php
 Notification::make()

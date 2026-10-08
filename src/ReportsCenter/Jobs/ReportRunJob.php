@@ -6,6 +6,7 @@ namespace Happones\Kinetix\ReportsCenter\Jobs;
 
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Exports\FileWriter;
+use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\ReportsCenter\Report;
 use Happones\Kinetix\ReportsCenter\ReportRun;
@@ -230,6 +231,7 @@ class ReportRunJob implements ShouldQueue
         $url = route('kinetix.report-runs.download', $run);
 
         $notification = Notification::make()
+            ->type(KinetixNotificationPreferences::REPORTS)
             ->title((string) __('kinetix.report_run_ready'))
             ->body((string) __('kinetix.report_run_ready_body'))
             ->success()

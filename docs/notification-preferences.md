@@ -93,6 +93,65 @@ class OrderShipped extends Notification
 Or check a single channel with
 `KinetixNotificationPreferences::allows($user, $type, $channel)`.
 
+### Kinetix notifications follow the matrix
+
+A notification built with Kinetix's `Notification` builder takes a type, and
+its database/broadcast deliveries skip the channels the recipient turned off
+for it. A notification whose every channel is off isn't sent at all:
+
+```php
+use Happones\Kinetix\Notifications\Notification;
+
+Notification::make()
+    ->type('orders')
+    ->title('Your order shipped')
+    ->success()
+    ->sendToDatabase($user);
+```
+
+The check happens only while the module is enabled and the type is
+**registered**. With no type, or a type the matrix doesn't show, every channel
+goes out, so a user is never silenced by a switch they can't see. The session
+flash path (`send()` without database notifications) is the response to the
+user's own action and is never filtered.
+
+Kinetix's own notifications already carry a type. They keep going out on every
+channel until you register the type; from then on it appears in the matrix and
+each user's choice applies:
+
+| Constant (`KinetixNotificationPreferences::`) | Key | Sent when |
+|---|---|---|
+| `EXPORTS` | `kinetix.exports` | an export finishes or fails |
+| `IMPORTS` | `kinetix.imports` | an import finishes or fails |
+| `REPORTS` | `kinetix.reports` | a Reports Center run is ready |
+| `DATA_EXPORTS` | `kinetix.data-exports` | a personal-data (GDPR) export is ready or fails |
+
+```php
+'types' => [
+    'orders'          => 'Order updates',
+    'kinetix.exports' => 'Finished exports',
+],
+```
+
+Transactional mail (temporary passwords, member activation links) has no type
+and is always sent.
+
+### Several notifiable models
+
+A preference row belongs to its notifiable by key **and** model type, so with
+[credential profiles](/credentials) a `Client` #1 and a `User` #1 keep separate
+choices. Apps upgrading from an earlier version publish and run the migration
+that adds the type column:
+
+```bash
+php artisan vendor:publish --tag=kinetix-notification-preferences-migrations
+php artisan migrate
+```
+
+Rows written before it keep a null type and stay with the default user model;
+that user's next change claims the row. `php artisan kinetix:doctor` warns while
+the column is missing, and when the module is on with no types registered.
+
 ---
 
 ## Endpoints

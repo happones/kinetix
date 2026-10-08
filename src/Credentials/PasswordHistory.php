@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Credentials;
 
+use Happones\Kinetix\Support\Concerns\OwnedByModelType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Schema;
-use Throwable;
 
 /**
  * One previously-used password HASH for a user.
@@ -29,19 +28,13 @@ use Throwable;
  */
 class PasswordHistory extends Model
 {
+    use OwnedByModelType;
+
     public const UPDATED_AT = null;
 
     protected $table = 'kinetix_password_history';
 
     protected $guarded = [];
-
-    /**
-     * Whether the table has the `authenticatable_type` column, per connection.
-     * Memoized like {@see PasswordObserver}'s column check, and flushed with it.
-     *
-     * @var array<string, bool>
-     */
-    protected static array $typeColumn = [];
 
     /**
      * @return array<string, string>
@@ -63,56 +56,7 @@ class PasswordHistory extends Model
      */
     public static function of(Model $user): Builder
     {
-        $query = static::query()->where('user_id', $user->getKey());
-
-        if (! static::hasTypeColumn()) {
-            return $query;
-        }
-
-        $type = $user->getMorphClass();
-
-        return static::isDefaultModel($user)
-            ? $query->where(static fn (Builder $q) => $q
-                ->where('authenticatable_type', $type)
-                ->orWhereNull('authenticatable_type'))
-            : $query->where('authenticatable_type', $type);
-    }
-
-    /**
-     * The attributes that tie a new row to $user.
-     *
-     * @return array<string, mixed>
-     */
-    public static function ownerAttributes(Model $user): array
-    {
-        return static::hasTypeColumn()
-            ? ['user_id' => $user->getKey(), 'authenticatable_type' => $user->getMorphClass()]
-            : ['user_id' => $user->getKey()];
-    }
-
-    protected static function isDefaultModel(Model $user): bool
-    {
-        $default = config('kinetix.credentials.user_model')
-            ?: config('kinetix.membership.user_model', 'App\\Models\\User');
-
-        return is_string($default) && $user instanceof $default;
-    }
-
-    protected static function hasTypeColumn(): bool
-    {
-        $instance   = new static;
-        $connection = (string) $instance->getConnectionName();
-
-        if (! array_key_exists($connection, static::$typeColumn)) {
-            try {
-                static::$typeColumn[$connection] = Schema::connection($instance->getConnectionName())
-                    ->hasColumn($instance->getTable(), 'authenticatable_type');
-            } catch (Throwable) {
-                static::$typeColumn[$connection] = false;
-            }
-        }
-
-        return static::$typeColumn[$connection];
+        return static::ownedBy($user);
     }
 
     /**
@@ -121,6 +65,11 @@ class PasswordHistory extends Model
      */
     public static function flush(): void
     {
-        static::$typeColumn = [];
+        static::flushOwnerTypeColumn();
+    }
+
+    protected static function ownerTypeColumn(): string
+    {
+        return 'authenticatable_type';
     }
 }

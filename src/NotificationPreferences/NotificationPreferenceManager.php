@@ -62,7 +62,10 @@ class NotificationPreferenceManager
      */
     public function update(Model $user, string $type, string $channel, bool $enabled): void
     {
-        $record = NotificationPreference::query()->firstOrNew(['user_id' => $user->getKey()]);
+        $record = NotificationPreference::ownedBy($user)->first() ?? new NotificationPreference;
+
+        // A row written before the type column existed is claimed by its owner.
+        $record->fill(NotificationPreference::ownerAttributes($user));
 
         $preferences = $record->preferences ?? [];
         $preferences[$type] ??= [];
@@ -97,11 +100,30 @@ class NotificationPreferenceManager
     }
 
     /**
+     * The channels a notification of $type may use for $user. The user's
+     * choices apply while the module is on and the type is one their matrix
+     * shows; otherwise every channel goes out. A type that is no longer
+     * registered has no switch left to turn back on, so an opt-out stored for
+     * it no longer applies.
+     *
+     * @param  array<int, string> $channels
+     * @return array<int, string>
+     */
+    public function deliverable(Model $user, string $type, array $channels): array
+    {
+        if (! config('kinetix.notification_preferences.enabled', false) || ! $this->registry->has($type)) {
+            return $channels;
+        }
+
+        return $this->channelsFor($user, $type, $channels);
+    }
+
+    /**
      * @return array<string, array<string, bool>>
      */
     protected function stored(Model $user): array
     {
-        $record = NotificationPreference::query()->where('user_id', $user->getKey())->first();
+        $record = NotificationPreference::ownedBy($user)->first();
 
         if ($record === null) {
             return [];

@@ -59,6 +59,15 @@ public function via(object $notifiable): array
 }
 ```
 
+Kinetix's own builder gates itself: `Notification::make()->type('orders')`
+filters the database/broadcast channels against the recipient's matrix (no
+`via()` needed). Only while the module is on AND the type is registered; no
+type, or an unregistered one, delivers on every channel. Kinetix's notifications
+carry `KinetixNotificationPreferences::EXPORTS` / `IMPORTS` / `REPORTS` /
+`DATA_EXPORTS` (`kinetix.exports`, …): register a key in `types` to let users
+turn it off. Rows are owned by key + model type (`notifiable_type`, migration
+000039), so credential-profile models never share choices.
+
 ## Frontend
 
 ```vue

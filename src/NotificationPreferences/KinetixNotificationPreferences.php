@@ -20,6 +20,19 @@ use Illuminate\Database\Eloquent\Model;
  */
 class KinetixNotificationPreferences
 {
+    /**
+     * The types Kinetix's own notifications carry. They're delivered on every
+     * channel until you register one in `kinetix.notification_preferences.types`;
+     * from then on it shows in the matrix and each user's choice applies.
+     */
+    public const EXPORTS = 'kinetix.exports';
+
+    public const IMPORTS = 'kinetix.imports';
+
+    public const REPORTS = 'kinetix.reports';
+
+    public const DATA_EXPORTS = 'kinetix.data-exports';
+
     public static function registry(): NotificationTypeRegistry
     {
         return app(NotificationTypeRegistry::class);
