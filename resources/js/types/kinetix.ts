@@ -1393,6 +1393,10 @@ export interface KinetixTableData {
     groups?: KinetixTableGroup[];
     /** Column of the group active on load (Table::defaultGroup() / `?group=`). Null = ungrouped. */
     defaultGroup?: string | null;
+    /** Aggregates (stats + summaries) deferred off first paint; fetched from
+     *  kinetix.tables.aggregates via `aggregatesDescriptor`. */
+    deferStats?: boolean;
+    aggregatesDescriptor?: string | null;
 }
 
 /** One row-grouping definition (Table::groups()). */

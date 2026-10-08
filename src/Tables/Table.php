@@ -793,6 +793,62 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Defer the heavy aggregates (KPI `stats()` + column `summarize()` totals)
+     * off the first paint. With this on, `toData()` ships the table WITHOUT
+     * running their COUNT/SUM/AVG over the whole filtered set, plus a signed
+     * descriptor; the frontend shows skeletons and fetches the aggregates from
+     * `kinetix.tables.aggregates` once mounted (reflecting the active
+     * search/filters). Only effective for a RECONSTRUCTIBLE table — one backed
+     * by a resource (`recordModals(Resource::class)`), which the endpoint can
+     * rebuild server-side; on a plain inline table it's a no-op (the aggregates
+     * ship inline as before, since there's nothing to rebuild).
+     */
+    public function deferStats(bool $condition = true): static
+    {
+        $this->deferStats = $condition;
+
+        return $this;
+    }
+
+    /**
+     * Compute ONLY the deferred aggregates (KPI stats + column summaries) over
+     * the current filtered/searched set — what {@see AggregatesController}
+     * returns for a table rendered with {@see deferStats()}. Columns are gated
+     * first (same as toData) so a user can't read a hidden column's totals.
+     *
+     * @return array{stats: array<int, mixed>, summaries: array<string, mixed>, hasSummaries: bool}
+     */
+    public function aggregates(): array
+    {
+        $this->columns = array_values(array_filter(
+            $this->columns,
+            static fn (Column $column): bool => $column->shouldRender(),
+        ));
+
+        foreach ($this->filters as $filter) {
+            $filter->forModel($this->getModelClass());
+        }
+
+        $query = $this->getResolvedQuery();
+
+        [$summaries, $hasSummaries] = $this->computeSummaries($query);
+
+        return [
+            'stats'        => $this->computeStats($query),
+            'summaries'    => $summaries,
+            'hasSummaries' => $hasSummaries,
+        ];
+    }
+
+    /** Whether the aggregates are deferred AND the table can be rebuilt. */
+    protected function aggregatesAreDeferred(): bool
+    {
+        return $this->deferStats && $this->recordModalsResource !== null;
+    }
+
+    protected bool $deferStats = false;
+
+    /**
      * Pre-built record-modals descriptor (internal). RelationManager sets this
      * so its tables get modal CRUD scoped to the PARENT relationship instead of
      * a resource query — {@see buildRecordModalsData()} then ships it as-is.
@@ -1213,12 +1269,22 @@ class Table implements Arrayable, JsonSerializable
         $activeGroup = $this->resolveActiveGroup();
 
         // Compute column summaries over the full filtered dataset, before
-        // pagination narrows the query.
-        [$summaries, $hasSummaries] = $this->computeSummaries($query);
+        // pagination narrows the query — UNLESS deferred, where the heavy
+        // COUNT/SUM/AVG is skipped on first paint and fetched on demand.
+        $deferred = $this->aggregatesAreDeferred();
 
-        // Same window: the KPI cards read the filtered-but-unpaginated set, so
-        // they describe the list the user is looking at rather than one page.
-        $stats = $this->computeStats($query);
+        if ($deferred) {
+            $summaries    = [];
+            $hasSummaries = false;
+            $stats        = [];
+        } else {
+            [$summaries, $hasSummaries] = $this->computeSummaries($query);
+
+            // Same window: the KPI cards read the filtered-but-unpaginated set,
+            // so they describe the list the user is looking at rather than one
+            // page.
+            $stats = $this->computeStats($query);
+        }
 
         // Paginate if enabled
         $records    = [];
@@ -1378,6 +1444,8 @@ class Table implements Arrayable, JsonSerializable
             formActionDescriptor: $secureForm === [] ? null : $this->buildFormActionDescriptor($secureForm),
             groups: array_values(array_map(static fn (Group $group): GroupData => $group->toData(), $this->groups)),
             defaultGroup: $activeGroup?->getColumn(),
+            deferStats: $deferred,
+            aggregatesDescriptor: $deferred ? $this->buildAggregatesDescriptor() : null,
         );
     }
 
@@ -1507,6 +1575,23 @@ class Table implements Arrayable, JsonSerializable
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
             'relation' => $this->writeRelation,
             'ability'  => $this->writeAbility,
+        ]);
+    }
+
+    /**
+     * Mint the signed descriptor the aggregates endpoint rebuilds this table
+     * from. Carries only the resource class (the sole reconstructible source)
+     * and the table's query prefix, so {@see AggregatesController} re-runs
+     * `Resource::table()` against the current request's search/filters and
+     * returns just the stats + summaries — bound to the user/team/expiry like
+     * every descriptor. Reconstructibility is guaranteed by
+     * {@see aggregatesAreDeferred()} (resource present).
+     */
+    protected function buildAggregatesDescriptor(): string
+    {
+        return SignedDescriptor::seal([
+            'resource'    => $this->recordModalsResource,
+            'queryPrefix' => $this->queryPrefix,
         ]);
     }
 

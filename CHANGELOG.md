@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.203.0] - 2026-10-07
+
+### Added
+
+- **`Table::deferStats()` — deferred table aggregates (published).** On a large
+  table the KPI `stats()` cards and footer `summarize()` totals run their
+  COUNT/SUM/AVG over the whole filtered set before the first byte reaches the
+  browser. `->deferStats()` moves that off the first paint: the table renders
+  immediately (a skeleton where the cards go), then fetches the aggregates from
+  the signed `kinetix.tables.aggregates` endpoint once mounted — reflecting the
+  active search/filters.
+
+  ```php
+  public static function table(Table $table): Table
+  {
+      return $table
+          ->recordModals(static::class)   // makes the table reconstructible
+          ->deferStats()
+          ->stats([TableStat::make('Total')->count()])
+          ->columns([...]);
+  }
+  ```
+
+  Deferral needs a **reconstructible** table (one backed by a resource, which
+  resource tables already are), so the endpoint can rebuild it server-side to
+  recompute the totals; on a plain inline `Table::make(...)` it's a safe no-op
+  (aggregates ship inline as before). The endpoint is bound to the
+  user/team/expiry and re-applies the table's own scope and column gating — no
+  row or column the user couldn't see leaks through its totals. This is the
+  first real use of Inertia-style after-paint loading for the heavy part of a
+  table payload.
+
 ## [0.202.0] - 2026-10-07
 
 ### Fixed

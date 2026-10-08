@@ -24,6 +24,7 @@ import {
     actionButtonVariant,
     buttonVariants,
 } from '@/composables/useKinetixShadcnVariants';
+import { useKinetixTableAggregates } from '@/composables/useKinetixTableAggregates';
 import { useKinetixTableGroups } from '@/composables/useKinetixTableGroups';
 import { useKinetixTableQuery } from '@/composables/useKinetixTableQuery';
 import { useKinetixTableReorder } from '@/composables/useKinetixTableReorder';
@@ -362,6 +363,19 @@ const parsePollInterval = (poll: string | null | undefined): number => {
 const pollInterval = parsePollInterval(props.table.poll);
 const poll = usePoll(pollInterval || 60000, {}, { autoStart: false });
 
+// Deferred aggregates (Table::deferStats()): stats/summaries arrive empty with
+// a signed descriptor; fetch them after first paint. When not deferred the refs
+// seed from the inline values and nothing is fetched.
+const aggregates = useKinetixTableAggregates({
+    descriptor: () =>
+        props.table.deferStats ? props.table.aggregatesDescriptor : null,
+    initial: () => ({
+        stats: props.table.stats ?? [],
+        summaries: props.table.summaries ?? {},
+        hasSummaries: !!props.table.hasSummaries,
+    }),
+});
+
 // Guards <Teleport to="body"> so record modals only mount client-side (SSR-safe),
 // matching KinetixConfirmModal.
 const isMounted = ref(false);
@@ -370,6 +384,11 @@ onMounted(() => {
 
     if (pollInterval > 0) {
         poll.start();
+    }
+
+    // Fetch deferred aggregates once the table is on screen (no-op otherwise).
+    if (props.table.deferStats) {
+        void aggregates.load();
     }
 });
 
@@ -430,7 +449,22 @@ const totalColumnSpan = computed(
 <template>
     <div class="kinetix-table-root min-w-0 max-w-full">
         <!-- KPI cards (Table::stats()), above the table in both variants. -->
-        <KinetixTableStats v-if="table.stats?.length" :stats="table.stats" />
+        <!-- Deferred: show a skeleton row until the aggregates land. -->
+        <div
+            v-if="table.deferStats && aggregates.loading.value"
+            class="mb-4 gap-4 sm:grid-cols-2 lg:grid-cols-4 grid grid-cols-1"
+            aria-hidden="true"
+        >
+            <div
+                v-for="n in 4"
+                :key="n"
+                class="h-24 animate-pulse rounded-xl border border-border bg-muted/40"
+            />
+        </div>
+        <KinetixTableStats
+            v-else-if="aggregates.stats.value.length"
+            :stats="aggregates.stats.value"
+        />
 
         <!-- Client-side variant: full row set rendered by the TanStack engine. -->
         <KinetixDataTable
@@ -821,9 +855,9 @@ const totalColumnSpan = computed(
 
                     <!-- Summary footer -->
                     <KinetixTableSummaryRow
-                        v-if="table.hasSummaries"
+                        v-if="aggregates.hasSummaries.value"
                         :columns-to-render="columnsToRender"
-                        :summaries="table.summaries"
+                        :summaries="aggregates.summaries.value"
                         :reorderable="table.reorderable"
                         :has-bulk-actions="table.bulkActions.length > 0"
                         :has-record-actions="table.recordActions.length > 0"

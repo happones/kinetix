@@ -136,6 +136,7 @@ use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\Memo;
 use Happones\Kinetix\Support\WeeklySchedule;
+use Happones\Kinetix\Tables\AggregatesController;
 use Happones\Kinetix\Tables\BulkActionController;
 use Happones\Kinetix\Tables\FormActionController;
 use Happones\Kinetix\Tables\RecordModalController;
@@ -2732,6 +2733,12 @@ class KinetixServiceProvider extends ServiceProvider
                 // before running the registered BulkAction's handle().
                 Route::post('bulk-action', BulkActionController::class)
                     ->name('kinetix.tables.bulk-action');
+
+                // Deferred table aggregates (Table::deferStats()): rebuilds the
+                // table from its resource and returns only {stats, summaries}
+                // over the current filtered window.
+                Route::post('aggregates', AggregatesController::class)
+                    ->name('kinetix.tables.aggregates');
 
                 // Server-side form action: reconstructs the FormAction's form to
                 // validate the submitted values, resolves any record through the

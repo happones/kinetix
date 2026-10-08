@@ -827,6 +827,33 @@ TableStat::make('Distinct authors')
 table's query, and you can cache it.
 :::
 
+### Deferring the aggregates (`deferStats()`)
+
+On a large table the stat cards and footer summaries run their COUNT/SUM/AVG
+over the whole filtered set — a cost paid *before* the first byte reaches the
+browser. `->deferStats()` moves it off the first paint: the table renders
+immediately (with a skeleton where the cards go), then fetches the aggregates
+from a signed endpoint once mounted, reflecting the active search/filters.
+
+```php
+public static function table(Table $table): Table
+{
+    return $table
+        ->recordModals(static::class)   // makes the table reconstructible
+        ->deferStats()
+        ->stats([TableStat::make('Total')->count()])
+        ->columns([...]);
+}
+```
+
+Deferral needs a **reconstructible** table — one backed by a resource
+(`recordModals(Resource::class)`, which resource tables set anyway), so the
+endpoint can rebuild it server-side to recompute the totals. On a plain inline
+`Table::make(...)` with no resource, `deferStats()` is a safe no-op (the
+aggregates ship inline as before). The endpoint is bound to the user/team/expiry
+and re-applies the table's own scope and column gating, so no row or column the
+user couldn't see leaks through its totals.
+
 ---
 
 ## Table Configuration

@@ -71,5 +71,10 @@ class TableData extends Data
         // Column of the group active on load (Table::defaultGroup() or the
         // request's `?group=`). Null = ungrouped.
         public ?string $defaultGroup = null,
+        // Aggregates (stats + column summaries) are deferred off first paint;
+        // when true `stats`/`summaries` ship empty and the frontend fetches
+        // them from kinetix.tables.aggregates using `aggregatesDescriptor`.
+        public bool $deferStats = false,
+        public ?string $aggregatesDescriptor = null,
     ) {}
 }
