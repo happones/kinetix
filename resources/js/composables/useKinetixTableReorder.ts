@@ -1,5 +1,6 @@
 import { computed } from 'vue';
 import type { ComputedRef } from 'vue';
+import { toast } from 'vue-sonner';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import { useKinetixListReorder } from '@/composables/useKinetixListReorder';
 import type { KinetixTableRecord } from '@/types/kinetix';
@@ -57,7 +58,10 @@ export function useKinetixTableReorder(
                 },
             });
         } catch (e) {
-            console.error('Reorder failed:', e);
+            // A refused reorder (too many rows, no access) must not leave the
+            // new order on screen looking saved: say why and put it back.
+            toast.error(e instanceof Error ? e.message : String(e));
+            list.localItems.value = [...options.records()];
         }
     };
 

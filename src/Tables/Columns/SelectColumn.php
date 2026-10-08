@@ -83,8 +83,10 @@ class SelectColumn extends Column
     {
         $keys = array_map('strval', array_keys($this->getOptions()));
 
+        // No options for this user (a closure that filtered them all out)
+        // means nothing may be written, not anything may be written.
         if ($keys === []) {
-            return [];
+            return ['prohibited'];
         }
 
         return [Rule::in($keys)];

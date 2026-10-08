@@ -765,6 +765,8 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => 'Esta columna no es editable.',
     'table_value_invalid'           => 'El valor no es válido para esta columna.',
+    'table_group_true'              => 'Sí',
+    'table_group_false'             => 'No',
     'table_bulk_action_not_allowed' => 'Esta acción masiva no está permitida.',
     'form_action_not_allowed'       => 'Esta acción no está permitida.',
     'form_action_completed'         => 'Acción completada.',

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Query;
 
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -163,7 +165,34 @@ final class KinetixQuery
 
         $relations = array_diff_key($relations, $query->getEagerLoads());
 
-        return $relations === [] ? $query : $query->with(array_keys($relations));
+        return $relations === [] ? $query : self::withPreservingConstraints($query, array_keys($relations));
+    }
+
+    /**
+     * Queue eager-loads without loosening what the query already loads.
+     *
+     * Eloquent's with() replaces an eager-load of the same name: re-stating
+     * `notes` — or reaching `author.company`, which re-queues `author` as a
+     * plain load — silently dropped a constraint the query set (approved notes
+     * only, a tenant filter on the author). Here a relation the query already
+     * loads keeps its constraint; one passed as `name => Closure` here still
+     * applies, since that is a constraint asked for on purpose.
+     *
+     * @param  array<int|string, mixed> $relations
+     * @return Builder<Model>
+     */
+    public static function withPreservingConstraints(Builder $query, array $relations): Builder
+    {
+        $existing = $query->getEagerLoads();
+        $loads    = $query->with($relations)->getEagerLoads();
+
+        foreach ($existing as $name => $constraint) {
+            if (! (array_key_exists($name, $relations) && $relations[$name] instanceof Closure)) {
+                $loads[$name] = $constraint;
+            }
+        }
+
+        return $query->setEagerLoads($loads);
     }
 
     /**

@@ -297,9 +297,11 @@ quick redirects.
 
 A resource exposes `static` lifecycle hooks so you can run side-effects —
 dispatch an event, write an audit row, create related records, guard a delete —
-without editing the generated controller. They fire on **both** write paths:
-the generated full-page controller **and** the in-table modal endpoint
-(`Table::recordModals()`), so a hook defined once applies everywhere.
+without editing the generated controller. They fire on every write path: the
+generated full-page controller (a `forceDelete` is a delete too), the in-table
+modal endpoint (`Table::recordModals()`), and the create/edit/delete modals of a
+[relation manager](relation-managers.md) whose `$relatedResource` is this
+resource. A hook defined once applies everywhere. (`restore` runs no hook.)
 
 Every hook runs **inside the same database transaction** as the write, so
 throwing from one aborts (or rolls back) the operation — a failed side-effect

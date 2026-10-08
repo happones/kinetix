@@ -252,6 +252,72 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     }
 
     /**
+     * The related resource's lifecycle hooks, run by the manager's create /
+     * edit / delete modals exactly as the resource's own pages and modals run
+     * them — so a hook defined once (stamping `owner_id`, an audit entry, a
+     * cache bust) applies to records written from the manager too. No related
+     * resource: no-ops. Override any of them to act without a resource; the
+     * parent is `$this->parent`.
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function mutateFormDataBeforeCreate(array $data): array
+    {
+        $resource = $this->relatedResource();
+
+        return $resource !== null ? $resource::mutateFormDataBeforeCreate($data) : $data;
+    }
+
+    /**
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function mutateFormDataBeforeUpdate(array $data, Model $record): array
+    {
+        $resource = $this->relatedResource();
+
+        return $resource !== null ? $resource::mutateFormDataBeforeUpdate($data, $record) : $data;
+    }
+
+    public function afterCreate(Model $record): void
+    {
+        $this->runResourceHook('afterCreate', $record);
+    }
+
+    public function afterUpdate(Model $record): void
+    {
+        $this->runResourceHook('afterUpdate', $record);
+    }
+
+    public function afterSave(Model $record): void
+    {
+        $this->runResourceHook('afterSave', $record);
+    }
+
+    public function beforeDelete(Model $record): void
+    {
+        $this->runResourceHook('beforeDelete', $record);
+    }
+
+    public function afterDelete(Model $record): void
+    {
+        $this->runResourceHook('afterDelete', $record);
+    }
+
+    /**
+     * @param 'afterCreate'|'afterUpdate'|'afterSave'|'beforeDelete'|'afterDelete' $hook
+     */
+    private function runResourceHook(string $hook, Model $record): void
+    {
+        $resource = $this->relatedResource();
+
+        if ($resource !== null) {
+            $resource::$hook($record);
+        }
+    }
+
+    /**
      * The declared related resource, checked against the relation: a resource
      * for another model would scope the pickers to the wrong table.
      *

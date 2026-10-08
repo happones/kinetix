@@ -35,6 +35,8 @@ use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Pagination\LengthAwarePaginator;
 use JsonSerializable;
 use LogicException;
@@ -1021,7 +1023,8 @@ class Table implements Arrayable, JsonSerializable
      */
     protected function resolveActiveGroup(): ?Group
     {
-        $requested = $this->param($this->queryPrefix.'group');
+        // param() already namespaces by the query prefix.
+        $requested = $this->param('group');
 
         if (is_string($requested) && isset($this->groups[$requested])) {
             return $this->groups[$requested];
@@ -1138,19 +1141,21 @@ class Table implements Arrayable, JsonSerializable
         // `data_get($record, 'author.name')` lazy-loads once PER ROW — the N+1
         // the feature is supposed to avoid. Derived from the rendered columns,
         // so it stays in sync with what the payload actually reads.
-        KinetixQuery::eagerLoad($query, array_map(
-            static fn (Column $column): string => $column->getName(),
-            $this->columns,
-        ));
+        // The active group's column too: a group on `team.name` with no
+        // `team.name` column lazy-loaded the team once per row.
+        KinetixQuery::eagerLoad($query, array_values(array_filter([
+            ...array_map(static fn (Column $column): string => $column->getName(), $this->columns),
+            $this->resolveActiveGroup()?->getColumn(),
+        ])));
 
         // Explicit eager-loads declared via with(). The column scanner above
         // can only see relations named in a column; anything reached inside a
         // state()/formatStateUsing() closure is invisible to it, so these are
-        // the developer's manual escape hatch. Eloquent's with() de-dupes
-        // against relations already queued, so re-stating a derived one is a
-        // harmless no-op; an empty list skips the call entirely.
+        // the developer's manual escape hatch. A relation the base query
+        // already loads with a constraint keeps it (re-stating it here must
+        // not widen what loads); an empty list skips the call entirely.
         if ($this->with !== []) {
-            $query->with($this->with);
+            KinetixQuery::withPreservingConstraints($query, $this->with);
         }
 
         // Apply searching (grouped OR, LIKE wildcards escaped).
@@ -1273,7 +1278,8 @@ class Table implements Arrayable, JsonSerializable
      */
     protected function applyGroupOrder(Builder $query): void
     {
-        $group = $this->resolveActiveGroup();
+        $this->groupOrderedInQuery = true;
+        $group                     = $this->resolveActiveGroup();
 
         if ($group === null) {
             return;
@@ -1281,16 +1287,24 @@ class Table implements Arrayable, JsonSerializable
 
         $column = $group->getColumn();
 
-        // Snapshot the user's sort orders so the group order can be stitched in
-        // front of them rather than after.
-        $base           = $query->getQuery();
-        $existingOrders = $base->orders ?? [];
-        $base->orders   = [];
+        // Snapshot the user's sort orders — and their bindings, which travel
+        // separately — so the group order can be stitched in front of them.
+        $base                    = $query->getQuery();
+        $existingOrders          = $base->orders ?? [];
+        $existingBindings        = $base->bindings['order'];
+        $base->orders            = [];
+        $base->bindings['order'] = [];
 
         if (str_contains($column, '.')) {
             // BelongsTo/HasOne relation path → correlated subquery, same as a
             // sortable relation column. Safe: $column came from the allowlist.
-            KinetixQuery::sortByRelation($query, $column, 'asc');
+            // Anything else (a nested path, a HasMany) can't be ordered in SQL;
+            // the page's rows are grouped after fetching instead.
+            $this->groupOrderedInQuery = KinetixQuery::sortByRelation($query, $column, 'asc');
+        } elseif ($this->isSelectAlias($base, $column)) {
+            // An aggregate alias (withCount → `tasks_count`) is not a table
+            // column: qualifying it would name a column that doesn't exist.
+            $query->orderBy($column, 'asc');
         } else {
             // Qualify so a bare shared name stays unambiguous under a joined
             // base query (mirrors applySort()).
@@ -1298,8 +1312,35 @@ class Table implements Arrayable, JsonSerializable
         }
 
         // Re-append the user's sort after the group order: group buckets stay
-        // contiguous, their rows stay in the chosen order.
-        $base->orders = array_merge($base->orders ?? [], $existingOrders);
+        // contiguous, their rows stay in the chosen order. Bindings follow the
+        // same order, or a sort bound to a value would read the group's.
+        $base->orders            = array_merge($base->orders ?? [], $existingOrders);
+        $base->bindings['order'] = array_merge($base->bindings['order'], $existingBindings);
+    }
+
+    /**
+     * Whether the group couldn't be ordered in SQL, so its rows must be
+     * gathered after fetching (see toData()).
+     */
+    protected bool $groupOrderedInQuery = true;
+
+    /**
+     * Whether `$column` names a select alias (`… as tasks_count`) rather than a
+     * column of the table.
+     */
+    protected function isSelectAlias(QueryBuilder $base, string $column): bool
+    {
+        foreach ($base->columns ?? [] as $selected) {
+            $sql = $selected instanceof Expression
+                ? (string) $selected->getValue($base->getGrammar())
+                : (string) $selected;
+
+            if (preg_match('/\sas\s+[`"\[]?'.preg_quote($column, '/').'[`"\]]?\s*$/i', $sql) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1425,6 +1466,13 @@ class Table implements Arrayable, JsonSerializable
             foreach ($items as $record) {
                 $records[] = $this->formatRecord($record, $activeGroup);
             }
+        }
+
+        // A group the query couldn't order (see applyGroupOrder()) is gathered
+        // here, within the page — a stable sort keeps each bucket's rows in
+        // the user's order — so its header shows once instead of per row.
+        if ($activeGroup !== null && ! $this->groupOrderedInQuery) {
+            usort($records, static fn (TableRowData $a, TableRowData $b): int => [$a->groupKey === null, (string) $a->groupKey] <=> [$b->groupKey === null, (string) $b->groupKey]);
         }
 
         $editableColumns = [];

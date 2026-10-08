@@ -13,6 +13,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.209.0] - 2026-10-08
+
+Tables and resources: the medium findings of the 0.194–0.207 review. Inline
+edits validate the right column and say why they were refused. Resource hooks
+run on every write path. Grouping handles enums, booleans and relations, and
+`Table::with()` stops widening what a query loads. Re-publish the components
+(`--force`).
+
+### Fixed
+
+- **Inline-edit validation checked the wrong column.**
+  - The value was validated under the key `value`, so `unique:users` /
+    `exists:roles` looked for a column named `value`. On MySQL/Postgres that was
+    a 500; on SQLite the check was silently skipped. It is now validated under
+    the column's own name, and the message names the field.
+  - A `unique` rule (string or `Rule::unique()`) ignores the row being edited,
+    so saving a cell unchanged doesn't collide with itself.
+- **A closure rule failed the whole page.** `Column::rules()` with a closure,
+  or with a rule holding one (`Rule::unique()->where(fn …)`), threw
+  "Serialization of 'Closure'" when the table rendered. Rules are sealed into
+  the signed token, so non-serializable ones are now refused where you declare
+  them, with the column named.
+- **A Select with no options accepted any value.** When an `options()` closure
+  filtered everything out for a user, the column had no rule and any value was
+  written. It now accepts no value.
+- **Refused edits and reorders looked saved.** A 422 (or 403) went to the
+  console only, and the cell kept the rejected value or the rows kept the
+  refused order. The server's message now shows as a toast, the cell re-renders
+  with the stored value, and the rows go back to their saved order.
+- **Resource hooks were skipped in places.**
+  - Records created, edited or deleted from a relation manager with a
+    `$relatedResource` now run that resource's `mutateFormDataBefore*`,
+    `afterCreate/afterUpdate/afterSave` and `beforeDelete/afterDelete`, in one
+    transaction. Each is also overridable on the manager.
+  - The generated controller's `forceDelete` runs `beforeDelete`/`afterDelete`.
+- **`Table::with()` widened constrained eager-loads.** Eloquent replaces an
+  eager-load of the same name. Re-stating `notes` — or a column reaching
+  `author.company`, which re-queues `author` plainly — dropped the base
+  query's constraint (approved notes only, a tenant filter), and excluded rows
+  loaded. Existing constraints now stay (`KinetixQuery::withPreservingConstraints()`);
+  a constraint passed to `with()` explicitly still applies.
+- **Row grouping:**
+  - Grouping by an enum column was a 500 (enum cast to string). Enums now
+    bucket by value under their `getLabel()`.
+  - `false` became `''` and read as "no value". Booleans now group as yes/no
+    (new `table_group_true` / `table_group_false` keys in all 7 locales).
+  - `?group=` was prefixed twice, so it never worked on a table with a query
+    prefix (every relation manager).
+  - A relation group without a matching column lazy-loaded once per row. Its
+    relation is now eager-loaded too.
+  - A group column SQL can't order (a nested relation, a `HasMany`) printed a
+    header per row. Its rows are now gathered within the page.
+  - An aggregate alias (`withCount` → `tasks_count`) was qualified as a table
+    column, which was a QueryException. It is now ordered unqualified.
+  - The group's ORDER BY moved ahead of the user's sort, but its bindings didn't,
+    so a sort bound to a value could read the group's binding. Bindings now
+    follow the orders.
+  - On a reorderable table, the header and footer kept the drag column while
+    grouped rows dropped it, so every cell sat under the wrong header. One flag
+    now decides it everywhere.
+- **The notification scrollbar stayed light in dark mode.** Chrome and Firefox
+  use the standard `scrollbar-color`, which had a literal light grey, and ignore
+  the webkit rules. The thumb now follows `--color-border`, like the table's. A
+  new scan test requires every `scrollbar-color` to reach a theme token.
+
+### Known
+
+- The `v-memo` on table rows that 0.198.0 dropped is not back. Vue can't
+  memoize the mixed header/row `<template v-for>` reliably. Restoring it means
+  extracting the row into a component; that is tracked separately.
+
 ## [0.208.0] - 2026-10-08
 
 The second half of the 0.194–0.207 review. Forms now evaluate their conditions

@@ -702,6 +702,8 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => 'この列は編集できません。',
     'table_value_invalid'           => 'この列には無効な値です。',
+    'table_group_true'              => 'はい',
+    'table_group_false'             => 'いいえ',
     'table_bulk_action_not_allowed' => 'この一括操作は許可されていません。',
     'form_action_not_allowed'       => 'この操作は許可されていません。',
     'form_action_completed'         => '操作が完了しました。',

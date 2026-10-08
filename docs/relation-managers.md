@@ -92,9 +92,9 @@ the modal ones in the same table.
 | `isVisibleOn(string $page): bool` | Page-level visibility (`'edit'` \| `'view'`) — see §4 |
 | `protected static $recordTitleAttribute` | Related-model attribute the attach/associate pickers label by (an accessor or `relation.column` works). **Defaults to the primary key when unset — the picker then shows raw ids as labels, so always set it** — see §8/§9 |
 | `protected static $recordSelectSearchColumns` | Real columns the pickers search and sort by (defaults to `[$recordTitleAttribute]`) — set it when the title is an accessor; see §8 |
-| `protected static $relatedResource` | The related model's Resource: pickers and the ids they accept resolve through its `getEloquentQuery()`, create/edit modals run its `mutateFormDataBeforeSave()` — **set it in team apps**, see §7 |
+| `protected static $relatedResource` | The related model's Resource: pickers and the ids they accept resolve through its `getEloquentQuery()`, and the create/edit/delete modals run its lifecycle hooks (`mutateFormDataBefore*`, `afterCreate/afterUpdate/afterSave`, `beforeDelete/afterDelete`, in one transaction) — **set it in team apps**, see §7 |
 | `getRelatedQuery(): Builder` | Base query for related records outside the relationship (the pickers) — defaults to the related resource's query; override to scope without one (§7) |
-| `mutateFormDataBeforeSave(array $data, string $operation, ?Model $record)` | Hook for create/edit modal data — defaults to the related resource's hook; override to stamp columns without one (§7) |
+| `mutateFormDataBeforeSave(array $data, string $operation, ?Model $record)` | Hook for create/edit modal data — defaults to the related resource's hook; override to stamp columns without one (§7). The other resource hooks (`mutateFormDataBeforeCreate/Update`, `afterCreate`, `afterUpdate`, `afterSave`, `beforeDelete`, `afterDelete`) work the same way |
 | `protected static $readOnly` | `true` renders the table with NO record/toolbar/bulk/footer actions |
 | `protected static $isLazy` | `true` defers the manager to its tab activation — only the tab stub serializes until then (see §12) |
 | `protected static $group` | Group label — managers sharing it render as ONE tab, stacked inside (see §3) |

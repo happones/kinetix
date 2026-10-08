@@ -7,12 +7,16 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Tables\Columns\NumberInputColumn;
 use Happones\Kinetix\Tables\Columns\SelectColumn;
 use Happones\Kinetix\Tables\Columns\TextColumn;
+use Happones\Kinetix\Tables\Columns\TextInputColumn;
 use Happones\Kinetix\Tables\Columns\ToggleColumn;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 class SecWidget extends Model
 {
@@ -220,6 +224,83 @@ class CellUpdateSecurityTest extends TestCase
         ]);
 
         $response->assertForbidden();
+        $this->assertSame('viewer', $widget->fresh()->role);
+    }
+
+    private function editName(Table $table, SecWidget $widget, mixed $value): TestResponse
+    {
+        return $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $table->toData()->model,
+            'recordId' => $widget->id,
+            'column'   => 'name',
+            'value'    => $value,
+        ]);
+    }
+
+    /**
+     * The value was validated under the key `value`, so `unique:sec_widgets`
+     * looked for a `value` column; and the row being edited collided with
+     * itself when its value didn't change.
+     */
+    public function test_a_unique_rule_checks_the_columns_own_attribute_and_ignores_its_row(): void
+    {
+        $a = SecWidget::create(['name' => 'Alpha']);
+        SecWidget::create(['name' => 'Beta']);
+        $table = fn (): Table => Table::make(SecWidget::query())
+            ->columns([TextInputColumn::make('name')->rules(['unique:sec_widgets'])]);
+
+        $this->editName($table(), $a, 'Alpha')->assertOk();
+
+        $response = $this->editName($table(), $a, 'Beta');
+        $response->assertStatus(422);
+        $this->assertStringContainsString('name', (string) $response->json('message'));
+        $this->assertSame('Alpha', $a->fresh()->name);
+    }
+
+    public function test_a_unique_rule_object_also_ignores_its_row(): void
+    {
+        $a = SecWidget::create(['name' => 'Alpha']);
+
+        $table = Table::make(SecWidget::query())
+            ->columns([TextInputColumn::make('name')->rules([Rule::unique('sec_widgets', 'name')])]);
+
+        $this->editName($table, $a, 'Alpha')->assertOk();
+    }
+
+    public function test_a_closure_rule_is_refused_when_declared(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Column [name]');
+
+        TextInputColumn::make('name')->rules([fn ($attribute, $value, $fail) => null]);
+    }
+
+    public function test_a_rule_holding_a_closure_is_refused_when_declared(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        TextInputColumn::make('name')->rules([Rule::unique('sec_widgets')->where(fn ($q) => $q)]);
+    }
+
+    /**
+     * A select whose options all filtered out for this user wrote anything.
+     */
+    public function test_a_select_with_no_options_accepts_no_value(): void
+    {
+        $widget = SecWidget::create(['name' => 'A', 'role' => 'viewer']);
+
+        $token = Table::make(SecWidget::query())
+            ->columns([SelectColumn::make('role')->options(fn (): array => [])])
+            ->toData()
+            ->model;
+
+        $this->postJson(route('kinetix.tables.cell-update'), [
+            'model'    => $token,
+            'recordId' => $widget->id,
+            'column'   => 'role',
+            'value'    => 'superadmin',
+        ])->assertStatus(422);
+
         $this->assertSame('viewer', $widget->fresh()->role);
     }
 }

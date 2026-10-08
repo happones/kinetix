@@ -11,6 +11,7 @@ use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +23,11 @@ class GroupTeam extends Model
     public $timestamps = false;
 
     protected $guarded = [];
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(GroupTask::class, 'team_id');
+    }
 }
 
 class GroupTask extends Model
@@ -38,6 +44,39 @@ class GroupTask extends Model
     public function team(): BelongsTo
     {
         return $this->belongsTo(GroupTeam::class, 'team_id');
+    }
+}
+
+enum GroupTaskStatus: string
+{
+    case Open = 'open';
+    case Done = 'done';
+
+    public function getLabel(): string
+    {
+        return $this === self::Open ? 'In progress' : 'Finished';
+    }
+}
+
+class GroupEnumTask extends GroupTask
+{
+    protected function casts(): array
+    {
+        return ['status' => GroupTaskStatus::class];
+    }
+}
+
+class GroupFlag extends Model
+{
+    protected $table = 'group_flags';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return ['done' => 'boolean'];
     }
 }
 
@@ -307,5 +346,111 @@ class TableGroupingTest extends TestCase
 
         $this->assertSame('open', $row->groupKey);
         $this->assertSame('Open', $row->groupLabel);
+    }
+
+    private static function runs(array $records): array
+    {
+        $runs = [];
+
+        foreach ($records as $record) {
+            if ($runs === [] || end($runs) !== $record['groupKey']) {
+                $runs[] = $record['groupKey'];
+            }
+        }
+
+        return $runs;
+    }
+
+    /** Casting an enum to string threw: grouping by an enum column was a 500. */
+    public function test_an_enum_column_groups_by_its_value_under_its_label(): void
+    {
+        $data = Table::make(GroupEnumTask::query())
+            ->columns([TextColumn::make('title')])
+            ->defaultGroup('status')
+            ->paginated(false)
+            ->toArray();
+
+        $labels = [];
+        foreach ($data['records'] as $record) {
+            $labels[$record['groupKey']] = $record['groupLabel'];
+        }
+
+        $this->assertSame(['done' => 'Finished', 'open' => 'In progress'], $labels);
+    }
+
+    /** `false` became '' and read as "no value". */
+    public function test_a_boolean_column_groups_as_yes_and_no(): void
+    {
+        Schema::create('group_flags', static function (Blueprint $table): void {
+            $table->increments('id');
+            $table->boolean('done');
+        });
+        GroupFlag::create(['done' => true]);
+        GroupFlag::create(['done' => false]);
+
+        $data = Table::make(GroupFlag::query())
+            ->columns([TextColumn::make('id')])
+            ->defaultGroup('done')
+            ->paginated(false)
+            ->toArray();
+
+        $labels = [];
+        foreach ($data['records'] as $record) {
+            $labels[$record['groupKey']] = $record['groupLabel'];
+        }
+
+        $this->assertSame(
+            ['0' => __('kinetix.table_group_false'), '1' => __('kinetix.table_group_true')],
+            $labels,
+        );
+    }
+
+    /** param() already namespaces by the prefix; `?p_group=` was ignored. */
+    public function test_a_prefixed_table_reads_its_group_param(): void
+    {
+        request()->merge(['p_group' => 'status']);
+
+        $data = Table::make(GroupTask::query())
+            ->queryPrefix('p_')
+            ->columns([TextColumn::make('title')])
+            ->groups(['status', 'created_on'])
+            ->defaultGroup('created_on')
+            ->paginated(false)
+            ->toArray();
+
+        $this->assertSame('status', $data['defaultGroup']);
+    }
+
+    /** Without a `team.name` column the team lazy-loaded once per row. */
+    public function test_a_relation_group_without_its_column_is_eager_loaded(): void
+    {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        Table::make(GroupTask::query())
+            ->columns([TextColumn::make('title')])
+            ->defaultGroup('team.name')
+            ->paginated(false)
+            ->toArray();
+
+        $queries = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertLessThanOrEqual(2, $queries);
+    }
+
+    /**
+     * A group SQL can't order (here an aggregate alias, ordered unqualified)
+     * or can't order at all still renders one header per bucket.
+     */
+    public function test_a_withcount_alias_group_is_ordered_without_qualifying_it(): void
+    {
+        $data = Table::make(GroupTeam::query()->withCount('tasks'))
+            ->columns([TextColumn::make('name')])
+            ->defaultGroup('tasks_count')
+            ->paginated(false)
+            ->toArray();
+
+        $this->assertSame(['2', '3'], self::runs($data['records']));
     }
 }

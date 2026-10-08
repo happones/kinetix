@@ -192,4 +192,31 @@ class TableEagerLoadTest extends TestCase
         $this->assertLessThanOrEqual(2, $queries);
         $this->assertCount(5, $data['records']);
     }
+
+    /**
+     * Eloquent's with() replaces an eager-load of the same name: re-stating
+     * `author` in Table::with() — or a column reaching `author.name`, which
+     * re-queues `author` plainly — dropped the base query's constraint, and
+     * rows it excluded loaded anyway.
+     */
+    public function test_with_keeps_a_constraint_the_base_query_set(): void
+    {
+        $alice = EagerAuthor::create(['name' => 'Alice']);
+        $bob   = EagerAuthor::create(['name' => 'Bob']);
+        EagerPost::create(['title' => 'A', 'author_id' => $alice->id]);
+        EagerPost::create(['title' => 'B', 'author_id' => $bob->id]);
+
+        $data = Table::make(EagerPost::query()
+            ->whereIn('title', ['A', 'B'])
+            ->with(['author' => fn ($q) => $q->where('name', 'Alice')]))
+            ->with(['author'])
+            ->columns([TextColumn::make('title'), TextColumn::make('author.name')])
+            ->toArray();
+
+        $names = array_map(static fn (array $row): mixed => $row['values']['author.name'], $data['records']);
+        sort($names, SORT_STRING);
+
+        // Bob's post still lists, but its author is filtered out by the constraint.
+        $this->assertSame([null, 'Alice'], $names);
+    }
 }

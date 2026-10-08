@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Unique;
 use Throwable;
 
 /**
@@ -96,7 +98,7 @@ class TableWriteController
         // boolean, plus any explicit ->rules()). The client never supplies the
         // rules, so they can't be weakened; an invalid value is a 422 and the
         // model is never touched.
-        $invalid = $this->validateValue($editableColumns[$column], $column, $request->input('value'));
+        $invalid = $this->validateValue($editableColumns[$column], $column, $request->input('value'), $record);
 
         if ($invalid instanceof JsonResponse) {
             return $invalid;
@@ -119,28 +121,75 @@ class TableWriteController
      * Validate one inline-edit value against the column's sealed rules.
      * Returns null when it passes, or a 422 JSON response when it fails.
      *
+     * The value is validated under the column's own attribute name, so a
+     * `unique:users` / `exists:roles` without an explicit column checks the
+     * right one, and the message names the field. A `unique` rule ignores the
+     * row being edited: saving a cell unchanged must not collide with itself.
+     *
      * @param list<mixed> $rules
      */
-    protected function validateValue(array $rules, string $column, mixed $value): ?JsonResponse
+    protected function validateValue(array $rules, string $column, mixed $value, Model $record): ?JsonResponse
     {
         if ($rules === []) {
             return null;
         }
 
+        $attribute = Str::afterLast($column, '.');
+
+        if (! str_contains($column, '.')) {
+            $rules = array_map(fn (mixed $rule): mixed => $this->ignoringRecord($rule, $record, $attribute), $rules);
+        }
+
         $validator = Validator::make(
-            ['value' => $value],
-            ['value' => $rules],
+            [$attribute => $value],
+            [$attribute => $rules],
+            [],
+            [$attribute => str_replace('_', ' ', $attribute)],
         );
 
         if ($validator->fails()) {
+            $errors = $validator->errors()->get($attribute);
+
             return response()->json([
                 'status'  => 'error',
-                'message' => __('kinetix.table_value_invalid'),
-                'errors'  => $validator->errors()->get('value'),
+                'message' => $errors[0] ?? __('kinetix.table_value_invalid'),
+                'errors'  => $errors,
             ], 422);
         }
 
         return null;
+    }
+
+    /**
+     * A `unique` rule with no ignore clause, made to ignore the edited row.
+     */
+    protected function ignoringRecord(mixed $rule, Model $record, string $attribute): mixed
+    {
+        if ($rule instanceof Unique) {
+            return (clone $rule)->ignore($record);
+        }
+
+        if (! is_string($rule)) {
+            return $rule;
+        }
+
+        return implode('|', array_map(static function (string $part) use ($record, $attribute): string {
+            if (! str_starts_with($part, 'unique:')) {
+                return $part;
+            }
+
+            $parameters = explode(',', substr($part, 7));
+
+            if (count($parameters) > 2) {
+                return $part;
+            }
+
+            $parameters[1] ??= $attribute;
+            $parameters[2] = (string) $record->getKey();
+            $parameters[3] = $record->getKeyName();
+
+            return 'unique:'.implode(',', $parameters);
+        }, explode('|', $rule)));
     }
 
     /**

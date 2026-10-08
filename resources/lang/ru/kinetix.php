@@ -702,6 +702,8 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => 'Этот столбец нельзя редактировать.',
     'table_value_invalid'           => 'Значение недопустимо для этого столбца.',
+    'table_group_true'              => 'Да',
+    'table_group_false'             => 'Нет',
     'table_bulk_action_not_allowed' => 'Это массовое действие не разрешено.',
     'form_action_not_allowed'       => 'Это действие не разрешено.',
     'form_action_completed'         => 'Действие выполнено.',

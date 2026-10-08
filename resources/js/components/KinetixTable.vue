@@ -11,6 +11,7 @@ import {
     watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
@@ -311,6 +312,11 @@ const {
 });
 
 // --- Inline cell editing -----------------------------------------------------
+// Bumped when the server refuses a value: the cells re-mount from the record's
+// real value. An input keeps what was typed in its DOM, and the props never
+// changed, so nothing else would put the saved value back.
+const cellRevision = ref(0);
+
 const updateCell = async (
     recordId: string | number,
     columnName: string,
@@ -339,7 +345,14 @@ const updateCell = async (
             router.reload();
         }
     } catch (e) {
-        console.error('Cell update failed:', e);
+        // A refused value (422: the column's rules; 403: no access) must not
+        // stay on screen looking saved: say why, and show the stored value.
+        toast.error(
+            e instanceof Error && e.message
+                ? e.message
+                : t('kinetix.table_value_invalid'),
+        );
+        cellRevision.value++;
     }
 };
 
@@ -451,6 +464,14 @@ const { isGrouped, renderItems, toggleGroup } = useKinetixTableGroups(
     () => rows.value,
 );
 
+// Drag reorder is off while grouped (a row can't leave its bucket). ONE flag
+// decides it everywhere — head, body, footer and every colspan — or the grip
+// column exists in some rows and not others and every cell shifts under the
+// wrong header.
+const canReorder = computed(
+    () => !!props.table.reorderable && !isGrouped.value,
+);
+
 // Full width for a group header row's single cell: data columns + every
 // leading/trailing utility column the body renders.
 const totalColumnSpan = computed(
@@ -458,7 +479,7 @@ const totalColumnSpan = computed(
         columnsToRender.value.length +
         (props.table.recordActions.length > 0 ? 1 : 0) +
         (props.table.bulkActions.length > 0 ? 1 : 0) +
-        (props.table.reorderable ? 1 : 0),
+        (canReorder.value ? 1 : 0),
 );
 </script>
 
@@ -537,7 +558,7 @@ const totalColumnSpan = computed(
                         :has-record-actions="table.recordActions.length > 0"
                         :all-on-page-selected="allOnPageSelected"
                         :sticky-actions="table.stickyActions"
-                        :reorderable="table.reorderable"
+                        :reorderable="canReorder"
                         @toggle-all-on-page="toggleAllOnPage"
                         @toggle-sort="toggleSort"
                     />
@@ -619,10 +640,7 @@ const totalColumnSpan = computed(
                                         ? 'selected'
                                         : undefined
                                 "
-                                :draggable="
-                                    (table.reorderable && !isGrouped) ||
-                                    undefined
-                                "
+                                :draggable="canReorder || undefined"
                                 :tabindex="
                                     isRowClickable(item.record) ? 0 : undefined
                                 "
@@ -645,26 +663,16 @@ const totalColumnSpan = computed(
                                 @click="handleRowClick(item.record, $event)"
                                 @keydown="handleRowKeydown(item.record, $event)"
                                 @dragstart="
-                                    table.reorderable &&
-                                    !isGrouped &&
-                                    onDragStart(item.index)
+                                    canReorder && onDragStart(item.index)
                                 "
                                 @dragover="
-                                    table.reorderable &&
-                                    !isGrouped &&
-                                    onDragOver(item.index, $event)
+                                    canReorder && onDragOver(item.index, $event)
                                 "
-                                @drop="
-                                    table.reorderable && !isGrouped && onDrop()
-                                "
-                                @dragend="
-                                    table.reorderable &&
-                                    !isGrouped &&
-                                    onDragEnd()
-                                "
+                                @drop="canReorder && onDrop()"
+                                @dragend="canReorder && onDragEnd()"
                             >
                                 <td
-                                    v-if="table.reorderable && !isGrouped"
+                                    v-if="canReorder"
                                     class="w-8 px-2 py-4 text-muted-foreground"
                                     @click.stop
                                 >
@@ -722,6 +730,7 @@ const totalColumnSpan = computed(
                                         :row-index="item.index"
                                     >
                                         <KinetixTableCell
+                                            :key="cellRevision"
                                             :col="col"
                                             :record="item.record"
                                             :row-index="item.index"
@@ -813,7 +822,7 @@ const totalColumnSpan = computed(
                                     columnsToRender.length +
                                     (table.recordActions.length > 0 ? 1 : 0) +
                                     (table.bulkActions.length > 0 ? 1 : 0) +
-                                    (table.reorderable ? 1 : 0)
+                                    (canReorder ? 1 : 0)
                                 "
                                 :class="
                                     table.emptyState
@@ -878,7 +887,7 @@ const totalColumnSpan = computed(
                         v-if="aggregates.hasSummaries.value"
                         :columns-to-render="columnsToRender"
                         :summaries="aggregates.summaries.value"
-                        :reorderable="table.reorderable"
+                        :reorderable="canReorder"
                         :has-bulk-actions="table.bulkActions.length > 0"
                         :has-record-actions="table.recordActions.length > 0"
                     />

@@ -596,7 +596,14 @@ PHP;
         \$record = {$resourceClass}::getEloquentQuery()->withTrashed()->findOrFail(\$id);
         \$this->authorizeAction('forceDelete', \$record);
 
-        \$record->forceDelete();
+        // A permanent delete is a delete: the same hooks bracket it.
+        DB::transaction(function () use (\$record) {
+            {$resourceClass}::beforeDelete(\$record);
+
+            \$record->forceDelete();
+
+            {$resourceClass}::afterDelete(\$record);
+        });
 
         KinetixFlash::success(__('kinetix.record_force_deleted'));
 

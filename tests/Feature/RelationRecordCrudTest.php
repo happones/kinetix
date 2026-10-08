@@ -17,6 +17,7 @@ use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Components\TextEntry;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Resources\RelationManager;
+use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
@@ -134,6 +135,62 @@ class TasksManager extends RelationManager
                 ]),
             ]);
     }
+}
+
+/** A resource for tasks with every lifecycle hook logged. */
+class RmcTaskResource extends Resource
+{
+    /** @var list<string> */
+    public static array $log = [];
+
+    public static function getModel(): string
+    {
+        return RmcTask::class;
+    }
+
+    public static function mutateFormDataBeforeCreate(array $data): array
+    {
+        static::$log[] = 'mutateCreate';
+
+        return [...$data, 'title' => $data['title'].' (stamped)'];
+    }
+
+    public static function mutateFormDataBeforeUpdate(array $data, Model $record): array
+    {
+        static::$log[] = 'mutateUpdate';
+
+        return $data;
+    }
+
+    public static function afterCreate(Model $record): void
+    {
+        static::$log[] = 'afterCreate';
+    }
+
+    public static function afterUpdate(Model $record): void
+    {
+        static::$log[] = 'afterUpdate';
+    }
+
+    public static function afterSave(Model $record): void
+    {
+        static::$log[] = 'afterSave';
+    }
+
+    public static function beforeDelete(Model $record): void
+    {
+        static::$log[] = 'beforeDelete';
+    }
+
+    public static function afterDelete(Model $record): void
+    {
+        static::$log[] = 'afterDelete';
+    }
+}
+
+class HookedTasksManager extends TasksManager
+{
+    protected static ?string $relatedResource = RmcTaskResource::class;
 }
 
 class TagsCrudManager extends RelationManager
@@ -556,5 +613,43 @@ class RelationRecordCrudTest extends TestCase
         $this->expectExceptionMessage('require a HasMany/MorphMany relation');
 
         AssociateOnTagsManager::make($project)->toData();
+    }
+
+    /**
+     * The related resource's lifecycle hooks used to be skipped for records
+     * written from a relation manager: a hook stamping owner_id or writing an
+     * audit entry silently did nothing there.
+     */
+    public function test_the_related_resources_hooks_run_for_manager_writes(): void
+    {
+        RmcTaskResource::$log = [];
+        $user                 = RmcUser::create([]);
+        $project              = RmcProject::create(['name' => 'Kinetix']);
+        $descriptor           = $this->descriptorFor(HookedTasksManager::class, $project, $user);
+
+        $this->from('/x')->post(route('kinetix.relations.record.store'), [
+            'token' => $descriptor,
+            'data'  => ['title' => 'New task'],
+        ])->assertRedirect('/x');
+
+        $task = RmcTask::sole();
+        $this->assertSame('New task (stamped)', $task->title);
+        $this->assertSame(['mutateCreate', 'afterCreate', 'afterSave'], RmcTaskResource::$log);
+
+        RmcTaskResource::$log = [];
+        $this->from('/x')->put(route('kinetix.relations.record.update'), [
+            'token' => $descriptor,
+            'id'    => $task->id,
+            'data'  => ['title' => 'Renamed'],
+        ])->assertRedirect('/x');
+        $this->assertSame(['mutateUpdate', 'afterUpdate', 'afterSave'], RmcTaskResource::$log);
+
+        RmcTaskResource::$log = [];
+        $this->from('/x')->delete(route('kinetix.relations.record.destroy'), [
+            'token' => $descriptor,
+            'id'    => $task->id,
+        ])->assertRedirect('/x');
+        $this->assertSame(['beforeDelete', 'afterDelete'], RmcTaskResource::$log);
+        $this->assertNull($task->fresh());
     }
 }

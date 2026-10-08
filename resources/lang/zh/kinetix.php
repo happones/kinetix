@@ -702,6 +702,8 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => '此列不可编辑。',
     'table_value_invalid'           => '该值对此列无效。',
+    'table_group_true'              => '是',
+    'table_group_false'             => '否',
     'table_bulk_action_not_allowed' => '不允许此批量操作。',
     'form_action_not_allowed'       => '不允许此操作。',
     'form_action_completed'         => '操作已完成。',

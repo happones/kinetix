@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables;
 
+use BackedEnum;
 use Closure;
 use Happones\Kinetix\Data\GroupData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Stringable;
+use UnitEnum;
 
 /**
  * A row-grouping definition for a {@see Table}, mirroring Filament's
@@ -162,7 +165,7 @@ class Group
             return ($this->getKeyFromRecord)($record, $value);
         }
 
-        return $value === null ? null : (string) $value;
+        return self::keyOf($value);
     }
 
     /**
@@ -177,7 +180,44 @@ class Group
             return ($this->getTitleFromRecord)($record, $value);
         }
 
-        return $value === null ? null : (string) $value;
+        return self::titleOf($value);
+    }
+
+    /**
+     * A bucket key for any value a column casts to. An enum used to be cast to
+     * string — a 500 — and `false` became `''`, which read as "no value".
+     */
+    private static function keyOf(mixed $value): ?string
+    {
+        return match (true) {
+            $value === null                                 => null,
+            $value instanceof BackedEnum                    => (string) $value->value,
+            $value instanceof UnitEnum                      => $value->name,
+            is_bool($value)                                 => $value ? '1' : '0',
+            is_scalar($value), $value instanceof Stringable => (string) $value,
+            default                                         => null,
+        };
+    }
+
+    /**
+     * A header title: an enum's own label when it has one (`getLabel()`), a
+     * boolean as yes/no.
+     */
+    private static function titleOf(mixed $value): ?string
+    {
+        if ($value instanceof UnitEnum && method_exists($value, 'getLabel')) {
+            $label = $value->getLabel();
+
+            if (is_string($label) && $label !== '') {
+                return $label;
+            }
+        }
+
+        if (is_bool($value)) {
+            return (string) __($value ? 'kinetix.table_group_true' : 'kinetix.table_group_false');
+        }
+
+        return self::keyOf($value);
     }
 
     public function toData(): GroupData

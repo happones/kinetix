@@ -21,6 +21,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -97,13 +98,20 @@ class RelationManagerController
         // stamps server-owned columns — a team_id — exactly as its own pages
         // and modals do.
         $attributes = $manager->mutateFormDataBeforeSave($attributes, 'create');
+        $attributes = $manager->mutateFormDataBeforeCreate($attributes);
 
         // HasMany/MorphMany stamp the FK (+ morph type); BelongsToMany creates
         // the related record AND attaches it in one step — form fields matching
         // withPivot() columns land on the pivot row, not the related model.
-        $relation instanceof BelongsToMany
-            ? $relation->create($attributes, $pivot)
-            : $relation->create($attributes);
+        // The after-hooks run in the same transaction, as on the resource.
+        DB::transaction(static function () use ($relation, $manager, $attributes, $pivot): void {
+            $record = $relation instanceof BelongsToMany
+                ? $relation->create($attributes, $pivot)
+                : $relation->create($attributes);
+
+            $manager->afterCreate($record);
+            $manager->afterSave($record);
+        });
 
         KinetixFlash::success((string) __('kinetix.record_created'));
 
@@ -124,11 +132,19 @@ class RelationManagerController
 
         [$attributes, $pivot] = $this->splitPivotState($relation, $form->getState((array) $request->input('data', [])));
 
-        $record->update($manager->mutateFormDataBeforeSave($attributes, 'edit', $record));
+        $attributes = $manager->mutateFormDataBeforeSave($attributes, 'edit', $record);
+        $attributes = $manager->mutateFormDataBeforeUpdate($attributes, $record);
 
-        if ($pivot !== [] && $relation instanceof BelongsToMany) {
-            $relation->updateExistingPivot($record->getKey(), $pivot);
-        }
+        DB::transaction(static function () use ($relation, $manager, $record, $attributes, $pivot): void {
+            $record->update($attributes);
+
+            if ($pivot !== [] && $relation instanceof BelongsToMany) {
+                $relation->updateExistingPivot($record->getKey(), $pivot);
+            }
+
+            $manager->afterUpdate($record);
+            $manager->afterSave($record);
+        });
 
         KinetixFlash::success((string) __('kinetix.record_updated'));
 
@@ -137,19 +153,26 @@ class RelationManagerController
 
     public function destroyRecord(Request $request): RedirectResponse
     {
-        [$relation] = $this->resolve($request, 'many');
+        [$relation, $payload, $parent] = $this->resolve($request, 'many');
 
-        $record = $this->findRelated($relation, $request->input('id'));
+        $manager = $this->manager($payload, $parent);
+        $record  = $this->findRelated($relation, $request->input('id'));
 
         $this->authorizeChild($relation->getRelated()::class, 'delete', $record);
 
-        // BelongsToMany: drop the pivot row too, or deleting the related
-        // record would strand an orphan pivot on DBs without FK cascade.
-        if ($relation instanceof BelongsToMany) {
-            $relation->detach($record->getKey());
-        }
+        DB::transaction(static function () use ($relation, $manager, $record): void {
+            $manager->beforeDelete($record);
 
-        $record->delete();
+            // BelongsToMany: drop the pivot row too, or deleting the related
+            // record would strand an orphan pivot on DBs without FK cascade.
+            if ($relation instanceof BelongsToMany) {
+                $relation->detach($record->getKey());
+            }
+
+            $record->delete();
+
+            $manager->afterDelete($record);
+        });
 
         KinetixFlash::success((string) __('kinetix.record_deleted'));
 

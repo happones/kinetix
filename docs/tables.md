@@ -1224,7 +1224,17 @@ Table::make(Task::query())
   a query per row (no N+1).
 - `KinetixTable` slices the contiguous rows into sections and renders one header
   per group (label + row count). Collapsible groups fold/unfold client-side; the
-  collapsed state is local (survives polling, resets on a full reload).
+  collapsed state is local (survives polling, resets on a full reload). The
+  count is the rows of that group on the current page.
+- Values are bucketed by what they are: an enum by its value, under its
+  `getLabel()` when it has one; a boolean as yes/no; a null value under one
+  "none" header. A relation group loads its relation once even when no column
+  shows it.
+- A group column the query can't order (a nested relation path, a `HasMany`)
+  is gathered after fetching, within the page, so each group still gets one
+  header. An aggregate alias (`withCount('tasks')` → `tasks_count`) orders like
+  a column.
+- Drag reorder is off while a group is active: a row can't leave its group.
 
 ### `Group` API
 
@@ -1335,6 +1345,27 @@ Editable columns update database values instantly by sending XHR requests. To en
 1. When serializing, the table builder generates an encrypted representation of the target Eloquent model class (`Crypt::encryptString`).
 2. Cell update requests submit this encrypted token along with the record ID, column name, and new value.
 3. The backend updates endpoint decrypts the model class, confirms its validity, verifies record existence, and updates the record safely.
+
+**Validating the value.** Every edit is validated server-side against rules
+sealed into the same token: what the column type allows (a Select's options, a
+Number's bounds, a Toggle's boolean) plus any `->rules([...])` you add. A
+Select whose options all filter out for the current user accepts no value at
+all.
+
+```php
+TextInputColumn::make('email')->rules(['email', 'unique:users']);
+```
+
+- The value is validated under the column's own name, so `unique:users` and
+  `exists:roles` check that column, and messages name the field.
+- A `unique` rule ignores the row being edited (saving a cell unchanged
+  doesn't collide with itself); this applies to `Rule::unique()` objects too.
+- Rules travel inside the token, so they must be strings or serializable rule
+  objects. A closure (or a rule holding one, like `Rule::unique()->where(fn …)`)
+  throws when you declare it, naming the column.
+- A refused edit shows the server's message as a toast and puts the stored
+  value back in the cell. A refused reorder puts the rows back in their saved
+  order.
 
 ---
 

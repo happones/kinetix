@@ -6,6 +6,10 @@ const fetchMock = vi.fn().mockResolvedValue({});
 vi.mock('@/composables/useKinetixHttp', () => ({
     kinetixFetch: (...args: unknown[]) => fetchMock(...args),
 }));
+const toastError = vi.fn();
+vi.mock('vue-sonner', () => ({
+    toast: { error: (m: string) => toastError(m) },
+}));
 
 import {
     moveArrayItem,
@@ -187,5 +191,36 @@ describe('useKinetixTableReorder', () => {
         expect(api!.moveRowBy(0, -1)).toBeNull();
         expect(api!.moveRowBy(1, 1)).toBeNull();
         expect(api!.rows.value.map((r) => r.id)).toEqual([1, 2]);
+    });
+
+    // A refused reorder was console-only: the new order stayed on screen,
+    // looking saved.
+    it('says why a reorder was refused and puts the rows back', async () => {
+        fetchMock.mockRejectedValueOnce(new Error('Too many rows to reorder.'));
+        const source = ref([rec(1), rec(2), rec(3)]);
+        let api: ReturnType<typeof useKinetixTableReorder>;
+
+        const Harness = defineComponent({
+            setup() {
+                api = useKinetixTableReorder({
+                    records: () => source.value,
+                    reorderable: () => true,
+                    model: () => 'token',
+                    routePrefix: () => '_kinetix',
+                });
+
+                return () => h('div');
+            },
+        });
+
+        mount(Harness);
+        await nextTick();
+
+        api!.onDragStart(0);
+        api!.onDragOver(2, { preventDefault: vi.fn() } as any);
+        await api!.onDrop();
+
+        expect(toastError).toHaveBeenCalledWith('Too many rows to reorder.');
+        expect(api!.rows.value.map((r) => r.id)).toEqual([1, 2, 3]);
     });
 });

@@ -324,6 +324,11 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringContainsString("\$this->authorizeAction('delete', \$record);", $controller);
         $this->assertStringContainsString("\$this->authorizeAction('restore', \$record);", $controller);
         $this->assertStringContainsString("\$this->authorizeAction('forceDelete', \$record);", $controller);
+        // A permanent delete is bracketed by the same hooks as a delete.
+        $this->assertMatchesRegularExpression(
+            '/beforeDelete\(\$record\);\s+\$record->forceDelete\(\);\s+PostResource::afterDelete\(\$record\);/',
+            $controller,
+        );
 
         // Simple mode gets the same viewAny gate on its single endpoint.
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));

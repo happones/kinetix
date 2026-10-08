@@ -129,15 +129,17 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Thin scrollbar for the notification list only. Scoped to this scroller (the
-   style rides the teleported panel's scope hash) so it no longer paints the
-   app's global scrollbar — the previous rules lived in an un-scopeable
-   `::-webkit-scrollbar` block that leaked document-wide. An app can reuse its
-   own themed scrollbar by setting --kx-scrollbar-thumb up the tree; the
-   defaults keep the original look. */
+/* Thin scrollbar for the notification list only, scoped to this scroller (the
+   style rides the teleported panel's scope hash) so it never paints the app's
+   global scrollbar. The thumb follows the theme through --color-border, like
+   the table's: a fixed light grey stayed light in dark mode, because Chrome
+   and Firefox use the standard `scrollbar-color` and ignore the webkit rules
+   (kept for Safari). An app can reuse its own themed scrollbar by setting
+   --kx-scrollbar-thumb up the tree. */
 .kinetix-notification-scroll {
     scrollbar-width: thin;
-    scrollbar-color: var(--kx-scrollbar-thumb, #e5e5e5) transparent;
+    scrollbar-color: var(--kx-scrollbar-thumb, var(--color-border, #e5e5e5))
+        transparent;
 }
 .kinetix-notification-scroll::-webkit-scrollbar {
     width: 4px;
@@ -147,9 +149,6 @@ onMounted(() => {
 }
 .kinetix-notification-scroll::-webkit-scrollbar-thumb {
     border-radius: 2px;
-    background: var(--kx-scrollbar-thumb, #e5e5e5);
-}
-:global(.dark) .kinetix-notification-scroll::-webkit-scrollbar-thumb {
-    background: var(--kx-scrollbar-thumb, #262626);
+    background: var(--kx-scrollbar-thumb, var(--color-border, #e5e5e5));
 }
 </style>

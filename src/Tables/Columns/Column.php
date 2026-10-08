@@ -11,6 +11,8 @@ use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
+use InvalidArgumentException;
+use Throwable;
 
 abstract class Column
 {
@@ -339,14 +341,49 @@ abstract class Column
      * them, so they can't be tampered with.
      *
      *     TextInputColumn::make('email')->rules(['email', 'max:255']);
+     *     TextInputColumn::make('email')->rules(['unique:users']); // its own row is ignored
+     *
+     * Because they travel inside the descriptor, rules must be strings or
+     * serializable rule objects — a closure (or a rule holding one, such as
+     * `Rule::unique()->where(fn …)`) is refused here, with the column named,
+     * instead of failing the whole page when the table renders.
      *
      * @param array<int, mixed> $rules
      */
     public function rules(array $rules): static
     {
+        foreach ($rules as $rule) {
+            if (! self::isSealable($rule)) {
+                throw new InvalidArgumentException(sprintf(
+                    'Column [%s]: inline-edit rules are sealed into a signed descriptor, so they must be strings or serializable rule objects; %s is not.',
+                    $this->name,
+                    get_debug_type($rule),
+                ));
+            }
+        }
+
         $this->rules = array_values($rules);
 
         return $this;
+    }
+
+    private static function isSealable(mixed $rule): bool
+    {
+        if ($rule instanceof Closure) {
+            return false;
+        }
+
+        if (! is_object($rule)) {
+            return true;
+        }
+
+        try {
+            serialize($rule);
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**
