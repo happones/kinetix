@@ -82,8 +82,10 @@ Enter fires `card-click`. i18n `kanban_*` (en/es/fr/pt/zh/ja/ru).
 - the move posts the destination column's `order`, and status + positions save
   in one transaction (write-checked, all-or-nothing);
 - positions are traded via the shared `Support\ManualOrder` (same as table
-  reorder), so cards a narrower board hides keep theirs, and an unnumbered
-  column is numbered once within `moveScope()`.
+  reorder), so cards a narrower board hides keep theirs; a card from another
+  column takes a free position between its neighbours (else after the last);
+  only cards whose position changes are written and write-checked; an
+  unnumbered column is numbered once within `moveScope()`.
 
 ## Adding & editing cards (CRUD wiring)
 

@@ -135,6 +135,31 @@ describe('useKinetixTouchDrag', () => {
         expect(tapped).not.toHaveBeenCalled();
     });
 
+    it('a second finger neither steers nor ends the drag', () => {
+        const { api, calls } = harness({ activation: 'immediate' });
+        const { source } = setUp();
+
+        api.startFromPointerDown(
+            pointer('pointerdown', { pointerId: 1 }),
+            source,
+            'a',
+        );
+        calls.onHover.mockClear();
+
+        const other = { pointerId: 2, isPrimary: false };
+        window.dispatchEvent(pointer('pointermove', other));
+        window.dispatchEvent(pointer('pointerup', other));
+        window.dispatchEvent(pointer('pointercancel', other));
+
+        expect(calls.onHover).not.toHaveBeenCalled();
+        expect(calls.onDrop).not.toHaveBeenCalled();
+        expect(calls.onCancel).not.toHaveBeenCalled();
+        expect(api.isTouchDragging.value).toBe(true);
+
+        window.dispatchEvent(pointer('pointerup', { pointerId: 1 }));
+        expect(calls.onDrop).toHaveBeenCalledWith('a', 'b');
+    });
+
     it('ignores the mouse, which native drag-and-drop handles', () => {
         const { api, calls } = harness({ activation: 'immediate' });
         const { source } = setUp();

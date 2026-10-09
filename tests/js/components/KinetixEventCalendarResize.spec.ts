@@ -215,6 +215,63 @@ describe('KinetixEventCalendar resizing', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
+    it('a jitter on the handle of an event ending past the grid saves nothing', async () => {
+        // 15:00–20:00 on an 08:00–17:00 grid: the handle sits at 17:00.
+        const late = {
+            ...launch,
+            start: '2026-06-15T15:00:00+00:00',
+            end: '2026-06-15T20:00:00+00:00',
+        };
+        const w = mountIt({ calendar: makeCalendar(undefined, [late]) });
+        layOutColumn(w, '2026-06-15');
+        const handle = blockOf(w, 1).get('[data-calendar-resize]').element;
+
+        handle.dispatchEvent(pointer('pointerdown', { clientY: yAt(17) - 2 }));
+        window.dispatchEvent(pointer('pointermove', { clientY: yAt(17) - 1 }));
+        window.dispatchEvent(pointer('pointerup', { clientY: yAt(17) - 1 }));
+        await flush(w);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        // A real drag still resizes it.
+        handle.dispatchEvent(pointer('pointerdown', { clientY: yAt(17) - 2 }));
+        window.dispatchEvent(pointer('pointermove', { clientY: yAt(16) }));
+        window.dispatchEvent(pointer('pointerup', { clientY: yAt(16) }));
+        await flush(w);
+
+        expect(resizeCall()![1].body.end).toBe('2026-06-15T16:00:00.000Z');
+    });
+
+    it('a second finger neither steers nor ends the resize', async () => {
+        const w = mountIt();
+        layOutColumn(w, '2026-06-15');
+        const handle = blockOf(w, 1).get('[data-calendar-resize]').element;
+        const finger = { pointerType: 'touch', pointerId: 1 };
+        const other = { pointerType: 'touch', pointerId: 2, isPrimary: false };
+
+        handle.dispatchEvent(
+            pointer('pointerdown', { ...finger, clientY: yAt(10, 30) }),
+        );
+        window.dispatchEvent(
+            pointer('pointermove', { ...other, clientY: yAt(14) }),
+        );
+        window.dispatchEvent(
+            pointer('pointerup', { ...other, clientY: yAt(14) }),
+        );
+        await flush(w);
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        window.dispatchEvent(
+            pointer('pointermove', { ...finger, clientY: yAt(12) }),
+        );
+        window.dispatchEvent(
+            pointer('pointerup', { ...finger, clientY: yAt(12) }),
+        );
+        await flush(w);
+
+        expect(resizeCall()![1].body.end).toBe('2026-06-15T12:00:00.000Z');
+    });
+
     it('Escape puts the event back and saves nothing', async () => {
         const w = mountIt();
         layOutColumn(w, '2026-06-15');

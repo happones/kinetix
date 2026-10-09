@@ -272,39 +272,30 @@ class TableWriteController
             ], 422);
         }
 
-        // Resolve every record through the table's scope in ONE query (ids
-        // outside it simply don't come back), keyed by id so we can walk the
-        // REQUESTED order — the previous code ran one SELECT per id (N+1).
-        $records = $this->baseQuery($descriptor)
-            ->whereKey($ids)
-            ->get()
-            ->keyBy(static fn (Model $record): string => (string) $record->getKey());
-
-        $moved = [];
-
-        foreach ($ids as $id) {
-            $record = $records->get((string) $id);
-
-            if ($record === null) {
-                continue;
-            }
-
-            if (! $this->authorize($descriptor, $record)) {
-                return $this->forbiddenWrite();
-            }
-
-            $moved[] = $record;
-        }
-
-        if ($moved === []) {
-            return response()->json(['status' => 'success']);
-        }
-
         // The ids are one page, one filtered view or one search result — a
         // window onto the list, not the list ({@see ManualOrder}). One
-        // transaction, so a partial reorder can't be left behind.
+        // transaction, so a partial reorder can't be left behind. The rows
+        // are resolved through the table's scope in ONE query, inside it and
+        // locked, so a concurrent reorder can't slip in between reading their
+        // positions and writing them. Only rows whose position changes are
+        // written, and each must pass the write check.
         try {
-            DB::transaction(function () use ($descriptor, $moved, $reorderColumn, $max): void {
+            DB::transaction(function () use ($descriptor, $ids, $reorderColumn, $max): void {
+                $records = $this->baseQuery($descriptor)
+                    ->whereKey($ids)
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy(static fn (Model $record): string => (string) $record->getKey());
+
+                $moved = array_values(array_filter(array_map(
+                    static fn (mixed $id): ?Model => $records->get((string) $id),
+                    $ids,
+                )));
+
+                if ($moved === []) {
+                    return;
+                }
+
                 ManualOrder::save(ManualOrder::positions(
                     fn (): Builder => $this->baseQuery($descriptor),
                     $moved,

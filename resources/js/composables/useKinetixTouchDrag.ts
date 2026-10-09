@@ -93,6 +93,9 @@ export function useKinetixTouchDrag<T>(
     let lastX = 0;
     let lastY = 0;
     let hoverKey: string | null = null;
+    // The finger (or pen) that started the gesture; a second one touching
+    // the screen meanwhile must neither steer nor end it.
+    let pointerId: number | null = null;
     let edgeScrollFrame: number | null = null;
     let verticalScroller: HTMLElement | null = null;
 
@@ -248,6 +251,7 @@ export function useKinetixTouchDrag<T>(
         sourceEl = null;
         verticalScroller = null;
         payload = null;
+        pointerId = null;
         isTouchDragging.value = false;
         setHoverKey(null);
 
@@ -258,7 +262,14 @@ export function useKinetixTouchDrag<T>(
         window.removeEventListener('contextmenu', onContextMenu, true);
     };
 
+    const isOtherPointer = (event: PointerEvent): boolean =>
+        pointerId !== null && event.pointerId !== pointerId;
+
     const onPointerMove = (event: PointerEvent): void => {
+        if (isOtherPointer(event)) {
+            return;
+        }
+
         lastX = event.clientX;
         lastY = event.clientY;
 
@@ -298,7 +309,11 @@ export function useKinetixTouchDrag<T>(
         }
     };
 
-    const onPointerUp = (): void => {
+    const onPointerUp = (event: PointerEvent): void => {
+        if (isOtherPointer(event)) {
+            return;
+        }
+
         if (isTouchDragging.value) {
             const dropPayload = payload;
             const dropKey = hoverKey;
@@ -327,8 +342,10 @@ export function useKinetixTouchDrag<T>(
         }
     };
 
-    const onPointerCancel = (): void => {
-        cancel();
+    const onPointerCancel = (event: PointerEvent): void => {
+        if (!isOtherPointer(event)) {
+            cancel();
+        }
     };
 
     const startFromPointerDown = (
@@ -343,6 +360,7 @@ export function useKinetixTouchDrag<T>(
         cleanup();
 
         payload = dragPayload;
+        pointerId = event.pointerId;
         sourceEl = el;
         startX = lastX = event.clientX;
         startY = lastY = event.clientY;

@@ -90,6 +90,42 @@ describe('useKinetixListReorder', () => {
         expect(onCommit).not.toHaveBeenCalled();
     });
 
+    it('a drop where the drag started saves nothing', async () => {
+        const source = ref(['a', 'b', 'c']);
+        const { api, onCommit } = harness(source);
+
+        api.onDragStart(1);
+        api.onDragOver(2, dragEvent());
+        api.onDragOver(1, dragEvent());
+        await api.onDrop();
+
+        expect(onCommit).not.toHaveBeenCalled();
+        expect(api.draggingIndex.value).toBeNull();
+    });
+
+    it('a refused commit goes back to the last saved order, not the first', async () => {
+        const source = ref(['a', 'b', 'c']);
+        const onCommit = vi.fn().mockResolvedValueOnce(true);
+        const { api } = harness(source, onCommit);
+
+        api.onDragStart(0);
+        api.onDragOver(2, dragEvent());
+        await api.onDrop();
+        expect(api.localItems.value).toEqual(['b', 'c', 'a']);
+
+        onCommit.mockResolvedValueOnce(false);
+        api.onDragStart(0);
+        api.onDragOver(1, dragEvent());
+        await api.onDrop();
+        expect(api.localItems.value).toEqual(['b', 'c', 'a']);
+
+        // A cancelled drag goes back there too.
+        api.onDragStart(0);
+        api.onDragOver(2, dragEvent());
+        api.onDragEnd();
+        expect(api.localItems.value).toEqual(['b', 'c', 'a']);
+    });
+
     it('re-syncs the local copy when the source changes', async () => {
         const source = ref(['a', 'b']);
         const { api } = harness(source);
@@ -164,6 +200,20 @@ describe('useKinetixListReorder', () => {
             await nextTick();
 
             expect(onCommit).toHaveBeenCalledWith(['b', 'c', 'a']);
+            expect(api.draggingIndex.value).toBeNull();
+        });
+
+        it('a tap on the grip saves nothing', async () => {
+            const source = ref(['a', 'b', 'c']);
+            const { api, onCommit } = harness(source);
+            const targets = items(api, 3);
+
+            fingerOver(targets[0]);
+            grip(0, api).dispatchEvent(touch('pointerdown'));
+            window.dispatchEvent(touch('pointerup'));
+            await nextTick();
+
+            expect(onCommit).not.toHaveBeenCalled();
             expect(api.draggingIndex.value).toBeNull();
         });
 

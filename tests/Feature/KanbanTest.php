@@ -270,7 +270,11 @@ class KanbanTest extends TestCase
         $this->assertFalse($this->board()->toData()->reorderable);
     }
 
-    public function test_a_card_dropped_into_another_column_trades_positions_with_it(): void
+    /**
+     * The position A held in "todo" means nothing in "doing": it takes a fresh
+     * one after the column's last, and B keeps its own.
+     */
+    public function test_a_card_dropped_into_another_column_takes_a_fresh_position_there(): void
     {
         $this->position(['A' => 10, 'B' => 20, 'C' => 30]);
 
@@ -278,9 +282,63 @@ class KanbanTest extends TestCase
         $this->move('A', 'doing', [$this->task('B')->id, $this->task('A')->id])->assertOk();
 
         $this->assertSame('doing', $this->task('A')->status);
-        $this->assertSame(10, $this->task('B')->sort_order);
-        $this->assertSame(20, $this->task('A')->sort_order);
+        $this->assertSame(20, $this->task('B')->sort_order);
+        $this->assertSame(21, $this->task('A')->sort_order);
         $this->assertSame(30, $this->task('C')->sort_order);
+
+        // Dropped on top, C takes the free position before B: nothing else moves.
+        $this->move('C', 'doing', [$this->task('C')->id, $this->task('B')->id, $this->task('A')->id])->assertOk();
+
+        $this->assertSame(
+            ['A' => 21, 'B' => 20, 'C' => 19],
+            KanbanTask::orderBy('title')->pluck('sort_order', 'title')->all(),
+        );
+    }
+
+    /**
+     * A drop between two cards lands on a free position between them, so
+     * neither is written — not even one this user may not edit. Before, every
+     * card listed in the order had to pass the write check.
+     */
+    public function test_a_drop_between_two_cards_writes_neither(): void
+    {
+        Gate::policy(KanbanTask::class, KanbanTaskLockedCPolicy::class);
+        $this->position(['A' => 10, 'B' => 20, 'C' => 30]);
+
+        // B lands between A and C in "todo"; C is locked.
+        $this->move('B', 'todo', [$this->task('A')->id, $this->task('B')->id, $this->task('C')->id])->assertOk();
+
+        $this->assertSame('todo', $this->task('B')->status);
+        $this->assertSame(
+            ['A' => 10, 'B' => 20, 'C' => 30],
+            KanbanTask::orderBy('title')->pluck('sort_order', 'title')->all(),
+        );
+    }
+
+    /**
+     * A board narrower than its move scope (one project's cards): a drop
+     * into another column used to renumber the whole column, cards of other
+     * projects included — or fail with a 403 when one of them was locked.
+     */
+    public function test_a_drop_into_a_column_leaves_the_cards_a_narrower_board_hides(): void
+    {
+        $this->position(['A' => 1, 'B' => 1, 'C' => 2]);
+        $hidden = KanbanTask::create(['title' => 'H', 'status' => 'doing', 'sort_order' => 2]);
+        Gate::policy(KanbanTask::class, KanbanTaskLockedHPolicy::class);
+
+        $board = Kanban::make(KanbanTask::query()->where('title', '!=', 'H'))
+            ->statusColumn('status')
+            ->statuses(['todo' => 'To Do', 'doing' => 'In Progress', 'done' => 'Done'])
+            ->cardTitle('title')
+            ->reorderable('sort_order');
+
+        // A lands under B in "doing".
+        $this->move('A', 'doing', [$this->task('B')->id, $this->task('A')->id], $board)->assertOk();
+
+        $this->assertSame('doing', $this->task('A')->status);
+        $this->assertSame(1, $this->task('B')->sort_order);
+        $this->assertSame(2, $hidden->fresh()->sort_order);
+        $this->assertSame(3, $this->task('A')->sort_order);
     }
 
     public function test_a_card_reorders_within_its_own_column(): void
@@ -364,5 +422,13 @@ class KanbanTaskLockedCPolicy
     public function update(KanbanUser $user, KanbanTask $task): bool
     {
         return $task->title !== 'C';
+    }
+}
+
+class KanbanTaskLockedHPolicy
+{
+    public function update(KanbanUser $user, KanbanTask $task): bool
+    {
+        return $task->title !== 'H';
     }
 }

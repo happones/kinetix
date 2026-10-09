@@ -13,6 +13,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.217.0] - 2026-10-09
+
+The ordering and drag fixes from the review of 0.207.1–0.216.0. Re-publish the
+components (`--force`) to pick up the frontend fixes.
+
+### Changed
+
+- **Only rows whose position changes are written and write-checked**
+  (`Support\ManualOrder`, table reorder and kanban order). Every row listed in
+  a drag had to pass the write check, so one locked row on the page, or one
+  locked card in a column, refused every drop near it.
+- **A row off screen sharing a position with a dragged one keeps it.** Such a
+  tie used to number the whole list, which for a table over `whereIn()` /
+  `whereHas()` (a scope the write descriptor can't capture) wrote every row of
+  the model, other groups included, and could fail with a 403 or the
+  `reorder_max` cap. The tie now orders by key, as everywhere else. A list
+  whose dragged rows hold no usable positions is still numbered once; declare
+  `writeScope()` for such a table so that numbering stays inside it.
+
+### Fixed
+
+- **A kanban card dropped into another column rewrote that column.** It
+  brought the position it held in its old column, which usually collided with
+  one in the new column, so the whole column was renumbered: cards a narrower
+  board hides were written, or the drop failed with a 403. It now takes a free
+  position between its new neighbours (a drop between 10 and 30 lands on 20),
+  else the one after the column's last, and the cards around it don't move.
+- **A refused table reorder put the rows back in the page-load order,** not
+  the last saved one, after an earlier drag had succeeded; a cancelled drag
+  did the same. Both now go back to the last saved order
+  (`useKinetixListReorder` tracks it; `onCommit` may resolve `false` for a
+  refusal, and `commit()` saves a keyboard move). **(published)**
+- **A tap on a table or media grip saved the unchanged order** (a POST, or a
+  dirty media field). A drop where the drag started saves nothing.
+  **(published)**
+- **Concurrent reorders could be lost.** The positions were read before the
+  transaction, so a reorder racing another one compared against stale values
+  and skipped its writes. Table and kanban rows are now read inside the
+  transaction, locked (`lockForUpdate()`).
+- **A second finger steered and ended a touch drag** (row, tile, card, event)
+  **or a calendar resize.** Only the pointer that started the gesture counts
+  now. **(published)**
+- **A jitter on a resize grip cut an event short.** The grip of an event that
+  ends past the visible hours sits at the grid's edge, and the slightest move
+  rewrote the end to that edge. The grip now ignores movement under half a
+  step. **(published)**
+- **A timed event starting at midnight, resized to the next midnight, became
+  an all-day event spanning two days.** It now stops at 23:45.
+  **(published)**
+- **An all-day event moved across a daylight-saving change turned into a
+  timed one** (it ended at 23:00). The move shifts the end on the calendar's
+  wall clock, like the start; the calendar's timezone is sealed in the move
+  descriptor (older descriptors fall back to the default timezone).
+
 ## [0.216.1] - 2026-10-09
 
 The urgent fixes from a review of 0.207.1–0.216.0: three authorization gaps

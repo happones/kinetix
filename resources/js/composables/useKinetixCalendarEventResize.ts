@@ -89,6 +89,11 @@ interface ResizeSession {
     frame: number | null;
     cursor: string;
     pointerType: string;
+    /** The pointer dragging the handle; another finger is ignored. */
+    pointerId: number;
+    /** Where the pointer went down, and whether it has left the dead zone. */
+    startY: number;
+    armed: boolean;
 }
 
 /**
@@ -125,6 +130,22 @@ export function useKinetixCalendarEventResize(
 
             if (!rect || rect.height <= 0) {
                 return undefined;
+            }
+
+            // Until the handle has moved half a step, the end stands. An event
+            // ending outside the visible hours has its handle at the grid's
+            // edge: a jitter there would rewrite the end to that edge.
+            if (!s.armed) {
+                const gridMinutes =
+                    (options.endHour() - options.startHour()) * 60;
+                const halfStepPx =
+                    (rect.height * RESIZE_STEP_MINUTES) / 2 / gridMinutes;
+
+                if (Math.abs(s.y - s.startY) < halfStepPx) {
+                    return null;
+                }
+
+                s.armed = true;
             }
 
             return resizedEnd(
@@ -199,7 +220,7 @@ export function useKinetixCalendarEventResize(
     };
 
     const onPointerMove = (event: PointerEvent): void => {
-        if (session) {
+        if (session && event.pointerId === session.pointerId) {
             session.x = event.clientX;
             session.y = event.clientY;
             update();
@@ -224,10 +245,16 @@ export function useKinetixCalendarEventResize(
 
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
-        window.removeEventListener('pointercancel', cancel);
+        window.removeEventListener('pointercancel', onPointerCancel);
         window.removeEventListener('keydown', onEscape, true);
 
         return ended;
+    };
+
+    const onPointerCancel = (event: PointerEvent): void => {
+        if (session && event.pointerId === session.pointerId) {
+            cancel();
+        }
     };
 
     /** End the gesture and put the event back as it was. */
@@ -247,7 +274,11 @@ export function useKinetixCalendarEventResize(
         }
     };
 
-    const onPointerUp = (): void => {
+    const onPointerUp = (event: PointerEvent): void => {
+        if (session && event.pointerId !== session.pointerId) {
+            return;
+        }
+
         const ended = finish();
 
         if (!ended || ended.end === null) {
@@ -305,6 +336,9 @@ export function useKinetixCalendarEventResize(
             frame: null,
             cursor: document.documentElement.style.cursor,
             pointerType: pointerEvent.pointerType,
+            pointerId: pointerEvent.pointerId,
+            startY: pointerEvent.clientY,
+            armed: false,
         };
         document.documentElement.style.cursor =
             axis === 'time' ? 'ns-resize' : 'ew-resize';
@@ -312,7 +346,7 @@ export function useKinetixCalendarEventResize(
 
         window.addEventListener('pointermove', onPointerMove);
         window.addEventListener('pointerup', onPointerUp);
-        window.addEventListener('pointercancel', cancel);
+        window.addEventListener('pointercancel', onPointerCancel);
         window.addEventListener('keydown', onEscape, true);
 
         if (axis === 'time') {

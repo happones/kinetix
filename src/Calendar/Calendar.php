@@ -307,6 +307,8 @@ class Calendar
             'resizable'   => $this->resizable,
             'moveAbility' => $this->moveAbility,
             'moveScope'   => $this->moveScope,
+            // The wall clock a move shifts the end on.
+            'timezone' => $this->resolveTimezone(),
         ]);
     }
 

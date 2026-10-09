@@ -159,34 +159,32 @@ class KanbanMoveController
             ], 422);
         }
 
-        // The status and the order land together or not at all.
+        // A card dropped in from another column brings that column's
+        // position, which means nothing here: it takes a fresh one.
+        $arrivals = (string) $record->getAttribute($statusColumn) === $status
+            ? []
+            : [(string) $record->getKey()];
+
+        // The status and the order land together or not at all. The cards are
+        // read inside the transaction, locked, so a concurrent reorder can't
+        // slip in between reading their positions and writing them. Only the
+        // cards whose position changes are written and write-checked.
         try {
-            DB::transaction(function () use ($record, $statusColumn, $status, $scope, $ids, $orderColumn, $mayWrite, $max): void {
+            DB::transaction(function () use ($record, $statusColumn, $status, $scope, $ids, $orderColumn, $mayWrite, $max, $arrivals): void {
                 $record->{$statusColumn} = $status;
                 $record->save();
 
                 $column = static fn (): Builder => $scope()->where($record->qualifyColumn($statusColumn), $status);
-                $cards  = $column()->whereKey($ids)->get()
+                $cards  = $column()->whereKey($ids)->lockForUpdate()->get()
                     ->keyBy(static fn (Model $card): string => (string) $card->getKey());
 
-                $moved = [];
-
-                foreach ($ids as $id) {
-                    $card = $cards->get((string) $id);
-
-                    if ($card === null) {
-                        continue;
-                    }
-
-                    if (! $mayWrite($card)) {
-                        throw ManualOrderRefused::forbidden();
-                    }
-
-                    $moved[] = $card;
-                }
+                $moved = array_values(array_filter(array_map(
+                    static fn (mixed $id): ?Model => $cards->get((string) $id),
+                    $ids,
+                )));
 
                 if ($moved !== []) {
-                    ManualOrder::save(ManualOrder::positions($column, $moved, $orderColumn, $mayWrite, $max), $orderColumn);
+                    ManualOrder::save(ManualOrder::positions($column, $moved, $orderColumn, $mayWrite, $max, $arrivals), $orderColumn);
                 }
             });
         } catch (ManualOrderRefused $refused) {

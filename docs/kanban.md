@@ -70,10 +70,15 @@ Kanban::make(Task::query())
   card whose position changes. A refused order also leaves the card's status
   untouched.
 - The cards **trade the positions they already hold**, so cards the board
-  doesn't show (another project's, behind `->query()`) keep theirs. A column
-  with no positions yet (all `0`, `null`s, repeats) is numbered `1..n` once in
-  the order it was shown, within the board's `moveScope()`. Set `moveScope()`
-  to the board's boundary so that numbering never reaches past it.
+  doesn't show (another project's, behind `->query()`) keep theirs. A card
+  dropped in from another column brings no position of this one: it takes a
+  free one between its new neighbours (a drop between 10 and 30 lands on 20),
+  else the one after the column's last, so the cards around it don't move.
+  A tap that leaves the order as it was saves nothing.
+- A column with no positions yet (all `0`, `null`s, repeats) is numbered
+  `1..n` once in the order it was shown, within the board's `moveScope()`.
+  Set `moveScope()` to the board's boundary so that numbering never reaches
+  past it.
 
 ### Enum status columns
 

@@ -1178,13 +1178,22 @@ they fire no model events.
   active (and while a group is), because the rows aren't shown in their saved
   order. Clear the sort to reorder.
 - **Ties.** Rows that share a position are shown in key order, so a page never
-  repeats or skips a row.
-- **A column with no positions yet** (all `0`, `null`s, repeats) has nothing to
-  trade. The first drag numbers the whole list `1..n` in the order it was
-  shown, with the dragged rows in their new order. Every row it renumbers must
-  pass the same write check as the dragged ones, and a list longer than
-  `kinetix.tables.reorder_max` (default 1000) is refused with a message rather
-  than rewritten. After that, each drag trades.
+  repeats or skips a row. A row off screen sharing a position with a dragged
+  one (a list numbered per group) keeps it.
+- **Write checks.** Only rows whose position changes are written, and each
+  must pass the table's write check (`writeAbility()`, or the policy's
+  `update`). A row the user can't edit doesn't block a drag that leaves it in
+  place.
+- **A column with no positions yet** (all `0`, `null`s, repeats among the
+  dragged rows) has nothing to trade. The first drag numbers the whole list
+  `1..n` in the order it was shown, with the dragged rows in their new order.
+  A list longer than `kinetix.tables.reorder_max` (default 1000) is refused
+  with a message rather than rewritten. After that, each drag trades. "The
+  whole list" is the table's write scope: when the table's query narrows it
+  with something other than `where(column, value)` (`whereIn`, `whereHas`, a
+  join), declare `writeScope([...])` so the numbering stays inside it.
+- **Refused?** The rows go back to the last order that was saved, with the
+  server's message.
 
 Give new rows a position when you create them (for example the current maximum
 plus one) so the list stays numbered:

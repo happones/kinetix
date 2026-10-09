@@ -72,6 +72,7 @@ const {
     onDrop: onReorderDrop,
     onDragEnd: onReorderEnd,
     moveItem,
+    commit: commitOrder,
     reorderTarget,
     onGripPointerDown,
 } = useKinetixListReorder<KinetixMediaItem>({
@@ -94,7 +95,7 @@ const moveTile = (index: number, delta: -1 | 1): void => {
     }
 
     moveItem(index, target);
-    emit('update:value', [...orderedItems.value]);
+    void commitOrder();
     announce(
         t('kinetix.row_moved', {
             position: target + 1,

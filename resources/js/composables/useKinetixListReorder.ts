@@ -22,8 +22,12 @@ export interface UseKinetixListReorderOptions<T> {
     items: () => T[];
     /** Whether drag reordering is currently allowed. Defaults to enabled. */
     enabled?: () => boolean;
-    /** Persist the new order — called once, on drop. */
-    onCommit: (items: T[]) => void | Promise<void>;
+    /**
+     * Persist the new order — called once per drop that changed it. Resolve
+     * `false` when it was refused: the list goes back to the last order that
+     * was saved.
+     */
+    onCommit: (items: T[]) => void | boolean | Promise<void | boolean>;
 }
 
 export interface UseKinetixListReorder<T> {
@@ -51,6 +55,11 @@ export interface UseKinetixListReorder<T> {
     onDragEnd: () => void;
     /** Move an item programmatically (keyboard alternative) — preview only. */
     moveItem: (from: number, to: number) => void;
+    /**
+     * Persist the order shown (after `moveItem`), going back to the last
+     * saved order when it's refused.
+     */
+    commit: () => Promise<void>;
     /**
      * Value for each item's `data-kinetix-reorder` attribute: marks it as a
      * place a touch drag can move to, in this list only.
@@ -82,19 +91,37 @@ export function useKinetixListReorder<T>(
 ): UseKinetixListReorder<T> {
     const localItems = ref([...options.items()]) as Ref<T[]>;
 
+    // The order last saved: the source's, then every commit that went
+    // through. A refused commit or a cancelled drag goes back to it, not to
+    // the order the page loaded with.
+    let saved = [...options.items()];
+
     watch(
         () => options.items(),
         (next) => {
+            saved = [...next];
             localItems.value = [...next];
         },
     );
 
     const dragIndex = ref<number | null>(null);
     const draggingIndex = computed(() => dragIndex.value);
+    let orderAtStart: T[] = [];
 
     const onDragStart = (index: number): void => {
         if (options.enabled?.() ?? true) {
             dragIndex.value = index;
+            orderAtStart = [...localItems.value];
+        }
+    };
+
+    const commit = async (): Promise<void> => {
+        const order = [...localItems.value];
+
+        if ((await options.onCommit(order)) === false) {
+            localItems.value = [...saved];
+        } else {
+            saved = order;
         }
     };
 
@@ -127,7 +154,16 @@ export function useKinetixListReorder<T>(
         }
 
         dragIndex.value = null;
-        await options.onCommit([...localItems.value]);
+
+        // Let go where it started (a tap on the grip): nothing to save.
+        if (
+            orderAtStart.length === localItems.value.length &&
+            orderAtStart.every((item, i) => item === localItems.value[i])
+        ) {
+            return;
+        }
+
+        await commit();
     };
 
     const onDragEnd = (): void => {
@@ -136,7 +172,7 @@ export function useKinetixListReorder<T>(
         }
 
         dragIndex.value = null;
-        localItems.value = [...options.items()];
+        localItems.value = [...saved];
     };
 
     const moveItem = (from: number, to: number): void => {
@@ -195,6 +231,7 @@ export function useKinetixListReorder<T>(
     return {
         localItems,
         draggingIndex,
+        commit,
         onDragStart,
         onDragOver,
         onDrop,

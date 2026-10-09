@@ -227,14 +227,19 @@ class TableReorderTest extends TestCase
         $this->assertSame($expected, $this->positions());
     }
 
-    public function test_a_position_shared_with_a_row_outside_the_window_numbers_the_list(): void
+    /**
+     * A row outside the window sharing a position (a list numbered per group,
+     * a scope wider than the rows shown) keeps it, and the tie orders by key.
+     * Numbering the whole list for it wrote rows the user never saw.
+     */
+    public function test_a_position_shared_with_a_row_outside_the_window_is_left_alone(): void
     {
         // Rows 2 and 3 share position 2; the page shows rows 1 and 2 only.
         $this->seedRows([1, 2, 2, 3]);
 
         $this->reorder([2, 1])->assertOk();
 
-        $this->assertSame([1 => 2, 2 => 1, 3 => 3, 4 => 4], $this->positions());
+        $this->assertSame([1 => 2, 2 => 1, 3 => 2, 4 => 3], $this->positions());
     }
 
     public function test_an_unnumbered_list_over_the_cap_is_refused_untouched(): void
@@ -280,6 +285,43 @@ class TableReorderTest extends TestCase
         $this->reorder([2, 1])->assertForbidden();
 
         $this->assertSame([1 => 0, 2 => 0, 3 => 0], $this->positions());
+    }
+
+    /**
+     * A row the user may not write, shown on the page but keeping its
+     * position, no longer blocks the drag: only rows that move are checked.
+     */
+    public function test_a_locked_row_that_keeps_its_position_doesnt_block_the_reorder(): void
+    {
+        Gate::policy(ReorderWidget::class, ReorderWidgetPolicy::class);
+        ReorderWidget::query()->whereKey(1)->update(['name' => 'Locked']);
+
+        // A (locked) stays first; C moves above B.
+        $this->reorder([1, 3, 2])->assertOk();
+
+        $this->assertSame([1 => 1, 2 => 3, 3 => 2], $this->positions());
+    }
+
+    /**
+     * A table over `whereIn()` (which the write scope can't capture), its
+     * groups numbered separately: a drag used to renumber every row of the
+     * model, other groups included.
+     */
+    public function test_a_table_scoped_by_where_in_doesnt_renumber_rows_it_doesnt_show(): void
+    {
+        Schema::table('reorder_widgets', fn (Blueprint $table) => $table->integer('group_id')->default(1));
+        $this->seedRows([1, 2, 1, 2]);
+        ReorderWidget::query()->whereKey([3, 4])->update(['group_id' => 2]);
+
+        $token = Table::make(ReorderWidget::query()->whereIn('group_id', [1]))
+            ->reorderable('sort_order')
+            ->columns([TextColumn::make('name')])
+            ->toData()
+            ->model;
+
+        $this->postJson(route('kinetix.tables.reorder'), ['model' => $token, 'ids' => [2, 1]])->assertOk();
+
+        $this->assertSame([1 => 2, 2 => 1, 3 => 1, 4 => 2], $this->positions());
     }
 
     public function test_rows_sharing_a_position_are_ordered_by_key(): void

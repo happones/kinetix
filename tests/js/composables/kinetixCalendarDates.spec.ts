@@ -123,6 +123,22 @@ describe('kinetixCalendarDates helpers', () => {
         );
     });
 
+    it('a timed event from midnight stops a step short of the next midnight', () => {
+        // 00:00–24:00 would read back as an all-day event.
+        const night = event(1, '2026-01-07T00:00:00Z', '2026-01-07T01:00:00Z');
+        const day = new CalendarDate(2026, 1, 7);
+
+        expect(
+            resizedEnd(night, gridInstant(day, 1, 0, 24, 'UTC'), 'UTC'),
+        ).toBe('2026-01-07T23:45:00.000Z');
+
+        // One that starts later may end at midnight.
+        const late = event(2, '2026-01-07T22:00:00Z', '2026-01-07T23:00:00Z');
+        expect(resizedEnd(late, gridInstant(day, 1, 0, 24, 'UTC'), 'UTC')).toBe(
+            '2026-01-08T00:00:00.000Z',
+        );
+    });
+
     it('a point down the hour grid snaps to 15 minutes, up to the next midnight', () => {
         const day = new CalendarDate(2026, 1, 7);
         const iso = (fraction: number) =>

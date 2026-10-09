@@ -52,7 +52,7 @@ export function useKinetixTableReorder(
 ): UseKinetixTableReorder {
     const persistOrder = async (
         records: KinetixTableRecord[],
-    ): Promise<void> => {
+    ): Promise<boolean> => {
         try {
             await kinetixFetch(`/${options.routePrefix()}/tables/reorder`, {
                 method: 'POST',
@@ -61,11 +61,15 @@ export function useKinetixTableReorder(
                     ids: records.map((r) => r.id),
                 },
             });
+
+            return true;
         } catch (e) {
             // A refused reorder (too many rows, no access) must not leave the
-            // new order on screen looking saved: say why and put it back.
+            // new order on screen looking saved: say why, and the list goes
+            // back to the last order that was saved.
             toast.error(e instanceof Error ? e.message : String(e));
-            list.localItems.value = [...options.records()];
+
+            return false;
         }
     };
 
@@ -106,7 +110,7 @@ export function useKinetixTableReorder(
 
         persistTimer = setTimeout(() => {
             persistTimer = null;
-            void persistOrder(list.localItems.value);
+            void list.commit();
         }, 600);
 
         return target;

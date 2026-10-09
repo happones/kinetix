@@ -310,7 +310,17 @@ whichever of moving and resizing the calendar allows.
 
 An event that ends exactly at midnight belongs to the day it runs through. A
 timed event from 22:00 to 00:00 fills the bottom of its own day and no longer
-spills onto the next one. An all-day event's end day stays inclusive.
+spills onto the next one. An all-day event's end day stays inclusive. A timed
+event that starts at midnight can be stretched to 23:45, not to the next
+midnight: midnight to midnight reads back as an all-day event.
+
+The grip ignores a jitter of less than half a step, so touching the grip of an
+event that ends past the visible hours doesn't cut it short to the grid's
+edge. Only the finger that started a drag steers it.
+
+A move shifts the end on the calendar's wall clock (`timezone()`), like the
+start: an all-day event moved across a daylight-saving change still ends at a
+midnight.
 
 ### How the move is secured
 

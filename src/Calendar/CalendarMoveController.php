@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Calendar;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\KinetixTimezone;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -42,7 +45,7 @@ class CalendarMoveController
             return $resolved;
         }
 
-        [$record, $dateColumn, $endColumn] = $resolved;
+        [$record, $dateColumn, $endColumn, $timezone] = $resolved;
 
         $newStart = $this->instant($request, 'start');
         $oldStart = $record->getAttribute($dateColumn);
@@ -51,9 +54,12 @@ class CalendarMoveController
             return $this->invalidDate();
         }
 
-        // Dates persist in the app timezone; the end shifts by the same
-        // delta as the start so the event's duration is preserved.
-        $deltaSeconds = Carbon::parse($oldStart)->diffInSeconds($newStart, false);
+        // The browser moves the start on the calendar's wall clock (whole
+        // days in the month view), so the end moves by the same wall-clock
+        // delta: an all-day event moved across a DST change still ends at a
+        // midnight, where elapsed seconds left it an hour off (a timed event).
+        $delta = self::wallClock(Carbon::parse($oldStart), $timezone)
+            ->diffInSeconds(self::wallClock($newStart, $timezone), false);
 
         $record->{$dateColumn} = $newStart;
 
@@ -61,7 +67,10 @@ class CalendarMoveController
             $oldEnd = $record->getAttribute($endColumn);
 
             if ($oldEnd !== null) {
-                $record->{$endColumn} = Carbon::parse($oldEnd)->addSeconds($deltaSeconds);
+                $shifted = self::wallClock(Carbon::parse($oldEnd), $timezone)->addSeconds((int) $delta);
+
+                $record->{$endColumn} = Carbon::parse($shifted->format('Y-m-d H:i:s.u'), $timezone)
+                    ->setTimezone(config('app.timezone'));
             }
         }
 
@@ -102,8 +111,8 @@ class CalendarMoveController
      * descriptor's signature, binding and expiry, that it allows this write,
      * the record lookup inside `moveScope()`, and the host's policy.
      *
-     * @param  'moveable'|'resizable'                         $write the descriptor flag allowing the write
-     * @return array{Model, string, string|null}|JsonResponse the record, its date column and end column
+     * @param  'moveable'|'resizable'                                 $write the descriptor flag allowing the write
+     * @return array{Model, string, string|null, string}|JsonResponse the record, its date column, end column and the calendar's timezone
      */
     private function resolveRecord(Request $request, string $write): array|JsonResponse
     {
@@ -179,7 +188,16 @@ class CalendarMoveController
             return $this->error('kinetix.table_write_forbidden', 403);
         }
 
-        return [$record, $dateColumn, is_string($endColumn) ? $endColumn : null];
+        // Descriptors minted before the calendar's timezone was sealed fall
+        // back to the app's.
+        $timezone = $payload['timezone'] ?? null;
+
+        return [
+            $record,
+            $dateColumn,
+            is_string($endColumn) ? $endColumn : null,
+            is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true) ? $timezone : KinetixTimezone::default(),
+        ];
     }
 
     /**
@@ -200,6 +218,18 @@ class CalendarMoveController
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * The instant's wall-clock reading in `$timezone`, as a UTC time with no
+     * DST: arithmetic on it is calendar arithmetic.
+     */
+    private static function wallClock(CarbonInterface $instant, string $timezone): CarbonImmutable
+    {
+        return CarbonImmutable::parse(
+            $instant->copy()->setTimezone($timezone)->format('Y-m-d H:i:s.u'),
+            'UTC',
+        );
     }
 
     private function invalidDate(): JsonResponse

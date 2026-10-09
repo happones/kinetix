@@ -102,6 +102,37 @@ class CalendarMoveTest extends TestCase
         $this->assertSame('2026-06-18 15:30:00', $fresh->ends_at->format('Y-m-d H:i:s'));
     }
 
+    /**
+     * The browser moves an all-day event by whole days on the calendar's wall
+     * clock. Shifting the end by elapsed seconds left it an hour off once a
+     * DST change sat between the two starts, and it read back as a timed
+     * event.
+     */
+    public function test_an_all_day_event_moved_across_a_dst_change_still_ends_at_midnight(): void
+    {
+        // 8 March 2026, the day New York springs forward, stored in UTC.
+        $event = CalendarMoveEvent::create([
+            'name'      => 'Offsite',
+            'starts_at' => '2026-03-08 05:00:00',
+            'ends_at'   => '2026-03-09 04:00:00',
+        ]);
+        $descriptor = $this->calendar()->timezone('America/New_York')->toData()->model;
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-move', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+                'start'    => '2026-03-09T04:00:00Z', // 9 March, 00:00 EDT
+            ])
+            ->assertOk();
+
+        $this->assertSame('2026-03-10 04:00:00', $event->fresh()->ends_at->format('Y-m-d H:i:s'));
+
+        $moved = collect($this->calendar()->timezone('America/New_York')->toData()->events)
+            ->firstWhere('id', $event->id);
+        $this->assertTrue($moved->allDay);
+    }
+
     public function test_move_rejects_an_invalid_signature(): void
     {
         $event = CalendarMoveEvent::firstOrFail();

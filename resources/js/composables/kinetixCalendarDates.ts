@@ -141,6 +141,12 @@ export function effectiveEnd(
  * at least one resize step, an all-day event at least its own day. Null when
  * it lands where the event already ends (nothing to save).
  */
+const isMidnight = (instant: ZonedDateTime): boolean =>
+    instant.hour === 0 &&
+    instant.minute === 0 &&
+    instant.second === 0 &&
+    instant.millisecond === 0;
+
 export function resizedEnd(
     event: KinetixCalendarEvent,
     candidate: ZonedDateTime,
@@ -150,7 +156,13 @@ export function resizedEnd(
     const floor = event.allDay
         ? start
         : start.add({ minutes: RESIZE_STEP_MINUTES });
-    const end = candidate.compare(floor) < 0 ? floor : candidate;
+    let end = candidate.compare(floor) < 0 ? floor : candidate;
+
+    // A timed event running from a midnight to a midnight reads back as an
+    // all-day one: it stops a step short instead.
+    if (!event.allDay && isMidnight(start) && isMidnight(end)) {
+        end = end.subtract({ minutes: RESIZE_STEP_MINUTES });
+    }
 
     return end.compare(effectiveEnd(event, tz)) === 0
         ? null
