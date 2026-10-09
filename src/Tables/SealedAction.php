@@ -26,8 +26,10 @@ use Throwable;
  * instance's gates across:
  *
  * - `ability`: a policy ability given to `authorize('…')`, re-checked per
- *   record (against the model class when there is no record). It replaces the
- *   table's default write ability for this action.
+ *   record (against the model class when there is no record). Asked about
+ *   the record, it replaces the table's default write ability for this
+ *   action; asked about an explicit subject (`Post::class`, a team), each
+ *   record still passes the table's write ability too.
  * - `grants`: the record keys the action rendered for (record FormActions), or
  *   that a record-dependent `visible()`/`hidden()` closure allowed (bulk
  *   actions). A record outside them is refused, so a user can only run what
@@ -231,15 +233,27 @@ final class SealedAction
         if ($this->ability !== null) {
             // Without a record the ability is checked against the class — the
             // same check that decided whether the button showed.
-            return $this->subjectBound
-                || ($record !== null
-                    ? $gate->allows($this->ability, $this->arguments ?? $record)
-                    : Action::allowsAbility($this->ability, $this->arguments ?? $modelClass));
+            if ($record === null) {
+                return $this->subjectBound || Action::allowsAbility($this->ability, $this->arguments ?? $modelClass);
+            }
+
+            // An ability about the record itself replaces the table's write
+            // ability for this action.
+            if ($this->arguments === null && ! $this->subjectBound) {
+                return $gate->allows($this->ability, $record);
+            }
+
+            // One about something else (`authorize('deleteAny', Post::class)`,
+            // a team) says nothing about this record: the record still passes
+            // the table's write check below.
+            if (! $this->subjectBound && ! Action::allowsAbility($this->ability, $this->arguments)) {
+                return false;
+            }
         }
 
-        // No ability of its own: a record falls back to the table's write
-        // ability, or `update` whenever the model has a policy. A record-less
-        // run has no subject to check that against.
+        // A record falls back to the table's write ability, or `update`
+        // whenever the model has a policy. A record-less run has no subject to
+        // check that against.
         if ($record === null) {
             return true;
         }

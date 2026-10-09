@@ -641,7 +641,9 @@ validation rule:
    against the record, or against the model class for a toolbar action
    (`Gate::allows('import', Post::class)`). Without one, a record is checked
    against the table's `writeAbility()`, or `update` when the model has a
-   policy.
+   policy. An ability given an explicit subject
+   (`->authorize('import', Post::class)`) says nothing about the record, so a
+   record is checked against that write ability as well.
 4. **Validation** — the **same** form class is rebuilt server-side and the
    submitted values are validated and dehydrated against its rules. A failure
    redirects back so the errors surface in the modal's `KinetixForm`; the handler
@@ -721,9 +723,9 @@ away, with no record, inside groups too:
 - a `visible()`/`hidden()` or `authorize()` closure runs with none, and one
   typed for a record (`fn (Post $record)`) hides the action;
 - `->authorize('ability')` without a subject is checked against the table's
-  model class (`Gate::allows('import', Post::class)`). A policy method that
-  needs an instance (`update(User $user, Post $post)`) denies rather than
-  failing.
+  model class (`Gate::allows('import', Post::class)`). An ability that needs
+  an instance — a policy's `update(User $user, Post $post)` or a
+  `Gate::define()` closure typed for a `Post` — denies rather than failing.
 
 A server-side action's button therefore shows exactly when its endpoint would
 run it. For page headers or other manual contexts, serialize a set with `Action::toArrayMany([...], $record)` — it returns only the actions the current user may perform:

@@ -1158,8 +1158,11 @@ until the user types a username of their own.
 
 The value is generated in the browser, so treat it like any input: validate it
 on the server, and hash a password before you store it (a `hashed` cast). An
-edit form never sends a hidden attribute such as `password` back to the
-browser; left blank, it keeps the stored value.
+edit form never sends an attribute its model keeps out of serialization back
+to the browser: one in `$hidden` such as `password`, one left out of a
+`$visible` whitelist, or a related model's (`owner.password`). It renders
+empty, without the field's `default()`, and saved untouched (blank, or off for
+a toggle) it keeps the stored value.
 
 #### Custom
 

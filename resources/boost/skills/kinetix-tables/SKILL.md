@@ -71,8 +71,11 @@ can't run and hides the column.
 **Server-side actions:** prefer `BulkAction` (bulk) and `FormAction` (record/toolbar modal form)
 over a plain action posting to a host route — Kinetix scopes the ids to the table and authorizes
 them itself. `->authorize('ability')` is re-checked on the endpoint per record (a toolbar
-`FormAction` against the model class) and replaces the table's default `update` check; a record
-`FormAction` only runs on rows it rendered on. Setters chained on the table reach the endpoint:
+`FormAction` against the model class) and replaces the table's default `update` check — unless it
+has an explicit subject (`authorize('deleteAny', Post::class)`): then each record also passes the
+`update`/`writeAbility()` check. A record `FormAction` only runs on rows it rendered on; a bulk
+action whose `visible()`/`hidden()`/`authorize()` closure takes a record (even `?Post $record`)
+only runs on the rows it allowed on the page shown. Setters chained on the table reach the endpoint:
 subclass-declared properties that differ from a fresh `make()` are sealed and restored (models as
 identifiers, re-fetched). A closure set by a setter throws at render time, so compute it inside the
 class. Toolbar/footer actions (groups included) are judged with no record: closures run now (one

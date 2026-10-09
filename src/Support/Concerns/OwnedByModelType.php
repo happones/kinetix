@@ -16,8 +16,9 @@ use Throwable;
  * {@see ownedBy()} and write new rows with {@see ownerAttributes()}.
  *
  * Rows written before the type column existed carry no type and belong to the
- * default user model. Until that column's migration has run, rows are matched
- * by key alone.
+ * default user model. Rows written under the owner's class name still belong
+ * to it after a morph map gives that class an alias. Until the type column's
+ * migration has run, rows are matched by key alone.
  */
 trait OwnedByModelType
 {
@@ -56,13 +57,13 @@ trait OwnedByModelType
         }
 
         $column = static::ownerTypeColumn();
-        $type   = $owner->getMorphClass();
+        $types  = array_values(array_unique([$owner->getMorphClass(), $owner::class]));
 
         return static::isDefaultOwner($owner)
             ? $query->where(static fn (Builder $q) => $q
-                ->where($column, $type)
+                ->whereIn($column, $types)
                 ->orWhereNull($column))
-            : $query->where($column, $type);
+            : $query->whereIn($column, $types);
     }
 
     /**
@@ -87,14 +88,33 @@ trait OwnedByModelType
     }
 
     /**
-     * Whether $owner is the default user model, which owns the untyped rows.
+     * Whether $owner is the default user model, which owns the untyped rows:
+     * `credentials.user_model` when set, else `membership.user_model` or the
+     * default guard's provider model — the user those rows were written for
+     * when one model was all there was.
      */
     protected static function isDefaultOwner(Model $owner): bool
     {
-        $default = config('kinetix.credentials.user_model')
-            ?: config('kinetix.membership.user_model', 'App\\Models\\User');
+        $configured = config('kinetix.credentials.user_model');
 
-        return is_string($default) && $owner instanceof $default;
+        if (is_string($configured) && $configured !== '') {
+            $defaults = [$configured];
+        } else {
+            $guard    = config('auth.defaults.guard', 'web');
+            $provider = config("auth.guards.{$guard}.provider", 'users');
+            $defaults = [
+                config('kinetix.membership.user_model', 'App\\Models\\User'),
+                config("auth.providers.{$provider}.model"),
+            ];
+        }
+
+        foreach ($defaults as $default) {
+            if (is_string($default) && $owner instanceof $default) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected static function hasOwnerTypeColumn(): bool

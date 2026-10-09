@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use ReflectionFunction;
 use Throwable;
+use TypeError;
 
 /**
  * Visibility + Laravel-policy authorization for actions, evaluated server-side.
@@ -183,16 +184,24 @@ trait HasAuthorization
     }
 
     /**
-     * `Gate::allows()` for the current user, where a policy method that needs
-     * a model instance — asked about the class alone — denies instead of
-     * throwing (`publish(User $user, Post $post)` given `Post::class`).
+     * `Gate::allows()` for the current user, where an ability that needs a
+     * model instance — asked about the class alone — denies instead of
+     * throwing: a policy's `publish(User $user, Post $post)` or a
+     * `Gate::define('publish', fn (User $user, Post $post) => …)` given
+     * `Post::class`.
      */
     public static function allowsAbility(string $ability, mixed $subject): bool
     {
         try {
             return Gate::forUser(auth()->user())->allows($ability, $subject);
-        } catch (ArgumentCountError) {
-            return false;
+        } catch (TypeError $e) {
+            // A policy method missing its model argument, or a
+            // `Gate::define()` closure typed for a model given the class name.
+            if ($e instanceof ArgumentCountError || is_string($subject)) {
+                return false;
+            }
+
+            throw $e;
         }
     }
 
@@ -262,14 +271,16 @@ trait HasAuthorization
     }
 
     /**
-     * Whether a visible()/hidden() closure needs a record — a gate the
-     * record-less pass can only defer, so a server-side endpoint must not take
-     * that pass as proof the gate allowed it.
+     * Whether a visible()/hidden()/authorize() closure can look at a record —
+     * `fn (Post $record)`, but also `fn (?Post $record)` and
+     * `fn ($record = null)`, which pass the record-less pass with null and
+     * may still refuse a given row. A server-side endpoint must not take that
+     * pass as proof the gate allows every record.
      */
     public function hasRecordGates(): bool
     {
-        foreach ([$this->isVisible, $this->isHidden] as $gate) {
-            if ($gate instanceof Closure && self::gateNeedsRecord($gate)) {
+        foreach ([$this->isVisible, $this->isHidden, $this->authorizeUsing] as $gate) {
+            if ($gate instanceof Closure && (new ReflectionFunction($gate))->getNumberOfParameters() > 0) {
                 return true;
             }
         }
@@ -303,8 +314,11 @@ trait HasAuthorization
             return $this->authorizeUsing;
         }
 
+        // Like a visibility closure, one that needs a record is deferred to
+        // the per-record pass when there is none.
         if ($this->authorizeUsing instanceof Closure) {
-            return (bool) ($this->authorizeUsing)($record);
+            return ! $this->canEvaluateGate($this->authorizeUsing, $record)
+                || (bool) ($this->authorizeUsing)($record);
         }
 
         $subject = $this->authorizeArguments ?? $record;

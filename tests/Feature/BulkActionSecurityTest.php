@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use LogicException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class BulkActionUser extends Authenticatable
 {
@@ -319,6 +320,69 @@ class BulkActionSecurityTest extends TestCase
 
         $this->runBulk($descriptor, [1, 2])->assertForbidden();
         $this->assertFalse(BulkWidgetRecord::find(1)->archived);
+
+        $this->runBulk($descriptor, [1])->assertOk();
+        $this->assertTrue(BulkWidgetRecord::find(1)->archived);
+    }
+
+    /**
+     * A closure that takes an optional record passes the record-less pass with
+     * null, so before 0.216.1 it sealed no grants and the endpoint ran it on
+     * any record — including the one it refuses.
+     *
+     * @return array<string, array{0: Closure(ArchiveSelected): ArchiveSelected}>
+     */
+    public static function optionalRecordGates(): array
+    {
+        return [
+            'visible(?record)'       => [fn (ArchiveSelected $a) => $a->visible(fn (?BulkWidgetRecord $record): bool => $record?->name !== 'B')],
+            'hidden($record = null)' => [fn (ArchiveSelected $a) => $a->hidden(fn ($record = null): bool => $record?->name === 'B')],
+            'authorize(?record)'     => [fn (ArchiveSelected $a) => $a->authorize(fn (?BulkWidgetRecord $record): bool => $record?->name !== 'B')],
+            'authorize(record)'      => [fn (ArchiveSelected $a) => $a->authorize(fn (BulkWidgetRecord $record): bool => $record->name !== 'B')],
+        ];
+    }
+
+    /**
+     * @param Closure(ArchiveSelected): ArchiveSelected $gate
+     */
+    #[DataProvider('optionalRecordGates')]
+    public function test_a_closure_that_can_take_a_record_limits_the_records_it_runs_on(Closure $gate): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        BulkWidgetRecord::create(['name' => 'B']);
+
+        $descriptor = $this->descriptorFor(
+            Table::make(BulkWidgetRecord::query())->bulkActions([$gate(ArchiveSelected::make())]),
+        );
+
+        $this->runBulk($descriptor, [2])->assertForbidden();
+        $this->assertFalse(BulkWidgetRecord::find(2)->archived);
+
+        $this->runBulk($descriptor, [1])->assertOk();
+        $this->assertTrue(BulkWidgetRecord::find(1)->archived);
+    }
+
+    /**
+     * `authorize('deleteAny', Post::class)` is about the class, not the
+     * record: each record still has to pass the table's write ability, as it
+     * did before 0.207.1.
+     */
+    public function test_an_ability_with_an_explicit_subject_keeps_the_per_record_write_check(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        BulkWidgetRecord::create(['name' => 'B']);
+        Gate::define('bulk-archive', fn ($user, BulkWidgetRecord $record): bool => $record->name !== 'B');
+        Gate::define('archive-any', fn ($user, string $class): bool => $class === BulkWidgetRecord::class);
+        $this->actingAs(BulkActionUser::create(['name' => 'Bob']));
+
+        $descriptor = $this->descriptorFor(
+            Table::make(BulkWidgetRecord::query())
+                ->writeAbility('bulk-archive')
+                ->bulkActions([ArchiveSelected::make()->authorize('archive-any', BulkWidgetRecord::class)]),
+        );
+
+        $this->runBulk($descriptor, [2])->assertForbidden();
+        $this->assertFalse(BulkWidgetRecord::find(2)->archived);
 
         $this->runBulk($descriptor, [1])->assertOk();
         $this->assertTrue(BulkWidgetRecord::find(1)->archived);

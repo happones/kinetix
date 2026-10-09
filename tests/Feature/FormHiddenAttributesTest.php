@@ -6,9 +6,11 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Forms\Components\GeneratorInput;
 use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Forms\Components\Toggle;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +24,43 @@ class HiddenAttrUser extends Model
     protected $guarded = [];
 
     protected $hidden = ['password'];
+}
+
+class HiddenAttrAdmin extends Model
+{
+    protected $table = 'hidden_attr_users';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    protected $hidden = ['password', 'is_admin'];
+}
+
+/** Whitelists what it serializes: the password simply isn't listed. */
+class VisibleAttrUser extends Model
+{
+    protected $table = 'hidden_attr_users';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    protected $visible = ['id', 'name'];
+}
+
+class HiddenAttrPost extends Model
+{
+    protected $table = 'hidden_attr_posts';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(HiddenAttrUser::class, 'owner_id');
+    }
 }
 
 /**
@@ -39,6 +78,11 @@ class FormHiddenAttributesTest extends TestCase
             $table->increments('id');
             $table->string('name');
             $table->string('password');
+            $table->boolean('is_admin')->default(false);
+        });
+        Schema::create('hidden_attr_posts', static function (Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('owner_id');
         });
     }
 
@@ -87,5 +131,55 @@ class FormHiddenAttributesTest extends TestCase
         $form = $this->form(new HiddenAttrUser);
 
         $this->assertContains('required', $form->getValidationRulesForInput(['name' => 'Ada', 'password' => ''])['password']);
+    }
+
+    /**
+     * fill() blanked the hidden value, then put the field's default in its
+     * place: saving the edit form untouched wrote `is_admin = false`.
+     */
+    public function test_a_hidden_attribute_saved_untouched_keeps_its_value_over_the_fields_default(): void
+    {
+        $admin = HiddenAttrAdmin::create(['name' => 'Ada', 'password' => Hash::make('secret-1'), 'is_admin' => true]);
+        $form  = Form::make($admin)->schema([
+            TextInput::make('name'),
+            Toggle::make('is_admin')->default(false),
+        ])->fill($admin);
+
+        $rendered = $form->toArray()['data'];
+        $this->assertNotSame(false, $rendered['is_admin'] ?? null);
+
+        $this->assertSame(['name' => 'Ada'], $form->getState(['name' => 'Ada', 'is_admin' => $rendered['is_admin'] ?? null]));
+        $this->assertSame(['name' => 'Ada'], $form->getState(['name' => 'Ada', 'is_admin' => false]));
+        $this->assertSame(['name' => 'Ada', 'is_admin' => true], $form->getState(['name' => 'Ada', 'is_admin' => true]));
+    }
+
+    public function test_an_attribute_left_out_of_a_visible_whitelist_never_reaches_the_browser(): void
+    {
+        $hash = Hash::make('secret-1');
+        $user = VisibleAttrUser::create(['name' => 'Ada', 'password' => $hash]);
+
+        $form = Form::make($user)->schema([
+            TextInput::make('name'),
+            TextInput::make('password'),
+        ])->fill($user);
+
+        $this->assertStringNotContainsString($hash, (string) json_encode($form->toArray()));
+        $this->assertSame(['name' => 'Ada'], $form->getState(['name' => 'Ada', 'password' => '']));
+    }
+
+    public function test_a_related_models_hidden_attribute_never_reaches_the_browser(): void
+    {
+        $hash  = Hash::make('secret-1');
+        $owner = HiddenAttrUser::create(['name' => 'Ada', 'password' => $hash]);
+        $post  = HiddenAttrPost::create(['owner_id' => $owner->id]);
+
+        $form = Form::make($post)->schema([
+            TextInput::make('owner.name'),
+            TextInput::make('owner.password'),
+        ])->fill($post);
+
+        $payload = (string) json_encode($form->toArray());
+        $this->assertStringNotContainsString($hash, $payload);
+        $this->assertStringContainsString('Ada', $payload);
     }
 }

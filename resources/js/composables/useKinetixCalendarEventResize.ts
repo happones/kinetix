@@ -10,6 +10,10 @@ import {
     RESIZE_STEP_MINUTES,
     resizedEnd,
 } from '@/composables/kinetixCalendarDates';
+import {
+    clickWindowFor,
+    swallowNextClick,
+} from '@/composables/kinetixSwallowClick';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import type {
     KinetixCalendarData,
@@ -84,6 +88,7 @@ interface ResizeSession {
     y: number;
     frame: number | null;
     cursor: string;
+    pointerType: string;
 }
 
 /**
@@ -242,24 +247,6 @@ export function useKinetixCalendarEventResize(
         }
     };
 
-    /**
-     * The click that follows letting go must not open the event or reach a
-     * day cell. It comes in the same task as the release, so the guard is
-     * dropped right after and a later click isn't eaten.
-     */
-    const swallowNextClick = (): void => {
-        const swallow = (event: Event): void => {
-            event.preventDefault();
-            event.stopPropagation();
-        };
-
-        window.addEventListener('click', swallow, {
-            capture: true,
-            once: true,
-        });
-        setTimeout(() => window.removeEventListener('click', swallow, true));
-    };
-
     const onPointerUp = (): void => {
         const ended = finish();
 
@@ -268,7 +255,9 @@ export function useKinetixCalendarEventResize(
         }
 
         const end = ended.end;
-        swallowNextClick();
+        // The click that follows letting go must not open the event or reach
+        // a day cell.
+        swallowNextClick(clickWindowFor(ended.pointerType));
 
         options.save(ended.event, end).then((saved) => {
             if (saved) {
@@ -315,6 +304,7 @@ export function useKinetixCalendarEventResize(
             y: pointerEvent.clientY,
             frame: null,
             cursor: document.documentElement.style.cursor,
+            pointerType: pointerEvent.pointerType,
         };
         document.documentElement.style.cursor =
             axis === 'time' ? 'ns-resize' : 'ew-resize';

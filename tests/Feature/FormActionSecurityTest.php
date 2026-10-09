@@ -520,6 +520,24 @@ class FormActionSecurityTest extends TestCase
         $this->assertNull($data->formActionDescriptor);
     }
 
+    /**
+     * Laravel only strips a class-name argument for policies: a Gate::define()
+     * closure typed for a model got `FormWidgetRecord::class` and threw a
+     * TypeError, taking the whole table down.
+     */
+    public function test_a_toolbar_ability_defined_for_an_instance_hides_the_action_instead_of_failing(): void
+    {
+        $this->actingAs(FormActionUser::create(['name' => 'Ann']));
+        Gate::define('rename-one', fn ($user, FormWidgetRecord $record): bool => true);
+
+        $data = Table::make(FormWidgetRecord::query())
+            ->toolbarActions([CreateWidget::make()->authorize('rename-one')])
+            ->toData();
+
+        $this->assertSame([], $data->toolbarActions);
+        $this->assertNull($data->formActionDescriptor);
+    }
+
     public function test_a_toolbar_authorize_closure_that_needs_a_record_hides_the_action(): void
     {
         $data = Table::make(FormWidgetRecord::query())

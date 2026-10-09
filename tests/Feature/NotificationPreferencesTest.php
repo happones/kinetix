@@ -11,6 +11,7 @@ use Happones\Kinetix\Notifications\KinetixLaravelNotification;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -250,6 +251,56 @@ class NotificationPreferencesTest extends TestCase
         $row = NotificationPreference::query()->sole();
         $this->assertSame($user->getMorphClass(), $row->notifiable_type);
         $this->assertSame(['orders' => ['mail' => false, 'database' => false]], $row->preferences);
+    }
+
+    /**
+     * A host whose user model isn't App\Models\User and never set Kinetix's
+     * user_model: the auth provider's model owns the untyped rows, so the
+     * opt-outs stored before the migration still hold after it.
+     */
+    public function test_a_row_from_before_the_type_column_stays_with_the_auth_providers_model(): void
+    {
+        NotificationFacade::fake();
+        $user = $this->user();
+        DB::table('kinetix_notification_preferences')->insert([
+            'user_id'     => $user->id,
+            'preferences' => json_encode(['orders' => ['database' => false]]),
+        ]);
+        $this->migrateTypeColumn();
+
+        $manager = app(NotificationPreferenceManager::class);
+        $this->assertFalse($manager->allows($user, 'orders', 'database'));
+
+        $manager->update($user, 'orders', 'mail', false);
+
+        $this->assertSame(1, NotificationPreference::query()->count());
+        $this->assertSame($user->getMorphClass(), NotificationPreference::query()->sole()->notifiable_type);
+    }
+
+    /**
+     * Rows written under the class name keep belonging to it once a morph map
+     * gives the class an alias; the next write moves them to the alias.
+     */
+    public function test_rows_written_before_a_morph_map_still_belong_to_their_owner(): void
+    {
+        $this->migrateTypeColumn();
+        $user    = $this->user();
+        $manager = app(NotificationPreferenceManager::class);
+        $manager->update($user, 'orders', 'database', false);
+
+        Relation::morphMap(['notif-user' => NotifPrefUser::class]);
+
+        try {
+            $this->assertFalse($manager->allows($user, 'orders', 'database'));
+
+            $manager->update($user, 'orders', 'mail', false);
+
+            $row = NotificationPreference::query()->sole();
+            $this->assertSame('notif-user', $row->notifiable_type);
+            $this->assertSame(['orders' => ['database' => false, 'mail' => false]], $row->preferences);
+        } finally {
+            Relation::morphMap([], false);
+        }
     }
 
     public function test_doctor_reports_the_missing_type_column_and_the_registered_types(): void

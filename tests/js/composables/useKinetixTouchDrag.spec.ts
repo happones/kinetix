@@ -60,6 +60,9 @@ describe('useKinetixTouchDrag', () => {
     });
 
     afterEach(() => {
+        // Lets each release's click guard expire instead of leaking into the
+        // next test.
+        vi.runOnlyPendingTimers();
         vi.useRealTimers();
         document.elementFromPoint = elementFromPoint;
         document.body.innerHTML = '';
@@ -94,6 +97,42 @@ describe('useKinetixTouchDrag', () => {
         expect(calls.onStart).toHaveBeenCalledWith('a');
         expect(api.isTouchDragging.value).toBe(true);
         expect(document.body.children).toHaveLength(2);
+    });
+
+    it('swallows the click a release may send, but not a later tap', () => {
+        const { api } = harness({ activation: 'immediate' });
+        const { source } = setUp();
+        const tapped = vi.fn();
+        const button = document.createElement('button');
+        button.addEventListener('click', tapped);
+        document.body.append(button);
+
+        api.startFromPointerDown(pointer('pointerdown'), source, 'a');
+        window.dispatchEvent(pointer('pointermove', { clientY: 200 }));
+        window.dispatchEvent(pointer('pointerup', { clientY: 200 }));
+
+        // The finger moved, so the browser sends no click; the guard must not
+        // stay armed and eat the user's next tap anywhere on the page.
+        vi.advanceTimersByTime(1000);
+        button.click();
+
+        expect(tapped).toHaveBeenCalledTimes(1);
+    });
+
+    it('swallows the click that arrives right after the release', () => {
+        const { api } = harness({ activation: 'immediate' });
+        const { source } = setUp();
+        const tapped = vi.fn();
+        const button = document.createElement('button');
+        button.addEventListener('click', tapped);
+        document.body.append(button);
+
+        api.startFromPointerDown(pointer('pointerdown'), source, 'a');
+        window.dispatchEvent(pointer('pointerup'));
+        vi.advanceTimersByTime(50);
+        button.click();
+
+        expect(tapped).not.toHaveBeenCalled();
     });
 
     it('ignores the mouse, which native drag-and-drop handles', () => {

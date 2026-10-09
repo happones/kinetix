@@ -595,12 +595,15 @@ transaction:
 
 - `->authorize('ability')` is checked against **each record**
   (`Gate::allows('archive', $post)`). Without one, the table's `writeAbility()`
-  applies, or `update` when the model has a policy. One denied record fails the
+  applies, or `update` when the model has a policy. An ability with an explicit
+  subject (`->authorize('deleteAny', Post::class)`) is checked against it, and
+  each record still passes that write ability too. One denied record fails the
   whole batch.
-- A `visible()`/`hidden()` closure that takes the record
-  (`fn (Post $record) => …`) limits the action to the records it allows on the
-  page the user saw. One that takes no record (`fn () => …`) decides whether
-  the action exists for this user at all.
+- A `visible()`/`hidden()` or `authorize()` closure that takes the record —
+  `fn (Post $record)`, `fn (?Post $record)` or `fn ($record = null)` — limits
+  the action to the records it allows on the page the user saw. One that takes
+  no record (`fn () => …`) decides whether the action exists for this user at
+  all.
 - Settings you chain on the table reach `handle()`
   (`ArchivePosts::make()->reason('spam')`). The endpoint's instance gets back
   every property your subclass declares that the table's instance changed.

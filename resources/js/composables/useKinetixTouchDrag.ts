@@ -1,5 +1,9 @@
 import { onBeforeUnmount, ref } from 'vue';
 import type { Ref } from 'vue';
+import {
+    KINETIX_TOUCH_CLICK_WINDOW_MS,
+    swallowNextClick,
+} from '@/composables/kinetixSwallowClick';
 
 export interface KinetixTouchDragOptions<T> {
     /**
@@ -294,23 +298,13 @@ export function useKinetixTouchDrag<T>(
         }
     };
 
-    /** Swallow the click that follows a completed touch drag on release. */
-    const suppressNextClick = (): void => {
-        window.addEventListener(
-            'click',
-            (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-            },
-            { capture: true, once: true },
-        );
-    };
-
     const onPointerUp = (): void => {
         if (isTouchDragging.value) {
             const dropPayload = payload;
             const dropKey = hoverKey;
-            suppressNextClick();
+            // The click that may follow the release must not land on what's
+            // under the finger; when none comes, the next tap still works.
+            swallowNextClick(KINETIX_TOUCH_CLICK_WINDOW_MS);
             cleanup();
 
             if (dropPayload !== null) {

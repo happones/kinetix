@@ -13,6 +13,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.216.1] - 2026-10-09
+
+The urgent fixes from a review of 0.207.1–0.216.0: three authorization gaps
+in server-side actions, two in forms, preferences lost after the 0.212
+migration, and a touch drag that broke the next tap. Re-publish the components
+(`--force`) to pick up the frontend fix.
+
+### Security
+
+- **A bulk action's closure that could take a record wasn't re-checked per
+  record.** Only a `visible()`/`hidden()` closure with a *required* record
+  parameter sealed the rows it allowed. `fn (?Post $record)`,
+  `fn ($record = null)` and every `authorize()` closure passed the record-less
+  pass with `null`, so a hand-made request ran the action on rows the closure
+  refuses. Each of them now limits the action to the rows it allowed on the
+  page shown. An `authorize()` closure typed for a record is deferred to the
+  per-record pass, like a visibility closure, instead of failing record-less.
+- **An ability with an explicit subject dropped the per-record write check
+  (since 0.207.1).** `->authorize('deleteAny', Post::class)` on a `BulkAction`
+  or `FormAction` replaced the table's `update` / `writeAbility()` check, so
+  any record in scope ran even when the policy denied updating it. An ability
+  about the class or another subject (a team) is now checked against it, and
+  each record still passes the table's write check. An ability about the
+  record itself (`authorize('archive')`) still replaces it.
+- **Forms shipped attributes their model keeps out of serialization.** The
+  0.210 fix only honoured `$hidden`: a model that whitelists with `$visible`
+  (password not listed) and a related model's attribute (`owner.password`)
+  still sent the hash to the browser. Both are now treated as hidden.
+
+### Fixed
+
+- **A hidden attribute saved untouched was overwritten by the field's
+  default (since 0.210).** The edit form rendered a hidden attribute as its
+  field's `default()` (`Toggle::make('is_admin')->default(false)`), and saving
+  it untouched wrote that default. It now renders empty, and coming back
+  blank, off or as the field's empty state keeps the stored value.
+- **A toolbar `authorize('ability')` defined with `Gate::define()` for a model
+  returned a 500 (since 0.216.0).** Laravel only drops a class-name argument
+  for policies, so a closure typed `fn (User $user, Post $post)` received
+  `Post::class` and threw a `TypeError`. It now denies, like a policy method
+  that needs an instance.
+- **Notification preferences and password history were lost after the
+  type-column migrations (0.208 / 0.212) when the user model isn't
+  `App\Models\User`.** Untyped rows belonged to `credentials.user_model` or
+  `membership.user_model` only, so a host that never set them (its own auth
+  model in another namespace) lost every stored opt-out: notifications turned
+  off started arriving, and recent passwords could be reused. Unless
+  `credentials.user_model` names the owner, the default guard's provider
+  model now owns them too. Rows written under the class name
+  also keep belonging to it after a morph map gives the class an alias, and
+  the next write moves them to the alias.
+- **After a touch drag, the next tap anywhere was ignored.** A drag that moved
+  produces no click, so the guard that swallows the release's click stayed
+  armed and ate the user's next tap — after reordering a table row or media
+  tile, or moving a kanban card or calendar event. It now expires shortly
+  after the release (shared with the calendar resize, now
+  `kinetixSwallowClick.ts`). **(published)**
+
 ## [0.216.0] - 2026-10-08
 
 Closes the two limitations left open in 0.207.1: settings chained on a
