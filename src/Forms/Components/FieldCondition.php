@@ -231,13 +231,21 @@ final class FieldCondition
         $count = strlen($digits);
         $sign  = $value < 0 ? '-' : '';
 
-        return $sign.match (true) {
-            $count                                         <= $point && $point <= 21 => $digits.str_repeat('0', $point - $count),
-            $point > 0                           && $point <= 21 => substr($digits, 0, $point).'.'.substr($digits, $point),
-            $point > -6                          && $point <= 0  => '0.'.str_repeat('0', -$point).$digits,
-            default                                              => ($count === 1 ? $digits : $digits[0].'.'.substr($digits, 1))
-                .'e'.($point - 1 < 0 ? '-' : '+').abs($point - 1),
-        };
+        if ($count <= $point && $point <= 21) {
+            return $sign.$digits.str_repeat('0', $point - $count);
+        }
+
+        if ($point > 0 && $point <= 21) {
+            return $sign.substr($digits, 0, $point).'.'.substr($digits, $point);
+        }
+
+        if ($point > -6 && $point <= 0) {
+            return $sign.'0.'.str_repeat('0', -$point).$digits;
+        }
+
+        $mantissaText = $count === 1 ? $digits : $digits[0].'.'.substr($digits, 1);
+
+        return $sign.$mantissaText.'e'.($point - 1 < 0 ? '-' : '+').abs($point - 1);
     }
 
     private static function toBool(mixed $value): bool

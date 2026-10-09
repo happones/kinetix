@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.218.1] - 2026-10-09
+
+### Fixed
+
+- **Code style:** the float formatting `FieldCondition` gained in 0.218.0 was
+  a `match` that Pint re-aligned on every run, so `pint --test` never passed.
+  It's plain `if` statements now, with the same output.
+
 ## [0.218.0] - 2026-10-09
 
 The rest of the review of 0.207.1–0.216.0: server-side actions, forms and
