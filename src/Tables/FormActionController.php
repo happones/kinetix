@@ -140,7 +140,7 @@ class FormActionController
         );
 
         /** @var FormAction $action */
-        $action = $sealed->class::make($name);
+        $action = $sealed->instantiate($name);
 
         return [$action, $record];
     }

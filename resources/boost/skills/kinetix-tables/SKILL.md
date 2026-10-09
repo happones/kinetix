@@ -72,9 +72,13 @@ can't run and hides the column.
 over a plain action posting to a host route — Kinetix scopes the ids to the table and authorizes
 them itself. `->authorize('ability')` is re-checked on the endpoint per record (a toolbar
 `FormAction` against the model class) and replaces the table's default `update` check; a record
-`FormAction` only runs on rows it rendered on. The endpoint runs a fresh instance of the class:
-keep behaviour in `handle()`/`form()`, not in setters chained on the table. Names must be unique
-per table.
+`FormAction` only runs on rows it rendered on. Setters chained on the table reach the endpoint:
+subclass-declared properties that differ from a fresh `make()` are sealed and restored (models as
+identifiers, re-fetched). A closure set by a setter throws at render time, so compute it inside the
+class. Toolbar/footer actions (groups included) are judged with no record: closures run now (one
+typed for a record hides the action), and `authorize('ability')` is checked against the model class.
+The button shows exactly when the endpoint would run it. A footer `FormAction` runs like a toolbar
+one. Names must be unique per table.
 
 ## Tables inside relation managers
 

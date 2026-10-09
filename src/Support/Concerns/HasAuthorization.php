@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Support\Concerns;
 
+use ArgumentCountError;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
@@ -137,6 +138,62 @@ trait HasAuthorization
         return $this->isVisible instanceof Closure
             ? (self::runGateWith($this->isVisible, $record) ?? false)
             : $this->isVisible;
+    }
+
+    /**
+     * Whether this item renders where it never gets a record — a toolbar or
+     * footer action — judged exactly as a record-less endpoint judges it:
+     * visibility closures run now ({@see passesVisibilityWithoutDeferral()}),
+     * an `authorize()` closure runs with no record (failing closed when it
+     * needs one), and a policy ability is checked against its explicit
+     * subject, else `$modelClass`. Nothing is deferred to a per-record pass,
+     * because none will come.
+     *
+     * @param class-string<Model>|null $modelClass the table's model, the subject of a record-less ability
+     */
+    public function shouldRenderWithoutRecord(?string $modelClass = null): bool
+    {
+        return $this->passesVisibilityWithoutDeferral()
+            && $this->passesCan()
+            && $this->passesAuthorizationWithoutRecord($modelClass);
+    }
+
+    /**
+     * @param class-string<Model>|null $modelClass
+     */
+    protected function passesAuthorizationWithoutRecord(?string $modelClass): bool
+    {
+        if ($this->authorizeUsing === null || is_bool($this->authorizeUsing)) {
+            return $this->authorizeUsing ?? true;
+        }
+
+        if ($this->authorizeUsing instanceof Closure) {
+            return self::runGateWith($this->authorizeUsing, null) ?? false;
+        }
+
+        $subject = $this->authorizeArguments ?? $modelClass;
+
+        // Outside a table there's no class to check against: the ability
+        // stays deferred, as in a record-less template pass.
+        if ($subject === null) {
+            return true;
+        }
+
+        return self::allowsAbility($this->authorizeUsing, $subject);
+    }
+
+    /**
+     * `Gate::allows()` for the current user, where a policy method that needs
+     * a model instance — asked about the class alone — denies instead of
+     * throwing (`publish(User $user, Post $post)` given `Post::class`).
+     */
+    public static function allowsAbility(string $ability, mixed $subject): bool
+    {
+        try {
+            return Gate::forUser(auth()->user())->allows($ability, $subject);
+        } catch (ArgumentCountError) {
+            return false;
+        }
     }
 
     /**

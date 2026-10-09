@@ -1500,20 +1500,19 @@ class Table implements Arrayable, JsonSerializable
         $filtersData = array_map(fn ($f) => $f->toData(), $this->filters);
         // Drop actions the current user is not authorized to see.
         $recordActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->recordActions)));
-        // A toolbar action never gets a record, so its visible()/hidden()
-        // closures run now (with none) instead of being deferred to a row pass
-        // that never comes — the button and its endpoint agree.
-        $toolbarActionsData = array_values(array_filter(array_map(
-            static fn ($a) => $a->passesVisibilityWithoutDeferral() ? $a->toData() : null,
-            $this->toolbarActions,
-        )));
-        $bulkActionsData   = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
-        $footerActionsData = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->footerActions)));
+        // Toolbar and footer actions never get a record, so they're judged
+        // now, the way a record-less endpoint run is: visibility closures
+        // run with none, and an ability is checked against the model class.
+        // Nothing waits for a row pass that never comes — the button and its
+        // endpoint agree, inside groups too.
+        $toolbarActionsData = $this->recordlessActionsData($this->toolbarActions);
+        $bulkActionsData    = array_values(array_filter(array_map(fn ($a) => $a->toData(), $this->bulkActions)));
+        $footerActionsData  = $this->recordlessActionsData($this->footerActions);
 
         // Seal the server-side actions this user may run, with what the
         // endpoints need to re-check them (see SealedAction).
         $secureBulk = $this->sealBulkActions();
-        $secureForm = $this->sealFormActions($toolbarActionsData);
+        $secureForm = $this->sealFormActions();
 
         $state = new TableStateData(
             search: (string) $this->param('search', ''),
@@ -1737,16 +1736,32 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Serialize toolbar or footer actions: places with no record, judged the
+     * way a record-less endpoint run is ({@see Action::toDataWithoutRecord()}).
+     *
+     * @param  array<int, Action|ActionGroup> $actions
+     * @return array<int, ActionData>
+     */
+    protected function recordlessActionsData(array $actions): array
+    {
+        $modelClass = $this->getModelClass();
+
+        return array_values(array_filter(array_map(
+            static fn (Action|ActionGroup $action): ?ActionData => $action->toDataWithoutRecord($modelClass),
+            $actions,
+        )));
+    }
+
+    /**
      * The sealed maps of this user's server-side form actions, per context. A
      * record action carries the keys of the rows it rendered for, so it only
-     * runs on a row where the user saw it. A toolbar action is sealed when it
-     * rendered; it never gets a record, so its visibility closures run now
-     * with none instead of waiting for a pass that won't come.
+     * runs on a row where the user saw it. A toolbar or footer action — both
+     * run with no record — is sealed when it shows: the same record-less
+     * judgement as its button, its group's included.
      *
-     * @param  array<int, ActionData>                                                                           $toolbarActionsData
      * @return array{record: array<string, array<string, mixed>>, toolbar: array<string, array<string, mixed>>}
      */
-    protected function sealFormActions(array $toolbarActionsData): array
+    protected function sealFormActions(): array
     {
         $sealed = ['record' => [], 'toolbar' => []];
 
@@ -1758,11 +1773,35 @@ class Table implements Arrayable, JsonSerializable
             }
         }
 
-        $rendered = $this->renderedFormActionNames($toolbarActionsData);
+        $modelClass = $this->getModelClass();
+        $classes    = [];
 
-        foreach ($this->formActionsByName($this->toolbarActions) as $name => $action) {
-            if (in_array($name, $rendered, true) && $action->passesVisibilityWithoutDeferral()) {
-                $sealed['toolbar'][$name] = SealedAction::seal($action);
+        foreach ([$this->toolbarActions, $this->footerActions] as $actions) {
+            foreach ($this->collectFormActions($actions, withGroups: true) as [$action, $group]) {
+                $name = $action->getName();
+
+                // The same action in the toolbar and the footer is one
+                // action; two classes under one name can't both be found.
+                if (isset($classes[$name]) && $classes[$name] !== $action::class) {
+                    throw new LogicException("Two form actions on this table are named [{$name}]. Give each a distinct name: make('…').");
+                }
+
+                $classes[$name] = $action::class;
+
+                if (
+                    ($group !== null && ! $group->shouldRenderWithoutRecord($modelClass))
+                    || ! $action->shouldRenderWithoutRecord($modelClass)
+                ) {
+                    continue;
+                }
+
+                $entry = SealedAction::seal($action);
+
+                if (isset($sealed['toolbar'][$name]) && $sealed['toolbar'][$name]['state'] != $entry['state']) {
+                    throw new LogicException("The form action [{$name}] is on this table twice, configured differently. The endpoint finds it by name, so give each a distinct name: make('…').");
+                }
+
+                $sealed['toolbar'][$name] = $entry;
             }
         }
 
@@ -1796,11 +1835,13 @@ class Table implements Arrayable, JsonSerializable
      * Flatten a set of record/toolbar actions down to the {@see FormAction}s
      * they contain, descending one level into {@see ActionGroup}s so a
      * FormAction tucked inside a dropdown is sealed just like a top-level one.
+     * With `$withGroups`, each comes paired with its enclosing group (or null),
+     * whose gate it shows behind.
      *
-     * @param  array<int, Action|ActionGroup> $actions
-     * @return array<int, FormAction>
+     * @param  array<int, Action|ActionGroup>                                                       $actions
+     * @return ($withGroups is true ? list<array{FormAction, ActionGroup|null}> : list<FormAction>)
      */
-    protected function collectFormActions(array $actions): array
+    protected function collectFormActions(array $actions, bool $withGroups = false): array
     {
         $forms = [];
 
@@ -1808,7 +1849,7 @@ class Table implements Arrayable, JsonSerializable
             if ($action instanceof ActionGroup) {
                 foreach ($action->getActions() as $child) {
                     if ($child instanceof FormAction) {
-                        $forms[] = $child;
+                        $forms[] = $withGroups ? [$child, $action] : $child;
                     }
                 }
 
@@ -1816,7 +1857,7 @@ class Table implements Arrayable, JsonSerializable
             }
 
             if ($action instanceof FormAction) {
-                $forms[] = $action;
+                $forms[] = $withGroups ? [$action, null] : $action;
             }
         }
 

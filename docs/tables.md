@@ -601,9 +601,12 @@ transaction:
   (`fn (Post $record) => …`) limits the action to the records it allows on the
   page the user saw. One that takes no record (`fn () => …`) decides whether
   the action exists for this user at all.
-- The endpoint runs a fresh instance built from the class. The label, icon and
-  gates travel with it; any other setting chained on the table's instance
-  doesn't, so configure the behaviour inside the class.
+- Settings you chain on the table reach `handle()`
+  (`ArchivePosts::make()->reason('spam')`). The endpoint's instance gets back
+  every property your subclass declares that the table's instance changed.
+  Models travel as identifiers and are fetched again. A closure set by a
+  setter can't travel, so Kinetix throws when the table renders instead of
+  silently dropping it. See [Actions → FormAction](actions.md#how-it-stays-secure).
 
 Two server-side actions with the same name on one table are a configuration
 error (Kinetix throws), since the endpoint finds them by name.

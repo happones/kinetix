@@ -649,9 +649,24 @@ validation rule:
 5. **Transaction** — the trusted state is handed to `handle($data, $record)`
    inside a `DB::transaction`, so a throwing handler leaves nothing half-applied.
 
-The endpoint runs a fresh instance built from the class. The label, icon and
-gates you chain on the table travel with it; any other setting doesn't, so keep
-the behaviour in `form()` and `handle()`.
+The endpoint builds its instance from the class and gives it back the
+configuration the table's instance had: every property your subclass declares
+that a setter chained on the table changed (`CreateInvoice::make()->currency('EUR')`).
+`form()` and `handle()` see the action as you configured it.
+
+- Scalars, arrays, enums and value objects travel as they are.
+- Models travel as their identifier and are fetched again on the endpoint, as
+  in a queued job, so they come back as they are now.
+- A closure set by a setter can't travel. Kinetix throws when the table
+  renders, naming the property, instead of the endpoint silently running
+  without it. Compute that inside the class instead.
+
+The base action's own settings (label, icon, modal chrome) are only for the
+button and don't travel.
+
+A `FormAction` in `footerActions()` runs record-less, like a toolbar one. The
+same action may sit in both places; two differently configured copies under
+one name throw, since the endpoint finds the action by name.
 
 A record action's form isn't part of each row: the modal fetches it for its
 row when it opens (a brief skeleton shows), through the same checks as a
@@ -698,7 +713,20 @@ Action::make('legacy')->hidden();
 | `->authorize(bool)` | Static gate |
 | `->visible(bool\|Closure)` / `->hidden(bool\|Closure)` | Manual show/hide |
 
-`Table` automatically drops unauthorized record/toolbar actions (and per row). `ActionGroup` drops unauthorized children, and supports `->authorize()`/`->visible()` on the group itself. For page headers or other manual contexts, serialize a set with `Action::toArrayMany([...], $record)` — it returns only the actions the current user may perform:
+`Table` automatically drops unauthorized record/toolbar actions (and per row). `ActionGroup` drops unauthorized children, and supports `->authorize()`/`->visible()` on the group itself.
+
+Toolbar and footer actions never get a record, so the table decides them right
+away, with no record, inside groups too:
+
+- a `visible()`/`hidden()` or `authorize()` closure runs with none, and one
+  typed for a record (`fn (Post $record)`) hides the action;
+- `->authorize('ability')` without a subject is checked against the table's
+  model class (`Gate::allows('import', Post::class)`). A policy method that
+  needs an instance (`update(User $user, Post $post)`) denies rather than
+  failing.
+
+A server-side action's button therefore shows exactly when its endpoint would
+run it. For page headers or other manual contexts, serialize a set with `Action::toArrayMany([...], $record)` — it returns only the actions the current user may perform:
 
 ```php
 return inertia('Posts/Edit', [

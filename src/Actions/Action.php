@@ -473,6 +473,20 @@ class Action
     }
 
     /**
+     * Convert the action for a place that never gets a record — a table's
+     * toolbar or footer — or null when it shouldn't show there. Unlike
+     * {@see toData()} with no record, nothing is deferred to a per-record
+     * pass: the button shows exactly when a record-less endpoint run would be
+     * allowed ({@see shouldRenderWithoutRecord()}).
+     *
+     * @param class-string<Model>|null $modelClass the table's model
+     */
+    public function toDataWithoutRecord(?string $modelClass = null): ?ActionData
+    {
+        return $this->shouldRenderWithoutRecord($modelClass) ? $this->toData() : null;
+    }
+
+    /**
      * Convert the action to ActionData, or null when hidden/unauthorized.
      */
     public function toData(?Model $record = null): ?ActionData

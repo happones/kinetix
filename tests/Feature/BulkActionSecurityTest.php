@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\BulkAction;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
@@ -48,6 +50,63 @@ class ArchiveSelected extends BulkAction
     {
         $records->each(function (BulkWidgetRecord $record): void {
             $record->archived = true;
+            $record->save();
+        });
+    }
+}
+
+enum BulkTagReason: string
+{
+    case Spam      = 'spam';
+    case Duplicate = 'duplicate';
+}
+
+/**
+ * A bulk action configured fluently on the table: a scalar, an enum, a model
+ * and (for the failure case) a closure.
+ */
+class TagSelected extends BulkAction
+{
+    protected string $tag = 'none';
+
+    protected ?BulkTagReason $reason = null;
+
+    protected ?BulkWidgetRecord $mergeInto = null;
+
+    protected ?Closure $transform = null;
+
+    public function tag(string $tag): static
+    {
+        $this->tag = $tag;
+
+        return $this;
+    }
+
+    public function reason(BulkTagReason $reason): static
+    {
+        $this->reason = $reason;
+
+        return $this;
+    }
+
+    public function mergeInto(BulkWidgetRecord $record): static
+    {
+        $this->mergeInto = $record;
+
+        return $this;
+    }
+
+    public function transformUsing(Closure $transform): static
+    {
+        $this->transform = $transform;
+
+        return $this;
+    }
+
+    public function handle(Collection $records): void
+    {
+        $records->each(function (BulkWidgetRecord $record): void {
+            $record->name = implode('|', [$this->tag, $this->reason?->value ?? '-', $this->mergeInto?->name ?? '-']);
             $record->save();
         });
     }
@@ -301,5 +360,48 @@ class BulkActionSecurityTest extends TestCase
 
         $this->runBulk($descriptor, [1])->assertForbidden();
         $this->assertFalse(BulkWidgetRecord::find(1)->archived);
+    }
+
+    public function test_fluent_configuration_reaches_the_endpoint(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        $target = BulkWidgetRecord::create(['name' => 'Target']);
+
+        $descriptor = $this->descriptorFor(
+            Table::make(BulkWidgetRecord::query())->bulkActions([
+                TagSelected::make()->tag('vip')->reason(BulkTagReason::Spam)->mergeInto($target),
+            ]),
+        );
+
+        // A model travels as its identifier and is fetched again, as in a
+        // queued job: the endpoint sees it as it is now.
+        $target->update(['name' => 'Renamed']);
+
+        $this->postJson(route('kinetix.tables.bulk-action'), [
+            'descriptor' => $descriptor,
+            'action'     => 'tag-selected',
+            'ids'        => [1],
+        ])->assertOk();
+
+        $this->assertSame('vip|spam|Renamed', BulkWidgetRecord::find(1)->name);
+    }
+
+    public function test_only_settings_that_differ_from_a_fresh_instance_are_sealed(): void
+    {
+        $payload = Crypt::decrypt($this->descriptorFor(
+            Table::make(BulkWidgetRecord::query())->bulkActions([TagSelected::make()->label('Tag')]),
+        ));
+
+        $this->assertSame([], $payload['bulk']['tag-selected']['state']);
+    }
+
+    public function test_a_setting_that_cant_reach_the_endpoint_fails_when_the_table_renders(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(TagSelected::class.'::transform');
+
+        Table::make(BulkWidgetRecord::query())
+            ->bulkActions([TagSelected::make()->transformUsing(fn (string $name): string => strtoupper($name))])
+            ->toData();
     }
 }

@@ -127,6 +127,14 @@ class ActionGroup
             return null;
         }
 
+        return $this->groupData($childData);
+    }
+
+    /**
+     * @param array<int, ActionData> $childData
+     */
+    protected function groupData(array $childData): ActionData
+    {
         return new ActionData(
             name: $this->label !== null ? (string) str($this->label)->slug() : 'action-group',
             label: $this->label ?? '',
@@ -137,6 +145,28 @@ class ActionGroup
             type: 'group',
             actions: $childData,
         );
+    }
+
+    /**
+     * Serialize the group for a place that never gets a record — a table's
+     * toolbar or footer. The group and each child are judged as a
+     * record-less run is ({@see Action::toDataWithoutRecord()}), and a group
+     * left with no child doesn't render.
+     *
+     * @param class-string<Model>|null $modelClass the table's model
+     */
+    public function toDataWithoutRecord(?string $modelClass = null): ?ActionData
+    {
+        if (! $this->shouldRenderWithoutRecord($modelClass)) {
+            return null;
+        }
+
+        $childData = array_values(array_filter(array_map(
+            static fn (Action $action): ?ActionData => $action->toDataWithoutRecord($modelClass),
+            $this->actions,
+        )));
+
+        return $childData === [] ? null : $this->groupData($childData);
     }
 
     /**

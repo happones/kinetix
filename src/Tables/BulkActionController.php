@@ -106,7 +106,7 @@ class BulkActionController
         }
 
         /** @var BulkAction $action */
-        $action = $sealed->class::make($name);
+        $action = $sealed->instantiate($name);
 
         DB::transaction(static function () use ($action, $records): void {
             $action->handle($records);

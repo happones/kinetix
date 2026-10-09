@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables;
 
+use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\BulkAction;
 use Happones\Kinetix\Actions\FormAction;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Queue\SerializesAndRestoresModelIdentifiers;
 use Illuminate\Support\Facades\Gate;
+use LogicException;
+use ReflectionClass;
+use ReflectionProperty;
+use Throwable;
 
 /**
  * A server-side action ({@see BulkAction}, {@see FormAction}) as its table
@@ -26,12 +32,23 @@ use Illuminate\Support\Facades\Gate;
  *   that a record-dependent `visible()`/`hidden()` closure allowed (bulk
  *   actions). A record outside them is refused, so a user can only run what
  *   the table showed them.
+ * - `state`: the action's own configuration — every property its subclass
+ *   declares that the table's instance set differently from a fresh
+ *   `make()` (`ArchivePosts::make()->reason('spam')`). The endpoint's
+ *   instance gets it back ({@see instantiate()}), so `handle()` and `form()`
+ *   see the action the table configured. Models travel as identifiers and
+ *   are fetched again, as in a queued job; a value that can't travel (a
+ *   closure set fluently) throws when the table renders instead of being
+ *   lost on the way.
  */
 final class SealedAction
 {
+    use SerializesAndRestoresModelIdentifiers;
+
     /**
      * @param class-string<Action> $class
      * @param list<string>|null    $grants
+     * @param array<string, mixed> $state  property values by `DeclaringClass::property`
      */
     private function __construct(
         public readonly string $class,
@@ -39,6 +56,7 @@ final class SealedAction
         public readonly ?string $arguments,
         public readonly bool $subjectBound,
         public readonly ?array $grants,
+        public readonly array $state = [],
     ) {}
 
     /**
@@ -60,7 +78,103 @@ final class SealedAction
             'arguments'    => is_string($arguments) ? $arguments : null,
             'subjectBound' => $arguments !== null && ! is_string($arguments),
             'grants'       => $grants === null ? null : array_values(array_unique($grants)),
+            'state'        => self::configuredState($action),
         ];
+    }
+
+    /**
+     * The endpoint's instance of the action: built from its class like the
+     * table's, then given back the configuration the table set on it.
+     */
+    public function instantiate(string $name): Action
+    {
+        $action = $this->class::make($name);
+
+        foreach ($this->state as $key => $value) {
+            [$declaringClass, $property] = explode('::', $key, 2) + [1 => ''];
+
+            if (! is_a($action, $declaringClass) || ! property_exists($declaringClass, $property)) {
+                continue;
+            }
+
+            (new ReflectionProperty($declaringClass, $property))
+                ->setValue($action, $this->getRestoredPropertyValue($value));
+        }
+
+        return $action;
+    }
+
+    /**
+     * The properties the action's subclasses declare, where the table's
+     * instance differs from a fresh `make()` — what fluent configuration set.
+     * The base classes' own properties (label, icon, modal chrome) are only
+     * for rendering and stay behind.
+     *
+     * @return array<string, mixed>
+     */
+    private static function configuredState(Action $action): array
+    {
+        $fresh = $action::make($action->getName());
+        $codec = new self($action::class, null, null, false, null);
+        $state = [];
+
+        for ($class = new ReflectionClass($action); $class !== false && ! self::isBaseClass($class->getName()); $class = $class->getParentClass()) {
+            foreach ($class->getProperties() as $property) {
+                if ($property->isStatic() || $property->getDeclaringClass()->getName() !== $class->getName() || ! $property->isInitialized($action)) {
+                    continue;
+                }
+
+                $value = $property->getValue($action);
+
+                if ($property->isInitialized($fresh) && self::sameSetting($value, $property->getValue($fresh))) {
+                    continue;
+                }
+
+                $where = $class->getName().'::'.$property->getName();
+
+                if ($property->isReadOnly()) {
+                    throw new LogicException("[{$where}] is readonly, so the action's endpoint can't be given the value the table set. Set it inside the class.");
+                }
+
+                $sealed = $codec->getSerializedPropertyValue($value);
+
+                try {
+                    serialize($sealed);
+                } catch (Throwable) {
+                    throw new LogicException("[{$where}] holds a value that can't travel to the action's endpoint (a closure, or an object holding one). Keep fluent settings to scalars, arrays, enums, value objects or models, or set it inside the class.");
+                }
+
+                $state[$where] = $sealed;
+            }
+        }
+
+        return $state;
+    }
+
+    /**
+     * Whether a property still holds what a fresh `make()` gives it. Two
+     * closures can't be compared; one there in both is taken as the class's
+     * own (a fresh instance builds its own copy).
+     */
+    private static function sameSetting(mixed $value, mixed $default): bool
+    {
+        if ($value instanceof Closure || $default instanceof Closure) {
+            return $value instanceof Closure && $default instanceof Closure;
+        }
+
+        if (is_object($value) && is_object($default)) {
+            return $value::class === $default::class && $value == $default;
+        }
+
+        return $value === $default;
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private static function isBaseClass(string $class): bool
+    {
+        return in_array($class, [Action::class, BulkAction::class, FormAction::class], true);
     }
 
     /**
@@ -85,6 +199,7 @@ final class SealedAction
         $ability   = $payload['ability']   ?? null;
         $arguments = $payload['arguments'] ?? null;
         $grants    = $payload['grants']    ?? null;
+        $state     = $payload['state']     ?? [];
 
         return new self(
             class: $class,
@@ -94,6 +209,7 @@ final class SealedAction
             grants: is_array($grants)
                 ? array_values(array_map(static fn (mixed $key): string => (string) $key, array_filter($grants, 'is_scalar')))
                 : null,
+            state: is_array($state) ? $state : [],
         );
     }
 
@@ -113,8 +229,12 @@ final class SealedAction
         $gate = Gate::forUser(request()->user());
 
         if ($this->ability !== null) {
+            // Without a record the ability is checked against the class — the
+            // same check that decided whether the button showed.
             return $this->subjectBound
-                || $gate->allows($this->ability, $this->arguments ?? $record ?? $modelClass);
+                || ($record !== null
+                    ? $gate->allows($this->ability, $this->arguments ?? $record)
+                    : Action::allowsAbility($this->ability, $this->arguments ?? $modelClass));
         }
 
         // No ability of its own: a record falls back to the table's write

@@ -13,6 +13,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.216.0] - 2026-10-08
+
+Closes the two limitations left open in 0.207.1: settings chained on a
+`BulkAction` / `FormAction` now reach the endpoint, and toolbar and footer
+buttons show exactly when their endpoint would run them.
+
+### Added
+
+- **Settings chained on a `BulkAction` or `FormAction` reach the endpoint.**
+  The endpoint used to build a fresh instance, so
+  `ArchivePosts::make()->reason('spam')` ran with the class default. Now each
+  property the subclass declares that a setter changed (compared with a fresh
+  `make()`) is sealed in the signed descriptor, and the endpoint's instance gets
+  it back before `form()` / `handle()` run (`SealedAction::instantiate()`).
+  - Scalars, arrays, enums and value objects travel as they are.
+  - Models travel as identifiers and are fetched again, as in a queued job.
+  - A closure set by a setter can't travel. The table throws a
+    `LogicException` naming the property when it renders, instead of the
+    endpoint silently running without it. So does a readonly property that
+    differs.
+- A `FormAction` in `footerActions()` is sealed and runs record-less, like a
+  toolbar one. Before, it showed and opened its modal, but the endpoint
+  refused it. The same action may sit in the toolbar and the footer; two
+  differently configured copies under one name throw.
+- `shouldRenderWithoutRecord(?$modelClass)`,
+  `Action::toDataWithoutRecord()` / `ActionGroup::toDataWithoutRecord()` and
+  `allowsAbility()` (a `Gate::allows()` where a policy method that needs a
+  model instance denies instead of throwing).
+
+### Changed
+
+- **Toolbar and footer actions are judged with no record, inside groups too.**
+  The table decides them right away instead of deferring part of the check to
+  a per-row pass that never comes. A server-side action's button shows exactly
+  when its endpoint would run it.
+  - A child of a toolbar `ActionGroup` with a `visible()`/`hidden()` closure
+    typed for a record showed but wasn't sealed. It now hides, and a group
+    left with no child doesn't render.
+  - An `authorize()` closure that needs a record (`fn (Post $record) => …`)
+    used to fail the page on a toolbar action. It now hides the action.
+  - **`->authorize('ability')` with no subject is now checked against the
+    table's model class** (`Gate::allows('import', Post::class)`). Before, a
+    toolbar or footer action's ability was never checked, so the button
+    always showed. A host whose toolbar action names an ability that no policy
+    or gate defines for the class will see that button disappear. Give it an
+    explicit subject or define the ability.
+  - A policy method that needs an instance (`update(User $user, Post $post)`)
+    hides the button instead of making the endpoint fail with a 500. The
+    endpoint makes the same check.
+
 ## [0.215.0] - 2026-10-08
 
 Table rows and media library tiles can now be reordered on touch screens.
