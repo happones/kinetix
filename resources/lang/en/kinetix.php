@@ -316,6 +316,11 @@ return [
     'calendar_keyboard_hint' => 'Hold Alt and press an arrow key to move this event',
     'calendar_invalid_date'  => 'The target date is not valid.',
 
+    'calendar_resize_failed'             => 'Could not change when the event ends. Please try again.',
+    'calendar_resized_to'                => 'Now ends :date',
+    'calendar_keyboard_hint_resize'      => 'Hold Alt and Shift and press an arrow key to change when this event ends',
+    'calendar_keyboard_hint_move_resize' => 'Hold Alt and press an arrow key to move this event; add Shift to change when it ends',
+
     // Announcements
     'announcements_title' => 'What’s new',
     'announcements_empty' => 'No announcements yet.',

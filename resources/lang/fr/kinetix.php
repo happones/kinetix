@@ -316,6 +316,11 @@ return [
     'calendar_keyboard_hint' => 'Maintenez Alt et appuyez sur une flèche pour déplacer cet événement',
     'calendar_invalid_date'  => "La date cible n'est pas valide.",
 
+    'calendar_resize_failed'             => "Impossible de modifier la fin de l'événement. Veuillez réessayer.",
+    'calendar_resized_to'                => 'Se termine désormais le :date',
+    'calendar_keyboard_hint_resize'      => 'Maintenez Alt et Maj et appuyez sur une flèche pour modifier la fin de cet événement',
+    'calendar_keyboard_hint_move_resize' => 'Maintenez Alt et appuyez sur une flèche pour déplacer cet événement ; ajoutez Maj pour modifier sa fin',
+
     // Announcements
     'announcements_title' => 'Nouveautés',
     'announcements_empty' => 'Aucune annonce pour le moment.',

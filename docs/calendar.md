@@ -89,12 +89,14 @@ defineProps<{ calendar: object }>();
   `showEventDetails`), **`day-click`** (the ISO date, month view empty-cell
   clicks), **`slot-click`** (the ISO datetime, week/day view empty-slot
   clicks), **`event-moved`** (the event + its new ISO start, after a
-  successful drag — see [§6](#_6-drag-and-drop-rescheduling)), and
-  **`update:view`**.
+  successful drag — see [§6](#_6-drag-and-drop-rescheduling)),
+  **`event-resized`** (the event + its new ISO end, after a successful resize
+  — see [Resizing events](#resizing-events)), and **`update:view`**.
 
 No endpoint, migration or config flag is needed — the calendar is read-only
-by default and navigates client-side. Drag-and-drop rescheduling is a
-server-side opt-in: [`Calendar::moveable()`](#_6-drag-and-drop-rescheduling).
+by default and navigates client-side. Drag-and-drop rescheduling and resizing
+are server-side opt-ins: [`Calendar::moveable()`](#_6-drag-and-drop-rescheduling)
+and [`Calendar::resizable()`](#resizing-events).
 
 ---
 
@@ -266,21 +268,70 @@ view, ±1 hour in the time grids. Moves are announced through the shared live
 region, and every moveable chip points its `aria-describedby` at a
 screen-reader-only instructions element.
 
+### Resizing events
+
+Opt into resizing with **`resizable()`** — dragging an event's **end edge**
+persists a new end. The start stays put. It needs `endColumn()`, the column
+the new end is written to:
+
+```php
+Calendar::make(Event::query())
+    ->dateColumn('starts_at')
+    ->endColumn('ends_at')
+    ->title('name')
+    ->moveable()
+    ->resizable();
+```
+
+`resizable()` works with or without `moveable()`. A calendar that only
+resizes keeps its events where they are.
+
+- **Week/day views** — drag the **bottom edge** of a timed event. The end
+  snaps to **15 minutes** and the block grows or shrinks as you drag. Near the
+  top or bottom of the hour grid, the grid scrolls.
+- **Month view and the all-day row** — drag the **right end** of the event's
+  chip on the last day it covers, across day cells. The end moves by whole
+  days and keeps its time of day. An all-day event ends on the day you let go
+  (the end day is inclusive).
+- An event never ends before it starts: a timed event lasts at least 15
+  minutes, an all-day event at least its own day.
+- Letting go saves the new end. **Escape** puts the event back. Like moves,
+  the change is optimistic: on failure the event snaps back with an error
+  toast; on success the page reloads and **`event-resized`**
+  `(event, newEnd)` fires.
+
+The grip shows when you hover an event and is always visible on touch
+screens. Mouse, touch and pen all drag it directly, with no long-press, since
+it's a dedicated handle. **Keyboard users** hold <kbd>Alt</kbd> +
+<kbd>Shift</kbd> + arrow keys on a focused event: left/right = ±1 day; up/down
+= ±1 week in month view, ±15 minutes in the time grids (±1 day for all-day
+events). The new end is announced, and the screen-reader instructions cover
+whichever of moving and resizing the calendar allows.
+
+An event that ends exactly at midnight belongs to the day it runs through. A
+timed event from 22:00 to 00:00 fills the bottom of its own day and no longer
+spills onto the next one. An all-day event's end day stays inclusive.
+
 ### How the move is secured
 
 Exactly like [Kanban moves](/kanban#how-the-move-is-secured): `toData()` bakes
-a signed descriptor (encrypted) of the model, the date columns, the
-move ability and scope — the endpoint decrypts it and only ever rewrites the
-declared columns, so a client can't tamper with the target model or column.
+a signed descriptor (encrypted) of the model, the date columns, which writes
+the calendar allows (move, resize), the move ability and scope — the endpoint
+decrypts it and only ever rewrites the declared columns, so a client can't
+tamper with the target model or column. A descriptor minted for a calendar
+that only resizes can't move an event, and the other way round.
 The descriptor is bound to the user and team it was minted for and expires
 (`kinetix.tables.token_ttl`).
 
-| Method | Route                             | Name                            |
-| ------ | --------------------------------- | ------------------------------- |
-| `POST` | `{prefix}/tables/calendar-move`   | `kinetix.tables.calendar-move`  |
+| Method | Route                             | Name                             |
+| ------ | --------------------------------- | -------------------------------- |
+| `POST` | `{prefix}/tables/calendar-move`   | `kinetix.tables.calendar-move`   |
+| `POST` | `{prefix}/tables/calendar-resize` | `kinetix.tables.calendar-resize` |
 
-The endpoint takes `{ model, recordId, start }` (an absolute ISO-8601
-instant). Record-level authorization mirrors Kanban:
+The move endpoint takes `{ model, recordId, start }` and the resize endpoint
+`{ model, recordId, end }` (absolute ISO-8601 instants). A missing or
+unparseable instant is a 422, and so is an end before the start.
+Record-level authorization, the same for both, mirrors Kanban:
 
 ```php
 // Policy check (automatic when a policy is registered; default ability `update`):

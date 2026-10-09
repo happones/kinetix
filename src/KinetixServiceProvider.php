@@ -2848,6 +2848,11 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('calendar-move', CalendarMoveController::class)
                     ->name('kinetix.tables.calendar-move');
 
+                // Calendar event resize: give a record a new end instant
+                // (the start stays), under the same descriptor and policy.
+                Route::post('calendar-resize', [CalendarMoveController::class, 'resize'])
+                    ->name('kinetix.tables.calendar-resize');
+
                 // TableRepeater autosave: create/update/delete a single row on the
                 // bound relation, guarded by the field's signed descriptor.
                 Route::post('table-repeater', [TableRepeaterController::class, 'store'])->name('kinetix.table-repeater.store');

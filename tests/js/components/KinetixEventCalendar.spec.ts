@@ -230,6 +230,40 @@ describe('KinetixEventCalendar', () => {
             expect(style.height).not.toBe('');
         });
 
+        it('runs an event ending at midnight to the bottom of its day, not into the next', () => {
+            const w = mountIt({
+                views: ['week'],
+                view: 'week',
+                calendar: {
+                    heading: null,
+                    timezone: 'UTC',
+                    events: [
+                        {
+                            id: 4,
+                            title: 'Late shift',
+                            start: '2026-06-15T22:00:00+00:00',
+                            end: '2026-06-16T00:00:00+00:00',
+                            allDay: false,
+                            color: null,
+                            url: null,
+                            description: null,
+                        },
+                    ],
+                },
+            });
+
+            const blocks = w
+                .findAll('[data-calendar-event="4"]')
+                .map((b) => b.element as HTMLElement);
+
+            expect(blocks).toHaveLength(1);
+            expect(blocks[0].closest('[data-calendar-column]')).toBe(
+                w.get('[data-calendar-column="2026-06-15"]').element,
+            );
+            // 22:00–24:00 of the day's 24 hours.
+            expect(blocks[0].style.height).toBe(`${(2 / 24) * 100}%`);
+        });
+
         it('places an all-day/multi-day event in the banner, not the hourly grid', () => {
             const allDayCoversToday = {
                 heading: null,

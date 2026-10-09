@@ -7,16 +7,19 @@ import { useI18n } from 'vue-i18n';
 import { KINETIX_DRAG_SOURCE_CLASS } from '@/composables/kinetixDragStyles';
 import { useKinetixCalendarEventDetails } from '@/composables/useKinetixCalendarEventDetails';
 import { useKinetixCalendarEventMove } from '@/composables/useKinetixCalendarEventMove';
+import { useKinetixCalendarEventResize } from '@/composables/useKinetixCalendarEventResize';
 import { useKinetixCalendarGrids } from '@/composables/useKinetixCalendarGrids';
 import { useKinetixCalendarNavigation } from '@/composables/useKinetixCalendarNavigation';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixCalendarData,
+    KinetixCalendarEvent,
     KinetixCalendarEventDisplay,
     KinetixCalendarView,
     KinetixSheetSide,
 } from '@/types/kinetix';
 import CalendarEventDetails from './Calendar/CalendarEventDetails.vue';
+import CalendarResizeHandle from './Calendar/CalendarResizeHandle.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixDropGhost from './KinetixDropGhost.vue';
 
@@ -30,6 +33,8 @@ let calendarUid = 0;
  * regardless of the viewing browser's own local timezone.
  *
  * `views` opts into the switcher (default month-only, unchanged from before).
+ * `Calendar::moveable()` lets events be dragged to another day or slot, and
+ * `Calendar::resizable()` lets their end edge be dragged to a new end.
  * Clicking an event opens a built-in details modal/sheet (`eventDisplay`) —
  * set `showEventDetails="false"` to rely purely on `@event-click`.
  *
@@ -90,6 +95,11 @@ const emit = defineEmits<{
         event: KinetixCalendarData['events'][number],
         newStart: string,
     ): void;
+    (
+        e: 'event-resized',
+        event: KinetixCalendarData['events'][number],
+        newEnd: string,
+    ): void;
 }>();
 
 const { t } = useI18n();
@@ -127,10 +137,13 @@ const {
 // The grids render from the composable's optimistic event copy so a dropped
 // event lands in its new cell immediately.
 const weekScrollRef = ref<HTMLElement | null>(null);
+const hourlyGridRef = ref<HTMLElement | null>(null);
 
 const {
     localEvents,
     canMove,
+    patchEvent,
+    saveEvent,
     draggingEvent,
     draggingEventId,
     dropTarget,
@@ -151,6 +164,70 @@ const {
     onMoved: (event, newStart) => emit('event-moved', event, newStart),
 });
 
+// Resizing by the end edge (opt-in server-side via Calendar::resizable()),
+// previewed and saved through the same optimistic event copy.
+const { canResize, resizingEventId, onResizePointerDown, onResizeKeydown } =
+    useKinetixCalendarEventResize({
+        calendar: () => props.calendar,
+        tz: () => tz.value,
+        locale: () => locale.value,
+        activeView: () => activeView.value,
+        startHour: () => props.startHour,
+        endHour: () => props.endHour,
+        hourlyGrid: () => hourlyGridRef.value,
+        preview: (event, end) =>
+            patchEvent(event, end === null ? null : { end }),
+        save: (event, end) =>
+            saveEvent(
+                event,
+                { end },
+                {
+                    endpoint: 'calendar-resize',
+                    body: { end },
+                    failMessage: t('kinetix.calendar_resize_failed'),
+                },
+            ),
+        onResized: (event, newEnd) => emit('event-resized', event, newEnd),
+    });
+
+// Either write marks the cells as targets and gives events their
+// screen-reader instructions.
+const canEdit = computed(() => canMove.value || canResize.value);
+
+const keyboardHint = computed(() => {
+    if (canMove.value && canResize.value) {
+        return t('kinetix.calendar_keyboard_hint_move_resize');
+    }
+
+    return canResize.value
+        ? t('kinetix.calendar_keyboard_hint_resize')
+        : t('kinetix.calendar_keyboard_hint');
+});
+
+/** Alt+Shift+arrows resize on a resizable calendar; Alt+arrows move. */
+function onChipKeydown(
+    event: KinetixCalendarEvent,
+    keyboardEvent: KeyboardEvent,
+): void {
+    if (!onResizeKeydown(event, keyboardEvent)) {
+        onEventKeydown(event, keyboardEvent);
+    }
+}
+
+/** Dragging an event's end handle never also drags the event itself. */
+function onChipDragStart(
+    event: KinetixCalendarEvent,
+    dragEvent: DragEvent,
+): void {
+    if (resizingEventId.value !== null) {
+        dragEvent.preventDefault();
+
+        return;
+    }
+
+    onEventDragStart(event);
+}
+
 const {
     monthGrid,
     hours,
@@ -159,6 +236,7 @@ const {
     nowIndicator,
     formatHourLabel,
     slotInstant,
+    endsOn,
 } = useKinetixCalendarGrids({
     anchor: () => anchor.value,
     activeView: () => activeView.value,
@@ -195,7 +273,6 @@ const {
 // --- Scroll-to-now (owns the hourly grid element) ---------------------------
 // Scrolled programmatically so the current time stays in view when switching
 // into week/day, rather than defaulting to the top of the hour range.
-const hourlyGridRef = ref<HTMLElement | null>(null);
 const HOUR_ROW_PX = 64; // h-16 = 4rem = 64px, matches the hourly grid rows.
 
 function scrollToNow(): void {
@@ -317,9 +394,9 @@ onMounted(() => {
             {{ monthLabel }}
         </div>
 
-        <!-- Screen-reader instructions moveable events point at (aria-describedby). -->
-        <p v-if="canMove" :id="moveHintId" class="sr-only">
-            {{ t('kinetix.calendar_keyboard_hint') }}
+        <!-- Screen-reader instructions moveable/resizable events point at (aria-describedby). -->
+        <p v-if="canEdit" :id="moveHintId" class="sr-only">
+            {{ keyboardHint }}
         </p>
 
         <!-- ===== Month view ===== -->
@@ -349,7 +426,7 @@ onMounted(() => {
                               ? ''
                               : 'bg-muted/20'
                     "
-                    :data-calendar-drop="canMove ? dayDropKey(cell.date) : null"
+                    :data-calendar-drop="canEdit ? dayDropKey(cell.date) : null"
                     @click="emit('day-click', cell.date)"
                     @dragover.prevent="onDropKeyOver(dayDropKey(cell.date))"
                     @drop.prevent="onDropKeyDrop(dayDropKey(cell.date))"
@@ -372,8 +449,11 @@ onMounted(() => {
                             v-for="event in cell.events.slice(0, 3)"
                             :key="String(event.id)"
                             type="button"
-                            class="rounded px-1.5 py-0.5 text-xs text-white block w-full truncate text-left"
+                            class="group rounded px-1.5 py-0.5 text-xs text-white relative block w-full truncate text-left"
                             :class="[
+                                resizingEventId === event.id
+                                    ? 'ring-2 ring-ring'
+                                    : '',
                                 canMove
                                     ? 'cursor-grab active:cursor-grabbing'
                                     : '',
@@ -390,14 +470,27 @@ onMounted(() => {
                             }"
                             :draggable="canMove"
                             :data-calendar-event="event.id"
-                            :aria-describedby="canMove ? moveHintId : undefined"
+                            :aria-describedby="canEdit ? moveHintId : undefined"
                             @click.stop="openEvent(event)"
-                            @dragstart="onEventDragStart(event)"
+                            @dragstart="(e) => onChipDragStart(event, e)"
                             @dragend="onEventDragEnd"
                             @pointerdown="(e) => onEventPointerDown(event, e)"
-                            @keydown="(e) => onEventKeydown(event, e)"
+                            @keydown="(e) => onChipKeydown(event, e)"
                         >
                             {{ event.title }}
+                            <CalendarResizeHandle
+                                v-if="canResize && endsOn(event, cell.date)"
+                                axis="day"
+                                @start="
+                                    (e) =>
+                                        onResizePointerDown(
+                                            event,
+                                            'day',
+                                            cell.date,
+                                            e,
+                                        )
+                                "
+                            />
                         </button>
                         <p
                             v-if="cell.events.length > 3"
@@ -469,7 +562,7 @@ onMounted(() => {
                                     : ''
                             "
                             :data-calendar-drop="
-                                canMove ? dayDropKey(col.key) : null
+                                canEdit ? dayDropKey(col.key) : null
                             "
                             @dragover.prevent="
                                 onDropKeyOver(dayDropKey(col.key))
@@ -480,8 +573,11 @@ onMounted(() => {
                                 v-for="event in col.allDayEvents"
                                 :key="String(event.id)"
                                 type="button"
-                                class="rounded px-1.5 py-0.5 text-xs text-white block w-full truncate text-left"
+                                class="group rounded px-1.5 py-0.5 text-xs text-white relative block w-full truncate text-left"
                                 :class="[
+                                    resizingEventId === event.id
+                                        ? 'ring-2 ring-ring'
+                                        : '',
                                     canMove
                                         ? 'cursor-grab active:cursor-grabbing'
                                         : '',
@@ -499,17 +595,30 @@ onMounted(() => {
                                 :draggable="canMove"
                                 :data-calendar-event="event.id"
                                 :aria-describedby="
-                                    canMove ? moveHintId : undefined
+                                    canEdit ? moveHintId : undefined
                                 "
                                 @click.stop="openEvent(event)"
-                                @dragstart="onEventDragStart(event)"
+                                @dragstart="(e) => onChipDragStart(event, e)"
                                 @dragend="onEventDragEnd"
                                 @pointerdown="
                                     (e) => onEventPointerDown(event, e)
                                 "
-                                @keydown="(e) => onEventKeydown(event, e)"
+                                @keydown="(e) => onChipKeydown(event, e)"
                             >
                                 {{ event.title }}
+                                <CalendarResizeHandle
+                                    v-if="canResize && endsOn(event, col.key)"
+                                    axis="day"
+                                    @start="
+                                        (e) =>
+                                            onResizePointerDown(
+                                                event,
+                                                'day',
+                                                col.key,
+                                                e,
+                                            )
+                                    "
+                                />
                             </button>
 
                             <KinetixDropGhost
@@ -546,6 +655,7 @@ onMounted(() => {
                             class="min-w-0 relative flex-1 border-l border-border"
                             :class="col.isToday ? 'bg-primary/5' : ''"
                             :style="{ height: gridContentHeight }"
+                            :data-calendar-column="col.key"
                         >
                             <button
                                 v-for="h in hours"
@@ -558,7 +668,7 @@ onMounted(() => {
                                         : ''
                                 "
                                 :data-calendar-drop="
-                                    canMove ? slotDropKey(col.key, h) : null
+                                    canEdit ? slotDropKey(col.key, h) : null
                                 "
                                 @click="onSlotClick(col.date, h)"
                                 @dragover.prevent="
@@ -599,8 +709,11 @@ onMounted(() => {
                                 } in col.timedEvents"
                                 :key="String(event.id)"
                                 type="button"
-                                class="left-0.5 right-0.5 px-1.5 py-0.5 text-white rounded absolute overflow-hidden text-left text-[11px]"
+                                class="group left-0.5 right-0.5 px-1.5 py-0.5 text-white rounded absolute overflow-hidden text-left text-[11px]"
                                 :class="[
+                                    resizingEventId === event.id
+                                        ? 'z-10 ring-2 ring-ring'
+                                        : '',
                                     canMove
                                         ? 'cursor-grab active:cursor-grabbing'
                                         : '',
@@ -620,17 +733,30 @@ onMounted(() => {
                                 :draggable="canMove"
                                 :data-calendar-event="event.id"
                                 :aria-describedby="
-                                    canMove ? moveHintId : undefined
+                                    canEdit ? moveHintId : undefined
                                 "
                                 @click.stop="openEvent(event)"
-                                @dragstart="onEventDragStart(event)"
+                                @dragstart="(e) => onChipDragStart(event, e)"
                                 @dragend="onEventDragEnd"
                                 @pointerdown="
                                     (e) => onEventPointerDown(event, e)
                                 "
-                                @keydown="(e) => onEventKeydown(event, e)"
+                                @keydown="(e) => onChipKeydown(event, e)"
                             >
                                 {{ event.title }}
+                                <CalendarResizeHandle
+                                    v-if="canResize && endsOn(event, col.key)"
+                                    axis="time"
+                                    @start="
+                                        (e) =>
+                                            onResizePointerDown(
+                                                event,
+                                                'time',
+                                                col.key,
+                                                e,
+                                            )
+                                    "
+                                />
                             </button>
                         </div>
                     </div>

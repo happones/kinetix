@@ -9,7 +9,10 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
-import { parseAnchorDate } from '@/composables/kinetixCalendarDates';
+import {
+    formatEventInstant,
+    parseAnchorDate,
+} from '@/composables/kinetixCalendarDates';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import { useKinetixTouchDrag } from '@/composables/useKinetixTouchDrag';
@@ -36,11 +39,41 @@ export interface UseKinetixCalendarEventMoveOptions {
     reloadOnly?: () => string[] | undefined;
 }
 
+/** The instants a calendar write changes on an event. */
+export type KinetixCalendarEventPatch = Partial<
+    Pick<KinetixCalendarEvent, 'start' | 'end'>
+>;
+
+/** Where a calendar write goes and what it says on failure. */
+export interface KinetixCalendarEventWrite {
+    endpoint: 'calendar-move' | 'calendar-resize';
+    body: Record<string, string>;
+    failMessage: string;
+}
+
 export interface UseKinetixCalendarEventMove {
     /** Optimistic copy of the events the grids render from. */
     localEvents: ComputedRef<KinetixCalendarEvent[]>;
     /** True when the calendar opted into moves (`Calendar::moveable()`). */
     canMove: ComputedRef<boolean>;
+    /**
+     * Show `event` with a patch over it in the local copy, or put it back as
+     * it was (`null`). For previews while a gesture is in flight.
+     */
+    patchEvent: (
+        event: KinetixCalendarEvent,
+        patch: KinetixCalendarEventPatch | null,
+    ) => void;
+    /**
+     * Persist a change to one event: applied optimistically, put back with an
+     * error toast when the server refuses, followed by a reload on success.
+     * Resolves to whether it stuck.
+     */
+    saveEvent: (
+        event: KinetixCalendarEvent,
+        patch: KinetixCalendarEventPatch,
+        write: KinetixCalendarEventWrite,
+    ) => Promise<boolean>;
     /** The event in flight — labels the drop-preview ghost. */
     draggingEvent: Ref<KinetixCalendarEvent | null>;
     /** Id of the event in flight — dims its chips. */
@@ -89,7 +122,12 @@ export function useKinetixCalendarEventMove(
     );
 
     const localEvents = computed(() => events.value);
-    const canMove = computed(() => Boolean(options.calendar().model));
+    // A descriptor from before `moveable` was sent only came with moves.
+    const canMove = computed(
+        () =>
+            Boolean(options.calendar().model) &&
+            options.calendar().moveable !== false,
+    );
 
     const draggingEvent = ref<KinetixCalendarEvent | null>(null);
     const draggingEventId = computed(() => draggingEvent.value?.id ?? null);
@@ -141,10 +179,54 @@ export function useKinetixCalendarEventMove(
             .toDate()
             .toISOString();
 
+    const patchEvent = (
+        event: KinetixCalendarEvent,
+        patch: KinetixCalendarEventPatch | null,
+    ): void => {
+        events.value = events.value.map((e) =>
+            e.id === event.id ? (patch ? { ...event, ...patch } : event) : e,
+        );
+    };
+
+    async function saveEvent(
+        event: KinetixCalendarEvent,
+        patch: KinetixCalendarEventPatch,
+        write: KinetixCalendarEventWrite,
+    ): Promise<boolean> {
+        if (!options.calendar().model) {
+            return false;
+        }
+
+        patchEvent(event, patch);
+
+        try {
+            await kinetixFetch(
+                `/${kinetixRoutePrefix(page)}/tables/${write.endpoint}`,
+                {
+                    method: 'POST',
+                    body: {
+                        model: options.calendar().model,
+                        recordId: event.id,
+                        ...write.body,
+                    },
+                },
+            );
+            const only = options.reloadOnly?.();
+            router.reload(only?.length ? { only } : {});
+
+            return true;
+        } catch {
+            patchEvent(event, null);
+            toast.error(write.failMessage);
+
+            return false;
+        }
+    }
+
     /**
-     * Persist a move (optimistic, reverting on error). The end shifts by the
-     * same delta client-side so multi-day/timed spans keep their duration
-     * while the reload is in flight.
+     * Persist a move. The end shifts by the same delta client-side so
+     * multi-day/timed spans keep their duration while the reload is in
+     * flight.
      */
     async function moveEvent(
         event: KinetixCalendarEvent,
@@ -153,48 +235,32 @@ export function useKinetixCalendarEventMove(
         const deltaMs =
             new Date(newStart).getTime() - new Date(event.start).getTime();
 
-        if (deltaMs === 0 || !options.calendar().model) {
+        if (deltaMs === 0 || !canMove.value) {
             return false;
         }
 
-        const snapshot = events.value;
-        events.value = events.value.map((e) =>
-            e.id === event.id
-                ? {
-                      ...e,
-                      start: newStart,
-                      end: e.end
-                          ? new Date(
-                                new Date(e.end).getTime() + deltaMs,
-                            ).toISOString()
-                          : null,
-                  }
-                : e,
+        const moved = await saveEvent(
+            event,
+            {
+                start: newStart,
+                end: event.end
+                    ? new Date(
+                          new Date(event.end).getTime() + deltaMs,
+                      ).toISOString()
+                    : null,
+            },
+            {
+                endpoint: 'calendar-move',
+                body: { start: newStart },
+                failMessage: t('kinetix.calendar_move_failed'),
+            },
         );
 
-        try {
-            await kinetixFetch(
-                `/${kinetixRoutePrefix(page)}/tables/calendar-move`,
-                {
-                    method: 'POST',
-                    body: {
-                        model: options.calendar().model,
-                        recordId: event.id,
-                        start: newStart,
-                    },
-                },
-            );
+        if (moved) {
             options.onMoved?.(event, newStart);
-            const only = options.reloadOnly?.();
-            router.reload(only?.length ? { only } : {});
-
-            return true;
-        } catch {
-            events.value = snapshot;
-            toast.error(t('kinetix.calendar_move_failed'));
-
-            return false;
         }
+
+        return moved;
     }
 
     // --- Native HTML5 drag (mouse) -------------------------------------------
@@ -264,15 +330,6 @@ export function useKinetixCalendarEventMove(
     };
 
     // --- Keyboard alternative (Alt + arrows) -----------------------------------
-    const movedLabelFmt = computed(
-        () => (event: KinetixCalendarEvent, iso: string) =>
-            new Intl.DateTimeFormat(options.locale(), {
-                dateStyle: 'medium',
-                ...(event.allDay ? {} : { timeStyle: 'short' as const }),
-                timeZone: options.tz(),
-            }).format(new Date(iso)),
-    );
-
     const onEventKeydown = (
         event: KinetixCalendarEvent,
         keyboardEvent: KeyboardEvent,
@@ -314,7 +371,12 @@ export function useKinetixCalendarEventMove(
 
             announce(
                 t('kinetix.calendar_moved_to', {
-                    date: movedLabelFmt.value(event, newStart),
+                    date: formatEventInstant(
+                        newStart,
+                        event.allDay,
+                        options.locale(),
+                        options.tz(),
+                    ),
                 }),
             );
 
@@ -332,6 +394,8 @@ export function useKinetixCalendarEventMove(
     return {
         localEvents,
         canMove,
+        patchEvent,
+        saveEvent,
         draggingEvent,
         draggingEventId,
         dropTarget,

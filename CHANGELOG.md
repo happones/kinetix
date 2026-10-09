@@ -13,6 +13,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.214.0] - 2026-10-08
+
+Calendar events can now be resized by dragging their end edge. Re-publish the
+components (`--force`) and the translations.
+
+### Added
+
+- **`Calendar::resizable()`** lets an event's end edge be dragged to a new end.
+  The start stays put. It needs `endColumn()` (`toData()` throws a
+  `LogicException` without one) and works with or without `moveable()`.
+  - **(published)** In the week/day views, the bottom edge of a timed event
+    snaps to 15 minutes, and the hour grid scrolls near its edges. In the
+    month view and the all-day row, the right end of the chip on the event's
+    last day moves by whole days and keeps the time of day.
+  - **(published)** The event grows and shrinks as you drag it. Letting go
+    saves it and Escape puts it back. A timed event lasts at least 15 minutes,
+    and an all-day event at least its own day.
+  - **(published)** Mouse, touch and pen drag the handle directly. The grip
+    shows on hover and is always visible on touch screens.
+  - **(published)** Alt + Shift + arrows on a focused event change its end:
+    ±1 day; ±1 week in month view, ±15 minutes in the time grids. The new end
+    is announced (`calendar_resized_to`), and failures toast
+    `calendar_resize_failed`. The keyboard hint covers whatever the calendar
+    allows (`calendar_keyboard_hint_resize`,
+    `calendar_keyboard_hint_move_resize`), in 7 locales.
+  - **(published)** The component emits `event-resized(event, newEnd)`.
+  - `POST {prefix}/tables/calendar-resize` (`kinetix.tables.calendar-resize`)
+    takes `{ model, recordId, end }`. It is guarded by the same signed
+    descriptor, `authorizeMove()` ability and `moveScope()` as moves, and it
+    refuses an end before the start (422).
+- `CalendarData` carries `moveable` and `resizable`, and the descriptor ships
+  when either is on.
+
+### Changed
+
+- A calendar descriptor only allows the writes its calendar opted into. One
+  minted for a calendar that only resizes can't move an event, and a moveable
+  one can't resize. Descriptors minted before this release keep moving.
+- **(published)** `useKinetixCalendarEventMove` exposes the optimistic
+  `saveEvent()`/`patchEvent()` that both moves and resizes go through.
+
+### Fixed
+
+- **(published)** A timed event ending exactly at midnight no longer spills a
+  sliver onto the next day in the week/day views, nor shows on that day in
+  the month view. An all-day event's end day stays inclusive.
+- The move endpoint refuses a missing `start` (422) instead of moving the
+  event to the current time.
+
 ## [0.213.0] - 2026-10-08
 
 Kanban cards can now be ordered within their column. Re-publish the components

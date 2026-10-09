@@ -63,6 +63,8 @@ export interface UseKinetixCalendarGrids {
     nowIndicator: ComputedRef<{ key: string; topPct: number } | null>;
     formatHourLabel: (hour: number) => string;
     slotInstant: (date: CalendarDate, hour: number) => string;
+    /** True on the day (`Y-MM-DD`) an event's span ends — where its end handle sits. */
+    endsOn: (event: KinetixCalendarEvent, key: string) => boolean;
 }
 
 /**
@@ -153,7 +155,6 @@ export function useKinetixCalendarGrids(
         const startHour = options.startHour();
         const endHour = options.endHour();
         const total = totalMinutes.value;
-        const spanCount = hours.value.length;
 
         return visibleDays.value.map((d) => {
             const key = dateKeyOf(d);
@@ -166,16 +167,13 @@ export function useKinetixCalendarGrids(
                 .filter((p) => !p.event.allDay)
                 .map((p) => {
                     const s = p.start;
-                    const e = p.end;
                     const sameDayStart = p.startKey === key;
                     const startMin = sameDayStart
                         ? s.hour * 60 + s.minute
                         : startHour * 60;
-                    const endMin = e
-                        ? p.endKey === key
-                            ? e.hour * 60 + e.minute
-                            : (startHour + spanCount) * 60
-                        : startMin + 60;
+                    // On its last day the event ends where it ends; before
+                    // that it runs past the bottom of the day.
+                    const endMin = p.endKey === key ? p.endMinutes : 24 * 60;
 
                     const clampedStart = Math.max(startMin, startHour * 60);
                     const clampedEnd = Math.min(
@@ -229,6 +227,13 @@ export function useKinetixCalendarGrids(
         },
     );
 
+    const endKeys = computed(
+        () => new Map(preparedEvents.value.map((p) => [p.event.id, p.endKey])),
+    );
+
+    const endsOn = (event: KinetixCalendarEvent, key: string): boolean =>
+        endKeys.value.get(event.id) === key;
+
     const slotInstant = (date: CalendarDate, hour: number): string => {
         const cdt = new CalendarDateTime(
             date.year,
@@ -250,5 +255,6 @@ export function useKinetixCalendarGrids(
         nowIndicator,
         formatHourLabel,
         slotInstant,
+        endsOn,
     };
 }

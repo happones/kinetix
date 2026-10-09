@@ -316,6 +316,11 @@ return [
     'calendar_keyboard_hint' => 'Mantén Alt y pulsa una flecha para mover este evento',
     'calendar_invalid_date'  => 'La fecha de destino no es válida.',
 
+    'calendar_resize_failed'             => 'No se pudo cambiar cuándo termina el evento. Inténtalo de nuevo.',
+    'calendar_resized_to'                => 'Ahora termina el :date',
+    'calendar_keyboard_hint_resize'      => 'Mantén Alt y Mayús y pulsa una flecha para cambiar cuándo termina este evento',
+    'calendar_keyboard_hint_move_resize' => 'Mantén Alt y pulsa una flecha para mover este evento; añade Mayús para cambiar cuándo termina',
+
     // Announcements
     'announcements_title' => 'Novedades',
     'announcements_empty' => 'Aún no hay anuncios.',

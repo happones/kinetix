@@ -3563,6 +3563,11 @@ export const specimens: Specimen[] = [
             calendar: {
                 heading: null,
                 timezone: 'UTC',
+                model: 'demo',
+                // Events drag to another slot, and their end edge drags to
+                // a new end.
+                moveable: true,
+                resizable: true,
                 events: [
                     {
                         id: 1,

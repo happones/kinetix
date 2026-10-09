@@ -23,9 +23,14 @@ class CalendarData extends Data
         public array $events,
         public string $timezone,
         /**
-         * Encrypted descriptor {model, dateColumn, endColumn} for the move
-         * endpoint — null unless the calendar opted in via `moveable()`.
+         * Encrypted descriptor {model, dateColumn, endColumn, …} for the move
+         * and resize endpoints — null unless the calendar opted in via
+         * `moveable()` or `resizable()`.
          */
         public ?string $model = null,
+        /** Events can be dragged to another day or slot (`moveable()`). */
+        public bool $moveable = false,
+        /** Events can be resized by their end edge (`resizable()`). */
+        public bool $resizable = false,
     ) {}
 }

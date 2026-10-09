@@ -80,6 +80,26 @@ long-press, and have a keyboard alternative (Alt + arrows: ±1 day, ±1 week in
 month view, ±1 hour in time grids). The component emits `event-moved(event,
 newStartIso)` after a successful move.
 
+### Resizing (`resizable()`)
+
+```php
+Calendar::make(Event::query())
+    ->dateColumn('starts_at')->endColumn('ends_at')->title('name')
+    ->resizable(); // needs endColumn(); works with or without moveable()
+```
+
+Dragging an event's end edge POSTs `{model, recordId, end}` to
+`{prefix}/tables/calendar-resize`. It uses the same descriptor, ability and
+`moveScope()` as moves, and a descriptor only allows the writes its calendar
+opted into. The start never changes. The handle is the bottom of a timed
+block in week/day (snaps to 15 minutes, auto-scrolls the hour grid) and the
+right end of the chip on the event's last day in month view and the all-day
+row (whole days, same time of day; all-day end days are inclusive). An end
+before the start is clamped client-side (15 minutes / its own day) and
+refused server-side (422). Escape cancels. The keyboard alternative is
+Alt + Shift + arrows (±1 day; ±1 week in month, ±15 minutes in the time
+grids). The component emits `event-resized(event, newEndIso)`.
+
 `start`/`end` always serialize as **absolute-instant ISO-8601 datetimes**
 (never date-only) — this is what makes the frontend timezone-correct: an
 event's real moment in time is preserved, so it can be re-rendered under any

@@ -718,10 +718,15 @@ export interface KinetixCalendarData {
     /** IANA timezone events were resolved against server-side. */
     timezone: string;
     /**
-     * Encrypted move descriptor — present only when the calendar opted into
-     * drag-and-drop rescheduling via `Calendar::moveable()`.
+     * Encrypted write descriptor — present only when the calendar opted into
+     * drag-and-drop rescheduling (`Calendar::moveable()`) or resizing
+     * (`Calendar::resizable()`).
      */
     model?: string | null;
+    /** Events can be dragged to another day or slot (`Calendar::moveable()`). */
+    moveable?: boolean;
+    /** Events can be resized by their end edge (`Calendar::resizable()`). */
+    resizable?: boolean;
 }
 
 /** Which day/week/month view is active in <KinetixEventCalendar>. */

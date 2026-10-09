@@ -14,14 +14,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use LogicException;
 
 /**
  * Builds a month/week/day-view calendar of events from an Eloquent query.
  * Read-only by default: the component navigates client-side over the supplied
  * events; scope the window with ->query() if a model has many records.
  * Opt into drag-and-drop rescheduling with ->moveable() — dragging an event
- * to another day/slot persists the new start (guarded by a signed
- * descriptor, like the Kanban board's moves).
+ * to another day/slot persists the new start — and into resizing with
+ * ->resizable() — dragging an event's end edge persists a new end. Both are
+ * guarded by a signed descriptor, like the Kanban board's moves.
  *
  *     Calendar::make(Event::query())
  *         ->dateColumn('starts_at')
@@ -60,6 +62,8 @@ class Calendar
     protected array $eventActions = [];
 
     protected bool $moveable = false;
+
+    protected bool $resizable = false;
 
     protected ?string $moveAbility = null;
 
@@ -186,8 +190,23 @@ class Calendar
     }
 
     /**
-     * The Gate ability checked against the record on every move (via the
-     * host's policy). Defaults to `update` whenever the model has a
+     * Let events be resized: dragging an event's end edge (the bottom of a
+     * timed event in the week/day views, the end of its chip on the last day
+     * it covers in the month view and the all-day row) persists a new end to
+     * `endColumn`, which it needs. The start stays put. Guarded exactly like
+     * moves: the same signed descriptor, `authorizeMove()` ability and
+     * `moveScope()` constraints.
+     */
+    public function resizable(bool $condition = true): static
+    {
+        $this->resizable = $condition;
+
+        return $this;
+    }
+
+    /**
+     * The Gate ability checked against the record on every move or resize
+     * (via the host's policy). Defaults to `update` whenever the model has a
      * registered policy — call this to check a different ability.
      */
     public function authorizeMove(string $ability): static
@@ -198,7 +217,8 @@ class Calendar
     }
 
     /**
-     * Constraints (column => value) the record must match to be movable —
+     * Constraints (column => value) the record must match to be moved or
+     * resized —
      * evaluated now (in the request) and enforced on the move endpoint's
      * lookup. The tenant guard for calendars without a policy:
      *
@@ -215,6 +235,10 @@ class Calendar
 
     public function toData(): CalendarData
     {
+        if ($this->resizable && $this->endColumn === null) {
+            throw new LogicException('Calendar::resizable() needs an endColumn() to write the new end to.');
+        }
+
         $timezone = $this->resolveTimezone();
 
         $events = $this->records()
@@ -260,15 +284,18 @@ class Calendar
             heading: $this->heading,
             events: $events,
             timezone: $timezone,
-            model: $this->moveable ? $this->buildMoveDescriptor() : null,
+            model: $this->moveable || $this->resizable ? $this->buildMoveDescriptor() : null,
+            moveable: $this->moveable,
+            resizable: $this->resizable,
         );
     }
 
     /**
      * Mint the signed descriptor {@see CalendarMoveController} trusts: the
-     * model, the date columns to rewrite, the ability and scope bounding the
-     * move, plus the user/team/expiry binding ({@see SignedDescriptor}) so a
-     * leaked token isn't replayable by someone else.
+     * model, the date columns to rewrite, which writes (move, resize) the
+     * calendar allows, the ability and scope bounding them, plus the
+     * user/team/expiry binding ({@see SignedDescriptor}) so a leaked token
+     * isn't replayable by someone else.
      */
     protected function buildMoveDescriptor(): string
     {
@@ -276,6 +303,8 @@ class Calendar
             'model'       => $this->getModelClass(),
             'dateColumn'  => $this->dateColumn,
             'endColumn'   => $this->endColumn,
+            'moveable'    => $this->moveable,
+            'resizable'   => $this->resizable,
             'moveAbility' => $this->moveAbility,
             'moveScope'   => $this->moveScope,
         ]);

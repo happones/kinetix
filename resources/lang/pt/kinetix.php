@@ -316,6 +316,11 @@ return [
     'calendar_keyboard_hint' => 'Segure Alt e pressione uma seta para mover este evento',
     'calendar_invalid_date'  => 'A data de destino não é válida.',
 
+    'calendar_resize_failed'             => 'Não foi possível alterar quando o evento termina. Tente novamente.',
+    'calendar_resized_to'                => 'Agora termina em :date',
+    'calendar_keyboard_hint_resize'      => 'Segure Alt e Shift e pressione uma seta para alterar quando este evento termina',
+    'calendar_keyboard_hint_move_resize' => 'Segure Alt e pressione uma seta para mover este evento; adicione Shift para alterar quando ele termina',
+
     // Announcements
     'announcements_title' => 'Novidades',
     'announcements_empty' => 'Ainda não há anúncios.',

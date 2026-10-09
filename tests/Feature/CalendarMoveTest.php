@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Calendar\Calendar;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use LogicException;
 
 class CalendarMoveUser extends Authenticatable
 {
@@ -187,6 +189,219 @@ class CalendarMoveTest extends TestCase
             ->assertOk();
 
         $this->assertSame('2026-06-18 14:00:00', $event->fresh()->starts_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_move_rejects_a_missing_start_instead_of_moving_to_now(): void
+    {
+        $descriptor = $this->calendar()->toData()->model;
+        $event      = CalendarMoveEvent::firstOrFail();
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-move', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame('2026-06-15 09:00:00', $event->fresh()->starts_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_the_data_says_which_writes_the_calendar_allows(): void
+    {
+        $moveOnly   = $this->calendar()->toData();
+        $resizeOnly = $this->calendar()->moveable(false)->resizable()->toData();
+        $readOnly   = $this->calendar()->moveable(false)->toData();
+
+        $this->assertTrue($moveOnly->moveable);
+        $this->assertFalse($moveOnly->resizable);
+
+        // Resizing alone still needs the descriptor, but nothing moves.
+        $this->assertNotNull($resizeOnly->model);
+        $this->assertFalse($resizeOnly->moveable);
+        $this->assertTrue($resizeOnly->resizable);
+
+        $this->assertNull($readOnly->model);
+    }
+
+    public function test_resizable_needs_an_end_column(): void
+    {
+        $this->expectException(LogicException::class);
+
+        Calendar::make(CalendarMoveEvent::query())
+            ->dateColumn('starts_at')
+            ->resizable()
+            ->toData();
+    }
+
+    public function test_resize_endpoint_rewrites_only_the_end(): void
+    {
+        $descriptor = $this->calendar()->resizable()->toData()->model;
+        $event      = CalendarMoveEvent::firstOrFail();
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+                'end'      => '2026-06-15T12:15:00Z',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success');
+
+        $fresh = $event->fresh();
+        $this->assertSame('2026-06-15 09:00:00', $fresh->starts_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-06-15 12:15:00', $fresh->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_resize_may_end_an_event_on_a_later_day(): void
+    {
+        $descriptor = $this->calendar()->resizable()->toData()->model;
+        $event      = CalendarMoveEvent::firstOrFail();
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+                'end'      => '2026-06-17T10:30:00+00:00',
+            ])
+            ->assertOk();
+
+        $this->assertSame('2026-06-17 10:30:00', $event->fresh()->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_resize_rejects_an_end_before_the_start(): void
+    {
+        $descriptor = $this->calendar()->resizable()->toData()->model;
+        $event      = CalendarMoveEvent::firstOrFail();
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+                'end'      => '2026-06-15T08:00:00Z',
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame('2026-06-15 10:30:00', $event->fresh()->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_resize_rejects_an_unparseable_end(): void
+    {
+        $descriptor = $this->calendar()->resizable()->toData()->model;
+        $event      = CalendarMoveEvent::firstOrFail();
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+                'end'      => 'not-a-date',
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame('2026-06-15 10:30:00', $event->fresh()->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_moveable_only_descriptor_cannot_resize(): void
+    {
+        $descriptor = $this->calendar()->toData()->model;
+        $event      = CalendarMoveEvent::firstOrFail();
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+                'end'      => '2026-06-15T12:00:00Z',
+            ])
+            ->assertStatus(403);
+
+        $this->assertSame('2026-06-15 10:30:00', $event->fresh()->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_resizable_only_descriptor_cannot_move(): void
+    {
+        $descriptor = $this->calendar()->moveable(false)->resizable()->toData()->model;
+        $event      = CalendarMoveEvent::firstOrFail();
+
+        $this->actingAs(CalendarMoveUser::create(['name' => 'Ada']))
+            ->postJson('/_kinetix/tables/calendar-move', [
+                'model'    => $descriptor,
+                'recordId' => $event->id,
+                'start'    => '2026-06-18T14:00:00Z',
+            ])
+            ->assertStatus(403);
+
+        $this->assertSame('2026-06-15 09:00:00', $event->fresh()->starts_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_a_descriptor_minted_before_resizing_existed_still_moves(): void
+    {
+        $user = CalendarMoveUser::create(['name' => 'Ada']);
+        $this->actingAs($user);
+
+        // The shape moveable() calendars minted before the move/resize flags.
+        $descriptor = SignedDescriptor::seal([
+            'model'       => CalendarMoveEvent::class,
+            'dateColumn'  => 'starts_at',
+            'endColumn'   => 'ends_at',
+            'moveAbility' => null,
+            'moveScope'   => [],
+        ]);
+        $event = CalendarMoveEvent::firstOrFail();
+
+        $this->postJson('/_kinetix/tables/calendar-move', [
+            'model'    => $descriptor,
+            'recordId' => $event->id,
+            'start'    => '2026-06-18T14:00:00Z',
+        ])->assertOk();
+
+        $this->postJson('/_kinetix/tables/calendar-resize', [
+            'model'    => $descriptor,
+            'recordId' => $event->id,
+            'end'      => '2026-06-18T18:00:00Z',
+        ])->assertStatus(403);
+
+        $fresh = $event->fresh();
+        $this->assertSame('2026-06-18 14:00:00', $fresh->starts_at->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-06-18 15:30:00', $fresh->ends_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_resize_is_authorized_and_scoped_like_a_move(): void
+    {
+        Schema::table('events', function (Blueprint $table) {
+            $table->unsignedInteger('team_id')->default(1);
+        });
+        Gate::policy(CalendarMoveEvent::class, CalendarMoveDenyPolicy::class);
+
+        $event = CalendarMoveEvent::firstOrFail();
+        $user  = CalendarMoveUser::create(['name' => 'Ada']);
+
+        // The policy denies update.
+        $this->actingAs($user)
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $this->calendar()->resizable()->toData()->model,
+                'recordId' => $event->id,
+                'end'      => '2026-06-15T12:00:00Z',
+            ])
+            ->assertStatus(403);
+
+        // Outside the scope, the record doesn't exist.
+        $this->actingAs($user)
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $this->calendar()->resizable()->authorizeMove('reschedule')->moveScope(['team_id' => 2])->toData()->model,
+                'recordId' => $event->id,
+                'end'      => '2026-06-15T12:00:00Z',
+            ])
+            ->assertStatus(404);
+
+        // The named ability, inside the scope.
+        $this->actingAs($user)
+            ->postJson('/_kinetix/tables/calendar-resize', [
+                'model'    => $this->calendar()->resizable()->authorizeMove('reschedule')->moveScope(['team_id' => 1])->toData()->model,
+                'recordId' => $event->id,
+                'end'      => '2026-06-15T12:00:00Z',
+            ])
+            ->assertOk();
+
+        $this->assertSame('2026-06-15 12:00:00', $event->fresh()->ends_at->format('Y-m-d H:i:s'));
     }
 
     public function test_a_descriptor_minted_for_another_user_is_rejected(): void
