@@ -28,6 +28,10 @@ export interface UseKinetixTableReorder {
     onDrop: () => Promise<void>;
     /** Reverts the preview when the drag ends without a drop (cancelled). */
     onDragEnd: () => void;
+    /** Value for each row's `data-kinetix-reorder` (touch drop target). */
+    reorderTarget: (index: number) => string;
+    /** Wire to pointerdown on a row's grip: touch and pen drag from there. */
+    onGripPointerDown: (index: number, event: PointerEvent) => void;
     /**
      * Keyboard alternative to dragging: move the row at `index` by `delta`
      * positions. Returns the new index, or null when the move is out of range.
@@ -115,6 +119,8 @@ export function useKinetixTableReorder(
         onDragOver: list.onDragOver,
         onDrop: list.onDrop,
         onDragEnd: list.onDragEnd,
+        reorderTarget: list.reorderTarget,
+        onGripPointerDown: list.onGripPointerDown,
         moveRowBy,
     };
 }

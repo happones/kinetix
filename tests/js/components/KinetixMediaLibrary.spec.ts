@@ -47,10 +47,19 @@ const fileItem = {
     mime: 'application/pdf',
 };
 
-const mountIt = (value: any[] = []) =>
+const mountIt = (value: any[] = [], props: Record<string, unknown> = {}) =>
     mount(KinetixMediaLibrary, {
-        props: { value, uploadToken: 'tok' },
+        props: { value, uploadToken: 'tok', ...props },
         global: { plugins: [i18n] },
+        attachTo: document.body,
+    });
+
+const touch = (type: string): PointerEvent =>
+    new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerType: 'touch',
+        isPrimary: true,
     });
 
 beforeEach(() => fetchMock.mockReset());
@@ -155,5 +164,64 @@ describe('KinetixMediaLibrary', () => {
         expect(w.findAll('[draggable="true"]')[0].classes()).not.toContain(
             'opacity-60',
         );
+    });
+
+    it('a touch drags a tile from its grip and emits the new order on release', async () => {
+        const w = mountIt([imageItem, fileItem]);
+        const tiles = w.findAll('[data-kinetix-reorder]');
+        const elementFromPoint = document.elementFromPoint;
+
+        document.elementFromPoint = vi.fn(() => tiles[0].element);
+        tiles[0]
+            .get('[data-reorder-grip]')
+            .element.dispatchEvent(touch('pointerdown'));
+        document.elementFromPoint = vi.fn(() => tiles[1].element);
+        window.dispatchEvent(touch('pointermove'));
+        await w.vm.$nextTick();
+
+        // Previewed in place before anything is emitted.
+        expect(w.emitted('update:value')).toBeUndefined();
+        expect(w.findAll('[data-kinetix-reorder]')[1].classes()).toContain(
+            'opacity-60',
+        );
+
+        window.dispatchEvent(touch('pointerup'));
+        await flushPromises();
+        document.elementFromPoint = elementFromPoint;
+
+        const emitted = w.emitted('update:value')!.at(-1)![0] as any[];
+        expect(emitted.map((i) => i.id)).toEqual([2, 1]);
+        w.unmount();
+    });
+
+    it('the arrow keys on the grip move a tile one place and keep focus on it', async () => {
+        const w = mountIt([imageItem, fileItem]);
+
+        await w.findAll('[data-reorder-grip]')[0].trigger('keydown', {
+            key: 'ArrowRight',
+        });
+        await flushPromises();
+
+        const emitted = w.emitted('update:value')!.at(-1)![0] as any[];
+        expect(emitted.map((i) => i.id)).toEqual([2, 1]);
+        expect(document.activeElement).toBe(
+            w.findAll('[data-reorder-grip]')[1].element,
+        );
+
+        // Past the end there's nowhere to go.
+        await w.findAll('[data-reorder-grip]')[1].trigger('keydown', {
+            key: 'ArrowDown',
+        });
+        expect(w.emitted('update:value')).toHaveLength(1);
+        w.unmount();
+    });
+
+    it('a disabled library offers no grip and nothing to drag', () => {
+        const w = mountIt([imageItem, fileItem], { disabled: true });
+
+        expect(w.find('[data-reorder-grip]').exists()).toBe(false);
+        expect(w.find('[draggable="true"]').exists()).toBe(false);
+        expect(w.find('[data-kinetix-reorder]').exists()).toBe(false);
+        w.unmount();
     });
 });

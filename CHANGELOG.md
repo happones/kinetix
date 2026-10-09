@@ -13,6 +13,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.215.0] - 2026-10-08
+
+Table rows and media library tiles can now be reordered on touch screens.
+Re-publish the components (`--force`).
+
+### Added
+
+- **(published)** Touch and pen reorder in tables and the media library.
+  Native drag-and-drop never fires on touch screens, so a reorderable table or
+  media field couldn't be reordered on a phone at all.
+  - Drag a row or tile by its grip: the drag starts as soon as the finger
+    moves (the grip is a dedicated handle, so no long-press), with the same
+    live preview as a mouse drag.
+  - The page, or the list's own scroller, scrolls near its edges.
+  - Letting go outside the list puts the item back, and so does a gesture the
+    platform takes over.
+  - On touch screens the table grip is a bigger target.
+- **(published)** The media library tile's grip is now a real button. The
+  arrow keys on it move the tile one place earlier or later, announced
+  (`row_moved`). It and the remove button are always visible on touch screens.
+- **(published)** `useKinetixListReorder` gains `onGripPointerDown(index,
+  event)` and `reorderTarget(index)`, the latter for each item's
+  `data-kinetix-reorder` attribute. Targets are scoped per list, so two tables
+  on a page never trade rows. `useKinetixTableReorder` passes both through.
+- **(published)** New `useKinetixTouchDrag` options:
+  - `activation: 'immediate'` starts the drag from a grip;
+  - `clone: false` drops the floating copy;
+  - `scrollAxis: 'y'` edge-scrolls vertically: the given container, else the
+    nearest scrolling ancestor, else the page;
+  - `onCancel()`.
+  - After an edge scroll it re-reads what the finger is over.
+
+### Fixed
+
+- **(published)** A touch drag the platform cancels (`pointercancel`) no longer
+  leaves a kanban card dimmed or a calendar event marked as in flight.
+- **(published)** A disabled media library no longer shows a grip or lets
+  tiles be dragged.
+
 ## [0.214.0] - 2026-10-08
 
 Calendar events can now be resized by dragging their end edge. Re-publish the

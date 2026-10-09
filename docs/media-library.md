@@ -40,6 +40,15 @@ tile travels through the grid as a **translucent live preview of its landing
 position**; the new order is applied once on drop, and a cancelled drag reverts
 the preview.
 
+Each tile's grip (top-left) is also a real control. On **touch screens**, drag
+the tile by its grip: the drag starts as soon as your finger moves, with the
+same live preview, and a long library scrolls near its edges. Letting go
+outside the grid puts the tile back. The grip and the remove button are always
+visible on touch screens, and show on hover or focus elsewhere. **Keyboard
+users** focus the grip and press the arrow keys to move the tile one place
+earlier or later. The new position is announced. A disabled field shows no
+grip and can't be reordered.
+
 ---
 
 ## Standalone (no spatie)

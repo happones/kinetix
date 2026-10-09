@@ -312,6 +312,7 @@ export function useKinetixCalendarEventMove(
                 moveEvent(event, newStart);
             }
         },
+        onCancel: onEventDragEnd,
     });
 
     const onEventPointerDown = (

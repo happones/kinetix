@@ -19,8 +19,30 @@ export interface KinetixTouchDragOptions<T> {
     onMove?: (key: string | null, x: number, y: number) => void;
     /** Fired on release with the drop key under the finger (null = cancel). */
     onDrop: (payload: T, key: string | null) => void;
-    /** Container auto-scrolled horizontally while dragging near its edges. */
+    /**
+     * Fired when an active drag ends without a release: the platform took the
+     * gesture over (`pointercancel`) or the component unmounted mid-drag.
+     */
+    onCancel?: () => void;
+    /** Container auto-scrolled while dragging near its edges. */
     scrollContainer?: () => HTMLElement | null;
+    /**
+     * Which way the edge auto-scroll runs: `x` (default) scrolls
+     * `scrollContainer` horizontally; `y` scrolls it vertically — without
+     * one, the dragged element's nearest scrolling ancestor, else the page.
+     */
+    scrollAxis?: 'x' | 'y';
+    /**
+     * `long-press` (default): the drag starts after holding still, so a
+     * touch on the element can still scroll the page. `immediate`: it starts
+     * on touch, for a dedicated grip styled `touch-action: none`.
+     */
+    activation?: 'long-press' | 'immediate';
+    /**
+     * Lift the element into a floating clone that follows the finger
+     * (default). Off for lists that preview the move in place.
+     */
+    clone?: boolean;
 }
 
 export interface KinetixTouchDrag<T> {
@@ -49,7 +71,9 @@ const EDGE_SCROLL_STEP_PX = 12;
  * floating clone that tracks the finger in real time; drop targets are
  * hit-tested by attribute so the host only maintains highlight state and the
  * move itself. Scrolling stays the default gesture — moving before the
- * long-press activates simply cancels it.
+ * long-press activates simply cancels it. A dedicated grip can start the drag
+ * on touch instead (`activation: 'immediate'`), and lists that preview the
+ * move in place can skip the clone (`clone: false`).
  */
 export function useKinetixTouchDrag<T>(
     options: KinetixTouchDragOptions<T>,
@@ -66,6 +90,7 @@ export function useKinetixTouchDrag<T>(
     let lastY = 0;
     let hoverKey: string | null = null;
     let edgeScrollFrame: number | null = null;
+    let verticalScroller: HTMLElement | null = null;
 
     const setHoverKey = (key: string | null): void => {
         if (key !== hoverKey) {
@@ -84,18 +109,69 @@ export function useKinetixTouchDrag<T>(
         );
     };
 
-    /** Keep scrolling the container while the finger holds near an edge. */
-    const edgeScrollLoop = (): void => {
-        const container = options.scrollContainer?.();
+    /** How far to scroll this frame: toward whichever edge the finger holds near. */
+    const edgeStep = (position: number, start: number, end: number): number => {
+        if (position < start + EDGE_SCROLL_ZONE_PX) {
+            return -EDGE_SCROLL_STEP_PX;
+        }
 
-        if (isTouchDragging.value && container) {
-            const rect = container.getBoundingClientRect();
+        return position > end - EDGE_SCROLL_ZONE_PX ? EDGE_SCROLL_STEP_PX : 0;
+    };
 
-            if (lastX < rect.left + EDGE_SCROLL_ZONE_PX) {
-                container.scrollLeft -= EDGE_SCROLL_STEP_PX;
-            } else if (lastX > rect.right - EDGE_SCROLL_ZONE_PX) {
-                container.scrollLeft += EDGE_SCROLL_STEP_PX;
+    /** Scroll toward the edge the finger holds near; true when it scrolled. */
+    const edgeScroll = (): boolean => {
+        const container = options.scrollContainer?.() ?? null;
+
+        if (options.scrollAxis !== 'y') {
+            if (!container) {
+                return false;
             }
+
+            const rect = container.getBoundingClientRect();
+            const before = container.scrollLeft;
+            container.scrollLeft += edgeStep(lastX, rect.left, rect.right);
+
+            return container.scrollLeft !== before;
+        }
+
+        const scroller = container ?? verticalScroller;
+
+        if (!scroller) {
+            const before = window.scrollY;
+            window.scrollBy(0, edgeStep(lastY, 0, window.innerHeight));
+
+            return window.scrollY !== before;
+        }
+
+        const rect = scroller.getBoundingClientRect();
+        const before = scroller.scrollTop;
+        scroller.scrollTop += edgeStep(lastY, rect.top, rect.bottom);
+
+        return scroller.scrollTop !== before;
+    };
+
+    /** The nearest ancestor that scrolls vertically (a modal, a windowed grid). */
+    const nearestVerticalScroller = (el: HTMLElement): HTMLElement | null => {
+        for (let node = el.parentElement; node; node = node.parentElement) {
+            const { overflowY } = getComputedStyle(node);
+
+            if (
+                (overflowY === 'auto' || overflowY === 'scroll') &&
+                node.scrollHeight > node.clientHeight
+            ) {
+                return node;
+            }
+        }
+
+        return null;
+    };
+
+    /** Keep scrolling while the finger holds near an edge. */
+    const edgeScrollLoop = (): void => {
+        // Content moved under a still finger: what it's over changed too.
+        if (isTouchDragging.value && edgeScroll()) {
+            setHoverKey(hitTest(lastX, lastY));
+            options.onMove?.(hoverKey, lastX, lastY);
         }
 
         edgeScrollFrame = isTouchDragging.value
@@ -110,8 +186,30 @@ export function useKinetixTouchDrag<T>(
             return;
         }
 
-        const rect = sourceEl.getBoundingClientRect();
-        clone = sourceEl.cloneNode(true) as HTMLElement;
+        if (options.clone !== false) {
+            liftClone(sourceEl);
+        }
+
+        verticalScroller =
+            options.scrollAxis === 'y'
+                ? nearestVerticalScroller(sourceEl)
+                : null;
+
+        isTouchDragging.value = true;
+
+        if (options.activation !== 'immediate') {
+            navigator.vibrate?.(10);
+        }
+
+        options.onStart?.(payload);
+        setHoverKey(hitTest(lastX, lastY));
+        options.onMove?.(hoverKey, lastX, lastY);
+        edgeScrollLoop();
+    };
+
+    const liftClone = (el: HTMLElement): void => {
+        const rect = el.getBoundingClientRect();
+        clone = el.cloneNode(true) as HTMLElement;
         Object.assign(clone.style, {
             position: 'fixed',
             top: `${rect.top}px`,
@@ -128,13 +226,6 @@ export function useKinetixTouchDrag<T>(
             willChange: 'transform',
         });
         document.body.appendChild(clone);
-
-        isTouchDragging.value = true;
-        navigator.vibrate?.(10);
-        options.onStart?.(payload);
-        setHoverKey(hitTest(lastX, lastY));
-        options.onMove?.(hoverKey, lastX, lastY);
-        edgeScrollLoop();
     };
 
     const cleanup = (): void => {
@@ -151,6 +242,7 @@ export function useKinetixTouchDrag<T>(
         clone?.remove();
         clone = null;
         sourceEl = null;
+        verticalScroller = null;
         payload = null;
         isTouchDragging.value = false;
         setHoverKey(null);
@@ -231,8 +323,18 @@ export function useKinetixTouchDrag<T>(
         cleanup();
     };
 
-    const onPointerCancel = (): void => {
+    /** End the gesture without a drop, telling the host when one was active. */
+    const cancel = (): void => {
+        const wasDragging = isTouchDragging.value;
         cleanup();
+
+        if (wasDragging) {
+            options.onCancel?.();
+        }
+    };
+
+    const onPointerCancel = (): void => {
+        cancel();
     };
 
     const startFromPointerDown = (
@@ -250,16 +352,21 @@ export function useKinetixTouchDrag<T>(
         sourceEl = el;
         startX = lastX = event.clientX;
         startY = lastY = event.clientY;
-        pendingTimer = setTimeout(activate, LONG_PRESS_MS);
 
         window.addEventListener('pointermove', onPointerMove);
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointercancel', onPointerCancel);
         window.addEventListener('touchmove', onTouchMove, { passive: false });
         window.addEventListener('contextmenu', onContextMenu, true);
+
+        if (options.activation === 'immediate') {
+            activate();
+        } else {
+            pendingTimer = setTimeout(activate, LONG_PRESS_MS);
+        }
     };
 
-    onBeforeUnmount(cleanup);
+    onBeforeUnmount(cancel);
 
     return { isTouchDragging, startFromPointerDown };
 }

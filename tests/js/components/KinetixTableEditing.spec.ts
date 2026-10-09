@@ -147,6 +147,56 @@ describe('KinetixTable editing and layout', () => {
         sorted.unmount();
     });
 
+    // Native drag-and-drop never fires on touch screens, so a reorderable
+    // table couldn't be reordered on a phone at all.
+    it('a touch drags a row from its grip and saves the new order', async () => {
+        fetchMock.mockResolvedValue({ status: 'success' });
+        const wrapper = mountTable(
+            baseTable({
+                reorderable: true,
+                records: [
+                    record(1, 'Alpha', 'a'),
+                    record(2, 'Beta', 'a'),
+                    record(3, 'Gamma', 'a'),
+                ],
+            }),
+        );
+        const rows = () => wrapper.findAll('tbody tr[data-kinetix-reorder]');
+        const names = () => rows().map((tr) => tr.text());
+        const touch = (type: string) =>
+            new PointerEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                pointerType: 'touch',
+                isPrimary: true,
+            });
+        const elementFromPoint = document.elementFromPoint;
+
+        document.elementFromPoint = vi.fn(() => rows()[0].element);
+        rows()[0]
+            .get('button.cursor-grab')
+            .element.dispatchEvent(touch('pointerdown'));
+        document.elementFromPoint = vi.fn(() => rows()[2].element);
+        window.dispatchEvent(touch('pointermove'));
+        await wrapper.vm.$nextTick();
+
+        expect(names()).toEqual(['Beta', 'Gamma', 'Alpha']);
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        window.dispatchEvent(touch('pointerup'));
+        await flushPromises();
+        document.elementFromPoint = elementFromPoint;
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/_kinetix/tables/reorder',
+            expect.objectContaining({
+                body: { model: 'token', ids: [2, 3, 1] },
+            }),
+        );
+
+        wrapper.unmount();
+    });
+
     // A refused value used to be console-only: it stayed in the input,
     // looking saved.
     it('says why a value was refused and shows the stored one again', async () => {

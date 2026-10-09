@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick, ref } from 'vue';
 
 import { useKinetixListReorder } from '@/composables/useKinetixListReorder';
@@ -98,5 +98,134 @@ describe('useKinetixListReorder', () => {
         await nextTick();
 
         expect(api.localItems.value).toEqual(['x', 'y', 'z']);
+    });
+
+    describe('touch, from the grip', () => {
+        const elementFromPoint = document.elementFromPoint;
+
+        afterEach(() => {
+            document.elementFromPoint = elementFromPoint;
+            document.body.innerHTML = '';
+        });
+
+        const touch = (type: string, pointerType = 'touch'): PointerEvent =>
+            new PointerEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                pointerType,
+                isPrimary: true,
+            });
+
+        /** Render the list's drop targets and put the finger over one. */
+        const items = (api: ReturnType<typeof harness>['api'], count: number) =>
+            Array.from({ length: count }, (_, index) => {
+                const el = document.createElement('div');
+                el.setAttribute(
+                    'data-kinetix-reorder',
+                    api.reorderTarget(index),
+                );
+                document.body.append(el);
+
+                return el;
+            });
+
+        const fingerOver = (el: Element | null): void => {
+            document.elementFromPoint = vi.fn(() => el);
+        };
+
+        const grip = (
+            index: number,
+            api: ReturnType<typeof harness>['api'],
+        ) => {
+            const button = document.createElement('button');
+            document.body.append(button);
+            button.addEventListener('pointerdown', (e) =>
+                api.onGripPointerDown(index, e as PointerEvent),
+            );
+
+            return button;
+        };
+
+        it('drags the item through the list under the finger and commits on release', async () => {
+            const source = ref(['a', 'b', 'c']);
+            const { api, onCommit } = harness(source);
+            const targets = items(api, 3);
+
+            fingerOver(targets[0]);
+            grip(0, api).dispatchEvent(touch('pointerdown'));
+            expect(api.draggingIndex.value).toBe(0);
+
+            fingerOver(targets[2]);
+            window.dispatchEvent(touch('pointermove'));
+            expect(api.localItems.value).toEqual(['b', 'c', 'a']);
+            expect(onCommit).not.toHaveBeenCalled();
+
+            window.dispatchEvent(touch('pointerup'));
+            await nextTick();
+
+            expect(onCommit).toHaveBeenCalledWith(['b', 'c', 'a']);
+            expect(api.draggingIndex.value).toBeNull();
+        });
+
+        it('letting go off the list puts the item back', () => {
+            const source = ref(['a', 'b', 'c']);
+            const { api, onCommit } = harness(source);
+            const targets = items(api, 3);
+
+            fingerOver(targets[0]);
+            grip(0, api).dispatchEvent(touch('pointerdown'));
+            fingerOver(targets[2]);
+            window.dispatchEvent(touch('pointermove'));
+            fingerOver(null);
+            window.dispatchEvent(touch('pointermove'));
+            window.dispatchEvent(touch('pointerup'));
+
+            expect(api.localItems.value).toEqual(['a', 'b', 'c']);
+            expect(onCommit).not.toHaveBeenCalled();
+        });
+
+        it('a cancelled gesture puts the item back', () => {
+            const source = ref(['a', 'b', 'c']);
+            const { api, onCommit } = harness(source);
+            const targets = items(api, 3);
+
+            fingerOver(targets[0]);
+            grip(0, api).dispatchEvent(touch('pointerdown'));
+            fingerOver(targets[1]);
+            window.dispatchEvent(touch('pointermove'));
+            window.dispatchEvent(touch('pointercancel'));
+
+            expect(api.localItems.value).toEqual(['a', 'b', 'c']);
+            expect(api.draggingIndex.value).toBeNull();
+            expect(onCommit).not.toHaveBeenCalled();
+        });
+
+        it("never moves into another list's items", () => {
+            const mine = harness(ref(['a', 'b']));
+            const other = harness(ref(['x', 'y']));
+            const theirs = items(other.api, 2);
+            const ours = items(mine.api, 2);
+
+            fingerOver(ours[0]);
+            grip(0, mine.api).dispatchEvent(touch('pointerdown'));
+            fingerOver(theirs[1]);
+            window.dispatchEvent(touch('pointermove'));
+            window.dispatchEvent(touch('pointerup'));
+
+            expect(mine.api.localItems.value).toEqual(['a', 'b']);
+            expect(mine.onCommit).not.toHaveBeenCalled();
+            expect(other.api.localItems.value).toEqual(['x', 'y']);
+        });
+
+        it('leaves the mouse to native drag-and-drop, and does nothing while disabled', () => {
+            const enabled = harness(ref(['a', 'b']));
+            items(enabled.api, 2);
+            grip(0, enabled.api).dispatchEvent(touch('pointerdown', 'mouse'));
+            expect(enabled.api.draggingIndex.value).toBeNull();
+
+            const disabled = harness(ref(['a', 'b']), vi.fn(), () => false);
+            grip(0, disabled.api).dispatchEvent(touch('pointerdown'));
+            expect(disabled.api.draggingIndex.value).toBeNull();
+        });
     });
 });

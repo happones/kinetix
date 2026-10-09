@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { Loader2, UploadCloud } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
+import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import { useKinetixListReorder } from '@/composables/useKinetixListReorder';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
@@ -55,10 +56,14 @@ const items = computed<KinetixMediaItem[]>(() =>
     Array.isArray(props.value) ? props.value : [],
 );
 
-// --- Reorder (native drag-and-drop) -----------------------------------------
+// --- Reorder -----------------------------------------------------------------
 // Tiles render from the composable's local copy so the dragged tile travels
 // through the grid as a live translucent preview; the new order is emitted
-// once, on drop, and reverted when the drag is cancelled.
+// once, on drop, and reverted when the drag is cancelled. The mouse drags the
+// tile natively, touch and pen drag it from its grip, and the arrow keys on
+// the grip move it one place.
+const canReorder = computed(() => props.reorderable && !props.disabled);
+
 const {
     localItems: orderedItems,
     draggingIndex,
@@ -66,11 +71,47 @@ const {
     onDragOver: onReorderOver,
     onDrop: onReorderDrop,
     onDragEnd: onReorderEnd,
+    moveItem,
+    reorderTarget,
+    onGripPointerDown,
 } = useKinetixListReorder<KinetixMediaItem>({
     items: () => items.value,
-    enabled: () => props.reorderable && !props.disabled,
+    enabled: () => canReorder.value,
     onCommit: (next) => emit('update:value', next),
 });
+
+const { announce } = useKinetixAnnounce();
+
+const moveTile = (index: number, delta: -1 | 1): void => {
+    const target = index + delta;
+
+    if (
+        !canReorder.value ||
+        target < 0 ||
+        target >= orderedItems.value.length
+    ) {
+        return;
+    }
+
+    moveItem(index, target);
+    emit('update:value', [...orderedItems.value]);
+    announce(
+        t('kinetix.row_moved', {
+            position: target + 1,
+            total: orderedItems.value.length,
+        }),
+    );
+
+    // A windowed grid can move the tile into another row, which re-creates
+    // it; put focus back on its grip.
+    nextTick(() => {
+        document
+            .querySelector<HTMLElement>(
+                `[data-kinetix-reorder="${reorderTarget(target)}"] [data-reorder-grip]`,
+            )
+            ?.focus();
+    });
+};
 
 const acceptAttr = computed(() => {
     if (props.acceptedFileTypes && props.acceptedFileTypes.length > 0) {
@@ -272,14 +313,19 @@ function preview(item: KinetixMediaItem): void {
                 v-for="(item, idx) in orderedItems"
                 :key="item.id ?? item.path ?? idx"
                 :item="item"
-                :reorderable="reorderable"
+                :reorderable="canReorder"
                 :disabled="disabled"
-                :draggable="reorderable"
+                :draggable="canReorder"
+                :data-kinetix-reorder="
+                    canReorder ? reorderTarget(idx) : undefined
+                "
                 :class="draggingIndex === idx ? KINETIX_DROP_PREVIEW_CLASS : ''"
                 @dragstart="onReorderStart(idx)"
                 @dragover="onReorderOver(idx, $event)"
                 @drop="onReorderDrop()"
                 @dragend="onReorderEnd()"
+                @grip-pointerdown="(e) => onGripPointerDown(idx, e)"
+                @move="(delta) => moveTile(idx, delta)"
                 @preview="preview(item)"
                 @remove="remove(idx)"
             />
@@ -308,9 +354,12 @@ function preview(item: KinetixMediaItem): void {
                         v-for="tile in row.tiles"
                         :key="tile.item.id ?? tile.item.path ?? tile.index"
                         :item="tile.item"
-                        :reorderable="reorderable"
+                        :reorderable="canReorder"
                         :disabled="disabled"
-                        :draggable="reorderable"
+                        :draggable="canReorder"
+                        :data-kinetix-reorder="
+                            canReorder ? reorderTarget(tile.index) : undefined
+                        "
                         :class="
                             draggingIndex === tile.index
                                 ? KINETIX_DROP_PREVIEW_CLASS
@@ -320,6 +369,10 @@ function preview(item: KinetixMediaItem): void {
                         @dragover="onReorderOver(tile.index, $event)"
                         @drop="onReorderDrop()"
                         @dragend="onReorderEnd()"
+                        @grip-pointerdown="
+                            (e) => onGripPointerDown(tile.index, e)
+                        "
+                        @move="(delta) => moveTile(tile.index, delta)"
                         @preview="preview(tile.item)"
                         @remove="remove(tile.index)"
                     />

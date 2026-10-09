@@ -1,5 +1,8 @@
 import { computed, ref, watch } from 'vue';
 import type { ComputedRef, Ref } from 'vue';
+import { useKinetixTouchDrag } from '@/composables/useKinetixTouchDrag';
+
+let reorderListUid = 0;
 
 /**
  * Return a new array with the item at `from` moved to `to`. Pure so the
@@ -48,6 +51,17 @@ export interface UseKinetixListReorder<T> {
     onDragEnd: () => void;
     /** Move an item programmatically (keyboard alternative) — preview only. */
     moveItem: (from: number, to: number) => void;
+    /**
+     * Value for each item's `data-kinetix-reorder` attribute: marks it as a
+     * place a touch drag can move to, in this list only.
+     */
+    reorderTarget: (index: number) => string;
+    /**
+     * Wire to pointerdown on an item's grip, styled `touch-action: none`.
+     * Touch and pen drag the item through the list from there with the same
+     * live preview as a mouse drag; mouse input is left to native drag-and-drop.
+     */
+    onGripPointerDown: (index: number, event: PointerEvent) => void;
 }
 
 /**
@@ -56,6 +70,12 @@ export interface UseKinetixListReorder<T> {
  * as a translucent preview), then the final order is committed once on drop —
  * or reverted when the drag is cancelled. Shared by the table row reorder and
  * the media library grid.
+ *
+ * Native drag-and-drop never fires on touch screens, so touch and pen drag from
+ * the item's grip instead: the drag starts on touch (the grip is a dedicated
+ * handle, so no long-press), the item under the finger is found by its
+ * `data-kinetix-reorder` attribute, and the page or the list's scroller
+ * scrolls near its edges. Letting go off the list puts it back.
  */
 export function useKinetixListReorder<T>(
     options: UseKinetixListReorderOptions<T>,
@@ -78,14 +98,9 @@ export function useKinetixListReorder<T>(
         }
     };
 
-    const onDragOver = (index: number, event: DragEvent): void => {
-        if (dragIndex.value === null) {
-            return;
-        }
-
-        event.preventDefault();
-
-        if (dragIndex.value === index) {
+    /** Live preview: the item in flight takes `index`. */
+    const previewMove = (index: number): void => {
+        if (dragIndex.value === null || dragIndex.value === index) {
             return;
         }
 
@@ -95,6 +110,15 @@ export function useKinetixListReorder<T>(
             index,
         );
         dragIndex.value = index;
+    };
+
+    const onDragOver = (index: number, event: DragEvent): void => {
+        if (dragIndex.value === null) {
+            return;
+        }
+
+        event.preventDefault();
+        previewMove(index);
     };
 
     const onDrop = async (): Promise<void> => {
@@ -119,6 +143,55 @@ export function useKinetixListReorder<T>(
         localItems.value = moveArrayItem(localItems.value, from, to);
     };
 
+    // --- Touch / pen (from the grip) --------------------------------------------
+    const listId = `kx-reorder-${++reorderListUid}`;
+
+    const reorderTarget = (index: number): string => `${listId}:${index}`;
+
+    /** The index a hit-tested target stands for, or null for another list's. */
+    const targetIndex = (key: string | null): number | null => {
+        if (!key?.startsWith(`${listId}:`)) {
+            return null;
+        }
+
+        const index = Number(key.slice(listId.length + 1));
+
+        return Number.isInteger(index) ? index : null;
+    };
+
+    const touchDrag = useKinetixTouchDrag<number>({
+        targetAttr: 'data-kinetix-reorder',
+        activation: 'immediate',
+        clone: false,
+        scrollAxis: 'y',
+        onStart: (index) => onDragStart(index),
+        onHover: (key) => {
+            const index = targetIndex(key);
+
+            if (index !== null) {
+                previewMove(index);
+            }
+        },
+        onDrop: (_index, key) => {
+            if (targetIndex(key) === null) {
+                onDragEnd();
+            } else {
+                void onDrop();
+            }
+        },
+        onCancel: () => onDragEnd(),
+    });
+
+    const onGripPointerDown = (index: number, event: PointerEvent): void => {
+        if (options.enabled?.() ?? true) {
+            touchDrag.startFromPointerDown(
+                event,
+                event.currentTarget as HTMLElement,
+                index,
+            );
+        }
+    };
+
     return {
         localItems,
         draggingIndex,
@@ -127,5 +200,7 @@ export function useKinetixListReorder<T>(
         onDrop,
         onDragEnd,
         moveItem,
+        reorderTarget,
+        onGripPointerDown,
     };
 }

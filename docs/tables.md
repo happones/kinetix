@@ -1140,6 +1140,14 @@ persists the new order to an integer column (`sort_order` by default) — the
 table defaults to ordering by it. A cancelled drag (<kbd>Esc</kbd>, or released
 outside the table) reverts the preview without persisting anything.
 
+On **touch screens**, drag a row by its grip: the drag starts as soon as your
+finger moves, with the same live preview, and the page scrolls when you hold
+near its top or bottom edge. Swiping anywhere else on the row still scrolls.
+Letting go outside the table puts the row back. On touch screens the grip is a
+bigger target. **Keyboard users** focus the grip and press <kbd>↑</kbd> /
+<kbd>↓</kbd>. Each move is announced, and a burst of key presses is saved as
+one request.
+
 ```php
 Table::make(Section::query())->reorderable(); // persists to `sort_order`
 Table::make(Section::query())->reorderable('position'); // custom column

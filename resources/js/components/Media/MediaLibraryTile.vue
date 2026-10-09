@@ -7,6 +7,11 @@ import type { KinetixMediaItem } from '@/types/kinetix';
 /**
  * A single media grid tile. Extracted so `KinetixMediaLibrary` can render the
  * same markup on both its plain-grid and its virtualized path.
+ *
+ * On a reorderable library the grip is a real control: touch and pen drag the
+ * tile from it (it's `touch-action: none`, so the page doesn't scroll), and
+ * the arrow keys move the tile one place earlier or later. The grip and the
+ * remove button show on hover and focus, and always on touch screens.
  */
 const props = defineProps<{
     item: KinetixMediaItem;
@@ -17,6 +22,10 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'preview'): void;
     (e: 'remove'): void;
+    /** Pointer down on the grip — touch and pen start a drag from here. */
+    (e: 'grip-pointerdown', event: PointerEvent): void;
+    /** Arrow keys on the grip: one place earlier (-1) or later (1). */
+    (e: 'move', delta: -1 | 1): void;
 }>();
 
 const { t } = useI18n();
@@ -81,14 +90,25 @@ const humanSize = computed<string>(() => {
             <span class="shrink-0 text-muted-foreground">{{ humanSize }}</span>
         </div>
 
-        <GripVertical
+        <button
             v-if="reorderable"
-            class="left-1 top-1 size-4 text-white/80 drop-shadow absolute cursor-grab opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100"
-        />
+            type="button"
+            data-reorder-grip
+            class="left-1 top-1 size-6 bg-black/50 text-white absolute flex cursor-grab touch-none items-center justify-center rounded-full opacity-0 transition-opacity outline-none group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing pointer-coarse:opacity-100"
+            :aria-label="t('kinetix.reorder')"
+            @click.stop
+            @pointerdown="emit('grip-pointerdown', $event)"
+            @keydown.left.prevent="emit('move', -1)"
+            @keydown.up.prevent="emit('move', -1)"
+            @keydown.right.prevent="emit('move', 1)"
+            @keydown.down.prevent="emit('move', 1)"
+        >
+            <GripVertical class="size-3.5" aria-hidden="true" />
+        </button>
         <button
             v-if="!disabled"
             type="button"
-            class="right-1 top-1 size-6 bg-black/50 text-white absolute flex items-center justify-center rounded-full opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-destructive focus-visible:opacity-100 dark:hover:bg-destructive/60"
+            class="right-1 top-1 size-6 bg-black/50 text-white absolute flex items-center justify-center rounded-full opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-destructive focus-visible:opacity-100 dark:hover:bg-destructive/60 pointer-coarse:opacity-100"
             :aria-label="t('kinetix.remove')"
             @click.stop="emit('remove')"
         >

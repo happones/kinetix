@@ -433,6 +433,8 @@ const {
     onDragOver,
     onDrop,
     onDragEnd,
+    reorderTarget,
+    onGripPointerDown,
     moveRowBy,
 } = useKinetixTableReorder({
     records: () => props.table.records,
@@ -441,6 +443,7 @@ const {
     routePrefix: () => routePrefix.value,
 });
 
+// Touch screens drag from the grip (native drag-and-drop never fires there).
 // Keyboard alternative to dragging: arrows on the focused grip move the row.
 // Focus travels with the button (rows are keyed by id, so Vue moves the node).
 const moveRowKeyboard = (index: number, delta: number): void => {
@@ -669,6 +672,11 @@ const totalColumnSpan = computed(
                             :draggable="
                                 (item.type === 'row' && canReorder) || undefined
                             "
+                            :data-kinetix-reorder="
+                                item.type === 'row' && canReorder
+                                    ? reorderTarget(item.index)
+                                    : undefined
+                            "
                             :tabindex="
                                 item.type === 'row' &&
                                 isRowClickable(item.record)
@@ -754,7 +762,13 @@ const totalColumnSpan = computed(
                                     <button
                                         type="button"
                                         :aria-label="t('kinetix.reorder')"
-                                        class="p-0.5 flex cursor-grab items-center justify-center rounded-md transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
+                                        class="p-0.5 pointer-coarse:p-1.5 flex cursor-grab touch-none items-center justify-center rounded-md transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
+                                        @pointerdown="
+                                            onGripPointerDown(
+                                                item.index,
+                                                $event,
+                                            )
+                                        "
                                         @keydown.up.prevent="
                                             moveRowKeyboard(item.index, -1)
                                         "

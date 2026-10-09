@@ -227,6 +227,34 @@ describe('KinetixKanban card clicks and drag feedback', () => {
         await card.trigger('dragend');
         expect(card.classes()).not.toContain('opacity-40');
     });
+
+    // The platform can take a touch drag over (pointercancel); the card used
+    // to stay dimmed as if still in flight.
+    it('a cancelled touch drag leaves nothing in flight', async () => {
+        vi.useFakeTimers();
+        const w = mountIt();
+        const card = w.findAll('article')[0];
+        const touch = (type: string) =>
+            new PointerEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                pointerType: 'touch',
+                isPrimary: true,
+            });
+
+        card.element.dispatchEvent(touch('pointerdown'));
+        vi.advanceTimersByTime(250);
+        await w.vm.$nextTick();
+        expect(card.classes()).toContain('opacity-40');
+
+        window.dispatchEvent(touch('pointercancel'));
+        await w.vm.$nextTick();
+
+        expect(card.classes()).not.toContain('opacity-40');
+        expect(fetchMock).not.toHaveBeenCalled();
+        vi.useRealTimers();
+        w.unmount();
+    });
 });
 
 describe('KinetixKanban reorderable boards', () => {

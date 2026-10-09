@@ -130,6 +130,7 @@ const touchDrag = useKinetixTouchDrag<{
             moveCard(drag.card, drag.from, key, index);
         }
     },
+    onCancel: onDragEnd,
 });
 
 function onCardPointerDown(
