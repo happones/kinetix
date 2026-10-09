@@ -51,6 +51,10 @@ class DoctorCommand extends Command
 
     public function handle(): int
     {
+        // The command instance outlives a run (tests, a long-lived worker):
+        // start from no findings.
+        $this->findings = [];
+
         $this->checkRouting();
         $this->checkModules();
         $this->checkPermissions();
@@ -718,9 +722,25 @@ class DoctorCommand extends Command
                 'notifiable models share one row per id (a Client #1 reads a User #1\'s choices) until its type column exists',
                 $publish,
             );
+        } elseif (! collect(Schema::getIndexes('kinetix_notification_preferences'))->contains(
+            static fn (array $index): bool => $index['unique'] && $index['columns'] === ['user_id', 'notifiable_type'],
+        )) {
+            $this->warn_(
+                'Notification preferences',
+                'the table has no unique key on user_id + notifiable_type, so two saves at once can split a user\'s choices across rows',
+                $publish,
+            );
         }
 
         $types = app(NotificationTypeRegistry::class)->all();
+
+        if (array_key_exists('kinetix.data-exports', $types)) {
+            $this->warn_(
+                'Notification preferences',
+                'kinetix.data-exports is registered, but personal-data exports are always delivered, so its switches do nothing',
+                'Remove it from kinetix.notification_preferences.types.',
+            );
+        }
 
         if ($types === []) {
             $this->warn_(

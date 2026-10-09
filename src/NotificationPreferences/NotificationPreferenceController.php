@@ -29,9 +29,12 @@ class NotificationPreferenceController
     {
         $user = $this->user($request);
 
+        // Only a channel the type is delivered on has a switch.
+        $type = $request->input('type');
+
         $validated = $request->validate([
             'type'    => ['required', 'string', Rule::in(array_keys($this->registry->all()))],
-            'channel' => ['required', 'string', Rule::in(array_keys($this->manager->channels()))],
+            'channel' => ['required', 'string', Rule::in(is_string($type) ? $this->manager->channelsOf($type) : [])],
             'enabled' => ['required', 'boolean'],
         ]);
 

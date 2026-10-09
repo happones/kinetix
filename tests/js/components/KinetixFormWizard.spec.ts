@@ -24,7 +24,10 @@ const field = (name: string, extra: Record<string, unknown> = {}) => ({
 });
 
 /** Whether the first step lets the user move on, for these values. */
-const canLeaveFirstStep = (values: Record<string, unknown>) => {
+const canLeaveFirstStep = (
+    values: Record<string, unknown>,
+    extra: Record<string, unknown>[] = [],
+) => {
     const wrapper = mount(KinetixFormWizard, {
         props: {
             comp: {
@@ -34,6 +37,7 @@ const canLeaveFirstStep = (values: Record<string, unknown>) => {
                         type: 'wizard-step',
                         heading: 'Account',
                         schema: [
+                            ...extra,
                             field('type'),
                             field('company', {
                                 isRequired: true,
@@ -92,5 +96,38 @@ describe('KinetixFormWizard step guard', () => {
         expect(canLeaveFirstStep({ type: 'other', reason: 'Because' })).toBe(
             true,
         );
+    });
+
+    // The guard walked into the items' schema and looked for `qty` among the
+    // form's own values: "Next" never unblocked.
+    it('counts a repeater by its items, not its sub-fields', () => {
+        const items = {
+            type: 'repeater',
+            name: 'items',
+            minItems: 2,
+            schema: [field('qty', { isRequired: true })],
+        };
+
+        expect(
+            canLeaveFirstStep(
+                { type: 'person', items: [{ qty: '3' }, { qty: '' }] },
+                [items],
+            ),
+        ).toBe(true);
+        expect(
+            canLeaveFirstStep({ type: 'person', items: [{ qty: '3' }] }, [
+                items,
+            ]),
+        ).toBe(false);
+        expect(
+            canLeaveFirstStep({ type: 'person', lines: [] }, [
+                {
+                    type: 'table-repeater',
+                    name: 'lines',
+                    isRequired: true,
+                    schema: [field('sku', { isRequired: true })],
+                },
+            ]),
+        ).toBe(false);
     });
 });

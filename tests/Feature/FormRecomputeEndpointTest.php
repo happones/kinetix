@@ -180,11 +180,15 @@ class FormRecomputeEndpointTest extends TestCase
         $this->assertSame([1 => 'Ada'], $byName['author_id']['options']);
     }
 
-    /** Every debounced keystroke in a live field rebuilds the form. */
+    /**
+     * Every debounced keystroke in a live field rebuilds the form. The limit
+     * counts on its own: unprefixed, it shared one counter with every plain
+     * `throttle:N,M` route of the host.
+     */
     public function test_the_endpoint_is_rate_limited(): void
     {
         $middleware = Route::getRoutes()->getByName('kinetix.forms.recompute')->gatherMiddleware();
 
-        $this->assertContains('throttle:120,1', $middleware);
+        $this->assertContains('throttle:120,1,kinetix-recompute', $middleware);
     }
 }

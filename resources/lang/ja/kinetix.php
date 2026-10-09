@@ -259,6 +259,7 @@ return [
     'notification_prefs_description'    => '通知の受け取り方法を選択してください。',
     'notification_prefs_type'           => '通知',
     'notification_prefs_empty'          => '通知タイプが設定されていません。',
+    'notification_prefs_not_sent'       => 'このチャネルでは送信されません',
     'saved_views_label'                 => 'ビュー',
     'saved_view_save_current'           => '現在のビューを保存',
     'saved_view_name'                   => 'ビューに名前を付ける',

@@ -275,6 +275,7 @@ return [
     'notification_prefs_description' => 'Elige cómo quieres recibir las notificaciones.',
     'notification_prefs_type'        => 'Notificación',
     'notification_prefs_empty'       => 'No hay tipos de notificación configurados.',
+    'notification_prefs_not_sent'    => 'No se envía por este canal',
 
     // Saved views
     'saved_views_label'       => 'Vistas',

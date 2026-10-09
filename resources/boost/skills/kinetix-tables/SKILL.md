@@ -75,13 +75,16 @@ them itself. `->authorize('ability')` is re-checked on the endpoint per record (
 has an explicit subject (`authorize('deleteAny', Post::class)`): then each record also passes the
 `update`/`writeAbility()` check. A record `FormAction` only runs on rows it rendered on; a bulk
 action whose `visible()`/`hidden()`/`authorize()` closure takes a record (even `?Post $record`)
-only runs on the rows it allowed on the page shown. Setters chained on the table reach the endpoint:
+only runs on the rows it allowed on the pages shown (a selection kept across pages sends each page's
+descriptor). Setters chained on the table reach the endpoint:
 subclass-declared properties that differ from a fresh `make()` are sealed and restored (models as
-identifiers, re-fetched). A closure set by a setter throws at render time, so compute it inside the
-class. Toolbar/footer actions (groups included) are judged with no record: closures run now (one
-typed for a record hides the action), and `authorize('ability')` is checked against the model class.
-The button shows exactly when the endpoint would run it. A footer `FormAction` runs like a toolbar
-one. Names must be unique per table.
+identifiers, re-fetched). A closure set by a setter, or an unsaved model, throws at render time, so
+compute it inside the class; closures the class builds itself are compared by source and need
+nothing, and `#[Unsealed]` keeps a render-time memo behind. Toolbar/footer/empty-state actions
+(groups included) are judged with no record: closures run now (one typed for a record hides the
+action), and `authorize('ability')` is checked against the model class. The button shows exactly
+when the endpoint would run it. A footer or empty-state `FormAction` runs like a toolbar one. Names
+must be unique per table.
 
 ## Tables inside relation managers
 

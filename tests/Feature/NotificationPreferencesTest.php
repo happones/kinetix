@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Gdpr\Jobs\GdprExportJob;
 use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\NotificationPreferences\NotificationPreference;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
@@ -19,6 +20,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class NotifPrefUser extends Authenticatable
 {
@@ -142,8 +144,73 @@ class NotificationPreferencesTest extends TestCase
 
     private function migrateTypeColumn(): void
     {
-        (require __DIR__.'/../../database/migrations/2026_01_01_000039_add_notifiable_type_to_kinetix_notification_preferences_table.php')->up();
+        foreach (self::TYPE_MIGRATIONS as $migration) {
+            (require __DIR__.'/../../database/migrations/'.$migration)->up();
+        }
+
         NotificationPreference::flushOwnerTypeColumn();
+    }
+
+    private const TYPE_MIGRATIONS = [
+        '2026_01_01_000039_add_notifiable_type_to_kinetix_notification_preferences_table.php',
+        '2026_01_01_000040_scope_kinetix_notification_preferences_unique_to_type.php',
+    ];
+
+    /**
+     * @return array<string, array{unique: bool, columns: list<string>}>
+     */
+    private function preferenceIndexes(): array
+    {
+        $indexes = [];
+
+        foreach (Schema::getIndexes('kinetix_notification_preferences') as $index) {
+            if (! $index['primary']) {
+                $indexes[$index['name']] = ['unique' => $index['unique'], 'columns' => $index['columns']];
+            }
+        }
+
+        return $indexes;
+    }
+
+    /**
+     * The generated index name, with a table prefix, ran past MySQL's 64
+     * characters; the old key was dropped before the new one was added, so
+     * the failure left the table with no unique key at all.
+     */
+    public function test_the_type_migrations_key_rows_by_id_and_type_under_a_short_name(): void
+    {
+        $this->migrateTypeColumn();
+
+        $this->assertSame(
+            ['kinetix_notif_prefs_owner_unique' => ['unique' => true, 'columns' => ['user_id', 'notifiable_type']]],
+            $this->preferenceIndexes(),
+        );
+
+        foreach (array_reverse(self::TYPE_MIGRATIONS) as $migration) {
+            (require __DIR__.'/../../database/migrations/'.$migration)->down();
+        }
+
+        $this->assertFalse(Schema::hasColumn('kinetix_notification_preferences', 'notifiable_type'));
+        $this->assertSame([['user_id']], array_column($this->preferenceIndexes(), 'columns'));
+    }
+
+    /**
+     * Where an earlier run stopped after adding the column and dropping the
+     * old key, the next one used to return early (the column was there) and
+     * leave the table without a unique key.
+     */
+    public function test_a_table_left_without_its_unique_key_is_repaired(): void
+    {
+        Schema::table('kinetix_notification_preferences', function (Blueprint $table): void {
+            $table->string('notifiable_type')->nullable();
+        });
+        Schema::table('kinetix_notification_preferences', function (Blueprint $table): void {
+            $table->dropUnique(['user_id']);
+        });
+
+        $this->migrateTypeColumn();
+
+        $this->assertSame([['user_id', 'notifiable_type']], array_column($this->preferenceIndexes(), 'columns'));
     }
 
     /**
@@ -308,5 +375,70 @@ class NotificationPreferencesTest extends TestCase
         $this->artisan('kinetix:doctor')
             ->expectsOutputToContain('until its type column exists')
             ->expectsOutputToContain('2 type(s) registered');
+    }
+
+    public function test_doctor_reports_a_table_without_its_unique_key(): void
+    {
+        Schema::table('kinetix_notification_preferences', function (Blueprint $table): void {
+            $table->string('notifiable_type')->nullable();
+        });
+        Schema::table('kinetix_notification_preferences', function (Blueprint $table): void {
+            $table->dropUnique(['user_id']);
+        });
+
+        $this->artisan('kinetix:doctor')->expectsOutputToContain('no unique key on user_id + notifiable_type')->run();
+
+        $this->migrateTypeColumn();
+
+        $this->artisan('kinetix:doctor')->doesntExpectOutputToContain('no unique key on user_id + notifiable_type');
+    }
+
+    /**
+     * Kinetix's own notifications only go to the database and broadcast: the
+     * Email switch shown for them did nothing either way.
+     */
+    public function test_a_type_offers_only_the_channels_it_is_sent_on(): void
+    {
+        KinetixNotificationPreferences::types([KinetixNotificationPreferences::EXPORTS => 'Finished exports']);
+        KinetixNotificationPreferences::deliverOn('marketing', ['mail']);
+        $user = $this->user();
+
+        $types = collect($this->actingAs($user)->getJson('/_kinetix/notification-preferences')->json('types'))
+            ->mapWithKeys(static fn (array $type): array => [$type['key'] => $type['channels']]);
+
+        $this->assertSame(['mail' => true, 'database' => true], $types['orders']);
+        $this->assertSame(['mail' => true], $types['marketing']);
+        $this->assertSame(['database' => true], $types[KinetixNotificationPreferences::EXPORTS]);
+
+        $this->actingAs($user)
+            ->postJson('/_kinetix/notification-preferences', [
+                'type' => KinetixNotificationPreferences::EXPORTS, 'channel' => 'mail', 'enabled' => false,
+            ])
+            ->assertStatus(422);
+    }
+
+    /**
+     * The export's notification is the only way to its file: a user who had
+     * switched the type off asked for their data and never got it.
+     */
+    public function test_a_personal_data_export_is_delivered_whatever_the_preferences(): void
+    {
+        NotificationFacade::fake();
+        Storage::fake('local');
+        KinetixNotificationPreferences::types(['kinetix.data-exports' => 'Your data']);
+        $user    = $this->user();
+        $manager = app(NotificationPreferenceManager::class);
+        $manager->update($user, 'kinetix.data-exports', 'database', false);
+        $manager->update($user, 'kinetix.data-exports', 'mail', false);
+
+        (new GdprExportJob(NotifPrefUser::class, $user->getKey()))->handle();
+
+        NotificationFacade::assertSentTo(
+            $user,
+            KinetixLaravelNotification::class,
+            static fn (KinetixLaravelNotification $notification, array $channels): bool => $channels === ['database'],
+        );
+
+        $this->artisan('kinetix:doctor')->expectsOutputToContain('personal-data exports are always delivered');
     }
 }

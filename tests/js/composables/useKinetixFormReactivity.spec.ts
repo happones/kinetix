@@ -164,6 +164,69 @@ describe('useKinetixFormReactivity', () => {
         expect(onChanges).not.toHaveBeenCalled();
     });
 
+    // An aborted request's fields were dropped: `country`'s hook never ran
+    // for the value the user ended up with.
+    it('sends the fields of a superseded request with the next one', async () => {
+        fetchMock.mockImplementationOnce(
+            (_url: string, opts: { signal: AbortSignal }) =>
+                new Promise((_resolve, reject) => {
+                    opts.signal.addEventListener('abort', () => {
+                        const error = new Error('aborted');
+                        error.name = 'AbortError';
+                        reject(error);
+                    });
+                }),
+        );
+        fetchMock.mockResolvedValue({ schema: [], changes: {} });
+
+        const { onFieldChange } = useKinetixFormReactivity({
+            descriptor: () => 'signed-token',
+            getValues: () => ({}),
+            onSchema: () => {},
+            onChanges: () => {},
+            debounce: 0,
+        });
+
+        onFieldChange(true, 'country');
+        await flush();
+        onFieldChange(true, 'name');
+        await flush();
+        await flush();
+
+        const sent = fetchMock.mock.calls.map(
+            ([, opts]) => (opts as any).body.changed,
+        );
+        expect(sent).toEqual([['country'], ['country', 'name']]);
+    });
+
+    it('sends the fields of a failed request with the next one', async () => {
+        fetchMock.mockRejectedValueOnce(new Error('Too Many Attempts.'));
+        fetchMock.mockResolvedValue({ schema: [], changes: {} });
+
+        const { onFieldChange } = useKinetixFormReactivity({
+            descriptor: () => 'signed-token',
+            getValues: () => ({}),
+            onSchema: () => {},
+            onChanges: () => {},
+            debounce: 0,
+        });
+
+        onFieldChange(true, 'country');
+        await flush();
+        await flush();
+        onFieldChange(true, 'name');
+        await flush();
+        await flush();
+        onFieldChange(true, 'name');
+        await flush();
+        await flush();
+
+        const sent = fetchMock.mock.calls.map(
+            ([, opts]) => (opts as any).body.changed,
+        );
+        expect(sent).toEqual([['country'], ['country', 'name'], ['name']]);
+    });
+
     it('gives focus back only when the schema swap took it away', async () => {
         document.body.innerHTML =
             '<input id="country" value="es" /><input id="note" />';

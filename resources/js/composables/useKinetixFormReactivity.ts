@@ -74,7 +74,8 @@ export function applyFormChanges(
  *   - ABORT + VERSIONING: a new live change aborts the request in flight and
  *     invalidates its response at once (not only when the next request is
  *     sent), so values computed from what the user has since replaced never
- *     land.
+ *     land. The fields it named go with the next request (as do a failed
+ *     one's), so their hooks still run against the final values.
  *   - FOCUS PRESERVATION: if the schema swap blurs the input the user was in,
  *     focus and caret go back to it. Focus the user moved elsewhere is left
  *     alone.
@@ -92,6 +93,13 @@ export function useKinetixFormReactivity(
     let seq = 0;
     // Live fields changed since the last request, in the order they changed.
     let changed: string[] = [];
+    // The fields the request in flight carries. A request that is superseded
+    // or fails hands them back, so their hooks still run on the next one.
+    let inFlight: string[] = [];
+
+    const requeue = (fields: string[]): void => {
+        changed = [...new Set([...fields, ...changed])];
+    };
 
     const captureFocus = (): { id: string; start: number | null } | null => {
         const el = document.activeElement as
@@ -162,6 +170,7 @@ export function useKinetixFormReactivity(
         const mySeq = ++seq;
         const fields = changed;
         changed = [];
+        inFlight = fields;
 
         recomputing.value = true;
         const focus = captureFocus();
@@ -180,8 +189,15 @@ export function useKinetixFormReactivity(
                 },
             );
 
-            // Discard a response that a newer change has already superseded.
-            if (mySeq !== seq || !result) {
+            // Discard a response that a newer change has already superseded
+            // (its fields went back into `changed` then).
+            if (mySeq !== seq) {
+                return;
+            }
+
+            inFlight = [];
+
+            if (!result) {
                 return;
             }
 
@@ -197,8 +213,14 @@ export function useKinetixFormReactivity(
         } catch (e) {
             if (!isKinetixAbort(e)) {
                 // A failed recompute leaves the current schema in place — the
-                // form stays usable rather than breaking on a transient error.
+                // form stays usable rather than breaking on a transient error
+                // — and its fields ride along with the next one.
                 recomputing.value = false;
+
+                if (mySeq === seq) {
+                    requeue(fields);
+                    inFlight = [];
+                }
             }
 
             return;
@@ -228,6 +250,9 @@ export function useKinetixFormReactivity(
 
         // A response computed from the value the user just replaced must not
         // land: drop the request in flight now, not when the next one is sent.
+        // The fields it carried go with the next one.
+        requeue(inFlight);
+        inFlight = [];
         controller?.abort();
         controller = null;
         seq++;

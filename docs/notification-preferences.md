@@ -117,14 +117,14 @@ user's own action and is never filtered.
 
 Kinetix's own notifications already carry a type. They keep going out on every
 channel until you register the type; from then on it appears in the matrix and
-each user's choice applies:
+each user's choice applies. They're delivered in-app and by broadcast, never by
+mail, so their row has no Email switch:
 
 | Constant (`KinetixNotificationPreferences::`) | Key | Sent when |
 |---|---|---|
 | `EXPORTS` | `kinetix.exports` | an export finishes or fails |
 | `IMPORTS` | `kinetix.imports` | an import finishes or fails |
 | `REPORTS` | `kinetix.reports` | a Reports Center run is ready |
-| `DATA_EXPORTS` | `kinetix.data-exports` | a personal-data (GDPR) export is ready or fails |
 
 ```php
 'types' => [
@@ -133,8 +133,18 @@ each user's choice applies:
 ],
 ```
 
-Transactional mail (temporary passwords, member activation links) has no type
-and is always sent.
+A type of your own that doesn't go out on every channel can say so, and its row
+shows only those switches:
+
+```php
+KinetixNotificationPreferences::deliverOn('orders', ['mail', 'database']);
+```
+
+A personal-data (GDPR) export is always delivered: it answers the user's own
+request, and its notification is the only way to reach the file. The
+`DATA_EXPORTS` type (`kinetix.data-exports`) is no longer used; `kinetix:doctor`
+warns if it's still registered. Transactional mail (temporary passwords, member
+activation links) has no type and is always sent.
 
 ### Several notifiable models
 
@@ -148,9 +158,13 @@ php artisan vendor:publish --tag=kinetix-notification-preferences-migrations
 php artisan migrate
 ```
 
-Rows written before it keep a null type and stay with the default user model;
-that user's next change claims the row. `php artisan kinetix:doctor` warns while
-the column is missing, and when the module is on with no types registered.
+Rows written before it keep a null type and belong to the default user model:
+`credentials.user_model` when set, otherwise your auth provider's model or
+`membership.user_model`. That user's next change claims the row. The
+migrations make a key unique per model type; a run that stopped halfway is
+finished by the next `migrate`. `php artisan kinetix:doctor` warns while the
+column or that unique key is missing, and when the module is on with no types
+registered.
 
 ---
 
@@ -164,4 +178,4 @@ Registered under your Kinetix prefix (team-aware when `kinetix.teams` is on):
 | `POST` | `{prefix}/notification-preferences`| `kinetix.notification-preferences.update` |
 
 `index` returns the full matrix; `update` sets one `{type, channel, enabled}`
-(validated against the registered types + channels).
+(validated against the registered types and the channels each is delivered on).

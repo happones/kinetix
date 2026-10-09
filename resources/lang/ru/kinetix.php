@@ -259,6 +259,7 @@ return [
     'notification_prefs_description'    => 'Выберите, как вы хотите получать уведомления.',
     'notification_prefs_type'           => 'Уведомление',
     'notification_prefs_empty'          => 'Типы уведомлений не настроены.',
+    'notification_prefs_not_sent'       => 'Не отправляется этим способом',
     'saved_views_label'                 => 'Представления',
     'saved_view_save_current'           => 'Сохранить текущее представление',
     'saved_view_name'                   => 'Название представления',

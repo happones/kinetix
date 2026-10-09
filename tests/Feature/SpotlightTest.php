@@ -196,7 +196,7 @@ class SpotlightTest extends TestCase
             ->first(fn ($r): bool => $r->getName() === 'kinetix.spotlight.search');
 
         $this->assertNotNull($route);
-        $this->assertContains('throttle:60,1', $route->gatherMiddleware());
+        $this->assertContains('throttle:60,1,kinetix-spotlight', $route->gatherMiddleware());
     }
 
     public function test_the_per_source_limit_defaults_to_the_config(): void

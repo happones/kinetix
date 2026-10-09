@@ -436,10 +436,13 @@ with its dependent options already resolved.
   waits 300ms.
 - `$set('items.0.qty', 5)` updates just that value; the rest of `items` stays.
 - The endpoint is rate limited per user (`kinetix.forms.recompute_throttle`,
-  default `120,1`: 120 requests a minute).
+  default `120,1`: 120 requests a minute). The limit has its own counter, so it
+  doesn't share one with your app's `throttle` routes. A third segment
+  (`120,1,my-prefix`) names that counter yourself.
 - A wizard's "Next" checks the step's required fields as they are shown: a
   field its condition hides doesn't block, and a `requiredWhen` field blocks
-  while its condition holds.
+  while its condition holds. A Repeater checks its own `required()` and
+  `minItems()`; the fields inside its items are validated on submit.
 - A Repeater item stores only the fields its own conditions show; conditions
   inside an item read that item's values.
 

@@ -17,6 +17,19 @@ class NotificationTypeRegistry
     protected array $types = [];
 
     /**
+     * The channels a type is delivered on, when not every channel: the
+     * matrix offers only those, since switching another one does nothing.
+     * Kinetix's own notifications go to the database and broadcast.
+     *
+     * @var array<string, list<string>>
+     */
+    protected array $channels = [
+        KinetixNotificationPreferences::EXPORTS => ['database', 'broadcast'],
+        KinetixNotificationPreferences::IMPORTS => ['database', 'broadcast'],
+        KinetixNotificationPreferences::REPORTS => ['database', 'broadcast'],
+    ];
+
+    /**
      * @param array<int|string, string> $types key=>label, or a plain list of keys
      */
     public function register(array $types): void
@@ -43,5 +56,25 @@ class NotificationTypeRegistry
     public function has(string $type): bool
     {
         return array_key_exists($type, $this->types);
+    }
+
+    /**
+     * Declare the channels a type is delivered on.
+     *
+     * @param list<string> $channels
+     */
+    public function deliverOn(string $type, array $channels): void
+    {
+        $this->channels[$type] = $channels;
+    }
+
+    /**
+     * The channels a type is delivered on, or null for every channel.
+     *
+     * @return list<string>|null
+     */
+    public function channelsOf(string $type): ?array
+    {
+        return $this->channels[$type] ?? null;
     }
 }

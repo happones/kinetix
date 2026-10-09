@@ -36,7 +36,10 @@ use Throwable;
  *    when it has one (else the table's `writeAbility()`, or `update` when the
  *    model has a policy), and — for an action gated by a record-dependent
  *    `visible()`/`hidden()` closure — only on records that closure allowed
- *    when the table rendered ({@see SealedAction}).
+ *    when the table rendered ({@see SealedAction}). A selection kept across
+ *    pages sends the descriptors of the pages its rows were picked on
+ *    (`descriptors`); each one minted for the same user, table and action
+ *    adds the records it allowed.
  *
  * Only then is the authorized {@see Collection} handed to the action's
  * {@see BulkAction::handle()}. The whole run is wrapped in a transaction so a
@@ -44,9 +47,12 @@ use Throwable;
  */
 class BulkActionController
 {
+    /** How many other pages' descriptors one run reads. */
+    private const MAX_OTHER_PAGES = 50;
+
     public function __invoke(Request $request): JsonResponse
     {
-        $descriptor = $this->descriptor($request);
+        $descriptor = $this->descriptor((string) $request->input('descriptor'), $request);
 
         if ($descriptor instanceof JsonResponse) {
             return $descriptor;
@@ -86,6 +92,8 @@ class BulkActionController
             ], 422);
         }
 
+        $sealed = $sealed->withGrants($this->grantsFromOtherPages($request, $descriptor, $name, $sealed));
+
         // Resolve every id through the table's scope in ONE query; ids outside
         // it simply don't come back.
         $records = $this->baseQuery($descriptor)->whereKey($ids)->get();
@@ -116,14 +124,60 @@ class BulkActionController
     }
 
     /**
-     * Decrypt and validate the table's signed bulk descriptor.
+     * The records a gated action was allowed on by the other pages the
+     * selection was made on: their descriptors, when each is valid and was
+     * minted for the same table and the same configured action. Anything
+     * else adds nothing, so its rows stay refused.
+     *
+     * @param  array{model: class-string<Model>, bulk: array<string, SealedAction>, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null} $descriptor
+     * @return list<string>
+     */
+    protected function grantsFromOtherPages(Request $request, array $descriptor, string $name, SealedAction $sealed): array
+    {
+        if ($sealed->grants === null) {
+            return [];
+        }
+
+        $tokens = array_slice(array_values(array_unique(array_filter(
+            (array) $request->input('descriptors', []),
+            static fn (mixed $token): bool => is_string($token) && $token !== '',
+        ))), 0, self::MAX_OTHER_PAGES);
+
+        $grants = [];
+
+        foreach ($tokens as $token) {
+            $other = $this->descriptor($token, $request);
+
+            if ($other instanceof JsonResponse) {
+                continue;
+            }
+
+            $otherSealed = $other['bulk'][$name] ?? null;
+
+            if (
+                $otherSealed            === null
+                || $otherSealed->grants === null
+                || ! $otherSealed->isSameActionAs($sealed)
+                || array_diff_key($other, ['bulk' => true]) !== array_diff_key($descriptor, ['bulk' => true])
+            ) {
+                continue;
+            }
+
+            array_push($grants, ...$otherSealed->grants);
+        }
+
+        return $grants;
+    }
+
+    /**
+     * Decrypt and validate a table's signed bulk descriptor.
      *
      * @return array{model: class-string<Model>, bulk: array<string, SealedAction>, resource: class-string<resource>|null, scope: array<array-key, mixed>, relation: array<string, mixed>|null, ability: string|null}|JsonResponse
      */
-    protected function descriptor(Request $request): array|JsonResponse
+    protected function descriptor(string $token, Request $request): array|JsonResponse
     {
         try {
-            $payload = Crypt::decrypt((string) $request->input('descriptor'));
+            $payload = Crypt::decrypt($token);
         } catch (Throwable) {
             return response()->json([
                 'status'  => 'error',

@@ -510,5 +510,118 @@
         "value": null,
         "actual": false,
         "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": ["1.0", "1"],
+        "actual": ["1", "1.0"],
+        "expected": true,
+        "note": "two lists hold the same members whatever their order, numeric-looking or not"
+    },
+    {
+        "operator": "equals",
+        "value": ["1e1", "10"],
+        "actual": ["10", "1e1"],
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": ["1", "1.0"],
+        "actual": ["1"],
+        "expected": false
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "actual": " ",
+        "expected": false,
+        "note": "only ASCII whitespace is blank; a non-breaking space is text"
+    },
+    {
+        "operator": "falsy",
+        "value": null,
+        "actual": " 0",
+        "expected": false
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "actual": " \t\n",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": "a",
+        "actual": {
+            "0": "a"
+        },
+        "expected": true,
+        "note": "an object keyed 0..n-1 is a list"
+    },
+    {
+        "operator": "equals",
+        "value": "a",
+        "actual": {
+            "1": "a"
+        },
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": {
+            "x": "a",
+            "y": "b"
+        },
+        "actual": ["b", "a"],
+        "expected": true,
+        "note": "an expected map counts as the list of its values"
+    },
+    {
+        "operator": "in",
+        "value": {
+            "x": "a",
+            "y": "b"
+        },
+        "actual": "b",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": {
+            "x": "a"
+        },
+        "actual": "a",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": 1e21,
+        "actual": "1e+21",
+        "expected": true,
+        "note": "a float compares as JavaScript writes it"
+    },
+    {
+        "operator": "equals",
+        "value": -0.0,
+        "actual": "0",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": 0.30000000000000004,
+        "actual": "0.30000000000000004",
+        "expected": true
+    },
+    {
+        "operator": "equals",
+        "value": 0.30000000000000004,
+        "actual": "0.3",
+        "expected": false
+    },
+    {
+        "operator": "equals",
+        "value": 1.5e-7,
+        "actual": "1.5e-7",
+        "expected": true
     }
 ]

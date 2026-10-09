@@ -501,14 +501,12 @@ class Table implements Arrayable, JsonSerializable
     /**
      * The serialized empty state, or null when nothing was configured
      * (the frontend then renders the default "No records found" line).
-     * Unauthorized actions are dropped like on every other surface.
+     * Its actions have no record, so they're judged like the toolbar's
+     * ({@see recordlessActionsData()}) and sealed with them.
      */
     protected function buildEmptyStateData(): ?TableEmptyStateData
     {
-        $actions = array_values(array_filter(array_map(
-            fn (Action $action) => $action->toData(),
-            $this->emptyStateActions,
-        )));
+        $actions = $this->recordlessActionsData($this->emptyStateActions);
 
         if (
             $this->emptyStateHeading        === null
@@ -1755,9 +1753,9 @@ class Table implements Arrayable, JsonSerializable
     /**
      * The sealed maps of this user's server-side form actions, per context. A
      * record action carries the keys of the rows it rendered for, so it only
-     * runs on a row where the user saw it. A toolbar or footer action — both
-     * run with no record — is sealed when it shows: the same record-less
-     * judgement as its button, its group's included.
+     * runs on a row where the user saw it. A toolbar, footer or empty-state
+     * action — all run with no record — is sealed when it shows: the same
+     * record-less judgement as its button, its group's included.
      *
      * @return array{record: array<string, array<string, mixed>>, toolbar: array<string, array<string, mixed>>}
      */
@@ -1776,12 +1774,13 @@ class Table implements Arrayable, JsonSerializable
         $modelClass = $this->getModelClass();
         $classes    = [];
 
-        foreach ([$this->toolbarActions, $this->footerActions] as $actions) {
+        foreach ([$this->toolbarActions, $this->footerActions, $this->emptyStateActions] as $actions) {
             foreach ($this->collectFormActions($actions, withGroups: true) as [$action, $group]) {
                 $name = $action->getName();
 
-                // The same action in the toolbar and the footer is one
-                // action; two classes under one name can't both be found.
+                // The same action in the toolbar, the footer or the empty
+                // state is one action; two classes under one name can't both
+                // be found.
                 if (isset($classes[$name]) && $classes[$name] !== $action::class) {
                     throw new LogicException("Two form actions on this table are named [{$name}]. Give each a distinct name: make('…').");
                 }

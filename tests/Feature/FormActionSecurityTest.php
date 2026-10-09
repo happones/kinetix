@@ -10,6 +10,7 @@ use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -18,6 +19,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use LogicException;
+use Mockery;
+use RuntimeException;
 
 class FormActionUser extends Authenticatable
 {
@@ -577,5 +580,56 @@ class FormActionSecurityTest extends TestCase
             ->toolbarActions([CreateWidget::make()->prefix('X-')])
             ->footerActions([CreateWidget::make()->prefix('Y-')])
             ->toData();
+    }
+
+    /**
+     * Empty-state actions run with no record, like the toolbar's: they were
+     * judged with the ability deferred and never sealed, so a denied one
+     * showed and an allowed one did nothing.
+     */
+    public function test_an_empty_state_form_action_is_judged_and_sealed_like_a_toolbar_one(): void
+    {
+        $this->actingAs(FormActionUser::create(['name' => 'Ann']));
+        Gate::define('import-widgets', fn ($user): bool => false);
+
+        $data = Table::make(FormWidgetRecord::query())
+            ->emptyStateActions([
+                CreateWidget::make()->prefix('E-'),
+                CreateWidget::make('import')->authorize('import-widgets'),
+            ])
+            ->toData();
+
+        $this->assertSame(['create-widget'], array_map(static fn ($a) => $a->name, $data->emptyState->actions));
+
+        $this->runToolbarForm((string) $data->formActionDescriptor)->assertRedirect('/x');
+        $this->assertSame(['E-Ada'], FormWidgetRecord::query()->pluck('name')->all());
+    }
+
+    /**
+     * `fn ($record) => $record->…` in a toolbar is expected to fail without a
+     * record; it was reported on every render.
+     */
+    public function test_a_toolbar_gate_using_the_missing_record_is_not_reported(): void
+    {
+        $handler = $this->spy(ExceptionHandler::class);
+
+        $data = Table::make(FormWidgetRecord::query())
+            ->toolbarActions([
+                CreateWidget::make()->visible(fn ($record): bool => $record->name === 'x'),
+                CreateWidget::make('draft')->visible(fn ($record): bool => $record->isDraft()),
+                CreateWidget::make('broken')->visible(fn ($record = null): bool => throw new RuntimeException('Gate failed.')),
+            ])
+            ->toData();
+
+        $this->assertSame([], $data->toolbarActions);
+
+        // A gate failing for another reason still is.
+        $reported = [];
+        $handler->shouldHaveReceived('report')->with(Mockery::on(static function (mixed $e) use (&$reported): bool {
+            $reported[] = $e::class;
+
+            return true;
+        }));
+        $this->assertSame([RuntimeException::class], array_values(array_unique($reported)));
     }
 }

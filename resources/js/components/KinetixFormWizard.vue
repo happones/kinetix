@@ -73,22 +73,25 @@ watch(
 
 const { resolve } = useKinetixFieldConditions();
 
-const isFilled = (v: any): boolean =>
-    !(
-        v === null ||
-        v === undefined ||
-        v === '' ||
-        (Array.isArray(v) && v.length === 0)
-    );
+// Fields that repeat their schema per item: their sub-fields read each item's
+// values, not the form's, and are validated on submit.
+const ITEM_LISTS = new Set(['repeater', 'table-repeater']);
+
+interface StepRequirement {
+    name: string;
+    /** Items an item list needs; any other field just needs a value. */
+    minItems: number;
+}
 
 /**
- * The fields of a step that must be filled to move on, as the form shows them
- * NOW: a conditionally hidden field never blocks (the user can't see it) and
- * a `requiredWhen` field blocks only while its condition holds — the same
- * conditions the server applies on submit.
+ * What a step needs filled to move on, as the form shows it NOW: a
+ * conditionally hidden field never blocks (the user can't see it) and a
+ * `requiredWhen` field blocks only while its condition holds — the same
+ * conditions the server applies on submit. An item list counts its own items
+ * (`required()`, `minItems()`); the guard doesn't walk into them.
  */
-function requiredNames(nodes: any[]): string[] {
-    const names: string[] = [];
+function requirements(nodes: any[]): StepRequirement[] {
+    const found: StepRequirement[] = [];
     const walk = (arr: any[]) => {
         for (const n of arr) {
             const effect = resolve(n, props.values);
@@ -97,18 +100,38 @@ function requiredNames(nodes: any[]): string[] {
                 continue;
             }
 
-            if (Array.isArray(n.schema)) {
+            const isItemList = ITEM_LISTS.has(n.type);
+
+            if (Array.isArray(n.schema) && !isItemList) {
                 walk(n.schema);
             }
 
-            if (n.name && (effect.required ?? n.isRequired)) {
-                names.push(n.name);
+            const required = Boolean(effect.required ?? n.isRequired);
+            const minItems = Math.max(
+                required ? 1 : 0,
+                isItemList ? (n.minItems ?? 0) : 0,
+            );
+
+            if (n.name && minItems > 0) {
+                found.push({ name: n.name, minItems });
             }
         }
     };
     walk(nodes);
 
-    return names;
+    return found;
+}
+
+function meets(value: any, minItems: number): boolean {
+    if (Array.isArray(value)) {
+        return value.length >= minItems;
+    }
+
+    if (value !== null && typeof value === 'object') {
+        return Object.keys(value).length >= minItems;
+    }
+
+    return !(value === null || value === undefined || value === '');
 }
 
 function beforeNext(index: number): boolean {
@@ -118,8 +141,8 @@ function beforeNext(index: number): boolean {
         return true;
     }
 
-    return requiredNames(step.schema ?? []).every((name) =>
-        isFilled(props.values[name]),
+    return requirements(step.schema ?? []).every(({ name, minItems }) =>
+        meets(props.values[name], minItems),
     );
 }
 </script>

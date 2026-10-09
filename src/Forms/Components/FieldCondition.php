@@ -23,14 +23,18 @@ use InvalidArgumentException;
  *
  *   - `equals` / `notEquals` — against a boolean, both sides compare as
  *     booleans (an untouched toggle is off); otherwise as text (`1` = `'1'`,
- *     null = `''`). A list value matches when it CONTAINS the expected value
- *     (two lists: the same members). A key/value map never equals a scalar.
+ *     null = `''`, a float written as JavaScript writes it: `1e+21`, `-0` is
+ *     `0`). A list value matches when it CONTAINS the expected value (two
+ *     lists: the same members). A key/value map never equals a scalar. An
+ *     expected map counts as the list of its values.
  *   - `in` / `notIn`         — any member of the list matches (for a list
  *     value: the two lists intersect).
  *   - `truthy` / `falsy`     — falsy is null, false, 0, `''`, `'0'`, `'false'`
  *     and an empty list or map.
  *   - `filled` / `blank`     — blank is null, a whitespace-only string and an
  *     empty list or map; numbers and booleans are always filled.
+ *     Whitespace is ASCII (space, tab, newlines, NUL, vertical tab): a
+ *     non-breaking space is text.
  */
 final class FieldCondition
 {
@@ -117,7 +121,7 @@ final class FieldCondition
             }
 
             if (is_array($expected)) {
-                return self::sameMembers($actual, $expected);
+                return self::sameMembers($actual, array_values($expected));
             }
 
             foreach ($actual as $item) {
@@ -161,7 +165,9 @@ final class FieldCondition
     {
         $texts = static function (array $list): array {
             $out = array_map(static fn (mixed $item): string => self::text($item), array_values($list));
-            sort($out);
+            // As text: numeric strings compared as numbers ('1' and '1.0')
+            // left the order, and the result, to the input order.
+            sort($out, SORT_STRING);
 
             return $out;
         };
@@ -187,8 +193,50 @@ final class FieldCondition
         return match (true) {
             $value === null   => '',
             is_bool($value)   => $value ? '1' : '0',
+            is_float($value)  => self::floatText($value),
             is_scalar($value) => (string) $value,
             default           => '',
+        };
+    }
+
+    /**
+     * A float as JavaScript's `String(n)` writes it: the shortest digits
+     * that round-trip, in plain notation from 1e-7 up to 1e21 and in
+     * exponent notation (`1e+21`, `1.5e-7`) outside it. PHP's own cast
+     * rounds to 14 digits and writes `1.0E+21`.
+     */
+    private static function floatText(float $value): string
+    {
+        if (is_nan($value)) {
+            return 'NaN';
+        }
+
+        if (is_infinite($value)) {
+            return $value > 0 ? 'Infinity' : '-Infinity';
+        }
+
+        if ($value == 0.0) {
+            return '0';
+        }
+
+        // The shortest round-trip digits, e.g. `1.0E+21`, `0.30000000000000004`.
+        $repr                  = var_export(abs($value), true);
+        [$mantissa, $exponent] = explode('E', strtoupper($repr)) + [1 => '0'];
+        [$whole, $fraction]    = explode('.', $mantissa)         + [1 => ''];
+
+        $all    = $whole.$fraction;
+        $digits = rtrim(ltrim($all, '0'), '0');
+        // The value is 0.<digits> × 10^$point.
+        $point = strlen($whole) + (int) $exponent - (strlen($all) - strlen(ltrim($all, '0')));
+        $count = strlen($digits);
+        $sign  = $value < 0 ? '-' : '';
+
+        return $sign.match (true) {
+            $count                                         <= $point && $point <= 21 => $digits.str_repeat('0', $point - $count),
+            $point > 0                           && $point <= 21 => substr($digits, 0, $point).'.'.substr($digits, $point),
+            $point > -6                          && $point <= 0  => '0.'.str_repeat('0', -$point).$digits,
+            default                                              => ($count === 1 ? $digits : $digits[0].'.'.substr($digits, 1))
+                .'e'.($point - 1 < 0 ? '-' : '+').abs($point - 1),
         };
     }
 

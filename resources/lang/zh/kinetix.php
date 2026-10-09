@@ -259,6 +259,7 @@ return [
     'notification_prefs_description'    => '选择您希望接收通知的方式。',
     'notification_prefs_type'           => '通知',
     'notification_prefs_empty'          => '未配置任何通知类型。',
+    'notification_prefs_not_sent'       => '不通过此渠道发送',
     'saved_views_label'                 => '视图',
     'saved_view_save_current'           => '保存当前视图',
     'saved_view_name'                   => '为视图命名',

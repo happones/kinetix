@@ -6,6 +6,8 @@ namespace Happones\Kinetix\Support\Concerns;
 
 use ArgumentCountError;
 use Closure;
+use Error;
+use ErrorException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use ReflectionFunction;
@@ -208,9 +210,11 @@ trait HasAuthorization
     /**
      * Run a gate closure with the given record, or null when it can't run
      * without one: its first parameter is typed for a record, or it uses the
-     * record it didn't get (`fn ($record) => $record->isDraft()`). That one is
-     * reported, not thrown — a misplaced gate fails closed instead of taking
-     * the whole page down.
+     * record it didn't get (`fn ($record) => $record->isDraft()`). That one
+     * fails closed instead of taking the whole page down. Using the missing
+     * record (a PHP `Error`, or a warning raised as an `ErrorException`) is
+     * expected in a toolbar, so it isn't reported — it would be, on every
+     * render; an exception the gate throws for another reason is.
      */
     private static function runGateWith(Closure $gate, ?Model $record): ?bool
     {
@@ -232,6 +236,8 @@ trait HasAuthorization
 
         try {
             return (bool) $gate($record);
+        } catch (Error|ErrorException) {
+            return null;
         } catch (Throwable $e) {
             report($e);
 

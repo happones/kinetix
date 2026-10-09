@@ -556,6 +556,7 @@ class KinetixServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php'                 => database_path('migrations/2026_01_01_000012_create_kinetix_notification_preferences_table.php'),
                 __DIR__.'/../database/migrations/2026_01_01_000039_add_notifiable_type_to_kinetix_notification_preferences_table.php' => database_path('migrations/2026_01_01_000039_add_notifiable_type_to_kinetix_notification_preferences_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000040_scope_kinetix_notification_preferences_unique_to_type.php'         => database_path('migrations/2026_01_01_000040_scope_kinetix_notification_preferences_unique_to_type.php'),
             ], 'kinetix-notification-preferences-migrations');
 
             // Publish the optional Saved Views module's migration.
@@ -1341,10 +1342,10 @@ class KinetixServiceProvider extends ServiceProvider
         // One request fans out to every authorized source, so a held-down key
         // is an unbounded multiplier on database load — and the endpoint is
         // reachable by any authenticated user.
-        $throttle = config('kinetix.spotlight.throttle', '60,1');
+        $throttle = self::throttleMiddleware(config('kinetix.spotlight.throttle', '60,1'), 'kinetix-spotlight');
 
-        if ($throttle !== null && $throttle !== '') {
-            $middleware[] = 'throttle:'.$throttle;
+        if ($throttle !== null) {
+            $middleware[] = $throttle;
         }
 
         Route::middleware($middleware)
@@ -2964,12 +2965,31 @@ class KinetixServiceProvider extends ServiceProvider
                 // live field is a request that rebuilds the whole form.
                 $recompute = Route::post('recompute', FormRecomputeController::class)
                     ->name('kinetix.forms.recompute');
-                $throttle = config('kinetix.forms.recompute_throttle', '120,1');
+                $throttle = self::throttleMiddleware(config('kinetix.forms.recompute_throttle', '120,1'), 'kinetix-recompute');
 
-                if ($throttle !== null && $throttle !== '') {
-                    $recompute->middleware('throttle:'.$throttle);
+                if ($throttle !== null) {
+                    $recompute->middleware($throttle);
                 }
             });
+    }
+
+    /**
+     * The `throttle` middleware for a configured `attempts,minutes` limit,
+     * counted on its own: without a prefix every plain `throttle:N,M` route
+     * shares one counter per user, so live-form typing ate into the host's
+     * own limits (Fortify's verification resend) and theirs into Kinetix's.
+     * A limit that already names its own prefix keeps it. Null when the limit
+     * is turned off.
+     */
+    private static function throttleMiddleware(mixed $limit, string $prefix): ?string
+    {
+        if (! is_scalar($limit) || $limit === '' || $limit === false) {
+            return null;
+        }
+
+        $limit = (string) $limit;
+
+        return 'throttle:'.(substr_count($limit, ',') >= 2 ? $limit : $limit.','.$prefix);
     }
 
     /**

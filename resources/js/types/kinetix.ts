@@ -779,6 +779,7 @@ export interface KinetixNotificationPreferences {
     types: {
         key: string;
         label: string;
+        /** The channels the type is sent on, each with its switch. */
         channels: Record<string, boolean>;
     }[];
 }

@@ -46,7 +46,9 @@ Defaults to enabled — only opt-outs are stored.
   $type, $channels)`.
 - `NotificationPreferenceController` (self-service, team-aware
   `{prefix}/notification-preferences`): `index`, `update` (validated against the
-  registered types + channels).
+  registered types and the channels each is delivered on).
+- `KinetixNotificationPreferences::deliverOn('orders', ['mail', 'database'])`: a type
+  sent on some channels only; its matrix row shows those switches alone.
 
 ## Gate a notification
 
@@ -63,10 +65,12 @@ Kinetix's own builder gates itself: `Notification::make()->type('orders')`
 filters the database/broadcast channels against the recipient's matrix (no
 `via()` needed). Only while the module is on AND the type is registered; no
 type, or an unregistered one, delivers on every channel. Kinetix's notifications
-carry `KinetixNotificationPreferences::EXPORTS` / `IMPORTS` / `REPORTS` /
-`DATA_EXPORTS` (`kinetix.exports`, …): register a key in `types` to let users
-turn it off. Rows are owned by key + model type (`notifiable_type`, migration
-000039), so credential-profile models never share choices.
+carry `KinetixNotificationPreferences::EXPORTS` / `IMPORTS` / `REPORTS`
+(`kinetix.exports`, …): register a key in `types` to let users turn it off.
+They go out in-app and by broadcast only, so their rows have no mail switch.
+A personal-data (GDPR) export is untyped and always delivered (`DATA_EXPORTS`
+is deprecated). Rows are owned by key + model type (`notifiable_type`,
+migrations 000039 + 000040), so credential-profile models never share choices.
 
 ## Frontend
 

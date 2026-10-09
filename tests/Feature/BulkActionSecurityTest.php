@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\BulkAction;
+use Happones\Kinetix\Actions\Unsealed;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
@@ -108,6 +109,51 @@ class TagSelected extends BulkAction
     {
         $records->each(function (BulkWidgetRecord $record): void {
             $record->name = implode('|', [$this->tag, $this->reason?->value ?? '-', $this->mergeInto?->name ?? '-']);
+            $record->save();
+        });
+    }
+}
+
+/**
+ * A bulk action that builds closures itself (one alone, some in an array)
+ * and memoizes one it shouldn't send.
+ */
+class RenameSelected extends BulkAction
+{
+    protected Closure $namer;
+
+    /** @var array<string, Closure(string): string> */
+    protected array $formatters;
+
+    #[Unsealed]
+    protected ?Closure $memo = null;
+
+    public function __construct(string $name)
+    {
+        parent::__construct($name);
+
+        $this->namer      = fn (string $name): string => $name.'!';
+        $this->formatters = ['upper' => fn (string $name): string => strtoupper($name)];
+    }
+
+    public function nameUsing(Closure $namer): static
+    {
+        $this->namer = $namer;
+
+        return $this;
+    }
+
+    public function remember(Closure $memo): static
+    {
+        $this->memo = $memo;
+
+        return $this;
+    }
+
+    public function handle(Collection $records): void
+    {
+        $records->each(function (BulkWidgetRecord $record): void {
+            $record->name = ($this->formatters['upper'])(($this->namer)($record->name));
             $record->save();
         });
     }
@@ -466,6 +512,126 @@ class BulkActionSecurityTest extends TestCase
 
         Table::make(BulkWidgetRecord::query())
             ->bulkActions([TagSelected::make()->transformUsing(fn (string $name): string => strtoupper($name))])
+            ->toData();
+    }
+
+    /**
+     * The selection outlives a page change, and each page mints its own
+     * grants: a row picked on page one used to be refused when the action ran
+     * from page two.
+     */
+    public function test_a_gated_action_runs_on_rows_selected_on_another_page(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        BulkWidgetRecord::create(['name' => 'B']);
+        BulkWidgetRecord::create(['name' => 'Locked']);
+
+        $page = function (int $page): string {
+            request()->merge(['perPage' => 1, 'page' => $page]);
+
+            return $this->descriptorFor(
+                Table::make(BulkWidgetRecord::query())
+                    ->paginated([1])
+                    ->bulkActions([ArchiveSelected::make()->visible(fn (BulkWidgetRecord $record): bool => $record->name !== 'Locked')]),
+            );
+        };
+
+        $first  = $page(1);
+        $second = $page(2);
+        $third  = $page(3);
+
+        $this->runBulk($second, [1, 2])->assertForbidden();
+
+        // The rows' own pages vouch for them; one that refused its row
+        // doesn't.
+        $this->postJson(route('kinetix.tables.bulk-action'), [
+            'descriptor'  => $second,
+            'descriptors' => [$first, $third],
+            'action'      => 'archive-selected',
+            'ids'         => [1, 2, 3],
+        ])->assertForbidden();
+
+        $this->postJson(route('kinetix.tables.bulk-action'), [
+            'descriptor'  => $second,
+            'descriptors' => [$first, 'not-a-descriptor'],
+            'action'      => 'archive-selected',
+            'ids'         => [1, 2],
+        ])->assertOk();
+
+        $this->assertSame([1 => true, 2 => true, 3 => false], BulkWidgetRecord::query()->pluck('archived', 'id')->all());
+    }
+
+    public function test_another_users_page_grants_nothing(): void
+    {
+        BulkWidgetRecord::create(['name' => 'A']);
+        BulkWidgetRecord::create(['name' => 'B']);
+
+        $page = function (int $page): string {
+            request()->merge(['perPage' => 1, 'page' => $page]);
+
+            return $this->descriptorFor(
+                Table::make(BulkWidgetRecord::query())
+                    ->paginated([1])
+                    ->bulkActions([ArchiveSelected::make()->visible(fn (BulkWidgetRecord $record): bool => true)]),
+            );
+        };
+
+        $this->actingAs(BulkActionUser::create(['name' => 'Ann']));
+        $theirs = $page(1);
+
+        $this->actingAs(BulkActionUser::create(['name' => 'Bob']));
+        $mine = $page(2);
+
+        $this->postJson(route('kinetix.tables.bulk-action'), [
+            'descriptor'  => $mine,
+            'descriptors' => [$theirs],
+            'action'      => 'archive-selected',
+            'ids'         => [1, 2],
+        ])->assertForbidden();
+
+        $this->assertFalse(BulkWidgetRecord::find(1)->archived);
+    }
+
+    public function test_closures_the_action_builds_itself_stay_with_the_class(): void
+    {
+        BulkWidgetRecord::create(['name' => 'a']);
+
+        $data = Table::make(BulkWidgetRecord::query())
+            ->bulkActions([RenameSelected::make()->remember(fn (): bool => true)])
+            ->toData();
+
+        $this->assertSame([], Crypt::decrypt((string) $data->bulkDescriptor)['bulk']['rename-selected']['state']);
+
+        $this->postJson(route('kinetix.tables.bulk-action'), [
+            'descriptor' => $data->bulkDescriptor,
+            'action'     => 'rename-selected',
+            'ids'        => [1],
+        ])->assertOk();
+
+        $this->assertSame('A!', BulkWidgetRecord::find(1)->name);
+    }
+
+    /**
+     * A closure set over one the class built itself was taken for the class's
+     * own, and the endpoint silently ran the default.
+     */
+    public function test_a_closure_set_over_the_classs_own_fails_when_the_table_renders(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(RenameSelected::class.'::namer');
+
+        Table::make(BulkWidgetRecord::query())
+            ->bulkActions([RenameSelected::make()->nameUsing(fn (string $name): string => 'configured')])
+            ->toData();
+    }
+
+    public function test_an_unsaved_model_setting_fails_when_the_table_renders(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage("isn't saved");
+
+        Table::make(BulkWidgetRecord::query())
+            ->bulkActions([TagSelected::make()->mergeInto(new BulkWidgetRecord(['name' => 'Draft']))])
             ->toData();
     }
 }

@@ -8,13 +8,17 @@ use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\BulkAction;
 use Happones\Kinetix\Actions\FormAction;
+use Happones\Kinetix\Actions\Unsealed;
+use Illuminate\Contracts\Database\ModelIdentifier;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Queue\SerializesAndRestoresModelIdentifiers;
 use Illuminate\Support\Facades\Gate;
 use LogicException;
 use ReflectionClass;
+use ReflectionFunction;
 use ReflectionProperty;
 use Throwable;
+use UnitEnum;
 
 /**
  * A server-side action ({@see BulkAction}, {@see FormAction}) as its table
@@ -40,8 +44,10 @@ use Throwable;
  *   instance gets it back ({@see instantiate()}), so `handle()` and `form()`
  *   see the action the table configured. Models travel as identifiers and
  *   are fetched again, as in a queued job; a value that can't travel (a
- *   closure set fluently) throws when the table renders instead of being
- *   lost on the way.
+ *   closure set fluently, an unsaved model) throws when the table renders
+ *   instead of being lost on the way. A closure the class builds itself is
+ *   the fresh instance's too, and a property marked {@see Unsealed} stays
+ *   behind.
  */
 final class SealedAction
 {
@@ -122,7 +128,12 @@ final class SealedAction
 
         for ($class = new ReflectionClass($action); $class !== false && ! self::isBaseClass($class->getName()); $class = $class->getParentClass()) {
             foreach ($class->getProperties() as $property) {
-                if ($property->isStatic() || $property->getDeclaringClass()->getName() !== $class->getName() || ! $property->isInitialized($action)) {
+                if (
+                    $property->isStatic()
+                    || $property->getDeclaringClass()->getName() !== $class->getName()
+                    || ! $property->isInitialized($action)
+                    || $property->getAttributes(Unsealed::class) !== []
+                ) {
                     continue;
                 }
 
@@ -140,6 +151,10 @@ final class SealedAction
 
                 $sealed = $codec->getSerializedPropertyValue($value);
 
+                if ($sealed instanceof ModelIdentifier && ($sealed->id === null || (is_array($sealed->id) && in_array(null, $sealed->id, true)))) {
+                    throw new LogicException("[{$where}] holds a model that isn't saved, so the action's endpoint can't fetch it again. Save it first, or set its attributes instead.");
+                }
+
                 try {
                     serialize($sealed);
                 } catch (Throwable) {
@@ -154,21 +169,65 @@ final class SealedAction
     }
 
     /**
-     * Whether a property still holds what a fresh `make()` gives it. Two
-     * closures can't be compared; one there in both is taken as the class's
-     * own (a fresh instance builds its own copy).
+     * Whether a property still holds what a fresh `make()` gives it, compared
+     * by structure: arrays and objects member by member, closures by where
+     * they were written and what they captured. A closure the class builds
+     * itself (in its constructor, as a default) is the same in the fresh
+     * instance; one set fluently comes from elsewhere, so it counts as
+     * configured and can't travel.
      */
-    private static function sameSetting(mixed $value, mixed $default): bool
+    private static function sameSetting(mixed $value, mixed $default, int $depth = 0): bool
     {
+        if ($value === $default) {
+            return true;
+        }
+
+        // Deeper than any setting goes: a cycle (a model and its relations).
+        if ($depth > 16) {
+            return false;
+        }
+
         if ($value instanceof Closure || $default instanceof Closure) {
-            return $value instanceof Closure && $default instanceof Closure;
+            return $value instanceof Closure && $default instanceof Closure && self::sameClosure($value, $default, $depth);
+        }
+
+        if (is_array($value) && is_array($default)) {
+            if (array_keys($value) !== array_keys($default)) {
+                return false;
+            }
+
+            foreach ($value as $key => $member) {
+                if (! self::sameSetting($member, $default[$key], $depth + 1)) {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         if (is_object($value) && is_object($default)) {
-            return $value::class === $default::class && $value == $default;
+            return $value::class === $default::class
+                && ! $value instanceof UnitEnum
+                && self::sameSetting((array) $value, (array) $default, $depth + 1);
         }
 
-        return $value === $default;
+        return false;
+    }
+
+    /**
+     * Two closures written at the same place, holding the same captured
+     * values.
+     */
+    private static function sameClosure(Closure $value, Closure $default, int $depth): bool
+    {
+        $written  = new ReflectionFunction($value);
+        $original = new ReflectionFunction($default);
+
+        return $written->getName()      === $original->getName()
+            && $written->getFileName()  === $original->getFileName()
+            && $written->getStartLine() === $original->getStartLine()
+            && $written->getEndLine()   === $original->getEndLine()
+            && self::sameSetting($written->getClosureUsedVariables(), $original->getClosureUsedVariables(), $depth + 1);
     }
 
     /**
@@ -212,6 +271,41 @@ final class SealedAction
                 ? array_values(array_map(static fn (mixed $key): string => (string) $key, array_filter($grants, 'is_scalar')))
                 : null,
             state: is_array($state) ? $state : [],
+        );
+    }
+
+    /**
+     * Whether $other seals the same action, configured the same way: the
+     * grants it carries were judged for this one.
+     */
+    public function isSameActionAs(self $other): bool
+    {
+        return $this->class        === $other->class
+            && $this->ability      === $other->ability
+            && $this->arguments    === $other->arguments
+            && $this->subjectBound === $other->subjectBound
+            && $this->state == $other->state;
+    }
+
+    /**
+     * This action, also granted on $keys: records another page of the same
+     * table allowed. An action without grants needs none.
+     *
+     * @param list<string> $keys
+     */
+    public function withGrants(array $keys): self
+    {
+        if ($this->grants === null || $keys === []) {
+            return $this;
+        }
+
+        return new self(
+            class: $this->class,
+            ability: $this->ability,
+            arguments: $this->arguments,
+            subjectBound: $this->subjectBound,
+            grants: array_values(array_unique([...$this->grants, ...$keys])),
+            state: $this->state,
         );
     }
 

@@ -7,6 +7,12 @@ vi.mock('@inertiajs/vue3', () => ({
     router: { visit: vi.fn(), get: vi.fn(), reload: vi.fn() },
 }));
 
+const fetchMock = vi.hoisted(() => vi.fn(async () => ({})));
+
+vi.mock('@/composables/useKinetixHttp', () => ({
+    kinetixFetch: fetchMock,
+}));
+
 import { useKinetixRowSelection } from '@/composables/useKinetixRowSelection';
 
 const i18n = createI18n({
@@ -20,12 +26,17 @@ const records = [record(1), record(2), record(3)];
 
 // useI18n() must run inside a component setup, so exercise the composable inside
 // a mounted harness rather than calling it bare.
-const mountSelection = () => {
+const mountSelection = (descriptor?: () => string) => {
     let api: ReturnType<typeof useKinetixRowSelection>;
 
     const Harness = defineComponent({
         setup() {
-            api = useKinetixRowSelection(() => records);
+            api = useKinetixRowSelection(
+                () => records,
+                descriptor
+                    ? { descriptor, routePrefix: () => '_kinetix' }
+                    : undefined,
+            );
 
             return () => h('div');
         },
@@ -97,5 +108,45 @@ describe('useKinetixRowSelection', () => {
         await flushPromises();
         expect(s.isBulkConfirmOpen.value).toBe(false);
         expect(s.selectionCount.value).toBe(0);
+    });
+
+    it('sends the descriptors of the pages rows were selected on', async () => {
+        let page = 'page-1';
+        const s = mountSelection(() => page);
+        const action = {
+            name: 'archive',
+            isSecureBulk: true,
+            requiresConfirmation: false,
+        } as any;
+
+        s.toggleRow(1, true);
+        page = 'page-2';
+        s.toggleRow(2, true);
+        s.requestBulkAction(action);
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenLastCalledWith(
+            '/_kinetix/tables/bulk-action',
+            expect.objectContaining({
+                body: {
+                    descriptor: 'page-2',
+                    descriptors: ['page-1'],
+                    action: 'archive',
+                    ids: [1, 2],
+                },
+            }),
+        );
+
+        // A run clears the selection, and the pages it was made on with it.
+        s.toggleRow(3, true);
+        s.requestBulkAction(action);
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenLastCalledWith(
+            '/_kinetix/tables/bulk-action',
+            expect.objectContaining({
+                body: expect.objectContaining({ descriptors: [], ids: [3] }),
+            }),
+        );
     });
 });

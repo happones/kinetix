@@ -74,4 +74,31 @@ describe('KinetixNotificationPreferences', () => {
             enabled: false,
         });
     });
+
+    // Kinetix's own types never go out by mail: their Email switch did
+    // nothing either way.
+    it('shows no switch for a channel the type is not sent on', async () => {
+        fetchMock.mockResolvedValueOnce({
+            channels: matrix.channels,
+            types: [
+                {
+                    key: 'kinetix.exports',
+                    label: 'Finished exports',
+                    channels: { database: true },
+                },
+            ],
+        });
+        const w = mountIt();
+        await flushPromises();
+
+        const boxes = w.findAllComponents(KinetixCheckbox);
+        expect(boxes.length).toBe(1);
+        expect(
+            w.find('[aria-label="Finished exports · In-app"]').exists(),
+        ).toBe(true);
+        expect(w.find('[aria-label="Finished exports · Email"]').exists()).toBe(
+            false,
+        );
+        expect(w.text()).toContain('kinetix.notification_prefs_not_sent');
+    });
 });

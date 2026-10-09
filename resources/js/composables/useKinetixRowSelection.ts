@@ -14,6 +14,10 @@ import type { KinetixAction, KinetixTableRecord } from '@/types/kinetix';
  * the action name and the selected ids to `/{prefix}/tables/bulk-action` — the
  * server resolves the ids in-scope, authorizes each, and runs the handler —
  * then reloads. Omitted (or for a plain action), the declarative path runs.
+ *
+ * The selection outlives a page change, and each page mints its own
+ * descriptor: the ones rows were picked under travel along as `descriptors`,
+ * so an action gated per record still runs on rows chosen on another page.
  */
 export interface SecureBulkContext {
     /** `bulkDescriptor` sealed by the table (name→class + scope). */
@@ -54,6 +58,17 @@ export function useKinetixRowSelection(
     const selectedIds = ref<Set<string | number>>(new Set());
     const selectionCount = computed<number>(() => selectedIds.value.size);
 
+    // The descriptors of the pages rows were selected on (see SecureBulkContext).
+    const pickedUnder = new Set<string>();
+
+    const notePage = (): void => {
+        const descriptor = secureBulk?.descriptor();
+
+        if (descriptor) {
+            pickedUnder.add(descriptor);
+        }
+    };
+
     const isRowSelected = (id: string | number): boolean =>
         selectedIds.value.has(id);
 
@@ -62,6 +77,7 @@ export function useKinetixRowSelection(
 
         if (checked) {
             next.add(id);
+            notePage();
         } else {
             next.delete(id);
         }
@@ -83,10 +99,15 @@ export function useKinetixRowSelection(
             checked ? next.add(r.id) : next.delete(r.id),
         );
         selectedIds.value = next;
+
+        if (checked) {
+            notePage();
+        }
     };
 
     const clearSelection = (): void => {
         selectedIds.value = new Set();
+        pickedUnder.clear();
     };
 
     // Bulk actions dispatch the selected ids; destructive ones gate on a modal.
@@ -113,7 +134,14 @@ export function useKinetixRowSelection(
                     `/${secureBulk?.routePrefix()}/tables/bulk-action`,
                     {
                         method: 'POST',
-                        body: { descriptor, action: action.name, ids },
+                        body: {
+                            descriptor,
+                            descriptors: [...pickedUnder].filter(
+                                (picked) => picked !== descriptor,
+                            ),
+                            action: action.name,
+                            ids,
+                        },
                     },
                 );
                 router.reload();

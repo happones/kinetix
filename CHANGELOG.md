@@ -13,6 +13,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.218.0] - 2026-10-09
+
+The rest of the review of 0.207.1–0.216.0: server-side actions, forms and
+notification preferences. Re-publish the components and the translations
+(`--force`) to pick up the frontend fixes, and the notification-preferences
+migrations
+(`--tag=kinetix-notification-preferences-migrations`) for the new `000040`.
+
+### Added
+
+- **`#[Unsealed]`** (`Happones\Kinetix\Actions\Unsealed`) on a property of a
+  `BulkAction` or `FormAction` subclass keeps it on the table: the endpoint's
+  instance keeps its fresh value. For a value the action fills in itself while
+  it renders (a memoized form, a cache).
+- **`KinetixNotificationPreferences::deliverOn($type, $channels)`** declares
+  the channels a type is sent on; its row in the matrix shows only those
+  switches, and the endpoint refuses the others.
+
+### Changed
+
+- **A personal-data (GDPR) export's notification is always delivered.** It
+  answers the user's own request and is the only way to reach the file, yet a
+  user who had switched `kinetix.data-exports` off got nothing.
+  `KinetixNotificationPreferences::DATA_EXPORTS` is deprecated, and
+  `kinetix:doctor` warns while it's registered.
+- **The recompute and Spotlight rate limits count on their own**
+  (`throttle:120,1,kinetix-recompute`, `throttle:60,1,kinetix-spotlight`).
+  Without a prefix they shared one counter per user with every plain
+  `throttle:N,M` route, so live-form typing could make the host's own limited
+  routes (Fortify's verification resend) answer 429, and the host's traffic
+  used up Kinetix's. A third segment in the config names the counter yourself.
+- **Migration `000039` only adds the type column; the new `000040` moves the
+  unique key** onto key + type, under a short name, adding the new key before
+  dropping the old one. The generated name, with a MySQL table prefix, ran
+  past 64 characters; the old key was dropped first, so the failure left the
+  table with no unique key, and a re-run returned early. `000040` also repairs
+  a table left that way, and `kinetix:doctor` warns while the key is missing.
+  **(published)**
+
+### Fixed
+
+- **A gated bulk action refused rows selected on another page.** The
+  selection outlives a page change, but each page's descriptor only vouched
+  for its own rows, so the whole batch got a 403. The selection now sends the
+  descriptors of the pages its rows were picked on, and each one minted for
+  the same user, table and action adds the rows it allowed. **(published)**
+- **A closure set over one the action builds itself was dropped silently.**
+  Two closures always compared as the same setting, so the endpoint ran the
+  class's default. Closures now compare by where they were written and what
+  they captured: one set from the table throws when the table renders, like
+  any closure set by a setter.
+- **An action whose constructor builds closures (in an array, or an object
+  holding one) threw on every render,** with nothing set fluently. Settings now
+  compare member by member, and a closure the class builds itself matches the
+  fresh instance's.
+- **An unsaved model set on an action made every run a 404.** It throws when
+  the table renders instead, naming the property.
+- **Empty-state actions skipped the record-less judgement and weren't
+  sealed.** An action denied in the toolbar still showed there, and a
+  `FormAction` there did nothing. They're judged and sealed like the
+  toolbar's.
+- **A toolbar gate written `fn ($record) => $record->…` was reported on every
+  render.** Using the missing record (an `Error`, or a warning raised as an
+  `ErrorException`) is expected without a row and hides the action quietly;
+  any other exception the gate throws is still reported.
+- **A recompute superseded by a newer change, or one that failed, lost its
+  fields.** The next request named only the new field, so the first one's
+  `afterStateUpdated` never ran for the value the user ended up with (a
+  currency that didn't follow the country). Those fields now go with the next
+  request. **(published)**
+- **A wizard step with a Repeater whose items have a required field never let
+  the user go on.** The step guard looked for the item's fields among the
+  form's own values. It now checks an item list by its own `required()` and
+  `minItems()`, and leaves its items to the submit. **(published)**
+- **The browser and the server disagreed on some field conditions,** so a
+  field shown in the browser could be dropped or required on save. Lists with
+  numeric-looking members (`['1', '1.0']`) now compare as text on the server;
+  only ASCII whitespace is blank in the browser, as on the server; an object
+  keyed `0..n-1` is a list in the browser, as the server decodes it; an
+  expected map counts as the list of its values on both sides; and the server
+  writes a float as the browser does (`1e+21`, `-0` as `0`, every digit of
+  `0.30000000000000004`). The shared fixture covers each case.
+  **(published)**
+- **The notification matrix showed an Email switch for Kinetix's own types,**
+  which only go out in-app and by broadcast; it did nothing either way. Their
+  rows show a dash there now. **(published)**
+- **`kinetix:doctor` kept the findings of an earlier run** in the same
+  process (tests, a long-lived worker).
+
 ## [0.217.0] - 2026-10-09
 
 The ordering and drag fixes from the review of 0.207.1–0.216.0. Re-publish the

@@ -2,10 +2,24 @@ import type { KinetixFieldCondition } from '@/types/kinetix';
 
 type Value = unknown;
 
-const isList = (v: Value): v is unknown[] => Array.isArray(v);
-
 const isMap = (v: Value): v is Record<string, unknown> =>
     v !== null && typeof v === 'object' && !Array.isArray(v);
+
+// The server reads an object keyed 0..n-1 as a list (that's what it decodes
+// to), so it counts as one here too.
+const isSequential = (v: Record<string, unknown>): boolean =>
+    Object.keys(v).every((key, i) => key === String(i));
+
+const isList = (v: Value): v is unknown[] | Record<string, unknown> =>
+    Array.isArray(v) || (isMap(v) && isSequential(v));
+
+const asList = (v: unknown[] | Record<string, unknown>): unknown[] =>
+    Array.isArray(v) ? v : Object.values(v);
+
+// PHP's trim(): ASCII whitespace only. A non-breaking space is text there,
+// and must be here.
+const trimAscii = (v: string): string =>
+    v.replace(/^[ \t\n\r\0\x0B]+|[ \t\n\r\0\x0B]+$/g, '');
 
 const text = (v: Value): string => {
     if (v === null || v === undefined) {
@@ -33,22 +47,21 @@ const toBool = (v: Value): boolean => {
     }
 
     if (typeof v === 'string') {
-        return !['', '0', 'false'].includes(v.trim().toLowerCase());
+        return !['', '0', 'false'].includes(trimAscii(v).toLowerCase());
     }
 
-    if (isList(v)) {
-        return v.length > 0;
+    if (isList(v) || isMap(v)) {
+        return Object.keys(v).length > 0;
     }
 
-    return isMap(v) ? Object.keys(v).length > 0 : true;
+    return true;
 };
 
 const isBlank = (v: Value): boolean =>
     v === null ||
     v === undefined ||
-    (typeof v === 'string' && v.trim() === '') ||
-    (isList(v) && v.length === 0) ||
-    (isMap(v) && Object.keys(v).length === 0);
+    (typeof v === 'string' && trimAscii(v) === '') ||
+    ((isList(v) || isMap(v)) && Object.keys(v).length === 0);
 
 const same = (a: Value, b: Value): boolean => {
     if (isList(a) || isList(b) || isMap(a) || isMap(b)) {
@@ -69,29 +82,43 @@ const sameMembers = (a: unknown[], b: unknown[]): boolean => {
     return left.length === right.length && left.every((t, i) => t === right[i]);
 };
 
+// An expected list or map: the values it holds.
+const expectedList = (v: Value): unknown[] | null =>
+    isList(v) || isMap(v) ? asList(v) : null;
+
 const matches = (actual: Value, expected: Value): boolean => {
+    const members = expectedList(expected);
+
+    if (isList(actual)) {
+        const items = asList(actual);
+
+        return members !== null
+            ? sameMembers(items, members)
+            : items.some((item) => same(item, expected));
+    }
+
     if (isMap(actual)) {
         return false;
     }
 
-    if (isList(actual)) {
-        return isList(expected)
-            ? sameMembers(actual, expected)
-            : actual.some((item) => same(item, expected));
-    }
-
-    return !isList(expected) && same(actual, expected);
+    return members === null && same(actual, expected);
 };
 
 const isIn = (actual: Value, list: Value): boolean => {
-    if (!isList(list)) {
+    const members = expectedList(list);
+
+    if (members === null) {
         return false;
     }
 
-    const candidates = isList(actual) ? actual : isMap(actual) ? [] : [actual];
+    const candidates = isList(actual)
+        ? asList(actual)
+        : isMap(actual)
+          ? []
+          : [actual];
 
     return candidates.some((candidate) =>
-        list.some((item) => same(candidate, item)),
+        members.some((item) => same(candidate, item)),
     );
 };
 

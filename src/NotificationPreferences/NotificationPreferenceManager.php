@@ -29,7 +29,22 @@ class NotificationPreferenceManager
     }
 
     /**
-     * The full matrix for a user: channels + each type with its per-channel state.
+     * The configured channels a type is delivered on: each one a switch in
+     * its row of the matrix.
+     *
+     * @return list<string>
+     */
+    public function channelsOf(string $type): array
+    {
+        $configured = array_keys($this->channels());
+        $offered    = $this->registry->channelsOf($type);
+
+        return $offered === null ? $configured : array_values(array_intersect($configured, $offered));
+    }
+
+    /**
+     * The full matrix for a user: channels + each type with its per-channel
+     * state. A type lists only the channels it is delivered on.
      *
      * @return array{channels: array<int, array{key: string, label: string}>, types: array<int, array{key: string, label: string, channels: array<string, bool>}>}
      */
@@ -41,7 +56,7 @@ class NotificationPreferenceManager
         $types = [];
         foreach ($this->registry->all() as $type => $label) {
             $state = [];
-            foreach ($channels as $channel => $channelLabel) {
+            foreach ($this->channelsOf($type) as $channel) {
                 $state[$channel] = $stored[$type][$channel] ?? true;
             }
             $types[] = ['key' => $type, 'label' => $label, 'channels' => $state];

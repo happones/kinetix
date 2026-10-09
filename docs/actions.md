@@ -659,16 +659,25 @@ that a setter chained on the table changed (`CreateInvoice::make()->currency('EU
 - Scalars, arrays, enums and value objects travel as they are.
 - Models travel as their identifier and are fetched again on the endpoint, as
   in a queued job, so they come back as they are now.
+- A model that isn't saved has no identifier to travel as: Kinetix throws when
+  the table renders. Save it first, or pass its attributes.
 - A closure set by a setter can't travel. Kinetix throws when the table
   renders, naming the property, instead of the endpoint silently running
-  without it. Compute that inside the class instead.
+  without it. Compute that inside the class instead. A closure the class
+  builds itself (in its constructor, alone or inside an array) is rebuilt by
+  the endpoint's own instance, so it needs nothing.
+- A property the action fills in for itself while rendering (a memoized
+  form, a cache) can stay behind: mark it `#[Unsealed]`
+  (`Happones\Kinetix\Actions\Unsealed`) and the endpoint's instance keeps
+  its fresh value.
 
 The base action's own settings (label, icon, modal chrome) are only for the
 button and don't travel.
 
-A `FormAction` in `footerActions()` runs record-less, like a toolbar one. The
-same action may sit in both places; two differently configured copies under
-one name throw, since the endpoint finds the action by name.
+A `FormAction` in `footerActions()` or `emptyStateActions()` runs record-less,
+like a toolbar one. The same action may sit in several of those places; two
+differently configured copies under one name throw, since the endpoint finds
+the action by name.
 
 A record action's form isn't part of each row: the modal fetches it for its
 row when it opens (a brief skeleton shows), through the same checks as a

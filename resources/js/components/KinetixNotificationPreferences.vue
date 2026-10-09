@@ -6,8 +6,9 @@ import KinetixCheckbox from './KinetixCheckbox.vue';
 
 /**
  * Drop-in notification-preferences matrix: a row per notification type and a
- * column per delivery channel, each cell a checkbox. Toggling a cell persists
- * immediately. Mount on an account / settings page.
+ * column per delivery channel, each cell a checkbox — or a dash where the
+ * type isn't sent on that channel. Toggling a cell persists immediately.
+ * Mount on an account / settings page.
  */
 const { t } = useI18n();
 const { matrix, loading, load, set } = useKinetixNotificationPreferences();
@@ -65,11 +66,12 @@ onMounted(load);
                             :key="channel.key"
                             class="px-4 py-3 text-center"
                         >
-                            <div class="flex justify-center">
+                            <div
+                                v-if="channel.key in type.channels"
+                                class="flex justify-center"
+                            >
                                 <KinetixCheckbox
-                                    :checked="
-                                        type.channels[channel.key] ?? true
-                                    "
+                                    :checked="type.channels[channel.key]"
                                     :aria-label="`${type.label} · ${channel.label}`"
                                     @change="
                                         set(
@@ -80,6 +82,16 @@ onMounted(load);
                                     "
                                 />
                             </div>
+                            <template v-else>
+                                <span
+                                    aria-hidden="true"
+                                    class="text-muted-foreground"
+                                    >—</span
+                                >
+                                <span class="sr-only">{{
+                                    t('kinetix.notification_prefs_not_sent')
+                                }}</span>
+                            </template>
                         </td>
                     </tr>
                 </tbody>

@@ -23,7 +23,9 @@ class KinetixNotificationPreferences
     /**
      * The types Kinetix's own notifications carry. They're delivered on every
      * channel until you register one in `kinetix.notification_preferences.types`;
-     * from then on it shows in the matrix and each user's choice applies.
+     * from then on it shows in the matrix and each user's choice applies. They
+     * go to the database and broadcast, so the matrix offers no mail switch
+     * for them.
      */
     public const EXPORTS = 'kinetix.exports';
 
@@ -31,6 +33,11 @@ class KinetixNotificationPreferences
 
     public const REPORTS = 'kinetix.reports';
 
+    /**
+     * @deprecated No notification carries it any more: a personal-data export
+     *             answers the user's own request, and its notification is the
+     *             only way to reach the file, so it is always delivered.
+     */
     public const DATA_EXPORTS = 'kinetix.data-exports';
 
     public static function registry(): NotificationTypeRegistry
@@ -44,6 +51,17 @@ class KinetixNotificationPreferences
     public static function types(array $types): void
     {
         static::registry()->register($types);
+    }
+
+    /**
+     * Declare the channels a type is delivered on, when it isn't every
+     * channel: the matrix shows switches for those only.
+     *
+     * @param list<string> $channels
+     */
+    public static function deliverOn(string $type, array $channels): void
+    {
+        static::registry()->deliverOn($type, $channels);
     }
 
     public static function manager(): NotificationPreferenceManager

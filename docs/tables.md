@@ -601,15 +601,16 @@ transaction:
   whole batch.
 - A `visible()`/`hidden()` or `authorize()` closure that takes the record —
   `fn (Post $record)`, `fn (?Post $record)` or `fn ($record = null)` — limits
-  the action to the records it allows on the page the user saw. One that takes
-  no record (`fn () => …`) decides whether the action exists for this user at
-  all.
+  the action to the records it allowed on the pages the user saw. A selection
+  kept across pages carries each page's answer, so a row picked on page one
+  still runs from page two. One that takes no record (`fn () => …`) decides
+  whether the action exists for this user at all.
 - Settings you chain on the table reach `handle()`
   (`ArchivePosts::make()->reason('spam')`). The endpoint's instance gets back
   every property your subclass declares that the table's instance changed.
   Models travel as identifiers and are fetched again. A closure set by a
-  setter can't travel, so Kinetix throws when the table renders instead of
-  silently dropping it. See [Actions → FormAction](actions.md#how-it-stays-secure).
+  setter, or an unsaved model, can't travel, so Kinetix throws when the table
+  renders instead of silently dropping it. See [Actions → FormAction](actions.md#how-it-stays-secure).
 
 Two server-side actions with the same name on one table are a configuration
 error (Kinetix throws), since the endpoint finds them by name.
@@ -1032,7 +1033,9 @@ Table::make(Widget::query())
 
 - Empty-state actions behave exactly like toolbar actions: modal actions open
   their modals, routed/request actions run as usual, and **unauthorized
-  actions are dropped** server-side like on every other surface.
+  actions are dropped** server-side like on every other surface. They have no
+  record, so they're judged the way the toolbar's are (an ability against the
+  model class), and a `FormAction` among them runs through the same endpoint.
 - Inside a relation manager the empty state works unchanged (a `$readOnly`
   manager strips its actions too).
 

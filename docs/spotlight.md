@@ -34,7 +34,9 @@ wait.
 
 `throttle` matters because one request fans out to **every** authorized source:
 without it a held-down key is an unbounded multiplier on database load, from any
-authenticated user.
+authenticated user. The limit has its own counter, so it doesn't share one with
+your app's `throttle` routes. A third segment (`60,1,my-prefix`) names that
+counter yourself.
 
 ---
 
