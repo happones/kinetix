@@ -38,11 +38,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Pagination\LengthAwarePaginator;
+use InvalidArgumentException;
 use JsonSerializable;
 use LogicException;
 
 class Table implements Arrayable, JsonSerializable
 {
+    /**
+     * The max-width steps a record modal accepts ({@see recordModals()}),
+     * mirrored by the literal classes in KinetixTable.vue.
+     *
+     * @var list<string>
+     */
+    public const RECORD_MODAL_WIDTHS = ['sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl', '6xl', '7xl'];
+
     /**
      * @var Builder|Model|string
      */
@@ -192,6 +201,12 @@ class Table implements Arrayable, JsonSerializable
      * default (`kinetix.tables.record_source`).
      */
     protected ?string $recordModalsSource = null;
+
+    /**
+     * Max-width step of the create/edit record modal (`2xl` when null). Set
+     * via {@see recordModals()}.
+     */
+    protected ?string $recordModalsWidth = null;
 
     /**
      * KPI cards rendered above the table.
@@ -776,11 +791,25 @@ class Table implements Arrayable, JsonSerializable
      * @param class-string<\Happones\Kinetix\Resources\Resource> $resource
      * @param string|null                                        $source   'server' (fetch a fresh record, default) or
      *                                                                     'row' (prefill the edit form from the loaded row).
+     * @param string|null                                        $width    Max-width step of the create/edit modal, one of
+     *                                                                     {@see self::RECORD_MODAL_WIDTHS} (`2xl` when null).
+     *                                                                     The view modal takes it when wider than its `3xl`.
+     *
+     * @throws InvalidArgumentException When the width is not a known step.
      */
-    public function recordModals(string $resource, ?string $source = null): static
+    public function recordModals(string $resource, ?string $source = null, ?string $width = null): static
     {
+        if ($width !== null && ! in_array($width, self::RECORD_MODAL_WIDTHS, true)) {
+            throw new InvalidArgumentException(sprintf(
+                'Unknown record modal width [%s]. Use one of: %s.',
+                $width,
+                implode(', ', self::RECORD_MODAL_WIDTHS),
+            ));
+        }
+
         $this->recordModalsResource = $resource;
         $this->recordModalsSource   = $source;
+        $this->recordModalsWidth    = $width;
 
         return $this;
     }
@@ -1106,7 +1135,7 @@ class Table implements Arrayable, JsonSerializable
     public function toolbarLayout(string $layout): static
     {
         if (! in_array($layout, ['auto', 'inline', 'stacked'], true)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 "Unsupported toolbar layout [{$layout}]. Allowed: auto, inline, stacked."
             );
         }
@@ -2090,6 +2119,7 @@ class Table implements Arrayable, JsonSerializable
             hasForm: $hasForm,
             hasInfolist: $hasInfolist,
             createForm: $hasForm ? $createForm->toArray() : null,
+            width: $this->recordModalsWidth,
         );
     }
 
@@ -2286,7 +2316,7 @@ class Table implements Arrayable, JsonSerializable
             return $this->queryOrModel->newQuery();
         }
 
-        throw new \InvalidArgumentException('Invalid query or model type provided to Table.');
+        throw new InvalidArgumentException('Invalid query or model type provided to Table.');
     }
 
     protected function fetchBatchedAggregates(Builder $baseQuery): array

@@ -39,5 +39,8 @@ class RecordModalsData extends Data
         // 'resource' → the simple-resource record endpoint; 'relation' → the
         // relation-manager record endpoint (parent-bound CRUD).
         public string $scope = 'resource',
+        // Max-width step of the create/edit modal (`2xl` when null). See
+        // Table::RECORD_MODAL_WIDTHS.
+        public ?string $width = null,
     ) {}
 }

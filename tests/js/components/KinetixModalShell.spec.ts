@@ -96,7 +96,14 @@ describe('KinetixModal — the shell is always bounded', () => {
         expect(
             (viewport.closest('[data-slot="scroll-area"]') as HTMLElement)
                 .className,
-        ).toContain('-mr-3');
+        ).toContain('-mr-4');
+        // The viewport clips its overflow: the inset keeps the fields' borders
+        // and focus rings inside it, and the negative margins line them up.
+        expect(viewport.className).toContain('p-1');
+        expect(
+            (viewport.closest('[data-slot="scroll-area"]') as HTMLElement)
+                .className,
+        ).toEqual(expect.stringContaining('-ml-1'));
         w.unmount();
     });
 

@@ -123,3 +123,53 @@ describe('KinetixTable — the record modal pins its actions', () => {
         document.body.innerHTML = '';
     });
 });
+
+describe('KinetixTable — the record modal width', () => {
+    const openCreate = async (recordModals: Record<string, unknown>) => {
+        const w = mount(KinetixTable, {
+            attachTo: document.body,
+            props: {
+                table: {
+                    ...table,
+                    recordModals: { ...table.recordModals, ...recordModals },
+                } as any,
+            },
+            global: { plugins: [i18n] },
+        });
+
+        const create = w
+            .findAll('button')
+            .find((b) => b.text() === 'New post') as any;
+        await create.trigger('click');
+        await nextTick();
+        await nextTick();
+
+        const panel = document.body.querySelector(
+            '[role="dialog"] [tabindex="-1"]',
+        ) as HTMLElement;
+
+        return { w, panel };
+    };
+
+    it('is 2xl when the table sets none', async () => {
+        const { w, panel } = await openCreate({});
+        expect(panel.className).toContain('sm:max-w-2xl');
+        w.unmount();
+        document.body.innerHTML = '';
+    });
+
+    it('takes the width the table sets', async () => {
+        const { w, panel } = await openCreate({ width: '4xl' });
+        expect(panel.className).toContain('sm:max-w-4xl');
+        expect(panel.className).not.toContain('sm:max-w-2xl');
+        w.unmount();
+        document.body.innerHTML = '';
+    });
+
+    it('ignores a width it does not know', async () => {
+        const { w, panel } = await openCreate({ width: 'huge' });
+        expect(panel.className).toContain('sm:max-w-2xl');
+        w.unmount();
+        document.body.innerHTML = '';
+    });
+});

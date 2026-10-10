@@ -236,14 +236,20 @@ const { headingId } = useKinetixFocusTrap({
                             </div>
                         </slot>
 
-                        <!-- `-mr-3 pr-3` parks the ScrollArea's overlay bar
+                        <!-- `-mr-4 pr-3` parks the ScrollArea's overlay bar
                              in the panel's right padding instead of on top of
                              the fields (the reka viewport hides the native
-                             scrollbar, so nothing reserves that gutter). -->
+                             scrollbar, so nothing reserves that gutter).
+                             The viewport clips what overflows it, so it gets a
+                             1-unit inset (`p-1`, given back by `-my-1 -ml-1`
+                             and the extra unit of `-mr-4`): the fields keep
+                             their borders and their 3px focus ring at the
+                             edges, and still line up with the header. -->
                         <ScrollArea
                             v-if="scrollBody"
                             type="auto"
-                            class="-mr-3 min-h-0 pr-3"
+                            class="-my-1 -ml-1 -mr-4 min-h-0 pr-3"
+                            viewport-class="p-1"
                         >
                             <slot />
                         </ScrollArea>

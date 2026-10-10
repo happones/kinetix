@@ -932,7 +932,7 @@ Table-level methods control refresh, pagination, and row behavior:
   width.
 
 <Screenshot name="table-toolbar" alt="Table toolbar with search, actions, filters and column toggle" />
-- `recordModals(string $resource, ?string $source = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
+- `recordModals(string $resource, ?string $source = null, ?string $width = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. `width` sizes the create/edit modal (`sm` … `7xl`, `2xl` by default). See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
 
 ### Eager loading relations — `with()`
 

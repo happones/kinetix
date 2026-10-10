@@ -506,6 +506,19 @@ per table:
 ->recordModals(ClientResource::class, source: 'row')
 ```
 
+**Modal width.** The create/edit modal is `2xl` wide; pass a wider (or
+narrower) Tailwind step for a form that needs the room — `sm` … `7xl`. The
+view modal keeps its `3xl` unless the width you pick is wider:
+
+```php
+->recordModals(ClientResource::class, width: '3xl')
+```
+
+Form grids measure the **form's** width, not the viewport's, so
+`->columns(12)` (an int: that many columns from `lg`, 1024px, up) stays a
+single column in any modal narrower than that. Inside a modal name the
+breakpoint: `->columns(['default' => 1, 'sm' => 12])` lays out from 640px.
+
 **View modal.** The View action renders the resource's `infolist()` (server-
 resolved, read-only). `--generate` scaffolds an `infolist()` for you; remove the
 method (or the `ViewAction`) to drop the View button.

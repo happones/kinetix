@@ -124,7 +124,9 @@ it; the dragged rows trade the positions they hold, so paging,
 filters and search are safe; off while a column sort or group is active), `saveViews(?key)` (per-user presets; key defaults
 to `Model:queryPrefix`), `queryPrefix('tags_')` (multiple tables per page), `stats([...])` (KPI
 cards over the same filtered query), `recordModals(Resource::class)` (in-table modal CRUD for
-simple resources — NOT inside relation managers), `simplePaginated()` (no COUNT) /
+simple resources — NOT inside relation managers; `width: '3xl'` sizes the form modal, `sm`…`7xl`, default
+`2xl`; form grids measure the FORM, so inside a modal use `columns(['default' => 1, 'sm' => 12])`, not
+`columns(12)`, which only applies from 1024px), `simplePaginated()` (no COUNT) /
 `cursorPaginated()` (seek), `clientSide()` (TanStack in-browser mode), `writeAbility('ability')` /
 `writeScope([...])` (inline-write policy + bounds), `toolbarLayout('auto'|'inline'|'stacked')`,
 `emptyStateHeading/Description/Icon/Actions()` (custom no-rows card via the shared

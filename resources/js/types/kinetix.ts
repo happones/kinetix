@@ -1438,6 +1438,22 @@ export interface KinetixRecordModals {
      * relation-manager record endpoint (CRUD bound to the parent record).
      */
     scope?: 'resource' | 'relation';
+    /**
+     * Width of the create/edit modal (Tailwind max-width step, `2xl` when
+     * null). The view modal takes it too when it is wider than its `3xl`.
+     */
+    width?:
+        | 'sm'
+        | 'md'
+        | 'lg'
+        | 'xl'
+        | '2xl'
+        | '3xl'
+        | '4xl'
+        | '5xl'
+        | '6xl'
+        | '7xl'
+        | null;
 }
 
 /** A computed column summary (sum/average/count/range/custom). */

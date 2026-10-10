@@ -85,6 +85,31 @@ class RecordModalCrudTest extends TestCase
         $this->assertNull(Table::make(RecordModalWidget::query())->toData()->recordModals);
     }
 
+    public function test_record_modals_width_is_serialized(): void
+    {
+        $this->assertNull(
+            Table::make(RecordModalWidget::query())
+                ->recordModals(RecordModalWidgetResource::class)
+                ->toData()
+                ->recordModals
+                ->width,
+        );
+
+        $this->assertSame('3xl', Table::make(RecordModalWidget::query())
+            ->recordModals(RecordModalWidgetResource::class, width: '3xl')
+            ->toData()
+            ->recordModals
+            ->width);
+    }
+
+    public function test_record_modals_refuses_an_unknown_width(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown record modal width [huge]');
+
+        Table::make(RecordModalWidget::query())->recordModals(RecordModalWidgetResource::class, width: 'huge');
+    }
+
     public function test_resolve_returns_a_fresh_filled_form_for_edit(): void
     {
         $this->postJson(route('kinetix.tables.record.resolve'), [

@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.0] - 2026-10-10
+
+Record modals get a configurable width and stop cutting their fields at the
+edges. Re-publish the components (`--force`) to pick both up.
+
+### Added
+
+- **`recordModals(..., width: '3xl')`** sizes the create/edit record modal: a
+  Tailwind max-width step from `sm` to `7xl` (`2xl` stays the default, an
+  unknown step throws). The view modal takes it when it is wider than its
+  `3xl`. **(published)** — `KinetixTable.vue` and the `KinetixRecordModals`
+  type.
+
+### Fixed
+
+- A modal with `scrollBody` (every record and form-action modal) no longer
+  cuts the fields at its edges: the scroll viewport clipped their borders and
+  3px focus rings, so the first input lost its ring and the side borders read
+  as cut off. The viewport has a 1-unit inset, given back by negative margins,
+  so the fields still line up with the header. **(published)** —
+  `primitives/KinetixModal.vue`.
+
 ## [0.218.1] - 2026-10-09
 
 ### Fixed

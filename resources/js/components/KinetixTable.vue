@@ -240,6 +240,43 @@ const {
     routePrefix: () => routePrefix.value,
 });
 
+// `recordModals(width: …)` sizes the create/edit modal (2xl when unset). The
+// view modal keeps its 3xl unless the chosen width is wider. Literal classes,
+// so Tailwind's JIT sees every one of them.
+const RECORD_MODAL_WIDTHS = {
+    sm: 'sm:max-w-sm',
+    md: 'sm:max-w-md',
+    lg: 'sm:max-w-lg',
+    xl: 'sm:max-w-xl',
+    '2xl': 'sm:max-w-2xl',
+    '3xl': 'sm:max-w-3xl',
+    '4xl': 'sm:max-w-4xl',
+    '5xl': 'sm:max-w-5xl',
+    '6xl': 'sm:max-w-6xl',
+    '7xl': 'sm:max-w-7xl',
+} as const;
+type RecordModalWidth = keyof typeof RECORD_MODAL_WIDTHS;
+const RECORD_MODAL_WIDTH_ORDER = Object.keys(
+    RECORD_MODAL_WIDTHS,
+) as RecordModalWidth[];
+
+const recordModalWidth = computed<RecordModalWidth>(() => {
+    const width = props.table.recordModals?.width;
+
+    return width && width in RECORD_MODAL_WIDTHS
+        ? (width as RecordModalWidth)
+        : '2xl';
+});
+const recordFormMaxWidth = computed(
+    () => RECORD_MODAL_WIDTHS[recordModalWidth.value],
+);
+const recordInfolistMaxWidth = computed(() =>
+    RECORD_MODAL_WIDTH_ORDER.indexOf(recordModalWidth.value) >
+    RECORD_MODAL_WIDTH_ORDER.indexOf('3xl')
+        ? RECORD_MODAL_WIDTHS[recordModalWidth.value]
+        : RECORD_MODAL_WIDTHS['3xl'],
+);
+
 // --- Server-side form actions (FormAction) -----------------------------------
 // A record/toolbar action flagged `isFormAction` opens a modal hosting its
 // KinetixForm; submit POSTs the values to the signed form-action endpoint,
@@ -1073,7 +1110,7 @@ const totalColumnSpan = computed(
                     recordLabel ||
                     (isRecordEditing ? t('kinetix.edit') : t('kinetix.create'))
                 "
-                max-width="sm:max-w-2xl"
+                :max-width="recordFormMaxWidth"
                 :processing="recordProcessing"
                 scroll-body
                 placement="top"
@@ -1188,7 +1225,7 @@ const totalColumnSpan = computed(
             <KinetixModal
                 :open="isRecordInfolistOpen"
                 :title="recordLabel || t('kinetix.view')"
-                max-width="sm:max-w-3xl"
+                :max-width="recordInfolistMaxWidth"
                 scroll-body
                 placement="top"
                 @update:open="(value) => !value && closeRecordInfolist()"
