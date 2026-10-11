@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.3] - 2026-10-10
+
+### Fixed
+
+- **Forms:** `Textarea::rows()` sets the field's height again. The textarea
+  sizes itself to its content (`field-sizing-content`, as in shadcn v4), which
+  makes the browser ignore the `rows` attribute, so a field asked for eight
+  rows opened at two. The rows are now a minimum height, and longer content
+  still grows the field. **(published)** — `Form/fields/TextareaField.vue`.
+
 ## [0.219.2] - 2026-10-10
 
 ### Fixed
