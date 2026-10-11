@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.2] - 2026-10-10
+
+### Fixed
+
+- **Tables:** a sortable column header now has the same uppercase, spaced
+  label as the others. Its label sits in a `<button>`, and Tailwind's preflight
+  resets `text-transform` on buttons, so sortable headers read in mixed case
+  next to uppercase ones. **(published)** — `Table/KinetixTableHead.vue`.
+- **Actions:** `DeleteAction`'s confirmation names what it does: the heading
+  is `kinetix.confirm_delete` ("Delete?") and the button `kinetix.delete`,
+  instead of a bare "Are you sure?" answered by "Confirm". No default
+  description, since whether a delete can be undone depends on the model (soft
+  deletes); `modalHeading()` / `modalDescription()` still override both.
+
 ## [0.219.1] - 2026-10-10
 
 ### Fixed

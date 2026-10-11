@@ -79,10 +79,13 @@ const getAriaSort = (
                     col.alignment === 'right' ? 'text-right' : 'text-left',
                 ]"
             >
+                <!-- `uppercase tracking-wider` again on the button: Tailwind's
+                     preflight resets text-transform on buttons, so a sortable
+                     header lost the casing and spacing of its neighbours. -->
                 <button
                     v-if="col.isSortable"
                     type="button"
-                    class="gap-1 inline-flex items-center rounded-md transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    class="gap-1 tracking-wider inline-flex items-center rounded-md uppercase transition-colors outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     @click="emit('toggle-sort', col.name)"
                 >
                     {{ col.label }}

@@ -47,6 +47,15 @@ describe('KinetixTableHead accessibility', () => {
         expect(plain.attributes('aria-sort')).toBeUndefined();
     });
 
+    it('keeps a sortable header in the same casing as the others', () => {
+        // Preflight resets text-transform on <button>, so the sort button has
+        // to restate what its <th> sets or the label drops to mixed case.
+        const button = mountHead().find('th button');
+
+        expect(button.classes()).toContain('uppercase');
+        expect(button.classes()).toContain('tracking-wider');
+    });
+
     it('flips aria-sort with the active sort direction', async () => {
         const wrapper = mountHead({ sort: 'title', direction: 'asc' });
 
