@@ -43,6 +43,21 @@ const hasToggleableColumns = computed<boolean>(() =>
     props.table.columns.some((c) => c.isToggleable),
 );
 
+/**
+ * Whether the toolbar has anything to show. Without a heading, search, saved
+ * views, actions, filters or column toggle it would render as an empty padded
+ * band above the table.
+ */
+const hasContent = computed<boolean>(
+    () =>
+        Boolean(props.table.heading || props.table.description) ||
+        hasSearch.value ||
+        hasToggleableColumns.value ||
+        Boolean(props.table.savedViewsKey) ||
+        (props.table.toolbarActions?.length ?? 0) > 0 ||
+        props.table.filters.length > 0,
+);
+
 const forwardSetFilter = (name: string, value: unknown): void => {
     emit('set-filter', name, value);
 };
@@ -68,7 +83,7 @@ const layoutClass = computed<string>(() => {
 </script>
 
 <template>
-    <div class="kinetix-toolbar-host">
+    <div v-if="hasContent" class="kinetix-toolbar-host">
         <div
             data-slot="card-header"
             class="kinetix-toolbar p-6 gap-4 border-b border-border"

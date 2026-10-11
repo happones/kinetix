@@ -30,7 +30,11 @@ class ReportScheduleController
                 TextColumn::make('report_class')
                     ->label((string) __('kinetix.report_runs_report_column'))
                     ->formatStateUsing(fn ($value) => (new $value)->label()),
-                TextColumn::make('frequency'),
+                TextColumn::make('frequency')
+                    ->label((string) __('kinetix.report_schedule_frequency'))
+                    ->formatStateUsing(fn ($value) => $value instanceof ReportFrequency
+                        ? $value->getLabel()
+                        : (ReportFrequency::tryFrom((string) $value)?->getLabel() ?? (string) $value)),
                 ToggleColumn::make('enabled'),
                 TextColumn::make('next_run_at')->dateTime(),
                 TextColumn::make('last_run_at')->dateTime(),

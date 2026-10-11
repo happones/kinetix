@@ -17,6 +17,14 @@ enum ReportFrequency: string
     case Monthly = 'monthly';
 
     /**
+     * The cadence as people read it, in the visitor's language.
+     */
+    public function getLabel(): string
+    {
+        return (string) __('kinetix.report_frequency_'.$this->value);
+    }
+
+    /**
      * The next run instant after `$from`, or `null` for `Once` (it never
      * recurs — the schedule disables itself once it has fired).
      */

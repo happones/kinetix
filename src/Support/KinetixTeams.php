@@ -78,6 +78,33 @@ class KinetixTeams
     }
 
     /**
+     * Whether the user is a member of the given team, through the configured
+     * teams relation. Used where the team comes from a record rather than
+     * from the URL (a link opened later, from anywhere).
+     */
+    public static function userBelongsTo(?Model $user, int|string $teamKey): bool
+    {
+        if ($user === null) {
+            return false;
+        }
+
+        $relationName = (string) config('kinetix.team_switcher.teams_relation', 'teams');
+
+        if (method_exists($user, $relationName)) {
+            $relation = $user->{$relationName}();
+
+            if ($relation instanceof Relation) {
+                return $relation->getQuery()
+                    ->where($relation->getRelated()->getQualifiedKeyName(), $teamKey)
+                    ->exists();
+            }
+        }
+
+        // No teams relation to check against: only the team the user is on.
+        return (string) $user->getAttribute('current_team_id') === (string) $teamKey;
+    }
+
+    /**
      * Resolve the current team's PRIMARY KEY for data scoping. The
      * `{current_team}` route segment is the team's ROUTE key (the host may
      * route teams by slug/uuid — `Team::getRouteKeyName()`), so it must never

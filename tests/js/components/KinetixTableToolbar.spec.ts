@@ -63,6 +63,24 @@ describe('KinetixTableToolbar layout', () => {
         expect(wrapper.get('.kinetix-toolbar').classes()).toContain('is-auto');
     });
 
+    it('renders nothing when it has nothing to show', () => {
+        const wrapper = mountToolbar({
+            heading: null,
+            columns: [col('name')],
+        });
+
+        expect(wrapper.find('.kinetix-toolbar-host').exists()).toBe(false);
+    });
+
+    it('still renders for a table that only has a column toggle', () => {
+        const wrapper = mountToolbar({
+            heading: null,
+            columns: [col('name', { isToggleable: true })],
+        });
+
+        expect(wrapper.find('.kinetix-toolbar-host').exists()).toBe(true);
+    });
+
     it('honors a pinned inline arrangement', () => {
         const wrapper = mountToolbar({ toolbarLayout: 'inline' });
 

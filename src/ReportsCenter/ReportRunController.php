@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\ReportsCenter;
 
 use Happones\Kinetix\Actions\Action;
+use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Tables\Columns\ProgressColumn;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Table;
@@ -36,8 +37,10 @@ class ReportRunController
                 TextColumn::make('processed_rows')
                     ->label((string) __('kinetix.report_runs_rows_column')),
                 ProgressColumn::make('percent')
+                    ->formatStateUsing(fn ($value) => $value === null ? null : $value.'%')
                     ->color(fn ($value, $record) => $record->status->getColor()),
-                TextColumn::make('format'),
+                TextColumn::make('format')
+                    ->formatStateUsing(fn ($value) => strtoupper((string) $value)),
                 TextColumn::make('created_at')->dateTime(),
             ])
             ->recordActions([
@@ -138,7 +141,7 @@ class ReportRunController
     {
         Gate::authorize('viewKinetixReportsCenter');
 
-        $run = $this->findRun($request);
+        $run = $this->findDownloadableRun($request);
 
         abort_unless($run->isDownloadable(), 404);
 
@@ -153,5 +156,28 @@ class ReportRunController
     protected function findRun(Request $request): ReportRun
     {
         return ReportRun::query()->forCurrentTeam()->whereKey($request->route('run'))->firstOrFail();
+    }
+
+    /**
+     * The run behind a download link.
+     *
+     * That link carries no `{current_team}` — it is what the "report ready"
+     * notification sends, and the notification is read later, from anywhere —
+     * so scoping it to the active team broke it as soon as the reader switched
+     * teams. The run is found by id and held to its OWN team instead: the
+     * caller must belong to it. Runs without a team, and apps whose reports
+     * are not team-scoped, keep the active-team lookup.
+     */
+    protected function findDownloadableRun(Request $request): ReportRun
+    {
+        $run = ReportRun::query()->whereKey($request->route('run'))->first();
+
+        if ($run === null || $run->team_id === null || ! KinetixTeams::enabledFor(ReportRun::kinetixTeamModule())) {
+            return $this->findRun($request);
+        }
+
+        abort_unless(KinetixTeams::userBelongsTo($request->user(), $run->team_id), 404);
+
+        return $run;
     }
 }

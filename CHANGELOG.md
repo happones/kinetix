@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.10] - 2026-10-11
+
+### Added
+
+- **Reports Center:** `ReportFrequency::getLabel()`, and the schedules list
+  shows the cadence in the visitor's language instead of the stored value
+  (`weekly`). New `kinetix.report_frequency_*` keys. **(published)** —
+  `lang/*/kinetix.php`.
+- **Teams:** `KinetixTeams::userBelongsTo($user, $teamKey)`, a membership check
+  through the configured teams relation for a team taken from a record rather
+  than the URL.
+
+### Fixed
+
+- **Reports Center:** the download link a "report ready" notification carries
+  works after switching teams. The link has no team segment, so the run was
+  looked up in whatever team the reader was on and 404'd; it is now found by id
+  and held to its own team, which the reader must belong to.
+- **Reports Center:** the runs list reads the progress as a percentage (`40%`)
+  and the format as a label (`XLSX`).
+- **Tables:** a table with no heading, search, saved views, actions, filters or
+  column toggle no longer renders an empty band above its rows.
+  **(published)** — `Table/KinetixTableToolbar.vue`.
+
 ## [0.219.9] - 2026-10-11
 
 ### Added

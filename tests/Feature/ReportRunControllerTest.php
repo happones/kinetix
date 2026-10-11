@@ -200,6 +200,21 @@ class ReportRunControllerTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_the_runs_list_reads_the_progress_as_a_percentage_and_the_format_as_a_label(): void
+    {
+        ReportRun::create([
+            'report_class' => ReportRunControllerTestReport::class,
+            'status'       => ReportRunStatus::Running,
+            'format'       => 'xlsx',
+            'percent'      => 40,
+        ]);
+
+        $row = $this->getJson(route('kinetix.report-runs.index'))->assertOk()->json('records.0.values');
+
+        $this->assertSame('40%', $row['percent']);
+        $this->assertSame('XLSX', $row['format']);
+    }
+
     public function test_download_streams_a_completed_runs_file(): void
     {
         Storage::fake('public');

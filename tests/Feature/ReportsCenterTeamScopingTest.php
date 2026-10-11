@@ -14,7 +14,9 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class ScopedTeam extends Model
 {
@@ -152,6 +154,43 @@ class ReportsCenterTeamScopingTest extends TestCase
         config()->set('kinetix.reports_center.teams', null);
 
         $this->assertNull(ReportSchedule::currentTeamId());
+    }
+
+    public function test_a_download_link_reaches_a_run_of_any_team_the_user_belongs_to(): void
+    {
+        Gate::define('viewKinetixReportsCenter', fn () => true);
+        // With teams on, the request syncs the permission team, so the
+        // registrar needs its config even though no permission is read.
+        config()->set('permission', require __DIR__.'/../../vendor/spatie/laravel-permission/config/permission.php');
+        Storage::fake('public');
+        Storage::disk('public')->put('kinetix-report-runs/file.csv', "id\n1");
+
+        $user = ScopedTeamUser::query()->create(['id' => 1, 'name' => 'Member']);
+        ScopedTeam::query()->create(['id' => 1, 'name' => 'Team 1']);
+        ScopedTeam::query()->create(['id' => 2, 'name' => 'Team 2']);
+        ScopedTeam::query()->create(['id' => 3, 'name' => 'Team 3']);
+        $user->teams()->attach([1, 2]);
+
+        $run = fn (int $teamId): ReportRun => ReportRun::create([
+            'team_id'      => $teamId,
+            'report_class' => 'A',
+            'status'       => ReportRunStatus::Completed,
+            'format'       => 'csv',
+            'disk'         => 'public',
+            'path'         => 'kinetix-report-runs/file.csv',
+            'file_name'    => 'report.csv',
+            'expires_at'   => now()->addDay(),
+        ]);
+
+        // The link has no team segment: it is opened from a notification, maybe
+        // after switching to another of the user's teams.
+        $this->actingAs($user)
+            ->get(route('kinetix.report-runs.download', $run(2)))
+            ->assertOk();
+
+        $this->actingAs($user)
+            ->get(route('kinetix.report-runs.download', $run(3)))
+            ->assertNotFound();
     }
 
     /**
