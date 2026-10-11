@@ -77,7 +77,7 @@ function onMarkDone(step: KinetixOnboardingStep): void {
             <li
                 v-for="step in state.steps"
                 :key="step.key"
-                class="gap-3 p-3 flex items-start rounded-md border border-border"
+                class="gap-3 p-3 sm:flex-nowrap flex flex-wrap items-start rounded-md border border-border"
             >
                 <component
                     :is="step.completed ? CheckCircle2 : Circle"
@@ -120,7 +120,12 @@ function onMarkDone(step: KinetixOnboardingStep): void {
                         {{ step.description }}
                     </p>
                 </div>
-                <div class="gap-2 flex shrink-0 items-center">
+                <!-- On a phone the actions take their own row under the text
+                     (indented past the check): beside it they squeezed the
+                     title and description to a word per line. -->
+                <div
+                    class="gap-2 pl-8 sm:basis-auto sm:pl-0 flex shrink-0 basis-full items-center"
+                >
                     <a
                         v-if="step.ctaHref && !step.completed"
                         :href="step.ctaHref"

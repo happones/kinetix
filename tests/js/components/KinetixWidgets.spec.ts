@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import KinetixCustomWidget from '@/components/KinetixCustomWidget.vue';
 import KinetixStatsOverviewWidget from '@/components/KinetixStatsOverviewWidget.vue';
 import KinetixTableWidget from '@/components/KinetixTableWidget.vue';
+import { i18n } from './i18n';
 
 const baseWidget = {
     id: 'w1',
@@ -35,6 +36,7 @@ describe('widgets use the shadcn Card primitive', () => {
                     data: { headers: ['Name'], rows: [['Ada']] },
                 },
             },
+            global: { plugins: [i18n] },
         });
 
         expect(wrapper.find('[data-slot="card"]').exists()).toBe(true);

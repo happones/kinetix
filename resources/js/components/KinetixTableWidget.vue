@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { KinetixWidget } from '@/types/kinetix';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
@@ -11,6 +12,8 @@ import WidgetHeaderActions from './widgets/WidgetHeaderActions.vue';
 const props = defineProps<{
     widget: KinetixWidget;
 }>();
+
+const { t } = useI18n();
 
 const headers = computed<string[]>(() => {
     if (!props.widget.data || !Array.isArray(props.widget.data.headers)) {
@@ -99,7 +102,7 @@ const getRowValues = (row: any) => {
                                 :colspan="headers.length || 1"
                                 class="px-6 py-10 text-sm text-center text-muted-foreground"
                             >
-                                No records found.
+                                {{ t('kinetix.no_records_found') }}
                             </td>
                         </tr>
                     </tbody>

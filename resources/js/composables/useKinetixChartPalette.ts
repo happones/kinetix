@@ -78,6 +78,48 @@ function resolvePalette(): string[] {
  * each mapped to a shadcn token plus a light/dark fallback for hosts that
  * define neither kinetix.css nor their own tokens.
  */
+/**
+ * Status colors a dataset can ask for by name (`color: 'danger'`), so a
+ * "failed" series reads red whatever slot it lands in. Each resolves from the
+ * theme token the status badges use, falling back to a validated hex.
+ */
+const STATUS_COLORS: Record<
+    string,
+    { token: string; fallback: [light: string, dark: string] }
+> = {
+    success: { token: '--success', fallback: ['#059669', '#10b981'] },
+    danger: { token: '--destructive', fallback: ['#dc2626', '#f87171'] },
+    warning: { token: '--warning', fallback: ['#d97706', '#f59e0b'] },
+    info: { token: '--info', fallback: ['#2563eb', '#3b82f6'] },
+    primary: { token: '--primary', fallback: ['#18181b', '#fafafa'] },
+    gray: { token: '--muted-foreground', fallback: ['#71717a', '#a1a1aa'] },
+};
+
+/**
+ * The concrete color of a status name, or null when `name` is not one (a
+ * literal color is used as given by the caller).
+ */
+export function kinetixChartStatusColor(name: string): string | null {
+    const status = STATUS_COLORS[name];
+
+    if (!status) {
+        return null;
+    }
+
+    if (typeof document === 'undefined') {
+        return status.fallback[0];
+    }
+
+    const root = document.documentElement;
+    const token = getComputedStyle(root).getPropertyValue(status.token).trim();
+
+    if (token) {
+        return normalizeToken(token);
+    }
+
+    return status.fallback[root.classList.contains('dark') ? 1 : 0];
+}
+
 const SURFACE_VARS: {
     cssVar: string;
     token: string;

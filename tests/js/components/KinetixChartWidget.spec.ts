@@ -86,6 +86,27 @@ describe('KinetixChartWidget', () => {
         expect(w.text()).toContain('Refunds');
     });
 
+    it('paints a series by status name', () => {
+        const widget = makeWidget({
+            chartType: 'line',
+            labels: ['Jan', 'Feb'],
+            datasets: [
+                { label: 'Succeeded', data: [10, 20] },
+                { label: 'Rejected', data: [1, 2], color: 'danger' },
+            ],
+        });
+
+        const w = mount(KinetixChartWidget, {
+            props: { widget },
+            global: { plugins: [i18n] },
+        });
+
+        // No theme tokens under jsdom: the validated light fallback is used.
+        expect(w.findAll('button[aria-pressed]')[1].html()).toContain(
+            '#dc2626',
+        );
+    });
+
     it('hides the legend for a single series unless forced on', () => {
         const single = {
             chartType: 'line',

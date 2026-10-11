@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useKinetixChartPalette } from '@/composables/useKinetixChartPalette';
+import {
+    kinetixChartStatusColor,
+    useKinetixChartPalette,
+} from '@/composables/useKinetixChartPalette';
 import type {
     KinetixChartData,
     KinetixChartDataset,
@@ -77,13 +80,25 @@ const chartDuration = computed<number | undefined>(() =>
  */
 const seriesColor = (index: number): string => {
     const dataset = datasets.value[index];
+    // Read first so a theme toggle recomputes status colors too.
+    const palette = seriesPalette.value;
+
+    // A status name (`color: 'danger'`) picks the theme's status color.
+    if (typeof dataset?.color === 'string') {
+        const status = kinetixChartStatusColor(dataset.color);
+
+        if (status) {
+            return status;
+        }
+    }
+
     const customColor = dataset?.borderColor || dataset?.backgroundColor;
 
     if (customColor && typeof customColor === 'string') {
         return customColor;
     }
 
-    return seriesPalette.value[index % seriesPalette.value.length];
+    return palette[index % palette.length];
 };
 
 /**

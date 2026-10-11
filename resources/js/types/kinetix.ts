@@ -994,6 +994,8 @@ export interface KinetixChartDataset {
     borderColor?: string | string[] | null;
     backgroundColor?: string | string[] | null;
     borderWidth?: number;
+    /** A status name (`success` · `danger` · `warning` · `info` · `primary` · `gray`) taking the theme's status color. */
+    color?: string | null;
     [key: string]: unknown;
 }
 

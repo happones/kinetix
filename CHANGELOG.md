@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.9] - 2026-10-11
+
+### Added
+
+- **Widgets:** a chart dataset takes `color` as a status name (`success` ·
+  `danger` · `warning` · `info` · `primary` · `gray`) and is drawn in the
+  theme's status color, so a "failed" series reads red whatever palette slot
+  it lands in (a second series used to come out green). New
+  `kinetixChartStatusColor()`. **(published)** — `KinetixChartWidget.vue`,
+  `composables/useKinetixChartPalette.ts`, `types/kinetix.ts`.
+
+### Fixed
+
+- **Onboarding:** on a phone a checklist step's buttons take their own row
+  under the text; beside it they squeezed the title and description to a
+  word per line and overlapped them. **(published)** —
+  `Onboarding/OnboardingChecklistCard.vue`.
+- **Widgets:** the table widget's empty text is translated
+  (`kinetix.no_records_found`); it was a hardcoded "No records found.".
+  **(published)** — `KinetixTableWidget.vue`.
+
 ## [0.219.8] - 2026-10-11
 
 ### Fixed
