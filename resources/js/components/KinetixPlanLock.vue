@@ -173,10 +173,15 @@ const onBadgeClick = (event: MouseEvent) => {
             <span class="sr-only">{{ t('kinetix.plan_locked_hint') }}</span>
         </span>
 
-        <!-- overlay: content visible but inert behind the lock. -->
-        <div v-else-if="variant === 'overlay'" class="relative">
+        <!-- overlay: content visible but inert behind the lock. Both layers
+             share ONE grid cell instead of the lock being absolutely placed
+             over the content: the cell is as tall as the taller of the two,
+             so a lock taller than a short panel grows the panel rather than
+             spilling over the next one (and covering its upgrade button).
+             `*:flex-1` stretches the content's own box to that height. -->
+        <div v-else-if="variant === 'overlay'" class="grid">
             <div
-                class="pointer-events-none opacity-40 select-none"
+                class="pointer-events-none flex flex-col opacity-40 select-none [grid-area:1/1] *:flex-1"
                 :class="blurred ? 'blur-[2px]' : ''"
                 aria-hidden="true"
                 inert
@@ -184,7 +189,7 @@ const onBadgeClick = (event: MouseEvent) => {
                 <slot :remaining="remainingCount" />
             </div>
             <div
-                class="inset-0 p-4 rounded-lg absolute flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+                class="p-4 rounded-lg flex items-center justify-center bg-background/70 backdrop-blur-[1px] [grid-area:1/1]"
             >
                 <PlanLockPanel
                     :title="title"

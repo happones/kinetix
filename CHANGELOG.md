@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.1] - 2026-10-10
+
+### Fixed
+
+- An `overlay` plan lock over content shorter than itself no longer spills
+  out of it: the lock was absolutely placed, so two short locked panels in a
+  row overlapped and the second one's padlock covered the first one's upgrade
+  button, which could not be clicked. The lock and the content now share one
+  grid cell, so the panel grows to fit the lock. **(published)** —
+  `KinetixPlanLock.vue`.
+
 ## [0.219.0] - 2026-10-10
 
 Record modals get a configurable width and stop cutting their fields at the

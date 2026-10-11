@@ -143,6 +143,27 @@ describe('KinetixPlanLock', () => {
         expect(wrapper.text()).toContain('Upgrade required');
     });
 
+    it('stacks the lock and the content in one grid cell so the lock grows a short panel', () => {
+        pageProps.kinetix_billing = billing({ capabilities: { api: false } });
+
+        const wrapper = mountLock({
+            feature: 'capabilities.api',
+            variant: 'overlay',
+        });
+
+        // An absolutely placed lock could not grow its container: over a panel
+        // shorter than itself it spilled onto the next one and covered that
+        // panel's upgrade button.
+        const root = wrapper.find('.grid');
+        const [behind, lock] = root.findAll(':scope > div');
+
+        expect(behind.classes()).toContain('[grid-area:1/1]');
+        expect(behind.classes()).toContain('*:flex-1');
+        expect(lock.classes()).toContain('[grid-area:1/1]');
+        expect(lock.classes()).not.toContain('absolute');
+        expect(lock.text()).toContain('Upgrade required');
+    });
+
     it('drops the overlay blur when blur is disabled', () => {
         pageProps.kinetix_billing = billing({ capabilities: { api: false } });
 
