@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Plan;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
@@ -13,7 +14,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
-use Inertia\Support\SessionKey;
 
 class HttpBillableSubscription
 {
@@ -323,7 +323,9 @@ class BillingHttpTest extends TestCase
 
         $this->actingAs($billable)
             ->delete(route('billing.payment-methods.remove', ['id' => 'pm_missing']))
-            ->assertSessionHas(SessionKey::FLASH_DATA.'.toast', ['type' => 'success', 'message' => (string) __('kinetix.billing_payment_method_removed')]);
+            ->assertRedirect();
+
+        $this->assertSame(['type' => 'success', 'message' => (string) __('kinetix.billing_payment_method_removed')], $this->flashedToast());
     }
 
     public function test_a_refused_action_says_why(): void
@@ -333,7 +335,9 @@ class BillingHttpTest extends TestCase
         // No card and no default payment method: the customer can fix this.
         $this->actingAs($billable)
             ->post(route('billing.subscribe'), ['plan_slug' => 'pro'])
-            ->assertSessionHas(SessionKey::FLASH_DATA.'.toast', ['type' => 'error', 'message' => (string) __('kinetix.billing_payment_required')]);
+            ->assertRedirect();
+
+        $this->assertSame(['type' => 'error', 'message' => (string) __('kinetix.billing_payment_required')], $this->flashedToast());
     }
 
     public function test_a_failed_action_hides_its_internals(): void
@@ -344,7 +348,9 @@ class BillingHttpTest extends TestCase
 
         $this->actingAs($billable)
             ->post(route('billing.subscribe'), ['plan_slug' => 'unpriced', 'payment_method' => 'pm_1'])
-            ->assertSessionHas(SessionKey::FLASH_DATA.'.toast', ['type' => 'error', 'message' => (string) __('kinetix.billing_action_failed')]);
+            ->assertRedirect();
+
+        $this->assertSame(['type' => 'error', 'message' => (string) __('kinetix.billing_action_failed')], $this->flashedToast());
     }
 
     public function test_the_page_has_no_subscription_record_without_one(): void
@@ -357,5 +363,16 @@ class BillingHttpTest extends TestCase
             ->get(route('billing.index'))
             ->assertJsonPath('props.subscription', null)
             ->assertJsonPath('props.trialAvailable', false);
+    }
+
+    /**
+     * The `toast` flash, from wherever the installed inertia-laravel keeps it:
+     * its flash store on 2.0.16+, the plain session before.
+     */
+    private function flashedToast(): mixed
+    {
+        return KinetixFlash::inertiaHasFlash()
+            ? (session()->get(KinetixFlash::inertiaFlashKey(), [])['toast'] ?? null)
+            : session()->get('toast');
     }
 }

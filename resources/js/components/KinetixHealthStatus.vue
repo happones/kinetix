@@ -88,6 +88,16 @@ function iconTone(status: string): string {
             {{ t('kinetix.health_unavailable') }}
         </p>
 
+        <!-- The widget reads stored results: until the scheduled
+             `health:check` has run once there is nothing to list, which
+             showed as an empty card. -->
+        <p
+            v-else-if="snapshot && !snapshot.checks?.length"
+            class="text-sm text-muted-foreground"
+        >
+            {{ t('kinetix.health_no_results') }}
+        </p>
+
         <ul v-else class="space-y-1">
             <li
                 v-for="check in snapshot?.checks ?? []"

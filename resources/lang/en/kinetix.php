@@ -690,6 +690,7 @@ return [
     // Health / status widget
     'health_title'          => 'System health',
     'health_unavailable'    => 'Health checks are unavailable.',
+    'health_no_results'     => 'No checks have run yet. They appear after the scheduled health:check runs.',
     'health_status_ok'      => 'Healthy',
     'health_status_warning' => 'Warning',
     'health_status_failed'  => 'Failing',

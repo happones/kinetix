@@ -181,7 +181,7 @@ class KinetixFlash
      * Inertia's flash session key: a class constant on v3, an enum on 2.0.16+,
      * the same string either way.
      */
-    protected static function inertiaFlashKey(): string
+    public static function inertiaFlashKey(): string
     {
         return class_exists(SessionKey::class) ? SessionKey::FLASH_DATA : 'inertia.flash_data';
     }

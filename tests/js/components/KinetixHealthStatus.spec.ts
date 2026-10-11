@@ -43,6 +43,7 @@ const i18n = createI18n({
             kinetix: {
                 health_title: 'System health',
                 health_unavailable: 'Health checks are unavailable.',
+                health_no_results: 'No checks have run yet.',
                 health_status_ok: 'Healthy',
                 health_status_warning: 'Warning',
                 health_status_failed: 'Failing',
@@ -95,5 +96,18 @@ describe('KinetixHealthStatus', () => {
         await flushPromises();
 
         expect(w.text()).toContain('Health checks are unavailable.');
+    });
+
+    it('says no checks have run instead of an empty card', async () => {
+        fetchMock.mockResolvedValueOnce({
+            available: true,
+            status: null,
+            checkedAt: null,
+            checks: [],
+        });
+        const w = mount(KinetixHealthStatus, { global: { plugins: [i18n] } });
+        await flushPromises();
+
+        expect(w.text()).toContain('No checks have run yet.');
     });
 });

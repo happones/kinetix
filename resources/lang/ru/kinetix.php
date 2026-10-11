@@ -621,6 +621,7 @@ return [
     'queue_status_inactive'            => 'Неактивна',
     'health_title'                     => 'Состояние системы',
     'health_unavailable'               => 'Проверки состояния недоступны.',
+    'health_no_results'                => 'Проверки ещё не запускались. Они появятся после запуска health:check по расписанию.',
     'health_status_ok'                 => 'В норме',
     'health_status_warning'            => 'Предупреждение',
     'health_status_failed'             => 'Сбой',

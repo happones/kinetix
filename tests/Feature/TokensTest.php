@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Tests\TestCase;
 use Happones\Kinetix\Tokens\KinetixTokens;
 use Happones\Kinetix\Tokens\TokenScopeRegistry;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,6 +23,17 @@ class TokenUser extends Authenticatable
     public $timestamps = false;
 
     protected $guarded = [];
+}
+
+/** A user whose current team is whatever the test sets. */
+class TeamTokenUser extends TokenUser
+{
+    public ?Model $team = null;
+
+    public function getCurrentTeamAttribute(): ?Model
+    {
+        return $this->team;
+    }
 }
 
 class TokensTest extends TestCase
@@ -57,6 +69,7 @@ class TokensTest extends TestCase
             $table->text('abilities')->nullable();
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->nullable();
+            $table->unsignedBigInteger('team_id')->nullable();
             $table->timestamps();
         });
     }
@@ -192,5 +205,31 @@ class TokensTest extends TestCase
     public function test_unauthenticated_requests_are_rejected(): void
     {
         $this->getJson('/_kinetix/tokens')->assertStatus(401);
+    }
+
+    public function test_with_a_team_column_the_list_and_revocation_stay_inside_the_current_team(): void
+    {
+        config()->set('kinetix.tokens.team_column', 'team_id');
+
+        $user       = TeamTokenUser::create(['name' => 'Dev']);
+        $user->team = (new class extends Model {})->forceFill(['id' => 7]);
+
+        $ours   = $user->createToken('ours', ['posts.read'])->accessToken;
+        $legacy = $user->createToken('legacy', ['posts.read'])->accessToken;
+        $theirs = $user->createToken('theirs', ['posts.read'])->accessToken;
+        $ours->forceFill(['team_id' => 7])->save();
+        $theirs->forceFill(['team_id' => 9])->save();
+
+        $names = collect($this->actingAs($user)->getJson('/_kinetix/tokens')->json('tokens'))->pluck('name');
+
+        $this->assertEqualsCanonicalizing(['ours', 'legacy'], $names->all());
+
+        // Another team's token cannot be revoked from this one.
+        $this->actingAs($user)->deleteJson('/_kinetix/tokens/'.$theirs->getKey())->assertOk();
+        $this->assertNotNull($theirs->fresh());
+
+        // A new token is stamped with the current team.
+        $created = $this->actingAs($user)->postJson('/_kinetix/tokens', ['name' => 'new', 'abilities' => ['posts.read']]);
+        $this->assertSame(7, (int) $user->tokens()->whereKey($created->json('token.id'))->value('team_id'));
     }
 }

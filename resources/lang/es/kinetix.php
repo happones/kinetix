@@ -678,6 +678,7 @@ return [
     'queue_status_inactive'     => 'Inactivo',
     'health_title'              => 'Estado del sistema',
     'health_unavailable'        => 'Las comprobaciones de estado no están disponibles.',
+    'health_no_results'         => 'Aún no se ha ejecutado ninguna verificación. Aparecen cuando corre el health:check programado.',
     'health_status_ok'          => 'Saludable',
     'health_status_warning'     => 'Advertencia',
     'health_status_failed'      => 'Con fallos',

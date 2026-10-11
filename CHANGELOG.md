@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.8] - 2026-10-11
+
+### Fixed
+
+- **Billing:** the toasts added in 0.219.6 called `Inertia::flash()`, which
+  inertia-laravel only has from 2.0.16; on an older 2.0 every billing action
+  threw (and the prefer-lowest CI failed). There the toast goes to the
+  session instead, as `KinetixFlash` already does.
+  `KinetixFlash::inertiaFlashKey()` is public.
+- **Tokens:** with the new `kinetix.tokens.team_column` set, the token list
+  shows the current team's tokens plus the teamless ones minted before the
+  column existed, a new token is stamped with the current team, and a token
+  can only be revoked from its own team. The list showed every team's tokens
+  and let them be revoked from any of them.
+- **Health:** `KinetixHealthStatus` says no checks have run yet instead of
+  showing an empty card before the scheduled `health:check` first runs.
+  **(published)** — `KinetixHealthStatus.vue`.
+
 ## [0.219.7] - 2026-10-11
 
 ### Fixed

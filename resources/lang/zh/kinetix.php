@@ -621,6 +621,7 @@ return [
     'queue_status_inactive'            => '未启用',
     'health_title'                     => '系统健康',
     'health_unavailable'               => '健康检查不可用。',
+    'health_no_results'                => '尚未运行任何检查。计划任务 health:check 运行后会显示结果。',
     'health_status_ok'                 => '正常',
     'health_status_warning'            => '警告',
     'health_status_failed'             => '故障',

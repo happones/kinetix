@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tokens;
 
 use Happones\Kinetix\Data\TokenData;
+use Happones\Kinetix\Support\KinetixTeams;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -24,7 +27,7 @@ class TokenController
         $user = $this->tokenableUser($request);
 
         return response()->json([
-            'tokens' => $user->tokens()
+            'tokens' => $this->teamTokens($user->tokens())
                 ->latest()
                 ->get()
                 ->map(static fn (Model $token): TokenData => TokenData::fromModel($token))
@@ -65,6 +68,10 @@ class TokenController
 
         $newToken = $user->createToken($validated['name'], $abilities, $expiresAt);
 
+        if (($column = $this->teamColumn()) !== null && $newToken->accessToken->getAttribute($column) === null) {
+            $newToken->accessToken->forceFill([$column => KinetixTeams::currentTeamKey()])->save();
+        }
+
         // The plaintext token is shown exactly once.
         return response()->json([
             'token'          => TokenData::fromModel($newToken->accessToken),
@@ -76,9 +83,41 @@ class TokenController
     {
         $user = $this->tokenableUser($request);
 
-        $user->tokens()->whereKey($request->route('token'))->delete();
+        $this->teamTokens($user->tokens())->whereKey($request->route('token'))->delete();
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * The tokens of the team being served, plus the teamless ones minted before
+     * tokens carried a team. Without a configured column, every token: a list
+     * that showed another team's tokens let them be revoked from here.
+     *
+     * @template TQuery of Builder|Relation
+     *
+     * @param  TQuery $query
+     * @return TQuery
+     */
+    protected function teamTokens(Builder|Relation $query): Builder|Relation
+    {
+        $column = $this->teamColumn();
+
+        if ($column === null) {
+            return $query;
+        }
+
+        $teamKey = KinetixTeams::currentTeamKey();
+
+        return $query->where(fn ($scope) => $scope
+            ->whereNull($column)
+            ->when($teamKey !== null, fn ($inner) => $inner->orWhere($column, $teamKey)));
+    }
+
+    protected function teamColumn(): ?string
+    {
+        $column = config('kinetix.tokens.team_column');
+
+        return is_string($column) && $column !== '' ? $column : null;
     }
 
     /**

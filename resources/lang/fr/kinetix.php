@@ -678,6 +678,7 @@ return [
     'queue_status_inactive'     => 'Inactif',
     'health_title'              => 'État du système',
     'health_unavailable'        => 'Les contrôles de santé sont indisponibles.',
+    'health_no_results'         => 'Aucune vérification n\'a encore été exécutée. Elles apparaissent après l\'exécution planifiée de health:check.',
     'health_status_ok'          => 'Sain',
     'health_status_warning'     => 'Avertissement',
     'health_status_failed'      => 'En échec',

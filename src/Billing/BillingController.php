@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Billing;
 
 use Happones\Kinetix\Billing\Exceptions\BillingActionException;
 use Happones\Kinetix\Data\PlanData;
+use Happones\Kinetix\Flash\KinetixFlash;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -110,6 +111,24 @@ class BillingController
     }
 
     /**
+     * The starter kits' `toast` flash. Kinetix supports inertia-laravel 2.0,
+     * whose factory has no `flash()` (added in 2.0.16): there it goes to the
+     * session, where an app on that version reads its flash from.
+     */
+    protected function toast(string $type, string $message): void
+    {
+        $toast = ['type' => $type, 'message' => $message];
+
+        if (KinetixFlash::inertiaHasFlash()) {
+            Inertia::flash('toast', $toast);
+
+            return;
+        }
+
+        session()->flash('toast', $toast);
+    }
+
+    /**
      * Run a billing action and answer with a toast either way. The outcome
      * used to go to `session('status')` and `errors.message`, which no page
      * rendered: a card that failed or a plan that changed said nothing.
@@ -141,14 +160,14 @@ class BillingController
                 report($e);
             }
 
-            Inertia::flash('toast', ['type' => 'error', 'message' => $message]);
+            $this->toast('error', $message);
 
             return back()->withErrors(['message' => $message]);
         }
 
         $message = (string) __($successKey);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => $message]);
+        $this->toast('success', $message);
 
         return back()->with('status', $message);
     }

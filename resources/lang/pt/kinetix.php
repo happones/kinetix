@@ -678,6 +678,7 @@ return [
     'queue_status_inactive'     => 'Inativo',
     'health_title'              => 'Saúde do sistema',
     'health_unavailable'        => 'As verificações de saúde estão indisponíveis.',
+    'health_no_results'         => 'Nenhuma verificação foi executada ainda. Elas aparecem depois que o health:check agendado roda.',
     'health_status_ok'          => 'Saudável',
     'health_status_warning'     => 'Aviso',
     'health_status_failed'      => 'Com falhas',

@@ -783,6 +783,13 @@ return [
 
         // @var array<string, string> ability key => human label
         'scopes' => [],
+
+        // Column on `personal_access_tokens` naming the team a token acts on.
+        // When set, the token list shows the current team's tokens (and the
+        // teamless ones minted before the column existed), new tokens are
+        // stamped with the current team, and a token can only be revoked from
+        // the team it belongs to. Null = one list across every team.
+        'team_column' => env('KINETIX_TOKENS_TEAM_COLUMN'),
     ],
 
     /*

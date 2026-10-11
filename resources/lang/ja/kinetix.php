@@ -621,6 +621,7 @@ return [
     'queue_status_inactive'            => '停止中',
     'health_title'                     => 'システムの状態',
     'health_unavailable'               => 'ヘルスチェックは利用できません。',
+    'health_no_results'                => 'まだチェックは実行されていません。スケジュールされた health:check の実行後に表示されます。',
     'health_status_ok'                 => '正常',
     'health_status_warning'            => '警告',
     'health_status_failed'             => '障害',
