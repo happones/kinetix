@@ -147,6 +147,19 @@ class PermissionTeamScopingTest extends TestCase
         $this->assertFalse($roles['a-editors']['isGlobal']);
     }
 
+    public function test_the_listing_marks_the_super_admin_role(): void
+    {
+        $this->actingInTeamA();
+
+        $this->roleInTeam(self::TEAM_A, 'a-editors');
+        Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web', 'team_id' => null]);
+
+        $roles = collect($this->getJson('/_kinetix/permissions/roles')->json())->keyBy('name');
+
+        $this->assertTrue($roles['super-admin']['isSuperAdmin']);
+        $this->assertFalse($roles['a-editors']['isSuperAdmin']);
+    }
+
     public function test_another_teams_role_cannot_be_updated_or_deleted(): void
     {
         $this->actingInTeamA();

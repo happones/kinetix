@@ -35,8 +35,10 @@ const { isSuperAdmin } = useKinetixCan();
 
 // Global (team-NULL) roles apply to every team — the server only lets a
 // super-admin modify them, so mirror that in the UI.
+// The super-admin role is protected server-side (never edited or deleted from
+// the UI), so it offers neither.
 const canModify = (role: KinetixRole): boolean =>
-    !role.isGlobal || isSuperAdmin.value;
+    !role.isSuperAdmin && (!role.isGlobal || isSuperAdmin.value);
 
 /** How many granted-module lines a role card lists before collapsing to +N. */
 const CARD_FEATURE_LINES = 4;
@@ -68,6 +70,12 @@ function cellFor(
 ): MatrixCell {
     const permissions = permissionSets.value.get(roleKey(role));
     const total = feature.abilities.length;
+
+    // Holds no permission rows yet passes every check: it showed "—" everywhere.
+    if (role.isSuperAdmin) {
+        return { granted: total, total, state: 'full' };
+    }
+
     let granted = 0;
 
     for (const ability of feature.abilities) {
@@ -113,6 +121,10 @@ const hasGroups = computed(() =>
 
 /** Labels of the modules a role has at least one ability on. */
 function grantedFeatureLabels(role: KinetixRole): string[] {
+    if (role.isSuperAdmin) {
+        return [t('kinetix.role_all_modules')];
+    }
+
     const permissions = permissionSets.value.get(roleKey(role));
 
     return features.value
@@ -227,9 +239,11 @@ async function confirmDelete(): Promise<void> {
                             class="px-2 py-0.5 font-medium rounded-md bg-secondary text-[11px] whitespace-nowrap text-secondary-foreground"
                         >
                             {{
-                                t('kinetix.role_members', {
-                                    count: role.usersCount,
-                                })
+                                t(
+                                    'kinetix.role_members',
+                                    { count: role.usersCount },
+                                    role.usersCount ?? 0,
+                                )
                             }}
                         </span>
                     </div>

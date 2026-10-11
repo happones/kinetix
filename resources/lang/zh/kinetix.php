@@ -372,6 +372,7 @@ return [
     'search_permissions'               => '搜索权限…',
     'role_name'                        => '角色名称',
     'role_members'                     => '{count} 名成员',
+    'role_all_modules'                 => '所有模块',
     'role_permissions_count'           => '{count} 项权限',
     'role_matrix_hint'                 => '按模块切换权限。点击模块名称可切换整行。',
     'role_matrix_module'               => '模块',

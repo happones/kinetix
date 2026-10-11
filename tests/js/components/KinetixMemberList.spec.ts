@@ -140,4 +140,17 @@ describe('KinetixMemberList', () => {
         expect(wrapper.find('.animate-pulse').exists()).toBe(true);
         wrapper.unmount();
     });
+
+    it('takes the heading and empty text an app gives it', () => {
+        const w = mount(KinetixMemberList, {
+            props: {
+                title: 'Invitations',
+                emptyText: 'No pending invitations.',
+            },
+            global: { plugins: [i18n] },
+        });
+
+        expect(w.find('h2').text()).toBe('Invitations');
+        w.unmount();
+    });
 });

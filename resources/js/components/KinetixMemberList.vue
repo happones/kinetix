@@ -17,6 +17,20 @@ import KinetixBadge from './primitives/KinetixBadge.vue';
  * members (pending / active / revoked) with resend, role change and revoke, and
  * embeds the provisioning form. Place behind the `members.provision` ability.
  */
+const props = withDefaults(
+    defineProps<{
+        /**
+         * Heading over the list. An app whose people already show in a
+         * members list of its own names this "Invitations", which is what
+         * the list holds: who was invited and whether they joined.
+         */
+        title?: string | null;
+        /** Text when nobody has been invited. */
+        emptyText?: string | null;
+    }>(),
+    { title: null, emptyText: null },
+);
+
 const {
     provisions,
     assignableRoles,
@@ -192,7 +206,7 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
 <template>
     <div class="space-y-4">
         <h2 class="text-lg font-semibold text-foreground">
-            {{ t('kinetix.members_title') }}
+            {{ props.title ?? t('kinetix.members_title') }}
         </h2>
 
         <div class="rounded-lg p-4 border border-border bg-card">
@@ -240,7 +254,7 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
                 v-else-if="filteredProvisions.length === 0"
                 class="p-4 text-sm text-muted-foreground"
             >
-                {{ t('kinetix.no_members') }}
+                {{ props.emptyText ?? t('kinetix.no_members') }}
             </p>
 
             <div

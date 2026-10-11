@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Data;
 
+use Happones\Kinetix\Permissions\SuperAdmin;
 use Spatie\LaravelData\Data;
 use Spatie\Permission\Models\Role;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -21,6 +22,11 @@ class RoleData extends Data
         public ?int $usersCount = null,
         /** With spatie teams active: a team-NULL role visible in every team. */
         public bool $isGlobal = false,
+        /**
+         * The super-admin role: it holds no permission rows yet passes every
+         * check, so a UI listing its permissions would show it as having none.
+         */
+        public bool $isSuperAdmin = false,
     ) {}
 
     /**
@@ -40,6 +46,7 @@ class RoleData extends Data
             $role->permissions->pluck('name')->values()->all(),
             $usersCount !== null ? (int) $usersCount : null,
             $isGlobal,
+            $role->name === SuperAdmin::role(),
         );
     }
 }

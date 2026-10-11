@@ -32,8 +32,10 @@ const { isSuperAdmin } = useKinetixCan();
 
 // Global (team-NULL) roles apply to every team — the server only lets a
 // super-admin modify them, so mirror that in the UI.
+// The super-admin role is protected server-side (never edited or deleted from
+// the UI), so it offers neither.
 const canModify = (role: KinetixRole): boolean =>
-    !role.isGlobal || isSuperAdmin.value;
+    !role.isSuperAdmin && (!role.isGlobal || isSuperAdmin.value);
 
 // --- Editor modal ---------------------------------------------------------
 
@@ -124,9 +126,11 @@ async function confirmDelete(): Promise<void> {
                         class="px-2 py-0.5 font-medium rounded-md bg-secondary text-[11px] text-secondary-foreground"
                     >
                         {{
-                            t('kinetix.role_members', {
-                                count: role.usersCount,
-                            })
+                            t(
+                                'kinetix.role_members',
+                                { count: role.usersCount },
+                                role.usersCount ?? 0,
+                            )
                         }}
                     </span>
                 </div>

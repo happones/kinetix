@@ -372,6 +372,7 @@ return [
     'search_permissions'               => 'Поиск прав…',
     'role_name'                        => 'Название роли',
     'role_members'                     => 'Участников: {count}',
+    'role_all_modules'                 => 'Все модули',
     'role_permissions_count'           => 'Прав: {count}',
     'role_matrix_hint'                 => 'Переключайте права по модулям. Клик по названию модуля переключает всю строку.',
     'role_matrix_module'               => 'Модуль',

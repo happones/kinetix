@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.7] - 2026-10-11
+
+### Fixed
+
+- **Permissions:** the super-admin role holds no permission rows yet passes
+  every check, so the roles overview showed it with "—" in every module and
+  offered to edit or delete it. Roles now carry `isSuperAdmin` (`RoleData`);
+  the overview shows the role with every module granted ("All modules") and
+  without edit or delete. **(published)** — `KinetixRolesOverview.vue`,
+  `KinetixRoleMatrix.vue`, `types/kinetix.ts`.
+- **Permissions:** a role's member count agrees with its number ("1 member",
+  was "1 members") wherever roles are listed. **(published)** —
+  `KinetixRolesOverview.vue`, `KinetixRoleMatrix.vue`, `KinetixRoleManager.vue`.
+
+### Added
+
+- **Members:** `KinetixMemberList` takes `title` and `emptyText`, so an app
+  whose people already show in a members list of its own can name the
+  provisioning list for what it holds ("Invitations"). **(published)** —
+  `KinetixMemberList.vue`.
+
 ## [0.219.6] - 2026-10-11
 
 ### Fixed

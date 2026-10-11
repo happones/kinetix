@@ -372,6 +372,7 @@ return [
     'search_permissions'               => '権限を検索…',
     'role_name'                        => 'ロール名',
     'role_members'                     => '{count} 名のメンバー',
+    'role_all_modules'                 => 'すべてのモジュール',
     'role_permissions_count'           => '{count} 件の権限',
     'role_matrix_hint'                 => 'モジュールごとに権限を切り替えます。モジュール名をクリックすると行全体を切り替えます。',
     'role_matrix_module'               => 'モジュール',

@@ -120,9 +120,11 @@ async function onDelete(role: KinetixRole): Promise<void> {
                             "
                             >·
                             {{
-                                t('kinetix.role_members', {
-                                    count: role.usersCount,
-                                })
+                                t(
+                                    'kinetix.role_members',
+                                    { count: role.usersCount },
+                                    role.usersCount ?? 0,
+                                )
                             }}</span
                         >
                     </span>

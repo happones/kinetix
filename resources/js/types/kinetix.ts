@@ -494,6 +494,8 @@ export interface KinetixRole {
     isGlobal?: boolean;
     /** Client-only, on CREATE: request a global (team-NULL) role — super-admin only. */
     global?: boolean;
+    /** The super-admin role: every permission, though it holds none. */
+    isSuperAdmin?: boolean;
 }
 
 /** Impersonation state shared from the server (for the banner). */

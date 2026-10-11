@@ -33,7 +33,8 @@ const i18n = createI18n({
                 roles_title: 'Roles & Permissions',
                 create_role: 'New role',
                 role_name: 'Role name',
-                role_members: '{count} members',
+                role_members: '{count} member | {count} members',
+                role_all_modules: 'All modules',
                 role_matrix_hint: 'Toggle permissions per module.',
                 role_matrix_module: 'Module',
                 permission_matrix: 'Permission matrix',
@@ -154,6 +155,27 @@ describe('KinetixRolesOverview', () => {
                 (span) => span.attributes('title') === 'All abilities granted',
             );
         expect(fullCell).toBeTruthy();
+        w.unmount();
+    });
+
+    it('shows the super-admin role with every module and no edit actions', () => {
+        roles.value = [
+            {
+                id: 9,
+                name: 'super-admin',
+                permissions: [],
+                usersCount: 1,
+                isGlobal: true,
+                isSuperAdmin: true,
+            },
+        ];
+        const w = mountOverview();
+
+        expect(w.text()).toContain('1 member');
+        expect(w.text()).not.toContain('1 members');
+        expect(w.text()).toContain('All modules');
+        expect(w.text()).not.toContain('—');
+        expect(w.find('button[title="Edit"]').exists()).toBe(false);
         w.unmount();
     });
 
