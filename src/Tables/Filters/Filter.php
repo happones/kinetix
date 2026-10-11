@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables\Filters;
 
 use Closure;
 use Happones\Kinetix\Data\FilterData;
+use Happones\Kinetix\Support\AutoLabel;
 use Illuminate\Database\Eloquent\Builder;
 
 class Filter
@@ -28,7 +29,7 @@ class Filter
     public function __construct(string $name)
     {
         $this->name  = $name;
-        $this->label = (string) str($name)->headline();
+        $this->label = AutoLabel::from($name);
     }
 
     public static function make(string $name): static

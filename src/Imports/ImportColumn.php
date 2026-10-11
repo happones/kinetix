@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Imports;
 
 use Closure;
 use Happones\Kinetix\Data\ImportColumnData;
+use Happones\Kinetix\Support\AutoLabel;
 use Illuminate\Database\Eloquent\Model;
 
 class ImportColumn
@@ -35,7 +36,7 @@ class ImportColumn
     public function __construct(string $name)
     {
         $this->name  = $name;
-        $this->label = (string) str(str_replace('.', ' ', $name))->headline();
+        $this->label = AutoLabel::from($name);
     }
 
     public static function make(string $name): static

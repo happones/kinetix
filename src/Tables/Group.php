@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tables;
 use BackedEnum;
 use Closure;
 use Happones\Kinetix\Data\GroupData;
+use Happones\Kinetix\Support\AutoLabel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Stringable;
@@ -144,7 +145,7 @@ class Group
 
     public function getLabel(): string
     {
-        return $this->label ?? (string) str(str_replace('.', ' ', $this->column))->headline();
+        return $this->label ?? AutoLabel::from($this->column);
     }
 
     public function isCollapsible(): bool

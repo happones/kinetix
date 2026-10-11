@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Resources;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Permissions\PermissionRegistry;
+use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -270,12 +271,12 @@ abstract class Resource
     public static function getNavigationLabel(): string
     {
         if (static::$navigationLabel !== null) {
-            return static::$navigationLabel;
+            return (string) __(static::$navigationLabel);
         }
 
         $modelClass = class_basename(static::getModel());
 
-        return (string) str($modelClass)->plural()->headline();
+        return AutoLabel::translate((string) str($modelClass)->plural()->headline());
     }
 
     /**

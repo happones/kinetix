@@ -782,6 +782,61 @@ class BillingManagerTest extends TestCase
         $this->assertSame('cus_existing', $billable->stripe_id);
     }
 
+    public function test_the_setup_intent_does_not_make_the_billable_a_stripe_customer(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+
+        $billable = new class extends FakeBillable
+        {
+            protected $table = 'fake_billables';
+
+            public int $created = 0;
+
+            public ?string $intentCustomer = 'unset';
+
+            public function createAsStripeCustomer(array $options = []): void
+            {
+                $this->created++;
+            }
+
+            public function createSetupIntent(array $options = []): object
+            {
+                $this->intentCustomer = $this->stripe_id;
+
+                return (object) ['client_secret' => 'seti_secret'];
+            }
+        };
+
+        $billable->stripe_id = '';
+        $billable->save();
+
+        $intent = BillingManager::for($billable)->setupIntent();
+
+        $this->assertSame('seti_secret', $intent->client_secret);
+        $this->assertSame(0, $billable->created);
+        // The blank id is not sent to Stripe as the customer.
+        $this->assertNull($billable->intentCustomer);
+    }
+
+    public function test_no_setup_intent_is_created_without_a_stripe_secret(): void
+    {
+        config(['cashier.secret' => null, 'services.stripe.secret' => null]);
+
+        $billable = new class extends FakeBillable
+        {
+            protected $table = 'fake_billables';
+
+            public function createSetupIntent(array $options = []): object
+            {
+                throw new RuntimeException('api_key cannot be the empty string');
+            }
+        };
+
+        $billable->save();
+
+        $this->assertNull(BillingManager::for($billable)->setupIntent());
+    }
+
     public function test_add_payment_method_rejects_a_blank_id(): void
     {
         $this->expectException(RuntimeException::class);

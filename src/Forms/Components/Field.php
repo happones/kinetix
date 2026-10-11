@@ -8,6 +8,7 @@ use Closure;
 use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Forms\Support\Get;
 use Happones\Kinetix\Forms\Support\Set;
+use Happones\Kinetix\Support\AutoLabel;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class Field extends Component
@@ -236,8 +237,8 @@ abstract class Field extends Component
     public function __construct(string $name)
     {
         $this->name = $name;
-        // Generate human-friendly label from column name
-        $this->label = (string) str(str_replace('.', ' ', $name))->headline();
+        // Human-friendly label from the column name, through the translator
+        $this->label = AutoLabel::from($name);
     }
 
     public static function make(string $name): static

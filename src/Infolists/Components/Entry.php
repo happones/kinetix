@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Infolists\Components;
 use BackedEnum;
 use Closure;
 use Happones\Kinetix\Data\InfolistEntryData;
+use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\Contracts\HasColor;
 use Happones\Kinetix\Support\Contracts\HasIcon;
 use Happones\Kinetix\Support\Contracts\HasLabel;
@@ -64,7 +65,7 @@ abstract class Entry extends Component
     {
         $this->name = $name;
         // Generate a human-friendly label from the attribute name.
-        $this->label = (string) str(str_replace('.', ' ', $name))->headline();
+        $this->label = AutoLabel::from($name);
     }
 
     public static function make(string $name): static

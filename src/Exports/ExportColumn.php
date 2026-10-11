@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Exports;
 
 use BackedEnum;
 use Closure;
+use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Model;
@@ -27,7 +28,7 @@ class ExportColumn
     public function __construct(string $name)
     {
         $this->name  = $name;
-        $this->label = (string) str(str_replace('.', ' ', $name))->headline();
+        $this->label = AutoLabel::from($name);
     }
 
     public static function make(string $name): static

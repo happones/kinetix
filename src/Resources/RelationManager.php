@@ -16,6 +16,7 @@ use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\RelationManagerData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Contracts\Support\Arrayable;
@@ -169,7 +170,7 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     {
         return static::$title !== null
             ? (string) __(static::$title)
-            : (string) str(static::$relationship)->headline();
+            : AutoLabel::from(static::$relationship);
     }
 
     public static function getRelationship(): string

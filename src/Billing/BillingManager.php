@@ -249,13 +249,35 @@ class BillingManager
         $this->billable->createAsStripeCustomer();
     }
 
+    /**
+     * The SetupIntent the billing page's card form confirms. It no longer makes
+     * the billable a Stripe customer: every team that merely opened the page
+     * became one. The intent is created customerless and the card is attached
+     * in {@see addPaymentMethod()}, which creates the customer when one is
+     * really needed. Null without a Stripe secret, where creating it threw
+     * "api_key cannot be the empty string" and the page answered a 500.
+     */
     public function setupIntent(): mixed
     {
-        $this->ensureStripeCustomer();
+        if (! method_exists($this->billable, 'createSetupIntent') || ! $this->stripeConfigured()) {
+            return null;
+        }
 
-        return method_exists($this->billable, 'createSetupIntent')
-            ? $this->billable->createSetupIntent()
-            : null;
+        // A blank id passes Cashier's `hasStripeId()`, which would send it to
+        // Stripe as the customer; cleared in memory only, a GET writes nothing.
+        if (! $this->hasStripeCustomer() && ($this->billable->stripe_id ?? null) !== null) {
+            $this->billable->stripe_id = null;
+        }
+
+        return $this->billable->createSetupIntent();
+    }
+
+    /**
+     * Whether a Stripe secret is configured, the one call to Stripe needs.
+     */
+    public function stripeConfigured(): bool
+    {
+        return filled(config('cashier.secret') ?? config('services.stripe.secret'));
     }
 
     /**

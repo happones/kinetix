@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
 use Happones\Kinetix\Data\ColumnData;
+use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Builder;
@@ -48,8 +49,8 @@ abstract class Column
     public function __construct(string $name)
     {
         $this->name = $name;
-        // Generate human-friendly label from column name
-        $this->label = (string) str(str_replace('.', ' ', $name))->headline();
+        // Human-friendly label from the column name, through the translator
+        $this->label = AutoLabel::from($name);
     }
 
     public static function make(string $name): static

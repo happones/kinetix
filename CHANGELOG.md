@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.5] - 2026-10-10
+
+### Fixed
+
+- **i18n:** a label Kinetix derives from a name (a column, filter, field,
+  entry, group, export or import column without `->label()`, a relation
+  manager without `$title`) and a resource's derived navigation label and
+  breadcrumb now go through the translator. They stayed in English in every
+  locale even when the app's JSON catalog had the key; the headline form
+  ("User Agent") is tried first, then sentence case ("User agent"). An
+  explicit `$navigationLabel` is translated too. New `Support\AutoLabel`.
+- **Billing:** opening the billing page no longer makes the team a Stripe
+  customer. `BillingManager::setupIntent()` creates the SetupIntent without a
+  customer (one is created when a card is actually added), and returns null
+  without a Stripe secret, where the page answered a 500 ("api_key cannot be
+  the empty string"). New `BillingManager::stripeConfigured()`.
+
 ## [0.219.4] - 2026-10-10
 
 ### Fixed
