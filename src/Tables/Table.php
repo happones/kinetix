@@ -2104,8 +2104,14 @@ class Table implements Arrayable, JsonSerializable
         $source     = $this->recordModalsSource
             ?? (string) config('kinetix.tables.record_source', 'server');
 
+        // Reactive through the resource, like the forms the record modal
+        // endpoint resolves: without it a `live()` field in the create modal
+        // never recomputes, so a dependent `options()` or `afterStateUpdated()`
+        // stays frozen at its first render.
         /** @var Form $createForm */
-        $createForm  = $resource::form(Form::make(new $modelClass)->operation('create'))->fill();
+        $createForm = $resource::form(Form::make(new $modelClass)->operation('create'))
+            ->reactiveVia($resource)
+            ->fill();
         $hasForm     = $createForm->getFields()                                               !== [];
         $hasInfolist = $resource::infolist(Infolist::make(new $modelClass))->toData()->schema !== [];
 

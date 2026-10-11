@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.11] - 2026-10-11
+
+### Fixed
+
+- **Tables:** the create form a table ships for its record modals is now
+  reactive through the resource, like the forms the record modal endpoint
+  resolves. Before, a `live()` field in the create modal never recomputed, so
+  `options(fn (Get $get) => …)` and `afterStateUpdated()` stayed frozen at the
+  first render; the edit modal was not affected.
+
 ## [0.219.10] - 2026-10-11
 
 ### Added

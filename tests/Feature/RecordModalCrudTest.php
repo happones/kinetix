@@ -46,6 +46,21 @@ class RecordModalWidgetResource extends Resource
     }
 }
 
+class RecordModalLiveWidgetResource extends Resource
+{
+    protected static ?string $model = RecordModalWidget::class;
+
+    public static function table(Table $table): Table
+    {
+        return $table->columns([TextColumn::make('name')]);
+    }
+
+    public static function form(Form $form): Form
+    {
+        return $form->schema([TextInput::make('name')->live()]);
+    }
+}
+
 class RecordModalCrudTest extends TestCase
 {
     protected function setUp(): void
@@ -67,6 +82,24 @@ class RecordModalCrudTest extends TestCase
             ->toData()
             ->recordModals
             ->token;
+    }
+
+    public function test_the_create_form_recomputes_through_the_resource(): void
+    {
+        // The create modal renders this pre-built form instead of fetching one,
+        // so it has to carry the recompute descriptor itself or its `live()`
+        // fields never react.
+        $live = Table::make(RecordModalWidget::query())
+            ->recordModals(RecordModalLiveWidgetResource::class)
+            ->toData();
+
+        $this->assertNotNull($live->recordModals->createForm['recomputeDescriptor'] ?? null);
+
+        $static = Table::make(RecordModalWidget::query())
+            ->recordModals(RecordModalWidgetResource::class)
+            ->toData();
+
+        $this->assertNull($static->recordModals->createForm['recomputeDescriptor'] ?? null);
     }
 
     public function test_record_modals_descriptor_is_serialized(): void
