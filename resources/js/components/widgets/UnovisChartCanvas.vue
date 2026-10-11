@@ -12,8 +12,12 @@ import {
     VisTooltip,
     VisXYContainer,
 } from '@unovis/vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useKinetixChartSurfaceVars } from '@/composables/useKinetixChartPalette';
+import {
+    kinetixChartTickValues,
+    useKinetixChartWidth,
+} from '@/composables/useKinetixChartTicks';
 import type { KinetixChartPoint, KinetixChartSlice } from '@/types/kinetix';
 
 /**
@@ -81,6 +85,17 @@ const crosshairColor = (_d: KinetixChartPoint | null, index: number): string =>
 // a CSS `hsl(var(--border))` wrapping breaks (silently) on hosts whose tokens
 // are complete colors, e.g. the shadcn starter kit. See the composable.
 const surfaceVars = useKinetixChartSurfaceVars();
+
+// One x label per point overlapped (or wrapped onto two lines) as soon as a
+// series had a few dozen points; thin them to what the chart's width holds.
+const xyContainer = ref(null);
+const chartWidth = useKinetixChartWidth(xyContainer);
+const tickValues = computed(() =>
+    kinetixChartTickValues(
+        props.chartData.map((d) => d.x),
+        chartWidth.value,
+    ),
+);
 </script>
 
 <template>
@@ -118,6 +133,7 @@ const surfaceVars = useKinetixChartSurfaceVars();
     <!-- XY Charts (Line/Area/Bar) -->
     <VisXYContainer
         v-else
+        ref="xyContainer"
         class="kinetix-chart-canvas"
         :style="surfaceVars"
         :data="chartData"
@@ -174,7 +190,7 @@ const surfaceVars = useKinetixChartSurfaceVars();
         />
         <VisAxis
             type="x"
-            :tickValues="chartData.map((d) => d.x)"
+            :tickValues="tickValues"
             :tickFormat="(tickVal: number) => labels[tickVal] || ''"
             :duration="duration"
         />

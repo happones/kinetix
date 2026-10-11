@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.4] - 2026-10-10
+
+### Fixed
+
+- **Widgets:** a line, area or bar chart no longer labels every point on its x
+  axis. A 30-day series wrapped each date onto two lines and a phone drew
+  them on top of each other; the labels are now thinned to what the chart's
+  width holds (measured with a ResizeObserver, every point while they fit).
+  New `useKinetixChartTicks` composable (`kinetixChartTickValues()`,
+  `useKinetixChartWidth()`). **(published)** —
+  `widgets/UnovisChartCanvas.vue`, `composables/useKinetixChartTicks.ts`.
+
 ## [0.219.3] - 2026-10-10
 
 ### Fixed
