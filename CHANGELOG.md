@@ -13,6 +13,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.6] - 2026-10-11
+
+### Fixed
+
+- **Billing:** every billing action now answers with a toast (the starter
+  kits' `toast` flash). The outcome went to `session('status')` and
+  `errors.message`, which no page rendered, so a plan change, a declined card
+  or a failure said nothing. A refusal the customer can act on says why (new
+  `BillingActionException`, translated); a declined card shows Stripe's
+  message; any other failure is reported and answered with a generic message
+  instead of its internals. A payment Stripe wants confirmed (3-D Secure)
+  goes to Cashier's confirmation page.
+- **Billing:** the page's `subscription` prop is null without a subscription
+  or trial; the all-null record drew a blank status pill on every free team.
+  The subscription card names the plan instead (new `currentPlanName` prop)
+  and shows Stripe's status in words (`past_due` → "Past due"), with dates in
+  the app's locale. **(published)** — `KinetixSubscriptionStatus.vue`.
+- **Billing:** the "no payment method required" trial notice showed whenever
+  generic trials were on, even with no plan to trial or the trial used. New
+  `trialAvailable` prop (`BillingManager::genericTrialAvailable()`); the
+  generated page uses it.
+- **Billing:** cancelling, switching to a free plan and removing a card ask
+  first. The trash button has a label and the card tiles are keyboard
+  selectable radios. **(published)** — `KinetixSubscriptionStatus.vue`,
+  `KinetixPlanCard.vue`, `KinetixPaymentMethods.vue`.
+- **Billing:** without a publishable key or SetupIntent the new-card panel
+  says card payments are not set up, instead of an empty field and a dead
+  button; a card error shows under the field (it was only emitted), and the
+  Stripe field speaks the app's locale. **(published)** —
+  `KinetixPaymentMethods.vue`, `composables/useKinetixStripe.ts`.
+- **Billing:** a plan card keeps the cents of its price (`Math.floor()` showed
+  14.99 as 14), names its featured badge ("Popular", it was a bare ★), calls
+  a cheaper plan "Switch plan" rather than "Upgrade", and lines its price up
+  with the other cards. **(published)** — `KinetixPlanCard.vue`,
+  `KinetixPricingTable.vue`.
+- **Billing:** a usage meter without a limit says "Unlimited" instead of
+  drawing an empty bar. **(published)** — `KinetixUsageMeters.vue`.
+- **i18n:** a plan's description and highlighted features go through the
+  translator, like the derived labels in 0.219.5; plan names stay as written.
+
 ## [0.219.5] - 2026-10-10
 
 ### Fixed

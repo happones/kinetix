@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixSubscriptionData } from '@/types/kinetix';
+import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardFooter from './primitives/CardFooter.vue';
@@ -10,14 +11,17 @@ import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
 import { cn } from './primitives/cn';
 
-const { t } = useI18n();
+const { t, te, locale } = useI18n();
 
 const props = withDefaults(
     defineProps<{
         subscription?: KinetixSubscriptionData | null;
+        /** The plan a billable without a subscription is on, named in place of "no subscription". */
+        currentPlanName?: string | null;
     }>(),
     {
         subscription: null,
+        currentPlanName: null,
     },
 );
 
@@ -31,7 +35,7 @@ const formattedEndsAt = computed(() => {
         return null;
     }
 
-    return new Date(props.subscription.endsAt).toLocaleDateString();
+    return new Date(props.subscription.endsAt).toLocaleDateString(locale.value);
 });
 
 const formattedTrialEndsAt = computed(() => {
@@ -39,8 +43,28 @@ const formattedTrialEndsAt = computed(() => {
         return null;
     }
 
-    return new Date(props.subscription.trialEndsAt).toLocaleDateString();
+    return new Date(props.subscription.trialEndsAt).toLocaleDateString(
+        locale.value,
+    );
 });
+
+/**
+ * Stripe's status ("past_due") in words; an unknown one shows as Stripe sent it.
+ */
+const statusLabel = computed(() => {
+    const status = props.subscription?.status ?? '';
+    const key = `kinetix.billing_status_${status}`;
+
+    return status !== '' && te(key) ? t(key) : status.replace(/_/g, ' ');
+});
+
+/** Cancelling is one click from losing the plan, so it asks first. */
+const confirmingCancel = ref(false);
+
+function confirmCancel(): void {
+    confirmingCancel.value = false;
+    emit('cancel');
+}
 
 const trialPlanName = computed(() => {
     return props.subscription?.trialPlan ?? null;
@@ -88,7 +112,7 @@ const hasActions = computed(() => {
                                 : 'border-transparent bg-secondary text-secondary-foreground'
                         "
                     >
-                        {{ subscription.status }}
+                        {{ statusLabel }}
                     </span>
                 </div>
 
@@ -122,8 +146,14 @@ const hasActions = computed(() => {
                     {{ t('kinetix.billing_expires_on') }}: {{ formattedEndsAt }}
                 </div>
             </div>
-            <p v-else class="text-sm text-muted-foreground italic">
-                {{ t('kinetix.billing_no_subscription') }}
+            <p v-else class="text-sm text-muted-foreground">
+                {{
+                    currentPlanName
+                        ? t('kinetix.billing_on_free_plan', {
+                              plan: currentPlanName,
+                          })
+                        : t('kinetix.billing_no_subscription')
+                }}
             </p>
         </CardContent>
 
@@ -137,7 +167,7 @@ const hasActions = computed(() => {
                         'w-full text-destructive hover:bg-destructive/10',
                     )
                 "
-                @click="emit('cancel')"
+                @click="confirmingCancel = true"
             >
                 {{ t('kinetix.billing_cancel_subscription') }}
             </button>
@@ -150,5 +180,15 @@ const hasActions = computed(() => {
                 {{ t('kinetix.billing_resume_subscription') }}
             </button>
         </CardFooter>
+
+        <KinetixConfirmModal
+            :open="confirmingCancel"
+            :heading="t('kinetix.billing_cancel_confirm_title')"
+            :description="t('kinetix.billing_cancel_confirm_description')"
+            :submit-label="t('kinetix.billing_cancel_subscription')"
+            :cancel-label="t('kinetix.billing_keep_subscription')"
+            @update:open="confirmingCancel = $event"
+            @confirm="confirmCancel"
+        />
     </Card>
 </template>

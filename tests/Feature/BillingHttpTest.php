@@ -13,6 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Support\SessionKey;
 
 class HttpBillableSubscription
 {
@@ -314,5 +315,47 @@ class BillingHttpTest extends TestCase
         // resume() only applies inside the grace period.
         $this->actingAs($billable)->post(route('billing.resume'))->assertRedirect();
         $this->assertContains('resume', $billable->sub->calls);
+    }
+
+    public function test_a_billing_action_answers_with_a_toast(): void
+    {
+        $billable = $this->billable();
+
+        $this->actingAs($billable)
+            ->delete(route('billing.payment-methods.remove', ['id' => 'pm_missing']))
+            ->assertSessionHas(SessionKey::FLASH_DATA.'.toast', ['type' => 'success', 'message' => (string) __('kinetix.billing_payment_method_removed')]);
+    }
+
+    public function test_a_refused_action_says_why(): void
+    {
+        $billable = $this->billable();
+
+        // No card and no default payment method: the customer can fix this.
+        $this->actingAs($billable)
+            ->post(route('billing.subscribe'), ['plan_slug' => 'pro'])
+            ->assertSessionHas(SessionKey::FLASH_DATA.'.toast', ['type' => 'error', 'message' => (string) __('kinetix.billing_payment_required')]);
+    }
+
+    public function test_a_failed_action_hides_its_internals(): void
+    {
+        $billable = $this->billable();
+
+        Plan::create(['name' => 'Unpriced', 'slug' => 'unpriced', 'monthly_price' => 9]);
+
+        $this->actingAs($billable)
+            ->post(route('billing.subscribe'), ['plan_slug' => 'unpriced', 'payment_method' => 'pm_1'])
+            ->assertSessionHas(SessionKey::FLASH_DATA.'.toast', ['type' => 'error', 'message' => (string) __('kinetix.billing_action_failed')]);
+    }
+
+    public function test_the_page_has_no_subscription_record_without_one(): void
+    {
+        $billable = $this->billable();
+
+        $this->actingAs($billable)
+            ->withHeader('X-Inertia', 'true')
+            ->withHeader('X-Inertia-Version', '1')
+            ->get(route('billing.index'))
+            ->assertJsonPath('props.subscription', null)
+            ->assertJsonPath('props.trialAvailable', false);
     }
 }

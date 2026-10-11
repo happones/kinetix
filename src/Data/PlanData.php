@@ -34,13 +34,19 @@ class PlanData extends Data
     {
         return new self(
             id: $plan->getKey(),
+            // A plan name is a product name and stays as written ("Team" is
+            // not "Equipo"); its copy lives in the database in one language
+            // and the app's JSON catalog translates it like any other string.
             name: (string) $plan->name,
             slug: (string) $plan->slug,
-            description: $plan->description,
+            description: filled($plan->description) ? (string) __((string) $plan->description) : $plan->description,
             monthlyPrice: $plan->priceFor('monthly'),
             yearlyPrice: $plan->priceFor('yearly'),
             features: (array) ($plan->features ?? []),
-            highlightedFeatures: (array) ($plan->highlighted_features ?? []),
+            highlightedFeatures: array_map(
+                static fn (mixed $feature): string => (string) __((string) $feature),
+                array_values((array) ($plan->highlighted_features ?? [])),
+            ),
             isFeatured: (bool) $plan->is_featured,
             isFree: $plan->isFree(),
             sortOrder: (int) $plan->sort_order,

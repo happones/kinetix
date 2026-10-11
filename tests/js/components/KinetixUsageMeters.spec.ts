@@ -15,6 +15,7 @@ const i18n = createI18n({
                 billing_usage_title: 'Usage this period',
                 billing_usage_over_limit:
                     "You've reached the included limit for this usage.",
+                billing_usage_unlimited: 'Unlimited',
             },
         },
     },
@@ -122,5 +123,15 @@ describe('KinetixUsageMeters', () => {
 
         expect(w.text()).toContain('Plan usage');
         expect(w.text()).not.toContain('Usage this period');
+    });
+
+    it('says unlimited instead of drawing an empty bar without a limit', () => {
+        const w = mount(KinetixUsageMeters, {
+            props: { metrics: [metric({ limit: null, percent: 0 })] },
+            global: { plugins: [i18n] },
+        });
+
+        expect(w.find('.h-2').exists()).toBe(false);
+        expect(w.text()).toContain('Unlimited');
     });
 });

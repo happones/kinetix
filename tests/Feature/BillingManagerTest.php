@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Billing\BillingManager;
+use Happones\Kinetix\Billing\Exceptions\BillingActionException;
 use Happones\Kinetix\Billing\Plan;
 use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Tests\TestCase;
@@ -552,7 +553,8 @@ class BillingManagerTest extends TestCase
         ]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('A payment method is required to start a new subscription.');
+        $this->expectException(BillingActionException::class);
+        $this->expectExceptionMessage((string) __('kinetix.billing_payment_required'));
 
         BillingManager::for($billable)->subscribe('paid-plan-2', null);
     }
@@ -673,7 +675,8 @@ class BillingManagerTest extends TestCase
         ]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('You have already used your free trial.');
+        $this->expectException(BillingActionException::class);
+        $this->expectExceptionMessage((string) __('kinetix.billing_trial_already_used'));
 
         BillingManager::for($billableWithoutPm)->subscribe('second-trial', null);
     }
@@ -865,7 +868,8 @@ class BillingManagerTest extends TestCase
         $billable->save();
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('A payment method is required to start a new subscription.');
+        $this->expectException(BillingActionException::class);
+        $this->expectExceptionMessage((string) __('kinetix.billing_payment_required'));
 
         BillingManager::for($billable)->subscribe('pro', '');
     }

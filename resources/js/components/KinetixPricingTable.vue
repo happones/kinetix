@@ -37,6 +37,13 @@ const emit = defineEmits<{
     (e: 'update:cycle', cycle: 'monthly' | 'yearly'): void;
 }>();
 
+/** The active plan's monthly price, which tells an upgrade from a switch. */
+const currentPrice = computed(
+    () =>
+        props.plans.find((plan) => plan.slug === props.currentPlanSlug)
+            ?.monthlyPrice ?? null,
+);
+
 const hasYearly = computed(() =>
     props.plans.some((plan) => plan.yearlyPrice != null),
 );
@@ -100,6 +107,7 @@ const columns = computed(() => {
                 :currency-symbol="currencySymbol"
                 :feature-labels="featureLabels"
                 :is-active="plan.slug === currentPlanSlug"
+                :current-price="currentPrice"
                 :is-selected="plan.slug === selectedSlug"
                 :loading="loading"
                 :can-subscribe="!loading"

@@ -29,6 +29,8 @@ export interface UseKinetixStripeOptions {
     elementType?: string;
     /** Selector / element the theme toggle mutates. Defaults to `<html>`. */
     themeRoot?: HTMLElement;
+    /** Language of the card field's placeholders and Stripe's card errors. */
+    locale?: string;
 }
 
 const HSL_CHANNELS = /^[\d.]+\s+[\d.]+%\s+[\d.]+%$/;
@@ -146,7 +148,9 @@ export function useKinetixStripe(options: UseKinetixStripeOptions) {
             return;
         }
 
-        elements.value = stripe.value.elements();
+        elements.value = stripe.value.elements(
+            options.locale ? { locale: options.locale } : undefined,
+        );
         element.value = elements.value.create(options.elementType ?? 'card', {
             style: buildStyle(),
         });

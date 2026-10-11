@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Check, Loader2, X } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixPlanData } from '@/types/kinetix';
+import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardDescription from './primitives/CardDescription.vue';
@@ -29,6 +30,12 @@ const props = withDefaults(
          * based on the plan's feature gating. Keeps the card generic across apps.
          */
         featureLabels?: Record<string, string>;
+        /**
+         * Monthly price of the plan the billable is on. A dearer plan reads
+         * "Upgrade" and any other "Switch plan": with no reference every paid
+         * plan said "Upgrade", a downgrade included.
+         */
+        currentPrice?: number | null;
     }>(),
     {
         isActive: false,
@@ -39,6 +46,7 @@ const props = withDefaults(
         currencySymbol: '$',
         showTrial: true,
         featureLabels: () => ({}),
+        currentPrice: null,
     },
 );
 
@@ -46,7 +54,7 @@ const emit = defineEmits<{
     (e: 'subscribe', plan: KinetixPlanData): void;
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const price = computed(() =>
     props.cycle === 'yearly' ? props.plan.yearlyPrice : props.plan.monthlyPrice,
@@ -86,18 +94,53 @@ function hasFeature(path: string): boolean {
     return value === null || !!value;
 }
 
+/**
+ * The price in the visitor's number format, cents kept when it has them:
+ * `Math.floor()` showed a 14.99 plan as 14.
+ */
+const formattedPrice = computed(() => {
+    const value = price.value ?? 0;
+
+    return new Intl.NumberFormat(locale.value, {
+        minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+        maximumFractionDigits: 2,
+    }).format(value);
+});
+
 const ctaLabel = computed(() =>
-    (props.plan.monthlyPrice ?? 0) > 0
+    (props.plan.monthlyPrice ?? 0) > (props.currentPrice ?? 0)
         ? t('kinetix.billing_upgrade')
         : t('kinetix.billing_switch_plan'),
 );
+
+/**
+ * Moving to a free plan cancels the paid subscription at once, so it asks
+ * first. A free plan that is not the active one only shows to a paying
+ * billable; every other choice goes through checkout and needs no extra step.
+ */
+const confirmingFree = ref(false);
+
+function choose(): void {
+    if (props.plan.isFree) {
+        confirmingFree.value = true;
+
+        return;
+    }
+
+    emit('subscribe', props.plan);
+}
+
+function confirmFree(): void {
+    confirmingFree.value = false;
+    emit('subscribe', props.plan);
+}
 </script>
 
 <template>
     <Card
         :class="
             cn(
-                'justify-between transition-all',
+                'transition-all',
                 isActive ? 'border-primary ring-2 ring-primary' : '',
                 isSelected && !isActive
                     ? 'border-primary ring-2 ring-primary/40'
@@ -118,7 +161,7 @@ const ctaLabel = computed(() =>
                     v-else-if="plan.isFeatured"
                     class="px-2 py-0.5 font-medium inline-flex w-fit items-center rounded-full border border-transparent bg-secondary text-[10px] text-secondary-foreground uppercase"
                 >
-                    ★
+                    {{ t('kinetix.billing_featured') }}
                 </span>
             </CardTitle>
             <CardDescription v-if="plan.description">{{
@@ -126,9 +169,13 @@ const ctaLabel = computed(() =>
             }}</CardDescription>
         </CardHeader>
 
-        <CardContent>
+        <!-- flex-1: the content takes the spare height, so every card's price
+             sits right under its header and the buttons line up at the bottom
+             (spreading the space between the three pushed the prices to
+             different heights). -->
+        <CardContent class="flex-1">
             <div class="text-3xl font-bold">
-                {{ currencySymbol }}{{ Math.floor(price ?? 0) }}
+                {{ currencySymbol }}{{ formattedPrice }}
                 <span class="text-sm font-normal text-muted-foreground">{{
                     periodLabel
                 }}</span>
@@ -206,7 +253,7 @@ const ctaLabel = computed(() =>
                 type="button"
                 :class="cn(buttonVariants(), 'w-full')"
                 :disabled="loading || !canSubscribe"
-                @click="emit('subscribe', plan)"
+                @click="choose"
             >
                 <Loader2
                     v-if="loading && isSelected"
@@ -215,5 +262,24 @@ const ctaLabel = computed(() =>
                 {{ ctaLabel }}
             </button>
         </CardFooter>
+
+        <KinetixConfirmModal
+            :open="confirmingFree"
+            color="warning"
+            :heading="
+                t('kinetix.billing_switch_free_confirm_title', {
+                    plan: plan.name,
+                })
+            "
+            :description="
+                t('kinetix.billing_switch_free_confirm_description', {
+                    plan: plan.name,
+                })
+            "
+            :submit-label="t('kinetix.billing_switch_plan')"
+            :cancel-label="t('kinetix.billing_keep_subscription')"
+            @update:open="confirmingFree = $event"
+            @confirm="confirmFree"
+        />
     </Card>
 </template>

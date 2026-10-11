@@ -64,12 +64,20 @@ const percentFor = (metric: KinetixUsageMetricData) =>
                         {{ metric.display }}
                     </span>
                 </div>
-                <span class="h-2 overflow-hidden rounded-full bg-muted">
+                <!-- A bar needs a limit to fill toward: without one an empty
+                     track read as "nothing used of something". -->
+                <span
+                    v-if="metric.limit !== null"
+                    class="h-2 overflow-hidden rounded-full bg-muted"
+                >
                     <span
                         class="ease-out block h-full rounded-full transition-[width] duration-700"
                         :class="statusFillClass(metric.color)"
                         :style="{ width: `${percentFor(metric)}%` }"
                     />
+                </span>
+                <span v-else class="text-xs text-muted-foreground">
+                    {{ t('kinetix.billing_usage_unlimited') }}
                 </span>
                 <p
                     v-if="metric.overLimit"

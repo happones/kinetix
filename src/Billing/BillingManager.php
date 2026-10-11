@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Billing;
 
+use Happones\Kinetix\Billing\Exceptions\BillingActionException;
 use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Data\UsageMetricData;
 use Happones\Kinetix\Support\KinetixTeams;
@@ -270,6 +271,22 @@ class BillingManager
         }
 
         return $this->billable->createSetupIntent();
+    }
+
+    /**
+     * Whether the billable can still start a generic (card-less) trial: the
+     * mode is on, some active plan offers trial days, the trial is unused and
+     * there is no subscription. What the billing page's "no payment method
+     * required" notice needs; the mode flag alone showed it to every team,
+     * including ones with no plan to trial.
+     */
+    public function genericTrialAvailable(): bool
+    {
+        if (! $this->isTrialGenericEnabled() || $this->subscribed() || $this->hasAlreadyUsedTrial()) {
+            return false;
+        }
+
+        return $this->plans()->contains(static fn (PlanData $plan): bool => ($plan->trialDays ?? 0) > 0);
     }
 
     /**
@@ -747,10 +764,10 @@ class BillingManager
         }
 
         if ($this->hasAlreadyUsedTrial()) {
-            throw new RuntimeException('You have already used your free trial. A payment method is required to subscribe.');
+            throw BillingActionException::trialAlreadyUsed();
         }
 
-        throw new RuntimeException('A payment method is required to start a new subscription.');
+        throw BillingActionException::paymentMethodRequired();
     }
 
     protected function createNewSubscription(string $priceId, ?string $paymentMethod, Plan $plan): void

@@ -90,6 +90,7 @@ const props = withDefaults(
     currencySymbol: string;
     publishableKey: string;
     trialGeneric: boolean;
+    trialAvailable: boolean;
     invoicesUseStripeUrl: boolean;
   }>(),
   { usage: () => [] },
@@ -138,7 +139,7 @@ const subscribe = (plan: KinetixPlanData) => {
       @update:cycle="cycle = $event"
     />
 
-    <KinetixTrialNotice v-if="trialGeneric" />
+    <KinetixTrialNotice v-if="trialAvailable" />
 
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <div class="lg:col-span-2 space-y-6">
@@ -164,6 +165,7 @@ const subscribe = (plan: KinetixPlanData) => {
       <div class="space-y-6">
         <KinetixSubscriptionStatus
           :subscription="subscription"
+          :current-plan-name="currentPlan?.name ?? null"
           @cancel="billing.cancel"
           @resume="billing.resume"
         />
