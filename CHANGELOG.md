@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.16] - 2026-10-12
+
+### Fixed
+
+- **Tables:** a stat card counting or summing over no rows shows `0` instead of
+  rendering blank. A conditional count is a `SUM(CASE …)`, and SQL's `SUM()` of
+  an empty set is `NULL`, so a card like "Paused" on an empty table had no
+  value at all. `min`, `max` and `avg` keep their `NULL`: there is nothing to
+  show.
+
 ## [0.219.15] - 2026-10-12
 
 ### Fixed

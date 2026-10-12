@@ -381,7 +381,7 @@ class TableStat
 
         if ($condition === null) {
             return [
-                $this->aggregate === 'count' ? 'count(*)' : "{$this->aggregate}({$target})",
+                $this->aggregate === 'count' ? 'count(*)' : $this->zeroWhenEmpty("{$this->aggregate}({$target})"),
                 [],
             ];
         }
@@ -391,7 +391,20 @@ class TableStat
         $else = in_array($this->aggregate, ['count', 'sum'], true) ? '0' : 'null';
         $fn   = $this->aggregate === 'count' ? 'sum' : $this->aggregate;
 
-        return ["{$fn}(case when {$condition} then {$target} else {$else} end)", $bindings];
+        return [$this->zeroWhenEmpty("{$fn}(case when {$condition} then {$target} else {$else} end)"), $bindings];
+    }
+
+    /**
+     * A count or a sum over no rows is 0, but SQL's SUM() of an empty set is
+     * NULL — which a conditional count is built on, so a card like "Paused"
+     * rendered blank instead of 0 on an empty table. min/max/avg keep their
+     * NULL: there is no value to show.
+     */
+    protected function zeroWhenEmpty(string $expression): string
+    {
+        return in_array($this->aggregate, ['count', 'sum'], true)
+            ? "coalesce({$expression}, 0)"
+            : $expression;
     }
 
     /**

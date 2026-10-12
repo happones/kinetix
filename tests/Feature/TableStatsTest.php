@@ -141,6 +141,26 @@ class TableStatsTest extends TestCase
         ], $this->byLabel($stats));
     }
 
+    public function test_counts_and_sums_read_zero_on_an_empty_table(): void
+    {
+        StatBook::query()->delete();
+
+        [$stats] = $this->render([
+            TableStat::make('Total')->count(),
+            TableStat::make('On loan')->count()->where('status', 'loan'),
+            TableStat::make('Copies')->sum('copies'),
+            TableStat::make('Loaned copies')->sum('copies')->where('status', 'loan'),
+        ]);
+
+        // SUM() over no rows is NULL in SQL; the cards built on it rendered blank.
+        $this->assertSame([
+            'Total'         => '0',
+            'On loan'       => '0',
+            'Copies'        => '0',
+            'Loaned copies' => '0',
+        ], $this->byLabel($stats));
+    }
+
     public function test_conditions_chain_as_and(): void
     {
         [$stats] = $this->render([
