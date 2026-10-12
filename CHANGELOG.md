@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.14] - 2026-10-12
+
+### Fixed
+
+- **Billing:** a new subscription is charged right away, off-session
+  (Cashier's `allowPaymentFailures()`). With Cashier's default
+  (`default_incomplete`) Stripe left the first payment for the customer to
+  confirm and asked for 3-D Secure again on a card the billing page had just
+  authenticated, sending every such payer to Stripe. It now comes back `active`
+  with its invoice paid; only a charge Stripe still wants confirmed goes to
+  Cashier's confirmation page, as before.
+- **Billing:** the billing page reads a subscription left `incomplete` from
+  Stripe (`BillingManager::refreshIncompleteSubscription()`). A payment
+  confirmed on Cashier's page reaches the app through Stripe's webhook, and
+  until it arrived — or where the webhook is not set up — the team that paid
+  kept its old plan. Only an `incomplete` subscription is read, and only with a
+  Stripe secret; a failure is reported and the page renders as it was.
+
 ## [0.219.13] - 2026-10-12
 
 ### Fixed

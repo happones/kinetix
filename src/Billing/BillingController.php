@@ -32,6 +32,10 @@ class BillingController
     {
         $manager = $this->manager();
 
+        // Back from confirming a payment on Cashier's page, the subscription is
+        // still `incomplete` here until Stripe's webhook says otherwise.
+        $manager->refreshIncompleteSubscription();
+
         // Null without a subscription or trial: an all-null record rendered
         // as a blank status pill on every free team's page.
         $subscription = $manager->subscriptionData();

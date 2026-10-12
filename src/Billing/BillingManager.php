@@ -12,6 +12,7 @@ use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection as SupportCollection;
 use RuntimeException;
+use Throwable;
 
 /**
  * Thin, framework-agnostic wrapper around Laravel Cashier for a configurable
@@ -718,6 +719,40 @@ class BillingManager
     }
 
     /**
+     * Bring a subscription left `incomplete` up to date with Stripe.
+     *
+     * Its first payment is confirmed on Cashier's page, and Stripe tells the
+     * app through a webhook. Until that arrives — late, or never where the
+     * webhook is not set up — the team that just paid kept its old plan. Read
+     * once per page load and only for an `incomplete` subscription; a failure
+     * is reported and the page renders with what it has.
+     */
+    public function refreshIncompleteSubscription(): void
+    {
+        $subscription = $this->subscription();
+
+        if (! is_object($subscription)
+            || ! method_exists($subscription, 'incomplete')
+            || ! method_exists($subscription, 'syncStripeStatus')
+            || ! $subscription->incomplete()
+            || ! $this->stripeConfigured()) {
+            return;
+        }
+
+        try {
+            $subscription->syncStripeStatus();
+        } catch (Throwable $e) {
+            report($e);
+
+            return;
+        }
+
+        if (method_exists($this->billable, 'forgetCurrentPlan')) {
+            $this->billable->forgetCurrentPlan();
+        }
+    }
+
+    /**
      * A subscription whose first payment was never confirmed is not one the
      * billable holds (`subscribed()` is false for it), so trying again creates
      * a new one. The abandoned one is cancelled first rather than left open
@@ -794,6 +829,15 @@ class BillingManager
     protected function createNewSubscription(string $priceId, ?string $paymentMethod, Plan $plan): void
     {
         $builder = $this->billable->newSubscription($this->subscriptionType(), $priceId);
+
+        // Charged right away, off-session, with the card the billing page
+        // authenticated. Cashier's default (`default_incomplete`) leaves the
+        // first payment for the customer to confirm, so Stripe asked for 3-D
+        // Secure again on a card it had just authenticated. A charge that still
+        // needs confirming throws IncompletePayment as before.
+        if (method_exists($builder, 'allowPaymentFailures')) {
+            $builder->allowPaymentFailures();
+        }
 
         if (! $this->isTrialGenericEnabled() && $plan->trial_days !== null && $plan->trial_days > 0) {
             $builder->trialDays($plan->trial_days);

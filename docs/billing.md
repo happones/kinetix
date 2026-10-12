@@ -271,6 +271,16 @@ payment confirmed (3-D Secure), Cashier has already saved the subscription as
 confirmed, so a payer who leaves the confirmation page keeps the plan they had.
 Subscribing again cancels that abandoned `incomplete` subscription first.
 
+A new subscription is created with Cashier's `allowPaymentFailures()`: Stripe
+charges the card right away, off-session, so a card the billing page already
+authenticated (3-D Secure on its SetupIntent) is not asked again, and the
+subscription comes back `active` with its invoice paid. Only a charge Stripe
+still wants confirmed goes to Cashier's confirmation page. Back on the billing
+page, an `incomplete` subscription is read from Stripe
+(`refreshIncompleteSubscription()`), so a payment confirmed there shows without
+waiting for the `customer.subscription.updated` webhook — which you should still
+configure, since it is what keeps every other status change in sync.
+
 ### The plan catalog
 
 Every helper above funnels through `currentPlan()`, and `currentPlan()` is

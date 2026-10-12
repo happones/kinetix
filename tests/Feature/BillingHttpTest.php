@@ -61,6 +61,17 @@ class HttpBillableSubscription
     {
         $this->calls[] = "swap:{$price}";
     }
+
+    public function incomplete(): bool
+    {
+        return $this->stripe_status === 'incomplete';
+    }
+
+    public function syncStripeStatus(): void
+    {
+        $this->calls[]       = 'syncStripeStatus';
+        $this->stripe_status = 'active';
+    }
 }
 
 class HttpSubscriptionBuilder
@@ -420,6 +431,29 @@ class BillingHttpTest extends TestCase
 
         Route::get('stripe/payment/{id}', fn () => 'confirm')->name('cashier.payment');
         Route::getRoutes()->refreshNameLookups();
+    }
+
+    /**
+     * Back on the billing page from confirming the payment, the subscription
+     * is read from Stripe instead of waiting for its webhook.
+     */
+    public function test_the_page_brings_an_incomplete_subscription_up_to_date(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+
+        $billable                     = $this->billable();
+        $billable->sub                = new HttpBillableSubscription;
+        $billable->sub->stripe_status = 'incomplete';
+
+        $this->actingAs($billable)
+            ->withHeader('X-Inertia', 'true')
+            ->withHeader('X-Inertia-Version', '1')
+            ->get(route('billing.index'))
+            ->assertOk()
+            ->assertJsonPath('props.subscription.status', 'active');
+
+        $this->assertSame(['syncStripeStatus'], $billable->sub->calls);
+        $this->assertSame('active', $billable->sub->stripe_status);
     }
 
     public function test_the_page_has_no_subscription_record_without_one(): void

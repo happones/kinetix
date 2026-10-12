@@ -72,6 +72,15 @@ class FakeStripeSubscription
     {
         $this->calls[] = 'cancelNow';
     }
+
+    /** What Stripe holds for this subscription, read by syncStripeStatus(). */
+    public string $stripeSideStatus = 'active';
+
+    public function syncStripeStatus(): void
+    {
+        $this->calls[]       = 'syncStripeStatus';
+        $this->stripe_status = $this->stripeSideStatus;
+    }
 }
 
 class FakeSubscriptionBuilder
@@ -83,6 +92,13 @@ class FakeSubscriptionBuilder
     public function trialDays(int $days): self
     {
         $this->trialDays = $days;
+
+        return $this;
+    }
+
+    public function allowPaymentFailures(): self
+    {
+        $this->billable->allowedPaymentFailures = true;
 
         return $this;
     }
@@ -107,6 +123,8 @@ class FakeBillable extends Model
     public ?FakeStripeSubscription $sub = null;
 
     public bool $isSubscribed = false;
+
+    public bool $allowedPaymentFailures = false;
 
     public bool $isGenericTrial = false;
 
@@ -885,6 +903,69 @@ class BillingManagerTest extends TestCase
 
         $this->assertSame(['cancelNow'], $billable->sub->calls);
         $this->assertSame(['create:price_pro_m:pm_1'], $billable->calls);
+    }
+
+    /**
+     * Charged right away with the card the page authenticated: Cashier's
+     * default left the first payment for the customer to confirm, and Stripe
+     * asked for 3-D Secure again on a card it had just authenticated.
+     */
+    public function test_a_new_subscription_is_charged_right_away(): void
+    {
+        $billable = new FakeBillable;
+        $billable->save();
+
+        BillingManager::for($billable)->subscribe('pro', 'pm_1');
+
+        $this->assertTrue($billable->allowedPaymentFailures);
+        $this->assertSame(['create:price_pro_m:pm_1'], $billable->calls);
+    }
+
+    /**
+     * Confirmed on Cashier's page, a payment reaches the app through Stripe's
+     * webhook; until then the team that paid kept its old plan.
+     */
+    public function test_an_incomplete_subscription_is_brought_up_to_date_with_stripe(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+
+        $billable                     = new FakeBillable;
+        $billable->sub                = new FakeStripeSubscription;
+        $billable->sub->stripe_status = 'incomplete';
+        $billable->save();
+
+        BillingManager::for($billable)->refreshIncompleteSubscription();
+
+        $this->assertSame(['syncStripeStatus'], $billable->sub->calls);
+        $this->assertSame('active', $billable->sub->stripe_status);
+    }
+
+    public function test_only_an_incomplete_subscription_is_read_from_stripe(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+
+        $billable      = new FakeBillable;
+        $billable->sub = new FakeStripeSubscription;
+        $billable->save();
+
+        BillingManager::for($billable)->refreshIncompleteSubscription();
+
+        $this->assertSame([], $billable->sub->calls);
+    }
+
+    public function test_an_incomplete_subscription_is_not_read_without_a_stripe_secret(): void
+    {
+        config(['cashier.secret' => null, 'services.stripe.secret' => null]);
+
+        $billable                     = new FakeBillable;
+        $billable->sub                = new FakeStripeSubscription;
+        $billable->sub->stripe_status = 'incomplete';
+        $billable->save();
+
+        BillingManager::for($billable)->refreshIncompleteSubscription();
+
+        $this->assertSame([], $billable->sub->calls);
+        $this->assertSame('incomplete', $billable->sub->stripe_status);
     }
 
     public function test_subscribing_keeps_a_subscription_that_is_not_incomplete(): void
