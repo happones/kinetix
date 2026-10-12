@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.17] - 2026-10-12
+
+### Fixed
+
+- **Markdown:** `SafeMarkdown` (announcements, help articles) drops the code
+  inside an inline `<script>` or `<style>` along with the tags. Stripping raw
+  HTML removed the tags only, so the script itself showed up as text in the
+  banner. A script written as code (`` `<script>` ``) is kept.
+- **Markdown:** an unsafe link (`javascript:`, `data:`, …) renders as its text
+  instead of an `<a>` without an `href`, which still looked and focused like a
+  link that led nowhere.
+
 ## [0.219.16] - 2026-10-12
 
 ### Fixed

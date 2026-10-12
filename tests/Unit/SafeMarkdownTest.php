@@ -40,6 +40,34 @@ class SafeMarkdownTest extends TestCase
         $this->assertStringNotContainsString('data:text', $html);
     }
 
+    public function test_the_code_inside_a_stripped_script_goes_with_its_tags(): void
+    {
+        $html = SafeMarkdown::toHtml('Rotate your keys <script>window.pwned = 1</script><style>body{}</style> today.');
+
+        $this->assertStringNotContainsString('window.pwned', $html);
+        $this->assertStringNotContainsString('body{}', $html);
+        $this->assertStringContainsString('Rotate your keys', $html);
+        $this->assertStringContainsString('today.', $html);
+    }
+
+    public function test_an_unsafe_link_becomes_its_text_not_a_dead_anchor(): void
+    {
+        $html = SafeMarkdown::toHtml('See [the **bad** one](javascript:alert(1)) and [docs](/docs).');
+
+        $this->assertStringContainsString('the <strong>bad</strong> one', $html);
+        $this->assertStringNotContainsString('<a>', $html);
+        $this->assertSame(1, substr_count($html, '<a'));
+        $this->assertStringContainsString('<a href="/docs">docs</a>', $html);
+    }
+
+    public function test_a_script_shown_as_code_is_kept(): void
+    {
+        // Documentation about the tag is not the tag.
+        $html = SafeMarkdown::toHtml('Never paste `<script>alert(1)</script>` into a field.');
+
+        $this->assertStringContainsString('<code>&lt;script&gt;alert(1)&lt;/script&gt;</code>', $html);
+    }
+
     public function test_line_breaks_mode_keeps_single_newlines(): void
     {
         $this->assertStringContainsString('<br />', SafeMarkdown::toHtml("line one\nline two", lineBreaks: true));
