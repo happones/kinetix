@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.12] - 2026-10-12
+
+### Fixed
+
+- **Billing:** a payment Stripe wants confirmed (3-D Secure) now opens Cashier's
+  confirmation page as a full page from an Inertia visit. The controller
+  redirected to it, the XHR followed the redirect, and Inertia showed the Blade
+  page in its error dialog — an iframe with a `null` origin, where the page's
+  Vue never rendered and Stripe.js refused every request, so the payment could
+  not be confirmed. It now answers with `Inertia::location()`; a plain request
+  still gets the redirect. The billing actions return a Symfony `Response`
+  instead of a `RedirectResponse`.
+
 ## [0.219.11] - 2026-10-11
 
 ### Fixed

@@ -14,6 +14,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Inertia\ServiceProvider as InertiaServiceProvider;
+use Laravel\Cashier\Exceptions\IncompletePayment;
+use Laravel\Cashier\Payment;
+use Stripe\PaymentIntent;
 
 class HttpBillableSubscription
 {
@@ -70,6 +74,14 @@ class HttpSubscriptionBuilder
 
     public function create(?string $paymentMethod = null): void
     {
+        // Stripe wanting the first charge confirmed (3-D Secure).
+        if ($this->price === 'price_needs_action') {
+            throw new IncompletePayment(
+                new Payment(PaymentIntent::constructFrom(['id' => 'pi_needs_action', 'status' => 'requires_action'])),
+                'The payment needs to be confirmed.',
+            );
+        }
+
         $this->billable->calls[] = "create:{$this->price}:{$paymentMethod}";
     }
 }
@@ -143,6 +155,18 @@ class HttpBillable extends Authenticatable
  */
 class BillingHttpTest extends TestCase
 {
+    /**
+     * Inertia's provider too, as every host has it: it registers the
+     * `Request::inertia()` macro that tells an Inertia visit from a plain one.
+     *
+     * @param  Application        $app
+     * @return list<class-string>
+     */
+    protected function getPackageProviders($app): array
+    {
+        return [...parent::getPackageProviders($app), InertiaServiceProvider::class];
+    }
+
     /**
      * @param Application $app
      */
@@ -351,6 +375,51 @@ class BillingHttpTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(['type' => 'error', 'message' => (string) __('kinetix.billing_action_failed')], $this->flashedToast());
+    }
+
+    /**
+     * Cashier's confirmation page is not an Inertia page: redirected to from an
+     * Inertia visit, it ended up in Inertia's error dialog, where Stripe.js
+     * cannot run. The browser has to load it as a page instead.
+     */
+    public function test_a_payment_to_confirm_is_opened_as_a_full_page_from_an_inertia_visit(): void
+    {
+        $billable = $this->billable();
+        $this->needsConfirmation();
+
+        $response = $this->actingAs($billable)
+            ->from(route('billing.index'))
+            ->withHeader('X-Inertia', 'true')
+            ->post(route('billing.subscribe'), ['plan_slug' => 'secure', 'payment_method' => 'pm_1']);
+
+        $response->assertStatus(409);
+        $this->assertSame(
+            route('cashier.payment', ['pi_needs_action', 'redirect' => route('billing.index')]),
+            $response->headers->get('X-Inertia-Location'),
+        );
+    }
+
+    public function test_a_payment_to_confirm_is_a_redirect_outside_inertia(): void
+    {
+        $billable = $this->billable();
+        $this->needsConfirmation();
+
+        $this->actingAs($billable)
+            ->from(route('billing.index'))
+            ->post(route('billing.subscribe'), ['plan_slug' => 'secure', 'payment_method' => 'pm_1'])
+            ->assertRedirect(route('cashier.payment', ['pi_needs_action', 'redirect' => route('billing.index')]));
+    }
+
+    /**
+     * A plan whose first charge Stripe wants confirmed, and Cashier's
+     * confirmation route (its provider is not loaded in this suite).
+     */
+    private function needsConfirmation(): void
+    {
+        Plan::create(['name' => 'Secure', 'slug' => 'secure', 'monthly_price' => 49, 'stripe_monthly_price_id' => 'price_needs_action']);
+
+        Route::get('stripe/payment/{id}', fn () => 'confirm')->name('cashier.payment');
+        Route::getRoutes()->refreshNameLookups();
     }
 
     public function test_the_page_has_no_subscription_record_without_one(): void

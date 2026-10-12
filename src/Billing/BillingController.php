@@ -7,13 +7,13 @@ namespace Happones\Kinetix\Billing;
 use Happones\Kinetix\Billing\Exceptions\BillingActionException;
 use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Flash\KinetixFlash;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Cashier\Exceptions\IncompletePayment;
 use Stripe\Exception\CardException;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 use Throwable;
 
 /**
@@ -60,7 +60,7 @@ class BillingController
         ]);
     }
 
-    public function subscribe(Request $request): RedirectResponse
+    public function subscribe(Request $request): HttpResponse
     {
         $validated = $request->validate([
             'plan_slug'      => ['required', 'string', 'exists:plans,slug'],
@@ -75,7 +75,7 @@ class BillingController
         ), 'kinetix.billing_subscription_updated');
     }
 
-    public function addPaymentMethod(Request $request): RedirectResponse
+    public function addPaymentMethod(Request $request): HttpResponse
     {
         $validated = $request->validate([
             'payment_method' => ['required', 'string'],
@@ -87,7 +87,7 @@ class BillingController
         );
     }
 
-    public function removePaymentMethod(Request $request): RedirectResponse
+    public function removePaymentMethod(Request $request): HttpResponse
     {
         return $this->attempt(
             fn () => $this->manager()->removePaymentMethod((string) $request->route('id')),
@@ -100,12 +100,12 @@ class BillingController
         return $this->manager()->downloadInvoice((string) $request->route('id'));
     }
 
-    public function cancel(Request $request): RedirectResponse
+    public function cancel(Request $request): HttpResponse
     {
         return $this->attempt(fn () => $this->manager()->cancel(), 'kinetix.billing_subscription_cancelled');
     }
 
-    public function resume(Request $request): RedirectResponse
+    public function resume(Request $request): HttpResponse
     {
         return $this->attempt(fn () => $this->manager()->resume(), 'kinetix.billing_subscription_resumed');
     }
@@ -137,17 +137,24 @@ class BillingController
      * or a declined card says why; any other failure is reported and answered
      * with a generic message, never its internals. A payment Stripe wants
      * confirmed (3-D Secure) goes to Cashier's confirmation page.
+     *
+     * That page is a plain Blade view, not an Inertia one. Redirected to from
+     * an Inertia visit, the XHR followed the redirect and Inertia showed the
+     * HTML in its error dialog — an iframe with a `null` origin, where neither
+     * the page's Vue nor Stripe.js can run, so the payment could never be
+     * confirmed. `Inertia::location()` makes the browser load it as a page; a
+     * plain request still gets the redirect.
      */
-    protected function attempt(callable $action, string $successKey): RedirectResponse
+    protected function attempt(callable $action, string $successKey): HttpResponse
     {
         try {
             $action();
         } catch (Throwable $e) {
             if ($e instanceof IncompletePayment && Route::has('cashier.payment')) {
-                return redirect()->route('cashier.payment', [
+                return Inertia::location(route('cashier.payment', [
                     $e->payment->asStripePaymentIntent()->id,
                     'redirect' => url()->previous(),
-                ]);
+                ]));
             }
 
             $message = match (true) {
