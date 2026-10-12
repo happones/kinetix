@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.15] - 2026-10-12
+
+### Fixed
+
+- **Migrations:** `kinetix.key_types` `auto` detection reads the host model's
+  primary key instead of its traits. A User or Team that uses `HasUlids` /
+  `HasUuids` only for a secondary column — a public `ulid` next to an
+  auto-increment id, `uniqueIds()` returning `['ulid']` — was taken for a
+  ULID/UUID-keyed model, and every `user_id` / `team_id` Kinetix created for it
+  was a `char(26)` holding a number. It is now `unsignedBigInteger`, like the
+  key it points at. A model that cannot be built without arguments is still
+  judged by its traits. Apps that already migrated with the wrong type need an
+  `ALTER` migration of their own to convert the columns.
+- **Billing:** the `billable_id` of `kinetix_usage` and `kinetix_credits`
+  follows `kinetix.key_types.morph` like every other host morph, instead of
+  always being `unsignedBigInteger` — a UUID/ULID-keyed team or user could not
+  record usage or credits **(published)**.
+
 ## [0.219.14] - 2026-10-12
 
 ### Fixed

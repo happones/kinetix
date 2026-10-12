@@ -120,7 +120,7 @@ i18n `onboarding_*` / `tour_*` (en/es/fr/pt). Tests: `OnboardingTest`,
 
 This feature's migration builds `user_id` and `team_id` with
 `Happones\Kinetix\Support\HostKeys`, which types each column after YOUR model
-at migrate time (`HasUlids` -> ulid, `HasUuids` -> uuid, string `$keyType` ->
+at migrate time from its primary key (`HasUlids` -> ulid, `HasUuids` -> uuid, string `$keyType` ->
 string, else bigint). Pin `kinetix.key_types.user|team` when detection cannot
 see the setup; morph ids follow `kinetix.key_types.morph` (default bigint) —
 set it when the referenced models use UUIDs/ULIDs. Apps migrated on an older

@@ -18,8 +18,10 @@ use Throwable;
  * they point to instead of hardcoding `unsignedBigInteger`.
  *
  * By default (`kinetix.key_types.* = 'auto'`) the type is detected from the
- * app's own models at migrate time: `HasUlids` → `ulid`, `HasUuids` → `uuid`,
- * a string `$keyType` → `string`, anything else → `bigint`. Hosts can pin a
+ * primary key of the app's own models at migrate time: a `HasUlids` key →
+ * `ulid`, a `HasUuids` key → `uuid`, a string `$keyType` → `string`, anything
+ * else → `bigint`. A model that uses the traits only for a secondary column
+ * (`uniqueIds() = ['ulid']`) keeps its own key type. Hosts can pin a
  * type explicitly via config/env when detection can't see their setup.
  *
  * Morph columns (`commentable_id`, `subject_id`, …) can point at ANY model, so
@@ -92,8 +94,13 @@ class HostKeys
     }
 
     /**
-     * Detect a model class's key type from its traits/`$keyType`. `HasUlids`
-     * is checked first because it composes `HasUuids` internally.
+     * Detect a model class's key type from its primary key.
+     *
+     * `HasUuids`/`HasUlids` only say the model generates unique ids for the
+     * columns in its `uniqueIds()` — often a public `uuid`/`ulid` column next
+     * to an auto-incrementing id — so they count only when the primary key is
+     * one of those columns. `HasUlids` is checked first because it composes
+     * `HasUuids` internally.
      *
      * @return 'bigint'|'uuid'|'ulid'|'string'
      */
@@ -103,27 +110,30 @@ class HostKeys
             return 'bigint';
         }
 
+        $traits = class_uses_recursive($model);
+
+        $generated = match (true) {
+            in_array(HasUlids::class, $traits, true) => 'ulid',
+            in_array(HasUuids::class, $traits, true) => 'uuid',
+            default                                  => null,
+        };
+
         try {
-            $traits = class_uses_recursive($model);
-
-            if (in_array(HasUlids::class, $traits, true)) {
-                return 'ulid';
-            }
-
-            if (in_array(HasUuids::class, $traits, true)) {
-                return 'uuid';
-            }
-
             $instance = new $model;
-
-            if ($instance instanceof Model && $instance->getKeyType() === 'string') {
-                return 'string';
-            }
         } catch (Throwable) {
-            // A model that can't be inspected keeps the historical default.
+            // A model that can't be built is judged by its traits alone.
+            return $generated ?? 'bigint';
         }
 
-        return 'bigint';
+        if (! $instance instanceof Model) {
+            return 'bigint';
+        }
+
+        if ($generated !== null && in_array($instance->getKeyName(), $instance->uniqueIds(), true)) {
+            return $generated;
+        }
+
+        return $instance->getKeyType() === 'string' ? 'string' : 'bigint';
     }
 
     /**

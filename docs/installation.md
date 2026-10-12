@@ -688,10 +688,12 @@ HostKeys::team($table)->nullable();
 ```
 
 Detection (`kinetix.key_types.user` / `.team` = `'auto'`, the default) looks at
-the configured auth user model (and the user's `teams` relation for the team
-model): `HasUlids` → `ulid`, `HasUuids` → `uuid`, a string `$keyType` →
-`string`, anything else → `bigint`. Mixed apps just work — each column follows
-the model it points to.
+the primary key of the configured auth user model (and of the user's `teams`
+relation for the team model): a `HasUlids` key → `ulid`, a `HasUuids` key →
+`uuid`, a string `$keyType` → `string`, anything else → `bigint`. A model that
+uses `HasUlids`/`HasUuids` only for a secondary column (`uniqueIds()` returning
+`['ulid']`, a public id next to an auto-increment key) keeps `bigint`. Mixed
+apps just work — each column follows the model it points to.
 
 Two cases still need a decision from you:
 
@@ -739,6 +741,7 @@ models per feature (all typed by `HostKeys` — morphs marked need
 | `reports-center` | `created_by_id`, `launched_by_id`, `team_id` |
 | `tours` | `user_id` |
 | `mail-templates` | `team_id` |
+| `billing` | `billable_id` (morph) on `kinetix_usage` / `kinetix_credits` |
 | `permission-team` | spatie pivots — see spatie's UUID guide |
 
 Columns like `tag_id`, `webhook_endpoint_id` or `parent_id` point at

@@ -23,6 +23,46 @@ class UlidKeyUser extends Model
     use HasUlids;
 }
 
+/** Bigint-keyed, with a public ULID next to the id (a route key, say). */
+class PublicUlidUser extends Model
+{
+    use HasUlids;
+
+    public function uniqueIds(): array
+    {
+        return ['ulid'];
+    }
+}
+
+class PublicUlidTeam extends Model
+{
+    use HasUlids;
+
+    public function uniqueIds(): array
+    {
+        return ['ulid'];
+    }
+}
+
+class UserWithPublicUlidTeams extends Model
+{
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(PublicUlidTeam::class);
+    }
+}
+
+/** A UUID-keyed model that cannot be built without arguments. */
+class UnbuildableUuidUser extends Model
+{
+    use HasUuids;
+
+    public function __construct(string $required)
+    {
+        parent::__construct();
+    }
+}
+
 class StringKeyUser extends Model
 {
     protected $keyType = 'string';
@@ -95,6 +135,46 @@ class HostKeysTest extends TestCase
 
         $this->assertSame('ulid', HostKeys::type('user'));
         $this->assertSame('varchar', $this->probeColumnType());
+    }
+
+    public function test_a_public_ulid_next_to_a_bigint_key_is_not_mistaken_for_the_key(): void
+    {
+        $this->setUserModel(PublicUlidUser::class);
+
+        $this->assertSame('bigint', HostKeys::type('user'));
+        $this->assertSame('integer', $this->probeColumnType());
+    }
+
+    public function test_a_team_with_a_public_ulid_keeps_its_bigint_key(): void
+    {
+        $this->setUserModel(UserWithPublicUlidTeams::class);
+
+        $this->assertSame('bigint', HostKeys::type('team'));
+    }
+
+    public function test_a_model_that_cannot_be_built_is_judged_by_its_traits(): void
+    {
+        $this->setUserModel(UnbuildableUuidUser::class);
+
+        $this->assertSame('uuid', HostKeys::type('user'));
+    }
+
+    public function test_the_billable_morph_of_the_usage_tables_follows_the_morph_type(): void
+    {
+        $migration = require __DIR__.'/../../database/migrations/2026_01_01_000027_create_kinetix_usage_tables.php';
+
+        config()->set('kinetix.key_types.morph', 'uuid');
+        $migration->down();
+        $migration->up();
+
+        try {
+            $this->assertSame('varchar', Schema::getColumnType('kinetix_usage', 'billable_id'));
+            $this->assertSame('varchar', Schema::getColumnType('kinetix_credits', 'billable_id'));
+        } finally {
+            config()->set('kinetix.key_types.morph', 'bigint');
+            $migration->down();
+            $migration->up();
+        }
     }
 
     public function test_a_plain_string_key_model_is_detected(): void

@@ -64,15 +64,19 @@ Kinetix migrations build every column that references a HOST model
 (`user_id`, `team_id`, morph ids like `commentable_id`/`taggable_id`/
 `subject_id`/`causer_id`, and `invited_by`/`created_by_id`/`launched_by_id`)
 with `Happones\Kinetix\Support\HostKeys`, which **types the column after the
-app's model at migrate time**: `HasUlids` → `ulid`, `HasUuids` → `uuid`, a
-string `$keyType` → `string`, anything else → `unsignedBigInteger`. The team
+app's model's primary key at migrate time**: a `HasUlids` key → `ulid`, a
+`HasUuids` key → `uuid`, a string `$keyType` → `string`, anything else →
+`unsignedBigInteger`. A trait that only fills a secondary column
+(`uniqueIds() = ['ulid']`, a public id next to an auto-increment key) does not
+make the key a ULID/UUID. The team
 model derives from the user's `teams` relation. Mixed apps just work — each
 column follows the model it points to.
 
 What an agent must still do in a UUID/ULID app:
 
 1. Check the actual key types first — the `database-schema` tool, or the
-   model's `HasUuids`/`HasUlids` trait / `$keyType`. Never assume bigint.
+   model's primary key (`getKeyName()` in `uniqueIds()`, `$keyType`). Never
+   assume bigint, and never assume a `HasUlids` model is ULID-keyed.
 2. **Morph targets can't be detected.** If commented/tagged/audited models use
    UUID/ULID keys, set `kinetix.key_types.morph` (`KINETIX_MORPH_KEY_TYPE`)
    BEFORE `php artisan migrate`.

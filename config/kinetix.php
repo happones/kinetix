@@ -307,9 +307,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | The column type Kinetix migrations use for ids that reference YOUR models
-    | (user_id, team_id, morph ids). 'auto' inspects the model at migrate time
-    | (HasUlids → ulid, HasUuids → uuid, string $keyType → string, else
-    | bigint). Pin 'bigint' | 'uuid' | 'ulid' | 'string' explicitly when
+    | (user_id, team_id, morph ids). 'auto' inspects the model's primary key at
+    | migrate time (a HasUlids key → ulid, a HasUuids key → uuid, string
+    | $keyType → string, else bigint; a trait that only fills a secondary
+    | column, like a public `ulid`, does not count). Pin 'bigint' | 'uuid' | 'ulid' | 'string' explicitly when
     | detection can't see your setup. Morph targets can be any model, so
     | 'morph' has no auto mode and defaults to bigint.
     |
