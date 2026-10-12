@@ -264,6 +264,13 @@ With no resolvable plan, **capabilities are denied** (fail closed) while
 **limits stay unlimited** (fail open) — gating features is opt-in per plan;
 blocking creation never is.
 
+Only a subscription the billable really holds grants its plan — Cashier's
+`valid()`: active, on trial or in its grace period. When Stripe wants the first
+payment confirmed (3-D Secure), Cashier has already saved the subscription as
+`incomplete` with the new price; it grants nothing until the payment is
+confirmed, so a payer who leaves the confirmation page keeps the plan they had.
+Subscribing again cancels that abandoned `incomplete` subscription first.
+
 ### The plan catalog
 
 Every helper above funnels through `currentPlan()`, and `currentPlan()` is

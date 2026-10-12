@@ -19,6 +19,22 @@ class FakeSubscription
     public function __construct(public ?string $stripe_price) {}
 }
 
+/**
+ * A Cashier-like record that answers `valid()`, as Cashier's subscriptions do.
+ */
+class FakeValidatedSubscription extends FakeSubscription
+{
+    public function __construct(?string $stripe_price, public bool $isValid)
+    {
+        parent::__construct($stripe_price);
+    }
+
+    public function valid(): bool
+    {
+        return $this->isValid;
+    }
+}
+
 class BillableUser extends Authenticatable
 {
     use HasPlan;
@@ -123,6 +139,27 @@ class HasPlanTest extends TestCase
         $this->assertSame(3, $user->planFeature('usage.seats'));
         $this->assertTrue($user->hasReachedPlanLimit('usage.seats', 3));
         $this->assertFalse($user->hasReachedPlanLimit('usage.seats', 1));
+    }
+
+    /**
+     * Cashier saves the subscription before the first payment is confirmed,
+     * already on the new price. Until it is confirmed it grants nothing: a
+     * payer who walks away from the confirmation keeps the plan they had.
+     */
+    public function test_a_subscription_whose_payment_is_unconfirmed_grants_no_plan(): void
+    {
+        Plan::create(['name' => 'Free', 'monthly_price' => 0, 'is_free' => true]);
+        Plan::create(['name' => 'Pro', 'monthly_price' => 29, 'stripe_monthly_price_id' => 'price_pro_m']);
+
+        $user                   = BillableUser::create(['name' => 'Jane']);
+        $user->fakeSubscription = new FakeValidatedSubscription('price_pro_m', isValid: false);
+
+        $this->assertSame('free', $user->currentPlan()?->slug);
+
+        $user->forgetCurrentPlan();
+        $user->fakeSubscription = new FakeValidatedSubscription('price_pro_m', isValid: true);
+
+        $this->assertSame('pro', $user->currentPlan()?->slug);
     }
 
     public function test_remaining_plan_limit_counts_down_and_null_means_unlimited(): void

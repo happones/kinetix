@@ -62,6 +62,16 @@ class FakeStripeSubscription
     {
         $this->calls[] = "swap:{$price}";
     }
+
+    public function incomplete(): bool
+    {
+        return $this->stripe_status === 'incomplete';
+    }
+
+    public function cancelNow(): void
+    {
+        $this->calls[] = 'cancelNow';
+    }
 }
 
 class FakeSubscriptionBuilder
@@ -785,10 +795,11 @@ class BillingManagerTest extends TestCase
         $this->assertSame('cus_existing', $billable->stripe_id);
     }
 
-    public function test_the_setup_intent_does_not_make_the_billable_a_stripe_customer(): void
+    /**
+     * A billable that records the Stripe calls the setup intent makes.
+     */
+    private function intentBillable(?string $stripeId): FakeBillable
     {
-        config(['cashier.secret' => 'sk_test_fake']);
-
         $billable = new class extends FakeBillable
         {
             protected $table = 'fake_billables';
@@ -800,6 +811,7 @@ class BillingManagerTest extends TestCase
             public function createAsStripeCustomer(array $options = []): void
             {
                 $this->created++;
+                $this->stripe_id = 'cus_new';
             }
 
             public function createSetupIntent(array $options = []): object
@@ -810,34 +822,82 @@ class BillingManagerTest extends TestCase
             }
         };
 
-        $billable->stripe_id = '';
+        $billable->stripe_id = $stripeId;
         $billable->save();
+
+        return $billable;
+    }
+
+    /**
+     * The card is authenticated (3-D Secure) on this intent; made for the
+     * customer, the authentication covers that customer's later charges. A
+     * customerless intent left the subscription's first charge asking again.
+     */
+    public function test_the_setup_intent_is_made_for_the_billable_stripe_customer(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+
+        // A blank id is no customer: one is made, not '' sent to Stripe.
+        $billable = $this->intentBillable('');
 
         $intent = BillingManager::for($billable)->setupIntent();
 
         $this->assertSame('seti_secret', $intent->client_secret);
-        $this->assertSame(0, $billable->created);
-        // The blank id is not sent to Stripe as the customer.
-        $this->assertNull($billable->intentCustomer);
+        $this->assertSame(1, $billable->created);
+        $this->assertSame('cus_new', $billable->intentCustomer);
     }
 
-    public function test_no_setup_intent_is_created_without_a_stripe_secret(): void
+    public function test_the_setup_intent_reuses_an_existing_stripe_customer(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+
+        $billable = $this->intentBillable('cus_existing');
+
+        BillingManager::for($billable)->setupIntent();
+
+        $this->assertSame(0, $billable->created);
+        $this->assertSame('cus_existing', $billable->intentCustomer);
+    }
+
+    public function test_no_setup_intent_or_customer_is_made_without_a_stripe_secret(): void
     {
         config(['cashier.secret' => null, 'services.stripe.secret' => null]);
 
-        $billable = new class extends FakeBillable
-        {
-            protected $table = 'fake_billables';
-
-            public function createSetupIntent(array $options = []): object
-            {
-                throw new RuntimeException('api_key cannot be the empty string');
-            }
-        };
-
-        $billable->save();
+        $billable = $this->intentBillable(null);
 
         $this->assertNull(BillingManager::for($billable)->setupIntent());
+        $this->assertSame(0, $billable->created);
+        $this->assertSame('unset', $billable->intentCustomer);
+    }
+
+    /**
+     * Back from Stripe without confirming, the billable holds no subscription,
+     * so trying again creates one — after cancelling the abandoned one.
+     */
+    public function test_subscribing_again_cancels_the_subscription_left_incomplete(): void
+    {
+        $billable                     = new FakeBillable;
+        $billable->sub                = new FakeStripeSubscription;
+        $billable->sub->stripe_status = 'incomplete';
+        $billable->save();
+
+        BillingManager::for($billable)->subscribe('pro', 'pm_1');
+
+        $this->assertSame(['cancelNow'], $billable->sub->calls);
+        $this->assertSame(['create:price_pro_m:pm_1'], $billable->calls);
+    }
+
+    public function test_subscribing_keeps_a_subscription_that_is_not_incomplete(): void
+    {
+        $billable                     = new FakeBillable;
+        $billable->sub                = new FakeStripeSubscription;
+        $billable->sub->stripe_status = 'canceled';
+        $billable->save();
+
+        BillingManager::for($billable)->subscribe('pro', 'pm_1');
+
+        $this->assertSame([], $billable->sub->calls);
+        $this->assertSame(['create:price_pro_m:pm_1'], $billable->calls);
     }
 
     public function test_add_payment_method_rejects_a_blank_id(): void

@@ -73,7 +73,11 @@ trait HasPlan
         if (method_exists($this, 'subscription')) {
             $subscription = $this->subscription($this->planSubscriptionType());
 
-            if ($subscription !== null) {
+            // Only a subscription the billable really holds (active, on trial
+            // or in its grace period): one whose first payment is still to be
+            // confirmed already carries the new price, and handed over the
+            // plan to a payer who walked away from the confirmation.
+            if ($subscription !== null && $this->subscriptionGrantsPlan($subscription)) {
                 $plan = PlanCatalog::byPriceId($subscription->stripe_price ?? null);
 
                 if ($plan !== null) {
@@ -83,6 +87,15 @@ trait HasPlan
         }
 
         return PlanCatalog::free();
+    }
+
+    /**
+     * Whether a subscription record grants its plan — Cashier's `valid()`. A
+     * record without it (a host's own subscription model) is taken as valid.
+     */
+    protected function subscriptionGrantsPlan(object $subscription): bool
+    {
+        return ! method_exists($subscription, 'valid') || $subscription->valid();
     }
 
     /**

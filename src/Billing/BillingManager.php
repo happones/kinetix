@@ -251,26 +251,27 @@ class BillingManager
     }
 
     /**
-     * The SetupIntent the billing page's card form confirms. It no longer makes
-     * the billable a Stripe customer: every team that merely opened the page
-     * became one. The intent is created customerless and the card is attached
-     * in {@see addPaymentMethod()}, which creates the customer when one is
-     * really needed. Null without a Stripe secret, where creating it threw
-     * "api_key cannot be the empty string" and the page answered a 500.
+     * The SetupIntent the billing page's card form confirms, for the billable's
+     * Stripe customer — made here when it has none yet.
+     *
+     * The customer is what lets a card authenticated once (3-D Secure) be
+     * charged later without asking again. Confirmed on a customerless intent,
+     * the card was authenticated for nobody: the subscription's first charge
+     * asked for confirmation again and sent the payer off to Stripe. Null
+     * without a Stripe secret, where creating either threw "api_key cannot be
+     * the empty string" and the page answered a 500.
      */
     public function setupIntent(): mixed
     {
-        if (! method_exists($this->billable, 'createSetupIntent') || ! $this->stripeConfigured()) {
+        $billable = $this->billable;
+
+        if (! method_exists($billable, 'createSetupIntent') || ! $this->stripeConfigured()) {
             return null;
         }
 
-        // A blank id passes Cashier's `hasStripeId()`, which would send it to
-        // Stripe as the customer; cleared in memory only, a GET writes nothing.
-        if (! $this->hasStripeCustomer() && ($this->billable->stripe_id ?? null) !== null) {
-            $this->billable->stripe_id = null;
-        }
+        $this->ensureStripeCustomer();
 
-        return $this->billable->createSetupIntent();
+        return $billable->createSetupIntent();
     }
 
     /**
@@ -712,7 +713,27 @@ class BillingManager
 
         $this->clearGenericTrialIfActive();
         $this->validatePaymentMethod($paymentMethod, $plan);
+        $this->cancelIncompleteSubscription();
         $this->createNewSubscription($priceId, $paymentMethod, $plan);
+    }
+
+    /**
+     * A subscription whose first payment was never confirmed is not one the
+     * billable holds (`subscribed()` is false for it), so trying again creates
+     * a new one. The abandoned one is cancelled first rather than left open
+     * next to it, waiting for a payment nobody will make.
+     */
+    protected function cancelIncompleteSubscription(): void
+    {
+        $subscription = $this->subscription();
+
+        if (! is_object($subscription) || ! method_exists($subscription, 'incomplete') || ! method_exists($subscription, 'cancelNow')) {
+            return;
+        }
+
+        if ($subscription->incomplete()) {
+            $subscription->cancelNow();
+        }
     }
 
     protected function swapExistingSubscription(string $priceId): void

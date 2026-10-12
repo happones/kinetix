@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.13] - 2026-10-12
+
+### Fixed
+
+- **Billing:** the billing page makes the billable a Stripe customer again
+  before issuing the SetupIntent, when it is not one yet (reverting that part of
+  0.219.5). A card confirmed on a customerless intent was authenticated for
+  nobody, so a 3-D Secure card asked for confirmation again on the
+  subscription's first charge and the payer was sent off to Stripe. Without a
+  Stripe secret the page still makes neither.
+- **Billing:** `HasPlan::currentPlan()` takes the plan only from a subscription
+  the billable really holds (Cashier's `valid()`: active, on trial or in its
+  grace period). Cashier saves a subscription whose first payment needs
+  confirming as `incomplete`, already on the new price, which handed the plan
+  over to a payer who left the confirmation page. A subscription record
+  without `valid()` is taken as valid, as before.
+- **Billing:** subscribing again cancels the subscription left `incomplete` by
+  an abandoned confirmation, instead of creating a second one next to it.
+
 ## [0.219.12] - 2026-10-12
 
 ### Fixed
