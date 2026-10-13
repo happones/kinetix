@@ -11,6 +11,56 @@ interface FormActionOptions {
     routePrefix: () => string;
 }
 
+const holdsFiles = (value: unknown): boolean =>
+    value instanceof Blob ||
+    (typeof FileList !== 'undefined' && value instanceof FileList) ||
+    (Array.isArray(value) && value.some(holdsFiles)) ||
+    (value !== null &&
+        typeof value === 'object' &&
+        Object.getPrototypeOf(value) === Object.prototype &&
+        Object.values(value).some(holdsFiles));
+
+/**
+ * A RouteFormAction's precognitive form validates against the route it is
+ * submitted to, unless the form names its own validation URL.
+ */
+function withRouteValidation(form: any, action: KinetixAction): any {
+    if (!form?.precognitive || form.validationUrl || !action.submitTo) {
+        return form;
+    }
+
+    return {
+        ...form,
+        validationUrl: action.submitTo.url,
+        validationMethod: action.submitTo.method,
+    };
+}
+
+/**
+ * Submit a modal's values to the app's own route (a RouteFormAction).
+ * Multipart can't carry PUT/PATCH/DELETE, so a form with files posts with
+ * `_method` instead, as Laravel expects.
+ */
+function submitToRoute(
+    target: { url: string; method: string },
+    values: Record<string, any>,
+    visit: Record<string, unknown>,
+): void {
+    const method = target.method.toLowerCase();
+
+    if (method !== 'post' && holdsFiles(values)) {
+        router.post(target.url, { ...values, _method: method }, visit);
+
+        return;
+    }
+
+    router.visit(target.url, {
+        ...visit,
+        method: method as 'post' | 'put' | 'patch' | 'delete',
+        data: values,
+    });
+}
+
 /**
  * In-table modal form actions ({@see FormAction}). KinetixTable delegates any
  * action flagged `isFormAction` here, so a record or toolbar action can open a
@@ -26,6 +76,11 @@ interface FormActionOptions {
  *    trusts: it resolves any record in-scope and authorizes it server-side.
  *  - A record action carries its row id; a toolbar action sends none and the
  *    handler runs record-less.
+ *  - An action with `submitTo` (RouteFormAction) submits the values,
+ *    top-level, to the app's own route instead: its FormRequest validates
+ *    them, and its errors show in the modal the same way. A form holding
+ *    files goes as a POST spoofing the method, which multipart needs. A
+ *    precognitive one validates live against that same route.
  *
  * All state is plain refs so nothing leaks between opens.
  */
@@ -91,10 +146,13 @@ export function useKinetixFormActions(options: FormActionOptions) {
         activeAction.value = action;
         activeRecordId.value = record?.id ?? null;
         // Clone so the shipped schema (and its default data) is never mutated.
-        activeForm.value = {
-            ...action.form,
-            data: { ...(action.form.data ?? {}) },
-        };
+        activeForm.value = withRouteValidation(
+            {
+                ...action.form,
+                data: { ...(action.form.data ?? {}) },
+            },
+            action,
+        );
         isOpen.value = true;
 
         return true;
@@ -131,7 +189,7 @@ export function useKinetixFormActions(options: FormActionOptions) {
 
             // A modal closed (or another opened) meanwhile isn't refilled.
             if (opened === openSeq && data?.form) {
-                activeForm.value = data.form;
+                activeForm.value = withRouteValidation(data.form, action);
             }
         } catch (e) {
             if (opened === openSeq) {
@@ -155,6 +213,26 @@ export function useKinetixFormActions(options: FormActionOptions) {
 
         processing.value = true;
 
+        const visit = {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                isOpen.value = false;
+                activeForm.value = null;
+                activeAction.value = null;
+                activeRecordId.value = null;
+            },
+            onFinish: () => {
+                processing.value = false;
+            },
+        };
+
+        if (action.submitTo) {
+            submitToRoute(action.submitTo, values, visit);
+
+            return;
+        }
+
         router.post(
             submitUrl(),
             {
@@ -165,19 +243,7 @@ export function useKinetixFormActions(options: FormActionOptions) {
                     ? { recordId: activeRecordId.value }
                     : {}),
             },
-            {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: () => {
-                    isOpen.value = false;
-                    activeForm.value = null;
-                    activeAction.value = null;
-                    activeRecordId.value = null;
-                },
-                onFinish: () => {
-                    processing.value = false;
-                },
-            },
+            visit,
         );
     };
 

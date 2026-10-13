@@ -11,9 +11,10 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 class ActionData extends Data
 {
     /**
-     * @param array<string, mixed>        $dispatchData
-     * @param array<string, mixed>|null   $inertiaVisit
-     * @param array<int, ActionData>|null $actions
+     * @param array<string, mixed>                    $dispatchData
+     * @param array<string, mixed>|null               $inertiaVisit
+     * @param array{url: string, method: string}|null $submitTo
+     * @param array<int, ActionData>|null             $actions
      */
     public function __construct(
         public string $name,
@@ -68,5 +69,8 @@ class ActionData extends Data
         // kinetix.tables.form-action.form when it opens, so a page of rows
         // doesn't serialise (and query options for) one form per row.
         public bool $formOnOpen = false,
+        // A RouteFormAction's own route ({url, method}): the modal submits
+        // there, as an Inertia visit, instead of the form-action endpoint.
+        public ?array $submitTo = null,
     ) {}
 }

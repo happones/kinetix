@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\Expression;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Pagination\LengthAwarePaginator;
 use InvalidArgumentException;
 use JsonSerializable;
@@ -1999,6 +2000,43 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * The Laravel API resource each row is presented through: a
+     * `JsonResource` class, or a closure building one for a record.
+     *
+     * @var class-string<JsonResource>|(Closure(Model): mixed)|null
+     */
+    protected string|Closure|null $apiResource = null;
+
+    /**
+     * Present every row through a Laravel API resource, the one your API
+     * already uses (`PostResource::class`). Columns read their state from the
+     * array it returns (`author.name` is that array's `author.name`), so it
+     * decides what the table shows: what it formats, what it leaves out
+     * (`whenLoaded()`, `when()`), what it hides. A key it doesn't return is
+     * an empty cell, never the model's own attribute.
+     *
+     * The table still queries, searches, sorts, filters and paginates the
+     * model, and every record action, gate and endpoint still gets the model.
+     * Search and sort run in the database: keep `searchable()` on columns
+     * named after a real attribute, and sort a key the resource computes with
+     * `sortable(using: …)`. A closure builds the resource itself when its constructor
+     * takes more than the model:
+     * `->apiResource(fn (Post $post) => new PostResource($post, $locale))`.
+     *
+     * @param class-string<JsonResource>|(Closure(Model): mixed)|null $resource a closure must return a JsonResource
+     */
+    public function apiResource(string|Closure|null $resource): static
+    {
+        if (is_string($resource) && ! is_subclass_of($resource, JsonResource::class)) {
+            throw new InvalidArgumentException("[{$resource}] is not a Laravel API resource (a JsonResource subclass).");
+        }
+
+        $this->apiResource = $resource;
+
+        return $this;
+    }
+
+    /**
      * Per-record transformer applied before serialization (internal —
      * RelationManager uses it to hydrate BelongsToMany pivot models from the
      * aliased selects, so `data_get($record, 'pivot.role')` resolves).
@@ -2400,6 +2438,45 @@ class Table implements Arrayable, JsonSerializable
         if ($this->recordTransformer !== null) {
             $record = ($this->recordTransformer)($record);
         }
+
+        if ($this->apiResource === null) {
+            return $this->buildRow($record, $group);
+        }
+
+        ApiResourceRow::present($record, $this->makeApiResource($record), request());
+
+        try {
+            return $this->buildRow($record, $group);
+        } finally {
+            // The model may be shown again elsewhere, by a table that reads
+            // it directly.
+            ApiResourceRow::forget($record);
+        }
+    }
+
+    protected function makeApiResource(Model $record): JsonResource
+    {
+        if ($this->apiResource instanceof Closure) {
+            $resource = ($this->apiResource)($record);
+
+            if (! $resource instanceof JsonResource) {
+                throw new LogicException('The table\'s apiResource() closure must return a JsonResource.');
+            }
+
+            return $resource;
+        }
+
+        /** @var class-string<JsonResource> $class */
+        $class = $this->apiResource;
+
+        return new $class($record);
+    }
+
+    /**
+     * The row for a record: its cells, actions and click target.
+     */
+    protected function buildRow(Model $record, ?Group $group): TableRowData
+    {
 
         $rowValues         = [];
         $rowUrls           = [];

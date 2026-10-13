@@ -68,6 +68,20 @@ A column has no per-row pass, so a `visible()`/`hidden()` closure runs once with
 write `fn () => auth()->user()->isAdmin()`; a closure typed for a record (`fn (Post $record)`)
 can't run and hides the column.
 
+**API resources:** `->apiResource(PostResource::class)` (or a closure returning a `JsonResource`)
+presents each row through a Laravel API resource: columns read the resolved array (nested resources,
+`whenLoaded()`/`when()` honored; a key it doesn't return is empty, never the model's attribute),
+while querying, search, sort, actions, gates and endpoints still use the model. Searchable columns
+must name real attributes; sort computed keys with `sortable(using: …)`.
+
+**Your own routes:** `RouteFormAction::make('edit')->modalForm(PostForm::class|UpdatePostRequest::class)
+->submitTo(fn (Post $p) => route('posts.update', $p), 'put')` opens a modal form (fetched per row through
+the signed form endpoint, filled from the record) and submits it top-level, as an Inertia visit, to the
+host route — its FormRequest validates, its controller/policies/events run; Kinetix never runs it.
+`->precognitive()` validates live against that route (needs `HandlePrecognitiveRequests`). A
+FormRequest as the form infers fields from its rules (`Form::fromRequest()`); `kinetix:make-form
+PostForm --from-request=…` writes that guess as a class to edit.
+
 **Server-side actions:** prefer `BulkAction` (bulk) and `FormAction` (record/toolbar modal form)
 over a plain action posting to a host route — Kinetix scopes the ids to the table and authorizes
 them itself. `->authorize('ability')` is re-checked on the endpoint per record (a toolbar

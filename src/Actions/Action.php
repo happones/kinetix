@@ -589,6 +589,7 @@ class Action
             isFormAction: $this->isFormAction(),
             form: $form,
             formOnOpen: $formOnOpen,
+            submitTo: $this instanceof FormAction ? $this->getSubmitTarget($record) : null,
         );
     }
 

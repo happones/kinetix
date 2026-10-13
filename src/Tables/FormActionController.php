@@ -57,6 +57,9 @@ class FormActionController
     {
         [$action, $record] = $this->resolveInvocation($request);
 
+        // Its form goes to the host's own route, which validates and runs it.
+        abort_if($action->submitsToOwnRoute(), 405, (string) __('kinetix.form_action_not_allowed'));
+
         // Rebuild the SAME form the table serialised, so validation runs against
         // the declared rules — not anything the client sent. validate() throws a
         // ValidationException on failure, which Inertia turns into a redirect

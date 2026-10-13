@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.221.0] - 2026-10-13
+
+For apps that already work with Laravel's own pieces (API resources,
+controllers, FormRequests, policies). Re-publish the components (`--force`) to
+pick up the frontend part.
+
+### Added
+
+- **`Table::apiResource(PostResource::class)`** presents each row through a
+  Laravel API resource. Columns read the array it returns, resolved as a JSON
+  response would resolve it: nested resources through their own `toArray()`,
+  `whenLoaded()`/`when()` dropped when they don't apply, dates and enums kept as
+  objects. A key the resource doesn't return is an empty cell, never the
+  model's own attribute. The table still queries, searches, sorts and
+  paginates the model, and actions, gates and endpoints still get the model. A
+  closure can build the resource (`fn (Post $post) => new PostResource($post, …)`).
+- **`RouteFormAction`** opens a modal form and submits it to your own route
+  (`->submitTo(fn (Post $post) => route('posts.update', $post), 'put')`): your
+  FormRequest validates, its errors show in the modal, and your controller,
+  policies and events run. On a row the form is fetched through the signed
+  form endpoint and filled from the record. `->precognitive()` validates each
+  field live against that route with Laravel Precognition. **(published)**
+- **Fields from a FormRequest:** `RouteFormAction::modalForm()` also takes the
+  FormRequest itself, and `Form::fromRequest(StorePostRequest::class, $record)`
+  builds a form whose fields its rules decide (`boolean` a toggle, `in:`/enum a
+  select, `date` a date picker, `numeric` a number field, `email`/`url`/
+  password a text input of that kind, `file`/`image` an upload, a long `max:`
+  a textarea, `confirmed` a confirmation field; `required`, lengths and
+  `attributes()` labels carry over).
+  `kinetix:make-form PostForm --from-request=…` writes that guess as a Form
+  class to edit.
+
 ## [0.220.1] - 2026-10-13
 
 ### Fixed

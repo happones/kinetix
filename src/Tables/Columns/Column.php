@@ -8,6 +8,7 @@ use Closure;
 use Happones\Kinetix\Data\ColumnData;
 use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\Concerns\HasAuthorization;
+use Happones\Kinetix\Tables\ApiResourceRow;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -205,8 +206,10 @@ abstract class Column
     }
 
     /**
-     * Resolve the cell state (value) from the Eloquent model. Supports
-     * dot-notation for relationship fields.
+     * Resolve the cell state (value) from the Eloquent model — or, in a table
+     * presented through an API resource, from the row it returns. Supports
+     * dot-notation for relationship fields. A `state()` closure always gets
+     * the model.
      */
     public function getState(Model $record): mixed
     {
@@ -215,7 +218,10 @@ abstract class Column
                 ? ($this->stateUsing)($record)
                 : $this->stateUsing;
         } else {
-            $value = data_get($record, $this->name);
+            // A table presented through an API resource reads the row the
+            // resource returns, not the model behind it.
+            $presented = ApiResourceRow::of($record);
+            $value     = $presented === null ? data_get($record, $this->name) : data_get($presented, $this->name);
         }
 
         if ($this->formatStateUsing !== null) {

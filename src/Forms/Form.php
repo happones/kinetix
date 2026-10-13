@@ -12,6 +12,7 @@ use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Validator;
 use JsonSerializable;
 use ReflectionClass;
@@ -109,6 +110,19 @@ class Form implements Arrayable, JsonSerializable
     public static function make(?Model $record = null): static
     {
         return new static($record);
+    }
+
+    /**
+     * A form whose fields are inferred from a FormRequest's rules (see
+     * {@see FormRequestFields}), filled from $record when given.
+     *
+     * @param class-string<FormRequest> $request
+     */
+    public static function fromRequest(string $request, ?Model $record = null): static
+    {
+        $form = static::make($record)->schema(FormRequestFields::components($request));
+
+        return $record !== null ? $form->fill($record) : $form;
     }
 
     /**

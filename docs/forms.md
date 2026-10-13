@@ -48,6 +48,48 @@ class ProfileForm extends Form
 }
 ```
 
+### Fields from a FormRequest
+
+A FormRequest's rules already say a lot about its fields. `Form::fromRequest()`
+builds a form from them:
+
+```php
+Form::fromRequest(StorePostRequest::class);          // create
+Form::fromRequest(UpdatePostRequest::class, $post);  // filled from the record
+```
+
+| Rules | Field |
+|---|---|
+| `boolean` | `Toggle` |
+| `accepted` | `Checkbox` |
+| `in:a,b`, `Rule::in()`, `Rule::enum()` | `Select` with those options |
+| `array` + `name.*` with `in:` | `CheckboxList` |
+| `array` | `TagsInput` |
+| `date`, `date_format`, `before`/`after` | `DatePicker`; `DateTimePicker` when the format has a time or the name ends in `_at` |
+| `integer`, `numeric`, `decimal` | `NumberField`, with `min`/`max` |
+| `file`, `image`, `mimes`, `File::image()` | `FileUpload` (`image()`, `multiple()` for an `array`) |
+| `email`, `url`, `password`/`Password::…` | `TextInput` of that kind |
+| `max:` over 255 | `Textarea` |
+| anything else | `TextInput` |
+
+`required` (unless `sometimes`), `max`/`min` and the request's `attributes()`
+labels carry over, and `confirmed` adds the `_confirmation` field. Nested rules
+(`items.*.qty`) and fields that are `prohibited` or `exclude` are left out.
+
+The rules say what to validate, not how to ask for it, so this is a start. A
+relation id (`exists:users,id`) is a plain input, not a select. The rules are
+read with the current request rather than the route they belong to, so rules
+that need the route's model (`$this->post->id`) can't be read; Kinetix throws
+and asks for a Form class.
+
+To shape the form yourself, write the guess into a class and edit it:
+
+```bash
+php artisan kinetix:make-form PostForm --from-request="App\Http\Requests\StorePostRequest"
+```
+
+A relation id gets a comment suggesting a `Select` with `->relationship()`.
+
 ### One-Call Rendering
 
 <Screenshot name="form-schema" alt="A schema-driven form: section, grid, inputs, select, toggle" />
@@ -1601,6 +1643,8 @@ PostForm::make()
     // or point it explicitly:
     ->validationUrl(route('posts.store'), 'post');
 ```
+
+In a table's modal, a `RouteFormAction` with `->precognitive()` validates against the route it submits to ([Actions → Submitting to your own route](actions.md#submitting-to-your-own-route-routeformaction)).
 
 On the Vue side, pass the endpoint (when the form didn't hard-code one) via `validationUrl`:
 

@@ -162,6 +162,51 @@ Client-side mode covers search, sort, pagination, column visibility, row actions
 
 ---
 
+## Presenting Rows Through an API Resource
+
+An app that already shapes its models with Laravel API resources can show a
+table through the same resource:
+
+```php
+use App\Http\Resources\PostResource;
+
+Table::make(Post::query())
+    ->apiResource(PostResource::class)
+    ->columns([
+        TextColumn::make('title')->searchable()->sortable(),
+        TextColumn::make('author.name'),     // PostResource's `author` key
+        TextColumn::make('published_label'), // a key the resource computes
+    ]);
+```
+
+Each column reads its value from the array the resource returns, resolved as a
+JSON response would resolve it: nested resources and collections through their
+own `toArray()`, and `whenLoaded()` / `when()` values dropped when they don't
+apply. Dates and enums stay objects, so date and badge formatting still work.
+
+- **The resource decides what the table shows.** A key it doesn't return is an
+  empty cell. The column never reads the model's own attribute, so what the
+  resource leaves out (a secret, an internal flag) stays out.
+- **The table still works on the model.** It queries, searches, sorts, filters
+  and paginates the model. Record actions, `visible()` / `authorize()` closures,
+  policies, bulk actions and inline edits all get the model, as without a
+  resource.
+- **Search and sort run in the database.** Keep `searchable()` on columns named
+  after a real attribute, and sort a key the resource computes with
+  `sortable(using: fn (Builder $query, string $direction) => …)`.
+- **Relations a dot column names are eager-loaded** (`author.name` loads
+  `author`), so `whenLoaded('author')` in the resource has it. Add others with
+  `with([...])`.
+- **A `state()` closure gets the model,** not the resource's array.
+
+A resource whose constructor needs more than the model is built by a closure:
+
+```php
+->apiResource(fn (Post $post) => new PostResource($post, app()->getLocale()))
+```
+
+---
+
 ## Column Builders Reference
 
 All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tables\Columns` namespace.

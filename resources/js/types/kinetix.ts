@@ -62,6 +62,11 @@ export interface KinetixAction {
     form?: KinetixFormActionForm | null;
     /** A row's FormAction: `form` is fetched for the row when the modal opens. */
     formOnOpen?: boolean;
+    /**
+     * A RouteFormAction: the modal submits to the app's own route, as an
+     * Inertia visit, instead of the form-action endpoint.
+     */
+    submitTo?: { url: string; method: string } | null;
 }
 
 /**

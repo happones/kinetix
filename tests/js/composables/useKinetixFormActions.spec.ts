@@ -3,9 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
 const routerPost = vi.fn();
+const routerVisit = vi.fn();
 
 vi.mock('@inertiajs/vue3', () => ({
-    router: { post: (...args: unknown[]) => routerPost(...args) },
+    router: {
+        post: (...args: unknown[]) => routerPost(...args),
+        visit: (...args: unknown[]) => routerVisit(...args),
+    },
     usePage: () => ({ props: { errors: {} } }),
 }));
 
@@ -181,5 +185,66 @@ describe('useKinetixFormActions', () => {
 
         expect(api.isOpen.value).toBe(false);
         expect(toastError).toHaveBeenCalledWith('This action is unauthorized.');
+    });
+
+    describe('a RouteFormAction', () => {
+        const routeAction = (form: Record<string, unknown> = {}) =>
+            formAction({
+                name: 'edit',
+                submitTo: { url: '/posts/1', method: 'put' },
+                form: {
+                    schema: [],
+                    data: { title: 'Old' },
+                    rules: {},
+                    operation: 'edit',
+                    ...form,
+                },
+            });
+
+        it('submits the values, top-level, to its own route', () => {
+            routerVisit.mockClear();
+            routerPost.mockClear();
+            const api = mountComposable();
+
+            api.handleFormAction(routeAction(), { id: 1 } as any);
+            api.submitForm({ title: 'New' });
+
+            expect(routerPost).not.toHaveBeenCalled();
+            expect(routerVisit).toHaveBeenCalledWith(
+                '/posts/1',
+                expect.objectContaining({
+                    method: 'put',
+                    data: { title: 'New' },
+                }),
+            );
+        });
+
+        it('posts with _method when the form holds a file', () => {
+            routerVisit.mockClear();
+            routerPost.mockClear();
+            const api = mountComposable();
+            const cover = new File(['x'], 'cover.png');
+
+            api.handleFormAction(routeAction(), { id: 1 } as any);
+            api.submitForm({ title: 'New', cover });
+
+            expect(routerVisit).not.toHaveBeenCalled();
+            expect(routerPost).toHaveBeenCalledWith(
+                '/posts/1',
+                { title: 'New', cover, _method: 'put' },
+                expect.anything(),
+            );
+        });
+
+        it('validates a precognitive form against the route it submits to', () => {
+            const api = mountComposable();
+
+            api.handleFormAction(routeAction({ precognitive: true }), {
+                id: 1,
+            } as any);
+
+            expect(api.activeForm.value.validationUrl).toBe('/posts/1');
+            expect(api.activeForm.value.validationMethod).toBe('put');
+        });
     });
 });

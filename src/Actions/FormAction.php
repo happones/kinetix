@@ -147,6 +147,27 @@ abstract class FormAction extends Action
     abstract public function handle(array $data, ?Model $record): void;
 
     /**
+     * Where the browser submits the form instead of Kinetix's endpoint
+     * (`{url, method}`), or null when Kinetix runs {@see handle()}. See
+     * {@see RouteFormAction}.
+     *
+     * @return array{url: string, method: string}|null
+     */
+    public function getSubmitTarget(?Model $record = null): ?array
+    {
+        return null;
+    }
+
+    /**
+     * Whether the form is submitted to the host's own route: Kinetix's form
+     * endpoint then serves its form but never runs it.
+     */
+    public function submitsToOwnRoute(): bool
+    {
+        return false;
+    }
+
+    /**
      * Marks this action as one the signed form endpoint runs server-side, so
      * {@see Table} seals its name → class and the
      * frontend opens a modal-with-form routed to `kinetix.tables.form-action`

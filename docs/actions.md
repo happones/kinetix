@@ -696,6 +696,54 @@ directly — no extra round-trip to open it.
 | `FormAction::make(?string $name = null)` | Create it; name defaults to the kebab of the class short name. |
 | `isFormAction(): bool` | `true` — marks it for the signed `kinetix.tables.form-action` endpoint. |
 
+### Submitting to your own route (`RouteFormAction`)
+
+When your app already has the controller, the FormRequest, the policy and the
+events for a change, the modal can submit to that route instead of a Kinetix
+handler:
+
+```php
+use Happones\Kinetix\Actions\RouteFormAction;
+
+$table
+    ->recordActions([
+        RouteFormAction::make('edit')
+            ->modalForm(PostForm::class)                                   // or UpdatePostRequest::class
+            ->submitTo(fn (Post $post) => route('posts.update', $post), 'put')
+            ->authorize('update')
+            ->precognitive(),                                              // optional live validation
+    ])
+    ->toolbarActions([
+        RouteFormAction::make('create')
+            ->modalForm(StorePostRequest::class)
+            ->submitTo(route('posts.store')),
+    ]);
+```
+
+- **`modalForm()`** takes a [Form class](forms.md#defining-a-form-as-a-class), or
+  the FormRequest your route validates with. A FormRequest's rules then decide
+  the fields ([fields from a FormRequest](forms.md#fields-from-a-formrequest)).
+  On a row, the form is filled from the record.
+- **`submitTo($url, $method)`** is where the values go: a URL, or a closure
+  building it for the row. `post`, `put`, `patch` or `delete`. The values are
+  sent top-level, the way your FormRequest reads them, as an Inertia visit. A
+  form with files is sent as a `POST` with `_method`, which multipart needs.
+- **Your route does the rest.** Its FormRequest validates; the errors show in
+  the modal. Your controller saves, your events fire; its redirect closes the
+  modal and reloads the table. Kinetix never runs the submission, and its own
+  form endpoint refuses to.
+- **Opening the form** goes through the same signed checks as any form action:
+  the record resolved through the table's scope, a row the action rendered on,
+  and the action's ability (else the table's `writeAbility()`, or `update`
+  when the model has a policy). Add `->authorize('update')` to also hide the
+  button where the policy says no.
+- **`precognitive()`** validates each field as the user fills it, against the
+  same route, with Laravel Precognition: your FormRequest's rules run for the
+  fields being edited, without reaching the controller. Add Laravel's
+  `HandlePrecognitiveRequests` middleware to the route.
+
+Delete needs no form: `Action::make('delete')->route('posts.destroy', method: 'delete')->requiresConfirmation()`.
+
 ---
 
 ## 10. Authorization & visibility
