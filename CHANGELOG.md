@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.219.18] - 2026-10-13
+
+### Added
+
+- **Tokens:** `kinetix.tokens.default_scopes` / `KinetixTokens::defaultScopes()`
+  name the scopes a new token starts with ticked in `<KinetixTokenManager>`
+  (typically the read-only ones). The token list endpoint returns them as
+  `defaultScopes`; keys outside the scope catalog are ignored.
+  **(published)** `KinetixTokenManager.vue`, `useKinetixTokens.ts`.
+
+### Fixed
+
+- **Tables (accessibility):** a toggle cell (`ToggleColumn`) is built on
+  `KinetixSwitch`, so it is announced as a switch named after its column, with
+  its on/off state. It was a bare `<button>` with no role, label or state.
+  **(published)** `Table/cells/ToggleInputCell.vue`.
+
 ## [0.219.17] - 2026-10-12
 
 ### Fixed

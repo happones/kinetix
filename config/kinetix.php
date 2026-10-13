@@ -785,6 +785,11 @@ return [
         // @var array<string, string> ability key => human label
         'scopes' => [],
 
+        // @var array<int, string> ability keys the create form starts with
+        // ticked (typically the read-only ones). Keys outside `scopes` are
+        // ignored.
+        'default_scopes' => [],
+
         // Column on `personal_access_tokens` naming the team a token acts on.
         // When set, the token list shows the current team's tokens (and the
         // teamless ones minted before the column existed), new tokens are

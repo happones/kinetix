@@ -9,6 +9,7 @@ namespace Happones\Kinetix\Tokens;
  * provider:
  *
  *     KinetixTokens::scopes(['posts.read' => 'Read posts', 'posts.write' => 'Write posts']);
+ *     KinetixTokens::defaultScopes(['posts.read']);
  */
 class KinetixTokens
 {
@@ -23,5 +24,15 @@ class KinetixTokens
     public static function scopes(array $scopes): void
     {
         static::registry()->register($scopes);
+    }
+
+    /**
+     * The scopes the create form starts with ticked.
+     *
+     * @param array<int, string> $keys
+     */
+    public static function defaultScopes(array $keys): void
+    {
+        static::registry()->defaults($keys);
     }
 }

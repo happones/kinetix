@@ -8,11 +8,13 @@ const create = vi.fn().mockResolvedValue({ plainTextToken: 'tok_plain' });
 const remove = vi.fn();
 const tokens = ref<any[]>([]);
 const scopes = ref<Record<string, string>>({});
+const defaultScopes = ref<string[]>([]);
 
 vi.mock('@/composables/useKinetixTokens', () => ({
     useKinetixTokens: () => ({
         tokens,
         scopes,
+        defaultScopes,
         loading: ref(false),
         load,
         create,
@@ -66,6 +68,34 @@ describe('KinetixTokenManager', () => {
         create.mockClear();
         tokens.value = [];
         scopes.value = { 'posts.read': 'Read posts' };
+        defaultScopes.value = [];
+    });
+
+    it('starts a new token with the default scopes ticked', async () => {
+        scopes.value = {
+            'posts.read': 'Read posts',
+            'posts.write': 'Write posts',
+        };
+        defaultScopes.value = ['posts.read'];
+
+        const w = mountManager();
+
+        await w
+            .findAll('button')
+            .find((b) => b.text() === 'token_add')!
+            .trigger('click');
+        await w.get('#token-name').setValue('Reader');
+        await w
+            .findAll('button')
+            .find((b) => b.text() === 'token_create')!
+            .trigger('click');
+        await flushPromises();
+
+        expect(create).toHaveBeenCalledWith({
+            name: 'Reader',
+            abilities: ['posts.read'],
+            expires_at: null,
+        });
     });
 
     it('sends the chosen expiration date when creating a token', async () => {

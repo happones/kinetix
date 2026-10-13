@@ -44,6 +44,9 @@ Then enable the feature:
         'posts.read'  => 'Read posts',
         'posts.write' => 'Write posts',
     ],
+    // The scopes the create form starts with ticked (keys outside
+    // `scopes` are ignored).
+    'default_scopes' => ['posts.read'],
 ],
 ```
 
@@ -70,6 +73,15 @@ When a scope catalog is declared, a token **must** be granted at least one of th
 declared scopes, and any ability outside the catalog is rejected (422). When the
 catalog is empty, tokens are issued with full access (`*`) and no scope picker is
 shown.
+
+Name the scopes a new token should start with — typically the read-only ones —
+with `default_scopes` or at runtime:
+
+```php
+KinetixTokens::defaultScopes(['posts.read', 'billing.read']);
+```
+
+The create form opens with those ticked; the person can still untick them.
 
 ---
 

@@ -32,7 +32,8 @@ class TokenController
                 ->get()
                 ->map(static fn (Model $token): TokenData => TokenData::fromModel($token))
                 ->values(),
-            'scopes' => app(TokenScopeRegistry::class)->all(),
+            'scopes'        => app(TokenScopeRegistry::class)->all(),
+            'defaultScopes' => app(TokenScopeRegistry::class)->defaultKeys(),
         ]);
     }
 

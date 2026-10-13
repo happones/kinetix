@@ -18,7 +18,8 @@ import KinetixLabel from './KinetixLabel.vue';
  * and revoke. Requires the User model to use Laravel\Sanctum\HasApiTokens.
  */
 const { t } = useI18n();
-const { tokens, scopes, load, create, remove } = useKinetixTokens();
+const { tokens, scopes, defaultScopes, load, create, remove } =
+    useKinetixTokens();
 
 const creating = ref(false);
 const newName = ref('');
@@ -49,7 +50,9 @@ onMounted(load);
 function startCreate(): void {
     creating.value = true;
     newName.value = '';
-    selectedScopes.value = [];
+    // The app's default scopes (`kinetix.tokens.default_scopes`), typically
+    // the read-only ones, start ticked.
+    selectedScopes.value = [...defaultScopes.value];
     expiresAt.value = null;
 }
 

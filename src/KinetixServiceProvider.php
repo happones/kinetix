@@ -258,6 +258,7 @@ class KinetixServiceProvider extends ServiceProvider
         $this->app->singleton(TokenScopeRegistry::class, function (): TokenScopeRegistry {
             $registry = new TokenScopeRegistry;
             $registry->register((array) config('kinetix.tokens.scopes', []));
+            $registry->defaults(array_values(array_map(strval(...), (array) config('kinetix.tokens.default_scopes', []))));
 
             return $registry;
         });

@@ -14,6 +14,7 @@ export function useKinetixTokens() {
 
     const tokens = ref<KinetixToken[]>([]);
     const scopes = ref<Record<string, string>>({});
+    const defaultScopes = ref<string[]>([]);
     const loading = ref(false);
 
     async function load(): Promise<void> {
@@ -23,9 +24,11 @@ export function useKinetixTokens() {
             const data = await kinetixFetch<{
                 tokens: KinetixToken[];
                 scopes: Record<string, string>;
+                defaultScopes?: string[];
             }>(base());
             tokens.value = data?.tokens ?? [];
             scopes.value = data?.scopes ?? {};
+            defaultScopes.value = data?.defaultScopes ?? [];
         } finally {
             loading.value = false;
         }
@@ -46,5 +49,5 @@ export function useKinetixTokens() {
         return kinetixFetch(`${base()}/${token.id}`, { method: 'DELETE' });
     }
 
-    return { tokens, scopes, loading, load, create, remove };
+    return { tokens, scopes, defaultScopes, loading, load, create, remove };
 }

@@ -195,6 +195,23 @@ class TokensTest extends TestCase
         $this->assertCount(1, $other->fresh()->tokens);
     }
 
+    public function test_index_names_the_default_scopes_that_are_in_the_catalog(): void
+    {
+        config(['kinetix.tokens.default_scopes' => ['posts.read', 'comments.read']]);
+        $this->app->forgetInstance(TokenScopeRegistry::class);
+
+        $this->actingAs($this->user())->getJson('/_kinetix/tokens')
+            ->assertOk()
+            ->assertJsonPath('defaultScopes', ['posts.read']);
+    }
+
+    public function test_default_scopes_can_be_declared_at_runtime(): void
+    {
+        KinetixTokens::defaultScopes(['posts.write']);
+
+        $this->assertSame(['posts.write'], app(TokenScopeRegistry::class)->defaultKeys());
+    }
+
     public function test_registry_accepts_runtime_scopes(): void
     {
         KinetixTokens::scopes(['billing.read' => 'Read billing']);
