@@ -44,10 +44,12 @@ class TeamSubdomainTenancyTest extends TestCase
 
     public function test_urls_are_built_on_the_team_subdomain(): void
     {
-        $this->assertStringStartsWith(
-            'http://acme.example.test/_kinetix/tables',
-            route('kinetix.tables.cell-update', ['current_team' => 'acme']),
-        );
+        $url = route('kinetix.tables.cell-update', ['current_team' => 'acme']);
+
+        // The port follows the request's (testbench serves on :8000), the host
+        // and the path are what the mode decides.
+        $this->assertSame('acme.example.test', parse_url($url, PHP_URL_HOST));
+        $this->assertStringStartsWith('/_kinetix/tables', (string) parse_url($url, PHP_URL_PATH));
     }
 
     public function test_the_team_is_read_from_the_host(): void
@@ -88,7 +90,11 @@ class TeamSubdomainTenancyTest extends TestCase
 
         $this->assertSame('{team}.example.test', $route?->getDomain());
         $this->assertSame('billing', $route?->uri());
-        $this->assertSame('http://acme.example.test/billing', route('billing.index', ['team' => 'acme']));
+
+        $url = route('billing.index', ['team' => 'acme']);
+
+        $this->assertSame('acme.example.test', parse_url($url, PHP_URL_HOST));
+        $this->assertSame('/billing', parse_url($url, PHP_URL_PATH));
     }
 
     public function test_without_teams_the_domain_is_ignored(): void
