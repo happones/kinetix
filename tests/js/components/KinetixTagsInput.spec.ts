@@ -82,4 +82,27 @@ describe('KinetixTagsInput', () => {
         ]);
         expect(remove[0].classes()).toContain('size-6');
     });
+
+    // A repeat used to vanish without a word.
+    it('says a repeated tag is already there and points at it', async () => {
+        const wrapper = mountTags({
+            props: { value: ['PHP'], ignoreCase: true },
+        });
+        const input = wrapper.find('input');
+
+        await input.setValue('php');
+        await input.trigger('keydown', { key: 'Enter' });
+
+        expect(wrapper.emitted('update:value')).toBeUndefined();
+        expect(wrapper.get('[role="status"]').exists()).toBe(true);
+        expect(wrapper.find('.ring-2').text()).toContain('PHP');
+    });
+
+    it('stops at the most tags the rules allow', () => {
+        const wrapper = mountTags({
+            props: { value: ['a', 'b'], maxItems: 2 },
+        });
+
+        expect(wrapper.get('input').attributes('disabled')).toBeDefined();
+    });
 });

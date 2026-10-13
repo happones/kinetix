@@ -4,7 +4,12 @@ import {
     characterCounter,
     confirmsMatch,
     constraintInputAttributes,
+    dateBounds,
     fieldRequirements,
+    fileAccept,
+    fileProblem,
+    formatHolds,
+    passwordStrength,
     requirementHints,
     requirementViolation,
 } from '@/composables/kinetixFieldConstraints';
@@ -289,5 +294,120 @@ describe('field helpers', () => {
             applyConstraintCase({ kind: 'string', case: 'upper' }, 'abc'),
         ).toBe('ABC');
         expect(applyConstraintCase(null, 'Abc')).toBe('Abc');
+    });
+});
+
+describe('dedicated input helpers', () => {
+    it('rates a password from empty to strong', () => {
+        expect(passwordStrength('')).toBe(0);
+        expect(passwordStrength('aaaaaaaa')).toBe(1);
+        expect(passwordStrength('password123')).toBeLessThan(3);
+        expect(passwordStrength('Correct-Horse-9-Battery')).toBe(4);
+    });
+
+    it('bounds a date picker by fixed dates and other fields', () => {
+        expect(
+            dateBounds(
+                {
+                    kind: 'string',
+                    dates: [
+                        { op: 'after', date: '2026-01-10' },
+                        { op: 'before_or_equal', field: 'ends_on' },
+                    ],
+                },
+                { ends_on: '2026-02-01' },
+            ),
+        ).toEqual({ min: '2026-01-11', max: '2026-02-01' });
+
+        // The tightest bound wins, a fixed one included.
+        expect(
+            dateBounds(
+                {
+                    kind: 'string',
+                    dates: [{ op: 'after_or_equal', date: '2026-01-01' }],
+                },
+                {},
+                { min: '2026-03-01' },
+            ),
+        ).toEqual({ min: '2026-03-01', max: null });
+
+        // A field not filled yet doesn't bound anything.
+        expect(
+            dateBounds(
+                { kind: 'string', dates: [{ op: 'before', field: 'ends_on' }] },
+                {},
+            ),
+        ).toEqual({ min: null, max: null });
+
+        expect(
+            dateBounds(
+                {
+                    kind: 'string',
+                    dates: [{ op: 'after', date: '2026-01-10' }],
+                },
+                {},
+                {},
+                true,
+            ).min,
+        ).toBe('2026-01-10T00:01');
+    });
+
+    it('refuses a file of the wrong type or size before it is sent', async () => {
+        const c: KinetixFieldConstraints = {
+            kind: 'file',
+            fileTypes: ['jpg', 'png'],
+            kilobytes: { max: 1 },
+        };
+        const file = (name: string, bytes: number, type = '') =>
+            new File(['x'.repeat(bytes)], name, { type });
+
+        expect(await fileProblem(file('cv.pdf', 10), c, t)).toBe(
+            'upload_rejected_type(file=cv.pdf,types=JPG, PNG)',
+        );
+        // jpg and jpeg are one type, as the server reads them.
+        expect(await fileProblem(file('me.jpeg', 10), c, t)).toBe(null);
+        expect(await fileProblem(file('me.png', 4096), c, t)).toBe(
+            'upload_rejected_size(file=me.png,size=4 KB,max=1 KB)',
+        );
+        expect(
+            await fileProblem(
+                file('notes.txt', 10, 'text/plain'),
+                { kind: 'file', image: true },
+                t,
+            ),
+        ).toBe('upload_rejected_type(file=notes.txt,types=rule_file_image)');
+        expect(fileAccept(c)).toBe('.jpg,.png,.jpeg');
+    });
+
+    it('tells whether a code has its format', () => {
+        expect(
+            formatHolds('uuid', '123e4567-e89b-12d3-a456-426614174000'),
+        ).toBe(true);
+        expect(formatHolds('uuid', '123')).toBe(false);
+        expect(formatHolds('uuid', '')).toBe(null);
+        expect(formatHolds(undefined, 'x')).toBe(null);
+    });
+
+    it('leaves the policy out of the hints when the input lists it', () => {
+        const requirements = fieldRequirements(
+            {
+                kind: 'string',
+                length: { min: 2 },
+                password: {
+                    min: 8,
+                    letters: false,
+                    mixedCase: false,
+                    numbers: true,
+                    symbols: false,
+                    uncompromised: false,
+                },
+            },
+            t,
+            labelOf,
+        );
+
+        expect(requirementHints(requirements, ['password'])).toEqual([
+            'rule_length_min(min=2)',
+        ]);
     });
 });

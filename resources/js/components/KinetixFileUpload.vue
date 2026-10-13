@@ -3,6 +3,8 @@ import { usePage } from '@inertiajs/vue3';
 import { UploadCloud, X, FileText, Loader2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { fileAccept, fileProblem } from '@/composables/kinetixFieldConstraints';
+import type { KinetixFieldConstraints } from '@/composables/kinetixFieldConstraints';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 
 const props = withDefaults(
@@ -16,6 +18,8 @@ const props = withDefaults(
         maxFiles?: number | null;
         disabled?: boolean;
         routePrefix?: string | null;
+        /** The field's rules: types, size and dimensions checked before upload. */
+        constraints?: KinetixFieldConstraints | null;
     }>(),
     {
         value: null,
@@ -26,6 +30,7 @@ const props = withDefaults(
         maxFiles: null,
         disabled: false,
         routePrefix: null,
+        constraints: null,
     },
 );
 
@@ -60,7 +65,9 @@ const acceptAttr = computed(() => {
         return props.acceptedFileTypes.join(',');
     }
 
-    return props.isImage ? 'image/*' : undefined;
+    return (
+        fileAccept(props.constraints) ?? (props.isImage ? 'image/*' : undefined)
+    );
 });
 
 const canAddMore = computed(() => {
@@ -110,6 +117,8 @@ const onSelect = async (event: Event) => {
     errorMessage.value = null;
     const current = [...paths()];
 
+    const refused: string[] = [];
+
     try {
         for (const file of files) {
             if (
@@ -118,6 +127,17 @@ const onSelect = async (event: Event) => {
                 current.length >= props.maxFiles
             ) {
                 break;
+            }
+
+            // A file the rules refuse isn't sent; the others still go.
+            const problem = await fileProblem(file, props.constraints, t, {
+                maxKilobytes: props.maxSize,
+                image: props.isImage,
+            });
+
+            if (problem) {
+                refused.push(problem);
+                continue;
             }
 
             const path = await uploadOne(file);
@@ -136,8 +156,9 @@ const onSelect = async (event: Event) => {
             break;
         }
     } catch (error: any) {
-        errorMessage.value = error?.message ?? t('kinetix.upload_failed');
+        refused.push(error?.message ?? t('kinetix.upload_failed'));
     } finally {
+        errorMessage.value = refused.length ? refused.join(' ') : null;
         uploading.value = false;
 
         if (inputRef.value) {
@@ -194,7 +215,11 @@ const remove = async (path: string) => {
             />
         </label>
 
-        <p v-if="errorMessage" class="text-xs font-semibold text-destructive">
+        <p
+            v-if="errorMessage"
+            role="alert"
+            class="text-xs font-semibold text-destructive"
+        >
             {{ errorMessage }}
         </p>
 

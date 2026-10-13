@@ -885,4 +885,21 @@ return [
     'rule_file_ratio'             => '宽高比 :ratio',
     'rule_matches'                => '一致',
     'rule_characters_left'        => '还剩 :count 个字符',
+
+    // Dedicated inputs: password checklist, JSON editor, upload checks, tags.
+    'password_strength'          => '强度：:level',
+    'password_strength_weak'     => '弱',
+    'password_strength_fair'     => '一般',
+    'password_strength_good'     => '良好',
+    'password_strength_strong'   => '强',
+    'rule_met'                   => '已满足',
+    'rule_not_met'               => '未满足',
+    'json_valid'                 => '有效的 JSON',
+    'json_breaks_at'             => '在第 :line 行第 :column 列出错',
+    'json_format'                => '格式化',
+    'upload_rejected_type'       => ':file 不是允许的类型（:types）',
+    'upload_rejected_size'       => ':file 大小为 :size，上限为 :max',
+    'upload_rejected_small'      => ':file 小于 :min',
+    'upload_rejected_dimensions' => ':file 为 :width×:height 像素，不符合要求',
+    'tag_already_added'          => '已添加 :tag',
 ];

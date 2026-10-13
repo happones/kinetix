@@ -106,6 +106,15 @@ const requirementsOf = (comp: any): Requirement[] => {
     return list;
 };
 
+/** Requirement parts the field's own input already shows. */
+const listedByInput = (comp: any): string[] => {
+    if (comp.type === 'text-input' && comp.inputType === 'password') {
+        return ['password'];
+    }
+
+    return comp.type === 'json-input' ? ['format'] : [];
+};
+
 // A field is checked once the user leaves it, then live as they fix it: no
 // error while it's still being typed for the first time.
 const touched = ref<Record<string, true>>({});
@@ -459,6 +468,7 @@ const renderSchema = computed(() =>
                 :value="values[comp.name]"
                 :values="values"
                 :has-error="!!shownErrors[comp.name]"
+                :listed-by-input="listedByInput(comp)"
             />
 
             <!-- Helper text (id is an aria-describedby target, like the error). -->

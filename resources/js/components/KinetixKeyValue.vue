@@ -17,10 +17,18 @@ const props = withDefaults(
     defineProps<{
         value?: Record<string, string> | null;
         disabled?: boolean;
+        /**
+         * Fixed keys (`array:title,color`): one labelled row each, no adding
+         * or removing rows.
+         */
+        keys?: string[] | null;
+        id?: string;
     }>(),
     {
         value: null,
         disabled: false,
+        keys: null,
+        id: undefined,
     },
 );
 
@@ -31,6 +39,13 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const toRows = (source: Record<string, string> | null | undefined): Pair[] => {
+    if (props.keys?.length) {
+        return props.keys.map((key) => ({
+            key,
+            value: source?.[key] === undefined ? '' : String(source[key]),
+        }));
+    }
+
     const entries = Object.entries(source ?? {}).map(([key, value]) => ({
         key,
         value: String(value),
@@ -86,7 +101,27 @@ const removeRow = (index: number) => {
 </script>
 
 <template>
-    <div class="space-y-2">
+    <!-- Fixed keys: a labelled input per key. -->
+    <div v-if="keys?.length" class="space-y-2">
+        <div v-for="row in rows" :key="row.key" class="gap-2 flex items-center">
+            <label
+                :for="`${id ?? 'kv'}-${row.key}`"
+                class="text-sm font-mono w-1/3 truncate text-muted-foreground"
+            >
+                {{ row.key }}
+            </label>
+            <input
+                :id="`${id ?? 'kv'}-${row.key}`"
+                v-model="row.value"
+                type="text"
+                :disabled="disabled"
+                :class="cn(inputClass, 'flex-1')"
+                @input="commit"
+            />
+        </div>
+    </div>
+
+    <div v-else class="space-y-2">
         <div
             v-for="(row, index) in rows"
             :key="index"
@@ -121,9 +156,10 @@ const removeRow = (index: number) => {
                         'shrink-0 hover:border-destructive/40 hover:text-destructive',
                     )
                 "
+                :aria-label="t('kinetix.remove')"
                 @click="removeRow(index)"
             >
-                <Trash2 class="h-4 w-4" />
+                <Trash2 class="h-4 w-4" aria-hidden="true" />
             </button>
         </div>
 

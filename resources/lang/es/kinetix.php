@@ -950,4 +950,21 @@ return [
     'rule_file_ratio'             => 'Proporción :ratio',
     'rule_matches'                => 'Coincide',
     'rule_characters_left'        => 'Quedan :count caracteres',
+
+    // Dedicated inputs: password checklist, JSON editor, upload checks, tags.
+    'password_strength'          => 'Fortaleza: :level',
+    'password_strength_weak'     => 'débil',
+    'password_strength_fair'     => 'regular',
+    'password_strength_good'     => 'buena',
+    'password_strength_strong'   => 'fuerte',
+    'rule_met'                   => 'cumplido',
+    'rule_not_met'               => 'pendiente',
+    'json_valid'                 => 'JSON válido',
+    'json_breaks_at'             => 'Se rompe en la línea :line, columna :column',
+    'json_format'                => 'Formatear',
+    'upload_rejected_type'       => ':file no es de un tipo aceptado (:types)',
+    'upload_rejected_size'       => ':file pesa :size; el límite es :max',
+    'upload_rejected_small'      => ':file pesa menos de :min',
+    'upload_rejected_dimensions' => ':file mide :width×:height px y no cumple las medidas',
+    'tag_already_added'          => ':tag ya está agregado',
 ];

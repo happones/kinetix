@@ -416,5 +416,65 @@ describe('KinetixFormSchema flat mode (forms hosted in modals)', () => {
                 'AB-12',
             ]);
         });
+
+        it('bounds a date by another field', () => {
+            const wrapper = mountRules(
+                [
+                    field(
+                        'starts_on',
+                        {
+                            kind: 'string',
+                            dates: [{ op: 'before', field: 'ends_on' }],
+                        },
+                        { type: 'date-picker', useCalendar: false },
+                    ),
+                ],
+                { starts_on: '', ends_on: '2026-02-10' },
+            );
+
+            expect(wrapper.get('input[type="date"]').attributes('max')).toBe(
+                '2026-02-09',
+            );
+        });
+
+        it('ticks a well-formed code', () => {
+            const wrapper = mountRules(
+                [field('ip', { kind: 'string', format: 'ipv4' })],
+                { ip: '10.0.0.1' },
+            );
+
+            expect(wrapper.get('input').classes()).toContain('font-mono');
+            expect(wrapper.find('svg.text-success').exists()).toBe(true);
+        });
+
+        it('lists a password policy once, in the password input', () => {
+            const wrapper = mountRules(
+                [
+                    field(
+                        'password',
+                        {
+                            kind: 'string',
+                            password: {
+                                min: 8,
+                                letters: false,
+                                mixedCase: false,
+                                numbers: true,
+                                symbols: false,
+                                uncompromised: false,
+                            },
+                        },
+                        { inputType: 'password' },
+                    ),
+                ],
+                { password: '' },
+            );
+
+            expect(wrapper.findAll('li').map((li) => li.text())).toEqual(
+                ['rule_password_min', 'rule_password_numbers'].map((text) =>
+                    expect.stringContaining(text),
+                ) as any,
+            );
+            expect(wrapper.find('#password-rules').exists()).toBe(false);
+        });
     });
 });

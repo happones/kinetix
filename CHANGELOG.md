@@ -13,6 +13,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.223.0] - 2026-10-13
+
+Dedicated inputs for the rules that call for one. Re-publish the components
+and the translations (`--force`).
+
+### Added
+
+- **A password field shows its policy as a checklist.** Any `->password()`
+  field has a show/hide toggle; with a `Password` rule
+  (`Password::min(10)->mixedCase()->numbers()`), each part ticks off as the
+  user types (met / not met for screen readers) next to a strength meter, and
+  `uncompromised()` is listed as checked on save. **(published)**
+- **`JsonInput`:** a JSON editor that says where the JSON breaks (line and
+  column, the same in every browser) and formats it on demand. `->decoded()`
+  saves the array, for an `array`-cast column. **(published)**
+- **`TimezoneSelect`:** every IANA zone, searchable, labelled and ordered by
+  its UTC offset.
+- **`KeyValue::keys(['title', 'color'])`** (or the `array:title,color` rule):
+  one labelled input per key, with no rows to add or remove. **(published)**
+- **Codes look like codes:** a field with an `ip`, `mac_address`, `uuid`,
+  `ulid` or `hex_color` rule is shown in a monospace font, with a tick once
+  well formed. **(published)**
+- **Date pickers respect `after`/`before`/`date_equals`,** another field's
+  value included (`before:ends_on`). **(published)**
+- **Files are checked before they upload:** types, size and dimensions from
+  the field's rules. A refused file is named with the reason, the rest of the
+  pick still uploads, and the picker offers only the accepted types.
+  **(published)**
+- **TagsInput says a tag is already there** (and points at it) instead of
+  dropping the repeat silently; `distinct:ignore_case` matches regardless of
+  case, and a `max:` on the list stops it once full. **(published)**
+- Fields from a FormRequest use them: `json` a `JsonInput`, `timezone` a
+  `TimezoneSelect`, `array:a,b` a `KeyValue` with those keys, and a list's
+  `name.*` `distinct` rule reaches the list.
+
+### Fixed
+
+- **A calendar `DatePicker` ignored `minValue()`/`maxValue()`:** the bounds
+  never reached the picker. **(published)**
+- KeyValue's remove-row button had no accessible name, and an upload's error
+  wasn't announced.
+
 ## [0.222.0] - 2026-10-13
 
 Forms tell the user what a value needs before the server does. Re-publish the

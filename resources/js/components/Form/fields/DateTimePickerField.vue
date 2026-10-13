@@ -27,6 +27,8 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :value="value"
         type="datetime-local"
         :disabled="comp.isDisabled"
+        :min="comp.minValue || undefined"
+        :max="comp.maxValue || undefined"
         :class="inputClass"
         @input="emit('update', ($event.target as HTMLInputElement).value)"
     />

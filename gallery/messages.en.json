@@ -852,6 +852,21 @@
         "rule_file_max_dimensions": "At most {width}×{height} px",
         "rule_file_ratio": "Aspect ratio {ratio}",
         "rule_matches": "Matches",
-        "rule_characters_left": "{count} characters left"
+        "rule_characters_left": "{count} characters left",
+        "password_strength": "Strength: {level}",
+        "password_strength_weak": "weak",
+        "password_strength_fair": "fair",
+        "password_strength_good": "good",
+        "password_strength_strong": "strong",
+        "rule_met": "met",
+        "rule_not_met": "not met",
+        "json_valid": "Valid JSON",
+        "json_breaks_at": "Breaks at line {line}, column {column}",
+        "json_format": "Format",
+        "upload_rejected_type": "{file} isn't an accepted type ({types})",
+        "upload_rejected_size": "{file} is {size}; the limit is {max}",
+        "upload_rejected_small": "{file} is smaller than {min}",
+        "upload_rejected_dimensions": "{file} is {width}×{height} px, which doesn't fit",
+        "tag_already_added": "{tag} is already added"
     }
 }

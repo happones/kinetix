@@ -885,4 +885,21 @@ return [
     'rule_file_ratio'             => 'アスペクト比 :ratio',
     'rule_matches'                => '一致しています',
     'rule_characters_left'        => '残り :count 文字',
+
+    // Dedicated inputs: password checklist, JSON editor, upload checks, tags.
+    'password_strength'          => '強度: :level',
+    'password_strength_weak'     => '弱い',
+    'password_strength_fair'     => '普通',
+    'password_strength_good'     => '良い',
+    'password_strength_strong'   => '強い',
+    'rule_met'                   => '達成',
+    'rule_not_met'               => '未達成',
+    'json_valid'                 => '有効なJSON',
+    'json_breaks_at'             => ':line 行目、 :column 列目で壊れています',
+    'json_format'                => '整形',
+    'upload_rejected_type'       => ':file は許可されていない形式です ( :types )',
+    'upload_rejected_size'       => ':file は :size です。上限は :max です',
+    'upload_rejected_small'      => ':file は :min 未満です',
+    'upload_rejected_dimensions' => ':file は :width×:height px で、条件を満たしません',
+    'tag_already_added'          => ':tag はすでに追加されています',
 ];

@@ -19,6 +19,8 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :show-today="comp.showToday"
         :close-on-select="comp.closeOnSelect ?? true"
         :timezone="comp.timezone"
+        :min-value="comp.minValue"
+        :max-value="comp.maxValue"
         @update:value="emit('update', $event)"
     />
     <input
@@ -27,6 +29,8 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :value="value"
         type="date"
         :disabled="comp.isDisabled"
+        :min="comp.minValue || undefined"
+        :max="comp.maxValue || undefined"
         :class="inputClass"
         @input="emit('update', ($event.target as HTMLInputElement).value)"
     />

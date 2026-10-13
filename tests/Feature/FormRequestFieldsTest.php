@@ -9,11 +9,14 @@ use Happones\Kinetix\Forms\Components\CheckboxList;
 use Happones\Kinetix\Forms\Components\DatePicker;
 use Happones\Kinetix\Forms\Components\DateTimePicker;
 use Happones\Kinetix\Forms\Components\FileUpload;
+use Happones\Kinetix\Forms\Components\JsonInput;
+use Happones\Kinetix\Forms\Components\KeyValue;
 use Happones\Kinetix\Forms\Components\NumberField;
 use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Components\TagsInput;
 use Happones\Kinetix\Forms\Components\Textarea;
 use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Forms\Components\TimezoneSelect;
 use Happones\Kinetix\Forms\Components\Toggle;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Forms\FormRequestFields;
@@ -59,6 +62,11 @@ class FrStorePostRequest extends FormRequest
             'author_id'    => 'required|exists:users,id',
             'items.*.qty'  => 'required|integer',
             'internal'     => 'prohibited',
+            'settings'     => 'nullable|json',
+            'timezone'     => 'required|timezone',
+            'meta'         => 'array:title,color',
+            'labels'       => 'array',
+            'labels.*'     => 'distinct:ignore_case',
         ];
     }
 
@@ -116,7 +124,14 @@ class FormRequestFieldsTest extends TestCase
             'tags'                  => TagsInput::class,
             'channels'              => CheckboxList::class,
             'author_id'             => TextInput::class,
+            'settings'              => JsonInput::class,
+            'timezone'              => TimezoneSelect::class,
+            'meta'                  => KeyValue::class,
+            'labels'                => TagsInput::class,
         ], $components);
+
+        // A list's `distinct` travels with the field that holds the list.
+        $this->assertContains('distinct:ignore_case', $this->specs()['labels']['rules']);
     }
 
     public function test_requirements_lengths_labels_and_choices_carry_over(): void
@@ -144,7 +159,7 @@ class FormRequestFieldsTest extends TestCase
 
         $this->assertSame('title', $schema[0]['name']);
         $this->assertSame('Headline', $schema[0]['label']);
-        $this->assertCount(17, $schema);
+        $this->assertCount(21, $schema);
     }
 
     public function test_rules_that_need_their_route_say_so(): void

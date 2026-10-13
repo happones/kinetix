@@ -10,11 +10,14 @@ use Happones\Kinetix\Forms\Components\DatePicker;
 use Happones\Kinetix\Forms\Components\DateTimePicker;
 use Happones\Kinetix\Forms\Components\Field;
 use Happones\Kinetix\Forms\Components\FileUpload;
+use Happones\Kinetix\Forms\Components\JsonInput;
+use Happones\Kinetix\Forms\Components\KeyValue;
 use Happones\Kinetix\Forms\Components\NumberField;
 use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Components\TagsInput;
 use Happones\Kinetix\Forms\Components\Textarea;
 use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Forms\Components\TimezoneSelect;
 use Happones\Kinetix\Forms\Components\Toggle;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -34,7 +37,9 @@ use Throwable;
  * `date` a date picker, `numeric` a number field, `email`/`url`/password
  * rules a text input of that kind, `file`/`image` an upload, a long `max:` a
  * textarea, `confirmed` a second field for the confirmation. `required`,
- * `max`/`min` and the request's `attributes()` (labels) carry over.
+ * `max`/`min` and the request's `attributes()` (labels) carry over;
+ * `array:a,b` is a key-value field with those keys, `json` a JSON editor,
+ * `timezone` a time zone picker.
  *
  * The rules say what to validate, not how to ask for it, so the guess is a
  * start: a relation id (`exists:`) is a plain input, and nested rules
@@ -101,6 +106,11 @@ final class FormRequestFields
             $spec          = self::spec($name, $tokens, $byField[$name.'.*'] ?? []);
             $spec['rules'] = self::portableRules($rules[$name]);
 
+            // `tags.*` => `distinct` is about the list the field holds.
+            if (isset($byField[$name.'.*']['distinct'])) {
+                $spec['rules'][] = 'distinct'.($byField[$name.'.*']['distinct'] === [] ? '' : ':'.implode(',', $byField[$name.'.*']['distinct']));
+            }
+
             if (isset($labels[$name]) && is_string($labels[$name])) {
                 $spec['calls'][] = ['label', [$labels[$name]]];
             }
@@ -155,7 +165,9 @@ final class FormRequestFields
         } elseif ($has('array')) {
             $options = self::options($each);
 
-            if ($options !== null) {
+            if ($tokens['array'] !== []) {
+                $component = KeyValue::class;
+            } elseif ($options !== null) {
                 $component = CheckboxList::class;
                 $calls[]   = ['options', [$options]];
             } else {
@@ -168,6 +180,10 @@ final class FormRequestFields
         } elseif (($options = self::options($tokens)) !== null) {
             $component = Select::class;
             $calls[]   = ['options', [$options]];
+        } elseif ($has('json')) {
+            $component = JsonInput::class;
+        } elseif ($has('timezone')) {
+            $component = TimezoneSelect::class;
         } elseif ($has('date', 'date_format', 'before', 'after', 'before_or_equal', 'after_or_equal')) {
             $format    = $tokens['date_format'][0] ?? '';
             $component = preg_match('/[GgHhis]/', $format) === 1 || str_ends_with($name, '_at')

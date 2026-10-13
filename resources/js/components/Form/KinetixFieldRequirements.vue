@@ -24,11 +24,15 @@ const props = defineProps<{
     values: Record<string, unknown>;
     /** A violation is showing: it already says what the hints say. */
     hasError: boolean;
+    /** Parts the input lists itself (a password's checklist). */
+    listedByInput?: string[];
 }>();
 
 const { t } = useI18n();
 
-const hints = computed(() => requirementHints(props.requirements));
+const hints = computed(() =>
+    requirementHints(props.requirements, props.listedByInput),
+);
 const counter = computed(() =>
     characterCounter(props.constraints, props.value),
 );

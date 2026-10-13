@@ -885,4 +885,21 @@ return [
     'rule_file_ratio'             => 'Соотношение сторон :ratio',
     'rule_matches'                => 'Совпадает',
     'rule_characters_left'        => 'Осталось символов: :count',
+
+    // Dedicated inputs: password checklist, JSON editor, upload checks, tags.
+    'password_strength'          => 'Надёжность: :level',
+    'password_strength_weak'     => 'слабый',
+    'password_strength_fair'     => 'средний',
+    'password_strength_good'     => 'хороший',
+    'password_strength_strong'   => 'надёжный',
+    'rule_met'                   => 'выполнено',
+    'rule_not_met'               => 'не выполнено',
+    'json_valid'                 => 'Корректный JSON',
+    'json_breaks_at'             => 'Ошибка в строке :line, столбце :column',
+    'json_format'                => 'Форматировать',
+    'upload_rejected_type'       => ':file — недопустимый тип (:types)',
+    'upload_rejected_size'       => ':file весит :size; лимит :max',
+    'upload_rejected_small'      => ':file весит меньше :min',
+    'upload_rejected_dimensions' => ':file имеет размер :width×:height px, это не подходит',
+    'tag_already_added'          => ':tag уже добавлен',
 ];

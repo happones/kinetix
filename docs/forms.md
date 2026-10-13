@@ -64,7 +64,10 @@ Form::fromRequest(UpdatePostRequest::class, $post);  // filled from the record
 | `accepted` | `Checkbox` |
 | `in:a,b`, `Rule::in()`, `Rule::enum()` | `Select` with those options |
 | `array` + `name.*` with `in:` | `CheckboxList` |
+| `array:title,color` | `KeyValue` with those keys |
 | `array` | `TagsInput` |
+| `json` | `JsonInput` |
+| `timezone` | `TimezoneSelect` |
 | `date`, `date_format`, `before`/`after` | `DatePicker`; `DateTimePicker` when the format has a time or the name ends in `_at` |
 | `integer`, `numeric`, `decimal` | `NumberField`, with `min`/`max` |
 | `file`, `image`, `mimes`, `File::image()` | `FileUpload` (`image()`, `multiple()` for an `array`) |
@@ -415,6 +418,16 @@ TextInput::make('password_confirmation')->password()->rules(['same:password']),
 - **Comparisons with other fields** (`gt`, `gte`, `lt`, `lte`, `same`,
   `different`, `after:start_date`) use their current values, and a
   confirmation that matches says so.
+- **Dedicated inputs where a rule calls for one:**
+  - A password field (`->password()`) has a show/hide toggle. With a
+    `Password` rule, the policy is a checklist that ticks off as the user
+    types, with a strength meter.
+  - A code (`ip`, `ipv4`, `ipv6`, `mac_address`, `uuid`, `ulid`, `hex_color`)
+    is shown in a monospace font, with a tick once it's well formed.
+  - A date picker can't pick what `after`/`before`/`date_equals` refuse,
+    including bounds set by another field (`before:ends_on`).
+  - A file upload checks types, size and dimensions before sending
+    ([FileUpload](#_14-fileupload)).
 - **The right keyboard and no autocorrect:** numbers open the number pad,
   `email`/`url` their keyboards, and codes (`alpha_dash`, `uuid`, `ip`,
   `lowercase`, …) turn off autocapitalization and spellcheck. `lowercase` and
@@ -1327,6 +1340,33 @@ selected country's dial code is prefixed to the number on save.
 
 ---
 
+### `JsonInput`
+
+A JSON editor: a monospace text area that says whether the JSON holds and,
+when it doesn't, the line and column where it breaks, with a **Format** button
+that indents it. The `json` rule is added.
+
+```php
+use Happones\Kinetix\Forms\Components\JsonInput;
+
+JsonInput::make('settings');            // a JSON string column
+JsonInput::make('settings')->decoded(); // a column cast to array: saves the array
+```
+
+A value the model already decoded (an `array` cast) opens formatted.
+
+### `TimezoneSelect`
+
+A searchable time zone picker: every IANA zone, labelled with its current UTC
+offset and ordered by it (`(UTC−06:00) America/Mexico City`), so typing a city
+or an offset finds it. The `timezone` rule is added.
+
+```php
+use Happones\Kinetix\Forms\Components\TimezoneSelect;
+
+TimezoneSelect::make('timezone')->default(config('app.timezone'));
+```
+
 ### 7. `Hidden`
 Tracks form values that must be submitted to the backend without displaying them to the user.
 
@@ -1403,6 +1443,11 @@ TagsInput::make('skills')
 
 Local typing state is encapsulated in the dedicated `KinetixTagsInput.vue` component, so the buffer never leaks across fields.
 
+A tag already in the list isn't added again: the input says so and points at
+the existing tag. With `distinct:ignore_case` on the items (`'skills.*' =>
+'distinct:ignore_case'`, or the field's own rules) a repeat in another case
+counts too, and a `max:` on the list stops the input once it's full.
+
 ### 12. `KeyValue`
 
 <Screenshot name="key-value" alt="Key-value field" />
@@ -1413,6 +1458,10 @@ use Happones\Kinetix\Forms\Components\KeyValue;
 
 KeyValue::make('metadata');
 ```
+
+Fix the keys with `->keys(['title', 'color'])` (Laravel's `array:title,color`
+rule, which it adds): the field shows one labelled input per key, with no rows
+to add or remove, and the server refuses any other key.
 
 Row labels (`Key`, `Value`, `Add row`) come from the `kinetix` i18n namespace. Rendering and local row state live in `KinetixKeyValue.vue`, which resyncs from the parent only when the external value differs — avoiding an emit→prop feedback loop.
 
@@ -1474,6 +1523,13 @@ FileUpload::make('attachments')
 | `->acceptedFileTypes(array)` | MIME types (`image/png`) and/or extensions (`pdf`) |
 | `->maxSize(int)` | Max size per file in kilobytes |
 | `->maxFiles(int)` | Max number of files (multiple mode) |
+
+**Checked before the upload.** The field's rules (`mimes`, `extensions`,
+`mimetypes`, `image`, `File::types()->max()`, `max:` in kilobytes, `dimensions`)
+are checked in the browser before a file is sent: a 40 MB photo or a PDF in an
+image field is refused with a message naming the file and why, the others in
+the same pick still upload, and the picker only offers the accepted types. The
+server validates again.
 
 **Security:** the storage config (disk, directory, constraints) is signed into an encrypted `uploadToken` sent to the client; the upload endpoint (`uploads/store`) decrypts it, re-validates the file against the constraints, and stores it — the client can never choose an arbitrary disk/directory. A matching `uploads/delete` endpoint removes a file, constrained to the configured directory. Rendering and upload state live in `KinetixFileUpload.vue`. Pre-existing values render their preview via the `public` disk URL convention (`/storage/{path}`) or any absolute URL.
 

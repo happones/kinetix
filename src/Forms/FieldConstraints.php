@@ -117,7 +117,12 @@ final class FieldConstraints
         }
 
         if (isset($tokens['distinct'])) {
-            $c['distinct'] = true;
+            $c['distinct'] = in_array('ignore_case', $tokens['distinct'], true) ? 'ignore_case' : true;
+        }
+
+        // `array:title,color`: the keys the value may have.
+        if (isset($tokens['array']) && $tokens['array'] !== []) {
+            $c['keys'] = $tokens['array'];
         }
 
         self::dates($tokens, $c);

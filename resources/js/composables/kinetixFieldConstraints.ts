@@ -34,7 +34,8 @@ export interface KinetixFieldConstraints {
     pattern?: { source: string; flags: string };
     notPattern?: { source: string; flags: string };
     format?: string;
-    distinct?: boolean;
+    distinct?: boolean | 'ignore_case';
+    keys?: string[];
     dates?: { op: string; date?: string; field?: string }[];
     compare?: { op: string; field: string }[];
     confirmed?: boolean;
@@ -67,6 +68,11 @@ export interface Requirement {
     check?: (value: unknown, values: Record<string, unknown>) => boolean;
     /** Shown as met (a confirmation that matches). */
     confirms?: boolean;
+    /**
+     * A requirement a dedicated input lists itself (`password`: the password
+     * input's checklist), so the hints under the field leave it out.
+     */
+    part?: 'password' | 'format';
 }
 
 export interface RequirementOptions {
@@ -475,6 +481,7 @@ export function fieldRequirements(
         const check = FORMAT_CHECKS[c.format];
 
         out.push({
+            part: 'format',
             // An email field says what it wants by itself.
             hint:
                 c.format === 'email'
@@ -503,8 +510,13 @@ export function fieldRequirements(
             hint: t('kinetix.rule_distinct'),
             check: (v) =>
                 !Array.isArray(v) ||
-                new Set(v.map((item) => JSON.stringify(item))).size ===
-                    v.length,
+                new Set(
+                    v.map((item) =>
+                        c.distinct === 'ignore_case'
+                            ? JSON.stringify(item).toLowerCase()
+                            : JSON.stringify(item),
+                    ),
+                ).size === v.length,
         });
     }
 
@@ -575,18 +587,21 @@ export function fieldRequirements(
         const p = c.password;
 
         out.push({
+            part: 'password',
             hint: t('kinetix.rule_password_min', { min: p.min }),
             check: (v) => length(v) >= p.min,
         });
 
         if (p.mixedCase) {
             out.push({
+                part: 'password',
                 hint: t('kinetix.rule_password_mixed_case'),
                 check: (v) =>
                     /\p{Ll}/u.test(String(v)) && /\p{Lu}/u.test(String(v)),
             });
         } else if (p.letters) {
             out.push({
+                part: 'password',
                 hint: t('kinetix.rule_password_letters'),
                 check: (v) => /\p{L}/u.test(String(v)),
             });
@@ -594,6 +609,7 @@ export function fieldRequirements(
 
         if (p.numbers) {
             out.push({
+                part: 'password',
                 hint: t('kinetix.rule_password_numbers'),
                 check: (v) => /\p{N}/u.test(String(v)),
             });
@@ -601,13 +617,17 @@ export function fieldRequirements(
 
         if (p.symbols) {
             out.push({
+                part: 'password',
                 hint: t('kinetix.rule_password_symbols'),
                 check: (v) => /[\p{Z}\p{S}\p{P}]/u.test(String(v)),
             });
         }
 
         if (p.uncompromised) {
-            out.push({ hint: t('kinetix.rule_password_uncompromised') });
+            out.push({
+                part: 'password',
+                hint: t('kinetix.rule_password_uncompromised'),
+            });
         }
     }
 
@@ -662,9 +682,82 @@ export function fieldRequirements(
     return out;
 }
 
-/** The hints a field shows under it. */
-export const requirementHints = (requirements: Requirement[]): string[] =>
-    requirements.flatMap((r) => (r.hint ? [r.hint] : []));
+/** The hints a field shows under it, but for the parts its input lists. */
+export const requirementHints = (
+    requirements: Requirement[],
+    listedByInput: string[] = [],
+): string[] =>
+    requirements.flatMap((r) =>
+        r.hint && !(r.part && listedByInput.includes(r.part)) ? [r.hint] : [],
+    );
+
+const COMMON_PIECES = [
+    '123',
+    '234',
+    '345',
+    '456',
+    '567',
+    '678',
+    '789',
+    '890',
+    'abc',
+    'qwerty',
+    'asdf',
+    'zxcv',
+    'password',
+    'pass',
+    'word',
+    'admin',
+    'letmein',
+    'welcome',
+    'iloveyou',
+];
+
+/**
+ * A rough strength for a password, 0 (empty) to 4: how many guesses its
+ * length and character variety allow, less for repeats and the patterns
+ * people reach for first. A guide next to the policy, not a rule.
+ */
+export function passwordStrength(value: string): 0 | 1 | 2 | 3 | 4 {
+    if (!value) {
+        return 0;
+    }
+
+    let pool = 0;
+
+    if (/[a-z]/.test(value)) {
+        pool += 26;
+    }
+
+    if (/[A-Z]/.test(value)) {
+        pool += 26;
+    }
+
+    if (/\d/.test(value)) {
+        pool += 10;
+    }
+
+    if (/[^a-zA-Z\d]/.test(value)) {
+        pool += 33;
+    }
+
+    const chars = [...value];
+    const distinct = new Set(chars).size;
+    // Repeats add little: "aaaaaaaa" is not eight characters' worth.
+    const effective = Math.min(chars.length, distinct * 2);
+    let bits = Math.log2(Math.max(pool, 2)) * effective;
+
+    // Each piece people reach for first costs a share of the guesses.
+    const lower = value.toLowerCase();
+
+    for (const piece of COMMON_PIECES) {
+        if (lower.includes(piece)) {
+            bits -= 12;
+        }
+    }
+
+    return bits < 28 ? 1 : bits < 40 ? 2 : bits < 60 ? 3 : 4;
+}
 
 /**
  * The first requirement the value misses, as its hint (or the generic format
@@ -767,3 +860,233 @@ export const applyConstraintCase = (
         : c?.case === 'upper'
           ? value.toUpperCase()
           : value;
+
+/** Formats written as codes: shown in a monospace font, with a valid tick. */
+export const CODE_FORMATS = [
+    'ip',
+    'ipv4',
+    'ipv6',
+    'mac',
+    'uuid',
+    'ulid',
+    'hex_color',
+];
+
+/** Whether a value has the format, or null when there's nothing to judge. */
+export function formatHolds(
+    format: string | undefined,
+    value: unknown,
+): boolean | null {
+    const check = format ? FORMAT_CHECKS[format] : undefined;
+
+    return !check || isBlank(value) ? null : check(String(value).trim());
+}
+
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+const localDate = (time: number): string => {
+    const d = new Date(time);
+
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+const localDateTime = (time: number): string => {
+    const d = new Date(time);
+
+    return `${localDate(time)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/**
+ * The earliest and latest value a date field's rules allow, for its picker:
+ * `after:today` starts tomorrow, `before_or_equal:ends_on` stops on the day
+ * that field holds. The tightest bound wins, a fixed `minValue`/`maxValue`
+ * included. Dates as `YYYY-MM-DD`; with `withTime`, `YYYY-MM-DDTHH:mm`.
+ */
+export function dateBounds(
+    c: KinetixFieldConstraints | null | undefined,
+    values: Record<string, unknown>,
+    fixed: { min?: string | null; max?: string | null } = {},
+    withTime = false,
+): { min: string | null; max: string | null } {
+    let min = fixed.min ? toTime(fixed.min) : null;
+    let max = fixed.max ? toTime(fixed.max) : null;
+    const day = 86_400_000;
+
+    for (const date of c?.dates ?? []) {
+        const target = toTime(date.field ? values[date.field] : date.date);
+
+        if (target === null) {
+            continue;
+        }
+
+        // A date field can't pick "later today": strictly after a day is the
+        // next one. A date-time field can, a minute on.
+        const after = withTime ? target + 60_000 : target + day;
+        const before = withTime ? target - 60_000 : target - day;
+
+        const lower = { after, after_or_equal: target, equals: target }[
+            date.op as 'after' | 'after_or_equal' | 'equals'
+        ];
+        const upper = { before, before_or_equal: target, equals: target }[
+            date.op as 'before' | 'before_or_equal' | 'equals'
+        ];
+
+        if (lower !== undefined) {
+            min = min === null ? lower : Math.max(min, lower);
+        }
+
+        if (upper !== undefined) {
+            max = max === null ? upper : Math.min(max, upper);
+        }
+    }
+
+    const write = withTime ? localDateTime : localDate;
+
+    return {
+        min: min === null ? null : write(min),
+        max: max === null ? null : write(max),
+    };
+}
+
+/** A file's pixel size, or null when the browser can't read it. */
+const imageSize = (
+    file: File,
+): Promise<{ width: number; height: number } | null> =>
+    new Promise((resolve) => {
+        if (typeof URL === 'undefined' || !URL.createObjectURL) {
+            resolve(null);
+
+            return;
+        }
+
+        const url = URL.createObjectURL(file);
+        const image = new Image();
+        const done = (size: { width: number; height: number } | null) => {
+            URL.revokeObjectURL(url);
+            resolve(size);
+        };
+
+        image.onload = () =>
+            done({ width: image.naturalWidth, height: image.naturalHeight });
+        image.onerror = () => done(null);
+        image.src = url;
+    });
+
+/** `jpg` and `jpeg` are the same type, as the server reads them. */
+const extensionsOf = (types: string[]): string[] =>
+    types.some((type) => type === 'jpg' || type === 'jpeg')
+        ? [...new Set([...types, 'jpg', 'jpeg'])]
+        : types;
+
+const mimeMatches = (type: string, accepted: string): boolean =>
+    accepted.endsWith('/*')
+        ? type.startsWith(accepted.slice(0, -1))
+        : type === accepted;
+
+/**
+ * Why a file the user picked can't be uploaded under the field's rules — its
+ * type, its size, its pixel dimensions — or null. Checked before the upload,
+ * so a 40 MB photo isn't sent only to be refused; the server checks again.
+ */
+export async function fileProblem(
+    file: File,
+    c: KinetixFieldConstraints | null | undefined,
+    t: Translate,
+    extra: { maxKilobytes?: number | null; image?: boolean } = {},
+): Promise<string | null> {
+    const extension = file.name.includes('.')
+        ? file.name.split('.').pop()!.toLowerCase()
+        : '';
+    const extensions = extensionsOf(c?.fileTypes ?? []);
+    const mimeTypes = c?.mimeTypes ?? [];
+    const declared = [...(c?.fileTypes ?? []), ...mimeTypes];
+
+    if (
+        declared.length &&
+        !extensions.includes(extension) &&
+        !mimeTypes.some((type) => mimeMatches(file.type, type))
+    ) {
+        return t('kinetix.upload_rejected_type', {
+            file: file.name,
+            types: declared.map((type) => type.toUpperCase()).join(', '),
+        });
+    }
+
+    if (
+        (c?.image || extra.image) &&
+        !declared.length &&
+        !file.type.startsWith('image/')
+    ) {
+        return t('kinetix.upload_rejected_type', {
+            file: file.name,
+            types: t('kinetix.rule_file_image'),
+        });
+    }
+
+    const limits = [c?.kilobytes?.max, extra.maxKilobytes].filter(
+        (limit): limit is number => typeof limit === 'number',
+    );
+    const maxKilobytes = limits.length ? Math.min(...limits) : null;
+    const kilobytes = file.size / 1024;
+
+    if (maxKilobytes !== null && kilobytes > maxKilobytes) {
+        return t('kinetix.upload_rejected_size', {
+            file: file.name,
+            size: sizeText(Math.ceil(kilobytes)),
+            max: sizeText(maxKilobytes),
+        });
+    }
+
+    if (c?.kilobytes?.min !== undefined && kilobytes < c.kilobytes.min) {
+        return t('kinetix.upload_rejected_small', {
+            file: file.name,
+            min: sizeText(c.kilobytes.min),
+        });
+    }
+
+    const d = c?.dimensions;
+
+    if (d && Object.keys(d).length && file.type.startsWith('image/')) {
+        const size = await imageSize(file);
+
+        if (size) {
+            const { width, height } = size;
+            const fits =
+                (d.width === undefined || width === d.width) &&
+                (d.height === undefined || height === d.height) &&
+                (d.minWidth === undefined || width >= d.minWidth) &&
+                (d.minHeight === undefined || height >= d.minHeight) &&
+                (d.maxWidth === undefined || width <= d.maxWidth) &&
+                (d.maxHeight === undefined || height <= d.maxHeight) &&
+                (d.ratio === undefined ||
+                    Math.abs(width / height - d.ratio) <
+                        1 / Math.max(width, height, 100));
+
+            if (!fits) {
+                return t('kinetix.upload_rejected_dimensions', {
+                    file: file.name,
+                    width,
+                    height,
+                });
+            }
+        }
+    }
+
+    return null;
+}
+
+/** The `accept` attribute a file input gets from the field's rules. */
+export function fileAccept(
+    c: KinetixFieldConstraints | null | undefined,
+): string | undefined {
+    const types = [
+        ...extensionsOf(c?.fileTypes ?? []).map((type) => `.${type}`),
+        ...(c?.mimeTypes ?? []),
+    ];
+
+    if (types.length) {
+        return types.join(',');
+    }
+
+    return c?.image ? 'image/*' : undefined;
+}

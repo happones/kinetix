@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Component } from 'vue';
+import { dateBounds } from '@/composables/kinetixFieldConstraints';
 import KinetixAddressPicker from '../KinetixAddressPicker.vue';
 import KinetixBusinessHours from '../KinetixBusinessHours.vue';
 import KinetixCheckboxList from '../KinetixCheckboxList.vue';
 import KinetixDateRangePicker from '../KinetixDateRangePicker.vue';
 import KinetixFileUpload from '../KinetixFileUpload.vue';
 import KinetixGenerator from '../KinetixGenerator.vue';
+import KinetixJsonInput from '../KinetixJsonInput.vue';
 import KinetixKeyValue from '../KinetixKeyValue.vue';
 import KinetixMediaLibrary from '../KinetixMediaLibrary.vue';
 import KinetixNumberField from '../KinetixNumberField.vue';
@@ -106,6 +108,15 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
             placeholder: c.placeholder,
         }),
     },
+    'json-input': {
+        component: KinetixJsonInput,
+        props: (c) => ({
+            id: c.name,
+            disabled: c.isDisabled,
+            placeholder: c.placeholder,
+            rows: Number(c.extraInputAttributes?.rows) || undefined,
+        }),
+    },
     'signature-pad': {
         component: KinetixSignaturePad,
         props: (c) => ({ config: c.signatureConfig, disabled: c.isDisabled }),
@@ -188,11 +199,20 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     },
     'tags-input': {
         component: KinetixTagsInput,
-        props: (c) => ({ disabled: c.isDisabled, placeholder: c.placeholder }),
+        props: (c) => ({
+            disabled: c.isDisabled,
+            placeholder: c.placeholder,
+            ignoreCase: c.constraints?.distinct === 'ignore_case',
+            maxItems: c.constraints?.items?.max ?? null,
+        }),
     },
     'key-value': {
         component: KinetixKeyValue,
-        props: (c) => ({ disabled: c.isDisabled }),
+        props: (c) => ({
+            id: c.name,
+            disabled: c.isDisabled,
+            keys: c.constraints?.keys ?? null,
+        }),
     },
     'file-upload': {
         component: KinetixFileUpload,
@@ -204,6 +224,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
             isImage: c.isImage,
             maxFiles: c.maxFiles,
             disabled: c.isDisabled,
+            constraints: c.constraints,
         }),
     },
     'media-library': {
@@ -218,6 +239,30 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
 };
+
+/**
+ * The field as its control gets it: a date field's picker bounded by what its
+ * rules allow (`after:today`, `before:ends_on`), read against the current
+ * values so a range's two ends keep each other in order.
+ */
+const DATE_TYPES = ['date-picker', 'datetime-picker'];
+
+const fieldComp = computed(() => {
+    const comp = props.comp;
+
+    if (!DATE_TYPES.includes(comp.type) || !comp.constraints?.dates?.length) {
+        return comp;
+    }
+
+    const { min, max } = dateBounds(
+        comp.constraints,
+        props.values,
+        { min: comp.minValue, max: comp.maxValue },
+        comp.type === 'datetime-picker',
+    );
+
+    return { ...comp, minValue: min, maxValue: max };
+});
 
 const dedicated = computed<Component | null>(
     () => DEDICATED_FIELDS[props.comp.type] ?? null,
@@ -265,7 +310,7 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
     <component
         :is="dedicated"
         v-else-if="dedicated"
-        :comp="comp"
+        :comp="fieldComp"
         :value="values[comp.name]"
         v-bind="errorA11yAttrs"
         @update="emit('update', $event)"
