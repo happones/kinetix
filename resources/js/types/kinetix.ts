@@ -104,6 +104,8 @@ export interface KinetixConfig {
     database: boolean;
     /** Kinetix's own endpoint prefix, with the team segment already resolved. */
     route_prefix: string;
+    /** The team rides in the host (`kinetix.tenancy.domain`), not the path. */
+    team_in_host?: boolean;
     /**
      * The active team's ROUTE key (slug/uuid-aware), or null when teams are off.
      * Build app links with `useKinetixTeams().teamUrl()` rather than reading it.

@@ -19,15 +19,20 @@ class BillingRoutes
 {
     public static function register(): void
     {
-        $prefix = (string) config('kinetix.billing.route_prefix', 'billing');
-        if (KinetixTeams::enabledFor('billing') && config('kinetix.tenancy.subdomain') === null) {
+        $prefix     = (string) config('kinetix.billing.route_prefix', 'billing');
+        $teamInHost = KinetixTeams::enabledFor('billing') && KinetixTeams::inHost();
+
+        if (KinetixTeams::enabledFor('billing') && config('kinetix.tenancy.subdomain') === null && ! $teamInHost) {
             $prefix = '{team}/'.$prefix;
         }
         $name       = (string) config('kinetix.billing.route_name', 'billing.');
         $middleware = config('kinetix.billing.middleware', ['web', 'auth']);
         $controller = BillingController::class;
 
-        Route::middleware($middleware)
+        // With the team in the host the parameter keeps its `{team}` name, so
+        // the URLs the host builds (`route('billing.index', ['team' => …])`)
+        // do not change with the tenancy mode.
+        ($teamInHost ? KinetixTeams::routes($middleware, 'team') : Route::middleware($middleware))
             ->prefix($prefix)
             ->name($name)
             ->group(function () use ($controller): void {

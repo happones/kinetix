@@ -111,4 +111,40 @@ describe('useKinetixTeams', () => {
             expect(visit).not.toHaveBeenCalled();
         });
     });
+
+    describe('team in the host', () => {
+        it('leaves app paths alone: the host already names the team', () => {
+            props.kinetix_config = { team: 'acme', team_in_host: true };
+
+            const { teamUrl } = useKinetixTeams();
+
+            expect(teamUrl('/projects')).toBe('/projects');
+        });
+
+        it('loads another team outright when it lives on another origin', () => {
+            const assign = vi.fn();
+            vi.stubGlobal('location', {
+                ...window.location,
+                href: 'http://acme.example.test/projects',
+                origin: 'http://acme.example.test',
+                assign,
+            });
+
+            const { switchTeam } = useKinetixTeams();
+
+            switchTeam({
+                id: 2,
+                name: 'Beta',
+                url: 'http://beta.example.test/dashboard',
+                current: false,
+            });
+
+            expect(assign).toHaveBeenCalledWith(
+                'http://beta.example.test/dashboard',
+            );
+            expect(visit).not.toHaveBeenCalled();
+
+            vi.unstubAllGlobals();
+        });
+    });
 });

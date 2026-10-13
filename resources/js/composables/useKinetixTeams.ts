@@ -43,7 +43,8 @@ export function useKinetixTeams() {
      * Prefix an app path with the active team segment.
      *
      *   teamUrl('/projects')  → '/acme/projects'   (teams on)
-     *   teamUrl('/projects')  → '/projects'        (teams off)
+     *   teamUrl('/projects')  → '/projects'        (teams off, or the team
+     *                                               rides in the host)
      *
      * Idempotent: a path that already starts with the team key is returned
      * unchanged, so passing a server-generated URL through it is safe.
@@ -52,7 +53,11 @@ export function useKinetixTeams() {
         const clean = path.startsWith('/') ? path : `/${path}`;
         const key = currentTeamKey.value;
 
-        if (key === null || key === '') {
+        if (
+            key === null ||
+            key === '' ||
+            page.props.kinetix_config?.team_in_host
+        ) {
             return clean;
         }
 
@@ -68,6 +73,14 @@ export function useKinetixTeams() {
             return;
         }
 
+        // With the team in the host the other team lives on another origin,
+        // which an Inertia visit (an XHR) cannot follow: load it outright.
+        if (isOtherOrigin(team.url)) {
+            window.location.assign(team.url);
+
+            return;
+        }
+
         router.visit(team.url);
     }
 
@@ -79,4 +92,21 @@ export function useKinetixTeams() {
         teamUrl,
         switchTeam,
     };
+}
+
+/**
+ * Whether a URL points at another origin than the page's.
+ */
+function isOtherOrigin(url: string): boolean {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    try {
+        return (
+            new URL(url, window.location.href).origin !== window.location.origin
+        );
+    } catch {
+        return false;
+    }
 }

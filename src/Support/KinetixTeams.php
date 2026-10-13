@@ -7,6 +7,8 @@ namespace Happones\Kinetix\Support;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
+use Illuminate\Routing\RouteRegistrar;
+use Illuminate\Support\Facades\Route;
 
 /**
  * Resolves team scoping per module with tri-state inheritance: a module's
@@ -28,6 +30,51 @@ class KinetixTeams
         }
 
         return (bool) $value;
+    }
+
+    /**
+     * The apex domain whose subdomains carry the team (`kinetix.tenancy.domain`,
+     * e.g. `example.com` for `acme.example.com`), or null when the team rides in
+     * the path (`/acme/...`). Only with teams on.
+     */
+    public static function domain(): ?string
+    {
+        $domain = config('kinetix.tenancy.domain');
+
+        return config('kinetix.teams', false) && is_string($domain) && $domain !== '' ? $domain : null;
+    }
+
+    /**
+     * Whether the team is read from the request host rather than a path segment.
+     */
+    public static function inHost(): bool
+    {
+        return static::domain() !== null;
+    }
+
+    /**
+     * The path prefix of a team-scoped route group: `{current_team}/{prefix}`
+     * with the team in the path, the bare prefix with it in the host or with
+     * teams off.
+     */
+    public static function routePrefix(string $prefix): string
+    {
+        return config('kinetix.teams', false) && ! static::inHost() ? '{current_team}/'.$prefix : $prefix;
+    }
+
+    /**
+     * A route group for team-scoped endpoints. With the team in the host it is
+     * bound to `{parameter}.{domain}`, so the parameter still reaches the
+     * routes — and everything reading `$request->route('current_team')` — as
+     * it does from the path.
+     *
+     * @param array<int, string>|string $middleware
+     */
+    public static function routes(array|string $middleware, string $parameter = 'current_team'): RouteRegistrar
+    {
+        $routes = Route::middleware($middleware);
+
+        return static::inHost() ? $routes->domain('{'.$parameter.'}.'.static::domain()) : $routes;
     }
 
     /**

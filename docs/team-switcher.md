@@ -105,6 +105,37 @@ Two reasons to prefer it over hand-built strings:
 Unlike the switcher, linking only needs `kinetix.teams` — `team_switcher.enabled`
 is not required.
 
+## Teams on subdomains
+
+By default the team rides in the path (`/acme/projects`). To serve each team on
+its own subdomain (`acme.example.com/projects`), set the apex domain:
+
+```php
+// config/kinetix.php
+'tenancy' => [
+    'domain' => env('KINETIX_TENANCY_DOMAIN'), // 'example.com'
+],
+```
+
+With teams on, every team-scoped Kinetix route then registers on
+`{current_team}.{domain}` (the billing routes on `{team}.{domain}`) instead of
+under a `{current_team}/` prefix. The parameter keeps its name, so `route()`,
+`KinetixTeams::currentRouteKey()` and the permission team middleware work the
+same in both modes. Register your own team routes the same way —
+`KinetixTeams::routes($middleware)` returns a group bound to the team's host
+in this mode and a plain one otherwise, and `KinetixTeams::routePrefix()` drops
+the team segment from the prefix.
+
+On the client, `kinetix_config.route_prefix` loses its team segment (the
+endpoints are called on the team's own host), `kinetix_config.team_in_host` is
+`true`, and `teamUrl()` returns paths unchanged. Switching to a team on another
+host loads it outright: an Inertia visit is an XHR and cannot follow a
+redirect to another origin.
+
+The session has to be shared across the subdomains: set `SESSION_DOMAIN` to
+`.example.com`. Leave the domain null locally to keep `/acme/...` paths, where
+there is no wildcard DNS.
+
 ---
 
 ## Shared prop

@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.0] - 2026-10-13
+
+### Added
+
+- **Teams:** `kinetix.tenancy.domain` (`KINETIX_TENANCY_DOMAIN`) serves each
+  team on its own subdomain (`acme.example.com`). Every team-scoped route
+  registers on `{current_team}.{domain}` (billing on `{team}.{domain}`) instead
+  of under a `{current_team}/` path prefix; the parameter keeps its name, so
+  `route()`, team resolution and the permission team middleware are unchanged.
+  `KinetixTeams::domain()`, `inHost()`, `routePrefix()` and `routes()` let a
+  host register its own team routes the same way. `kinetix_config` gains
+  `team_in_host`, and its `route_prefix` drops the team segment in this mode.
+  Path tenancy (the default) is unchanged.
+- **Teams (client):** `useKinetixTeams().teamUrl()` leaves paths unchanged when
+  the team rides in the host, and `switchTeam()` loads a team on another origin
+  outright instead of an Inertia visit, which cannot follow it.
+  **(published)** `composables/useKinetixTeams.ts`, `types/kinetix.ts`.
+
 ## [0.219.18] - 2026-10-13
 
 ### Added

@@ -94,7 +94,7 @@ class DoctorCommand extends Command
     {
         $prefix = (string) config('kinetix.route_prefix', '_kinetix');
         $teams  = (bool) config('kinetix.teams', false);
-        $mount  = ($teams ? '{current_team}/'.$prefix : $prefix).'/…';
+        $mount  = ($teams ? (KinetixTeams::inHost() ? '{current_team}.'.KinetixTeams::domain().'/'.$prefix : '{current_team}/'.$prefix) : $prefix).'/…';
 
         $this->ok('Routing', "endpoints mounted under {$mount}", 'php artisan kinetix:routes');
 

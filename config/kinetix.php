@@ -33,6 +33,14 @@ return [
     */
     'tenancy' => [
         'subdomain' => env('KINETIX_TENANCY_SUBDOMAIN', null),
+
+        // The apex domain whose subdomains carry the team's route key
+        // (`example.com` for `acme.example.com`). With teams on, every
+        // team-scoped Kinetix route registers on `{current_team}.{domain}`
+        // (billing on `{team}.{domain}`) instead of under a `{current_team}/`
+        // path prefix; the parameter keeps its name, so route() and everything
+        // reading the route's team work unchanged. null = team in the path.
+        'domain' => env('KINETIX_TENANCY_DOMAIN'),
     ],
 
     /*

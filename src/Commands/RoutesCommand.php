@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Route;
 
@@ -40,7 +41,7 @@ class RoutesCommand extends Command
 
         $this->newLine();
         $this->line('  <options=bold>Kinetix endpoints</> live under <fg=yellow>'
-            .($teams ? '{current_team}/'.$prefix : $prefix).'/…</>');
+            .($teams ? (KinetixTeams::inHost() ? '{current_team}.'.KinetixTeams::domain().'/'.$prefix : '{current_team}/'.$prefix) : $prefix).'/…</>');
         $this->line('  <fg=gray>Published components call these URLs themselves — never register your own</>');
         $this->line('  <fg=gray>controller under a different prefix expecting the frontend to hit it.</>');
         $this->newLine();
