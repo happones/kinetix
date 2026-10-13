@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.6] - 2026-10-13
+
+### Fixed
+
+- **Mail templates and scheduled reports went out as bare HTML,** with none of
+  the app's mail header, footer or theme. Both are now sent inside the app's
+  markdown mail layout (`<x-mail::message>`), so they look like every other
+  email it sends. `kinetix.mail.layout` (`KINETIX_MAIL_LAYOUT`) = `false` keeps
+  the bare HTML. A scheduled report's subject is escaped in its note.
+
 ## [0.224.5] - 2026-10-13
 
 Re-publish the components (`--force`) **(published)**.
