@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Unit;
 
+use Happones\Kinetix\Forms\Components\Checkbox;
 use Happones\Kinetix\Forms\Components\TextInput;
 use Happones\Kinetix\Forms\Components\Toggle;
 use Happones\Kinetix\Forms\Form;
@@ -48,5 +49,22 @@ class FormDefaultsTest extends TestCase
             ->toArray()['data'];
 
         $this->assertSame(['currency' => 'USD'], $data);
+    }
+
+    public function test_an_untouched_toggle_or_checkbox_submits_off_not_empty(): void
+    {
+        $data = Form::make()->schema([
+            Toggle::make('is_featured'),
+            Checkbox::make('terms'),
+            Toggle::make('active')->default(true),
+        ])->toArray()['data'];
+
+        $this->assertSame(['is_featured' => false, 'terms' => false, 'active' => true], $data);
+
+        $record = new FormDefaultsRecord(['is_featured' => null]);
+
+        $edited = Form::make()->schema([Toggle::make('is_featured')])->fill($record)->toArray()['data'];
+
+        $this->assertSame(['is_featured' => false], $edited);
     }
 }

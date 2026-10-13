@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.7] - 2026-10-13
+
+### Fixed
+
+- **An untouched toggle or checkbox submitted `null`, and a plain `boolean`
+  rule rejected it** ("must be true or false") although the user left it off,
+  as drawn. An on/off control now opens off: it submits `false` unless its
+  `default()` or the record says otherwise. A hidden attribute behind a toggle
+  still never reaches the browser, and off submitted back still keeps its
+  stored value.
+
+### Documentation
+
+- **Live validation needs JSON errors for JSON requests.** An app that narrows
+  `shouldRenderJsonWhen` (to `api/*`, say) turns Precognition's `422` into a
+  redirect, and no live error ever shows. The Forms guide now says to keep
+  `$request->expectsJson()` in it.
+
 ## [0.224.6] - 2026-10-13
 
 ### Fixed

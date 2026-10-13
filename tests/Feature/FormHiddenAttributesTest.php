@@ -145,8 +145,10 @@ class FormHiddenAttributesTest extends TestCase
             Toggle::make('is_admin')->default(false),
         ])->fill($admin);
 
+        // The stored value never reaches the browser: an on/off control
+        // renders off, and off submitted back keeps what was stored.
         $rendered = $form->toArray()['data'];
-        $this->assertNotSame(false, $rendered['is_admin'] ?? null);
+        $this->assertNotSame(true, $rendered['is_admin'] ?? null);
 
         $this->assertSame(['name' => 'Ada'], $form->getState(['name' => 'Ada', 'is_admin' => $rendered['is_admin'] ?? null]));
         $this->assertSame(['name' => 'Ada'], $form->getState(['name' => 'Ada', 'is_admin' => false]));
