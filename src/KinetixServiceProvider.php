@@ -373,6 +373,7 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register package translation namespace
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'kinetix');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'kinetix');
 
         // Blueprint macro: add the password-lifecycle columns to ANY table, so
         // a non-User authenticatable (a `clients`/`customers` table backing a

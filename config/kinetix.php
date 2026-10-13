@@ -1618,6 +1618,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Mail Layout
+    |--------------------------------------------------------------------------
+    |
+    | The emails Kinetix builds from HTML — a mail template's body, a scheduled
+    | report's note — are sent inside the app's markdown mail layout
+    | (<x-mail::message>), so they carry the header, footer and theme of every
+    | other email the app sends (`vendor:publish --tag=laravel-mail` to brand
+    | them). false sends the bare HTML.
+    |
+    */
+    'mail' => [
+        'layout' => env('KINETIX_MAIL_LAYOUT', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Cookie Consent (optional)
     |--------------------------------------------------------------------------
     |

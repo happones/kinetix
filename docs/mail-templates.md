@@ -126,6 +126,12 @@ KinetixMail::send($user->email, 'welcome', [
 Variable values are **HTML-escaped** in Markdown templates; HTML templates are
 rendered as-is (you control the markup). The subject is always plain text.
 
+The email goes out inside your app's markdown mail layout (`<x-mail::message>`),
+so it carries the same header, footer and theme as the rest of your mail —
+publish and brand them with `php artisan vendor:publish --tag=laravel-mail`.
+Set `kinetix.mail.layout` (`KINETIX_MAIL_LAYOUT`) to `false` to send the bare
+HTML instead. `KinetixMail::render()` always returns the bare body.
+
 ---
 
 ## Endpoints

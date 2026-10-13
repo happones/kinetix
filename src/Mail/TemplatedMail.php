@@ -11,7 +11,8 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Sends a rendered {@see MailTemplate} (subject + HTML body).
+ * Sends a rendered {@see MailTemplate} (subject + HTML body), inside the app's
+ * mail layout unless `kinetix.mail.layout` is off ({@see MailLayout}).
  */
 class TemplatedMail extends Mailable
 {
@@ -30,6 +31,6 @@ class TemplatedMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(htmlString: $this->bodyHtml);
+        return MailLayout::content($this->bodyHtml);
     }
 }

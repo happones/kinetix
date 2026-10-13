@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Reports;
 
+use Happones\Kinetix\Mail\MailLayout;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -12,7 +13,8 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Delivers a scheduled report's generated file as an email attachment.
+ * Delivers a scheduled report's generated file as an email attachment, with a
+ * short note inside the app's mail layout ({@see MailLayout}).
  */
 class ScheduledReportMail extends Mailable
 {
@@ -33,12 +35,10 @@ class ScheduledReportMail extends Mailable
     public function content(): Content
     {
         $app   = (string) config('app.name', 'Application');
-        $intro = (string) __('kinetix.report_mail_intro', ['name' => $this->reportSubject]);
-        $outro = (string) __('kinetix.report_mail_outro', ['app' => $app]);
+        $intro = e((string) __('kinetix.report_mail_intro', ['name' => $this->reportSubject]));
+        $outro = e((string) __('kinetix.report_mail_outro', ['app' => $app]));
 
-        return new Content(
-            htmlString: "<p>{$intro}</p><p style=\"color:#6b7280;font-size:13px\">{$outro}</p>",
-        );
+        return MailLayout::content("<p>{$intro}</p><p style=\"color:#6b7280;font-size:13px\">{$outro}</p>");
     }
 
     /**

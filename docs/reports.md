@@ -67,6 +67,8 @@ parameters), streams its rows to a temp file via the same `FileWriter` used by
 on-demand exports (headings + chunked records + an optional summary row), then
 sends a `ScheduledReportMail` with the file attached to every recipient and
 cleans up the temp file. Reports with no recipients are skipped.
+The email's short note is sent inside your app's mail layout, like
+[mail templates](/mail-templates#sending-from-your-app) (`kinetix.mail.layout`).
 
 Enable the feature in config:
 
