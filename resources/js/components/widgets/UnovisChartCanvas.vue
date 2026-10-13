@@ -117,8 +117,10 @@ const tickValues = computed(() =>
             />
             <VisTooltip :triggers="donutTriggers" />
         </VisSingleContainer>
+        <!-- Only a donut has a hole to hold the label; on a full pie it
+             would sit on top of the slices. -->
         <div
-            v-if="centerValue"
+            v-if="centerValue && arcWidthValue > 0"
             class="inset-0 pointer-events-none absolute flex flex-col items-center justify-center"
         >
             <span class="text-2xl font-bold text-foreground">{{

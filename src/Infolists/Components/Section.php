@@ -7,10 +7,13 @@ namespace Happones\Kinetix\Infolists\Components;
 use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\InfolistEntryData;
+use Happones\Kinetix\Infolists\Concerns\LaysOutChildren;
 use Illuminate\Database\Eloquent\Model;
 
 class Section extends Component
 {
+    use LaysOutChildren;
+
     protected mixed $heading;
 
     protected mixed $description = null;
@@ -103,13 +106,7 @@ class Section extends Component
         $description = $this->description instanceof Closure ? ($this->description)($record) : $this->description;
         $icon        = $this->icon instanceof Closure ? ($this->icon)($record) : $this->icon;
 
-        $childData = [];
-        foreach ($this->schema as $component) {
-            $data = $component->toData($operation, $record);
-            if ($data !== null) {
-                $childData[] = $data;
-            }
-        }
+        $childData = $this->childrenData($this->schema, $this->columns, $operation, $record);
 
         // Auth-filtered header actions, resolved against the record.
         $actionsData = array_values(array_filter(array_map(

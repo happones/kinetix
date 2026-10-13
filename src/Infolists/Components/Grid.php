@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Infolists\Components;
 
 use Happones\Kinetix\Data\InfolistEntryData;
+use Happones\Kinetix\Infolists\Concerns\LaysOutChildren;
 use Illuminate\Database\Eloquent\Model;
 
 class Grid extends Component
 {
+    use LaysOutChildren;
+
     /**
      * @var array<int, Component>
      */
@@ -52,13 +55,7 @@ class Grid extends Component
             return null;
         }
 
-        $childData = [];
-        foreach ($this->schema as $component) {
-            $data = $component->toData($operation, $record);
-            if ($data !== null) {
-                $childData[] = $data;
-            }
-        }
+        $childData = $this->childrenData($this->schema, $this->columns, $operation, $record);
 
         return new InfolistEntryData(
             type: $this->getType(),

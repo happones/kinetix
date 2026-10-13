@@ -86,6 +86,11 @@ also accepts a breakpoint map (`['default' => 1, 'sm' => 2, 'xl' => 3]`), and
 breakpoints measure the **infolist's own width** via container queries — a
 record panel in a drawer collapses even on a wide viewport. Spans clamp to the
 columns available at each size.
+
+An entry without `columnSpan()` takes **one cell** in a container narrower than
+12 columns — `Tab::make('Profile')->columns(2)` puts two entries per row. On the
+default 12-column grid it keeps the full row, and `columnSpan(6)` and friends
+lay it out.
 :::
 
 ### One-line rendering

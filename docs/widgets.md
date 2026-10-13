@@ -396,7 +396,7 @@ Interactive metrics charting backed by Unovis.
   - `datasets(array $datasets)`: Dataset configuration arrays.
   - `stacked(bool $on = true)`: stack multiple series (area is always stacked; `bar` becomes a stacked bar).
   - `legend(bool $on = true)`: force the legend on or off. **Automatic by default** — shown whenever the chart has two or more series/categories. Legend entries are clickable and toggle their series (colors stay stable while toggling).
-  - `centerLabel(string $value, ?string $caption = null)`: a big value + caption in the middle of a `pie`/`doughnut` (e.g. `('10.2K', 'Visitors')`).
+  - `centerLabel(string $value, ?string $caption = null)`: a big value + caption in the hole of a `doughnut` (e.g. `('10.2K', 'Visitors')`). A full `pie` has no hole, so it shows none.
   - `metric(string $label, string $value, ?string $badge = null, ?string $badgeColor = 'gray')`: a headline figure in the chart header (chain for several, e.g. DESKTOP / MOBILE totals).
   - `options(array $options)`: Custom chart properties payload.
 

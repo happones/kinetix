@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.8] - 2026-10-13
+
+Re-publish the components (`--force`) **(published)**.
+
+### Fixed
+
+- **An infolist container's `columns()` laid nothing out.** Every entry
+  defaulted to the full row, so `Tab::make('Profile')->columns(2)` (the
+  recipe in the docs) or `Section::make()->columns(['md' => 3])` drew one
+  column. In a container narrower than 12 columns an entry without
+  `columnSpan()` now takes one cell; the 12-column grid keeps the full row
+  for an unspanned entry, as before.
+- **A pie chart drew its center label on top of its slices.** Only a
+  doughnut has a hole to hold it; a full pie now shows none.
+- **A masonry widget grid made the browser report a ResizeObserver loop,**
+  and re-created an observer per widget on every render. One observer now
+  watches every widget, and measured heights apply on the next frame, so a
+  re-pack never resizes widgets inside the observer's own callback.
+
 ## [0.224.7] - 2026-10-13
 
 ### Fixed

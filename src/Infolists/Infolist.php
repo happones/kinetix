@@ -6,12 +6,15 @@ namespace Happones\Kinetix\Infolists;
 
 use Happones\Kinetix\Data\InfolistData;
 use Happones\Kinetix\Infolists\Components\Component;
+use Happones\Kinetix\Infolists\Concerns\LaysOutChildren;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use JsonSerializable;
 
 class Infolist implements Arrayable, JsonSerializable
 {
+    use LaysOutChildren;
+
     /**
      * @var array<int, Component>
      */
@@ -98,13 +101,7 @@ class Infolist implements Arrayable, JsonSerializable
      */
     public function toData(): InfolistData
     {
-        $serializedSchema = [];
-        foreach ($this->schema as $component) {
-            $componentData = $component->toData($this->operation, $this->record);
-            if ($componentData !== null) {
-                $serializedSchema[] = $componentData;
-            }
-        }
+        $serializedSchema = $this->childrenData($this->schema, $this->columns, $this->operation, $this->record);
 
         return new InfolistData(
             schema: $serializedSchema,

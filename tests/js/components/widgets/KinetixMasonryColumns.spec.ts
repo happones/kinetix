@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import KinetixMasonryColumns from '@/components/widgets/KinetixMasonryColumns.vue';
 
 const widgets = [
@@ -90,5 +90,83 @@ describe('KinetixMasonryColumns', () => {
         const after = wrapper.find('[data-id="a"]').element;
 
         expect(after).toBe(before);
+    });
+
+    describe('measuring', () => {
+        let instances: FakeObserver[] = [];
+
+        class FakeObserver {
+            callback: ResizeObserverCallback;
+            observed = new Set<Element>();
+
+            constructor(callback: ResizeObserverCallback) {
+                this.callback = callback;
+                instances.push(this);
+            }
+
+            observe(el: Element): void {
+                this.observed.add(el);
+            }
+
+            unobserve(el: Element): void {
+                this.observed.delete(el);
+            }
+
+            disconnect(): void {
+                this.observed.clear();
+            }
+
+            report(el: Element, height: number): void {
+                this.callback(
+                    [{ target: el, contentRect: { height } } as any],
+                    this as any,
+                );
+            }
+        }
+
+        afterEach(() => {
+            instances = [];
+            vi.unstubAllGlobals();
+        });
+
+        const mountMeasured = () => {
+            vi.stubGlobal('ResizeObserver', FakeObserver);
+
+            return mount(KinetixMasonryColumns, {
+                props: { widgets, columns: 2, gap: 0 },
+                slots: {
+                    item: `<template #item="{ widget }"><div class="item" :data-id="widget.id">{{ widget.id }}</div></template>`,
+                },
+            });
+        };
+
+        it('watches every item with one observer, kept across re-renders', async () => {
+            const wrapper = mountMeasured();
+
+            await wrapper.setProps({ gap: 4 });
+
+            expect(instances).toHaveLength(1);
+            expect(instances[0].observed.size).toBe(3);
+        });
+
+        it('applies a measured height on the next frame, not inside the observer callback', async () => {
+            const frames: FrameRequestCallback[] = [];
+            vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) =>
+                frames.push(cb),
+            );
+
+            const wrapper = mountMeasured();
+            const first = wrapper.find('[data-id="a"]').element.parentElement!;
+
+            instances[0].report(first, 300);
+            await wrapper.vm.$nextTick();
+
+            expect(wrapper.attributes('style')).toContain('height: 0px');
+
+            frames.forEach((cb) => cb(0));
+            await wrapper.vm.$nextTick();
+
+            expect(wrapper.attributes('style')).toContain('height: 300px');
+        });
     });
 });

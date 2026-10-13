@@ -6,10 +6,13 @@ namespace Happones\Kinetix\Infolists\Components;
 
 use Closure;
 use Happones\Kinetix\Data\InfolistEntryData;
+use Happones\Kinetix\Infolists\Concerns\LaysOutChildren;
 use Illuminate\Database\Eloquent\Model;
 
 class Fieldset extends Component
 {
+    use LaysOutChildren;
+
     protected mixed $label;
 
     /**
@@ -61,13 +64,7 @@ class Fieldset extends Component
 
         $label = $this->label instanceof Closure ? ($this->label)($record) : $this->label;
 
-        $childData = [];
-        foreach ($this->schema as $component) {
-            $data = $component->toData($operation, $record);
-            if ($data !== null) {
-                $childData[] = $data;
-            }
-        }
+        $childData = $this->childrenData($this->schema, $this->columns, $operation, $record);
 
         return new InfolistEntryData(
             type: $this->getType(),

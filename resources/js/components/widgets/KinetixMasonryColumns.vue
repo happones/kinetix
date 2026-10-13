@@ -67,32 +67,74 @@ const gapPx = computed(() => gapToPx(gapValue.value));
 
 // Measured height (px) per widget id, updated as each item mounts/resizes.
 const heights = reactive<Record<string, number>>({});
-const observers = new Map<string, ResizeObserver>();
+
+// One observer watches every item. The function ref below runs on each
+// render, so an item is (re)observed only when its element changes.
+let observer: ResizeObserver | null = null;
+const elements = new Map<string, Element>();
+const idOf = new WeakMap<Element, string>();
+
+// Heights land on the next frame, together: re-packing inside the observer's
+// own callback moves items between columns — new widths, new heights — in the
+// same frame, which the browser reports as a ResizeObserver loop.
+const pending = new Map<string, number>();
+let frame = 0;
+
+function flushHeights(): void {
+    frame = 0;
+    pending.forEach((height, id) => {
+        if (heights[id] !== height) {
+            heights[id] = height;
+        }
+    });
+    pending.clear();
+}
 
 function observe(el: Element | null, id: string): void {
-    const existing = observers.get(id);
+    const current = elements.get(id);
 
-    if (existing) {
-        existing.disconnect();
-        observers.delete(id);
+    if (current === el) {
+        return;
+    }
+
+    if (current) {
+        observer?.unobserve(current);
+        elements.delete(id);
     }
 
     if (!el || typeof ResizeObserver === 'undefined') {
         return;
     }
 
-    const ro = new ResizeObserver(([entry]) => {
-        if (entry) {
-            heights[id] = entry.contentRect.height;
+    observer ??= new ResizeObserver((entries) => {
+        for (const entry of entries) {
+            const target = idOf.get(entry.target);
+
+            if (target !== undefined) {
+                pending.set(target, entry.contentRect.height);
+            }
+        }
+
+        if (!frame) {
+            frame = requestAnimationFrame(flushHeights);
         }
     });
-    ro.observe(el);
-    observers.set(id, ro);
+
+    idOf.set(el, id);
+    elements.set(id, el);
+    observer.observe(el);
 }
 
 onBeforeUnmount(() => {
-    observers.forEach((ro) => ro.disconnect());
-    observers.clear();
+    observer?.disconnect();
+    observer = null;
+    elements.clear();
+    pending.clear();
+
+    if (frame) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+    }
 });
 
 const columnsOf = computed<KinetixWidget[][]>(() =>
