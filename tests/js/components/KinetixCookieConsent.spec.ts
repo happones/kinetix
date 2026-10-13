@@ -42,11 +42,17 @@ function clearCookies(): void {
     });
 }
 
-const mountIt = () =>
-    mount(KinetixCookieConsent, {
+const mounted: Array<ReturnType<typeof mount>> = [];
+
+const mountIt = () => {
+    const wrapper = mount(KinetixCookieConsent, {
         global: { plugins: [i18n] },
         attachTo: document.body,
     });
+    mounted.push(wrapper);
+
+    return wrapper;
+};
 
 describe('KinetixCookieConsent', () => {
     beforeEach(() => {
@@ -55,6 +61,9 @@ describe('KinetixCookieConsent', () => {
     });
 
     afterEach(() => {
+        // Unmounted, not just detached: a bar left alive keeps reacting to
+        // the shared props and cookies of the next test.
+        mounted.splice(0).forEach((wrapper) => wrapper.unmount());
         document.body.innerHTML = '';
     });
 
@@ -137,5 +146,83 @@ describe('KinetixCookieConsent', () => {
         await w.vm.$nextTick();
 
         expect(w.find('[role="region"]').classes()).toContain('top-0');
+    });
+
+    describe('the page under the bar', () => {
+        let height: PropertyDescriptor | undefined;
+
+        beforeEach(() => {
+            height = Object.getOwnPropertyDescriptor(
+                HTMLElement.prototype,
+                'offsetHeight',
+            );
+            Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+                configurable: true,
+                get: () => 96,
+            });
+            document.body.style.paddingBottom = '';
+            document.body.style.paddingTop = '';
+        });
+
+        afterEach(() => {
+            if (height) {
+                Object.defineProperty(
+                    HTMLElement.prototype,
+                    'offsetHeight',
+                    height,
+                );
+            }
+        });
+
+        it('lets clicks through the strip: only the card takes them', async () => {
+            state.props = { kinetix_cookie_consent: { enabled: true } };
+
+            const w = mountIt();
+            await w.vm.$nextTick();
+
+            const strip = w.find('[role="region"]');
+
+            expect(strip.classes()).toContain('pointer-events-none');
+            expect(strip.find('div').classes()).toContain(
+                'pointer-events-auto',
+            );
+        });
+
+        it('reserves its height while it shows, and gives it back once chosen', async () => {
+            state.props = { kinetix_cookie_consent: { enabled: true } };
+
+            const w = mountIt();
+            await w.vm.$nextTick();
+            await w.vm.$nextTick();
+
+            expect(document.body.style.paddingBottom).toBe('96px');
+
+            await w
+                .findAll('button')
+                .find((b) => b.text() === 'Accept')
+                ?.trigger('click');
+            await w.vm.$nextTick();
+            await w.vm.$nextTick();
+
+            expect(document.body.style.paddingBottom).toBe('');
+        });
+
+        it('reserves it at the top when the bar is at the top', async () => {
+            state.props = {
+                kinetix_cookie_consent: { enabled: true, position: 'top' },
+            };
+
+            const w = mountIt();
+            await w.vm.$nextTick();
+            await w.vm.$nextTick();
+
+            expect(document.body.style.paddingTop).toBe('96px');
+            expect(document.body.style.paddingBottom).toBe('');
+
+            mounted.splice(mounted.indexOf(w), 1);
+            w.unmount();
+
+            expect(document.body.style.paddingTop).toBe('');
+        });
     });
 });

@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.220.1] - 2026-10-13
+
+### Fixed
+
+- **Cookie consent:** the bar no longer covers the page. Its full-width strip
+  let no click through, even beside the card, and while it showed it sat over
+  the bottom of the page — a form's last button ("Delete team") could not be
+  reached until the visitor chose. The strip now passes clicks to the page and
+  only the card takes them, and the bar's height is reserved as padding on
+  `<body>` (top or bottom, by its position) while it shows, so the page can be
+  scrolled clear of it. **(published)** `KinetixCookieConsent.vue`.
+- **Tests:** the subdomain tenancy tests compare a generated URL's host and path,
+  not its port, which follows the test server's (`:8000` under
+  `testbench package:test`). CI failed on them.
+
 ## [0.220.0] - 2026-10-13
 
 ### Added
