@@ -32,6 +32,12 @@ class Form implements Arrayable, JsonSerializable
 
     protected ?Model $record = null;
 
+    /**
+     * Whether {@see fill()} ran. A form rendered without it (a create form, an
+     * action's modal) still opens with its fields' defaults.
+     */
+    protected bool $isFilled = false;
+
     protected ?string $model = null;
 
     protected string $operation = 'create';
@@ -156,6 +162,8 @@ class Form implements Arrayable, JsonSerializable
      */
     public function fill(mixed $data = []): static
     {
+        $this->isFilled = true;
+
         if ($data instanceof Model) {
             $this->record    = $data;
             $this->model     = get_class($data);
@@ -596,6 +604,12 @@ class Form implements Arrayable, JsonSerializable
      */
     public function toData(): FormData
     {
+        // Never filled: open with the defaults — never with a bound record's
+        // values, which an action's form (built on its row) doesn't collect.
+        if (! $this->isFilled) {
+            $this->fill([]);
+        }
+
         // Hand each relationship-aware field the owning model, the way Table
         // does for its filters — without it, `relationship('author', 'name')`
         // has no model to resolve the relation against.

@@ -109,21 +109,41 @@ const onInput = (event: Event): void => {
         @update:value="emit('update', $event)"
     />
 
-    <div v-else class="relative">
-        <input
-            :id="comp.name"
-            :value="value"
-            :type="comp.inputType || 'text'"
-            :placeholder="comp.placeholder"
-            :disabled="comp.isDisabled"
-            v-bind="{ ...ruleAttrs, ...attrs }"
-            :class="[inputClass, isCode ? 'pr-9 font-mono' : '']"
-            @input="onInput"
-        />
-        <Check
-            v-if="codeHolds"
-            class="right-3 size-4 pointer-events-none absolute top-1/2 -translate-y-1/2 text-success"
-            aria-hidden="true"
-        />
+    <!-- prefix()/suffix(): text joined to the input's edges ($ … MXN). -->
+    <div v-else class="relative flex">
+        <span
+            v-if="comp.prefix"
+            :id="`${comp.name}-prefix`"
+            class="px-3 text-sm inline-flex shrink-0 items-center rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground"
+            >{{ comp.prefix }}</span
+        >
+        <div class="min-w-0 relative flex-1">
+            <input
+                :id="comp.name"
+                :value="value"
+                :type="comp.inputType || 'text'"
+                :placeholder="comp.placeholder"
+                :disabled="comp.isDisabled"
+                v-bind="{ ...ruleAttrs, ...attrs }"
+                :class="[
+                    inputClass,
+                    isCode ? 'pr-9 font-mono' : '',
+                    comp.prefix ? 'rounded-l-none' : '',
+                    comp.suffix ? 'rounded-r-none' : '',
+                ]"
+                @input="onInput"
+            />
+            <Check
+                v-if="codeHolds"
+                class="right-3 size-4 pointer-events-none absolute top-1/2 -translate-y-1/2 text-success"
+                aria-hidden="true"
+            />
+        </div>
+        <span
+            v-if="comp.suffix"
+            :id="`${comp.name}-suffix`"
+            class="px-3 text-sm inline-flex shrink-0 items-center rounded-r-md border border-l-0 border-input bg-muted text-muted-foreground"
+            >{{ comp.suffix }}</span
+        >
     </div>
 </template>

@@ -506,4 +506,26 @@ describe('KinetixFormSchema flat mode (forms hosted in modals)', () => {
         expect(wrapper.get('label').attributes('for')).toBe('thing');
         expect(wrapper.get('#thing').element.tagName).toBe('INPUT');
     });
+
+    // prefix()/suffix() were serialized and documented, never drawn.
+    it("draws a text input's prefix and suffix", () => {
+        const wrapper = mountSchema(
+            [
+                {
+                    type: 'text-input',
+                    name: 'price',
+                    label: 'Price',
+                    columnSpan: 'full',
+                    inputType: 'text',
+                    isDisabled: false,
+                    prefix: '$',
+                    suffix: 'MXN',
+                },
+            ],
+            {},
+        );
+
+        expect(wrapper.get('#price-prefix').text()).toBe('$');
+        expect(wrapper.get('#price-suffix').text()).toBe('MXN');
+    });
 });

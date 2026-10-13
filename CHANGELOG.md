@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.4] - 2026-10-13
+
+Re-publish the components (`--force`).
+
+### Fixed
+
+- **A form rendered without `fill()` opened with every field empty,** its
+  `default()`s ignored — a create form, a toolbar action's modal. It now opens
+  with them; a form built on a record (an action's form on its row) takes the
+  defaults, never the record's values.
+- **`prefix()` and `suffix()` were never drawn** on a text input: they now sit
+  joined to its edges (`$` … `MXN`). **(published)**
+
 ## [0.224.3] - 2026-10-13
 
 ### Fixed
