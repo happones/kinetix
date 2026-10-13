@@ -205,6 +205,48 @@ A resource whose constructor needs more than the model is built by a closure:
 ->apiResource(fn (Post $post) => new PostResource($post, app()->getLocale()))
 ```
 
+### A list your controller fetches
+
+When the controller already builds the list — its own query, policies and
+pagination — the table can render the collection it returns:
+
+```php
+// PostsTable extends Table: its columns, filters and actions in
+// buildColumns() / buildFilters() / buildRecordActions().
+
+public function index(Request $request, Team $team)
+{
+    $table = PostsTable::make(Post::class);
+
+    // Your query, with the search, sort, filters and page the user picked.
+    $posts = $table->paginate($table->applyTo(
+        Post::query()->whereBelongsTo($team)->with('author'),
+    ));
+
+    return Inertia::render('Posts/Index', [
+        'table' => PostsTable::fromResource(PostResource::collection($posts))
+            ->scopedBy(Post::query()->whereBelongsTo($team))
+            ->toArray(),
+    ]);
+}
+```
+
+- **The table runs no query for the rows.** Each row is presented through its
+  own resource, and the paginator inside the collection drives the pager
+  (length-aware, simple or cursor). A plain collection has no pager.
+- **The user's choices reach your controller** as request parameters (under the
+  table's `queryPrefix`). `applyTo($query)` applies the search, sort and
+  filters the way the table would; `paginate($query)` pages with its size and
+  page parameter. Or read them and do it your way.
+- **Summaries and stat cards aren't computed:** they need the table's query.
+- **Kinetix's write endpoints need `scopedBy($query)`:** inline edits, reorder,
+  server-side bulk actions, row form actions and record modals resolve the
+  records they touch through it (its `=` constraints, or `writeScope()`).
+  Without it, a table that uses one of them throws when it renders, rather than
+  let them reach any record of the model. Actions pointing at your own routes
+  need nothing.
+- An empty collection names no model: `Table::fromResource($posts, Post::class)`.
+
 ---
 
 ## Column Builders Reference

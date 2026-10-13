@@ -32,16 +32,20 @@ use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Filters\Filter;
 use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Json\ResourceCollection;
+use Illuminate\Pagination\CursorPaginator as CursorPages;
 use Illuminate\Pagination\LengthAwarePaginator;
 use InvalidArgumentException;
 use JsonSerializable;
 use LogicException;
+use WeakMap;
 
 class Table implements Arrayable, JsonSerializable
 {
@@ -1163,8 +1167,61 @@ class Table implements Arrayable, JsonSerializable
         // the caller's own instance would leak them back out — a developer who
         // reused `$query` after rendering the table would silently get the
         // table's filters — and would double-apply them if this ran twice.
-        $query = $this->getUnfilteredQuery();
+        return $this->applyRequestState($this->getUnfilteredQuery());
+    }
 
+    /**
+     * Apply what the user asked the table for — the search, the sort, the
+     * active filters (and the eager loads its columns need) — to YOUR query,
+     * for a list your controller fetches itself ({@see fromResource()}):
+     *
+     *     $posts = $table->paginate($table->applyTo(Post::query()->whereBelongsTo($team)));
+     *
+     * The same rules the table applies to its own query: searchable columns,
+     * sortable columns (and their `sortable(using: …)`), filters by name. The
+     * query is changed in place and returned.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel> $query
+     * @return Builder<TModel>
+     */
+    public function applyTo(Builder $query): Builder
+    {
+        return $this->applyRequestState($query);
+    }
+
+    /**
+     * Paginate YOUR query the way the table pages: its page size (the user's
+     * choice included), its page parameter (under the table's `queryPrefix`),
+     * and its mode (length-aware, simple or cursor).
+     *
+     * @param  Builder<Model>                                                                                                      $query
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, Model>|Paginator<int, Model>|CursorPaginator<int, Model>
+     */
+    public function paginate(Builder $query): mixed
+    {
+        $perPage = $this->resolvePerPage();
+
+        if ($this->cursorPaginate && $this->supportsCursorPagination($query)) {
+            $this->ensureTotalOrder($query);
+
+            return $query->cursorPaginate($perPage, ['*'], $this->queryPrefix.'cursor');
+        }
+
+        return $this->simplePaginate || $this->cursorPaginate
+            ? $query->simplePaginate($perPage, ['*'], $this->queryPrefix.'page')
+            : $query->paginate($perPage, ['*'], $this->queryPrefix.'page');
+    }
+
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel> $query
+     * @return Builder<TModel>
+     */
+    protected function applyRequestState(Builder $query): Builder
+    {
         // Eager-load the relations behind dot-notation columns. Without this
         // `data_get($record, 'author.name')` lazy-loads once PER ROW — the N+1
         // the feature is supposed to avoid. Derived from the rendered columns,
@@ -1423,7 +1480,8 @@ class Table implements Arrayable, JsonSerializable
         // COUNT/SUM/AVG is skipped on first paint and fetched on demand.
         $deferred = $this->aggregatesAreDeferred();
 
-        if ($deferred) {
+        // A list the controller fetched has no query here to aggregate.
+        if ($deferred || $this->presetRecords !== null) {
             $summaries    = [];
             $hasSummaries = false;
             $stats        = [];
@@ -1442,7 +1500,9 @@ class Table implements Arrayable, JsonSerializable
 
         $perPage = $this->resolvePerPage();
 
-        if ($this->clientSide) {
+        if ($this->presetRecords !== null) {
+            [$records, $pagination] = $this->presetRows($activeGroup);
+        } elseif ($this->clientSide) {
             // Ship the full (capped) set; the browser paginates. Base-query
             // search/sort/filters still apply on load via getResolvedQuery().
             foreach ($query->limit($this->clientSideMax)->get() as $record) {
@@ -1472,33 +1532,7 @@ class Table implements Arrayable, JsonSerializable
                 $records[] = $this->formatRecord($record, $activeGroup);
             }
 
-            $pagination = match (true) {
-                $paginator instanceof CursorPaginator => new TablePaginationData(
-                    perPage: $paginator->perPage(),
-                    hasMore: $paginator->hasMorePages(),
-                    // A cursor has no page number and no offsets to report.
-                    currentPage: null,
-                    nextCursor: $paginator->nextCursor()?->encode(),
-                    prevCursor: $paginator->previousCursor()?->encode(),
-                    onFirstPage: $paginator->onFirstPage(),
-                ),
-                $paginator instanceof LengthAwarePaginator => new TablePaginationData(
-                    perPage: $paginator->perPage(),
-                    hasMore: $paginator->hasMorePages(),
-                    currentPage: $paginator->currentPage(),
-                    total: $paginator->total(),
-                    lastPage: $paginator->lastPage(),
-                    from: $paginator->firstItem(),
-                    to: $paginator->lastItem(),
-                ),
-                default => new TablePaginationData(
-                    perPage: $paginator->perPage(),
-                    hasMore: $paginator->hasMorePages(),
-                    currentPage: $paginator->currentPage(),
-                    from: $paginator->firstItem(),
-                    to: $paginator->lastItem(),
-                ),
-            };
+            $pagination = $this->paginationData($paginator);
         } else {
             $items = $query->get();
 
@@ -1510,7 +1544,7 @@ class Table implements Arrayable, JsonSerializable
         // A group the query couldn't order (see applyGroupOrder()) is gathered
         // here, within the page — a stable sort keeps each bucket's rows in
         // the user's order — so its header shows once instead of per row.
-        if ($activeGroup !== null && ! $this->groupOrderedInQuery) {
+        if ($activeGroup !== null && (! $this->groupOrderedInQuery || $this->presetRecords !== null)) {
             usort($records, static fn (TableRowData $a, TableRowData $b): int => [$a->groupKey === null, (string) $a->groupKey] <=> [$b->groupKey === null, (string) $b->groupKey]);
         }
 
@@ -2000,6 +2034,71 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * The rows your controller already fetched and shaped, set by
+     * {@see fromResource()}: the table renders them instead of querying.
+     */
+    protected ?ResourceCollection $presetRecords = null;
+
+    /**
+     * A table over a list your controller fetches and shapes itself — the
+     * collection your API returns:
+     *
+     *     $posts = $table->paginate($table->applyTo(Post::query()->whereBelongsTo($team)));
+     *
+     *     Table::fromResource(PostResource::collection($posts))
+     *         ->columns([...])
+     *         ->scopedBy(Post::query()->whereBelongsTo($team));
+     *
+     * Each row is presented through its own resource (as with
+     * {@see apiResource()}), and the paginator it wraps drives the pager. The
+     * table runs no query for the rows: the search, sort, filters and page
+     * the user picks reach your controller in the request, where
+     * {@see applyTo()} and {@see paginate()} apply them, or your own code
+     * does. Summaries and stat cards, which need the table's query, aren't
+     * computed.
+     *
+     * Kinetix's own write endpoints (inline edits, reorder, server-side bulk
+     * and row form actions, record modals) resolve records through a query,
+     * so they need {@see scopedBy()}; a table that uses one without it throws
+     * when it renders. Actions pointing at your own routes need nothing.
+     *
+     * @param class-string<Model>|null $model the model, when the collection may be empty
+     */
+    public static function fromResource(ResourceCollection $collection, ?string $model = null): static
+    {
+        $first      = $collection->collection->first();
+        $modelClass = $model ?? ($first instanceof JsonResource && $first->resource instanceof Model ? $first->resource::class : null);
+
+        if ($modelClass === null || ! is_subclass_of($modelClass, Model::class)) {
+            throw new InvalidArgumentException('The collection is empty, so it names no model: pass it, as in Table::fromResource($posts, Post::class).');
+        }
+
+        $table                = static::make($modelClass);
+        $table->presetRecords = $collection;
+
+        return $table;
+    }
+
+    /**
+     * The query that bounds what Kinetix's write endpoints may touch, for a
+     * table built {@see fromResource()}: the records your list could show,
+     * as `Post::query()->whereBelongsTo($team)`. Its equality constraints are
+     * sealed into the endpoints' descriptors, as for any table; declare
+     * {@see writeScope()} for a scope they can't express.
+     *
+     * @param Builder<Model> $query
+     */
+    public function scopedBy(Builder $query): static
+    {
+        $this->queryOrModel = $query;
+        $this->isScopedBy   = true;
+
+        return $this;
+    }
+
+    protected bool $isScopedBy = false;
+
+    /**
      * The Laravel API resource each row is presented through: a
      * `JsonResource` class, or a closure building one for a record.
      *
@@ -2424,6 +2523,108 @@ class Table implements Arrayable, JsonSerializable
     public function toArray(): array
     {
         return $this->toData()->toArray();
+    }
+
+    /**
+     * The rows of a list the controller fetched ({@see fromResource()}), each
+     * presented through its own resource, and the pager its paginator drives.
+     *
+     * @return array{0: list<TableRowData>, 1: TablePaginationData|null}
+     */
+    protected function presetRows(?Group $group): array
+    {
+        $this->assertScopedForEndpoints();
+
+        /** @var WeakMap<Model, JsonResource> $resources */
+        $resources = new WeakMap;
+        $models    = [];
+
+        foreach ($this->presetRecords->collection as $item) {
+            if (! $item instanceof JsonResource || ! $item->resource instanceof Model) {
+                throw new InvalidArgumentException('Table::fromResource() needs a collection of resources over models, as PostResource::collection($posts) gives.');
+            }
+
+            $resources[$item->resource] = $item;
+            $models[]                   = $item->resource;
+        }
+
+        $presenter         = $this->apiResource;
+        $this->apiResource = static fn (Model $record): JsonResource => $resources[$record];
+
+        try {
+            $rows = array_map(fn (Model $record): TableRowData => $this->formatRecord($record, $group), $models);
+        } finally {
+            $this->apiResource = $presenter;
+        }
+
+        $paginator = $this->presetRecords->resource;
+
+        return [
+            $rows,
+            $paginator instanceof Paginator || $paginator instanceof CursorPaginator ? $this->paginationData($paginator) : null,
+        ];
+    }
+
+    /**
+     * Kinetix's write endpoints resolve the records they touch through the
+     * table's query. A table over a list the controller fetched has only the
+     * model unless {@see scopedBy()} gives one, which would let them reach any
+     * record of it: refused here rather than at the endpoint.
+     */
+    protected function assertScopedForEndpoints(): void
+    {
+        if ($this->isScopedBy) {
+            return;
+        }
+
+        $needs = array_keys(array_filter([
+            'inline edits'             => array_filter($this->columns, static fn (Column $column): bool => $column->isEditable())            !== [],
+            'reorder'                  => $this->reorderColumn                                                                               !== null,
+            'server-side bulk actions' => array_filter($this->bulkActions, static fn (mixed $action): bool => $action instanceof BulkAction) !== [],
+            'row form actions'         => $this->collectFormActions($this->recordActions)                                                    !== [],
+            'record modals'            => $this->recordModalsResource                                                                        !== null,
+        ]));
+
+        if ($needs !== []) {
+            throw new LogicException('This table is built from a resource collection, so it has no query to bound its '.implode(', ', $needs).' to. Give it the query your list comes from: ->scopedBy(Post::query()->whereBelongsTo($team)).');
+        }
+    }
+
+    /**
+     * @param Paginator<int, mixed>|CursorPaginator<int, mixed> $paginator
+     */
+    protected function paginationData(Paginator|CursorPaginator $paginator): TablePaginationData
+    {
+        return match (true) {
+            $paginator instanceof CursorPaginator => new TablePaginationData(
+
+                perPage: $paginator->perPage(),
+                hasMore: $paginator->hasMorePages(),
+                // A cursor has no page number and no offsets to report.
+                currentPage: null,
+                nextCursor: $paginator->nextCursor()?->encode(),
+                prevCursor: $paginator->previousCursor()?->encode(),
+                onFirstPage: $paginator instanceof CursorPages
+                    ? $paginator->onFirstPage()
+                    : $paginator->previousCursor() === null,
+            ),
+            $paginator instanceof LengthAwarePaginator => new TablePaginationData(
+                perPage: $paginator->perPage(),
+                hasMore: $paginator->hasMorePages(),
+                currentPage: $paginator->currentPage(),
+                total: $paginator->total(),
+                lastPage: $paginator->lastPage(),
+                from: $paginator->firstItem(),
+                to: $paginator->lastItem(),
+            ),
+            default => new TablePaginationData(
+                perPage: $paginator->perPage(),
+                hasMore: $paginator->hasMorePages(),
+                currentPage: $paginator->currentPage(),
+                from: $paginator->firstItem(),
+                to: $paginator->lastItem(),
+            ),
+        };
     }
 
     /**

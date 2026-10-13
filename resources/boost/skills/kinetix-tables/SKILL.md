@@ -73,6 +73,10 @@ presents each row through a Laravel API resource: columns read the resolved arra
 `whenLoaded()`/`when()` honored; a key it doesn't return is empty, never the model's attribute),
 while querying, search, sort, actions, gates and endpoints still use the model. Searchable columns
 must name real attributes; sort computed keys with `sortable(using: …)`.
+`Table::fromResource(PostResource::collection($posts))` renders a list the controller fetched (no
+row query; its paginator drives the pager); `$table->applyTo($query)` / `$table->paginate($query)` give
+the controller the table's search/sort/filters/page. Kinetix write endpoints then need
+`->scopedBy(Post::query()->whereBelongsTo($team))` — without it the table throws on render.
 
 **Your own routes:** `RouteFormAction::make('edit')->modalForm(PostForm::class|UpdatePostRequest::class)
 ->submitTo(fn (Post $p) => route('posts.update', $p), 'put')` opens a modal form (fetched per row through

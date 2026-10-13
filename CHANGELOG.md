@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.0] - 2026-10-13
+
+### Added
+
+- **`Table::fromResource(PostResource::collection($posts))`** renders a list
+  your controller fetched and shaped: no query for the rows, each presented
+  through its own resource, the collection's paginator driving the pager.
+  `$table->applyTo($query)` applies the user's search, sort and filters to
+  your query, and `$table->paginate($query)` pages it with the table's size,
+  page parameter and mode. Kinetix's write endpoints (inline edits, reorder,
+  server-side bulk and row form actions, record modals) need
+  `->scopedBy($query)` to bound the records they touch; without it the table
+  throws when it renders instead of letting them reach any record. Summaries
+  and stat cards aren't computed for such a table.
+
 ## [0.223.0] - 2026-10-13
 
 Dedicated inputs for the rules that call for one. Re-publish the components
