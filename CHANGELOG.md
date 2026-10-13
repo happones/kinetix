@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.222.0] - 2026-10-13
+
+Forms tell the user what a value needs before the server does. Re-publish the
+components and the translations (`--force`).
+
+### Added
+
+- **Fields show what their validation rules ask for.** Each field now carries
+  its rules in a form the browser reads (`constraints`, from the new
+  `Forms\FieldConstraints`). The form uses them to:
+  - write hints under the field, in the 7 languages: lengths, ranges, steps
+    and decimals, digits, character sets and case, prefixes and suffixes,
+    excluded values, formats (with an example), dates (fixed, relative or
+    another field's), comparisons with other fields, a password policy's
+    parts, and a file's types, size and dimensions;
+  - count characters against a capped length (`12/20`), announced only near
+    the limit, never cutting pasted text;
+  - check the value when the user leaves the field, then live while they fix
+    it, the message being the requirement the value misses (a server or
+    Precognition error wins, an empty value is the server's);
+  - say "Matches" when a confirmation equals its field;
+  - open the right keyboard, turn off autocorrect on codes, and apply
+    `lowercase`/`uppercase` as the user types.
+  **(published)**
+- **Conditional rules become live conditions:** `required_if`,
+  `required_unless`, `required_with` and `required_without` (one field) make a
+  field required as the form changes; `exclude_if`, `exclude_unless` and
+  `prohibited_if` hide it. A condition the field sets itself wins.
+- A form built from a FormRequest carries the request's rules (all but
+  `unique`, `exists`, closures and custom rules), and its confirmation field
+  checks `same:` its field.
+
 ## [0.221.0] - 2026-10-13
 
 For apps that already work with Laravel's own pieces (API resources,

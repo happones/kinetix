@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { constraintInputAttributes } from '@/composables/kinetixFieldConstraints';
 import { textareaClass } from '@/composables/useKinetixShadcnVariants';
 
 const props = defineProps<{ comp: any; value: any }>();
@@ -12,6 +13,11 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
  * `rows` attribute, so a field asked for eight rows opened at two. `lh` is the
  * field's own line height; the rest is its vertical padding and border.
  */
+// No autocorrect on JSON or codes (see constraintInputAttributes).
+const ruleAttrs = computed(() =>
+    constraintInputAttributes(props.comp.constraints),
+);
+
 const minHeight = computed(() => {
     const rows = Number(props.comp.extraInputAttributes?.rows);
 
@@ -25,7 +31,7 @@ const minHeight = computed(() => {
         :value="value"
         :placeholder="comp.placeholder"
         :disabled="comp.isDisabled"
-        v-bind="comp.extraInputAttributes"
+        v-bind="{ ...ruleAttrs, ...comp.extraInputAttributes }"
         :class="textareaClass"
         :style="minHeight"
         @input="emit('update', ($event.target as HTMLTextAreaElement).value)"

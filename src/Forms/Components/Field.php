@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Forms\Components;
 
 use Closure;
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Forms\FieldConstraints;
 use Happones\Kinetix\Forms\Support\Get;
 use Happones\Kinetix\Forms\Support\Set;
 use Happones\Kinetix\Support\AutoLabel;
@@ -560,6 +561,16 @@ abstract class Field extends Component
 
         $helperText = $this->helperText instanceof Closure ? ($this->helperText)($record) : $this->helperText;
 
+        $rules = $this->getRules($record);
+
+        // `required_if:type,company` and friends become live conditions, unless
+        // the field sets that effect itself.
+        $conditions = $this->getConditionsData() ?? [];
+
+        foreach (FieldConstraints::conditions($rules) as $effect => $condition) {
+            $conditions[$effect] ??= $condition->toArray();
+        }
+
         return new FormFieldData(
             type: $this->getType(),
             name: $this->name,
@@ -585,14 +596,15 @@ abstract class Field extends Component
             showToday: (bool) ($this->dateConfig()['showToday'] ?? false),
             closeOnSelect: (bool) ($this->dateConfig()['closeOnSelect'] ?? true),
             timezone: $this->dateConfig()['timezone'] ?? null,
-            isRequired: in_array('required', $this->getRules($record), true),
+            isRequired: in_array('required', $rules, true),
             minValue: $this->minValue,
             maxValue: $this->maxValue,
             numberOfMonths: $this->rangeConfig()['numberOfMonths'],
             weekdayFormat: $this->rangeConfig()['weekdayFormat'],
             fixedWeeks: $this->rangeConfig()['fixedWeeks'],
             weekStartsOn: $this->rangeConfig()['weekStartsOn'] ?? null,
-            conditions: $this->getConditionsData(),
+            conditions: $conditions === [] ? null : $conditions,
+            constraints: FieldConstraints::from($rules, $this->getType()),
         );
     }
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, provide, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     firstErroredField,
@@ -55,6 +55,35 @@ const formValues = ref<Record<string, any>>({ ...props.form.data });
 // visibility that needs the DB, etc.). Kept separate from props so a recompute
 // never has to wait for a full Inertia round-trip.
 const liveSchema = ref<any[]>(props.form.schema);
+
+// Field labels by name, for rules that name another field ("At least Min
+// price"). Nested layouts included; a field without a label reads as its
+// humanized name.
+const fieldLabels = computed<Record<string, string>>(() => {
+    const labels: Record<string, string> = {};
+    const walk = (nodes: any[]): void => {
+        for (const node of nodes ?? []) {
+            if (node?.name && node.label) {
+                labels[node.name] = node.label;
+            }
+
+            if (Array.isArray(node?.schema)) {
+                walk(node.schema);
+            }
+        }
+    };
+
+    walk(liveSchema.value);
+
+    return labels;
+});
+
+provide(
+    'kinetixFieldLabel',
+    (name: string): string =>
+        fieldLabels.value[name] ??
+        name.replace(/[_.-]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase()),
+);
 
 // Re-sync the schema if the form is re-rendered from the server (e.g. a failed
 // submit re-serializes it), unless the user is mid-recompute.

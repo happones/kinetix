@@ -300,4 +300,121 @@ describe('KinetixFormSchema flat mode (forms hosted in modals)', () => {
         expect(wrapper.find('.rounded-xl').exists()).toBe(false);
         expect(wrapper.get('h3').text()).toBe('Details');
     });
+
+    describe("what a field's rules ask for", () => {
+        const ruleI18n = createI18n({
+            legacy: false,
+            locale: 'en',
+            missingWarn: false,
+            fallbackWarn: false,
+            missing: (_locale: string, key: string) =>
+                key.replace('kinetix.', ''),
+            messages: { en: {} },
+        });
+
+        const field = (name: string, constraints: any, extra: any = {}) => ({
+            type: 'text-input',
+            name,
+            label: name,
+            columnSpan: 'full',
+            inputType: 'text',
+            isDisabled: false,
+            constraints,
+            ...extra,
+        });
+
+        const mountRules = (schema: any[], values: Record<string, any>) =>
+            mount(KinetixFormSchema, {
+                props: { schema, values, errors: {} },
+                global: { plugins: [ruleI18n] },
+            });
+
+        it('shows the hints and a counter, chained to the input', () => {
+            const wrapper = mountRules(
+                [
+                    field('code', {
+                        kind: 'string',
+                        length: { max: 8 },
+                        charset: 'alpha_dash',
+                    }),
+                ],
+                { code: 'abc' },
+            );
+
+            expect(wrapper.get('#code-rules').text()).toBe(
+                'rule_charset_alpha_dash',
+            );
+            expect(wrapper.text()).toContain('3/8');
+            expect(wrapper.get('input').attributes('aria-describedby')).toBe(
+                'code-rules',
+            );
+            expect(wrapper.get('input').attributes('spellcheck')).toBe('false');
+        });
+
+        // Validate on blur, not on the first keystroke; then live as it's fixed.
+        it('says what is wrong only once the field is left', async () => {
+            const wrapper = mountRules(
+                [field('code', { kind: 'string', charset: 'alpha_dash' })],
+                { code: 'my code' },
+            );
+
+            expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+
+            await wrapper.get('input').trigger('focusout');
+
+            expect(wrapper.get('[role="alert"]').text()).toBe(
+                'rule_charset_alpha_dash',
+            );
+            expect(wrapper.get('input').attributes('aria-invalid')).toBe(
+                'true',
+            );
+            // The hint isn't repeated under the error.
+            expect(wrapper.find('#code-rules').exists()).toBe(false);
+
+            await wrapper.setProps({ values: { code: 'my-code' } });
+
+            expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+        });
+
+        it('lets a server error win over its own check', async () => {
+            const wrapper = mountRules(
+                [field('code', { kind: 'string', charset: 'alpha_dash' })],
+                { code: 'my code' },
+            );
+
+            await wrapper.setProps({ errors: { code: 'Taken.' } });
+            await wrapper.get('input').trigger('focusout');
+
+            expect(wrapper.get('[role="alert"]').text()).toBe('Taken.');
+        });
+
+        it('confirms a matching confirmation', () => {
+            const wrapper = mountRules(
+                [
+                    field('password', null),
+                    field('password_confirmation', {
+                        kind: 'string',
+                        compare: [{ op: 'same', field: 'password' }],
+                    }),
+                ],
+                { password: 'secret-1', password_confirmation: 'secret-1' },
+            );
+
+            expect(wrapper.text()).toContain('rule_matches');
+        });
+
+        it('applies the case the rules ask for as the user types', async () => {
+            const wrapper = mountRules(
+                [field('sku', { kind: 'string', case: 'upper' })],
+                { sku: '' },
+            );
+
+            await wrapper.get('input').setValue('ab-12');
+
+            expect(wrapper.emitted('update:value')?.at(-1)).toEqual([
+                'sku',
+                'AB-12',
+            ]);
+        });
+    });
 });

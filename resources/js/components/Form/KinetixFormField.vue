@@ -36,6 +36,8 @@ const props = defineProps<{
     comp: any;
     values: Record<string, any>;
     errors: Record<string, string>;
+    /** Another id on the describedby chain: the rules' hints. */
+    describedBy?: string;
 }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
@@ -236,6 +238,7 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
 
     const describedBy = [
         props.comp.description ? `${props.comp.name}-help` : null,
+        props.describedBy ?? null,
         hasError ? `${props.comp.name}-error` : null,
     ]
         .filter(Boolean)

@@ -391,6 +391,62 @@ Wizard::make()
 
 ## 4. Fields & Form Inputs API
 
+### What the rules ask for, before the server
+
+A field's validation rules show up in the form itself, so the user learns what
+a value needs before submitting it:
+
+```php
+TextInput::make('code')->rules(['alpha_dash', 'lowercase', 'max:20']),
+NumberField::make('max_price')->rules(['numeric', 'gte:min_price']),
+TextInput::make('password')->password()->rules([Password::min(10)->mixedCase()->numbers()]),
+TextInput::make('password_confirmation')->password()->rules(['same:password']),
+```
+
+- **Hints under the field** say what the rules ask, in the user's language:
+  "Letters, numbers, dashes and underscores", "Between 1 and 100", "At least
+  Min price", "PNG, JPG · Up to 2 MB · At least 800×600 px", a password
+  policy's parts.
+- **A counter** (`12/20`) shows a capped length. It reads the limit aloud only
+  near it, and never stops the typing: pasted text isn't cut silently.
+- **Checks when the user leaves the field**, then live while they fix it. The
+  message is the requirement the value misses, so it says what to do. A
+  server or Precognition error wins; an empty field is left to the server.
+- **Comparisons with other fields** (`gt`, `gte`, `lt`, `lte`, `same`,
+  `different`, `after:start_date`) use their current values, and a
+  confirmation that matches says so.
+- **The right keyboard and no autocorrect:** numbers open the number pad,
+  `email`/`url` their keyboards, and codes (`alpha_dash`, `uuid`, `ip`,
+  `lowercase`, …) turn off autocapitalization and spellcheck. `lowercase` and
+  `uppercase` convert the text as it's typed.
+- **Conditional rules become live conditions:** `required_if:type,company`,
+  `required_unless`, `required_with:field` and `required_without:field` make
+  the field required as the form changes; `exclude_if`, `exclude_unless` and
+  `prohibited_if` hide it. A condition you set yourself (`requiredWhen()`)
+  wins.
+
+| Rule family | In the form |
+|---|---|
+| `min`/`max`/`size`/`between` | length (text), value (numbers), count (lists), size (files) |
+| `integer`, `decimal`, `multiple_of`, `digits`, `digits_between` | hint and check |
+| `alpha`, `alpha_num`, `alpha_dash`, `ascii`, `lowercase`, `uppercase` | hint and check |
+| `starts_with`, `ends_with`, `doesnt_start_with`, `doesnt_end_with`, `not_in` | hint and check |
+| `email`, `url`, `ip`, `ipv4`, `ipv6`, `mac_address`, `uuid`, `ulid`, `hex_color`, `json`, `timezone` | hint (an example) and check |
+| `regex`, `not_regex` | check, when the pattern translates to JavaScript |
+| `after`, `after_or_equal`, `before`, `before_or_equal`, `date_equals` | hint and check, against a date, `today`/`tomorrow` or another field |
+| `gt`, `gte`, `lt`, `lte`, `same`, `different` | hint and check against another field |
+| `distinct` | hint and check |
+| `Password::min()->letters()->mixedCase()->numbers()->symbols()` | one hint per part, each checked; `uncompromised()` is checked on save |
+| `mimes`, `extensions`, `mimetypes`, `image`, `File::types()`, `dimensions` | one summary hint |
+
+The server validates everything again: these checks are a guide, loose where
+the exact rule is the server's (`email`, `url`), and rules that need the
+database (`unique`, `exists`) or run your code (closures, custom rule objects)
+are only checked there. A form built from a FormRequest
+([fields from a FormRequest](#fields-from-a-formrequest)) carries the request's
+rules, so its hints follow them too.
+
+
 Fields reside in the `Happones\Kinetix\Forms\Components` namespace. They all inherit from the base `Field` class, providing rich configuration options:
 
 ### Shared Field Methods

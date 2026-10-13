@@ -65,7 +65,9 @@ final class FormRequestFields
                 $field = $field->{$method}(...$arguments);
             }
 
-            return $field;
+            // The request's own rules, so the input can tell the user what
+            // they ask for (see FieldConstraints).
+            return $spec['rules'] === [] ? $field : $field->rules($spec['rules']);
         }, self::specs($request));
     }
 
@@ -73,8 +75,11 @@ final class FormRequestFields
      * The fields, as what to build: a component class, its name and the
      * setters to call.
      *
-     * @param  class-string<FormRequest>                                                                                                   $request
-     * @return list<array{component: class-string<Field>, name: string, calls: list<array{0: string, 1: list<mixed>}>, note: string|null}>
+     * @param  class-string<FormRequest>                                                                                                                       $request
+     *                                                                                                                                                                  `rules` are the request's rules the browser can use: everything but
+     *                                                                                                                                                                  closures, custom rule objects and the database checks (`unique`,
+     *                                                                                                                                                                  `exists`), which need the route the request belongs to.
+     * @return list<array{component: class-string<Field>, name: string, calls: list<array{0: string, 1: list<mixed>}>, note: string|null, rules: list<mixed>}>
      */
     public static function specs(string $request): array
     {
@@ -93,7 +98,8 @@ final class FormRequestFields
                 continue;
             }
 
-            $spec = self::spec($name, $tokens, $byField[$name.'.*'] ?? []);
+            $spec          = self::spec($name, $tokens, $byField[$name.'.*'] ?? []);
+            $spec['rules'] = self::portableRules($rules[$name]);
 
             if (isset($labels[$name]) && is_string($labels[$name])) {
                 $spec['calls'][] = ['label', [$labels[$name]]];
@@ -105,10 +111,14 @@ final class FormRequestFields
                 $confirmation          = $spec;
                 $confirmation['name']  = $name.'_confirmation';
                 $confirmation['note']  = null;
-                $confirmation['calls'] = array_values(array_filter(
-                    $spec['calls'],
-                    static fn (array $call): bool => $call[0] !== 'label',
-                ));
+                $confirmation['rules'] = [];
+                $confirmation['calls'] = [
+                    ...array_values(array_filter(
+                        $spec['calls'],
+                        static fn (array $call): bool => ! in_array($call[0], ['label', 'maxLength', 'minLength'], true),
+                    )),
+                    ['rules', [['same:'.$name]]],
+                ];
 
                 if (isset($labels[$name]) && is_string($labels[$name])) {
                     $confirmation['calls'][] = ['label', [$labels[$name].' confirmation']];
@@ -122,9 +132,9 @@ final class FormRequestFields
     }
 
     /**
-     * @param  array<string, list<string>>                                                                                           $tokens
-     * @param  array<string, list<string>>                                                                                           $each   the rules of `name.*`
-     * @return array{component: class-string<Field>, name: string, calls: list<array{0: string, 1: list<mixed>}>, note: string|null}
+     * @param  array<string, list<string>>                                                                                                               $tokens
+     * @param  array<string, list<string>>                                                                                                               $each   the rules of `name.*`
+     * @return array{component: class-string<Field>, name: string, calls: list<array{0: string, 1: list<mixed>}>, note: string|null, rules: list<mixed>}
      */
     private static function spec(string $name, array $tokens, array $each): array
     {
@@ -204,7 +214,41 @@ final class FormRequestFields
             array_unshift($calls, ['required', []]);
         }
 
-        return ['component' => $component, 'name' => $name, 'calls' => $calls, 'note' => $note];
+        return ['component' => $component, 'name' => $name, 'calls' => $calls, 'note' => $note, 'rules' => []];
+    }
+
+    /**
+     * The rules of one field the browser can read.
+     *
+     * @return list<mixed>
+     */
+    private static function portableRules(mixed $rules): array
+    {
+        $portable = [];
+
+        foreach (is_string($rules) ? explode('|', $rules) : (array) $rules as $rule) {
+            if ($rule instanceof Password || $rule instanceof File || $rule instanceof Enum) {
+                $portable[] = $rule;
+
+                continue;
+            }
+
+            if ($rule instanceof Stringable) {
+                $rule = (string) $rule;
+            }
+
+            if (! is_string($rule) || $rule === '') {
+                continue;
+            }
+
+            $name = strtolower(explode(':', $rule, 2)[0]);
+
+            if (! in_array($name, ['unique', 'exists'], true)) {
+                $portable[] = $rule;
+            }
+        }
+
+        return $portable;
     }
 
     /**

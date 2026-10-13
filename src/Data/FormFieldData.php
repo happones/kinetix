@@ -126,5 +126,9 @@ class FormFieldData extends Data
         // required/disabled); each is {field, operator, value}. Evaluated live
         // by KinetixForm against the current form state. Null = unconditional.
         public ?array $conditions = null,
+        // What the field's validation rules ask of the value, for the browser
+        // to say before the server does: lengths, ranges, formats, character
+        // sets, other fields to compare with. See FieldConstraints.
+        public ?array $constraints = null,
     ) {}
 }

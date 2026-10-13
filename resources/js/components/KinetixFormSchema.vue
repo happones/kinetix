@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { Plus, Trash2, ChevronUp, ChevronDown } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import {
+    fieldRequirements,
+    requirementViolation,
+} from '@/composables/kinetixFieldConstraints';
+import type { Requirement } from '@/composables/kinetixFieldConstraints';
 import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
 import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
 import './kinetix-grid.css';
@@ -12,6 +17,7 @@ import {
     spanVars,
 } from '@/composables/useKinetixResponsiveGrid';
 import type { ResponsiveColumns } from '@/composables/useKinetixResponsiveGrid';
+import KinetixFieldRequirements from './Form/KinetixFieldRequirements.vue';
 import KinetixFormField from './Form/KinetixFormField.vue';
 import KinetixFormTabs from './KinetixFormTabs.vue';
 import KinetixFormWizard from './KinetixFormWizard.vue';
@@ -34,7 +40,7 @@ const props = defineProps<{
     flat?: boolean;
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const emit = defineEmits<{
     (e: 'update:value', name: string, value: any): void;
@@ -64,6 +70,80 @@ const { itemsOf, addItem, removeItem, moveItem, updateItem } =
 // walk); a conditionally disabled/required field gets its flag merged in. Nodes
 // without conditions pass through untouched (same object reference).
 const { resolve } = useKinetixFieldConditions();
+
+// What each field's rules ask of its value (see kinetixFieldConstraints),
+// cached per constraints object and locale: the schema re-renders on every
+// keystroke, the rules don't change with it.
+const fieldLabel = inject<(name: string) => string>(
+    'kinetixFieldLabel',
+    (name) =>
+        name.replace(/[_.-]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase()),
+);
+const requirementCache = new WeakMap<
+    object,
+    { locale: string; list: Requirement[] }
+>();
+
+const requirementsOf = (comp: any): Requirement[] => {
+    const constraints = comp?.constraints;
+
+    if (!constraints) {
+        return [];
+    }
+
+    const cached = requirementCache.get(constraints);
+
+    if (cached && cached.locale === locale.value) {
+        return cached.list;
+    }
+
+    const list = fieldRequirements(constraints, t, fieldLabel, {
+        counter: comp.type === 'text-input' || comp.type === 'textarea',
+        locale: locale.value,
+    });
+    requirementCache.set(constraints, { locale: locale.value, list });
+
+    return list;
+};
+
+// A field is checked once the user leaves it, then live as they fix it: no
+// error while it's still being typed for the first time.
+const touched = ref<Record<string, true>>({});
+
+const touch = (name: string): void => {
+    if (name && !touched.value[name]) {
+        touched.value = { ...touched.value, [name]: true };
+    }
+};
+
+/**
+ * The errors this level shows: the server's (and Precognition's) first, then
+ * what the field's own rules say about a value it has left.
+ */
+const shownErrors = computed<Record<string, string>>(() => {
+    const merged = { ...props.errors };
+
+    for (const comp of renderSchema.value) {
+        const name = comp?.name;
+
+        if (!name || merged[name] || !touched.value[name]) {
+            continue;
+        }
+
+        const violation = requirementViolation(
+            requirementsOf(comp),
+            props.values[name],
+            props.values,
+            t,
+        );
+
+        if (violation) {
+            merged[name] = violation;
+        }
+    }
+
+    return merged;
+});
 
 const renderSchema = computed(() =>
     props.schema
@@ -255,6 +335,7 @@ const renderSchema = computed(() =>
             v-else
             :style="colStyle(comp)"
             class="kinetix-col space-y-1.5 flex flex-col"
+            @focusout="touch(comp.name)"
         >
             <!-- Label -->
             <KinetixLabel
@@ -358,10 +439,27 @@ const renderSchema = computed(() =>
                     v-else
                     :comp="comp"
                     :values="values"
-                    :errors="errors"
+                    :errors="shownErrors"
+                    :described-by="
+                        requirementsOf(comp).some((r) => r.hint) &&
+                        !shownErrors[comp.name]
+                            ? `${comp.name}-rules`
+                            : undefined
+                    "
                     @update="(val) => emit('update:value', comp.name, val)"
                 />
             </div>
+
+            <!-- What the field's rules ask for: hints, counter, a match. -->
+            <KinetixFieldRequirements
+                v-if="comp.constraints"
+                :name="comp.name"
+                :constraints="comp.constraints"
+                :requirements="requirementsOf(comp)"
+                :value="values[comp.name]"
+                :values="values"
+                :has-error="!!shownErrors[comp.name]"
+            />
 
             <!-- Helper text (id is an aria-describedby target, like the error). -->
             <p
@@ -375,12 +473,12 @@ const renderSchema = computed(() =>
             <!-- Validation Error (id is the aria-describedby target; alert
                  role announces it to screen readers as it appears). -->
             <p
-                v-if="errors[comp.name]"
+                v-if="shownErrors[comp.name]"
                 :id="`${comp.name}-error`"
                 role="alert"
                 class="text-xs font-semibold mt-1 text-destructive"
             >
-                {{ errors[comp.name] }}
+                {{ shownErrors[comp.name] }}
             </p>
         </div>
     </template>

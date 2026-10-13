@@ -127,7 +127,8 @@ class FormRequestFieldsTest extends TestCase
         $this->assertSame([['required', []], ['email', []]], $specs['email']['calls']);
         $this->assertSame([['url', []]], $specs['website']['calls']);
         $this->assertSame([['required', []], ['password', []]], $specs['password']['calls']);
-        $this->assertSame($specs['password']['calls'], $specs['password_confirmation']['calls']);
+        // The confirmation is checked against the field it confirms.
+        $this->assertSame([['required', []], ['password', []], ['rules', [['same:password']]]], $specs['password_confirmation']['calls']);
         $this->assertSame([['required', []], ['options', [FrPostStatus::class]]], $specs['status']['calls']);
         // `sometimes` makes it optional to send.
         $this->assertSame([['options', [['news' => 'News', 'opinion' => 'Opinion']]]], $specs['kind']['calls']);
@@ -176,6 +177,7 @@ class FormRequestFieldsTest extends TestCase
             $this->assertStringContainsString("CheckboxList::make('channels')->options(['mail' => 'Mail', 'sms' => 'Sms']),", $contents);
             $this->assertStringContainsString('use '.FrPostStatus::class.';', $contents);
             $this->assertStringContainsString('// exists:users,id', $contents);
+            $this->assertStringContainsString("TextInput::make('password_confirmation')->required()->password()->rules(['same:password']),", $contents);
             $this->assertStringEndsNotWith("\n\n", $contents);
 
             // It parses, and the host's Pint leaves it as it is.

@@ -108,7 +108,7 @@ class MakeFormCommand extends GeneratorCommand
         $items = [];
 
         foreach ($value as $key => $item) {
-            $items[] = var_export($key, true).' => '.$this->export($item);
+            $items[] = array_is_list($value) ? $this->export($item) : var_export($key, true).' => '.$this->export($item);
         }
 
         return '['.implode(', ', $items).']';
