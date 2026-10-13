@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.1] - 2026-10-13
+
+### Fixed
+
+- **Pages lost Kinetix's props in a process that flushes Inertia's shared
+  data between requests** — a Pest browser-test server does before every
+  request, a long-lived worker that resets state may. The props were shared
+  once at boot, so permission-gated menus vanished, the route prefix fell back
+  to `_kinetix`, and notifications, tours and billing state went missing. A
+  middleware on the `web` group shares again any that are missing; one the app
+  replaced is left to the existing override warning.
+
 ## [0.224.0] - 2026-10-13
 
 ### Added

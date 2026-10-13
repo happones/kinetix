@@ -87,6 +87,7 @@ use Happones\Kinetix\Health\HealthMetrics;
 use Happones\Kinetix\Help\HelpController;
 use Happones\Kinetix\Help\HelpManager;
 use Happones\Kinetix\Help\HelpSpotlightSource;
+use Happones\Kinetix\Http\Middleware\ShareKinetixProps;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
@@ -159,9 +160,11 @@ use Happones\Kinetix\Webhooks\WebhookEventRegistry;
 use Happones\Kinetix\Wizards\Middleware\EnsureWizardCompleted;
 use Happones\Kinetix\Wizards\WizardController;
 use Happones\Kinetix\Wizards\WizardManager;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Routing\Router;
@@ -760,9 +763,19 @@ class KinetixServiceProvider extends ServiceProvider
         // Register the optional Confidential Fields module (encrypted, masked attributes)
         $this->registerConfidential();
 
-        // Share notifications and active config with Inertia
+        // Share notifications and active config with Inertia: now, and again
+        // on every web request, so a process that flushes Inertia's shared
+        // data between requests still serves them (see ShareKinetixProps).
         if (class_exists(Inertia::class)) {
             $this->shareInertiaData();
+
+            // On the kernel: it syncs its groups onto the router per request,
+            // dropping anything pushed onto the router's copy.
+            $this->callAfterResolving(HttpKernel::class, static function (HttpKernel $kernel): void {
+                if ($kernel instanceof FoundationHttpKernel) {
+                    $kernel->appendMiddlewareToGroup('web', ShareKinetixProps::class);
+                }
+            });
         }
     }
 
@@ -2167,6 +2180,32 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * The `kinetix_*` props as shared at boot, so they can be shared again
+     * on every request — the same closures, which the override guard below
+     * compares by identity.
+     *
+     * @var array<string, mixed>
+     */
+    protected static array $sharedProps = [];
+
+    /**
+     * Share again the props something flushed from Inertia's shared data
+     * (see {@see ShareKinetixProps}). One still there is left alone — the
+     * app replacing it is a mistake the override guard reports, not one to
+     * paper over here.
+     */
+    public static function shareInertiaProps(): void
+    {
+        $shared = (array) Inertia::getShared();
+
+        foreach (static::$sharedProps as $key => $value) {
+            if (! array_key_exists($key, $shared)) {
+                Inertia::share($key, $value);
+            }
+        }
+    }
+
+    /**
      * Share Kinetix config and notifications with Inertia page props.
      */
     protected function shareInertiaData(): void
@@ -2579,6 +2618,12 @@ class KinetixServiceProvider extends ServiceProvider
                 'unlockedUntil' => $unlockedUntil?->toIso8601String(),
             ];
         });
+
+        static::$sharedProps = array_filter(
+            (array) Inertia::getShared(),
+            static fn (mixed $value, string $key): bool => str_starts_with($key, 'kinetix_'),
+            ARRAY_FILTER_USE_BOTH,
+        );
 
         $this->guardSharedPropsFromOverrides();
     }
