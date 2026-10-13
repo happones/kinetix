@@ -9,6 +9,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
 <template>
     <div class="py-1 flex items-center">
         <KinetixSwitch
+            :id="comp.name"
             :model-value="!!value"
             :disabled="comp.isDisabled"
             @update:model-value="emit('update', $event)"

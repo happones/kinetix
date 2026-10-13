@@ -12,6 +12,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     <!-- Month / Year / Week pickers (shadcn or native via ->native()) -->
     <KinetixMonthPicker
         v-if="comp.type === 'month-picker'"
+        :id="comp.name"
         :value="value"
         :native="!comp.useCalendar"
         :disabled="comp.isDisabled"
@@ -27,6 +28,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     />
     <KinetixYearPicker
         v-else-if="comp.type === 'year-picker'"
+        :id="comp.name"
         :value="value"
         :native="!comp.useCalendar"
         :disabled="comp.isDisabled"
@@ -41,6 +43,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     />
     <KinetixWeekPicker
         v-else-if="comp.type === 'week-picker'"
+        :id="comp.name"
         :value="value"
         :native="!comp.useCalendar"
         :disabled="comp.isDisabled"

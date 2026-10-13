@@ -32,6 +32,8 @@ const { t } = useI18n();
 
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         /** Selected value as an ISO 'Y-m-dTH:i' string (always 24h storage). */
         value?: string | null;
         /** Render a plain native <input type="datetime-local"> instead. */
@@ -275,6 +277,7 @@ watch(open, (isOpen) => {
 
 <template>
     <input
+        :id="id"
         v-if="native"
         type="datetime-local"
         :value="value"
@@ -288,18 +291,27 @@ watch(open, (isOpen) => {
     />
 
     <PopoverRoot v-else v-model:open="open">
-        <PopoverTrigger
-            :disabled="disabled"
-            :class="
-                cn(
-                    buttonVariants({ variant: 'outline' }),
-                    'font-normal w-full touch-manipulation justify-start text-left',
-                    !value && 'text-muted-foreground',
-                )
-            "
-        >
-            <CalendarIcon class="mr-2 h-4 w-4" />
-            {{ formatted ?? placeholder ?? t('kinetix.datetime_placeholder') }}
+        <!-- as-child: the trigger is our button, so it keeps the id its label points at. -->
+        <PopoverTrigger as-child>
+            <button
+                type="button"
+                v-bind="id ? { id } : {}"
+                :disabled="disabled"
+                :class="
+                    cn(
+                        buttonVariants({ variant: 'outline' }),
+                        'font-normal w-full touch-manipulation justify-start text-left',
+                        !value && 'text-muted-foreground',
+                    )
+                "
+            >
+                <CalendarIcon class="mr-2 h-4 w-4" />
+                {{
+                    formatted ??
+                    placeholder ??
+                    t('kinetix.datetime_placeholder')
+                }}
+            </button>
         </PopoverTrigger>
         <PopoverPortal>
             <PopoverContent

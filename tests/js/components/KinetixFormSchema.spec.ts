@@ -528,4 +528,32 @@ describe('KinetixFormSchema flat mode (forms hosted in modals)', () => {
         expect(wrapper.get('#price-prefix').text()).toBe('$');
         expect(wrapper.get('#price-suffix').text()).toBe('MXN');
     });
+
+    // A switch or a calendar trigger had no id: its label named nothing.
+    it.each([
+        ['toggle', {}],
+        ['date-picker', { useCalendar: true }],
+        ['time-picker', { useCalendar: true }],
+        ['month-picker', { useCalendar: true }],
+        ['datetime-picker', { useCalendar: true }],
+        ['week-picker', { useCalendar: true }],
+        ['year-picker', { useCalendar: true }],
+    ])('names a %s control after its label', (type, extra) => {
+        const wrapper = mountSchema(
+            [
+                {
+                    type,
+                    name: 'thing',
+                    label: 'Thing',
+                    columnSpan: 'full',
+                    isDisabled: false,
+                    ...extra,
+                },
+            ],
+            {},
+        );
+
+        expect(wrapper.get('label').attributes('for')).toBe('thing');
+        expect(wrapper.get('#thing').element.tagName).toBe('BUTTON');
+    });
 });

@@ -11,6 +11,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     <!-- shadcn by default, native when ->native() -->
     <KinetixDateTimePicker
         v-if="comp.useCalendar"
+        :id="comp.name"
         :value="value"
         :disabled="comp.isDisabled"
         :placeholder="comp.placeholder"

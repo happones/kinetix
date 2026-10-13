@@ -22,6 +22,8 @@ import { cn } from './primitives/cn';
  */
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: string | null;
         native?: boolean;
         disabled?: boolean;
@@ -179,6 +181,7 @@ const apply = () => {
 
 <template>
     <input
+        :id="id"
         v-if="native"
         type="month"
         :value="value"
@@ -195,18 +198,23 @@ const apply = () => {
     />
 
     <PopoverRoot v-else v-model:open="open">
-        <PopoverTrigger
-            :disabled="disabled"
-            :class="
-                cn(
-                    buttonVariants({ variant: 'outline' }),
-                    'font-normal w-full justify-start text-left',
-                    !value && 'text-muted-foreground',
-                )
-            "
-        >
-            <CalendarIcon class="mr-2 h-4 w-4" />
-            {{ formatted ?? placeholder ?? t('kinetix.pick_month') }}
+        <!-- as-child: the trigger is our button, so it keeps the id its label points at. -->
+        <PopoverTrigger as-child>
+            <button
+                type="button"
+                v-bind="id ? { id } : {}"
+                :disabled="disabled"
+                :class="
+                    cn(
+                        buttonVariants({ variant: 'outline' }),
+                        'font-normal w-full justify-start text-left',
+                        !value && 'text-muted-foreground',
+                    )
+                "
+            >
+                <CalendarIcon class="mr-2 h-4 w-4" />
+                {{ formatted ?? placeholder ?? t('kinetix.pick_month') }}
+            </button>
         </PopoverTrigger>
         <PopoverPortal>
             <PopoverContent

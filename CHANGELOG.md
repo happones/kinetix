@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.5] - 2026-10-13
+
+Re-publish the components (`--force`) **(published)**.
+
+### Fixed
+
+- **A toggle's label, and a calendar picker's label, named nothing.** The
+  switch had no id, and the date, date-time, time, month, week, year and date
+  range pickers' triggers carried the popover's generated id, so clicking the
+  label did nothing and screen readers announced the control without its name.
+  The switch and every picker trigger now take the field's id; the pickers
+  accept an `id` prop when used on their own.
+
 ## [0.224.4] - 2026-10-13
 
 Re-publish the components (`--force`).

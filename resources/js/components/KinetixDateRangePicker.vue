@@ -185,18 +185,23 @@ const apply = () => {
     </div>
 
     <PopoverRoot v-else v-model:open="open">
-        <PopoverTrigger
-            :disabled="disabled"
-            :class="
-                cn(
-                    buttonVariants({ variant: 'outline' }),
-                    'font-normal w-full touch-manipulation justify-start text-left',
-                    !label && 'text-muted-foreground',
-                )
-            "
-        >
-            <CalendarIcon class="mr-2 h-4 w-4" />
-            {{ label ?? placeholder ?? t('kinetix.pick_date_range') }}
+        <!-- as-child: the trigger is our button, so it keeps the id its label points at. -->
+        <PopoverTrigger as-child>
+            <button
+                type="button"
+                v-bind="id ? { id } : {}"
+                :disabled="disabled"
+                :class="
+                    cn(
+                        buttonVariants({ variant: 'outline' }),
+                        'font-normal w-full touch-manipulation justify-start text-left',
+                        !label && 'text-muted-foreground',
+                    )
+                "
+            >
+                <CalendarIcon class="mr-2 h-4 w-4" />
+                {{ label ?? placeholder ?? t('kinetix.pick_date_range') }}
+            </button>
         </PopoverTrigger>
         <PopoverPortal>
             <PopoverContent

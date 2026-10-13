@@ -31,6 +31,8 @@ import ScrollArea from './primitives/ScrollArea.vue';
  */
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: string | null;
         native?: boolean;
         hour12?: boolean;
@@ -235,6 +237,7 @@ watch(open, (isOpen) => {
 
 <template>
     <input
+        :id="id"
         v-if="native"
         type="time"
         :value="value"
@@ -249,18 +252,23 @@ watch(open, (isOpen) => {
     />
 
     <PopoverRoot v-else v-model:open="open">
-        <PopoverTrigger
-            :disabled="disabled"
-            :class="
-                cn(
-                    buttonVariants({ variant: 'outline' }),
-                    'font-normal w-full touch-manipulation justify-start text-left',
-                    !hasValue && 'text-muted-foreground',
-                )
-            "
-        >
-            <Clock class="mr-2 h-4 w-4" />
-            {{ formatted ?? placeholder ?? t('kinetix.pick_time') }}
+        <!-- as-child: the trigger is our button, so it keeps the id its label points at. -->
+        <PopoverTrigger as-child>
+            <button
+                type="button"
+                v-bind="id ? { id } : {}"
+                :disabled="disabled"
+                :class="
+                    cn(
+                        buttonVariants({ variant: 'outline' }),
+                        'font-normal w-full touch-manipulation justify-start text-left',
+                        !hasValue && 'text-muted-foreground',
+                    )
+                "
+            >
+                <Clock class="mr-2 h-4 w-4" />
+                {{ formatted ?? placeholder ?? t('kinetix.pick_time') }}
+            </button>
         </PopoverTrigger>
         <PopoverPortal>
             <PopoverContent
