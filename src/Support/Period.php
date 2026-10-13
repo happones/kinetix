@@ -67,7 +67,10 @@ class Period
      * Constrain a query to a period on the given column. A `null`-bounded range
      * (e.g. `all`) leaves the query untouched.
      *
-     * @param Builder<Model> $query
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel> $query
+     * @return Builder<TModel>
      */
     public static function scope(Builder $query, string $column, string $key, ?string $from = null, ?string $to = null): Builder
     {

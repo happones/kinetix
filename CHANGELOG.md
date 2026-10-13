@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.9] - 2026-10-13
+
+### Fixed
+
+- **`Period::scope()` took only a `Builder<Model>`,** so PHPStan rejected a
+  host's `Builder<Order>` (Builder's model type is invariant). It now takes
+  and returns a builder of any model.
+
+### Tests
+
+- PHPStan now also analyses `tests/Types`: host-shaped calls into the public
+  API with a concrete model's query, so a signature that rejects them fails
+  here instead of in the host's analysis.
+
 ## [0.224.8] - 2026-10-13
 
 Re-publish the components (`--force`) **(published)**.

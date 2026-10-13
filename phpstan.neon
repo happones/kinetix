@@ -6,6 +6,8 @@ parameters:
 
     paths:
         - src
+        # Host-shaped calls into the public API: see tests/Types/HostUsage.php.
+        - tests/Types
 
     ignoreErrors:
         # Kinetix builders use the intentional `::make()` → `new static()` static-factory
