@@ -1764,6 +1764,19 @@ On the Vue side, pass the endpoint (when the form didn't hard-code one) via `val
 <KinetixForm :form="postForm" validation-url="/posts" @submit="submit" />
 ```
 
+::: warning Keep JSON errors for JSON requests
+Live validation reads the `422` Laravel returns to a request that expects JSON.
+If your `bootstrap/app.php` narrows `shouldRenderJsonWhen` (say, to `api/*`),
+keep `$request->expectsJson()` in it — otherwise the validation error comes
+back as a redirect and no live error ever shows:
+
+```php
+$exceptions->shouldRenderJsonWhen(
+    fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+);
+```
+:::
+
 As the user edits a field it's debounced-validated server-side; a `422` surfaces the message inline (live errors win over the last submit's), a pass clears it. `KinetixForm` also **hides a stale submit error** for a field the moment the user starts editing it, and keeps it hidden when the form is resubmitted — only the next response's error bag can flag the field again.
 
 ### 8. Error Focus in Tabs & Wizards
