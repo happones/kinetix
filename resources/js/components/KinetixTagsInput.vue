@@ -6,6 +6,8 @@ import { tagRemoveButtonClass } from '@/composables/useKinetixShadcnVariants';
 
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: string[] | null;
         disabled?: boolean;
         placeholder?: string | null;
@@ -114,6 +116,7 @@ const onKeydown = (event: KeyboardEvent) => {
             </span>
 
             <input
+                :id="id"
                 v-model="draft"
                 type="text"
                 :disabled="disabled || full"

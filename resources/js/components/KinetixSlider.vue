@@ -15,6 +15,8 @@ interface NumberConfig {
  */
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: number | string | null;
         config?: NumberConfig | null;
         disabled?: boolean;
@@ -59,6 +61,7 @@ function onUpdate(v: number[] | null | undefined): void {
                 <SliderRange class="absolute h-full rounded-full bg-primary" />
             </SliderTrack>
             <SliderThumb
+                :id="id"
                 class="size-4 shadow-sm block rounded-full border border-primary bg-background transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
         </SliderRoot>

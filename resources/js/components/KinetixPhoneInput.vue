@@ -19,6 +19,8 @@ interface PhoneConfig {
  */
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: string | null;
         config?: PhoneConfig | null;
         disabled?: boolean;
@@ -119,6 +121,7 @@ function onNational(event: Event): void {
                 >+{{ dialFor(country) }}</span
             >
             <input
+                :id="id"
                 :value="national"
                 type="tel"
                 inputmode="tel"

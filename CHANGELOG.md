@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.2] - 2026-10-13
+
+Re-publish the components (`--force`).
+
+### Fixed
+
+- **A form's label pointed at nothing for number, slug, phone, tags, PIN,
+  slider and native date-range fields:** the field's id never reached the
+  control, so clicking the label focused nothing and screen readers didn't
+  name the input. The control now carries it (a PIN its first cell, a date
+  range its first date). **(published)**
+
 ## [0.224.1] - 2026-10-13
 
 ### Fixed

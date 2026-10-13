@@ -26,6 +26,8 @@ interface NumberConfig {
  */
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: number | string | null;
         config?: NumberConfig | null;
         disabled?: boolean;
@@ -109,6 +111,7 @@ function onUpdate(v: number | undefined): void {
             <Minus :class="compact ? 'size-3' : 'size-4'" />
         </NumberFieldDecrement>
         <NumberFieldInput
+            :id="id"
             :placeholder="placeholder ?? ''"
             class="min-w-0 flex-1 bg-transparent text-center text-foreground tabular-nums outline-none"
         />

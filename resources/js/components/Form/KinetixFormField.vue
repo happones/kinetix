@@ -83,6 +83,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'phone-input': {
         component: KinetixPhoneInput,
         props: (c) => ({
+            id: c.name,
             config: c.phoneConfig,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
@@ -91,6 +92,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'slug-input': {
         component: KinetixSlugInput,
         props: (c, values) => ({
+            id: c.name,
             source: c.slugConfig?.from ? values[c.slugConfig.from] : null,
             config: c.slugConfig,
             disabled: c.isDisabled,
@@ -123,7 +125,11 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     },
     slider: {
         component: KinetixSlider,
-        props: (c) => ({ config: c.numberConfig, disabled: c.isDisabled }),
+        props: (c) => ({
+            id: c.name,
+            config: c.numberConfig,
+            disabled: c.isDisabled,
+        }),
     },
     rating: {
         component: KinetixRating,
@@ -131,11 +137,16 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     },
     'pin-input': {
         component: KinetixPinInput,
-        props: (c) => ({ config: c.pinConfig, disabled: c.isDisabled }),
+        props: (c) => ({
+            id: c.name,
+            config: c.pinConfig,
+            disabled: c.isDisabled,
+        }),
     },
     'number-field': {
         component: KinetixNumberField,
         props: (c) => ({
+            id: c.name,
             config: c.numberConfig,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
@@ -164,6 +175,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'date-range-picker': {
         component: KinetixDateRangePicker,
         props: (c) => ({
+            id: c.name,
             native: !c.useCalendar,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
@@ -200,6 +212,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'tags-input': {
         component: KinetixTagsInput,
         props: (c) => ({
+            id: c.name,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
             ignoreCase: c.constraints?.distinct === 'ignore_case',

@@ -14,6 +14,8 @@ interface SlugConfig {
  */
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: string | null;
         /** Current value of the source field (resolved by KinetixFormSchema). */
         source?: string | null;
@@ -68,6 +70,7 @@ function onInput(event: Event): void {
 
 <template>
     <input
+        :id="id"
         :value="value ?? ''"
         type="text"
         :disabled="disabled"

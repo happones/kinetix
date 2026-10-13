@@ -33,6 +33,8 @@ type Range = { from?: string | null; to?: string | null } | null;
  */
 const props = withDefaults(
     defineProps<{
+        /** The field's id: what its label points at. */
+        id?: string;
         value?: Range;
         native?: boolean;
         disabled?: boolean;
@@ -161,6 +163,7 @@ const apply = () => {
 <template>
     <div v-if="native" class="gap-2 flex items-center">
         <input
+            :id="id"
             type="date"
             :value="value?.from ?? ''"
             :disabled="disabled"

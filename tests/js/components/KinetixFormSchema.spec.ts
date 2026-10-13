@@ -477,4 +477,33 @@ describe('KinetixFormSchema flat mode (forms hosted in modals)', () => {
             expect(wrapper.find('#password-rules').exists()).toBe(false);
         });
     });
+
+    // The label pointed at an id nothing had: clicking it focused nothing and
+    // screen readers didn't name the input.
+    it.each([
+        ['number-field', { numberConfig: {} }],
+        ['slug-input', {}],
+        ['tags-input', {}],
+        [
+            'phone-input',
+            { phoneConfig: { defaultCountry: 'MX', countries: [] } },
+        ],
+    ])('gives a %s the id its label points at', (type, extra) => {
+        const wrapper = mountSchema(
+            [
+                {
+                    type,
+                    name: 'thing',
+                    label: 'Thing',
+                    columnSpan: 'full',
+                    isDisabled: false,
+                    ...extra,
+                },
+            ],
+            {},
+        );
+
+        expect(wrapper.get('label').attributes('for')).toBe('thing');
+        expect(wrapper.get('#thing').element.tagName).toBe('INPUT');
+    });
 });
