@@ -270,6 +270,25 @@ describe('KinetixTableCell component map', () => {
         expect(w.emitted('update-cell')?.[0]).toEqual([7, 'field', true]);
     });
 
+    it('announces the toggle cell as a switch named after its column, with its state', () => {
+        const off = mountCell(
+            { type: 'toggle-input', label: 'Receiving' },
+            { field: false },
+        );
+        const on = mountCell(
+            { type: 'toggle-input', label: 'Receiving' },
+            { field: true },
+        );
+
+        const switchOff = off.find('[role="switch"]');
+        expect(switchOff.exists()).toBe(true);
+        expect(switchOff.attributes('aria-label')).toBe('Receiving');
+        expect(switchOff.attributes('aria-checked')).toBe('false');
+        expect(on.find('[role="switch"]').attributes('aria-checked')).toBe(
+            'true',
+        );
+    });
+
     it('renders a text cell description above or below the value', () => {
         const above = mountCell(
             { type: 'text' },
