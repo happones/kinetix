@@ -85,12 +85,12 @@ class Table implements Arrayable, JsonSerializable
     protected array $with = [];
 
     /**
-     * @var array<int, Action>
+     * @var array<int, Action|ActionGroup>
      */
     protected array $recordActions = [];
 
     /**
-     * @var array<int, Action>
+     * @var array<int, Action|ActionGroup>
      */
     protected array $toolbarActions = [];
 
@@ -100,7 +100,7 @@ class Table implements Arrayable, JsonSerializable
     protected array $bulkActions = [];
 
     /**
-     * @var array<int, Action>
+     * @var array<int, Action|ActionGroup>
      */
     protected array $footerActions = [];
 
@@ -361,7 +361,7 @@ class Table implements Arrayable, JsonSerializable
     /**
      * Set actions available per row record.
      *
-     * @param array<int, Action> $actions
+     * @param array<int, Action|ActionGroup> $actions
      */
     public function recordActions(array $actions): static
     {
@@ -414,7 +414,7 @@ class Table implements Arrayable, JsonSerializable
     /**
      * Set actions displayed in the table toolbar header.
      *
-     * @param array<int, Action> $actions
+     * @param array<int, Action|ActionGroup> $actions
      */
     public function toolbarActions(array $actions): static
     {
@@ -427,7 +427,7 @@ class Table implements Arrayable, JsonSerializable
      * Alias of {@see toolbarActions()} — header-level actions (e.g. Create,
      * Import, Export) rendered in the table's top toolbar.
      *
-     * @param array<int, Action> $actions
+     * @param array<int, Action|ActionGroup> $actions
      */
     public function headerActions(array $actions): static
     {
@@ -452,7 +452,7 @@ class Table implements Arrayable, JsonSerializable
      * (or the toolbar) to support both whole-table and selected-rows contexts —
      * the bulk invocation merges the selected `ids` into the action payload.
      *
-     * @param array<int, Action> $actions
+     * @param array<int, Action|ActionGroup> $actions
      */
     public function footerActions(array $actions): static
     {
@@ -1196,8 +1196,10 @@ class Table implements Arrayable, JsonSerializable
      * choice included), its page parameter (under the table's `queryPrefix`),
      * and its mode (length-aware, simple or cursor).
      *
-     * @param  Builder<Model>                                                                                                      $query
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, Model>|Paginator<int, Model>|CursorPaginator<int, Model>
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>                                                                                                        $query
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, TModel>|Paginator<int, TModel>|CursorPaginator<int, TModel>
      */
     public function paginate(Builder $query): mixed
     {
@@ -2086,7 +2088,9 @@ class Table implements Arrayable, JsonSerializable
      * sealed into the endpoints' descriptors, as for any table; declare
      * {@see writeScope()} for a scope they can't express.
      *
-     * @param Builder<Model> $query
+     * @template TModel of Model
+     *
+     * @param Builder<TModel> $query
      */
     public function scopedBy(Builder $query): static
     {

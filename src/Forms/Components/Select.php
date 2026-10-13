@@ -120,7 +120,7 @@ class Select extends Field implements ResolvesRelationships
     /**
      * Set the dropdown options.
      *
-     * @param array<string, string>|Closure|string $options
+     * @param array<array-key, string>|Closure|string $options
      */
     public function options(array|Closure|string $options): static
     {

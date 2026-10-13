@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.3] - 2026-10-13
+
+### Fixed
+
+- **Types that refused valid code under PHPStan:** `recordActions()`,
+  `toolbarActions()`, `headerActions()` and `footerActions()` declare the
+  `ActionGroup`s they accept; `Table::paginate()`/`scopedBy()` take a
+  `Builder` of any model (`Builder<Post>`); `Select`/`SelectColumn` options may
+  have integer keys; `RouteFormAction::submitTo()` takes a closure typed for
+  your model.
+
 ## [0.224.2] - 2026-10-13
 
 Re-publish the components (`--force`).

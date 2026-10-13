@@ -23,7 +23,7 @@ class SelectColumn extends Column
     /**
      * Set the dropdown options.
      *
-     * @param array<string, string>|Closure|string $options
+     * @param array<array-key, string>|Closure|string $options
      */
     public function options(array|Closure|string $options): static
     {

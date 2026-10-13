@@ -45,8 +45,6 @@ class RouteFormAction extends FormAction
 
     /**
      * Only the browser needs where the form goes, so it stays on the table.
-     *
-     * @var string|(Closure(Model): string)|null
      */
     #[Unsealed]
     protected string|Closure|null $submitUrl = null;
@@ -78,8 +76,8 @@ class RouteFormAction extends FormAction
      * Where the form is submitted: a URL, or a closure building it for the
      * row's record (`fn (Post $post) => route('posts.update', $post)`).
      *
-     * @param string|(Closure(Model): string) $url
-     * @param string                          $method post, put, patch or delete
+     * @param string|Closure $url    a closure gets the row's record
+     * @param string         $method post, put, patch or delete
      */
     public function submitTo(string|Closure $url, string $method = 'post'): static
     {
