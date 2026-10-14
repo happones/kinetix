@@ -215,6 +215,35 @@ class WebhooksTest extends TestCase
         Bus::assertDispatchedTimes(DispatchWebhookJob::class, 1);
     }
 
+    public function test_fire_for_reaches_the_named_teams_endpoints_whatever_team_the_request_serves(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', true);
+
+        $theirs   = $this->endpoint(['team_id' => 5]);
+        $platform = $this->endpoint(['team_id' => null]);
+        $this->endpoint(['team_id' => 6]);
+
+        KinetixWebhooks::fireFor(5, 'order.created', ['id' => 1]);
+        KinetixWebhooks::fireFor(null, 'order.created', ['id' => 2]);
+
+        Bus::assertDispatchedTimes(DispatchWebhookJob::class, 2);
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $theirs->getKey() && $job->payload === ['id' => 1]);
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $platform->getKey() && $job->payload === ['id' => 2]);
+    }
+
+    public function test_fire_for_ignores_the_team_when_webhooks_are_not_team_scoped(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', false);
+
+        $platform = $this->endpoint(['team_id' => null]);
+
+        KinetixWebhooks::fireFor(5, 'order.created', ['id' => 1]);
+
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $platform->getKey());
+    }
+
     public function test_unregistered_event_does_not_dispatch(): void
     {
         Bus::fake();

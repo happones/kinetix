@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.225.0] - 2026-10-14
+
+### Added
+
+- **`KinetixWebhooks::fireFor($team, $event, $payload)`** fires to one team's
+  endpoints, or the platform's with `null`, whatever team the request serves.
+  `fire()` reads the team from the request, so a queued job, a console command
+  or a model event with no team in it reached the platform's endpoints instead
+  of the customer's. With webhooks not team-scoped, the team is ignored.
+
 ## [0.224.11] - 2026-10-14
 
 ### Fixed

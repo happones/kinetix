@@ -54,6 +54,21 @@ Only **registered** events can be subscribed to or fired. Firing queues a signed
 delivery to each active endpoint subscribed to that event (in the current team
 scope).
 
+### Firing outside a team's request
+
+`fire()` reads the team from the request. A queued job, a console command or a
+model event that runs without one would reach the platform's endpoints (those
+with no team) instead of the customer's. Name the team with `fireFor()`: a team
+model or key, or `null` for the platform's endpoints:
+
+```php
+// A model event: the order's team, whichever request (or job) created it.
+KinetixWebhooks::fireFor($order->team_id, 'order.created', ['id' => $order->id]);
+```
+
+With webhooks not team-scoped, every endpoint belongs to the platform and the
+team is ignored.
+
 ---
 
 ## 2. The customer dashboard

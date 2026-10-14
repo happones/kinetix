@@ -54,10 +54,13 @@ use Happones\Kinetix\Webhooks\KinetixWebhooks;
 
 KinetixWebhooks::events(['order.created' => 'Order created']); // provider boot
 KinetixWebhooks::fire('order.created', ['id' => $order->id]);  // domain code
+KinetixWebhooks::fireFor($order->team_id, 'order.created', [...]); // jobs, console
 ```
 
 - Only **registered** events fire; firing queues a signed delivery to each active,
-  subscribed endpoint in the current team scope.
+  subscribed endpoint in the current team scope. Outside a team's request (a
+  queued job, a console command, a model event) use `fireFor($team, ...)`, or
+  the event reaches the platform's endpoints instead of the record's team.
 - **Signing**: `X-Kinetix-Signature: hmac_sha256(rawBody, secret)`, `X-Kinetix-Event`.
   Body = `{"event": "...", "data": {...}}`. Secret shown once (create/rotate).
 - **SSRF** (`WebhookUrlGuard`): rejects non-HTTP(S) + private/loopback/link-local/

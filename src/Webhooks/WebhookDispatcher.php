@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Webhooks;
 
 use Happones\Kinetix\Support\KinetixTeams;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\WebhookServer\WebhookCall;
 
 /**
@@ -22,13 +23,30 @@ class WebhookDispatcher
      */
     public function fire(string $event, array $payload = []): void
     {
+        $this->fireFor($this->teamId(), $event, $payload);
+    }
+
+    /**
+     * Fire to one team's endpoints (`null`: the platform's, those with no
+     * team) whatever team the request serves: a queued job, a console command
+     * or a record whose team you know. With webhooks not team-scoped, every
+     * endpoint is the platform's, and the team is ignored.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function fireFor(Model|int|string|null $team, string $event, array $payload = []): void
+    {
         if (! $this->events->has($event)) {
             return;
         }
 
+        $teamId = KinetixTeams::enabledFor('webhooks') && $team !== null
+            ? ($team instanceof Model ? $team->getKey() : $team)
+            : null;
+
         WebhookEndpoint::query()
             ->where('active', true)
-            ->where('team_id', $this->teamId())
+            ->where('team_id', $teamId)
             ->get()
             ->filter(static fn (WebhookEndpoint $endpoint): bool => in_array($event, $endpoint->events, true))
             ->each(fn (WebhookEndpoint $endpoint) => $this->deliver($endpoint, $event, $payload));
