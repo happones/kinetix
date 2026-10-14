@@ -42,14 +42,11 @@ class TranslationParityTest extends TestCase
     {
         foreach (self::LOCALES as $locale) {
             $contents = file_get_contents(__DIR__."/../../resources/lang/{$locale}/kinetix.php");
-            preg_match_all("/^\s*'([a-z_0-9]+)' =>/m", (string) $contents, $matches);
-            $keys = $matches[1];
+            // Any run of spaces before the arrow: aligned entries count too.
+            preg_match_all("/^\s*'([a-z_0-9]+)'\s*=>/m", (string) $contents, $matches);
+            $duplicates = array_keys(array_filter(array_count_values($matches[1]), static fn (int $count): bool => $count > 1));
 
-            $this->assertSame(
-                count($keys),
-                count(array_unique($keys)),
-                "Locale [{$locale}] has duplicate keys.",
-            );
+            $this->assertSame([], $duplicates, "Locale [{$locale}] has duplicate keys.");
         }
     }
 

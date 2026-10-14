@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.10] - 2026-10-14
+
+### Fixed
+
+- **A `reorderable()` board on an enum-cast status column failed every move**
+  with a 500, so each card snapped back. The move compared the card's status
+  as a string, which an enum can't be cast to. It now reads it the way the
+  board groups cards: backing value, or case name.
+- **(published)** Seven translation keys were declared twice in every locale
+  (`kanban_keyboard_hint`, `password_change_title`, `password_current`,
+  `password_new`, `password_confirm`, `tour_next`, `tour_done`). The second
+  declaration always won; the dead first one is gone, so no text changes.
+
+### Tests
+
+- The duplicate-key check now counts aligned entries (`'key'    =>`), which
+  it used to skip.
+
 ## [0.224.9] - 2026-10-13
 
 ### Fixed
