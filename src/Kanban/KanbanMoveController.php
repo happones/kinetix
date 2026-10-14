@@ -161,7 +161,7 @@ class KanbanMoveController
 
         // A card dropped in from another column brings that column's
         // position, which means nothing here: it takes a fresh one.
-        $arrivals = (string) $record->getAttribute($statusColumn) === $status
+        $arrivals = Kanban::columnKey($record->getAttribute($statusColumn)) === $status
             ? []
             : [(string) $record->getKey()];
 

@@ -165,6 +165,34 @@ class KanbanTest extends TestCase
         $this->assertSame(KanbanPhase::Done, $task->fresh()->status);
     }
 
+    public function test_a_reorderable_board_moves_and_reorders_an_enum_status(): void
+    {
+        $data = Kanban::make(KanbanEnumTask::query())
+            ->statuses(['todo' => 'To Do', 'doing' => 'In Progress', 'done' => 'Done'])
+            ->cardTitle('title')
+            ->reorderable('sort_order')
+            ->toData();
+
+        KanbanEnumTask::where('title', 'A')->update(['sort_order' => 1]);
+        KanbanEnumTask::where('title', 'C')->update(['sort_order' => 2]);
+        [$a, $c] = [KanbanEnumTask::where('title', 'A')->first(), KanbanEnumTask::where('title', 'C')->first()];
+        $user    = KanbanUser::create(['name' => 'Ada']);
+
+        // Within its own column: the order is all that changes.
+        $this->actingAs($user)
+            ->postJson('/_kinetix/tables/kanban-move', ['model' => $data->model, 'recordId' => $c->id, 'status' => 'todo', 'order' => [$c->id, $a->id]])
+            ->assertOk();
+
+        $this->assertSame([1, 2], [$c->fresh()->sort_order, $a->fresh()->sort_order]);
+
+        // Into another column: the status changes with it.
+        $this->actingAs($user)
+            ->postJson('/_kinetix/tables/kanban-move', ['model' => $data->model, 'recordId' => $a->id, 'status' => 'done', 'order' => [$a->id]])
+            ->assertOk();
+
+        $this->assertSame(KanbanPhase::Done, $a->fresh()->status);
+    }
+
     public function test_move_scope_hides_records_outside_the_boards_constraints(): void
     {
         // Board bound to team 1 — the task belongs to team 2.

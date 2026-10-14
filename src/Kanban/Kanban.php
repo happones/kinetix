@@ -208,13 +208,19 @@ class Kanban
     }
 
     /**
-     * The record's status as a board-column key — enum casts resolve to their
-     * backing value (BackedEnum) or case name (UnitEnum).
+     * The record's status as a board-column key.
      */
     protected function statusKey(Model $record): string
     {
-        $value = $record->getAttribute($this->statusColumn);
+        return self::columnKey($record->getAttribute($this->statusColumn));
+    }
 
+    /**
+     * A status value as a board-column key: enum casts resolve to their
+     * backing value (BackedEnum) or case name (UnitEnum).
+     */
+    public static function columnKey(mixed $value): string
+    {
         if ($value instanceof BackedEnum) {
             return (string) $value->value;
         }
