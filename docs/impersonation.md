@@ -97,6 +97,18 @@ This is the part that matters — impersonation done naively is a privilege-esca
   });
   ```
 
+  `kinetix.impersonation.protect:writes` blocks only the requests that change
+  something (anything but `GET`, `HEAD` and `OPTIONS`), so the admin still sees
+  the page they came to help with — the plan and its invoices — without acting
+  on it. It suits a whole group, like the billing routes:
+
+  ```php
+  // config/kinetix.php
+  'billing' => [
+      'middleware' => ['web', 'auth', 'kinetix.impersonation.protect:writes'],
+  ],
+  ```
+
 - **Audited**: start and stop are logged through the Activity event spine
   (`impersonate.start` / `impersonate.stop`, causer = the admin) when the Activity
   module is enabled — so impersonation is never invisible.

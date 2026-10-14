@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.229.0] - 2026-10-14
+
+### Added
+
+- **`kinetix.impersonation.protect:writes`** blocks only the requests that
+  change something while impersonating (anything but `GET`, `HEAD` and
+  `OPTIONS`). The plain middleware blocks the page too, so an admin helping a
+  user couldn't even see their plan; on a group like billing, `:writes` keeps
+  it viewable and still refuses subscribing, cancelling or changing a card.
+
 ## [0.228.1] - 2026-10-14
 
 ### Fixed

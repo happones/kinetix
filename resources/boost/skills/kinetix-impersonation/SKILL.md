@@ -57,6 +57,8 @@ KinetixImpersonation::stop();
   override with the `can_impersonate` closure for finer rules.
 - **Protect sensitive routes** with the `kinetix.impersonation.protect` middleware
   (password/email/2FA/billing/account-deletion) — it 403s while impersonating.
+  `kinetix.impersonation.protect:writes` blocks only changes (non-GET/HEAD/OPTIONS),
+  so a whole group like billing stays viewable.
 - **Audited**: start/stop log through the Activity event spine
   (`impersonate.start`/`impersonate.stop`, causer = the admin) when Activity is on.
 - Endpoints (team-aware): `POST {prefix}/impersonate/{user}` (start),

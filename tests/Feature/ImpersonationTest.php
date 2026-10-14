@@ -172,4 +172,22 @@ class ImpersonationTest extends TestCase
         app(ImpersonationManager::class)->start($viewer);
         $this->get('/_test/sensitive')->assertForbidden();
     }
+
+    public function test_protect_writes_lets_the_page_show_but_blocks_changes_while_impersonating(): void
+    {
+        Route::middleware('kinetix.impersonation.protect:writes')->group(function (): void {
+            Route::get('/_test/billing', fn () => 'plan');
+            Route::post('/_test/billing/subscribe', fn () => 'subscribed');
+        });
+
+        $admin  = $this->user('Admin', 'admin');
+        $viewer = $this->user('Viewer', 'viewer');
+
+        $this->actingAs($admin);
+        $this->post('/_test/billing/subscribe')->assertOk();
+
+        app(ImpersonationManager::class)->start($viewer);
+        $this->get('/_test/billing')->assertOk();
+        $this->post('/_test/billing/subscribe')->assertForbidden();
+    }
 }
