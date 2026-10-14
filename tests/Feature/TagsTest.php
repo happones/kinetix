@@ -106,6 +106,19 @@ class TagsTest extends TestCase
         $this->assertSame(2, $article->tags()->count());
     }
 
+    public function test_a_deleted_tag_comes_off_every_record(): void
+    {
+        $article = $this->makeArticle();
+        $laravel = Tag::create(['name' => 'Laravel', 'slug' => 'laravel']);
+        $vue     = Tag::create(['name' => 'Vue', 'slug' => 'vue']);
+        $article->tags()->attach([$laravel->id, $vue->id]);
+
+        $laravel->delete();
+
+        $this->assertDatabaseMissing('kinetix_taggables', ['tag_id' => $laravel->id]);
+        $this->assertSame(['Vue'], $article->tags()->pluck('name')->all());
+    }
+
     public function test_sync_reuses_existing_tags_by_slug(): void
     {
         $user = $this->user();

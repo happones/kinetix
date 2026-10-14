@@ -68,8 +68,7 @@ class CommentManager
 
     public function delete(Comment $comment): void
     {
-        // Remove the comment and any threaded replies.
-        Comment::query()->where('parent_id', $comment->getKey())->delete();
+        // Its threaded replies go with it (Comment::booted()).
         $comment->delete();
     }
 }

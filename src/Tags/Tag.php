@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tags;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * A reusable tag, optionally scoped to a team. Attached to models polymorphically
@@ -22,4 +23,15 @@ class Tag extends Model
     protected $table = 'kinetix_tags';
 
     protected $guarded = [];
+
+    /**
+     * A deleted tag comes off every record that carried it, however it is
+     * deleted: no pivot row is left pointing at it.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Tag $tag): void {
+            DB::table('kinetix_taggables')->where('tag_id', $tag->getKey())->delete();
+        });
+    }
 }

@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.228.1] - 2026-10-14
+
+### Fixed
+
+- **A deleted tag left its pivot rows behind.** Nothing removed a tag's
+  `kinetix_taggables` rows, so deleting a tag from anywhere but a migration
+  left them pointing at a missing tag. Deleting a tag now takes it off every
+  record.
+- **A comment deleted outside the comments endpoint kept its replies.** Only
+  `CommentManager::delete()` removed them. Any delete now takes the comment's
+  whole thread with it, replies of replies included.
+
 ## [0.228.0] - 2026-10-14
 
 ### Added

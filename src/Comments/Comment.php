@@ -30,6 +30,17 @@ class Comment extends Model
     protected $guarded = [];
 
     /**
+     * A deleted comment takes its replies with it, however it is deleted,
+     * replies of replies included.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Comment $comment): void {
+            $comment->replies()->get()->each->delete();
+        });
+    }
+
+    /**
      * @return MorphTo<Model, $this>
      */
     public function commentable(): MorphTo

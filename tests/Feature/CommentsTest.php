@@ -167,6 +167,22 @@ class CommentsTest extends TestCase
         $this->assertDatabaseMissing('kinetix_comments', ['id' => $reply->id]);
     }
 
+    public function test_a_comment_deleted_from_code_takes_its_whole_thread(): void
+    {
+        $user   = $this->user();
+        $post   = $this->makePost();
+        $attrs  = ['user_id' => $user->id, 'commentable_type' => CommentablePost::class, 'commentable_id' => $post->id];
+        $parent = Comment::create([...$attrs, 'body' => 'parent']);
+        $reply  = Comment::create([...$attrs, 'parent_id' => $parent->id, 'body' => 'reply']);
+        $nested = Comment::create([...$attrs, 'parent_id' => $reply->id, 'body' => 'nested']);
+        $other  = Comment::create([...$attrs, 'body' => 'unrelated']);
+
+        $parent->delete();
+
+        $this->assertSame([$other->id], Comment::query()->pluck('id')->all());
+        $this->assertDatabaseMissing('kinetix_comments', ['id' => $nested->id]);
+    }
+
     public function test_unregistered_commentable_type_is_rejected(): void
     {
         $user = $this->user();
