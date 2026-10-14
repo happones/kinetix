@@ -97,6 +97,14 @@ class InventoryAdjustPage extends Page
 }
 ```
 
+A page whose body is a form saves it from the footer with `->submits()`: give
+the `<KinetixForm>` in the body that id, and `hide-submit` (see
+[Actions](/actions#saving-the-body-s-form)):
+
+```php
+Action::make('save')->label(__('inventory.save'))->icon('check')->submits('adjust-stock'),
+```
+
 Or inline, with no class at all:
 
 ```php

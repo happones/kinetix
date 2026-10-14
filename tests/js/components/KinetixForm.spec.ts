@@ -36,6 +36,18 @@ const mountForm = () => {
 };
 
 describe('KinetixForm', () => {
+    it('takes an id for a button outside it, and can drop its own submit', () => {
+        page.props.errors = {};
+        const w = mount(KinetixForm, {
+            props: { form, id: 'adjust-stock', hideSubmit: true },
+            global: { plugins: [i18n] },
+        });
+
+        expect(w.find('form').attributes('id')).toBe('adjust-stock');
+        expect(w.find('button[type="submit"]').exists()).toBe(false);
+        expect(mountForm().find('button[type="submit"]').exists()).toBe(true);
+    });
+
     it('renders helper text and chains it with the error in aria-describedby', async () => {
         page.props.errors = {};
 

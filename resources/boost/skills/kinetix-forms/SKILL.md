@@ -142,6 +142,11 @@ PostForm::make()->validationUrl(route('posts.store'), 'post'); // or an explicit
 <KinetixForm :form="postForm" validation-url="/posts" @submit="submit" />
 ```
 
+### Submitted from outside: `id` + `hide-submit`
+
+A page footer or header can own Save: `<KinetixForm id="adjust-stock" hide-submit @submit="...">`
+and `Action::make('save')->submits('adjust-stock')` in the bar.
+
 ### 4. Forms inside modals: pass `flat`
 
 When a `KinetixForm` renders inside a `KinetixModal`/`KinetixSheet`, ALWAYS

@@ -81,6 +81,7 @@ return inertia('Kinetix/InventoryAdjust', [
 - **Order footer actions primary-LAST.** Below `sm` the footer row reverses so the last action lands on top under the thumb: Cancel first, Save last.
 - **Wrap every label in `__()`.** These are the app's strings, not Kinetix's.
 - **A page action carries no form.** To open one in a modal, use `->dispatch('event')` and host the modal on the page; pass `flat` to `<KinetixForm>` so Sections don't render a card inside the panel.
+- **A footer Save for the form in the body**: `Action::make('save')->submits('form-id')`, and `<KinetixForm id="form-id" hide-submit @submit="...">` in the body — values, validation and errors stay the form's own.
 - **`Page` is optional sugar.** Composing `<KinetixPageHeader>` + `<KinetixPageFooter>` with plain `KinetixAction[]` props is equally valid and better when the layout between them is unusual.
 - **Don't confuse it with two neighbours**: `SettingsPage` is a database-backed key/value form (see `kinetix-settings`); `Table::footerActions()` renders inside a table's own footer card, not at page level.
 - **Nothing is auto-discovered.** You register the route and return the Inertia response; there is no page router.

@@ -29,6 +29,7 @@ Action::make('edit')
 | `->route(string $name, array $params = [], string $method = 'get')` | Point at a **named route** — the intuitive CRUD wiring (see below) |
 | `->inertiaVisit(string $url, array $options = [])` | SPA visit via `router.visit()` (supports `method`) |
 | `->dispatch(string $event, array $data = [])` | Fire a `kinetix:{event}` browser event |
+| `->submits(string $formId)` | Submit the `<form>` with that id — a footer Save for the form in the page body (see [Saving the body's form](#saving-the-body-s-form)) |
 | `->button()` / `->link()` | Render style |
 | `->iconButton(bool = true)` | Compact **icon-only** button — no visible label, no outline (the shadcn row-action style). The label is kept for `aria-label`/tooltip, so always set `->icon()` too. If the icon name cannot be resolved the button falls back to showing its **label** rather than rendering empty — see [Icons](icons.md). |
 | `->color(string)` | `primary` · `secondary` · `success` · `warning` · `info` · `danger` · `gray` |
@@ -345,6 +346,24 @@ The pinned bar stays part of the layout, so it never covers the last of your con
 :::
 
 <Screenshot name="page-footer-sticky" alt="The same footer bar pinned, with a top border and solid background" />
+
+### Saving the body's form
+
+A footer Save usually belongs to a form in the page body. `->submits('form-id')`
+submits that form: its values, its validation, its errors under each field and
+its pending state stay the form's own. Give `<KinetixForm>` the id, and
+`hide-submit` so it doesn't render a second button:
+
+```php
+Action::make('save')->label(__('Save'))->icon('check')->submits('adjust-stock'),
+```
+
+```vue
+<KinetixForm id="adjust-stock" :form="form" hide-submit @submit="save" />
+<KinetixPageFooter :actions="footerActions" sticky />
+```
+
+A confirmation (`->requiresConfirmation()`) runs first, as for any action.
 
 ::: warning `shortcuts` defaults to off in the footer
 A footer usually repeats actions the header already bound, and two handlers on one chord is a bug. Turn it on only for actions that live **only** in the footer.

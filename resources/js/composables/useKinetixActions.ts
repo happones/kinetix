@@ -20,6 +20,18 @@ export async function executeAction(
     action: KinetixAction,
     extraData: Record<string, any> = {},
 ): Promise<void> {
+    // Submit a form on the page (a footer Save for the form in the body): the
+    // form's own submit handling does the rest.
+    if (action.submitsForm) {
+        const form = document.getElementById(action.submitsForm);
+
+        if (form instanceof HTMLFormElement) {
+            form.requestSubmit();
+        }
+
+        return;
+    }
+
     if (action.dispatchEvent) {
         window.dispatchEvent(
             new CustomEvent(`kinetix:${action.dispatchEvent}`, {

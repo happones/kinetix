@@ -72,5 +72,8 @@ class ActionData extends Data
         // A RouteFormAction's own route ({url, method}): the modal submits
         // there, as an Inertia visit, instead of the form-action endpoint.
         public ?array $submitTo = null,
+        // The id of a <form> on the page the action submits (Action::submits()),
+        // e.g. a page footer's Save for the KinetixForm in the page body.
+        public ?string $submitsForm = null,
     ) {}
 }

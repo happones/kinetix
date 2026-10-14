@@ -33,6 +33,24 @@ describe('executeAction', () => {
         fetchMock.mockResolvedValue({});
     });
 
+    it('submits the page form an action names, and does nothing else', async () => {
+        document.body.innerHTML = '<form id="adjust-stock"></form>';
+        const form = document.getElementById('adjust-stock') as HTMLFormElement;
+        const requestSubmit = vi.fn();
+        form.requestSubmit = requestSubmit;
+
+        await executeAction({
+            submitsForm: 'adjust-stock',
+            url: '/elsewhere',
+            inertiaVisit: {},
+        } as any);
+
+        expect(requestSubmit).toHaveBeenCalledOnce();
+        expect(visit).not.toHaveBeenCalled();
+
+        document.body.innerHTML = '';
+    });
+
     it('awaits a background httpRequest and toasts the success message', async () => {
         await executeAction({
             httpRequest: { method: 'post', toast: 'Done' },

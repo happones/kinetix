@@ -67,6 +67,8 @@ export interface KinetixAction {
      * Inertia visit, instead of the form-action endpoint.
      */
     submitTo?: { url: string; method: string } | null;
+    /** The id of a <form> on the page this action submits (Action::submits()). */
+    submitsForm?: string | null;
 }
 
 /**

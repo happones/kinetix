@@ -61,6 +61,15 @@ class PageTest extends TestCase
         $this->assertSame(['Cancel', 'Save'], array_column($data['footerActions'], 'label'));
     }
 
+    public function test_a_footer_action_submits_the_form_in_the_body(): void
+    {
+        $page = Page::make('Adjust stock')
+            ->footerActions([Action::make('save')->label('Save')->submits('adjust-stock')])
+            ->toArray();
+
+        $this->assertSame('adjust-stock', $page['footerActions'][0]['submitsForm']);
+    }
+
     public function test_it_defaults_to_no_chrome_at_all(): void
     {
         $data = Page::make()->toArray();

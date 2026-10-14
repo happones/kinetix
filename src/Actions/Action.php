@@ -55,6 +55,8 @@ class Action
      */
     protected ?string $dispatchEvent = null;
 
+    protected ?string $submitsForm = null;
+
     /**
      * @var array<string, mixed>
      */
@@ -346,6 +348,20 @@ class Action
     }
 
     /**
+     * Submit a form on the page when the action is clicked: the `id` of a
+     * `<form>`, e.g. `<KinetixForm id="adjust-stock" hide-submit>` in a page
+     * body, so the page footer's Save sends it, with its values, its
+     * validation and its pending state. A confirmation (requiresConfirmation())
+     * runs first.
+     */
+    public function submits(string $formId): static
+    {
+        $this->submitsForm = $formId;
+
+        return $this;
+    }
+
+    /**
      * Dispatch a custom browser event when the action is clicked.
      * In Vue, listen with `window.addEventListener('kinetix:event-name', handler)`.
      *
@@ -590,6 +606,7 @@ class Action
             form: $form,
             formOnOpen: $formOnOpen,
             submitTo: $this instanceof FormAction ? $this->getSubmitTarget($record) : null,
+            submitsForm: $this->submitsForm,
         );
     }
 

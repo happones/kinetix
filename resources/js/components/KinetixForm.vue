@@ -39,6 +39,10 @@ const props = defineProps<{
      * KinetixModal/KinetixSheet.
      */
     flat?: boolean;
+    /** The form element's id, for a button outside it (Action::submits()). */
+    id?: string;
+    /** Drop the built-in submit button: something else submits the form. */
+    hideSubmit?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -244,7 +248,7 @@ const onSubmit = (e: Event) => {
 </script>
 
 <template>
-    <form @submit="onSubmit" @focusout="onFocusOut" class="space-y-6">
+    <form :id="id" @submit="onSubmit" @focusout="onFocusOut" class="space-y-6">
         <!-- 1-column root: a field's default span of 1 is the
              full width, and Grid::make(2) opts into columns. -->
         <div class="kinetix-form-root gap-4 grid grid-cols-1">
@@ -258,7 +262,7 @@ const onSubmit = (e: Event) => {
         </div>
 
         <!-- Actions Slot -->
-        <div class="gap-3 mt-4 flex justify-end">
+        <div v-if="!hideSubmit" class="gap-3 mt-4 flex justify-end">
             <slot :values="formValues" :errors="errors">
                 <button type="submit" :class="buttonVariants()">
                     {{ t('kinetix.submit') }}

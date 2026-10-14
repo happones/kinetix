@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.230.0] - 2026-10-14
+
+### Added
+
+- **`Action::submits('form-id')`** submits a form on the page, so a page
+  footer's Save sends the `<KinetixForm>` in the body, with its values, its
+  validation and its errors. A page action could only navigate, post without
+  data or fire an event. A confirmation runs first.
+- **(published)** `<KinetixForm>` takes an `id`, for a button outside it, and
+  `hide-submit`, to drop its own submit button when something else submits it.
+
 ## [0.229.0] - 2026-10-14
 
 ### Added

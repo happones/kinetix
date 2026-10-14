@@ -274,6 +274,17 @@ automatically.
 ```
 :::
 
+::: tip Submitted from outside: `id` and `hide-submit`
+A page footer, a header or a modal's footer can own the Save button. Give the
+form an **`id`** and the action `->submits('that-id')`
+([Actions](/actions#saving-the-body-s-form)); **`hide-submit`** drops the
+form's own button so there's only one:
+
+```vue
+<KinetixForm id="adjust-stock" :form="form" hide-submit @submit="save" />
+```
+:::
+
 ::: tip Long forms in a modal: `scroll-body` is a layout choice, not a rescue
 The shell bounds itself. A panel taller than the viewport scrolls **inside the
 dialog wrapper**, so a long form never strands its first field or its footer
