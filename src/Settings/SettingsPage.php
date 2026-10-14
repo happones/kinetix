@@ -71,16 +71,19 @@ abstract class SettingsPage
     }
 
     /**
-     * The current stored value for each field on this page.
+     * The current value of each field on this page: in a team, its own value
+     * else the global one it inherits. Pass `$settings` to read another scope
+     * (`KinetixSettings::global()`, `KinetixSettings::forTeam($team)`).
      *
      * @return array<string, mixed>
      */
-    public function currentValues(): array
+    public function currentValues(?SettingsManager $settings = null): array
     {
+        $settings ??= KinetixSettings::manager();
         $values = [];
 
         foreach (array_keys($this->form()->getFields()) as $name) {
-            $values[$name] = KinetixSettings::get($this->prefixed($name));
+            $values[$name] = $settings->get($this->prefixed($name));
         }
 
         return $values;
@@ -90,20 +93,38 @@ abstract class SettingsPage
      * Validate the input through the form and persist each field under its
      * prefixed key. Returns the dehydrated state that was saved.
      *
+     * In a team, a value equal to the global one it inherits is not stored,
+     * and a stored one set back to it is forgotten: the team keeps following
+     * the global value until it really changes it.
+     *
      * @param  array<string, mixed> $input
      * @return array<string, mixed>
      */
-    public function save(array $input): array
+    public function save(array $input, ?SettingsManager $settings = null): array
     {
-        $form = $this->form()->fill($this->currentValues());
+        $settings ??= KinetixSettings::manager();
+
+        $form = $this->form()->fill($this->currentValues($settings));
 
         $form->validate($input);
         $state = $form->getState($input);
 
         $encrypted = $this->encrypted();
+        $inherited = $settings->inherited();
+        $own       = $settings->own();
 
         foreach ($state as $name => $value) {
-            KinetixSettings::set($this->prefixed($name), $value, in_array($name, $encrypted, true));
+            $key = $this->prefixed($name);
+
+            if (array_key_exists($key, $inherited) && $inherited[$key] === $value) {
+                if (array_key_exists($key, $own)) {
+                    $settings->forget($key);
+                }
+
+                continue;
+            }
+
+            $settings->set($key, $value, in_array($name, $encrypted, true));
         }
 
         return $state;

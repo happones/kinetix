@@ -109,6 +109,32 @@ KinetixSettings::forget('general.site_name');
 KinetixSettings::all();                               // key => value for the scope
 ```
 
+### Global values and team values
+
+With teams on, every team **inherits** the global values (those stored with no
+team): `get()` returns the team's own value for a key, else the global one, else
+the default. A platform admin sets the defaults once; a team overrides only what
+it needs, and `forget()` in a team brings the global value back.
+
+Name the scope when the request doesn't carry the one you want — an admin
+panel outside any team, a queued job, the console:
+
+```php
+KinetixSettings::global()->set('general.site_name', 'Acme');   // every team inherits it
+KinetixSettings::forTeam($team)->get('general.site_name');      // that team's value, else the global one
+KinetixSettings::forTeam($team)->own();                         // only what the team stored itself
+```
+
+Saving a [settings page](#_1-defining-a-settings-page) in a team stores only the
+fields that differ from the global values, and forgets a field set back to its
+global value — so the team keeps following the platform's changes until it
+really changes a field. `SettingsPage::save()` and `currentValues()` take the
+scope as an optional second argument:
+
+```php
+GeneralSettingsPage::make()->save($input, KinetixSettings::global());
+```
+
 Values keep their type (stored as JSON) — booleans, arrays and scalars round-trip
 faithfully. Encrypted values are transparently decrypted on read and never stored
 in clear.
@@ -121,7 +147,9 @@ in clear.
   [Roles & Permissions](/permissions) module enabled, grant it to a role; the
   `settings` feature auto-registers in the permission matrix when this module is on.
 - When `settings.teams` is `true`, values are scoped to the user's `currentTeam`
-  (null team = global) — the same bridge the Permissions module uses.
+  (null team = global) — the same bridge the Permissions module uses — and a
+  team inherits the global values it doesn't set itself (see
+  [Global values and team values](#global-values-and-team-values)).
 
 ---
 

@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.227.0] - 2026-10-14
+
+### Changed
+
+- **A team inherits the global settings.** With teams on, `KinetixSettings::get()`
+  in a team returns the team's own value, else the global one (stored with no
+  team), else the default. A global value was invisible inside every team, so a
+  platform-wide setting never applied anywhere. `forget()` in a team brings the
+  global value back. Teams stay isolated from each other.
+- Saving a settings page in a team stores only the fields that differ from the
+  global values, and forgets one set back to its global value, so the team keeps
+  following later changes to the platform's values.
+
+### Added
+
+- `KinetixSettings::global()` and `KinetixSettings::forTeam($team)` read and write
+  one scope whatever team the request serves (an admin panel, a job, the
+  console). `own()` and `inherited()` split a team's values from the global ones
+  it inherits.
+- `SettingsPage::save()` and `currentValues()` take the scope as an optional
+  second argument.
+
 ## [0.226.0] - 2026-10-14
 
 ### Added

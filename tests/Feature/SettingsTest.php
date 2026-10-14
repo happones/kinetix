@@ -182,6 +182,69 @@ class SettingsTest extends TestCase
         $this->assertTrue(KinetixSettings::get('general.maintenance_mode'));
     }
 
+    public function test_a_team_inherits_the_global_value_until_it_sets_its_own(): void
+    {
+        config()->set('kinetix.teams', true);
+
+        KinetixSettings::global()->set('general.site_name', 'Platform');
+
+        $this->assertSame('Platform', KinetixSettings::forTeam(5)->get('general.site_name'));
+
+        KinetixSettings::forTeam(5)->set('general.site_name', 'Acme');
+
+        $this->assertSame('Acme', KinetixSettings::forTeam(5)->get('general.site_name'));
+        $this->assertSame('Platform', KinetixSettings::forTeam(6)->get('general.site_name'));
+        $this->assertSame('Platform', KinetixSettings::global()->get('general.site_name'));
+        $this->assertSame(['general.site_name' => 'Acme'], KinetixSettings::forTeam(5)->own());
+
+        KinetixSettings::forTeam(5)->forget('general.site_name');
+
+        $this->assertSame('Platform', KinetixSettings::forTeam(5)->get('general.site_name'));
+    }
+
+    public function test_a_global_change_reaches_a_team_already_read_in_the_same_request(): void
+    {
+        config()->set('kinetix.teams', true);
+
+        KinetixSettings::global()->set('general.site_name', 'Before');
+        $this->assertSame('Before', KinetixSettings::forTeam(5)->get('general.site_name'));
+
+        KinetixSettings::global()->set('general.site_name', 'After');
+
+        $this->assertSame('After', KinetixSettings::forTeam(5)->get('general.site_name'));
+    }
+
+    public function test_a_team_page_stores_only_what_differs_from_the_global_values(): void
+    {
+        config()->set('kinetix.teams', true);
+
+        $page = new GeneralSettingsPage;
+        $page->save(['site_name' => 'Platform', 'maintenance_mode' => false], KinetixSettings::global());
+
+        $team = KinetixSettings::forTeam(5);
+        $page->save(['site_name' => 'Platform', 'maintenance_mode' => true], $team);
+
+        $this->assertSame(['general.maintenance_mode' => true], $team->own());
+        $this->assertSame(['site_name' => 'Platform', 'maintenance_mode' => true], $page->currentValues($team));
+
+        // Set back to the global value: the team follows it again.
+        $page->save(['site_name' => 'Platform', 'maintenance_mode' => false], $team);
+        KinetixSettings::global()->set('general.maintenance_mode', true);
+
+        $this->assertSame([], $team->own());
+        $this->assertTrue($team->get('general.maintenance_mode'));
+    }
+
+    public function test_with_teams_off_a_named_team_is_the_global_scope(): void
+    {
+        config()->set('kinetix.teams', false);
+
+        KinetixSettings::forTeam(5)->set('general.site_name', 'Only one');
+
+        $this->assertDatabaseHas('kinetix_settings', ['team_id' => null, 'key' => 'general.site_name']);
+        $this->assertSame('Only one', KinetixSettings::get('general.site_name'));
+    }
+
     public function test_show_returns_the_page_dto_as_json(): void
     {
         KinetixSettings::set('general.site_name', 'Acme');

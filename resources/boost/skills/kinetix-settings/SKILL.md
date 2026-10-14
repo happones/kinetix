@@ -77,12 +77,17 @@ KinetixSettings::get('general.site_name', 'Acme');     // value or default
 KinetixSettings::set('general.maintenance_mode', true); // type preserved (JSON)
 KinetixSettings::set('mail.api_key', $secret, encrypted: true);
 KinetixSettings::forget('general.site_name');
+KinetixSettings::global()->set('general.site_name', 'Acme'); // what every team inherits
+KinetixSettings::forTeam($team)->get('general.site_name');    // jobs, console, admin
 ```
 
 - Values keep their type (bool/array/scalar). Encrypted values decrypt on read,
   never stored in clear.
 - Scope: `settings.teams=true` → scoped to `currentTeam` (null = global), cached
-  per scope, cache invalidated on write.
+  per scope, cache invalidated on write. A team **inherits** the global values:
+  `get()` returns its own value, else the global one; `forget()` in a team
+  brings the global value back. Saving a page in a team stores only what
+  differs from the global values. `own()` / `inherited()` split the two.
 - Endpoints (team-aware, gated by `settings.manage`): `GET {prefix}/settings`,
   `GET {prefix}/settings/{page}`, `PUT {prefix}/settings/{page}` (validate + save,
   JSON). The `settings` feature auto-registers with the permission matrix when the
