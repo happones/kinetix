@@ -58,11 +58,11 @@ does not silently fall back to the global one.
 
 ::: warning Queued mail has no team context
 `KinetixMail::send()` inside a job resolves the **global** template, because
-there is no request to read the team from. Pass the tenant explicitly when a job
-must render a specific team's override:
+there is no request to read the team from. Name the tenant when a job or a
+console command must send a specific team's override:
 
 ```php
-$template = KinetixMail::resolve('welcome', teamId: $order->team_id);
+KinetixMail::sendFor($order->team_id, $customer->email, 'receipt', [...]);
 ```
 :::
 
@@ -120,6 +120,23 @@ KinetixMail::send($user->email, 'welcome', [
   fall back).
 - `KinetixMail::render(string $key, array $data = []): array|null` — `{ subject,
   html }` without sending.
+- `KinetixMail::sendFor($team, $to, string $key, array $data = []): bool` — the
+  same as `send()` for a named team (a model or key; `null` for the global
+  default), whatever team the request serves.
+- `KinetixMail::mailableFor($team, string $key, array $data = []): TemplatedMail|null`
+  — the rendered template as a Mailable, without sending. A notification's
+  `toMail()` can return it, so the mail keeps honoring the user's channel
+  preferences while its text stays editable:
+
+  ```php
+  public function toMail(object $notifiable): Mailable|MailMessage
+  {
+      // Null when the template is missing or the team turned it off.
+      return KinetixMail::mailableFor($this->team, 'low-stock-digest', [...])
+          ?->to($notifiable->email)
+          ?? (new MailMessage)->line('...');
+  }
+  ```
 - `KinetixMail::test(string $key, string $to, array $data = []): bool` — sends a
   `[TEST]` email using the template's sample data.
 

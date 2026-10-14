@@ -6,10 +6,12 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Mail\KinetixMail;
 use Happones\Kinetix\Mail\MailTemplate;
+use Happones\Kinetix\Mail\TemplatedMail;
 use Happones\Kinetix\Tests\Concerns\ResolvesTeamRoutes;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\PermissionServiceProvider;
 
 /**
@@ -121,6 +123,31 @@ class MailTemplateTeamScopingTest extends TestCase
         $this->assertSame('Global', KinetixMail::resolve('welcome')?->subject);
         // …unless the job passes the tenant explicitly.
         $this->assertSame('Team 7', KinetixMail::resolve('welcome', teamId: 7)?->subject);
+    }
+
+    public function test_send_for_mails_the_named_teams_template_outside_a_teams_request(): void
+    {
+        Mail::fake();
+        $this->template(null, 'welcome', 'Global');
+        $this->template(7, 'welcome', 'Team 7');
+
+        $this->withoutTeamSegment();
+
+        $this->assertTrue(KinetixMail::sendFor(7, 'ada@example.com', 'welcome'));
+        $this->assertTrue(KinetixMail::sendFor(null, 'bob@example.com', 'welcome'));
+        $this->assertFalse(KinetixMail::sendFor(7, 'ada@example.com', 'missing'));
+
+        Mail::assertSent(TemplatedMail::class, fn (TemplatedMail $mail): bool => $mail->hasTo('ada@example.com') && $mail->subjectLine === 'Team 7');
+        Mail::assertSent(TemplatedMail::class, fn (TemplatedMail $mail): bool => $mail->hasTo('bob@example.com') && $mail->subjectLine === 'Global');
+    }
+
+    public function test_a_teams_disabled_override_gives_no_mailable_for_that_team(): void
+    {
+        $this->template(null, 'welcome', 'Global');
+        $this->template(7, 'welcome', 'Team 7')->update(['enabled' => false]);
+
+        $this->assertNull(KinetixMail::mailableFor(7, 'welcome'));
+        $this->assertSame('Global', KinetixMail::mailableFor(8, 'welcome')?->subjectLine);
     }
 
     public function test_a_disabled_override_turns_the_mail_off_for_that_team_only(): void

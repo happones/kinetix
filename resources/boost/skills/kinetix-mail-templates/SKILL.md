@@ -46,9 +46,14 @@ use Happones\Kinetix\Mail\KinetixMail;
 
 KinetixMail::send($user->email, 'welcome', ['name' => $user->name]);
 KinetixMail::render('welcome', [...]); // {subject, html} without sending
+KinetixMail::sendFor($order->team_id, $to, 'receipt', [...]); // jobs, console
+KinetixMail::mailableFor($team, 'digest', [...]); // a Mailable, e.g. for toMail()
 ```
 
-`send()` returns false if the template is missing/disabled. Variable values are
+`send()` returns false if the template is missing/disabled. It reads the team
+from the request: outside one (a queued job, a console command) use
+`sendFor($team, ...)`, or the global default goes out instead of the team's
+override. Variable values are
 HTML-escaped in Markdown bodies; HTML templates render as-is; the subject is
 plain text.
 

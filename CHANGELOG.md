@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.226.0] - 2026-10-14
+
+### Added
+
+- **`KinetixMail::sendFor($team, $to, $key, $data)`** sends one team's template
+  (`null`: the global default) whatever team the request serves. `send()` reads
+  the team from the request, so a queued job or a console command always sent
+  the global default, never the team's override.
+- **`KinetixMail::mailableFor($team, $key, $data)`** returns the rendered
+  template as a Mailable, so a notification's `toMail()` can send an editable
+  template and still honor the user's channel preferences.
+- **`KinetixMail::templateFor($team, $key)`**: the team's enabled template.
+
+### Fixed
+
+- The `KinetixMail` class docblock showed `send()`'s arguments in the wrong
+  order.
+
 ## [0.225.0] - 2026-10-14
 
 ### Added
