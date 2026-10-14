@@ -473,6 +473,20 @@ user who can `members.provision` cannot escalate someone to `admin` if `admin`
 is not in `membership.assignable_roles`. It is re-checked at activation time too,
 in case config changed between provisioning and the click.
 
+### Revoking from code
+
+Outside the members screen (an admin panel, a console command, a job), revoke
+with `KinetixMembership::revoke()`. It does what the `DELETE` endpoint does:
+the member's role in the provision's team goes, your `detach_member` callback
+runs, and the provision is kept as `revoked` for the audit trail. It checks no
+ability, so gate it yourself. Revoking a revoked member changes nothing.
+
+```php
+use Happones\Kinetix\Membership\KinetixMembership;
+
+KinetixMembership::revoke($provision);
+```
+
 ---
 
 ## 6. Adapting the starter kit

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Membership\KinetixMembership;
 use Happones\Kinetix\Membership\MemberActivationNotification;
 use Happones\Kinetix\Membership\MemberProvision;
 use Happones\Kinetix\Membership\MemberProvisionStatus;
@@ -196,5 +197,30 @@ class MembershipTest extends TestCase
             'status' => 'revoked',
         ]);
         $this->assertFalse($member->fresh()->hasRole('editor'));
+    }
+
+    public function test_a_member_is_revoked_outside_a_request_and_revoking_twice_changes_nothing(): void
+    {
+        $detached = 0;
+        config()->set('kinetix.membership.detach_member', function () use (&$detached): void {
+            $detached++;
+        });
+
+        $member = MemberUser::create(['name' => 'Member', 'email' => 'member@example.com']);
+        $member->assignRole('editor');
+
+        $provision = MemberProvision::create([
+            'email'   => 'member@example.com',
+            'role'    => 'editor',
+            'status'  => MemberProvisionStatus::Active,
+            'user_id' => $member->id,
+        ]);
+
+        KinetixMembership::revoke($provision);
+        KinetixMembership::revoke($provision->fresh());
+
+        $this->assertSame(MemberProvisionStatus::Revoked, $provision->fresh()->status);
+        $this->assertFalse($member->fresh()->hasRole('editor'));
+        $this->assertSame(1, $detached);
     }
 }

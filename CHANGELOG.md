@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.228.0] - 2026-10-14
+
+### Added
+
+- **`KinetixMembership::revoke($provision)`** revokes a provisioned member
+  outside the members screen (an admin panel, a console command, a job), the
+  same way the `DELETE` endpoint does: the role in the provision's team goes,
+  `detach_member` runs and the provision stays as `revoked`. The endpoint now
+  calls it. Revoking a revoked member changes nothing.
+
 ## [0.227.0] - 2026-10-14
 
 ### Changed

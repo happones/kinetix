@@ -178,6 +178,10 @@ your own** (`php artisan kinetix:routes members` prints the resolved URIs):
 | `PUT` | `{prefix}/members/{provision}` | `members.update` |
 | `DELETE` | `{prefix}/members/{provision}` | `members.revoke` |
 
+Outside the members screen (admin panel, console, job), revoke with
+`KinetixMembership::revoke($provision)`: role removed in the provision's team,
+`detach_member` runs, provision kept as `revoked`. It checks no ability.
+
 Activation endpoints are public but protected by a temporary signed URL (GET shows
 the page, POST completes it — both share the same path so one signature covers both):
 

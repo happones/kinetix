@@ -25,7 +25,6 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Admin-provisioned membership: an admin adds an email + role, the person
@@ -211,25 +210,7 @@ class MembershipController
     {
         Gate::authorize('members.revoke');
 
-        $provision = $this->findProvision($request);
-
-        if ($provision->user_id !== null) {
-            $this->withTeam($provision->team_id, function () use ($provision): void {
-                $user = $this->resolveUser($provision->user_id);
-
-                if ($user !== null && method_exists($user, 'removeRole')) {
-                    $user->removeRole($provision->role);
-                }
-            });
-
-            $detach = ConfigCallback::resolve(config('kinetix.membership.detach_member'));
-
-            if ($detach !== null) {
-                $detach($this->resolveUser($provision->user_id), $provision);
-            }
-        }
-
-        $provision->update(['status' => MemberProvisionStatus::Revoked]);
+        KinetixMembership::revoke($this->findProvision($request));
 
         return response()->json(['status' => 'success']);
     }
@@ -408,41 +389,15 @@ class MembershipController
 
     protected function resolveUser(int|string|null $id): ?Model
     {
-        if ($id === null) {
-            return null;
-        }
-
-        return $this->userModel()::find($id);
+        return KinetixMembership::user($id);
     }
 
     /**
-     * Run a callback with spatie's team id pinned to the provision's team, so
-     * role (un)assignment lands in the right tenant scope, then restore it.
-     *
-     * Keyed off SPATIE's `permission.teams` — that flag alone decides whether
-     * pivot rows carry a team id. Keying off Kinetix's membership flag here
-     * mis-scoped writes when `membership.teams` was off but `permission.teams`
-     * on: the public activation route has no team middleware, so the registrar
-     * value would be stale/undefined and the role landed in the wrong tenant.
+     * Run a callback with spatie's team id pinned to the provision's team.
      */
     protected function withTeam(int|string|null $teamId, callable $callback): void
     {
-        if (! class_exists(PermissionRegistrar::class) || ! (bool) config('permission.teams', false)) {
-            $callback();
-
-            return;
-        }
-
-        $registrar = app(PermissionRegistrar::class);
-        $previous  = $registrar->getPermissionsTeamId();
-
-        $registrar->setPermissionsTeamId($teamId);
-
-        try {
-            $callback();
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-        }
+        KinetixMembership::withTeam($teamId, $callback);
     }
 
     // -----------------------------------------------------------------
