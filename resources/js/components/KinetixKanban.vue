@@ -251,7 +251,7 @@ async function onCardKeyboardMove(
     }
 
     announce(t('kinetix.kanban_moved_to', { column: toCol.label }));
-    await refocusCard(card);
+    await refocusCard(card, toCol.key);
 }
 
 /** Up/down on a reorderable board: one place earlier or later in the column. */
@@ -285,14 +285,23 @@ async function onCardKeyboardReorder(
             total: column.cards.length,
         }),
     );
-    await refocusCard(card);
+    await refocusCard(card, columnKey);
 }
 
-/** The card re-renders in its new place; put focus back on it. */
-async function refocusCard(card: KinetixKanbanCard): Promise<void> {
+/**
+ * The card re-renders in its new place; put focus back on it. Looked up in
+ * its column on this board: the node leaving the old column lingers there
+ * for its leave transition, and another board may show the same record.
+ */
+async function refocusCard(
+    card: KinetixKanbanCard,
+    columnKey: string,
+): Promise<void> {
     await nextTick();
-    document
-        .querySelector<HTMLElement>(`[data-kanban-card="${card.id}"]`)
+    boardEl.value
+        ?.querySelector<HTMLElement>(
+            `[data-kanban-column="${columnKey}"] [data-kanban-card="${card.id}"]`,
+        )
         ?.focus();
 }
 </script>

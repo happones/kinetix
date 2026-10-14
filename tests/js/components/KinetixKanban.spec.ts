@@ -157,6 +157,31 @@ describe('KinetixKanban', () => {
         });
     });
 
+    it('keeps focus on the moved card, not on the node leaving its old column', async () => {
+        const w = mount(KinetixKanban, {
+            props: { kanban },
+            global: { plugins: [i18n] },
+            attachTo: document.body,
+        });
+
+        // The old node lingers in its column for its leave transition.
+        const leaving = document.createElement('article');
+        leaving.dataset.kanbanCard = '1';
+        leaving.tabIndex = 0;
+        w.find('[data-kanban-column="todo"]').element.prepend(leaving);
+
+        await w.findAll('article')[1].trigger('keydown', { key: 'ArrowRight' });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(
+            (document.activeElement as HTMLElement).closest(
+                '[data-kanban-column]',
+            ),
+        ).toBe(w.find('[data-kanban-column="doing"]').element);
+
+        w.unmount();
+    });
+
     it('the left arrow on the first column is a no-op', async () => {
         fetchMock.mockClear();
         const w = mountIt();
