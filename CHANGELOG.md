@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.224.11] - 2026-10-14
+
+### Fixed
+
+- **(published)** Moving a kanban card to another column with the arrow keys
+  lost focus: the board refocused the card's old node, still leaving its
+  column for its transition, so focus fell to the page. Focus now lands on
+  the card in its new column, looked up on that board only, so another board
+  showing the same record can't take it.
+
 ## [0.224.10] - 2026-10-14
 
 ### Fixed
