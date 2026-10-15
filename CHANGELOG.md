@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.237.2] - 2026-10-15
+
+### Fixed
+
+- Docs: an upgrade of Kinetix that changes how pages render kept serving the
+  pages cached by the previous version until each file changed; the page
+  cache is keyed on the installed Kinetix version too.
+- Docs API reference: generated pages could sort before written pages that
+  have no `order`; written pages always come first now.
+
 ## [0.237.1] - 2026-10-15
 
 ### Fixed

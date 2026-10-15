@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Docs;
 
+use Composer\InstalledVersions;
 use Happones\Kinetix\Docs\OpenApi\OpenApiDocument;
 use Happones\Kinetix\Docs\OpenApi\OpenApiMarkdown;
 use Happones\Kinetix\Markdown\FrontMatter;
@@ -13,6 +14,7 @@ use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use OutOfBoundsException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
@@ -326,7 +328,8 @@ class DocsManager
 
         $pages = [...$pages, ...$this->openApiPages($section, $pages, $locale, $fallback)];
 
-        usort($pages, static fn (DocsPage $a, DocsPage $b): int => [$a->order, basename($a->path)] <=> [$b->order, basename($b->path)]);
+        // Generated pages follow the written ones, in their document's order.
+        usort($pages, static fn (DocsPage $a, DocsPage $b): int => [$a->order, $a->openApi, basename($a->path)] <=> [$b->order, $b->openApi, basename($b->path)]);
 
         return $pages;
     }
@@ -408,11 +411,9 @@ class DocsManager
             $pages[] = $page('', (string) ($info['title'] ?? Str::headline($section)), (string) ($info['summary'] ?? ''), PHP_INT_MIN, null);
         }
 
-        $index = 0;
-
         foreach ($document->tags() as $tag) {
             if (! isset($taken[$tag['slug']])) {
-                $pages[] = $page($tag['slug'], $tag['name'], '', 1_000_000 + $index++, $tag['slug']);
+                $pages[] = $page($tag['slug'], $tag['name'], '', PHP_INT_MAX, $tag['slug']);
             }
         }
 
@@ -464,7 +465,9 @@ class DocsManager
             return RenderedMarkdown::fromArray($render());
         }
 
-        $key = sprintf('kinetix.docs.page:%d:%s:%s:%d', static::RENDER_VERSION, md5($page->path.'#'.$page->section.'/'.$page->slug), $page->locale, (int) $page->updatedAt());
+        // Keyed on Kinetix's version too: an upgrade that changes how pages
+        // render must not serve what the previous version cached.
+        $key = sprintf('kinetix.docs.page:%d:%s:%s:%s:%d', static::RENDER_VERSION, $this->kinetixVersion(), md5($page->path.'#'.$page->section.'/'.$page->slug), $page->locale, (int) $page->updatedAt());
 
         /** @var array{html: string, toc: array<int, array{level: int, id: string, text: string}>, text: string} $data */
         $data = $this->cache()->rememberForever($key, $render);
@@ -591,6 +594,15 @@ class DocsManager
         sort($parts);
 
         return $this->fingerprint = md5(implode('|', $parts));
+    }
+
+    protected function kinetixVersion(): string
+    {
+        try {
+            return (string) InstalledVersions::getReference('happones/kinetix');
+        } catch (OutOfBoundsException) {
+            return 'dev';
+        }
     }
 
     protected function cache(): Repository

@@ -202,6 +202,17 @@ class DocsOpenApiTest extends TestCase
         $this->assertSame(1, collect(app(DocsManager::class)->section('reference')->pages)->where('slug', 'products')->count());
     }
 
+    public function test_written_pages_come_before_the_generated_ones(): void
+    {
+        File::ensureDirectoryExists($this->docsPath.'/en/reference');
+        File::put($this->docsPath.'/en/reference/zz-authentication.md', "---\ntitle: Authentication\n---\nTokens.");
+
+        $this->assertSame(
+            ['', 'zz-authentication', 'products', 'other'],
+            array_map(fn ($page) => $page->slug, app(DocsManager::class)->section('reference')->pages),
+        );
+    }
+
     public function test_the_reference_is_searchable(): void
     {
         $products = collect($this->getJson('/docs/search.json')->json('data'))->firstWhere('url', '/docs/reference/products');
