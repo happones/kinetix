@@ -125,8 +125,10 @@ class MediaManager
      * The submitted items safe to store in your own column, when spatie isn't
      * in play: an item already stored ($current, matched by path) keeps its
      * stored data; a new one must be a file the current user uploaded for this
-     * field (their upload directory) that exists. Name, size, mime and URL
-     * come from the disk, never the request. Order follows $items.
+     * field (their upload directory) that exists. URL, size and mime come
+     * from the disk, never the request; the name is only a label, so the
+     * original file name the upload reported is kept (see displayName()).
+     * Order follows $items.
      *
      * @param  array<int, mixed>                $items   submitted, client-controlled
      * @param  array<int, mixed>                $current what the record stores
@@ -157,7 +159,7 @@ class MediaManager
                 $kept[$path] = [
                     'path' => $path,
                     'url'  => $storage->url($path),
-                    'name' => basename($path),
+                    'name' => $this->displayName($item['name'] ?? null, $path),
                     'size' => $storage->size($path),
                     'mime' => $storage->mimeType($path) ?: null,
                 ];
@@ -165,5 +167,17 @@ class MediaManager
         }
 
         return array_values($kept);
+    }
+
+    /**
+     * The label a new item shows: the original file name the upload endpoint
+     * reported (stored files are renamed), reduced to a plain single-line
+     * file name, or the stored file's name.
+     */
+    protected function displayName(mixed $name, string $path): string
+    {
+        $name = is_string($name) ? trim((string) preg_replace('/[\x00-\x1F\x7F]/u', '', basename(str_replace('\\', '/', $name)))) : '';
+
+        return $name === '' ? basename($path) : mb_substr($name, 0, 255);
     }
 }

@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.234.1] - 2026-10-14
+
+### Fixed
+
+- **(published)** A linked infolist text entry (`TextEntry::url()`) showing a
+  long unbroken value, such as a URL, widened the page on a phone. The value
+  now wraps; the gallery's infolist specimen carries one so `npm run
+  audit:mobile` checks it.
+- `KinetixMedia::keep()` labelled a new item with its stored file name (a
+  random hash). It keeps the original file name the upload reported, as a
+  plain single-line label; url, size and mime still come from the disk.
+
 ## [0.234.0] - 2026-10-14
 
 ### Security

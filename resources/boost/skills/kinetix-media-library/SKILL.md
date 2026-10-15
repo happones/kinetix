@@ -52,8 +52,8 @@ $product->gallery = KinetixMedia::keep(
 ```
 
   `keep()` keeps stored items, accepts a new one only from the current user's
-  upload directory for the field when the file exists, and reads url/name/size/
-  mime from the disk.
+  upload directory for the field when the file exists, and reads url/size/mime
+  from the disk (the name stays the upload's original file name, as a label).
 - **spatie/laravel-medialibrary** (record implements `HasMedia`): hydrate +
   persist via the helper:
 

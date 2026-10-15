@@ -380,7 +380,7 @@ const isEmpty = (value: unknown) =>
             <!-- Linked text entry (the link keeps its click; copy sits beside it) -->
             <div
                 v-else-if="entry.type === 'text' && entry.url"
-                class="gap-1 flex items-center"
+                class="gap-1 min-w-0 flex items-center"
             >
                 <a
                     :href="entry.url"
@@ -390,17 +390,20 @@ const isEmpty = (value: unknown) =>
                             ? 'noopener noreferrer'
                             : undefined
                     "
-                    class="gap-1 text-sm font-medium inline-flex w-fit items-center text-info hover:underline"
+                    class="gap-1 text-sm font-medium min-w-0 inline-flex w-fit items-center text-info hover:underline"
                 >
                     <component
                         :is="resolveIcon(entry.icon)"
                         v-if="entry.icon"
-                        class="h-3.5 w-3.5"
+                        class="h-3.5 w-3.5 shrink-0"
                     />
-                    {{ entry.state }}
+                    <!-- A long unbroken value (a URL) wraps instead of widening the page. -->
+                    <span class="min-w-0 [overflow-wrap:anywhere]">{{
+                        entry.state
+                    }}</span>
                     <ExternalLink
                         v-if="entry.openUrlInNewTab"
-                        class="h-3 w-3"
+                        class="h-3 w-3 shrink-0"
                     />
                 </a>
                 <KinetixCopyable

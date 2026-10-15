@@ -1123,6 +1123,16 @@ const infolist = {
                     color: 'success',
                 }),
                 entry({ type: 'text', label: 'Total', state: '$490.00' }),
+                // A long unbroken link must wrap, not push a phone sideways.
+                entry({
+                    type: 'text',
+                    label: 'Invoice',
+                    state: 'https://billing.example.com/invoices/2026/06/order-1042-ada-lovelace-receipt.pdf',
+                    url: 'https://billing.example.com/invoices/2026/06/order-1042-ada-lovelace-receipt.pdf',
+                    openUrlInNewTab: true,
+                    isCopyable: true,
+                    columnSpan: 'full',
+                }),
             ],
         },
     ],

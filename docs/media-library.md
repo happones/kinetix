@@ -77,8 +77,10 @@ $product->gallery = KinetixMedia::keep(
 - an item already stored (matched by `path` in `current`) keeps its stored data;
 - a new item is kept only if it's a file **the current user uploaded** for this
   field (their upload directory) and it exists on the disk;
-- `url`, `name`, `size` and `mime` of a new item are read from the disk, never
-  taken from the request;
+- `url`, `size` and `mime` of a new item are read from the disk, never taken
+  from the request. `name` is only a label: the original file name the upload
+  reported (stored files are renamed), reduced to a plain single-line file
+  name, or the stored name when none was sent;
 - anything else is dropped: another user's upload, a path outside the
   directory, a `..` path, a missing file, a duplicate.
 

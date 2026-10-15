@@ -77,20 +77,22 @@ class MediaLibraryTest extends TestCase
         config()->set('kinetix.filesystem.scope_uploads_by_user', true);
         $this->actingAs(new MediaUser(['id' => 7]));
 
-        $mine    = 'products/'.md5('7').'/mug.jpg';
+        $mine    = 'products/'.md5('7').'/a1B2c3.jpg';
+        $plain   = 'products/'.md5('7').'/d4E5f6.jpg';
         $theirs  = 'products/'.md5('8').'/secret.pdf';
         $outside = 'exports/report.csv';
         $stored  = 'products/'.md5('8').'/kept.jpg';
 
-        foreach ([$mine, $theirs, $outside] as $path) {
+        foreach ([$mine, $plain, $theirs, $outside] as $path) {
             Storage::disk('public')->put($path, 'x');
         }
 
         $kept = KinetixMedia::keep(
             [
                 ['path' => $stored, 'url' => 'https://evil.example/forged'],
-                ['path' => $mine, 'url' => 'javascript:alert(1)', 'name' => 'forged'],
-                ['path' => $mine],
+                ['path' => $mine, 'url' => 'javascript:alert(1)', 'name' => "../photos/My\nmug.jpg"],
+                ['path' => $mine, 'name' => 'duplicate.jpg'],
+                ['path' => $plain],
                 ['path' => $theirs],
                 ['path' => $outside],
                 ['path' => 'products/'.md5('7').'/../../exports/report.csv'],
@@ -100,10 +102,13 @@ class MediaLibraryTest extends TestCase
             directory: 'products',
         );
 
-        $this->assertSame([$stored, $mine], array_column($kept, 'path'));
+        $this->assertSame([$stored, $mine, $plain], array_column($kept, 'path'));
         $this->assertSame('/storage/kept.jpg', $kept[0]['url']);
         $this->assertSame(Storage::disk('public')->url($mine), $kept[1]['url']);
-        $this->assertSame('mug.jpg', $kept[1]['name']);
+        // The name is only a label: the uploaded file's original name, as a
+        // plain single-line file name; the stored name when none was sent.
+        $this->assertSame('Mymug.jpg', $kept[1]['name']);
+        $this->assertSame('d4E5f6.jpg', $kept[2]['name']);
     }
 
     public function test_an_upload_directory_is_the_users_own_unless_scoping_is_off(): void
