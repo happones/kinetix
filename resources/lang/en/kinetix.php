@@ -159,6 +159,8 @@ return [
     'clear_selection'                   => 'Clear selection',
 
     // Billing module
+    'billing_page_title'             => 'Billing',
+    'billing_page_description'       => 'Your plan, payment methods and invoices.',
     'billing_subscription_updated'   => 'Subscription updated successfully.',
     'billing_payment_method_added'   => 'Payment method added successfully.',
     'billing_payment_method_removed' => 'Payment method removed successfully.',

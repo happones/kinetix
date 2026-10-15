@@ -157,6 +157,8 @@ return [
     'only_trashed'                            => 'Только удалённые',
     'selected'                                => 'Выбрано: :count',
     'clear_selection'                         => 'Снять выделение',
+    'billing_page_title'                      => 'Оплата',
+    'billing_page_description'                => 'Ваш тариф, способы оплаты и счета.',
     'billing_subscription_updated'            => 'Подписка обновлена.',
     'billing_payment_method_added'            => 'Способ оплаты добавлен.',
     'billing_payment_method_removed'          => 'Способ оплаты удалён.',

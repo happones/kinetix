@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.241.0] - 2026-10-15
+
+### Added
+
+- **(published)** `<KinetixTable>` takes `heading-level` (1–6, default 3): a
+  page whose content IS the table (a resource index) makes the table's
+  heading its one `<h1>`, the title screen readers jump to — those pages had
+  none.
+- `kinetix:make-resource` scaffolds the index with `:heading-level="1"` and the
+  resource's table with `->heading(static::getNavigationLabel())`.
+
+### Fixed
+
+- The billing page scaffold (`kinetix:make-billing`) has a title: an `<h1>`
+  with `billing_page_title` / `billing_page_description`, in every locale.
+
 ## [0.240.0] - 2026-10-15
 
 ### Added

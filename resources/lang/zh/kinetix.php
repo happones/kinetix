@@ -157,6 +157,8 @@ return [
     'only_trashed'                            => '仅已删除',
     'selected'                                => '已选择 :count 项',
     'clear_selection'                         => '清除选择',
+    'billing_page_title'                      => '账单',
+    'billing_page_description'                => '你的套餐、支付方式和发票。',
     'billing_subscription_updated'            => '订阅更新成功。',
     'billing_payment_method_added'            => '支付方式添加成功。',
     'billing_payment_method_removed'          => '支付方式移除成功。',

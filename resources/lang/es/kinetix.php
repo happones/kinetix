@@ -159,6 +159,8 @@ return [
     'clear_selection'                   => 'Quitar selección',
 
     // Módulo de facturación
+    'billing_page_title'             => 'Facturación',
+    'billing_page_description'       => 'Tu plan, métodos de pago y facturas.',
     'billing_subscription_updated'   => 'Suscripción actualizada correctamente.',
     'billing_payment_method_added'   => 'Método de pago agregado correctamente.',
     'billing_payment_method_removed' => 'Método de pago eliminado correctamente.',

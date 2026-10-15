@@ -22,6 +22,8 @@ class MakeBillingCommandTest extends TestCase
         $this->assertStringContainsString('KinetixPaymentMethods', $contents);
         $this->assertStringContainsString('KinetixUsageMeters', $contents);
         $this->assertStringContainsString('useKinetixBilling', $contents);
+        // The page names itself: one <h1> screen readers jump to.
+        $this->assertStringContainsString("<h1 class=\"text-2xl font-bold tracking-tight\">{{ t('kinetix.billing_page_title') }}</h1>", $contents);
 
         File::deleteDirectory(resource_path('js/pages/Billing'));
     }

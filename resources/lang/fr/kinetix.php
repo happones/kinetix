@@ -159,6 +159,8 @@ return [
     'clear_selection'                   => 'Effacer la sélection',
 
     // Module de facturation
+    'billing_page_title'             => 'Facturation',
+    'billing_page_description'       => 'Votre forfait, vos moyens de paiement et vos factures.',
     'billing_subscription_updated'   => 'Abonnement mis à jour avec succès.',
     'billing_payment_method_added'   => 'Moyen de paiement ajouté avec succès.',
     'billing_payment_method_removed' => 'Moyen de paiement supprimé avec succès.',

@@ -58,6 +58,7 @@ class MakeBillingCommand extends Command
         $template = <<<'VUE'
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import KinetixPricingTable from '@/components/kinetix/KinetixPricingTable.vue';
 import KinetixPaymentMethods from '@/components/kinetix/KinetixPaymentMethods.vue';
 import KinetixSubscriptionStatus from '@/components/kinetix/KinetixSubscriptionStatus.vue';
@@ -99,6 +100,8 @@ const props = withDefaults(
 // Optional dot-path -> label map for capability rows (customise per app).
 const featureLabels: Record<string, string> = {};
 
+const { t } = useI18n();
+
 const cycle = ref<'monthly' | 'yearly'>('monthly');
 const selectedPaymentMethodId = ref<string>(
   props.defaultPaymentMethodId
@@ -126,6 +129,11 @@ const subscribe = (plan: KinetixPlanData) => {
 
 <template>
   <div class="mx-auto max-w-7xl space-y-10 p-8">
+    <header class="space-y-1">
+      <h1 class="text-2xl font-bold tracking-tight">{{ t('kinetix.billing_page_title') }}</h1>
+      <p class="text-sm text-muted-foreground">{{ t('kinetix.billing_page_description') }}</p>
+    </header>
+
     <KinetixPricingTable
       :plans="plans"
       :current-plan-slug="currentPlan?.slug ?? null"

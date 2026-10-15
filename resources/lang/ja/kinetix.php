@@ -157,6 +157,8 @@ return [
     'only_trashed'                            => '削除済みのみ',
     'selected'                                => ':count 件選択中',
     'clear_selection'                         => '選択を解除',
+    'billing_page_title'                      => '請求',
+    'billing_page_description'                => 'プラン、支払い方法、請求書。',
     'billing_subscription_updated'            => 'サブスクリプションを更新しました。',
     'billing_payment_method_added'            => '支払い方法を追加しました。',
     'billing_payment_method_removed'          => '支払い方法を削除しました。',
