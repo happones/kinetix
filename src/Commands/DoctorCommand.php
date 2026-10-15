@@ -69,6 +69,7 @@ class DoctorCommand extends Command
         $this->checkTenantColumns();
         $this->checkGlobalData();
         $this->checkFrontend();
+        $this->checkTheme();
 
         $errors   = $this->countLevel('error');
         $warnings = $this->countLevel('warning');
@@ -468,8 +469,12 @@ class DoctorCommand extends Command
      */
     protected function passwordMiddlewareIsApplied(): bool
     {
+        $router = app('router');
+
         foreach (Route::getRoutes()->getRoutes() as $route) {
-            foreach ($route->gatherMiddleware() as $middleware) {
+            // Resolved: groups expand to their members and aliases to their
+            // classes, so one appended to `web` (as the docs advise) counts.
+            foreach ($router->gatherRouteMiddleware($route) as $middleware) {
                 if (! is_string($middleware)) {
                     continue;
                 }
@@ -905,6 +910,32 @@ class DoctorCommand extends Command
         }
 
         $this->warn_('Publishes', count($drifted).' published file(s) have local edits', $hint, $drifted);
+    }
+
+    /**
+     * The status colors badges, alerts and action colors use: without them
+     * Tailwind generates no `*-success` / `*-warning` / `*-info` utility,
+     * and those surfaces render colorless — nothing errors.
+     */
+    protected function checkTheme(): void
+    {
+        $path = resource_path('css/app.css');
+
+        if (! File::exists($path)) {
+            return;
+        }
+
+        $css = (string) File::get($path);
+
+        if (str_contains($css, '--color-success') || str_contains($css, 'kinetix.css')) {
+            $this->ok('Theme', 'status tokens (success · warning · info) mapped');
+
+            return;
+        }
+
+        $this->warn_('Theme', 'resources/css/app.css maps no status tokens (success · warning · info)',
+            'Badges, alerts, stat chips and action colors render without their color. Copy them into app.css from '
+            .'the docs (Installation → Theming → Status tokens); a new install gets them from kinetix:install.');
     }
 
     // --------------------------------------------------------------- output

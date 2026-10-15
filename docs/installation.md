@@ -432,7 +432,10 @@ shadcn ships `destructive` but no success/warning/info colors, so Kinetix adds
 three themeable tokens used by badges, stat chips, alerts, modals,
 notifications and action colors. If your app defines its own tokens but not
 these three, add them, and map them in `@theme` so Tailwind generates the
-`*-success` / `*-warning` / `*-info` utilities:
+`*-success` / `*-warning` / `*-info` utilities. `kinetix:install` appends this
+block to `resources/css/app.css` when it maps none of them, and
+`kinetix:doctor` warns when they are missing — without them those surfaces
+render colorless and nothing errors:
 
 ```css
 :root {
@@ -775,6 +778,10 @@ php artisan kinetix:doctor --json   # machine-readable, full lists
 
   2 error(s), 4 warning(s).
 ```
+
+It also checks that `resources/css/app.css` maps the
+[status tokens](#theming), and finds middleware
+appended to a group (`web`), as the docs advise, not only on a route.
 
 Because it exits non-zero on errors it works as a deploy gate (`php artisan
 kinetix:doctor && php artisan migrate --force`). Warnings never fail the command.

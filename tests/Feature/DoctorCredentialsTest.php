@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Credentials\Middleware\EnsurePasswordIsCurrent;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -63,6 +64,23 @@ class DoctorCredentialsTest extends TestCase
 
         $this->artisan('kinetix:doctor')
             ->expectsOutputToContain('nobody is ever asked to change theirs')
+            ->assertSuccessful();
+    }
+
+    public function test_the_middleware_appended_to_a_group_counts(): void
+    {
+        $this->usersTable();
+        config()->set('kinetix.credentials.passwords.expires_after_days', 90);
+
+        // What the docs advise: append it to `web`, which routes name only by
+        // the group.
+        $router = $this->app['router'];
+        $router->pushMiddlewareToGroup('web', EnsurePasswordIsCurrent::class);
+        $router->middleware('web')->get('/_doctor/dashboard', fn () => 'ok');
+        $router->getRoutes()->refreshNameLookups();
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('nobody is ever asked to change theirs')
             ->assertSuccessful();
     }
 

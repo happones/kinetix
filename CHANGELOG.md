@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.232.0] - 2026-10-14
+
+### Added
+
+- **`kinetix:install` adds the status tokens** (success · warning · info, both
+  themes, mapped in `@theme`) to `resources/css/app.css` when it maps none of
+  them. Badges, alerts, stat chips, modals and action colors use them, and
+  without the mapping Tailwind generates no `bg-success` / `text-warning`:
+  those surfaces rendered colorless with no error. Idempotent.
+- **`kinetix:doctor` warns when `app.css` maps no status tokens.**
+
+### Fixed
+
+- **`kinetix:doctor` missed middleware appended to a group.** It read each
+  route's middleware without expanding groups, so the password middleware
+  appended to `web`, as the docs advise, was reported as applied nowhere.
+
 ## [0.231.1] - 2026-10-14
 
 ### Fixed

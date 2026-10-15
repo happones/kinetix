@@ -264,4 +264,24 @@ class DoctorCommandTest extends TestCase
         $this->assertStringContainsString('registerIcons', $output);
         $this->assertStringContainsString('app.ts', $output);
     }
+
+    public function test_a_stylesheet_without_the_status_tokens_is_a_warning(): void
+    {
+        File::ensureDirectoryExists(resource_path('css'));
+        File::put(resource_path('css/app.css'), "@import 'tailwindcss';\n");
+
+        try {
+            $this->artisan('kinetix:doctor')
+                ->expectsOutputToContain('maps no status tokens')
+                ->assertSuccessful();
+
+            File::put(resource_path('css/app.css'), "@import 'tailwindcss';\n@theme inline { --color-success: hsl(var(--success)); }\n");
+
+            $this->artisan('kinetix:doctor')
+                ->expectsOutputToContain('status tokens (success · warning · info) mapped')
+                ->assertSuccessful();
+        } finally {
+            File::delete(resource_path('css/app.css'));
+        }
+    }
 }

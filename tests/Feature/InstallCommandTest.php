@@ -278,6 +278,33 @@ JS);
         $this->assertSame(1, substr_count(File::get($this->base.'/resources/css/app.css'), 'vue-sonner/style.css'));
     }
 
+    public function test_the_status_tokens_are_added_once_to_a_stylesheet_that_maps_none(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "@import 'tailwindcss';\n\n:root { --primary: red; }\n");
+
+        $this->runInstaller();
+        $this->runInstaller();
+
+        $css = File::get($this->base.'/resources/css/app.css');
+
+        $this->assertSame(1, substr_count($css, '--color-success: hsl(var(--success));'));
+        $this->assertStringContainsString('--info-foreground: 204 80% 16%;', $css);
+        $this->assertStringContainsString(':root { --primary: red; }', $css);
+    }
+
+    public function test_a_stylesheet_that_already_maps_its_status_colors_is_left_alone(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "@import 'tailwindcss';\n@theme { --color-success: green; }\n");
+
+        $this->runInstaller();
+
+        $this->assertStringNotContainsString('hsl(var(--success))', File::get($this->base.'/resources/css/app.css'));
+    }
+
     public function test_a_stylesheet_with_no_imports_gets_the_import_at_the_top(): void
     {
         $this->seedEntryFile('ts');

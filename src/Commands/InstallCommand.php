@@ -258,6 +258,7 @@ JS;
 
         $this->registerUpgradeHook();
         $this->ensureSonnerStylesheet();
+        $this->ensureStatusTokens();
         $this->protectPublishedPathsFromFormatters();
         $this->gitignoreGeneratedOutput();
 
@@ -459,6 +460,72 @@ JS;
 
         $this->info("Added `@import 'vue-sonner/style.css';` to resources/css/app.css (toast container/animation styles).");
     }
+
+    /**
+     * Kinetix's status colors (success · warning · info), which shadcn
+     * doesn't ship: badges, alerts, stat chips, modals, notifications and
+     * action colors use them, and without the `@theme` mapping Tailwind
+     * generates no `bg-success` / `text-warning` / `border-info` at all.
+     * Appended to the host's stylesheet when it maps none of them (an app on
+     * kinetix.css already has them). Idempotent.
+     */
+    protected function ensureStatusTokens(): void
+    {
+        $path = resource_path('css/app.css');
+
+        if (! File::exists($path)) {
+            return;
+        }
+
+        $existing = (string) File::get($path);
+
+        if (str_contains($existing, '--color-success') || str_contains($existing, 'kinetix.css')) {
+            return;
+        }
+
+        File::put($path, rtrim($existing).'
+
+'.self::STATUS_TOKENS);
+
+        $this->info('Added the Kinetix status tokens (success · warning · info) to resources/css/app.css.');
+    }
+
+    /**
+     * The status tokens, AA in both themes: as text on the page, on their own
+     * 10% tint (badges) and as a fill under their `-foreground`.
+     */
+    protected const STATUS_TOKENS = <<<'CSS'
+        /* Kinetix status colors (success · warning · info): badges, alerts, stat
+           chips, modals and action colors. Re-skin them here, checking 4.5:1 in
+           both themes. */
+        :root {
+            --success: 142 72% 27%;
+            --success-foreground: 0 0% 100%;
+            --warning: 26 90% 33%;
+            --warning-foreground: 0 0% 100%;
+            --info: 201 96% 32%;
+            --info-foreground: 0 0% 100%;
+        }
+
+        .dark {
+            --success: 142 69% 58%;
+            --success-foreground: 142 80% 10%;
+            --warning: 43 96% 56%;
+            --warning-foreground: 26 83% 14%;
+            --info: 198 93% 60%;
+            --info-foreground: 204 80% 16%;
+        }
+
+        @theme inline {
+            --color-success: hsl(var(--success));
+            --color-success-foreground: hsl(var(--success-foreground));
+            --color-warning: hsl(var(--warning));
+            --color-warning-foreground: hsl(var(--warning-foreground));
+            --color-info: hsl(var(--info));
+            --color-info-foreground: hsl(var(--info-foreground));
+        }
+
+        CSS;
 
     /**
      * Wire `kinetix:upgrade` into composer's post-autoload-dump so published
