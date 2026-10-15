@@ -53,8 +53,12 @@ class CommentController
         ], 201);
     }
 
-    public function update(Request $request, int|string $comment): JsonResponse
+    public function update(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the comment.
+        $comment = (string) $request->route('comment');
+
         $user  = $this->user($request);
         $model = $this->ownComment($user, $comment);
 
@@ -65,8 +69,12 @@ class CommentController
         return response()->json(['status' => 'success']);
     }
 
-    public function destroy(Request $request, int|string $comment): JsonResponse
+    public function destroy(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the comment.
+        $comment = (string) $request->route('comment');
+
         $user  = $this->user($request);
         $model = $this->ownComment($user, $comment);
 

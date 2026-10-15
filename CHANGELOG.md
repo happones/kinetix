@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.233.1] - 2026-10-14
+
+### Fixed
+
+- **Several endpoints read the team as their route parameter.** Laravel hands
+  a controller its route parameters by position, and under the team prefix
+  every Kinetix route gains a leading `{current_team}`. Controllers declaring
+  the parameter in their signature got the team instead:
+  - editing, deleting or making default a saved view, and editing or deleting
+    a comment, answered 404;
+  - restoring a dismissal restored the key named after the team;
+  - unlinking a connected account looked up the team's slug, and the link
+    redirect and callback read the team as the provider;
+  - a wizard's status and `complete` endpoints worked on a wizard named after
+    the team, so `<KinetixWizard slug=...>` never opened its gate.
+
+  Every controller now reads its route parameters by name. A test fails the
+  build if a controller declares one positionally again.
+
 ## [0.233.0] - 2026-10-14
 
 ### Added

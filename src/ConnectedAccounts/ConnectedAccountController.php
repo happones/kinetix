@@ -54,8 +54,12 @@ class ConnectedAccountController
     /**
      * Start the OAuth round-trip to link a provider to the current user.
      */
-    public function redirect(Request $request, string $provider): SymfonyRedirect
+    public function redirect(Request $request): SymfonyRedirect
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the provider.
+        $provider = (string) $request->route('provider');
+
         $this->user($request);
         $this->ensureProvider($provider);
 
@@ -68,8 +72,12 @@ class ConnectedAccountController
     /**
      * Link callback: attach the provider identity to the current user.
      */
-    public function callback(Request $request, string $provider): RedirectResponse
+    public function callback(Request $request): RedirectResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the provider.
+        $provider = (string) $request->route('provider');
+
         $user = $this->user($request);
         $this->ensureProvider($provider);
 
@@ -96,8 +104,12 @@ class ConnectedAccountController
     /**
      * Start the OAuth round-trip for guest login/registration (opt-in).
      */
-    public function loginRedirect(string $provider): SymfonyRedirect
+    public function loginRedirect(Request $request): SymfonyRedirect
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the provider.
+        $provider = (string) $request->route('provider');
+
         $this->ensureLoginEnabled();
         $this->ensureProvider($provider);
 
@@ -107,8 +119,12 @@ class ConnectedAccountController
     /**
      * Login callback: find-or-create the user, link the identity, log in.
      */
-    public function loginCallback(Request $request, string $provider): RedirectResponse
+    public function loginCallback(Request $request): RedirectResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the provider.
+        $provider = (string) $request->route('provider');
+
         $this->ensureLoginEnabled();
         $this->ensureProvider($provider);
 
@@ -158,8 +174,12 @@ class ConnectedAccountController
     /**
      * Unlink one of the current user's accounts.
      */
-    public function destroy(Request $request, int|string $account): JsonResponse
+    public function destroy(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the account.
+        $account = (string) $request->route('account');
+
         $this->manager->unlink($this->user($request), $account);
 
         return response()->json(['status' => 'success']);

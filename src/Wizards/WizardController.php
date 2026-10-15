@@ -17,16 +17,24 @@ class WizardController
 {
     public function __construct(protected WizardManager $manager) {}
 
-    public function status(Request $request, string $slug): JsonResponse
+    public function status(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the slug.
+        $slug = (string) $request->route('slug');
+
         return response()->json([
             'slug'      => $slug,
             'completed' => $this->manager->hasCompleted($this->user($request), $slug),
         ]);
     }
 
-    public function complete(Request $request, string $slug): JsonResponse
+    public function complete(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the slug.
+        $slug = (string) $request->route('slug');
+
         // A gate your data decides isn't opened by asking: save the data.
         abort_if($this->manager->completesFromData($slug), 403, __('kinetix.wizard_completes_from_data'));
 

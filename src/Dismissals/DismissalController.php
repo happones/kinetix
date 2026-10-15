@@ -33,8 +33,12 @@ class DismissalController
         return response()->json(['dismissed' => true]);
     }
 
-    public function destroy(Request $request, string $key): JsonResponse
+    public function destroy(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the key.
+        $key = (string) $request->route('key');
+
         abort_unless(preg_match(KinetixDismissals::KEY_PATTERN, $key) === 1, 404);
 
         KinetixDismissals::restore($this->user($request), $key);

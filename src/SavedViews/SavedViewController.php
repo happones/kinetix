@@ -51,8 +51,12 @@ class SavedViewController
         ], 201);
     }
 
-    public function update(Request $request, int|string $view): JsonResponse
+    public function update(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the view.
+        $view = (string) $request->route('view');
+
         $user  = $this->user($request);
         $model = $this->owned($user, $view);
 
@@ -68,8 +72,12 @@ class SavedViewController
         ]);
     }
 
-    public function destroy(Request $request, int|string $view): JsonResponse
+    public function destroy(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the view.
+        $view = (string) $request->route('view');
+
         $user  = $this->user($request);
         $model = $this->owned($user, $view);
         $key   = $model->view_key;
@@ -81,8 +89,12 @@ class SavedViewController
         ]);
     }
 
-    public function makeDefault(Request $request, int|string $view): JsonResponse
+    public function makeDefault(Request $request): JsonResponse
     {
+        // By name: under the team prefix (`{current_team}`) a positional
+        // argument would receive the team, not the view.
+        $view = (string) $request->route('view');
+
         $user  = $this->user($request);
         $model = $this->owned($user, $view);
 
