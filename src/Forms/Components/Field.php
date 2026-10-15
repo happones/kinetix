@@ -596,6 +596,8 @@ abstract class Field extends Component
             showToday: (bool) ($this->dateConfig()['showToday'] ?? false),
             closeOnSelect: (bool) ($this->dateConfig()['closeOnSelect'] ?? true),
             timezone: $this->dateConfig()['timezone'] ?? null,
+            typed: (bool) ($this->dateConfig()['typed'] ?? false),
+            inputFormat: $this->dateConfig()['inputFormat'] ?? null,
             isRequired: in_array('required', $rules, true),
             minValue: $this->minValue,
             maxValue: $this->maxValue,
@@ -612,7 +614,7 @@ abstract class Field extends Component
      * Date/DateTime picker configuration. Overridden by DatePicker/DateTimePicker/
      * TimePicker, which add the optional behavior keys.
      *
-     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm?: bool, showToday?: bool, closeOnSelect?: bool, timezone?: string}
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm?: bool, showToday?: bool, closeOnSelect?: bool, timezone?: string, typed?: bool, inputFormat?: ?string}
      */
     protected function dateConfig(): array
     {

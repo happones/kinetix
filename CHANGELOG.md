@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.239.0] - 2026-10-15
+
+### Added
+
+- **(published)** Typed date and time input: `->typed('dd/mm/yyyy')` on
+  `DatePicker`, `DateTimePicker`, `TimePicker` and `MonthPicker` turns the
+  trigger into a masked text input the reader types into — separators
+  inserted as they go, the picker on a button to its right. Any order and
+  separator (`mm/dd/yyyy`, `yyyy-mm-dd`, `dd.mm.yy`, `dd/mm/yyyy HH:mm`,
+  `hh:mm a`, `mm/yyyy`); `->typed()` alone follows the reader's locale order
+  and the field's clock. The stored value stays ISO. A date that doesn't
+  exist, one outside the bounds, and a half-typed value each get a message
+  under the field, and leave the field `null` meanwhile; a format missing a
+  part throws where it's written. New components
+  `<KinetixMaskedDateInput>` and `<KinetixTypedPickerTrigger>`, and
+  `typed` / `input-format` props on the four pickers. New translation keys
+  `pick_date_time` and `date_mask_*` in every locale.
+
+### Changed
+
+- **(published)** The date, date-time, time and month pickers pass the
+  field's `aria-describedby` / `aria-invalid` to the control their label
+  points at; the popover root renders no element, so they were dropped
+  before.
+- **(published)** `<KinetixDateTimePicker>` takes `min-value` / `max-value`,
+  and its calendar honours the date part — the form field passes the bounds
+  it already worked out from the rules.
+
 ## [0.238.0] - 2026-10-15
 
 ### Added

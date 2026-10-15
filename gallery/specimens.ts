@@ -334,6 +334,7 @@ import KinetixRatingWidget from '@/components/KinetixRatingWidget.vue';
 import KinetixProgressWidget from '@/components/KinetixProgressWidget.vue';
 import KinetixHeroWidget from '@/components/KinetixHeroWidget.vue';
 import KinetixRangeCalendar from '@/components/KinetixRangeCalendar.vue';
+import KinetixDatePicker from '@/components/KinetixDatePicker.vue';
 import KinetixDateTimePicker from '@/components/KinetixDateTimePicker.vue';
 import KinetixTimePicker from '@/components/KinetixTimePicker.vue';
 import KinetixMonthPicker from '@/components/KinetixMonthPicker.vue';
@@ -2524,6 +2525,31 @@ export const specimens: Specimen[] = [
         width: 760,
         openSelector: '#specimen button',
         props: { value: '2026-06-15T14:30', minuteStep: 30 },
+    },
+    {
+        name: 'typed-date-picker',
+        title: 'Typed date picker (open)',
+        component: KinetixDatePicker,
+        width: 340,
+        openSelector: '#specimen button',
+        props: {
+            id: 'born_on',
+            typed: true,
+            inputFormat: 'dd/mm/yyyy',
+            value: '2026-06-15',
+        },
+    },
+    {
+        name: 'typed-datetime-picker',
+        title: 'Typed date-time picker, 12-hour',
+        component: KinetixDateTimePicker,
+        width: 360,
+        props: {
+            typed: true,
+            hour12: true,
+            locale: 'en-US',
+            value: '2026-06-15T19:05',
+        },
     },
     {
         name: 'month-picker',

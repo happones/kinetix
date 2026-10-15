@@ -855,6 +855,7 @@ DateTimePicker::make('scheduled_at')
 | `->confirm()` | both | Explicit-commit variant: clicks build a **draft** inside the popover, the footer button becomes **Apply** (the only thing that emits), and dismissing any other way (outside click / Escape) discards the draft |
 | `->todayButton()` | DatePicker | Show a **Today** shortcut in a popover footer |
 | `->closeOnSelect(bool)` | DatePicker | Whether picking a date closes the popover (default `true` — the shadcn behavior); pass `false` to keep it open |
+| `->typed()` / `->typed(string $format)` | both (+ TimePicker, MonthPicker) | Type the value on the keyboard over a mask, the picker on a button to the right — see [Typed input](#typed-input-keyboard-entry-over-a-mask) |
 
 #### Timezones: `app.timezone` by default, per-field override
 
@@ -886,6 +887,66 @@ too.
 > `app.timezone`, convert on save
 > (`Carbon::parse($value, 'Asia/Tokyo')->setTimezone(config('app.timezone'))`).
 > The pickers deliberately do **not** silently convert values between zones.
+
+#### Typed input: keyboard entry over a mask
+
+For people who capture dates all day, clicking through a calendar is the slow
+path. `->typed()` turns the trigger into a **masked text input**: the reader
+types digits, the separators of the format appear as they go, and the
+calendar (or clock, or month grid) stays one click away on a button to the
+right. It works on `DatePicker`, `DateTimePicker`, `TimePicker` and
+`MonthPicker`.
+
+```php
+DatePicker::make('born_on')->typed('dd/mm/yyyy');              // 15/03/2026
+DatePicker::make('invoiced_on')->typed('mm/dd/yyyy');          // 03/15/2026
+DatePicker::make('shipped_on')->typed('yyyy-mm-dd');           // 2026-03-15
+DateTimePicker::make('starts_at')->typed('dd/mm/yyyy HH:mm');  // 15/03/2026 19:05
+DateTimePicker::make('starts_at')->twelveHour()->typed();      // locale order, 12h clock
+TimePicker::make('opens_at')->typed('hh:mm a');                // 07:05 PM
+MonthPicker::make('period')->typed('mm/yyyy');                 // 03/2026
+DatePicker::make('born_on')->typed();                          // the reader's locale order
+```
+
+| Token | Means |
+|---|---|
+| `dd` | Day, two digits |
+| `mm` | Month in the date part, **minutes** in the time part |
+| `yyyy` / `yy` | Year, four or two digits (`yy` reads as 20yy) |
+| `HH` / `hh` | Hour on a 24-hour / 12-hour clock |
+| `a` | AM/PM — typed as `a` or `p` |
+| anything else | A separator, inserted for the reader |
+
+The time part starts at the first space or at the first hour token, so
+`dd/mm/yyyy HH:mm` reads its second `mm` as minutes.
+
+- **The stored value doesn't change.** Whatever the format, the field still
+  holds the ISO value (`Y-m-d`, `Y-m-dTH:i`, `H:i`, `Y-m`), so your
+  validation rules and casts are the same as without `->typed()`.
+- **No format = the reader's locale order.** `->typed()` alone follows the
+  field's locale (`dd/mm/yyyy` for `es-MX`, `mm/dd/yyyy` for `en-US`,
+  `dd.mm.yyyy` for `de-DE`); the time part follows the field's clock
+  (`->twelveHour()`), not the locale's.
+- **Typing helps.** A first digit no two-digit value can start with is padded
+  (`4` in the day becomes `04/`), letters are ignored, and AM/PM is filled
+  from `a` or `p`. On phones the keypad is numeric unless the format has an
+  AM/PM part.
+- **It says what's wrong, under the field.** A date that doesn't exist
+  (`31/02/2026`), a time that doesn't (`25:00`), a date outside
+  `minValue()`/`maxValue()` or the rules' bounds (`after:today`), and — on
+  leaving the input — a half-typed value each get a message. While the text
+  isn't a usable value, the field holds `null`, so a stale value never submits
+  behind what the reader sees; a `required` rule catches it.
+- **A format that can't be filled is refused where you write it.**
+  `DatePicker::make('d')->typed('dd/mm')` throws an
+  `InvalidArgumentException` naming the missing part, as does `hh` without
+  `a`.
+
+The standalone Vue components take the same option as props:
+`<KinetixDatePicker typed input-format="dd/mm/yyyy" />` (and on
+`KinetixDateTimePicker`, `KinetixTimePicker`, `KinetixMonthPicker`). The mask
+on its own is `<KinetixMaskedDateInput kind="date" format="dd/mm/yyyy"
+v-model:value="date" />`, with a `button` slot for whatever goes on its right.
 
 #### Close behavior & the footer, by design
 

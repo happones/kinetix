@@ -20,6 +20,12 @@ export const i18n = createI18n({
                 // pickers & preview
                 pick_date: 'Pick a date',
                 datetime_placeholder: 'MM/DD/YYYY hh:mm',
+                pick_date_time: 'Pick a date and time',
+                date_mask_invalid: "That date doesn't exist.",
+                date_mask_time_invalid: "That time doesn't exist.",
+                date_mask_incomplete: 'Finish typing it as {format}.',
+                date_mask_range: 'That date is outside the allowed range.',
+                date_mask_format: 'Type it as {format}.',
                 download: 'Download',
                 preview_unavailable:
                     'Preview not available for this file type.',

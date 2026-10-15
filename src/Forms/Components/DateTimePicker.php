@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use Happones\Kinetix\Forms\Components\Concerns\CanBeTyped;
 use Happones\Kinetix\Support\KinetixLocale;
 
 class DateTimePicker extends Field
 {
+    use CanBeTyped;
+
     protected bool $useCalendar = true;
 
     protected ?string $dateLocale = null;
@@ -88,8 +91,13 @@ class DateTimePicker extends Field
         return $this;
     }
 
+    protected function typedKind(): string
+    {
+        return 'datetime';
+    }
+
     /**
-     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, timezone: string}
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, timezone: string, typed: bool, inputFormat: ?string}
      */
     protected function dateConfig(): array
     {
@@ -100,6 +108,7 @@ class DateTimePicker extends Field
             'hour12'      => $this->hour12,
             'confirm'     => $this->confirm,
             'timezone'    => $this->pickerTimezone ?? (string) config('app.timezone', 'UTC'),
+            ...$this->typedConfig(),
         ];
     }
 }

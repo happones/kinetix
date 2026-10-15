@@ -12,6 +12,7 @@ use Happones\Kinetix\Forms\Components\TimePicker;
 use Happones\Kinetix\Forms\Components\WeekPicker;
 use Happones\Kinetix\Forms\Components\YearPicker;
 use Happones\Kinetix\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * The v0.141.0 picker variants must survive serialization: `confirm`,
@@ -121,5 +122,46 @@ class PickerConfigTest extends TestCase
         $this->assertTrue($datetime->confirm);
         $this->assertTrue($time->confirm);
         $this->assertFalse(DateTimePicker::make('x')->toData('create')?->confirm);
+    }
+
+    public function test_pickers_serialize_the_typed_input_and_its_format(): void
+    {
+        $date     = DatePicker::make('starts_on')->typed('dd/mm/yyyy')->toData('create');
+        $datetime = DateTimePicker::make('scheduled_at')->typed('mm/dd/yyyy hh:mm a')->toData('create');
+        $time     = TimePicker::make('opens_at')->typed()->toData('create');
+        $month    = MonthPicker::make('period')->typed('yyyy-mm')->toData('create');
+
+        $this->assertTrue($date?->typed);
+        $this->assertSame('dd/mm/yyyy', $date->inputFormat);
+        $this->assertSame('mm/dd/yyyy hh:mm a', $datetime?->inputFormat);
+        $this->assertTrue($time?->typed);
+        $this->assertNull($time->inputFormat);
+        $this->assertSame('yyyy-mm', $month?->inputFormat);
+
+        $this->assertFalse(DatePicker::make('x')->toData('create')?->typed);
+        $this->assertFalse(DatePicker::make('x')->typed('dd/mm/yyyy')->typed(false)->toData('create')?->typed);
+    }
+
+    /**
+     * @return array<string, array{0: \Closure(): mixed, 1: string}>
+     */
+    public static function unfillableFormats(): array
+    {
+        return [
+            'date without a year'      => [fn () => DatePicker::make('d')->typed('dd/mm'), 'year'],
+            'month without a month'    => [fn () => MonthPicker::make('m')->typed('yyyy'), 'mm'],
+            'time without minutes'     => [fn () => TimePicker::make('t')->typed('HH'), 'mm'],
+            'datetime without a time'  => [fn () => DateTimePicker::make('dt')->typed('dd/mm/yyyy'), 'hour'],
+            '12-hour clock without am' => [fn () => TimePicker::make('t')->typed('hh:mm'), 'AM/PM'],
+        ];
+    }
+
+    #[DataProvider('unfillableFormats')]
+    public function test_a_typed_format_missing_a_part_is_refused_where_it_is_written(\Closure $build, string $missing): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage($missing);
+
+        $build();
     }
 }

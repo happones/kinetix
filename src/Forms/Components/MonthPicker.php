@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use Happones\Kinetix\Forms\Components\Concerns\CanBeTyped;
 use Happones\Kinetix\Support\KinetixLocale;
 
 /**
@@ -13,6 +14,8 @@ use Happones\Kinetix\Support\KinetixLocale;
  */
 class MonthPicker extends Field
 {
+    use CanBeTyped;
+
     protected bool $useCalendar = true;
 
     protected ?string $dateLocale = null;
@@ -93,8 +96,13 @@ class MonthPicker extends Field
         return $this;
     }
 
+    protected function typedKind(): string
+    {
+        return 'month';
+    }
+
     /**
-     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, showToday: bool, closeOnSelect: bool, timezone: string}
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, showToday: bool, closeOnSelect: bool, timezone: string, typed: bool, inputFormat: ?string}
      */
     protected function dateConfig(): array
     {
@@ -107,6 +115,7 @@ class MonthPicker extends Field
             'showToday'     => $this->showToday,
             'closeOnSelect' => $this->closeOnSelect,
             'timezone'      => $this->pickerTimezone ?? (string) config('app.timezone', 'UTC'),
+            ...$this->typedConfig(),
         ];
     }
 }

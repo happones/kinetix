@@ -16,6 +16,7 @@ import {
 } from '@/composables/useKinetixTimezone';
 import KinetixButton from './KinetixButton.vue';
 import KinetixCalendar from './KinetixCalendar.vue';
+import KinetixTypedPickerTrigger from './KinetixTypedPickerTrigger.vue';
 import { cn } from './primitives/cn';
 import ScrollArea from './primitives/ScrollArea.vue';
 
@@ -38,6 +39,16 @@ const props = withDefaults(
         value?: string | null;
         /** Render a plain native <input type="datetime-local"> instead. */
         native?: boolean;
+        /**
+         * Type the date and time on the keyboard over a mask, with the
+         * picker on a button to the right.
+         */
+        typed?: boolean;
+        /** The typed mask's format (`dd/mm/yyyy HH:mm`); null = the locale's. */
+        inputFormat?: string | null;
+        /** Bounds, as 'Y-m-d' or 'Y-m-dTH:i'; the calendar honours the date. */
+        minValue?: string | null;
+        maxValue?: string | null;
         /** Use a 12-hour clock with an AM/PM column instead of 24-hour. */
         hour12?: boolean;
         disabled?: boolean;
@@ -57,6 +68,10 @@ const props = withDefaults(
     {
         value: null,
         native: false,
+        typed: false,
+        inputFormat: null,
+        minValue: null,
+        maxValue: null,
         hour12: false,
         disabled: false,
         placeholder: null,
@@ -70,6 +85,10 @@ const props = withDefaults(
 const emit = defineEmits<{
     (e: 'update:value', value: string | null): void;
 }>();
+
+// The field's wiring (`aria-describedby`, `aria-invalid`) goes on the control
+// the label points at — the popover root renders no element of its own.
+defineOptions({ inheritAttrs: false });
 
 const open = ref(false);
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -277,6 +296,7 @@ watch(open, (isOpen) => {
 
 <template>
     <input
+        v-bind="$attrs"
         :id="id"
         v-if="native"
         type="datetime-local"
@@ -291,11 +311,26 @@ watch(open, (isOpen) => {
     />
 
     <PopoverRoot v-else v-model:open="open">
+        <KinetixTypedPickerTrigger
+            v-if="typed"
+            v-bind="$attrs"
+            :id="id"
+            kind="datetime"
+            :value="value"
+            :format="inputFormat"
+            :locale="locale"
+            :hour12="hour12"
+            :disabled="disabled"
+            :min-value="minValue"
+            :max-value="maxValue"
+            :button-label="t('kinetix.pick_date_time')"
+            @update:value="emit('update:value', $event)"
+        />
         <!-- as-child: the trigger is our button, so it keeps the id its label points at. -->
-        <PopoverTrigger as-child>
+        <PopoverTrigger v-else as-child>
             <button
+                v-bind="{ ...$attrs, ...(id ? { id } : {}) }"
                 type="button"
-                v-bind="id ? { id } : {}"
                 :disabled="disabled"
                 :class="
                     cn(
@@ -330,6 +365,8 @@ watch(open, (isOpen) => {
                             :value="selDate"
                             :timezone="timezone"
                             :locale="locale"
+                            :min-value="minValue?.slice(0, 10) ?? null"
+                            :max-value="maxValue?.slice(0, 10) ?? null"
                             @update:value="onDateSelect"
                         />
                         <div

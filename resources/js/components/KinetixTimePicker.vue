@@ -14,6 +14,7 @@ import {
 } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTimezone, zonedNow } from '@/composables/useKinetixTimezone';
 import KinetixButton from './KinetixButton.vue';
+import KinetixTypedPickerTrigger from './KinetixTypedPickerTrigger.vue';
 import { cn } from './primitives/cn';
 import ScrollArea from './primitives/ScrollArea.vue';
 
@@ -40,6 +41,13 @@ const props = withDefaults(
         ariaLabel?: string | null;
         value?: string | null;
         native?: boolean;
+        /**
+         * Type the time on the keyboard over a mask, with the clock on a
+         * button to the right.
+         */
+        typed?: boolean;
+        /** The typed mask's format (`HH:mm`, `hh:mm a`); null = the clock's. */
+        inputFormat?: string | null;
         hour12?: boolean;
         disabled?: boolean;
         placeholder?: string | null;
@@ -56,6 +64,8 @@ const props = withDefaults(
     {
         value: null,
         native: false,
+        typed: false,
+        inputFormat: null,
         hour12: true,
         disabled: false,
         placeholder: null,
@@ -67,6 +77,10 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ (e: 'update:value', value: string | null): void }>();
+
+// The field's wiring (`aria-describedby`, `aria-invalid`) goes on the control
+// the label points at — the popover root renders no element of its own.
+defineOptions({ inheritAttrs: false });
 
 const { t } = useI18n();
 const open = ref(false);
@@ -249,6 +263,7 @@ watch(open, (isOpen) => {
 
 <template>
     <input
+        v-bind="$attrs"
         :id="id"
         v-if="native"
         type="time"
@@ -265,11 +280,25 @@ watch(open, (isOpen) => {
     />
 
     <PopoverRoot v-else v-model:open="open">
+        <KinetixTypedPickerTrigger
+            v-if="typed"
+            v-bind="$attrs"
+            :id="id"
+            kind="time"
+            :aria-label="ariaLabel ?? undefined"
+            :value="value"
+            :format="inputFormat"
+            :hour12="hour12"
+            :disabled="disabled"
+            :icon="Clock"
+            :button-label="t('kinetix.pick_time')"
+            @update:value="emit('update:value', $event)"
+        />
         <!-- as-child: the trigger is our button, so it keeps the id its label points at. -->
-        <PopoverTrigger as-child>
+        <PopoverTrigger v-else as-child>
             <button
+                v-bind="{ ...$attrs, ...(id ? { id } : {}) }"
                 type="button"
-                v-bind="id ? { id } : {}"
                 :aria-label="accessibleName"
                 :disabled="disabled"
                 :class="

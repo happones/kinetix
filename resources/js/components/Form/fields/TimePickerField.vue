@@ -18,6 +18,8 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
         :hour12="comp.hour12"
         :confirm="comp.confirm"
         :timezone="comp.timezone"
+        :typed="comp.typed"
+        :input-format="comp.inputFormat"
         @update:value="emit('update', $event)"
     />
     <input

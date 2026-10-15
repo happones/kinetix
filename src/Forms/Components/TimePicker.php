@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms\Components;
 
+use Happones\Kinetix\Forms\Components\Concerns\CanBeTyped;
+
 /**
  * A time-only field (no date). Renders the shadcn scrollable hour/minute
  * (+ AM/PM) columns by default, or a native <input type="time"> via native().
@@ -11,6 +13,8 @@ namespace Happones\Kinetix\Forms\Components;
  */
 class TimePicker extends Field
 {
+    use CanBeTyped;
+
     protected bool $useCalendar = true;
 
     protected int $minuteStep = 5;
@@ -90,8 +94,13 @@ class TimePicker extends Field
         return $this;
     }
 
+    protected function typedKind(): string
+    {
+        return 'time';
+    }
+
     /**
-     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, timezone: string}
+     * @return array{useCalendar: bool, locale: ?string, minuteStep: int, hour12: bool, confirm: bool, timezone: string, typed: bool, inputFormat: ?string}
      */
     protected function dateConfig(): array
     {
@@ -102,6 +111,7 @@ class TimePicker extends Field
             'hour12'      => $this->hour12,
             'confirm'     => $this->confirm,
             'timezone'    => $this->pickerTimezone ?? (string) config('app.timezone', 'UTC'),
+            ...$this->typedConfig(),
         ];
     }
 }

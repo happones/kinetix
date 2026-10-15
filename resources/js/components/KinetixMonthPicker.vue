@@ -14,6 +14,7 @@ import {
 } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTimezone, zonedNow } from '@/composables/useKinetixTimezone';
 import KinetixButton from './KinetixButton.vue';
+import KinetixTypedPickerTrigger from './KinetixTypedPickerTrigger.vue';
 import { cn } from './primitives/cn';
 
 /**
@@ -26,6 +27,13 @@ const props = withDefaults(
         id?: string;
         value?: string | null;
         native?: boolean;
+        /**
+         * Type the month on the keyboard over a mask, with the month grid on
+         * a button to the right.
+         */
+        typed?: boolean;
+        /** The typed mask's format (`mm/yyyy`); null = the locale's order. */
+        inputFormat?: string | null;
         disabled?: boolean;
         placeholder?: string | null;
         locale?: string | null;
@@ -48,6 +56,8 @@ const props = withDefaults(
     {
         value: null,
         native: false,
+        typed: false,
+        inputFormat: null,
         disabled: false,
         placeholder: null,
         locale: null,
@@ -61,6 +71,10 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ (e: 'update:value', value: string | null): void }>();
+
+// The field's wiring (`aria-describedby`, `aria-invalid`) goes on the control
+// the label points at — the popover root renders no element of its own.
+defineOptions({ inheritAttrs: false });
 
 const { t } = useI18n();
 const open = ref(false);
@@ -181,6 +195,7 @@ const apply = () => {
 
 <template>
     <input
+        v-bind="$attrs"
         :id="id"
         v-if="native"
         type="month"
@@ -199,10 +214,24 @@ const apply = () => {
 
     <PopoverRoot v-else v-model:open="open">
         <!-- as-child: the trigger is our button, so it keeps the id its label points at. -->
-        <PopoverTrigger as-child>
+        <KinetixTypedPickerTrigger
+            v-if="typed"
+            v-bind="$attrs"
+            :id="id"
+            kind="month"
+            :value="value"
+            :format="inputFormat"
+            :locale="locale"
+            :disabled="disabled"
+            :min-value="minValue"
+            :max-value="maxValue"
+            :button-label="t('kinetix.pick_month')"
+            @update:value="emit('update:value', $event)"
+        />
+        <PopoverTrigger v-else as-child>
             <button
+                v-bind="{ ...$attrs, ...(id ? { id } : {}) }"
                 type="button"
-                v-bind="id ? { id } : {}"
                 :disabled="disabled"
                 :class="
                     cn(

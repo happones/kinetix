@@ -94,6 +94,10 @@ class FormFieldData extends Data
         public bool $closeOnSelect = true,
         /** Date/time pickers: IANA timezone the Today/Now presets read the clock in. */
         public ?string $timezone = null,
+        /** Date/time pickers: type the value over a mask, the picker on a button. */
+        public bool $typed = false,
+        /** The typed mask's format (`dd/mm/yyyy`); null = the reader's locale order. */
+        public ?string $inputFormat = null,
         // Native-style range bounds (date/month/week/year pickers).
         public ?string $minValue = null,
         public ?string $maxValue = null,
