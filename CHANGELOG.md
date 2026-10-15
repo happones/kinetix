@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.237.1] - 2026-10-15
+
+### Fixed
+
+- Docs API reference: a request body listed (and its samples sent) the fields
+  the server fills in, like `createdAt`; `readOnly` fields are left out of
+  requests and `writeOnly` ones out of response examples.
+
 ## [0.237.0] - 2026-10-15
 
 ### Added

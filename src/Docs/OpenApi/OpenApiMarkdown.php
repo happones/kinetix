@@ -181,7 +181,7 @@ final class OpenApiMarkdown
 
             if ($type !== null && str_contains((string) $type, 'json')) {
                 $media   = (array) $content[$type];
-                $example = $media['example'] ?? $this->firstExample($media) ?? $this->example((array) ($media['schema'] ?? []));
+                $example = $media['example'] ?? $this->firstExample($media) ?? $this->example((array) ($media['schema'] ?? []), omit: 'writeOnly');
 
                 if ($example !== null) {
                     $examples[] = "```json [{$status}]\n".json_encode($example, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE)."\n```";
@@ -220,7 +220,7 @@ final class OpenApiMarkdown
             break;
         }
 
-        $body = $bodySchema !== null ? $this->example($bodySchema) : null;
+        $body = $bodySchema !== null ? $this->example($bodySchema, omit: 'readOnly') : null;
         $json = $body       !== null ? json_encode($body, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE) : null;
 
         if ($json !== null) {
@@ -278,7 +278,8 @@ final class OpenApiMarkdown
      */
     private function schemaTable(array $schema): string
     {
-        $rows = $this->fields($schema, '', 0);
+        // A request body: what the server fills in (readOnly) isn't sent.
+        $rows = $this->fields($schema, '', 0, [], 'readOnly');
 
         if ($rows === []) {
             return '`'.$this->cell($this->typeLabel($schema)).'`';
@@ -292,9 +293,11 @@ final class OpenApiMarkdown
      *                                      spelled out (a schema that contains
      *                                      itself) isn't opened again
      * @param  array<string, true>  $refs   the refs being spelled out
+     * @param  string               $omit   fields flagged so (readOnly in a
+     *                                      request) are left out
      * @return array<int, string>
      */
-    private function fields(array $schema, string $prefix, int $depth, array $refs = []): array
+    private function fields(array $schema, string $prefix, int $depth, array $refs = [], string $omit = ''): array
     {
         if (is_string($schema['$ref'] ?? null)) {
             if (isset($refs[$schema['$ref']])) {
@@ -307,7 +310,7 @@ final class OpenApiMarkdown
         $schema = $this->merged($this->document->resolve($schema));
 
         if (($schema['type'] ?? null) === 'array' || isset($schema['items'])) {
-            return $this->fields((array) ($schema['items'] ?? []), $prefix.'[]', $depth, $refs);
+            return $this->fields((array) ($schema['items'] ?? []), $prefix.'[]', $depth, $refs, $omit);
         }
 
         $rows     = [];
@@ -317,14 +320,19 @@ final class OpenApiMarkdown
             $raw       = (array) $raw;
             $recursive = is_string($raw['$ref'] ?? null) && isset($refs[$raw['$ref']]);
             $property  = $this->merged($this->document->resolve($raw));
-            $field     = ($prefix === '' ? '' : ($prefix === '[]' ? '[].' : $prefix.'.')).$name;
-            $type      = $recursive ? $this->refName((string) $raw['$ref']) : $this->typeLabel($property);
+
+            if ($omit !== '' && ! empty($property[$omit])) {
+                continue;
+            }
+
+            $field = ($prefix === '' ? '' : ($prefix === '[]' ? '[].' : $prefix.'.')).$name;
+            $type  = $recursive ? $this->refName((string) $raw['$ref']) : $this->typeLabel($property);
 
             $rows[] = '| `'.$this->cell($field).'` | '.$this->cell($type).' | '
                 .(isset($required[$name]) ? 'yes' : '').' | '.$this->cell((string) ($property['description'] ?? '')).' |';
 
             if (! $recursive && $depth + 1 < self::DEPTH && (isset($property['properties']) || isset($property['items']))) {
-                $rows = [...$rows, ...$this->fields($raw, $field, $depth + 1, $refs)];
+                $rows = [...$rows, ...$this->fields($raw, $field, $depth + 1, $refs, $omit)];
             }
         }
 
@@ -402,8 +410,10 @@ final class OpenApiMarkdown
      *
      * @param array<string, mixed> $schema unresolved (see fields())
      * @param array<string, true>  $refs
+     * @param string               $omit   `readOnly` for what a request sends,
+     *                                     `writeOnly` for what a response returns
      */
-    private function example(array $schema, int $depth = 0, array $refs = []): mixed
+    private function example(array $schema, int $depth = 0, array $refs = [], string $omit = ''): mixed
     {
         if (is_string($schema['$ref'] ?? null)) {
             $refs[$schema['$ref']] = true;
@@ -429,7 +439,7 @@ final class OpenApiMarkdown
 
         foreach (['oneOf', 'anyOf'] as $key) {
             if (is_array($schema[$key] ?? null) && $schema[$key] !== []) {
-                return $this->example((array) $schema[$key][0], $depth, $refs);
+                return $this->example((array) $schema[$key][0], $depth, $refs, $omit);
             }
         }
 
@@ -442,13 +452,14 @@ final class OpenApiMarkdown
         return match (true) {
             // A property that would contain its own schema again is left out.
             $type === 'object' || isset($schema['properties']) => (object) array_map(
-                fn ($property) => $this->example((array) $property, $depth + 1, $refs),
+                fn ($property) => $this->example((array) $property, $depth + 1, $refs, $omit),
                 array_filter(
                     (array) ($schema['properties'] ?? []),
-                    static fn ($property): bool => ! (is_array($property) && is_string($property['$ref'] ?? null) && isset($refs[$property['$ref']])),
+                    fn ($property): bool => ! (is_array($property) && is_string($property['$ref'] ?? null) && isset($refs[$property['$ref']]))
+                        && ($omit === '' || empty($this->document->resolve((array) $property)[$omit])),
                 ),
             ),
-            $type === 'array'   => array_filter([$this->example((array) ($schema['items'] ?? []), $depth + 1, $refs)], static fn ($item): bool => $item !== null),
+            $type === 'array'   => array_filter([$this->example((array) ($schema['items'] ?? []), $depth + 1, $refs, $omit)], static fn ($item): bool => $item !== null),
             $type === 'integer' => 1,
             $type === 'number'  => 1.5,
             $type === 'boolean' => true,

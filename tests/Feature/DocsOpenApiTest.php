@@ -98,6 +98,8 @@ class DocsOpenApiTest extends TestCase
                                 'required'   => ['price'],
                                 'properties' => [
                                     'price'      => ['type' => 'number', 'example' => 12.5],
+                                    'createdAt'  => ['type' => 'string', 'format' => 'date-time', 'readOnly' => true],
+                                    'secret'     => ['type' => 'string', 'writeOnly' => true, 'example' => 'shh'],
                                     'status'     => ['type' => 'string', 'enum' => ['draft', 'active']],
                                     'dimensions' => ['type' => 'object', 'properties' => ['width' => ['type' => 'integer']]],
                                     'parent'     => ['$ref' => '#/components/schemas/Product'],
@@ -163,6 +165,13 @@ class DocsOpenApiTest extends TestCase
         $this->assertStringContainsString("withToken(env('API_TOKEN'))", $code);
         $this->assertStringContainsString("'name' => 'O\\'Brien mug'", $code);
         $this->assertStringContainsString('"name": "O\'\\\'\'Brien mug"', $code);
+        // A request leaves out what the server fills in; a response, what
+        // only goes in.
+        $this->assertStringNotContainsString('<code>createdAt</code>', $tables);
+        $this->assertStringContainsString('<code>secret</code>', $tables);
+        $this->assertStringContainsString('"createdAt": "2026-01-01T09:00:00Z"', $code);
+        // Three request samples (curl, PHP, JavaScript), no response example.
+        $this->assertSame(3, substr_count($code, '"secret"') + substr_count($code, "'secret'"));
         // A schema that contains itself is spelled out once: the field names
         // its schema instead of opening it again, and examples leave it out.
         $this->assertStringContainsString('<code>parent</code></td><td>Product</td>', $tables);
