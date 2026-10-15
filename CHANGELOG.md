@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.238.0] - 2026-10-15
+
+### Added
+
+- `impersonation.redirect_to` / `redirect_back` take a callable array too,
+  receiving the user the session now belongs to (the target after starting,
+  the admin after leaving) and returning the URL — so an app with teams lands
+  each one on their own team's pages instead of a fixed `/`.
+
 ## [0.237.5] - 2026-10-15
 
 ### Fixed

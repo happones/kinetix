@@ -21,16 +21,37 @@ class ImpersonationController
     {
         Gate::authorize('users.impersonate');
 
-        $manager->start($this->resolveUser($request->route('user')));
+        $target = $this->resolveUser($request->route('user'));
 
-        return redirect()->intended((string) config('kinetix.impersonation.redirect_to', '/'));
+        $manager->start($target);
+
+        return redirect()->intended($this->destination('redirect_to', $target));
     }
 
     public function leave(Request $request, ImpersonationManager $manager): RedirectResponse
     {
         $manager->stop();
 
-        return redirect()->intended((string) config('kinetix.impersonation.redirect_back', '/'));
+        $impersonator = $request->user();
+
+        return redirect()->intended($this->destination('redirect_back', $impersonator instanceof Authenticatable ? $impersonator : null));
+    }
+
+    /**
+     * `impersonation.redirect_to` / `redirect_back`: a URL, or a callable
+     * array receiving the user the session now belongs to — the target after
+     * starting, the admin after leaving — so a team app can land each on their
+     * own team's pages.
+     */
+    protected function destination(string $key, ?Authenticatable $user): string
+    {
+        $destination = config("kinetix.impersonation.{$key}", '/');
+
+        if (is_array($destination) && is_callable($destination)) {
+            return (string) $destination($user);
+        }
+
+        return is_string($destination) && $destination !== '' ? $destination : '/';
     }
 
     protected function resolveUser(mixed $id): Authenticatable

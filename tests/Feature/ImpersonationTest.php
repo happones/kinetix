@@ -159,6 +159,23 @@ class ImpersonationTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_redirects_can_be_decided_per_user(): void
+    {
+        config()->set('kinetix.impersonation.redirect_to', [ImpersonationRedirects::class, 'target']);
+        config()->set('kinetix.impersonation.redirect_back', [ImpersonationRedirects::class, 'admin']);
+
+        $viewer  = $this->user('Viewer', 'viewer');
+        $manager = $this->user('Manager', 'admin');
+        $manager->givePermissionTo('users.impersonate');
+
+        $this->actingAs($manager)
+            ->post('/_kinetix/impersonate/'.$viewer->id)
+            ->assertRedirect('/as/Viewer');
+
+        $this->delete('/_kinetix/impersonate')
+            ->assertRedirect('/back/Manager');
+    }
+
     public function test_protect_middleware_blocks_sensitive_routes_while_impersonating(): void
     {
         Route::middleware('kinetix.impersonation.protect')->get('/_test/sensitive', fn () => 'ok');
@@ -189,5 +206,18 @@ class ImpersonationTest extends TestCase
         app(ImpersonationManager::class)->start($viewer);
         $this->get('/_test/billing')->assertOk();
         $this->post('/_test/billing/subscribe')->assertForbidden();
+    }
+}
+
+class ImpersonationRedirects
+{
+    public static function target(ImpUser $user): string
+    {
+        return '/as/'.$user->name;
+    }
+
+    public static function admin(ImpUser $user): string
+    {
+        return '/back/'.$user->name;
     }
 }

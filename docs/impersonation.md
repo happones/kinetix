@@ -24,6 +24,31 @@ Enable it in `config/kinetix.php` (opt-in, default off):
 ],
 ```
 
+Each redirect can also be a callable array (not a closure: config must cache)
+that receives the user the session belongs to — the target after starting,
+the admin after leaving — and returns the URL. In an app with teams, that lands
+each one on their own team's pages:
+
+```php
+'redirect_to'   => [App\Kinetix\ImpersonationRedirects::class, 'target'],
+'redirect_back' => [App\Kinetix\ImpersonationRedirects::class, 'admin'],
+```
+
+```php
+class ImpersonationRedirects
+{
+    public static function target(User $user): string
+    {
+        return route('dashboard', ['current_team' => $user->currentTeam]);
+    }
+
+    public static function admin(User $user): string
+    {
+        return route('configuration.users', ['current_team' => $user->currentTeam]);
+    }
+}
+```
+
 No migration — impersonation lives entirely in the session.
 
 ---

@@ -1495,7 +1495,10 @@ return [
     |
     */
     'impersonation' => [
-        'enabled'       => env('KINETIX_IMPERSONATION_ENABLED', false),
+        'enabled' => env('KINETIX_IMPERSONATION_ENABLED', false),
+        // A URL, or a callable array receiving the user the session belongs
+        // to (the target after starting, the admin after leaving) that returns
+        // one — e.g. [App\Kinetix\ImpersonationRedirects::class, 'target'].
         'redirect_to'   => env('KINETIX_IMPERSONATION_REDIRECT', '/'),
         'redirect_back' => env('KINETIX_IMPERSONATION_REDIRECT_BACK', '/'),
 
