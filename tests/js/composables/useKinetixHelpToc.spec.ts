@@ -81,4 +81,54 @@ describe('useKinetixHelpToc', () => {
         expect(api.activeId.value).toBe('two');
         expect(spy).toHaveBeenCalled();
     });
+
+    it('keeps the clicked entry while the page travels, and the last one at the bottom', async () => {
+        vi.useFakeTimers();
+        let report: IntersectionObserverCallback = () => {};
+        vi.stubGlobal(
+            'IntersectionObserver',
+            class {
+                constructor(callback: IntersectionObserverCallback) {
+                    report = callback;
+                }
+                observe() {}
+                disconnect() {}
+            },
+        );
+        Element.prototype.scrollIntoView = vi.fn();
+
+        const api = buildWith('<h2>One</h2><h2>Two</h2><h2>Three</h2>');
+        const passing = (id: string) =>
+            report(
+                [
+                    {
+                        isIntersecting: true,
+                        target: document.getElementById(id),
+                    },
+                ] as never,
+                {} as never,
+            );
+
+        api.scrollTo('three');
+        // The scroll passes "two" on its way: the click wins.
+        passing('two');
+        window.dispatchEvent(new Event('scroll'));
+        expect(api.activeId.value).toBe('three');
+
+        // Once the scroll settles, reading takes over again.
+        vi.advanceTimersByTime(200);
+        passing('one');
+        expect(api.activeId.value).toBe('one');
+
+        // Scrolled to the very bottom: the last section is the one read.
+        Object.defineProperty(document.documentElement, 'scrollHeight', {
+            configurable: true,
+            value: window.innerHeight,
+        });
+        window.dispatchEvent(new Event('scroll'));
+        expect(api.activeId.value).toBe('three');
+
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+    });
 });

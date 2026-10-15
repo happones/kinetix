@@ -12,7 +12,8 @@ export interface KinetixHelpTocEntry {
  * markdown HTML ships without heading ids, so `build()` assigns a slugified,
  * deduplicated id to every h2/h3 inside the content element, and an
  * IntersectionObserver tracks the section currently at the top of the
- * viewport. Call `build()` after the article HTML is in the DOM (and again on
+ * viewport — the last one once the page reaches its bottom, and the clicked
+ * one while `scrollTo()` travels there. Call `build()` after the article HTML is in the DOM (and again on
  * navigation); the observer disconnects automatically on unmount.
  */
 export function useKinetixHelpToc(
@@ -21,6 +22,41 @@ export function useKinetixHelpToc(
     const toc = ref<KinetixHelpTocEntry[]>([]);
     const activeId = ref('');
     let observer: IntersectionObserver | null = null;
+    // After a click the page travels to where the reader asked; until it
+    // stops, the observer would name whatever heading the scroll passes —
+    // or, for a last section the page can't bring to the top, the one above.
+    let pinned = false;
+    let pinTimer: ReturnType<typeof setTimeout> | null = null;
+    let listening = false;
+
+    const release = (after: number): void => {
+        if (pinTimer) {
+            clearTimeout(pinTimer);
+        }
+
+        pinTimer = setTimeout(() => {
+            pinned = false;
+            pinTimer = null;
+        }, after);
+    };
+
+    /** At the bottom, the last section is the one being read. */
+    function onScroll(): void {
+        if (pinned) {
+            release(150);
+
+            return;
+        }
+
+        const bottom =
+            window.innerHeight + window.scrollY >=
+            document.documentElement.scrollHeight - 2;
+        const last = toc.value[toc.value.length - 1];
+
+        if (bottom && last) {
+            activeId.value = last.id;
+        }
+    }
 
     /**
      * Unicode-aware heading slug. An ASCII-only rule (`\w`) silently mangles
@@ -93,6 +129,11 @@ export function useKinetixHelpToc(
 
         activeId.value = toc.value[0]?.id ?? '';
 
+        if (!listening && typeof window !== 'undefined') {
+            window.addEventListener('scroll', onScroll, { passive: true });
+            listening = true;
+        }
+
         if (typeof IntersectionObserver === 'undefined') {
             return;
         }
@@ -101,7 +142,7 @@ export function useKinetixHelpToc(
         observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
-                    if (entry.isIntersecting) {
+                    if (entry.isIntersecting && !pinned) {
                         activeId.value = entry.target.id;
                     }
                 }
@@ -114,12 +155,32 @@ export function useKinetixHelpToc(
 
     function scrollTo(id: string): void {
         activeId.value = id;
-        contentEl.value
-            ?.querySelector(`#${CSS.escape(id)}`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        pinned = true;
+        // Released once the scroll settles (each scroll event pushes it back),
+        // or soon if the heading is already in view and nothing scrolls.
+        release(1000);
+
+        const reduced =
+            typeof window !== 'undefined' &&
+            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+        contentEl.value?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({
+            behavior: reduced ? 'auto' : 'smooth',
+            block: 'start',
+        });
     }
 
-    onBeforeUnmount(() => observer?.disconnect());
+    onBeforeUnmount(() => {
+        observer?.disconnect();
+
+        if (pinTimer) {
+            clearTimeout(pinTimer);
+        }
+
+        if (listening) {
+            window.removeEventListener('scroll', onScroll);
+        }
+    });
 
     return { toc, activeId, build, scrollTo };
 }

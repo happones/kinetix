@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.237.4] - 2026-10-15
+
+### Fixed
+
+- **(published)** "On this page" (help articles, docs) highlighted the wrong
+  section after a click: the page scrolled to the clicked heading, but the
+  heading tracker named whatever the scroll passed — and for a last section
+  the page can't bring to the top, the one above it. The clicked entry now
+  holds until the scroll settles, and at the bottom of the page the last
+  section is the current one. The smooth scroll honours reduced motion.
+
 ## [0.237.3] - 2026-10-15
 
 ### Fixed
