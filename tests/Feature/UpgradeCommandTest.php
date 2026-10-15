@@ -21,7 +21,10 @@ class UpgradeCommandTest extends TestCase
         File::deleteDirectory(resource_path('js/composables'));
         File::deleteDirectory(resource_path('js/stores'));
         File::deleteDirectory(resource_path('js/types'));
-        File::delete(lang_path('en/kinetix.php'));
+        // The upgrade publishes every locale, not only English: a copy left in
+        // the skeleton outranks the package's own file, so later tests (and
+        // later runs) read yesterday's translations.
+        File::delete(File::glob(lang_path('*/kinetix.php')));
 
         parent::tearDown();
     }
