@@ -95,14 +95,22 @@ export function useKinetixTeams() {
                 ? samePageFor(team, currentTeamKey.value)
                 : null;
 
-        if (samePage === null) {
+        const method = state.value?.switchMethod ?? 'get';
+
+        if (samePage === null && method === 'get') {
             router.visit(team.url);
 
             return;
         }
 
         router.visit(team.url, {
-            onSuccess: () => router.visit(samePage, { replace: true }),
+            ...(method === 'get' ? {} : { method }),
+            ...(samePage === null
+                ? {}
+                : {
+                      onSuccess: () =>
+                          router.visit(samePage, { replace: true }),
+                  }),
         });
     }
 

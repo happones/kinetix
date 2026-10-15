@@ -46,6 +46,18 @@ describe('useKinetixTeams', () => {
             );
         });
 
+        it('visits a POST-only switch route with POST', () => {
+            props.kinetix_config = { team: 'acme' };
+            props.kinetix_teams = { switchMethod: 'post' };
+            window.history.pushState({}, '', '/settings/profile');
+
+            useKinetixTeams().switchTeam(beta);
+
+            expect(visit).toHaveBeenCalledWith('/teams/beta/switch', {
+                method: 'post',
+            });
+        });
+
         it('leaves a page outside the team to the switch route', () => {
             props.kinetix_config = { team: 'acme' };
             window.history.pushState({}, '', '/settings/profile');

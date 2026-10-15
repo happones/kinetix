@@ -102,8 +102,20 @@ class TeamSwitcherTest extends TestCase
         $this->assertFalse($payload['teams'][1]['current']);
         $this->assertStringEndsWith('/teams/globex/switch', $payload['teams'][1]['url']);
         $this->assertSame('globex', $payload['teams'][1]['key']);
+        $this->assertSame('get', $payload['switchMethod']);
         $this->assertSame('Acme', $payload['current']['name']);
         $this->assertStringEndsWith('/teams/create', $payload['createUrl']);
+    }
+
+    public function test_a_post_only_switch_route_is_visited_with_post(): void
+    {
+        $this->app['router']->post('settings/teams/{team}/switch', fn () => 'ok')->name('teams.post-switch');
+        $this->app['router']->getRoutes()->refreshNameLookups();
+        config()->set('kinetix.team_switcher.switch_route', 'teams.post-switch');
+
+        $this->actingUserWithTeams();
+
+        $this->assertSame('post', app(TeamSwitcherManager::class)->payload()['switchMethod']);
     }
 
     public function test_payload_is_empty_when_disabled(): void

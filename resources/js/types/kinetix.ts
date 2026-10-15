@@ -451,6 +451,8 @@ export interface KinetixTeamsState {
     teams: KinetixTeamOption[];
     current: { id: number | string; name: string } | null;
     createUrl: string | null;
+    /** The switch route's verb: a GET visit to a POST-only route is a 405. */
+    switchMethod?: 'get' | 'post' | 'put' | 'patch';
 }
 
 /** A single breadcrumb item, derived from a Kinetix Resource. */

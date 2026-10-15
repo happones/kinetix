@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.231.1] - 2026-10-14
+
+### Fixed
+
+- **(published)** **The team switcher couldn't switch against a POST switch
+  route**, like the starter kit's `teams.switch`: it visited every switch URL
+  with a GET, a 405. It now visits with the verb the route declares, shared as
+  `kinetix_teams.switchMethod`.
+
 ## [0.231.0] - 2026-10-14
 
 ### Added

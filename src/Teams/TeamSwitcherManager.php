@@ -22,9 +22,10 @@ class TeamSwitcherManager
      *
      * @return array{
      *     enabled: bool,
-     *     teams: array<int, array{id: int|string, name: string, url: string|null, current: bool}>,
+     *     teams: array<int, array{id: int|string, key: mixed, name: string, url: string|null, current: bool}>,
      *     current: array{id: int|string, name: string}|null,
-     *     createUrl: string|null
+     *     createUrl: string|null,
+     *     switchMethod: string
      * }
      */
     public function payload(): array
@@ -32,7 +33,7 @@ class TeamSwitcherManager
         $user = auth()->user();
 
         if (! config('kinetix.team_switcher.enabled', false) || ! $user instanceof Model) {
-            return ['enabled' => false, 'teams' => [], 'current' => null, 'createUrl' => null];
+            return ['enabled' => false, 'teams' => [], 'current' => null, 'createUrl' => null, 'switchMethod' => 'get'];
         }
 
         $current    = $this->currentTeam($user);
@@ -58,6 +59,9 @@ class TeamSwitcherManager
                 ? ['id' => $current->getKey(), 'name' => (string) $current->getAttribute($this->nameAttribute())]
                 : null,
             'createUrl' => $this->createUrl(),
+            // How to visit a switch URL: the starter-kit's switch route is a
+            // POST, and a GET to it is a 405.
+            'switchMethod' => $this->switchMethod(),
         ];
     }
 
@@ -89,6 +93,22 @@ class TeamSwitcherManager
         return is_string($route) && Route::has($route)
             ? route($route, $team->getRouteKey())
             : null;
+    }
+
+    /**
+     * The switch route's HTTP verb, lower-case: `get` when it takes one,
+     * else the first it declares (`post`, `put`, `patch`).
+     */
+    protected function switchMethod(): string
+    {
+        $route = config('kinetix.team_switcher.switch_route', 'teams.switch');
+        $route = is_string($route) ? Route::getRoutes()->getByName($route) : null;
+
+        if ($route === null || in_array('GET', $route->methods(), true)) {
+            return 'get';
+        }
+
+        return strtolower($route->methods()[0]);
     }
 
     protected function createUrl(): ?string

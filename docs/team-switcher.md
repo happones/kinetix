@@ -40,6 +40,10 @@ per team with `route('teams.switch', $team->getRouteKey())`, and shares the lot.
 You provide the switch route and the logic that sets the current team — Kinetix
 never touches your team pivot or tenancy.
 
+The switch route can take any verb: the switcher visits it with the one it
+declares (the starter kit's `teams.switch` is a `POST`), shared as
+`kinetix_teams.switchMethod`.
+
 ::: tip Already have a switch route?
 If your app (or your template) defines `teams.switch` — e.g. a controller calling
 `$user->switchTeam($team)` — you're done: set `switch_route` to its name and the
