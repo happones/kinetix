@@ -96,6 +96,7 @@ class MakeResourceCommandTest extends TestCase
         // Actions + modals live on the RESOURCE's table() (single source of truth),
         // and the row actions are grouped into a shadcn-style dropdown.
         $resource = File::get(app_path('Kinetix/Resources/PostResource.php'));
+        $this->assertStringContainsString('->heading(static::getNavigationLabel())', $resource);
         $this->assertStringContainsString('->recordModals(static::class)', $resource);
         $this->assertStringContainsString('ActionGroup::make([', $resource);
         // Create has no record, so it must be gated explicitly against the class.
@@ -118,7 +119,8 @@ class MakeResourceCommandTest extends TestCase
         // The page is just <KinetixTable :table> inside the standard wrapper —
         // no modal markup / submit wiring.
         $index = File::get(resource_path('js/pages/Kinetix/Posts/Index.vue'));
-        $this->assertStringContainsString('<KinetixTable :table="table" />', $index);
+        // The table is the page: its heading is the page's one <h1>.
+        $this->assertStringContainsString('<KinetixTable :table="table" :heading-level="1" />', $index);
         // Wrapper carries min-w-0 so a wide table scrolls locally instead of
         // overflowing the viewport inside a flex layout.
         $this->assertStringContainsString('flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4', $index);

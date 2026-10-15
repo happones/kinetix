@@ -118,3 +118,26 @@ describe('KinetixTableToolbar layout', () => {
         );
     });
 });
+
+describe('KinetixTableToolbar heading', () => {
+    it('is an h3 inside a page with its own title', () => {
+        expect(mountToolbar({}).get('h3').text()).toBe('Products');
+    });
+
+    it('is the page title when the table is the page', () => {
+        const wrapper = mount(KinetixTableToolbar, {
+            props: {
+                table: { ...baseTable } as never,
+                searchQuery: '',
+                activeFilters: {},
+                currentViewState: {},
+                isColumnVisible: () => true,
+                headingLevel: 1,
+            },
+            global: { plugins: [i18n], stubs: { KinetixSavedViews: true } },
+        });
+
+        expect(wrapper.get('h1').text()).toBe('Products');
+        expect(wrapper.find('h3').exists()).toBe(false);
+    });
+});

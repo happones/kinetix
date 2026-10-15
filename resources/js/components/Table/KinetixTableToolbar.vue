@@ -21,6 +21,8 @@ const props = defineProps<{
     processing?: boolean;
     /** Name of the in-flight action — its button shows the spinner. */
     processingAction?: string | null;
+    /** The heading's level (`<h3>` unless the table is the page). */
+    headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
 }>();
 
 const emit = defineEmits<{
@@ -93,13 +95,14 @@ const layoutClass = computed<string>(() => {
                 v-if="table.heading || table.description"
                 class="kinetix-toolbar-heading min-w-0"
             >
-                <h3
+                <component
+                    :is="`h${headingLevel ?? 3}`"
                     v-if="table.heading"
                     data-slot="card-title"
                     class="text-base font-semibold leading-none text-foreground"
                 >
                     {{ table.heading }}
-                </h3>
+                </component>
                 <p
                     v-if="table.description"
                     data-slot="card-description"

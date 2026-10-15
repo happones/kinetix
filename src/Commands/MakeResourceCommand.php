@@ -494,7 +494,9 @@ class {$resourceClass} extends Resource
 
     public static function table(Table \$table): Table
     {
+        // The index page's title: its table heading is the page's <h1>.
         return \$table
+            ->heading(static::getNavigationLabel())
             ->columns([
 {$tableColumnsStr}
             ]){$tableActions}
@@ -884,7 +886,7 @@ defineProps<{
   <!-- The table drives everything: Create (toolbar), View/Edit/Delete (per row)
        open modals hosted inside KinetixTable; drag handles reorder when enabled. -->
   <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-    <KinetixTable :table="table" />
+    <KinetixTable :table="table" :heading-level="1" />
   </div>
 </template>
 VUE;
@@ -909,7 +911,7 @@ defineProps<{
   <!-- The New button + row View/Edit/Delete come from the resource table()
        actions (self-hiding when a route isn't registered). -->
   <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-    <KinetixTable :table="table" />
+    <KinetixTable :table="table" :heading-level="1" />
   </div>
 </template>
 VUE;

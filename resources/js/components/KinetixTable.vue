@@ -55,6 +55,12 @@ import KinetixTableToolbar from './Table/KinetixTableToolbar.vue';
 
 const props = defineProps<{
     table: KinetixTableData;
+    /**
+     * The level of the table's heading. 3 inside a page that has its own
+     * title; 1 when the table IS the page (a resource index), so the page
+     * has the one `<h1>` screen readers jump to.
+     */
+    headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
 }>();
 
 // The root is a wrapper holding the stat cards plus the table card, so attrs are
@@ -637,6 +643,7 @@ const totalColumnSpan = computed(
             <KinetixTableToolbar
                 v-model:search-query="searchQuery"
                 :table="table"
+                :heading-level="props.headingLevel ?? 3"
                 :active-filters="activeFilters"
                 :current-view-state="currentViewState"
                 :is-column-visible="isColumnVisible"
