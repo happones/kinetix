@@ -101,4 +101,19 @@ describe('KinetixNotificationPreferences', () => {
         );
         expect(w.text()).toContain('kinetix.notification_prefs_not_sent');
     });
+
+    it('skips its heading for a page that already titles the section', async () => {
+        const titled = mount(KinetixNotificationPreferences, {
+            global: { plugins: [i18n] },
+        });
+        const bare = mount(KinetixNotificationPreferences, {
+            props: { hideTitle: true },
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+
+        expect(titled.text()).toContain('notification_prefs_title');
+        expect(bare.text()).not.toContain('notification_prefs_title');
+        expect(bare.find('h2').exists()).toBe(false);
+    });
 });

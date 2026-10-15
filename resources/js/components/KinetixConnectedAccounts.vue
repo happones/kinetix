@@ -23,8 +23,13 @@ withDefaults(
     defineProps<{
         /** Tint provider icons with their true brand color (default: theme contrast). */
         colorized?: boolean;
+        /**
+         * Skip the built-in heading — for a page that already titles the
+         * section, where it said the same thing twice.
+         */
+        hideTitle?: boolean;
     }>(),
-    { colorized: false },
+    { colorized: false, hideTitle: false },
 );
 
 const { t } = useI18n();
@@ -102,7 +107,7 @@ async function onSetPassword(): Promise<void> {
 
 <template>
     <div class="space-y-6">
-        <div class="space-y-1">
+        <div v-if="!hideTitle" class="space-y-1">
             <h2 class="text-lg font-semibold text-foreground">
                 {{ t('kinetix.connected_accounts_title') }}
             </h2>

@@ -105,4 +105,19 @@ describe('KinetixConnectedAccounts', () => {
 
         expect(w.text()).toContain('password_set_title');
     });
+
+    it('skips its heading for a page that already titles the section', async () => {
+        const titled = mount(KinetixConnectedAccounts, {
+            global: { plugins: [i18n] },
+        });
+        const bare = mount(KinetixConnectedAccounts, {
+            props: { hideTitle: true },
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+
+        expect(titled.text()).toContain('connected_accounts_title');
+        expect(bare.text()).not.toContain('connected_accounts_title');
+        expect(bare.find('h2').exists()).toBe(false);
+    });
 });

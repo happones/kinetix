@@ -89,4 +89,22 @@ describe('KinetixSessions', () => {
 
         expect(w.find('input[type="password"]').exists()).toBe(true);
     });
+
+    it('skips its heading for a page that already titles the section', async () => {
+        fetchMock.mockResolvedValue({
+            sessions: [],
+            databaseDriver: true,
+            requiresPassword: false,
+        });
+        const titled = mount(KinetixSessions, { global: { plugins: [i18n] } });
+        const bare = mount(KinetixSessions, {
+            props: { hideTitle: true },
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+
+        expect(titled.text()).toContain('sessions_title');
+        expect(bare.text()).not.toContain('sessions_title');
+        expect(bare.find('h2').exists()).toBe(false);
+    });
 });

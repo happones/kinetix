@@ -15,6 +15,17 @@ import KinetixLabel from './KinetixLabel.vue';
  * the others (password-gated when they have a password). Requires
  * SESSION_DRIVER=database for the list.
  */
+withDefaults(
+    defineProps<{
+        /**
+         * Skip the built-in heading — for a page that already titles the
+         * section, where it said the same thing twice.
+         */
+        hideTitle?: boolean;
+    }>(),
+    { hideTitle: false },
+);
+
 const { t } = useI18n();
 const {
     sessions,
@@ -81,7 +92,7 @@ async function submit(): Promise<void> {
 
 <template>
     <div class="space-y-4">
-        <div class="space-y-1">
+        <div v-if="!hideTitle" class="space-y-1">
             <h2 class="text-lg font-semibold text-foreground">
                 {{ t('kinetix.sessions_title') }}
             </h2>

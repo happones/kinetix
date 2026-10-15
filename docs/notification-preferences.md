@@ -62,6 +62,9 @@ import KinetixNotificationPreferences from '@/components/kinetix/KinetixNotifica
 </template>
 ```
 
+Already titling the section on your page? Pass `hide-title` and the component
+skips its own heading (`<KinetixNotificationPreferences hide-title />`).
+
 A row per type, a column per channel, each cell a checkbox that persists
 immediately. `useKinetixNotificationPreferences()` exposes
 `{ matrix, loading, load, set }` for a custom UI. Strings are localized

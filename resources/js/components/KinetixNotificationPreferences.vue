@@ -10,6 +10,17 @@ import KinetixCheckbox from './KinetixCheckbox.vue';
  * type isn't sent on that channel. Toggling a cell persists immediately.
  * Mount on an account / settings page.
  */
+withDefaults(
+    defineProps<{
+        /**
+         * Skip the built-in heading — for a page that already titles the
+         * section, where it said the same thing twice.
+         */
+        hideTitle?: boolean;
+    }>(),
+    { hideTitle: false },
+);
+
 const { t } = useI18n();
 const { matrix, loading, load, set } = useKinetixNotificationPreferences();
 
@@ -18,7 +29,7 @@ onMounted(load);
 
 <template>
     <div class="space-y-4">
-        <div class="space-y-1">
+        <div v-if="!hideTitle" class="space-y-1">
             <h2 class="text-lg font-semibold text-foreground">
                 {{ t('kinetix.notification_prefs_title') }}
             </h2>

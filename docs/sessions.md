@@ -60,6 +60,9 @@ import KinetixSessions from "@/components/kinetix/KinetixSessions.vue";
 </template>
 ```
 
+Already titling the section on your page? Pass `hide-title` and the component
+skips its own heading (`<KinetixSessions hide-title />`).
+
 <Screenshot name="sessions" alt="Browser sessions manager" />
 
 It lists each session with a device icon (desktop / mobile / tablet), the

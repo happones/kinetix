@@ -99,6 +99,9 @@ import KinetixConnectedAccounts from "@/components/kinetix/KinetixConnectedAccou
 </template>
 ```
 
+Already titling the section on your page? Pass `hide-title` and the component
+skips its own heading (`<KinetixConnectedAccounts hide-title />`).
+
 <Screenshot name="connected-accounts" alt="Connected accounts manager" />
 
 It lists every configured provider with its linked state, a **Connect** link
