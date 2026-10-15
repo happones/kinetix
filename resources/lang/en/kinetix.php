@@ -561,6 +561,7 @@ return [
     'token_name'             => 'Token name',
     'token_name_placeholder' => 'e.g. CI deploy',
     'token_scopes'           => 'Scopes',
+    'token_scopes_required'  => 'Pick at least one scope.',
     'token_full_access'      => 'This token will have full access.',
     'token_expires_at'       => 'Expiration date (optional)',
     'token_created'          => 'Created',

@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.237.5] - 2026-10-15
+
+### Fixed
+
+- **(published)** `<KinetixTokenManager>` let a token be created with no scope
+  when a scope catalog exists, which the server refuses (as documented): the
+  user only got a raw "The abilities field is required." toast. Create waits
+  for a scope, and the picker says one is needed.
+
 ## [0.237.4] - 2026-10-15
 
 ### Fixed

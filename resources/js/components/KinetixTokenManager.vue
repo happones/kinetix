@@ -40,6 +40,13 @@ const isExpired = (token: KinetixToken): boolean =>
 
 const hasScopes = computed(() => Object.keys(scopes.value).length > 0);
 
+/** With a scope catalog a token needs at least one scope (the server says so too). */
+const canCreate = computed(
+    () =>
+        newName.value.trim() !== '' &&
+        (!hasScopes.value || selectedScopes.value.length > 0),
+);
+
 // O(1) membership for the per-scope checkbox state in the create form.
 const selectedScopeSet = computed<Set<string>>(
     () => new Set(selectedScopes.value.map((s) => String(s))),
@@ -184,6 +191,9 @@ function formatDate(value: string | null): string {
 
             <div v-if="hasScopes" class="space-y-2">
                 <KinetixLabel>{{ t('kinetix.token_scopes') }}</KinetixLabel>
+                <p class="text-xs text-muted-foreground">
+                    {{ t('kinetix.token_scopes_required') }}
+                </p>
                 <label
                     v-for="(label, name) in scopes"
                     :key="name"
@@ -231,7 +241,7 @@ function formatDate(value: string | null): string {
                 <button
                     type="button"
                     :class="buttonVariants({ size: 'sm' })"
-                    :disabled="!newName.trim()"
+                    :disabled="!canCreate"
                     @click="save"
                 >
                     {{ t('kinetix.token_create') }}

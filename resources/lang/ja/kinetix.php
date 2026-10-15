@@ -516,6 +516,7 @@ return [
     'token_name'                       => 'トークン名',
     'token_name_placeholder'           => '例：CI デプロイ',
     'token_scopes'                     => 'スコープ',
+    'token_scopes_required'            => 'スコープを1つ以上選択してください。',
     'token_full_access'                => 'このトークンはフルアクセス権を持ちます。',
     'token_expires_at'                 => '有効期限（任意）',
     'token_created'                    => '作成日',

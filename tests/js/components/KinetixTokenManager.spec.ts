@@ -98,7 +98,29 @@ describe('KinetixTokenManager', () => {
         });
     });
 
+    it('needs a scope before it creates a token, when there are scopes to pick', async () => {
+        const w = mountManager();
+        const createButton = () =>
+            w.findAll('button').find((b) => b.text() === 'token_create')!;
+
+        await w
+            .findAll('button')
+            .find((b) => b.text() === 'token_add')!
+            .trigger('click');
+        await w.get('#token-name').setValue('Reader');
+
+        expect(w.text()).toContain('token_scopes_required');
+        expect(createButton().attributes('disabled')).toBeDefined();
+
+        await w
+            .get('label input[type="checkbox"], label [role="checkbox"]')
+            .trigger('click');
+
+        expect(createButton().attributes('disabled')).toBeUndefined();
+    });
+
     it('sends the chosen expiration date when creating a token', async () => {
+        defaultScopes.value = ['posts.read'];
         const w = mountManager();
 
         await w
@@ -115,7 +137,7 @@ describe('KinetixTokenManager', () => {
 
         expect(create).toHaveBeenCalledWith({
             name: 'Deploy',
-            abilities: [],
+            abilities: ['posts.read'],
             expires_at: '2027-01-15',
         });
     });

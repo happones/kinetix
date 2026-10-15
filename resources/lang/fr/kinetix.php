@@ -561,6 +561,7 @@ return [
     'token_name'             => 'Nom du jeton',
     'token_name_placeholder' => 'p. ex. Déploiement CI',
     'token_scopes'           => 'Portées',
+    'token_scopes_required'  => 'Choisissez au moins une portée.',
     'token_full_access'      => 'Ce jeton aura un accès complet.',
     'token_expires_at'       => 'Date d\'expiration (optionnelle)',
     'token_created'          => 'Créé le',

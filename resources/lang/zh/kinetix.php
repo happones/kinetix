@@ -516,6 +516,7 @@ return [
     'token_name'                       => '令牌名称',
     'token_name_placeholder'           => '例如：CI 部署',
     'token_scopes'                     => '权限范围',
+    'token_scopes_required'            => '请至少选择一个权限范围。',
     'token_full_access'                => '此令牌将拥有完全访问权限。',
     'token_expires_at'                 => '过期日期（可选）',
     'token_created'                    => '创建于',

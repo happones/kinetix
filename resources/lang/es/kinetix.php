@@ -561,6 +561,7 @@ return [
     'token_name'             => 'Nombre del token',
     'token_name_placeholder' => 'p. ej. Despliegue CI',
     'token_scopes'           => 'Permisos',
+    'token_scopes_required'  => 'Elige al menos un permiso.',
     'token_full_access'      => 'Este token tendrá acceso total.',
     'token_expires_at'       => 'Fecha de expiración (opcional)',
     'token_created'          => 'Creado',

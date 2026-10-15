@@ -516,6 +516,7 @@ return [
     'token_name'                       => 'Название токена',
     'token_name_placeholder'           => 'напр. CI deploy',
     'token_scopes'                     => 'Права',
+    'token_scopes_required'            => 'Выберите хотя бы одну область доступа.',
     'token_full_access'                => 'Этот токен получит полный доступ.',
     'token_expires_at'                 => 'Дата окончания (необязательно)',
     'token_created'                    => 'Создан',
