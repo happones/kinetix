@@ -1114,6 +1114,13 @@ return [
         // ['name' => 'value'], e.g. [App\Docs\Placeholders::class, 'resolve'].
         'placeholders' => null,
 
+        // API reference sections generated from OpenAPI 3 documents (JSON, or
+        // YAML with symfony/yaml): section key => path (relative to the
+        // project root), e.g. ['reference' => 'openapi.json'] — what
+        // `php artisan scramble:export` writes. Add `group` with
+        // ['spec' => ..., 'group' => 'Endpoints'] to group its pages.
+        'openapi' => [],
+
         // "Edit this page" link; `{path}` is the file's path inside `path`.
         // e.g. 'https://github.com/acme/app/edit/main/resources/docs/{path}'
         'edit_url' => null,

@@ -37,7 +37,12 @@ markdown syntax (callouts, code groups, highlighting) is in `docs/markdown.md`.
   the Request) — never a closure (config:cache).
 - Translations: same path under another locale directory; missing pages are
   served in `fallback_locale` and marked (`page.fallback`), never silently.
-- Run `php artisan kinetix:docs-check` (`--strict` also fails untranslated pages).
+- API reference: `docs.openapi = ['reference' => 'openapi.json']` generates a
+  landing page + one page per tag (params, body, responses, curl/PHP/JS
+  samples) from an OpenAPI 3 document (Scramble: `php artisan scramble:export`).
+  Written `index.md` / `{tag-slug}.md` in that section replace generated pages.
+- Run `php artisan kinetix:docs-check` (`--strict` also fails untranslated pages;
+  it also reports OpenAPI documents that can't be read).
 
 ## Page
 

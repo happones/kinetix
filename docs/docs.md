@@ -187,7 +187,42 @@ It renders every page in every language and reports links to pages or
 headings that don't exist, and the pages each language is missing. Run it in
 CI.
 
-## 6. The page
+## 6. API reference from OpenAPI
+
+Point a section at an OpenAPI 3 document and Kinetix writes its pages: a
+landing page (the API's description, base URL, authentication and resources)
+and one page per tag, with every operation's parameters, request body,
+responses and a ready-to-run request in curl, PHP and JavaScript.
+
+```php
+'docs' => [
+    'openapi' => [
+        'reference' => 'openapi.json',   // relative to the project root
+    ],
+],
+```
+
+Any generator's output works. With [Scramble](https://scramble.dedoc.co):
+
+```bash
+php artisan scramble:export --path=openapi.json
+```
+
+YAML documents need `symfony/yaml`. The generated pages behave like written
+ones — table of contents, search, highlighted examples, `docs-check` — and
+you can mix both:
+
+- an `index.md` in `{locale}/reference/` replaces the generated landing page;
+- a written `{locale}/reference/{tag}.md` replaces that tag's page (the slug is
+  the tag name, slugged: `Order items` → `order-items`);
+- other written pages in the section stay alongside the generated ones.
+
+A schema's nested objects are spelled out (`dimensions.width`, `items[].sku`,
+three levels deep); a schema that contains itself is named, not opened again.
+Examples come from the document's `example`/`examples`, else from each
+field's type.
+
+## 7. The page
 
 `DocsController` renders `docs.view` (default `Kinetix/Docs`) with one `docs`
 prop (`KinetixDocsPayload` in `@/types/kinetix`):
@@ -240,6 +275,7 @@ without JavaScript, the same values reach your root Blade view as
     ],
     'view'         => 'Kinetix/Docs',
     'placeholders' => null,             // [Class::class, 'method']
+    'openapi'      => [],               // ['reference' => 'openapi.json']
     'edit_url'     => null,
     'cache'        => [
         'enabled' => true,              // rendered pages, keyed by path + mtime

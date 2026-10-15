@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.237.0] - 2026-10-15
+
+### Added
+
+- **Docs: API reference from OpenAPI.** `docs.openapi = ['reference' =>
+  'openapi.json']` turns an OpenAPI 3 document (JSON, or YAML with
+  `symfony/yaml`) — a Scramble export, or any generator's — into a docs
+  section: a landing page (description, base URL, authentication, resources)
+  and one page per tag with every operation's parameters, request body
+  (nested objects spelled out, `allOf` merged, enums listed), responses with
+  example JSON, and a request in curl, PHP and JavaScript, authenticated the
+  way the operation says. Deprecated operations are flagged.
+  - The pages render like written ones: table of contents, search,
+    highlighted samples, `kinetix:docs-check` (which also reports a document
+    it can't read).
+  - Written pages mix in: an `index.md` replaces the generated landing page, a
+    `{tag}.md` replaces that tag's page.
+  - A schema that contains itself is named, not opened again; examples come
+    from the document, else from each field's type.
+
 ## [0.236.2] - 2026-10-15
 
 ### Fixed

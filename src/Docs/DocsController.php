@@ -145,7 +145,7 @@ class DocsController
     {
         $template = config('kinetix.docs.edit_url');
 
-        if (! is_string($template) || $template === '') {
+        if (! is_string($template) || $template === '' || $page->openApi) {
             return null;
         }
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Docs;
 
+use Happones\Kinetix\Docs\OpenApi\OpenApiDocument;
+use Happones\Kinetix\Docs\OpenApi\OpenApiMarkdown;
 use Happones\Kinetix\Markdown\FrontMatter;
 use Happones\Kinetix\Markdown\MarkdownRenderer;
 use Happones\Kinetix\Markdown\RenderedMarkdown;
@@ -13,6 +15,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use RuntimeException;
 
 /**
  * Reads the docs: markdown files in `{path}/{locale}/{section}/{page}.md`.
@@ -42,6 +45,9 @@ class DocsManager
 
     /** @var array<string, string>|null this request's placeholder values */
     protected ?array $values = null;
+
+    /** @var array<string, OpenApiDocument|null> loaded OpenAPI documents by path */
+    protected array $documents = [];
 
     public function __construct(protected MarkdownRenderer $renderer) {}
 
@@ -233,7 +239,11 @@ class DocsManager
             }
 
             $landing = $pages[0]->isLanding() ? $pages[0] : null;
-            $meta    = $landing !== null ? FrontMatter::parse((string) file_get_contents($landing->path)) : [];
+            $meta    = match (true) {
+                $landing === null => [],
+                $landing->openApi => array_filter(['section' => (string) ($this->openApiDocument($landing->path)?->info()['title'] ?? '')]),
+                default           => FrontMatter::parse((string) file_get_contents($landing->path)),
+            };
 
             $sections[$key] = new DocsSection(
                 key: $key,
@@ -266,7 +276,7 @@ class DocsManager
             }
         }
 
-        $keys = array_values(array_unique($keys));
+        $keys = array_values(array_unique([...$keys, ...array_keys($this->openApiSections())]));
         sort($keys);
 
         return $keys;
@@ -314,7 +324,97 @@ class DocsManager
             );
         }
 
+        $pages = [...$pages, ...$this->openApiPages($section, $pages, $locale, $fallback)];
+
         usort($pages, static fn (DocsPage $a, DocsPage $b): int => [$a->order, basename($a->path)] <=> [$b->order, basename($b->path)]);
+
+        return $pages;
+    }
+
+    /**
+     * Sections generated from OpenAPI documents (`docs.openapi`): section key
+     * => the document's path (relative paths are from the project root).
+     *
+     * @return array<string, string>
+     */
+    public function openApiSections(): array
+    {
+        $sections = [];
+
+        foreach ((array) config('kinetix.docs.openapi', []) as $key => $spec) {
+            $spec = is_array($spec) ? ($spec['spec'] ?? null) : $spec;
+
+            if (is_string($key) && is_string($spec) && $spec !== '') {
+                $sections[$key] = str_starts_with($spec, '/') ? $spec : base_path($spec);
+            }
+        }
+
+        return $sections;
+    }
+
+    /**
+     * The OpenAPI document at a path, read once per request (null when it
+     * can't be read — `kinetix:docs-check` says why).
+     */
+    public function openApiDocument(string $path): ?OpenApiDocument
+    {
+        if (! array_key_exists($path, $this->documents)) {
+            try {
+                $this->documents[$path] = OpenApiDocument::fromFile($path);
+            } catch (RuntimeException) {
+                $this->documents[$path] = null;
+            }
+        }
+
+        return $this->documents[$path];
+    }
+
+    /**
+     * A section's pages generated from its OpenAPI document: a landing page
+     * (unless an `index.md` is written) and one page per tag, after the
+     * written pages; a written page with a tag's slug wins over it.
+     *
+     * @param  array<int, DocsPage> $written
+     * @return array<int, DocsPage>
+     */
+    protected function openApiPages(string $section, array $written, string $locale, string $fallback): array
+    {
+        $spec     = $this->openApiSections()[$section] ?? null;
+        $document = $spec !== null ? $this->openApiDocument($spec) : null;
+
+        if ($document === null) {
+            return [];
+        }
+
+        $taken = array_flip(array_map(static fn (DocsPage $page): string => $page->slug, $written));
+        $group = config("kinetix.docs.openapi.{$section}.group");
+        $pages = [];
+        $page  = fn (string $slug, string $title, string $description, int $order, ?string $tag): DocsPage => new DocsPage(
+            section: $section,
+            slug: $slug,
+            title: $title,
+            description: $description,
+            group: $tag !== null && is_string($group) ? $group : '',
+            order: $order,
+            path: $spec,
+            locale: $fallback,
+            fallback: $fallback !== $locale,
+            openApi: true,
+            tag: $tag,
+        );
+
+        if (! isset($taken[''])) {
+            $info    = $document->info();
+            $pages[] = $page('', (string) ($info['title'] ?? Str::headline($section)), (string) ($info['summary'] ?? ''), PHP_INT_MIN, null);
+        }
+
+        $index = 0;
+
+        foreach ($document->tags() as $tag) {
+            if (! isset($taken[$tag['slug']])) {
+                $pages[] = $page($tag['slug'], $tag['name'], '', 1_000_000 + $index++, $tag['slug']);
+            }
+        }
 
         return $pages;
     }
@@ -351,7 +451,7 @@ class DocsManager
     protected function renderCached(DocsPage $page): RenderedMarkdown
     {
         $render = function () use ($page): array {
-            $markdown = FrontMatter::strip((string) file_get_contents($page->path));
+            $markdown = $page->openApi ? $this->openApiMarkdown($page) : FrontMatter::strip((string) file_get_contents($page->path));
             // Placeholders travel through rendering as one word, so a
             // highlighter can't split them; they're filled per request.
             $markdown = (string) preg_replace('/\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/', 'kxph__$1__kxph', $markdown);
@@ -364,12 +464,35 @@ class DocsManager
             return RenderedMarkdown::fromArray($render());
         }
 
-        $key = sprintf('kinetix.docs.page:%d:%s:%s:%d', static::RENDER_VERSION, md5($page->path), $page->locale, (int) $page->updatedAt());
+        $key = sprintf('kinetix.docs.page:%d:%s:%s:%d', static::RENDER_VERSION, md5($page->path.'#'.$page->section.'/'.$page->slug), $page->locale, (int) $page->updatedAt());
 
         /** @var array{html: string, toc: array<int, array{level: int, id: string, text: string}>, text: string} $data */
         $data = $this->cache()->rememberForever($key, $render);
 
         return RenderedMarkdown::fromArray($data);
+    }
+
+    protected function openApiMarkdown(DocsPage $page): string
+    {
+        $document = $this->openApiDocument($page->path);
+
+        if ($document === null) {
+            return '';
+        }
+
+        $markdown = new OpenApiMarkdown($document);
+
+        if ($page->tag === null) {
+            return $markdown->landing(fn (string $slug): string => $this->url($page->section, $slug));
+        }
+
+        foreach ($document->tags() as $tag) {
+            if ($tag['slug'] === $page->tag) {
+                return $markdown->tag($tag);
+            }
+        }
+
+        return '';
     }
 
     /**
@@ -459,6 +582,10 @@ class DocsManager
                     $parts[] = $file->getPathname().':'.$file->getMTime();
                 }
             }
+        }
+
+        foreach ($this->openApiSections() as $spec) {
+            $parts[] = $spec.':'.(@filemtime($spec) ?: 0);
         }
 
         sort($parts);

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Commands;
 
 use Happones\Kinetix\Docs\DocsManager;
+use Happones\Kinetix\Docs\OpenApi\OpenApiDocument;
 use Illuminate\Console\Command;
+use RuntimeException;
 
 class DocsCheckCommand extends Command
 {
@@ -73,6 +75,23 @@ class DocsCheckCommand extends Command
             }
         }
 
+        // A document that can't be read leaves its section empty without a
+        // word on the page: say why here.
+        $unreadable = [];
+
+        foreach ($docs->openApiSections() as $section => $spec) {
+            try {
+                OpenApiDocument::fromFile($spec);
+            } catch (RuntimeException $exception) {
+                $unreadable[] = [$section, $exception->getMessage()];
+            }
+        }
+
+        if ($unreadable !== []) {
+            $this->error(count($unreadable).' OpenAPI document(s) could not be read:');
+            $this->table(['Section', 'Problem'], $unreadable);
+        }
+
         if ($broken !== []) {
             $this->error(count($broken).' broken link(s):');
             $this->table(['Language', 'Page', 'Link'], $broken);
@@ -86,10 +105,10 @@ class DocsCheckCommand extends Command
             }
         }
 
-        if ($broken === [] && $missing === []) {
+        if ($broken === [] && $missing === [] && $unreadable === []) {
             $this->info('The docs check out: every link lands, every page is translated.');
         }
 
-        return $broken !== [] || ($this->option('strict') && $missing !== []) ? self::FAILURE : self::SUCCESS;
+        return $broken !== [] || $unreadable !== [] || ($this->option('strict') && $missing !== []) ? self::FAILURE : self::SUCCESS;
     }
 }
