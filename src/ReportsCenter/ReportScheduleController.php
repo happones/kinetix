@@ -35,9 +35,14 @@ class ReportScheduleController
                     ->formatStateUsing(fn ($value) => $value instanceof ReportFrequency
                         ? $value->getLabel()
                         : (ReportFrequency::tryFrom((string) $value)?->getLabel() ?? (string) $value)),
-                ToggleColumn::make('enabled'),
-                TextColumn::make('next_run_at')->dateTime(),
-                TextColumn::make('last_run_at')->dateTime(),
+                ToggleColumn::make('enabled')
+                    ->label((string) __('kinetix.report_schedule_enabled_column')),
+                TextColumn::make('next_run_at')
+                    ->label((string) __('kinetix.report_schedule_next_run_column'))
+                    ->dateTime(),
+                TextColumn::make('last_run_at')
+                    ->label((string) __('kinetix.report_schedule_last_run_column'))
+                    ->dateTime(),
             ])
             ->recordActions([
                 Action::make('run-now')

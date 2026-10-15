@@ -37,6 +37,11 @@ TextEntry::make('title')->label(__('posts.fields.title'));
 
 // ❌ hardcoded — never translates
 TextInput::make('email')->label('Email address');
+
+// Permission features are declared at BOOT, before the request locale is set:
+// pass the KEY (or a JSON-catalog string) — Kinetix translates it when shown.
+KinetixPermissions::feature('employees')->label('perms.employees')->group('perms.hr')
+    ->ability('viewSalary', 'perms.view_salary');   // ✅ not __('perms.view_salary')
 ```
 
 Applies to every display-string setter: `Table::heading()/description()`,

@@ -33,15 +33,21 @@ class ReportRunController
                 TextColumn::make('report_class')
                     ->label((string) __('kinetix.report_runs_report_column'))
                     ->formatStateUsing(fn ($value) => (new $value)->label()),
-                TextColumn::make('status')->badge(),
+                TextColumn::make('status')
+                    ->label((string) __('kinetix.report_runs_status_column'))
+                    ->badge(),
                 TextColumn::make('processed_rows')
                     ->label((string) __('kinetix.report_runs_rows_column')),
                 ProgressColumn::make('percent')
+                    ->label((string) __('kinetix.report_runs_progress_column'))
                     ->formatStateUsing(fn ($value) => $value === null ? null : $value.'%')
                     ->color(fn ($value, $record) => $record->status->getColor()),
                 TextColumn::make('format')
+                    ->label((string) __('kinetix.report_runs_format_column'))
                     ->formatStateUsing(fn ($value) => strtoupper((string) $value)),
-                TextColumn::make('created_at')->dateTime(),
+                TextColumn::make('created_at')
+                    ->label((string) __('kinetix.report_runs_started_column'))
+                    ->dateTime(),
             ])
             ->recordActions([
                 Action::make('download')

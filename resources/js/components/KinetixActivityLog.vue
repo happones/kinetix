@@ -54,15 +54,54 @@ function eventLabel(event: string): string {
     return label === key ? event : label;
 }
 
+/** Longest value a change line shows; the full one is in its tooltip. */
+const MAX_VALUE = 80;
+
+/**
+ * A value as a change line says it: empty as a dash, and a structure (or the
+ * JSON text a JSON column logs) re-serialized compactly — printed as logged it
+ * came with every `/` escaped (`products\/gallery\/…`).
+ */
+function display(value: unknown): string {
+    if (value === null || value === undefined || value === '') {
+        return '—';
+    }
+
+    if (typeof value === 'string' && /^\s*[[{]/.test(value)) {
+        try {
+            return JSON.stringify(JSON.parse(value));
+        } catch {
+            return value;
+        }
+    }
+
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+}
+
+const shorten = (text: string): string =>
+    text.length > MAX_VALUE ? `${text.slice(0, MAX_VALUE - 1)}…` : text;
+
 /** Changed fields for an "updated" entry: `field: old → new`. */
-function changeList(entry: KinetixActivityEntry): string[] {
+function changeList(
+    entry: KinetixActivityEntry,
+): { line: string; full: string }[] {
     return Object.keys(entry.changes.attributes).map((field) => {
-        const next = entry.changes.attributes[field];
+        const next = display(entry.changes.attributes[field]);
         const prev = entry.changes.old[field];
 
-        return prev === undefined
-            ? `${field}: ${String(next)}`
-            : `${field}: ${String(prev)} → ${String(next)}`;
+        if (prev === undefined) {
+            return {
+                line: `${field}: ${shorten(next)}`,
+                full: `${field}: ${next}`,
+            };
+        }
+
+        const before = display(prev);
+
+        return {
+            line: `${field}: ${shorten(before)} → ${shorten(next)}`,
+            full: `${field}: ${before} → ${next}`,
+        };
     });
 }
 </script>
@@ -118,11 +157,16 @@ function changeList(entry: KinetixActivityEntry): string[] {
                     class="mt-2 space-y-0.5 text-xs text-muted-foreground"
                 >
                     <li
-                        v-for="(line, i) in changeList(entry)"
+                        v-for="(change, i) in changeList(entry)"
                         :key="i"
                         class="font-mono [overflow-wrap:anywhere]"
+                        :title="
+                            change.full !== change.line
+                                ? change.full
+                                : undefined
+                        "
                     >
-                        {{ line }}
+                        {{ change.line }}
                     </li>
                 </ul>
             </li>

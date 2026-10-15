@@ -161,10 +161,13 @@ export const markdownContentClass =
  * shadcn-vue new-york-v4 tab strip. It is as wide as its tabs, up to its
  * container, and scrolls sideways past that, so a long set of tabs never
  * widens a phone's page. The strip starts at the start (a centered strip
- * that overflows clips its first tab out of reach).
+ * that overflows clips its first tab out of reach). Its scrollbar is hidden:
+ * a classic one is taller than the strip's padding and covered the labels;
+ * the strip still scrolls by touch, wheel and arrow keys, and the tab cut at
+ * the edge says there is more.
  */
 export const tabsListClass =
-    'h-9 rounded-lg p-1 gap-1 inline-flex max-w-full items-center justify-start overflow-x-auto bg-muted text-muted-foreground';
+    'h-9 rounded-lg p-1 gap-1 inline-flex max-w-full items-center justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-muted text-muted-foreground';
 
 /**
  * The ✕ on a tag chip: a 24px target (the WCAG 2.5.8 minimum) around a 12px

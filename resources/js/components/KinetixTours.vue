@@ -32,6 +32,64 @@ let warnedMissing = false;
 const START_DELAY = 400;
 let pending: ReturnType<typeof setTimeout> | null = null;
 
+/** Room the popover takes beside its target: its height plus the gap. */
+const POPOVER_ROOM = 240;
+/** Space kept clear at the screen's edges (a sticky header sits there). */
+const EDGE = 72;
+/** The least of a tall target worth highlighting without scrolling. */
+const MIN_HIGHLIGHT = 160;
+
+// Stands in for a target too tall to highlight whole (see tourTarget()).
+let tallTarget: HTMLElement | null = null;
+
+/**
+ * The element a step highlights. A target taller than the screen can hold
+ * next to its popover — a long table — is highlighted from its top down to
+ * what fits. Highlighted whole, driver.js scrolled its top to the very top
+ * of the screen, under the app's sticky header, and with no room left on any
+ * side parked the popover at the bottom of the screen, without its arrow,
+ * over the rows: the page jumped and the message pointed at nothing.
+ *
+ * When the target's top is on screen with room below it, the highlight ends
+ * there and the page doesn't move at all.
+ */
+function tourTarget(selector: string): Element | null {
+    const element = document.querySelector(selector);
+
+    if (!element) {
+        return null;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const fits = window.innerHeight - EDGE * 2 - POPOVER_ROOM;
+
+    if (rect.height <= fits) {
+        return element;
+    }
+
+    const belowTop = window.innerHeight - EDGE - POPOVER_ROOM - rect.top;
+    const height =
+        rect.top >= EDGE && belowTop >= MIN_HIGHLIGHT ? belowTop : fits;
+
+    tallTarget ??= document.createElement('div');
+    tallTarget.setAttribute('data-kinetix-tour-target', '');
+    tallTarget.setAttribute('aria-hidden', 'true');
+    Object.assign(tallTarget.style, {
+        position: 'absolute',
+        top: `${rect.top + window.scrollY}px`,
+        left: `${rect.left + window.scrollX}px`,
+        width: `${rect.width}px`,
+        height: `${Math.max(height, MIN_HIGHLIGHT)}px`,
+        pointerEvents: 'none',
+    });
+
+    if (!tallTarget.isConnected) {
+        document.body.appendChild(tallTarget);
+    }
+
+    return tallTarget;
+}
+
 async function run(tour: KinetixTourData): Promise<void> {
     let driverFactory: (config: Record<string, unknown>) => {
         drive: () => void;
@@ -59,6 +117,11 @@ async function run(tour: KinetixTourData): Promise<void> {
 
     const instance = driverFactory({
         showProgress: tour.steps.length > 1,
+        // A one-step tour has nowhere to go back to.
+        showButtons:
+            tour.steps.length > 1
+                ? ['next', 'previous', 'close']
+                : ['next', 'close'],
         progressText: t('kinetix.tour_progress', {
             current: '{{current}}',
             total: '{{total}}',
@@ -69,7 +132,7 @@ async function run(tour: KinetixTourData): Promise<void> {
         popoverClass: 'kinetix-tour-popover',
         stagePadding: 6,
         steps: tour.steps.map((step) => ({
-            element: step.selector,
+            element: () => tourTarget(step.selector) as Element,
             popover: {
                 title: step.title ?? '',
                 description: step.description ?? '',
@@ -80,6 +143,8 @@ async function run(tour: KinetixTourData): Promise<void> {
         // Fires once per tour teardown (finished OR dismissed) — both count
         // as "seen" so the tour doesn't nag on every visit.
         onDestroyed: () => {
+            tallTarget?.remove();
+            tallTarget = null;
             activeDriver = null;
             store.markSeen(tour.id);
             store.stop();

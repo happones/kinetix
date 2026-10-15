@@ -6,8 +6,28 @@ import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
-const { t } = useI18n();
+const { t, te } = useI18n();
+
+/** Stripe's invoice statuses, said in the reader's language. */
+const STATUS_COLORS: Record<string, string> = {
+    paid: 'success',
+    open: 'warning',
+    uncollectible: 'danger',
+};
+
+function statusLabel(status: string): string {
+    const key = `kinetix.billing_invoice_status_${status}`;
+
+    if (te(key)) {
+        return t(key);
+    }
+
+    const words = status.replace(/_/g, ' ');
+
+    return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 const props = withDefaults(
     defineProps<{
@@ -74,11 +94,13 @@ const emit = defineEmits<{
                                 {{ invoice.total }}
                             </td>
                             <td class="py-3 pr-4">
-                                <span
-                                    class="px-2 py-0.5 text-xs font-medium inline-flex items-center rounded-md bg-secondary text-secondary-foreground capitalize"
+                                <KinetixBadge
+                                    :color="
+                                        STATUS_COLORS[invoice.status] ?? 'gray'
+                                    "
                                 >
-                                    {{ invoice.status }}
-                                </span>
+                                    {{ statusLabel(invoice.status) }}
+                                </KinetixBadge>
                             </td>
                             <td class="py-3 text-right">
                                 <a

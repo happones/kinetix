@@ -7,6 +7,7 @@ import { useKinetixRoleEditor } from '@/composables/useKinetixRoleEditor';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixPermissionFeature, KinetixRole } from '@/types/kinetix';
 import { cn } from './primitives/cn';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixRoleDeleteDialog from './Roles/KinetixRoleDeleteDialog.vue';
 import KinetixRoleEditorModal from './Roles/KinetixRoleEditorModal.vue';
 
@@ -212,40 +213,54 @@ async function confirmDelete(): Promise<void> {
                     :key="String(roleKey(role))"
                     class="gap-2 rounded-xl p-4 flex flex-col border border-border bg-card"
                 >
-                    <div class="gap-2 flex items-center justify-between">
-                        <div class="gap-2 min-w-0 flex items-center">
-                            <span
-                                class="size-8 rounded-lg inline-flex shrink-0 items-center justify-center bg-primary/10"
+                    <!-- The name gets the whole line: sharing it with the badges, it
+                         was cut to its first letter in a three-column grid. -->
+                    <div class="gap-2 flex items-start">
+                        <span
+                            class="size-8 rounded-lg inline-flex shrink-0 items-center justify-center bg-primary/10"
+                        >
+                            <ShieldCheck class="size-4 text-primary" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p
+                                class="font-semibold leading-8 break-words text-foreground"
                             >
-                                <ShieldCheck class="size-4 text-primary" />
-                            </span>
-                            <p class="font-semibold truncate text-foreground">
                                 {{ role.name }}
                             </p>
-                            <span
-                                v-if="role.isGlobal"
-                                class="gap-1 px-1.5 py-0.5 font-medium rounded inline-flex shrink-0 items-center bg-secondary text-[11px] text-secondary-foreground"
-                                :title="t('kinetix.role_global_hint')"
+                            <div
+                                v-if="
+                                    role.isGlobal ||
+                                    (role.usersCount !== null &&
+                                        role.usersCount !== undefined)
+                                "
+                                class="gap-1.5 flex flex-wrap items-center"
                             >
-                                <Globe class="size-3" />
-                                {{ t('kinetix.role_global') }}
-                            </span>
+                                <KinetixBadge
+                                    v-if="role.isGlobal"
+                                    size="sm"
+                                    class="gap-1"
+                                    :title="t('kinetix.role_global_hint')"
+                                >
+                                    <Globe class="size-3" />
+                                    {{ t('kinetix.role_global') }}
+                                </KinetixBadge>
+                                <KinetixBadge
+                                    v-if="
+                                        role.usersCount !== null &&
+                                        role.usersCount !== undefined
+                                    "
+                                    size="sm"
+                                >
+                                    {{
+                                        t(
+                                            'kinetix.role_members',
+                                            { count: role.usersCount },
+                                            role.usersCount ?? 0,
+                                        )
+                                    }}
+                                </KinetixBadge>
+                            </div>
                         </div>
-                        <span
-                            v-if="
-                                role.usersCount !== null &&
-                                role.usersCount !== undefined
-                            "
-                            class="px-2 py-0.5 font-medium rounded-md bg-secondary text-[11px] whitespace-nowrap text-secondary-foreground"
-                        >
-                            {{
-                                t(
-                                    'kinetix.role_members',
-                                    { count: role.usersCount },
-                                    role.usersCount ?? 0,
-                                )
-                            }}
-                        </span>
                     </div>
 
                     <ul class="space-y-1">

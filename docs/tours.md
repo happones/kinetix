@@ -71,6 +71,12 @@ KinetixTours::tour('posts')
 Wrap step copy in `__()` — tours are user-facing strings and follow the same
 [localization rule](/locale) as every developer-declared label.
 
+A step can point at something taller than the screen — a whole table. The
+tour then highlights its top, down to what fits with the message, so the page
+doesn't jump and the message stays beside what it describes. For the sharpest
+spotlight, still point a step at the part you talk about (the toolbar, the
+first column) rather than the whole page section.
+
 ## 3. Seen state: `local` vs `database`
 
 `kinetix.tours.driver` picks where "already seen" is remembered:

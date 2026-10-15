@@ -48,11 +48,11 @@ class Feature
     public function crud(): static
     {
         return $this->abilities([
-            'viewAny' => 'View list',
-            'view'    => 'View',
-            'create'  => 'Create',
-            'update'  => 'Update',
-            'delete'  => 'Delete',
+            'viewAny' => 'kinetix.permission_ability_view_any',
+            'view'    => 'kinetix.permission_ability_view',
+            'create'  => 'kinetix.permission_ability_create',
+            'update'  => 'kinetix.permission_ability_update',
+            'delete'  => 'kinetix.permission_ability_delete',
         ]);
     }
 
@@ -63,7 +63,7 @@ class Feature
      */
     public function access(): static
     {
-        return $this->ability('access', 'Access');
+        return $this->ability('access', 'kinetix.permission_ability_access');
     }
 
     /**
@@ -72,8 +72,8 @@ class Feature
     public function softDeletes(): static
     {
         return $this->abilities([
-            'restore'     => 'Restore',
-            'forceDelete' => 'Force delete',
+            'restore'     => 'kinetix.permission_ability_restore',
+            'forceDelete' => 'kinetix.permission_ability_force_delete',
         ]);
     }
 
@@ -102,14 +102,21 @@ class Feature
         return $this;
     }
 
+    /**
+     * The label in the reader's language. Read here, not where the feature
+     * is declared: features are declared while the app boots, before the
+     * request's locale is known. A translation key (`kinetix.…`, or a host's
+     * own) or a plain string a JSON lang file translates both work; one with
+     * no translation reads as written.
+     */
     public function getLabel(): string
     {
-        return $this->label ?? (string) str($this->name)->headline();
+        return self::translated($this->label ?? (string) str($this->name)->headline());
     }
 
     public function getGroup(): ?string
     {
-        return $this->group;
+        return $this->group === null ? null : self::translated($this->group);
     }
 
     /**
@@ -117,7 +124,20 @@ class Feature
      */
     public function getAbilities(): array
     {
-        return $this->abilities;
+        return array_map(self::translated(...), $this->abilities);
+    }
+
+    private static function translated(string $label): string
+    {
+        $translated = __($label);
+
+        // Kinetix's own keys read from the package itself when the host has
+        // not published (or has trimmed) its copy of the translations.
+        if ($translated === $label && str_starts_with($label, 'kinetix.')) {
+            $translated = __('kinetix::'.$label);
+        }
+
+        return is_string($translated) && $translated !== 'kinetix::'.$label ? $translated : $label;
     }
 
     /**

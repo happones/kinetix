@@ -78,6 +78,26 @@ class MailTemplateTest extends TestCase
         $this->assertStringContainsString('Your total is $42.', $rendered['html']);
     }
 
+    /**
+     * A bare list of names left the editor with empty rows and every sample
+     * blank: it reads as rows named by those keys, however it was stored.
+     */
+    public function test_variables_given_as_bare_names_read_as_rows(): void
+    {
+        $template = $this->template(['variables' => ['name', 'total']]);
+
+        $this->assertSame([
+            ['key' => 'name', 'label' => null, 'sample' => null],
+            ['key' => 'total', 'label' => null, 'sample' => null],
+        ], $template->fresh()?->variables);
+
+        // A row written before this normalization, straight into the column.
+        MailTemplate::query()->whereKey($template->getKey())->toBase()->update(['variables' => json_encode(['team'])]);
+
+        $this->assertSame([['key' => 'team', 'label' => null, 'sample' => null]], $template->fresh()?->variables);
+        $this->assertSame(['team' => 'team'], $template->fresh()?->sampleData());
+    }
+
     public function test_markdown_body_escapes_variable_values(): void
     {
         $html = $this->template()->render(['name' => '<script>x</script>', 'total' => ''])['html'];

@@ -12,6 +12,7 @@ import CardFooter from './primitives/CardFooter.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
 import { cn } from './primitives/cn';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -181,20 +182,14 @@ function confirmFree(): void {
                 }}</span>
             </div>
 
-            <div
+            <KinetixBadge
                 v-if="showTrial && plan.trialDays && plan.trialDays > 0"
-                class="mt-2 font-semibold text-amber-600 dark:text-amber-400 gap-1.5 flex items-center text-[10px]"
+                color="warning"
+                size="sm"
+                class="mt-2"
             >
-                <span
-                    class="px-2 py-0.5 bg-amber-500/10 border-amber-500/20 tracking-wide rounded-full border capitalize"
-                >
-                    {{
-                        t('kinetix.billing_trial_badge', {
-                            days: plan.trialDays,
-                        })
-                    }}
-                </span>
-            </div>
+                {{ t('kinetix.billing_trial_badge', { days: plan.trialDays }) }}
+            </KinetixBadge>
 
             <ul class="mt-6 space-y-2.5 text-sm">
                 <li

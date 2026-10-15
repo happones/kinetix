@@ -33,6 +33,9 @@ export const i18n = createI18n({
                 import: 'Import',
                 // billing UI
                 billing_current_plan: 'Current plan',
+                billing_invoice_status_paid: 'Paid',
+                billing_trial_active_plan:
+                    "You're trying the {plan} plan until {date}.",
                 billing_upgrade: 'Upgrade',
                 billing_switch_plan: 'Switch plan',
                 billing_per_month: '/ month',

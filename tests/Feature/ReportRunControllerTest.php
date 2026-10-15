@@ -215,6 +215,34 @@ class ReportRunControllerTest extends TestCase
         $this->assertSame('XLSX', $row['format']);
     }
 
+    /**
+     * Unlabeled, a column was headed by its attribute in English ("Status",
+     * "Percent") whatever the reader's language.
+     */
+    public function test_every_runs_column_is_headed_in_the_readers_language(): void
+    {
+        // What a host has once Kinetix's translations are published.
+        $spanish = require __DIR__.'/../../resources/lang/es/kinetix.php';
+        app('translator')->addLines(
+            collect($spanish)->mapWithKeys(fn ($line, $key) => ["kinetix.{$key}" => $line])->all(),
+            'es',
+        );
+        app()->setLocale('es');
+
+        $labels = collect($this->getJson(route('kinetix.report-runs.index'))->assertOk()->json('columns'))
+            ->pluck('label', 'name')
+            ->all();
+
+        $this->assertSame([
+            'report_class'   => 'Reporte',
+            'status'         => 'Estado',
+            'processed_rows' => 'Filas',
+            'percent'        => 'Progreso',
+            'format'         => 'Formato',
+            'created_at'     => 'Iniciado',
+        ], $labels);
+    }
+
     public function test_download_streams_a_completed_runs_file(): void
     {
         Storage::fake('public');

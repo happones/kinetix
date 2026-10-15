@@ -830,7 +830,7 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         // The built-in feature that guards the role-management endpoints/UI.
-        app(PermissionRegistry::class)->feature('roles')->label('Roles & Permissions')->ability('manage', 'Manage roles');
+        app(PermissionRegistry::class)->feature('roles')->label('kinetix.permission_feature_roles')->ability('manage', 'kinetix.permission_ability_manage_roles');
 
         // A super-admin role bypasses every gate check (see Permissions\SuperAdmin,
         // shared with the Inertia prop and the role-management controller).
@@ -1050,15 +1050,15 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         app(PermissionRegistry::class)->feature('members')
-            ->label('Members')
+            ->label('kinetix.permission_feature_members')
             ->abilities([
-                'viewAny'   => 'View members',
-                'provision' => 'Add / invite members',
-                'update'    => 'Change member role',
-                'revoke'    => 'Remove members',
+                'viewAny'   => 'kinetix.permission_ability_view_members',
+                'provision' => 'kinetix.permission_ability_provision_members',
+                'update'    => 'kinetix.permission_ability_update_members',
+                'revoke'    => 'kinetix.permission_ability_revoke_members',
                 // Seeing a credential that lets you become someone else is a
                 // bigger privilege than adding them to the directory.
-                'credentials' => 'Issue member credentials',
+                'credentials' => 'kinetix.permission_ability_member_credentials',
             ]);
 
         $this->registerMembershipRoutes();
@@ -1120,8 +1120,8 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         app(PermissionRegistry::class)->feature('settings')
-            ->label('Settings')
-            ->ability('manage', 'Manage settings');
+            ->label('kinetix.permission_feature_settings')
+            ->ability('manage', 'kinetix.permission_ability_manage_settings');
 
         /** @var array<int, class-string<SettingsPage>> $pages */
         $pages = (array) config('kinetix.settings.pages', []);
@@ -1174,8 +1174,8 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         app(PermissionRegistry::class)->feature('activity')
-            ->label('Activity Log')
-            ->ability('view', 'View activity log');
+            ->label('kinetix.permission_feature_activity')
+            ->ability('view', 'kinetix.permission_ability_view_activity');
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);
@@ -1210,8 +1210,8 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         app(PermissionRegistry::class)->feature('users')
-            ->label('Users')
-            ->ability('impersonate', 'Impersonate users');
+            ->label('kinetix.permission_feature_users')
+            ->ability('impersonate', 'kinetix.permission_ability_impersonate');
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);
@@ -1433,8 +1433,8 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         app(PermissionRegistry::class)->feature('webhooks')
-            ->label('Webhooks')
-            ->ability('manage', 'Manage webhooks');
+            ->label('kinetix.permission_feature_webhooks')
+            ->ability('manage', 'kinetix.permission_ability_manage_webhooks');
 
         // When delivering through spatie/laravel-webhook-server, bridge its
         // per-attempt events into the Kinetix delivery log.

@@ -18,6 +18,34 @@ class PermissionFeatureTest extends TestCase
         $this->assertSame(['reports.access'], $feature->permissionKeys());
     }
 
+    /**
+     * Declared while the app boots, read once the request's locale is known:
+     * the presets, Kinetix's own features and a host's labels all say what
+     * they mean in the reader's language.
+     */
+    public function test_labels_are_read_in_the_readers_language(): void
+    {
+        $feature = (new Feature('invoices'))->label('app.invoices')->group('app.billing')->crud();
+
+        app()->setLocale('es');
+        app('translator')->addLines(['app.invoices' => 'Facturas', 'app.billing' => 'Cobros'], 'es');
+        app('translator')->addLines(['app.invoices' => 'Invoices'], 'en');
+
+        $this->assertSame('Facturas', $feature->getLabel());
+        $this->assertSame('Cobros', $feature->getGroup());
+        $this->assertSame([
+            'viewAny' => 'Ver listado',
+            'view'    => 'Ver',
+            'create'  => 'Crear',
+            'update'  => 'Editar',
+            'delete'  => 'Eliminar',
+        ], $feature->getAbilities());
+
+        app()->setLocale('en');
+        $this->assertSame('View list', $feature->getAbilities()['viewAny']);
+        $this->assertSame('Invoices', $feature->getLabel());
+    }
+
     public function test_group_flows_through_the_frontend_dto(): void
     {
         $feature = (new Feature('employees'))

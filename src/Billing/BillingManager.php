@@ -300,6 +300,35 @@ class BillingManager
     }
 
     /**
+     * What the billing page reads from Stripe — the cards, the default one,
+     * the invoices — read only for a real customer with a Stripe secret, and
+     * never at the cost of the page: without the secret every read threw
+     * "api_key cannot be the empty string", and a Stripe outage answered a
+     * 500 where the plans could still be shown. A failure is reported and the
+     * fallback is what the page shows.
+     *
+     * @template TValue
+     *
+     * @param  callable(): TValue $read
+     * @param  TValue             $fallback
+     * @return TValue
+     */
+    protected function readFromStripe(callable $read, mixed $fallback): mixed
+    {
+        if (! $this->stripeConfigured() || ! $this->hasStripeCustomer()) {
+            return $fallback;
+        }
+
+        try {
+            return $read();
+        } catch (Throwable $e) {
+            report($e);
+
+            return $fallback;
+        }
+    }
+
+    /**
      * @return array<int, array{id: string, brand: string, last4: string, expMonth: int, expYear: int}>
      */
     public function paymentMethods(): array
@@ -308,7 +337,7 @@ class BillingManager
             return [];
         }
 
-        return $this->billable->paymentMethods()
+        return $this->readFromStripe(fn (): array => $this->billable->paymentMethods()
             ->map(static fn ($pm): array => [
                 'id'       => $pm->id,
                 'brand'    => $pm->card->brand,
@@ -317,7 +346,7 @@ class BillingManager
                 'expYear'  => $pm->card->exp_year,
             ])
             ->values()
-            ->all();
+            ->all(), []);
     }
 
     public function defaultPaymentMethodId(): ?string
@@ -326,7 +355,7 @@ class BillingManager
             return null;
         }
 
-        return $this->billable->defaultPaymentMethod()?->id;
+        return $this->readFromStripe(fn (): ?string => $this->billable->defaultPaymentMethod()?->id, null);
     }
 
     /**
@@ -338,7 +367,7 @@ class BillingManager
             return [];
         }
 
-        return $this->billable->invoices()
+        return $this->readFromStripe(fn (): array => $this->billable->invoices()
             ->map(static fn ($invoice): array => [
                 'id'     => $invoice->id,
                 'date'   => $invoice->date()->toFormattedDateString(),
@@ -347,7 +376,7 @@ class BillingManager
                 'url'    => (string) $invoice->invoice_pdf,
             ])
             ->values()
-            ->all();
+            ->all(), []);
     }
 
     // -------------------------------------------------------------------
@@ -355,7 +384,7 @@ class BillingManager
     // -------------------------------------------------------------------
 
     /**
-     * @return array{active: bool, onGracePeriod: bool, status: ?string, endsAt: ?string, stripePrice: ?string, onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool, trialPlan: ?string}
+     * @return array{active: bool, onGracePeriod: bool, status: ?string, endsAt: ?string, stripePrice: ?string, onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool, trialPlan: ?string, trialPlanName: ?string}
      */
     public function subscriptionData(): array
     {
@@ -612,8 +641,10 @@ class BillingManager
     // -------------------------------------------------------------------
 
     /**
-     * @param  object|null                                                                          $subscription
-     * @return array{onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool, trialPlan: ?string}
+     * @param  object|null                                                                                                  $subscription
+     *                                                                                                                                    `trialPlan` is the plan's slug; `trialPlanName` the name a reader knows
+     *                                                                                                                                    it by, the one the page says ("You're trying Pro").
+     * @return array{onTrial: bool, trialEndsAt: ?string, onGenericTrial: bool, trialPlan: ?string, trialPlanName: ?string}
      */
     protected function resolveTrialData($subscription): array
     {
@@ -622,7 +653,8 @@ class BillingManager
                 'onTrial'        => true,
                 'trialEndsAt'    => $this->genericTrialEndsAt(),
                 'onGenericTrial' => true,
-                'trialPlan'      => $this->billable->trial_plan ?? null,
+                'trialPlan'      => $this->billable->trial_plan     ?? null,
+                'trialPlanName'  => $this->genericTrialPlan()->name ?? ($this->billable->trial_plan ?? null),
             ];
         }
 
@@ -633,6 +665,7 @@ class BillingManager
             'trialEndsAt'    => $stripeTrial ? $subscription->trial_ends_at?->toIso8601String() : null,
             'onGenericTrial' => false,
             'trialPlan'      => null,
+            'trialPlanName'  => null,
         ];
     }
 

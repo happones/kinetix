@@ -108,7 +108,7 @@ const tiles = computed<Tile[]>(() => {
             </h3>
             <span
                 v-if="snapshot?.horizon && snapshot?.status"
-                class="px-2 py-0.5 text-xs font-medium rounded-full capitalize"
+                class="px-2 py-0.5 text-xs font-medium rounded-full"
                 :class="statusClass"
             >
                 {{ t(`kinetix.queue_status_${snapshot.status}`) }}

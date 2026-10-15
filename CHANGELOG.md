@@ -13,6 +13,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.240.0] - 2026-10-15
+
+### Added
+
+- **(published)** `<KinetixSessions>`, `<KinetixNotificationPreferences>` and
+  `<KinetixConnectedAccounts>` take `hide-title`, for a settings page that
+  already titles the section — mounted under one, the same heading showed
+  twice.
+
+### Fixed
+
+- The billing page answered a 500 for a team with a Stripe id while no Stripe
+  secret is configured ("api_key cannot be the empty string"): the payment
+  methods, the default one and the invoices are now read only for a real
+  customer with a secret, and a failing Stripe read is reported instead of
+  taking the page down — the plans still show during an outage.
+- **(published)** Billing pills: the trial badge on a plan card no longer
+  title-cases its text ("Prueba De 15 Dias"), the trial and status pills and
+  the invoice status use `KinetixBadge`'s AA status colors, and an invoice's
+  status is translated (`billing_invoice_status_*`) instead of Stripe's raw
+  `paid` / `open`.
+- **(published)** The generic-trial notice names the plan as the reader knows
+  it ("You are trialing the Pro plan"), not its slug: `subscriptionData()`
+  adds `trialPlanName` (`trialPlan` stays the slug). The notice is a warning
+  `KinetixAlert`.
+- **(published)** Product tours on a target taller than the screen (a long
+  table): driver.js scrolled the page so the target's top sat under the
+  sticky header and parked the message at the bottom of the screen, arrowless,
+  over the rows. The tour now highlights the target's top down to what fits
+  with its message, so the page doesn't jump and the message points at what
+  it describes. A one-step tour no longer shows a disabled **Back**.
+- **(published)** Role cards: a role's name shared its line with the Global and
+  member-count badges and was cut to its first letter in a three-column
+  grid; the name now has its own line and the badges wrap below it.
+- Permission labels follow the reader's language: Kinetix's own modules
+  (Roles, Members, Settings, Activity log, Users, Webhooks), their abilities
+  and the CRUD / access / soft-delete presets every feature uses were fixed
+  English strings. Labels are read through the translator when shown, so a
+  host's `->label()` / `->group()` can be a translation key or a string its
+  JSON lang file translates.
+- The report runs and report schedules tables headed their status, progress,
+  format and date columns with the attribute in English; they are labelled in
+  every locale.
+- **(published)** The report launcher's "queued" message no longer says the
+  progress is "below" — in the reports center it is on another tab.
+- **(published)** Tab strips hide their scrollbar: a classic scrollbar is
+  taller than the strip's padding and covered the labels.
+- **(published)** The activity log shows an empty value as a dash and a JSON
+  value without its escaped slashes, and shortens a long value (the whole one
+  is in the line's tooltip).
+- Mail templates read a variables list given as bare names
+  (`['team', 'count']`) as `{key, label, sample}` rows — the editor showed
+  empty rows for it and every preview sample was blank.
+
 ## [0.239.0] - 2026-10-15
 
 ### Added

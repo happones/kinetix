@@ -9,6 +9,7 @@ use Happones\Kinetix\Billing\Exceptions\BillingActionException;
 use Happones\Kinetix\Billing\Plan;
 use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
@@ -308,6 +309,8 @@ class BillingManagerTest extends TestCase
 
     public function test_payment_methods_are_mapped_to_camel_case(): void
     {
+        config(['cashier.secret' => 'sk_test_fake']);
+
         $methods = BillingManager::for(new FakeBillable)->paymentMethods();
 
         $this->assertSame([
@@ -317,6 +320,75 @@ class BillingManagerTest extends TestCase
             'expMonth' => 12,
             'expYear'  => 2030,
         ], $methods[0]);
+    }
+
+    /**
+     * Without a Stripe secret every read threw "api_key cannot be the empty
+     * string" and the billing page answered a 500 — for a team that already
+     * has a Stripe id, as a seeded or imported one does.
+     */
+    public function test_nothing_is_read_from_stripe_without_a_secret(): void
+    {
+        config(['cashier.secret' => null, 'services.stripe.secret' => null]);
+
+        $manager = BillingManager::for(new class extends FakeBillable
+        {
+            public function paymentMethods(): Collection
+            {
+                throw new RuntimeException('api_key cannot be the empty string');
+            }
+
+            public function defaultPaymentMethod(): ?object
+            {
+                throw new RuntimeException('api_key cannot be the empty string');
+            }
+
+            public function invoices(): Collection
+            {
+                throw new RuntimeException('api_key cannot be the empty string');
+            }
+        });
+
+        $this->assertSame([], $manager->paymentMethods());
+        $this->assertNull($manager->defaultPaymentMethodId());
+        $this->assertSame([], $manager->invoices());
+    }
+
+    public function test_nothing_is_read_from_stripe_for_a_billable_that_is_not_a_customer(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+
+        $billable            = new FakeBillable;
+        $billable->stripe_id = null;
+
+        $this->assertSame([], BillingManager::for($billable)->paymentMethods());
+        $this->assertNull(BillingManager::for($billable)->defaultPaymentMethodId());
+    }
+
+    /**
+     * A Stripe outage costs the page its cards and invoices, not the page.
+     */
+    public function test_a_failing_stripe_read_is_reported_and_the_page_keeps_going(): void
+    {
+        config(['cashier.secret' => 'sk_test_fake']);
+        $reported = [];
+        $this->app->make(ExceptionHandler::class)->reportable(function (RuntimeException $e) use (&$reported): bool {
+            $reported[] = $e->getMessage();
+
+            return false;
+        });
+
+        $manager = BillingManager::for(new class extends FakeBillable
+        {
+            public function invoices(): Collection
+            {
+                throw new RuntimeException('Stripe is down');
+            }
+        });
+
+        $this->assertSame([], $manager->invoices());
+        $this->assertSame('pm_1', $manager->defaultPaymentMethodId());
+        $this->assertSame(['Stripe is down'], $reported);
     }
 
     public function test_subscription_data_shape(): void
@@ -623,6 +695,8 @@ class BillingManagerTest extends TestCase
         $this->assertTrue($data['onTrial']);
         $this->assertTrue($data['onGenericTrial']);
         $this->assertSame('pro', $data['trialPlan']);
+        // The page says the plan's name, not its slug.
+        $this->assertSame('Pro', $data['trialPlanName']);
     }
 
     public function test_subscription_data_trial_plan_is_null_when_not_on_generic_trial(): void
@@ -633,6 +707,7 @@ class BillingManagerTest extends TestCase
 
         $data = BillingManager::for($billable)->subscriptionData();
         $this->assertNull($data['trialPlan']);
+        $this->assertNull($data['trialPlanName']);
     }
 
     public function test_is_free_column_on_plan(): void

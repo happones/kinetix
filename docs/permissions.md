@@ -223,15 +223,26 @@ KinetixPermissions::feature('reports')->access();
 // 3. Custom abilities INSIDE a module (field-level or action-level):
 //    never a column — they render with their full label in the module's
 //    expandable row (the `n/m` chip next to the module name).
-KinetixPermissions::feature('employees')->group('HR')->crud()
-    ->ability('viewSalary', __('perms.view_salary'))
-    ->ability('export', __('perms.export_payroll'));
+KinetixPermissions::feature('employees')->group('perms.hr')->crud()
+    ->ability('viewSalary', 'perms.view_salary')
+    ->ability('export', 'perms.export_payroll');
 ```
 
 The header vocabulary is FIXED (`access` + the CRUD lifecycle): no matter how
 many modules or custom abilities you declare, columns never multiply.
 `->group('HR')` optionally clusters modules into titled sections in both role
 UIs.
+
+#### Labels in the reader's language
+
+Features are declared while the app boots, before a request's locale is
+known, so labels are translated when they are **shown**, not when declared.
+Pass a label, a group or an ability's label as a translation key (`'perms.hr'`)
+or as a plain string your JSON lang file translates (`'Billing'` →
+`lang/es.json`) — not `__('…')`, which would be resolved once, in the boot
+locale. A string with no translation reads as written. Kinetix's own modules
+(roles, members, settings, activity log, users, webhooks) and the `crud()` /
+`access()` / `softDeletes()` presets are translated in every shipped locale.
 
 #### Enforcing a field-level permission (`->can()`)
 

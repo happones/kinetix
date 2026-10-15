@@ -145,6 +145,31 @@ describe('KinetixPricingTable', () => {
 });
 
 describe('KinetixSubscriptionStatus', () => {
+    it('names the trial plan as the reader knows it, in a warning alert', () => {
+        const wrapper = mount(KinetixSubscriptionStatus, {
+            props: {
+                subscription: {
+                    active: false,
+                    onGracePeriod: false,
+                    status: null,
+                    endsAt: null,
+                    stripePrice: null,
+                    onTrial: true,
+                    trialEndsAt: '2030-01-15T00:00:00Z',
+                    onGenericTrial: true,
+                    trialPlan: 'pro',
+                    trialPlanName: 'Pro',
+                },
+            },
+        });
+
+        expect(wrapper.text()).toContain('Pro');
+        expect(wrapper.text()).not.toMatch(/plan pro\b/);
+        expect(wrapper.find('[role="status"], [role="alert"]').exists()).toBe(
+            true,
+        );
+    });
+
     it('shows the cancel button for an active subscription', () => {
         const wrapper = mount(KinetixSubscriptionStatus, {
             props: {
@@ -235,7 +260,9 @@ describe('KinetixInvoicesTable', () => {
 
         expect(wrapper.text()).toContain('Jan 1, 2030');
         expect(wrapper.text()).toContain('$29.00');
-        expect(wrapper.text()).toContain('paid');
+        // Stripe's raw status, said in the reader's language.
+        expect(wrapper.text()).toContain('Paid');
+        expect(wrapper.text()).not.toContain('paid');
     });
 
     it('emits download when no downloadUrl is provided', async () => {

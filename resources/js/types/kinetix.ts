@@ -1577,7 +1577,10 @@ export interface KinetixSubscriptionData {
     onTrial: boolean;
     trialEndsAt: string | null;
     onGenericTrial: boolean;
+    /** The trial plan's slug. */
     trialPlan: string | null;
+    /** The trial plan's name, as the page says it. */
+    trialPlanName?: string | null;
 }
 
 /** One metered usage dimension (API calls, seats, storage, …) for <KinetixUsageMeters>. */

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixSubscriptionData } from '@/types/kinetix';
+import KinetixAlert from './KinetixAlert.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import Card from './primitives/Card.vue';
 import CardContent from './primitives/CardContent.vue';
@@ -10,6 +11,7 @@ import CardFooter from './primitives/CardFooter.vue';
 import CardHeader from './primitives/CardHeader.vue';
 import CardTitle from './primitives/CardTitle.vue';
 import { cn } from './primitives/cn';
+import KinetixBadge from './primitives/KinetixBadge.vue';
 
 const { t, te, locale } = useI18n();
 
@@ -55,7 +57,13 @@ const statusLabel = computed(() => {
     const status = props.subscription?.status ?? '';
     const key = `kinetix.billing_status_${status}`;
 
-    return status !== '' && te(key) ? t(key) : status.replace(/_/g, ' ');
+    if (status !== '' && te(key)) {
+        return t(key);
+    }
+
+    const words = status.replace(/_/g, ' ');
+
+    return words.charAt(0).toUpperCase() + words.slice(1);
 });
 
 /** Cancelling is one click from losing the plan, so it asks first. */
@@ -67,7 +75,11 @@ function confirmCancel(): void {
 }
 
 const trialPlanName = computed(() => {
-    return props.subscription?.trialPlan ?? null;
+    return (
+        props.subscription?.trialPlanName ??
+        props.subscription?.trialPlan ??
+        null
+    );
 });
 
 const hasActions = computed(() => {
@@ -97,28 +109,24 @@ const hasActions = computed(() => {
                     <span class="text-sm text-muted-foreground">{{
                         t('kinetix.billing_status')
                     }}</span>
-                    <span
-                        v-if="subscription.onTrial"
-                        class="px-2 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-500 inline-flex w-fit items-center rounded-full border border-transparent capitalize"
-                    >
+                    <KinetixBadge v-if="subscription.onTrial" color="warning">
                         {{ t('kinetix.billing_trial') }}
-                    </span>
-                    <span
+                    </KinetixBadge>
+                    <KinetixBadge
                         v-else
-                        class="px-2 py-0.5 text-xs font-medium inline-flex w-fit items-center rounded-full border capitalize"
-                        :class="
+                        :color="
                             subscription.active && !subscription.onGracePeriod
-                                ? 'border-transparent bg-primary text-primary-foreground'
-                                : 'border-transparent bg-secondary text-secondary-foreground'
+                                ? 'success'
+                                : 'gray'
                         "
                     >
                         {{ statusLabel }}
-                    </span>
+                    </KinetixBadge>
                 </div>
 
-                <div
+                <KinetixAlert
                     v-if="subscription.onTrial && formattedTrialEndsAt"
-                    class="p-3 text-xs border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 font-medium rounded-md border"
+                    color="warning"
                 >
                     <template
                         v-if="subscription.onGenericTrial && trialPlanName"
@@ -137,7 +145,7 @@ const hasActions = computed(() => {
                             })
                         }}
                     </template>
-                </div>
+                </KinetixAlert>
 
                 <div
                     v-if="!subscription.onTrial && formattedEndsAt"
