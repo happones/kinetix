@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { useKinetixHelp } from '@/composables/useKinetixHelp';
 import { useKinetixHelpToc } from '@/composables/useKinetixHelpToc';
 import { useKinetixLocale } from '@/composables/useKinetixLocale';
+import KinetixMarkdownContent from './KinetixMarkdownContent.vue';
 import Alert from './primitives/Alert.vue';
 import AlertDescription from './primitives/AlertDescription.vue';
 
@@ -45,7 +46,8 @@ const { t } = useI18n();
 const { article, articleLoading, articleError, loadArticle } = useKinetixHelp();
 const { locales } = useKinetixLocale();
 
-const contentEl = ref<HTMLElement | null>(null);
+const markdown = ref<InstanceType<typeof KinetixMarkdownContent> | null>(null);
+const contentEl = computed(() => markdown.value?.el ?? null);
 const { toc, activeId, build, scrollTo } = useKinetixHelpToc(contentEl);
 
 /** Explicitly chosen reading language (null = follow the app's). */
@@ -212,13 +214,13 @@ const onContentClick = (event: MouseEvent): void => {
                     </div>
                 </div>
 
-                <!-- eslint-disable-next-line vue/no-v-html -- server-sanitized markdown -->
-                <article
-                    ref="contentEl"
-                    class="kinetix-help-content max-w-3xl mx-auto"
+                <KinetixMarkdownContent
+                    ref="markdown"
+                    as="article"
+                    class="max-w-3xl mx-auto"
+                    :html="article.html"
                     :lang="article.locale"
                     dir="auto"
-                    v-html="article.html"
                     @click="onContentClick"
                 />
 
@@ -297,87 +299,3 @@ const onContentClick = (event: MouseEvent): void => {
         </aside>
     </div>
 </template>
-
-<style scoped>
-.kinetix-help-content :deep(h1) {
-    font-size: 1.875rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin-bottom: 1rem;
-    scroll-margin-top: 5rem;
-}
-.kinetix-help-content :deep(h2) {
-    font-size: 1.3rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    margin-top: 2.25rem;
-    margin-bottom: 0.6rem;
-    padding-bottom: 0.4rem;
-    border-bottom: 1px solid var(--border);
-    scroll-margin-top: 5rem;
-}
-.kinetix-help-content :deep(h3) {
-    font-size: 1.05rem;
-    font-weight: 600;
-    margin-top: 1.75rem;
-    margin-bottom: 0.4rem;
-    scroll-margin-top: 5rem;
-}
-.kinetix-help-content :deep(p),
-.kinetix-help-content :deep(ul),
-.kinetix-help-content :deep(ol) {
-    margin-bottom: 1rem;
-    line-height: 1.7;
-    color: var(--muted-foreground);
-}
-.kinetix-help-content :deep(ul),
-.kinetix-help-content :deep(ol) {
-    padding-left: 1.25rem;
-}
-.kinetix-help-content :deep(li) {
-    margin-bottom: 0.35rem;
-    list-style: disc;
-}
-.kinetix-help-content :deep(ol li) {
-    list-style: decimal;
-}
-.kinetix-help-content :deep(li)::marker {
-    color: var(--border);
-}
-.kinetix-help-content :deep(strong) {
-    color: var(--foreground);
-    font-weight: 600;
-}
-.kinetix-help-content :deep(a) {
-    color: var(--primary);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-}
-.kinetix-help-content :deep(code) {
-    font-family: ui-monospace, monospace;
-    font-size: 0.85em;
-    background: var(--muted);
-    padding: 0.1rem 0.35rem;
-    border-radius: 0.3rem;
-}
-.kinetix-help-content :deep(blockquote) {
-    border-left: 3px solid var(--primary);
-    padding: 0.25rem 0 0.25rem 1rem;
-    margin: 0 0 1rem;
-    color: var(--muted-foreground);
-    font-style: italic;
-}
-.kinetix-help-content :deep(img) {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border);
-    margin: 0.75rem 0 1.5rem;
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
-}
-.kinetix-help-content :deep(hr) {
-    border: 0;
-    border-top: 1px solid var(--border);
-    margin: 2rem 0;
-}
-</style>

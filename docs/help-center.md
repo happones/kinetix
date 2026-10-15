@@ -88,6 +88,10 @@ dependency needed). All keys are optional:
 
 Files named `README.md` or starting with `_` are ignored (drafts).
 
+The body is [Kinetix markdown](/markdown): callouts (`> [!TIP]`), code blocks
+with a copy button — highlighted when `phiki/phiki` is installed — tabbed code
+groups and scrollable tables all work in an article.
+
 ### Translations
 
 Add a locale variant next to the base file: `06-products.es.md`,

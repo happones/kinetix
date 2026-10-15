@@ -72,6 +72,14 @@ search and its URL 404s (never 403 — existence isn't leaked); a gated BLOCK is
 stripped from the markdown before rendering. Rendering uses
 `html_input=strip` + `allow_unsafe_links=false`.
 
+Bodies render through `MarkdownRenderer` (shared with docs): GitHub alerts
+(`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`, text after
+the marker = custom title), fenced code with label + copy button, adjacent
+```` ```lang [Title] ```` blocks → tabbed group, Unicode heading ids, scrollable
+tables. Code is highlighted server-side only when `phiki/phiki` is installed
+(`kinetix.markdown.highlight`); otherwise plain. Display any rendered body with
+`<KinetixMarkdownContent :html as="article" />`.
+
 ## Translations (first-class)
 
 - Variants live next to the base file: `02-products.es.md`. The base `.md` must

@@ -15,7 +15,9 @@ export interface KinetixHelpTocEntry {
  * viewport. Call `build()` after the article HTML is in the DOM (and again on
  * navigation); the observer disconnects automatically on unmount.
  */
-export function useKinetixHelpToc(contentEl: Ref<HTMLElement | null>) {
+export function useKinetixHelpToc(
+    contentEl: Readonly<Ref<HTMLElement | null>>,
+) {
     const toc = ref<KinetixHelpTocEntry[]>([]);
     const activeId = ref('');
     let observer: IntersectionObserver | null = null;

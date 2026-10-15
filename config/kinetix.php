@@ -1049,6 +1049,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Markdown content
+    |--------------------------------------------------------------------------
+    |
+    | How the markdown an app ships (help articles, docs pages) renders. Code
+    | blocks are highlighted on the server by Phiki when `phiki/phiki` is
+    | installed (`composer require phiki/phiki`); without it they render as
+    | plain code. Two themes render at once, the dark one applying under
+    | `.dark`. `cache_store` caches highlighted blocks in a Laravel cache store
+    | (null = no cache; rendering a page twice re-highlights it).
+    |
+    */
+    'markdown' => [
+        'highlight' => [
+            'enabled'     => env('KINETIX_MARKDOWN_HIGHLIGHT', true),
+            'themes'      => ['light' => 'github-light', 'dark' => 'github-dark'],
+            'cache_store' => env('KINETIX_MARKDOWN_HIGHLIGHT_CACHE'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Help Center (optional)
     |--------------------------------------------------------------------------
     |

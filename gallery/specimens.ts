@@ -6,6 +6,7 @@ import KinetixOnboardingChecklist from '@/components/KinetixOnboardingChecklist.
 import KinetixTable from '@/components/KinetixTable.vue';
 import KinetixFormSchema from '@/components/KinetixFormSchema.vue';
 import KinetixInfolist from '@/components/KinetixInfolist.vue';
+import KinetixMarkdownContent from '@/components/KinetixMarkdownContent.vue';
 import KinetixGenerator from '@/components/KinetixGenerator.vue';
 import KinetixGdprPanel from '@/components/KinetixGdprPanel.vue';
 import KinetixTokenManager from '@/components/KinetixTokenManager.vue';
@@ -353,6 +354,7 @@ import KinetixRoleMatrix from '@/components/KinetixRoleMatrix.vue';
 import KinetixIntegrationLogs from '@/components/KinetixIntegrationLogs.vue';
 import KinetixPdfTemplate from '@/components/KinetixPdfTemplate.vue';
 import KinetixPermissionMatrix from '@/components/KinetixPermissionMatrix.vue';
+import { markdownSample } from './fixtures/markdown';
 import KinetixActivityLog from '@/components/KinetixActivityLog.vue';
 import KinetixRoleManager from '@/components/KinetixRoleManager.vue';
 import KinetixMemberList from '@/components/KinetixMemberList.vue';
@@ -2225,6 +2227,13 @@ export const specimens: Specimen[] = [
         title: 'Help Center — localized index',
         component: KinetixHelpCenter,
         width: 880,
+    },
+    {
+        name: 'markdown-content',
+        title: 'Markdown content — callouts, code group, table',
+        component: KinetixMarkdownContent,
+        width: 760,
+        props: { html: markdownSample, as: 'article' },
     },
     {
         name: 'help-article-language',

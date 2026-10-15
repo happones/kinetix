@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.235.0] - 2026-10-15
+
+### Added
+
+- **Markdown content engine** (`Happones\Kinetix\Markdown`), for the markdown
+  an app ships. GitHub-flavored and safe like before (raw HTML stripped, unsafe
+  links dropped), plus:
+  - callouts from GitHub's alert syntax (`> [!NOTE]`, `[!TIP]`,
+    `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`; text after the marker is the
+    title), translated in all 7 languages;
+  - code blocks with a label and a copy button, highlighted on the server when
+    `phiki/phiki` is installed (optional, now in `suggest`; light and dark
+    themes at once, `kinetix.markdown.highlight`); adjacent ```` ```lang [Title] ````
+    blocks become a tabbed code group (arrow keys, Home/End);
+  - Unicode-aware heading ids, the same ones the help TOC builds, an h2/h3
+    table of contents, optional `#` permalinks and a plain-text version for
+    search;
+  - tables that scroll on their own instead of widening a phone.
+
+  `app(MarkdownRenderer::class)->render($markdown, $locale, anchors: true)`
+  returns `html`, `toc` and `text`; `FrontMatter::parse()`/`strip()` read the
+  flat front matter. A custom `CodeHighlighter` binding swaps the engine. See
+  [Markdown Content](docs/markdown.md).
+- **(published)** `<KinetixMarkdownContent :html as="article">` displays it:
+  typography, callouts, code, tabs and copy buttons. Its colors go through
+  Tailwind's theme (`--color-*`), so they work whether the app's tokens are full
+  colors or HSL triplets.
+
+### Changed
+
+- **(published)** Help articles render through the new engine and
+  `<KinetixHelpArticle>` displays them with `<KinetixMarkdownContent>` (its own
+  copy of the typography is gone). Existing articles look the same; callouts,
+  highlighted code, code groups and scrollable tables now work in them.
+
 ## [0.234.2] - 2026-10-14
 
 ### Fixed

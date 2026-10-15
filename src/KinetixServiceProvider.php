@@ -97,6 +97,9 @@ use Happones\Kinetix\Locale\LocaleController;
 use Happones\Kinetix\Locale\LocaleManager;
 use Happones\Kinetix\Locale\Middleware\SetKinetixLocale;
 use Happones\Kinetix\Mail\MailTemplateController;
+use Happones\Kinetix\Markdown\Highlighting\CodeHighlighter;
+use Happones\Kinetix\Markdown\Highlighting\PhikiHighlighter;
+use Happones\Kinetix\Markdown\MarkdownRenderer;
 use Happones\Kinetix\Media\MediaManager;
 use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreference;
@@ -252,6 +255,12 @@ class KinetixServiceProvider extends ServiceProvider
 
             return $registry;
         });
+
+        // Markdown for app-shipped content (help articles, docs), with code
+        // highlighted by Phiki when it's installed and highlighting is on.
+        $this->app->singleton(MarkdownRenderer::class, fn ($app): MarkdownRenderer => new MarkdownRenderer(
+            $app->bound(CodeHighlighter::class) ? $app->make(CodeHighlighter::class) : $this->defaultHighlighter(),
+        ));
 
         // The webhook event registry + dispatcher.
         $this->app->singleton(WebhookEventRegistry::class);
@@ -1427,6 +1436,24 @@ class KinetixServiceProvider extends ServiceProvider
      *
      * @return array<string, string>
      */
+    /**
+     * Phiki when it's installed and `kinetix.markdown.highlight.enabled`;
+     * otherwise code blocks render as plain, escaped code.
+     */
+    protected function defaultHighlighter(): ?CodeHighlighter
+    {
+        if (! config('kinetix.markdown.highlight.enabled', true) || ! PhikiHighlighter::available()) {
+            return null;
+        }
+
+        $store = config('kinetix.markdown.highlight.cache_store');
+
+        return new PhikiHighlighter(
+            (array) config('kinetix.markdown.highlight.themes', ['light' => 'github-light', 'dark' => 'github-dark']),
+            is_string($store) && $store !== '' ? $store : null,
+        );
+    }
+
     protected function translationPublishMap(): array
     {
         $shipped = array_map('basename', glob(__DIR__.'/../resources/lang/*', GLOB_ONLYDIR) ?: []);

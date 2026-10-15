@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Help;
 
-use Happones\Kinetix\Support\SafeMarkdown;
+use Happones\Kinetix\Markdown\FrontMatter;
+use Happones\Kinetix\Markdown\MarkdownRenderer;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -223,7 +224,7 @@ class HelpManager
         $markdown = $this->stripFrontMatter($markdown);
         $markdown = $this->applyBlockGates($markdown, $user);
 
-        $html = SafeMarkdown::toHtml($markdown);
+        $html = app(MarkdownRenderer::class)->render($markdown, $resolved['locale'])->html;
 
         return $this->rewriteScreenshots($html, $resolved['locale']);
     }
@@ -475,7 +476,7 @@ class HelpManager
     }
 
     // -------------------------------------------------------------------
-    // Front matter (flat `key: value` pairs between --- fences; no YAML dep)
+    // Front matter (flat `key: value` pairs, see FrontMatter)
     // -------------------------------------------------------------------
 
     /**
@@ -483,32 +484,12 @@ class HelpManager
      */
     protected function parseFrontMatter(string $markdown): array
     {
-        if (! preg_match('/^---\R(.*?)\R---\R?/s', $markdown, $matches)) {
-            return [];
-        }
-
-        $meta = [];
-
-        foreach (preg_split('/\R/', $matches[1]) ?: [] as $line) {
-            if (! str_contains($line, ':')) {
-                continue;
-            }
-
-            [$key, $value] = explode(':', $line, 2);
-            $key           = trim($key);
-            $value         = trim(trim($value), '"\'');
-
-            if ($key !== '' && $value !== '') {
-                $meta[$key] = $value;
-            }
-        }
-
-        return $meta;
+        return FrontMatter::parse($markdown);
     }
 
     protected function stripFrontMatter(string $markdown): string
     {
-        return (string) preg_replace('/^---\R.*?\R---\R?/s', '', $markdown);
+        return FrontMatter::strip($markdown);
     }
 
     // -------------------------------------------------------------------
