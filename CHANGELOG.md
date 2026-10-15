@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.236.0] - 2026-10-15
+
+### Added
+
+- **Docs module** (`kinetix.docs`, off by default): technical documentation
+  from markdown files in `resources/docs/{locale}/{section}/{page}.md`, served
+  at `/docs` by routes Kinetix registers (public by default, not team-scoped;
+  prefix, name, middleware and domain configurable).
+  - Sections with a landing page (`index.md` names and orders them), pages
+    ordered by `order` or an `NN-` file prefix and grouped by `group`.
+  - Links between the markdown files (`[Setup](02-configure.md#env)`) become
+    page URLs; `{{ name }}` placeholders are filled per request (`app_name`,
+    `app_url`, `docs_url`, plus a `docs.placeholders` callable array), escaped.
+  - A page missing in the reader's language is served in the fallback one and
+    marked; its group takes the translated name.
+  - Search over every page's title, headings and text (`/docs/search.json`),
+    accents and case ignored, a matching heading as the target.
+  - Rendered pages cached under their path and modification time.
+  - "Edit this page" (`docs.edit_url`), last updated date, previous / next.
+  - `php artisan kinetix:make-docs-page` scaffolds the page and a sample
+    section; `php artisan kinetix:docs-check [--strict]` reports links to
+    pages or headings that don't exist and untranslated pages, for CI.
+  - The root view receives `$kinetixDocs` (title, description, url) for meta
+    tags without JavaScript. See [Docs](docs/docs.md).
+- **(published)** `<KinetixDocs :docs>` (sections, sidebar, mobile menu, on
+  this page, search on `/`, fallback notice), with `<KinetixDocsSearch>`,
+  `<KinetixDocsNav>` and `<KinetixPageToc>`; types `KinetixDocsPayload` and
+  friends in `types/kinetix.ts`.
+
+### Changed
+
+- **(published)** `<KinetixHelpArticle>` uses the shared `<KinetixPageToc>`;
+  the table of contents leaves a heading's `#` permalink out of its name.
+
 ## [0.235.1] - 2026-10-15
 
 ### Fixed

@@ -7,6 +7,7 @@ import KinetixTable from '@/components/KinetixTable.vue';
 import KinetixFormSchema from '@/components/KinetixFormSchema.vue';
 import KinetixInfolist from '@/components/KinetixInfolist.vue';
 import KinetixMarkdownContent from '@/components/KinetixMarkdownContent.vue';
+import KinetixDocs from '@/components/KinetixDocs.vue';
 import KinetixBusinessHours from '@/components/KinetixBusinessHours.vue';
 import KinetixGenerator from '@/components/KinetixGenerator.vue';
 import KinetixGdprPanel from '@/components/KinetixGdprPanel.vue';
@@ -2228,6 +2229,85 @@ export const specimens: Specimen[] = [
         title: 'Help Center — localized index',
         component: KinetixHelpCenter,
         width: 880,
+    },
+    {
+        name: 'docs-page',
+        title: 'Docs page — sections, navigation, on this page',
+        component: KinetixDocs,
+        width: 1280,
+        props: {
+            docs: {
+                sections: [
+                    {
+                        key: 'guide',
+                        title: 'Guide',
+                        url: '/docs/guide',
+                        active: true,
+                    },
+                    {
+                        key: 'api',
+                        title: 'API reference',
+                        url: '/docs/api',
+                        active: false,
+                    },
+                    {
+                        key: 'cli',
+                        title: 'Command-line interface',
+                        url: '/docs/cli',
+                        active: false,
+                    },
+                ],
+                section: { key: 'guide', title: 'Guide' },
+                navigation: [
+                    {
+                        title: '',
+                        pages: [
+                            {
+                                title: 'Overview',
+                                url: '/docs/guide',
+                                active: false,
+                            },
+                        ],
+                    },
+                    {
+                        title: 'Basics',
+                        pages: [
+                            {
+                                title: 'Install',
+                                url: '/docs/guide/install',
+                                active: true,
+                            },
+                            {
+                                title: 'Authenticate every request with a personal token',
+                                url: '/docs/guide/tokens',
+                                active: false,
+                            },
+                        ],
+                    },
+                ],
+                page: {
+                    slug: 'install',
+                    title: 'Install',
+                    description:
+                        'Get the CLI running and make your first request.',
+                    group: 'Basics',
+                    html: markdownSample,
+                    toc: [],
+                    locale: 'en',
+                    fallback: true,
+                    updatedAt: '2026-10-15T10:00:00+00:00',
+                    editUrl:
+                        'https://code.example/edit/main/resources/docs/en/guide/01-install.md',
+                },
+                previous: { title: 'Overview', url: '/docs/guide' },
+                next: {
+                    title: 'Authenticate every request with a personal token',
+                    url: '/docs/guide/tokens',
+                },
+                searchUrl: '/docs/search.json',
+                meta: { title: 'Install · Guide', description: '', url: '' },
+            },
+        },
     },
     {
         name: 'markdown-content',

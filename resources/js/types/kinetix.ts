@@ -1613,3 +1613,64 @@ export interface ReportScheduleData {
     lastRunAt: string | null;
     notifyOnCompletion: boolean;
 }
+
+// --- Docs ---------------------------------------------------------------------
+
+/** A link to another docs page (previous / next). */
+export interface KinetixDocsLink {
+    title: string;
+    url: string;
+}
+
+export interface KinetixDocsSection {
+    key: string;
+    title: string;
+    url: string;
+    active: boolean;
+}
+
+/** A section's pages under one front matter `group` ('' = ungrouped). */
+export interface KinetixDocsNavGroup {
+    title: string;
+    pages: Array<{ title: string; url: string; active: boolean }>;
+}
+
+export interface KinetixDocsPage {
+    /** '' for a section's landing page. */
+    slug: string;
+    title: string;
+    description: string;
+    group: string;
+    html: string;
+    toc: Array<{ level: number; id: string; text: string }>;
+    /** The language the page is written in. */
+    locale: string;
+    /** Served in the fallback language: no translation yet. */
+    fallback: boolean;
+    updatedAt: string | null;
+    editUrl: string | null;
+}
+
+/** The `docs` prop DocsController hands the host's docs page. */
+export interface KinetixDocsPayload {
+    sections: KinetixDocsSection[];
+    section: { key: string; title: string };
+    navigation: KinetixDocsNavGroup[];
+    page: KinetixDocsPage;
+    previous: KinetixDocsLink | null;
+    next: KinetixDocsLink | null;
+    searchUrl: string;
+    meta: { title: string; description: string; url: string };
+}
+
+/** One page in the docs search index. */
+export interface KinetixDocsSearchEntry {
+    section: string;
+    sectionTitle: string;
+    slug: string;
+    title: string;
+    group: string;
+    url: string;
+    headings: Array<{ id: string; text: string }>;
+    text: string;
+}

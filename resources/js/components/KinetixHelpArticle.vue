@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronRight, Languages, List } from '@lucide/vue';
+import { ChevronLeft, ChevronRight, Languages } from '@lucide/vue';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixHelp } from '@/composables/useKinetixHelp';
 import { useKinetixHelpToc } from '@/composables/useKinetixHelpToc';
 import { useKinetixLocale } from '@/composables/useKinetixLocale';
 import KinetixMarkdownContent from './KinetixMarkdownContent.vue';
+import KinetixPageToc from './KinetixPageToc.vue';
 import Alert from './primitives/Alert.vue';
 import AlertDescription from './primitives/AlertDescription.vue';
 
@@ -127,31 +128,13 @@ const onContentClick = (event: MouseEvent): void => {
         <!-- The article -->
         <div class="min-w-0 flex-1">
             <!-- Mobile: on-this-page (below xl, when the right rail is hidden) -->
-            <details
+            <KinetixPageToc
                 v-if="toc.length"
-                class="mb-6 rounded-lg xl:hidden border border-border bg-card"
-            >
-                <summary
-                    class="gap-2 px-4 py-2.5 text-sm font-medium flex cursor-pointer items-center select-none"
-                >
-                    <List class="size-4 text-muted-foreground" />
-                    {{ t('kinetix.help_on_this_page') }}
-                </summary>
-                <nav class="space-y-0.5 p-2 border-t border-border">
-                    <a
-                        v-for="entry in toc"
-                        :key="entry.id"
-                        :href="`#${entry.id}`"
-                        :class="[
-                            'px-2 py-1 text-sm block rounded-md text-muted-foreground transition-colors hover:text-foreground',
-                            entry.level === 3 && 'pl-5',
-                        ]"
-                        @click.prevent="scrollTo(entry.id)"
-                    >
-                        {{ entry.text }}
-                    </a>
-                </nav>
-            </details>
+                class="mb-6 xl:hidden"
+                variant="disclosure"
+                :entries="toc"
+                @navigate="scrollTo"
+            />
 
             <div v-if="articleLoading" class="space-y-4 max-w-3xl mx-auto">
                 <div class="h-8 animate-pulse w-2/3 rounded-md bg-muted"></div>
@@ -271,31 +254,11 @@ const onContentClick = (event: MouseEvent): void => {
 
         <!-- Right: on this page (xl+) -->
         <aside v-if="toc.length" class="w-56 xl:block hidden shrink-0">
-            <div class="top-4 sticky max-h-[calc(100vh-2rem)] overflow-y-auto">
-                <p
-                    class="mb-2 gap-1.5 px-2 text-xs font-semibold tracking-wide flex items-center text-muted-foreground uppercase"
-                >
-                    <List class="size-3.5" />
-                    {{ t('kinetix.help_on_this_page') }}
-                </p>
-                <nav class="space-y-0.5 border-l border-border">
-                    <a
-                        v-for="entry in toc"
-                        :key="entry.id"
-                        :href="`#${entry.id}`"
-                        :class="[
-                            'py-1 text-sm -ml-px block border-l-2 transition-colors',
-                            entry.level === 3 ? 'pl-5' : 'pl-3',
-                            activeId === entry.id
-                                ? 'font-medium border-primary text-foreground'
-                                : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground',
-                        ]"
-                        @click.prevent="scrollTo(entry.id)"
-                    >
-                        {{ entry.text }}
-                    </a>
-                </nav>
-            </div>
+            <KinetixPageToc
+                :entries="toc"
+                :active-id="activeId"
+                @navigate="scrollTo"
+            />
         </aside>
     </div>
 </template>

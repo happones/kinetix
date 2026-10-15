@@ -62,7 +62,16 @@ export function useKinetixHelpToc(
         );
 
         toc.value = headings.map((el) => {
-            const text = el.textContent?.trim() ?? '';
+            // A heading's `#` permalink isn't part of its name.
+            const text = Array.from(el.childNodes)
+                .filter(
+                    (node) =>
+                        !(node instanceof Element) ||
+                        !node.classList.contains('kx-md-anchor'),
+                )
+                .map((node) => node.textContent ?? '')
+                .join('')
+                .trim();
             let id = el.id || slugify(text) || 'section';
 
             // Repeated headings (common across translations) get -2, -3, …

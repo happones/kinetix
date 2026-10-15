@@ -1070,6 +1070,64 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Docs (optional)
+    |--------------------------------------------------------------------------
+    |
+    | Technical documentation rendered from markdown in
+    | `{path}/{locale}/{section}/{page}.md` (see the Markdown Content page for
+    | the syntax). A page missing in the reader's language falls back to
+    | `fallback_locale`, marked. The pages render into the Inertia page `view`
+    | (scaffold it with `php artisan kinetix:make-docs-page`), which mounts
+    | `<KinetixDocs>`.
+    |
+    */
+    'docs' => [
+        'enabled' => env('KINETIX_DOCS_ENABLED', false),
+
+        // null = resource_path('docs').
+        'path' => env('KINETIX_DOCS_PATH'),
+
+        // Section directories in the order the header lists them. null = every
+        // directory, ordered by its index.md `order`, then name.
+        'sections' => null,
+
+        // Languages the docs are written in. null = the locale directories.
+        'locales' => null,
+
+        // The language every page exists in. null = config('app.fallback_locale').
+        'fallback_locale' => env('KINETIX_DOCS_FALLBACK_LOCALE'),
+
+        'routes' => [
+            'enabled' => true,
+            'prefix'  => 'docs',
+            'name'    => 'docs.',
+            // ['web'] = public. Add 'auth' (or your own) to make them private.
+            'middleware' => ['web'],
+            'domain'     => null,
+        ],
+
+        // The host's Inertia page the docs render into.
+        'view' => 'Kinetix/Docs',
+
+        // Values for `{{ name }}` placeholders, besides app_name, app_url and
+        // docs_url: a callable array receiving the request and returning
+        // ['name' => 'value'], e.g. [App\Docs\Placeholders::class, 'resolve'].
+        'placeholders' => null,
+
+        // "Edit this page" link; `{path}` is the file's path inside `path`.
+        // e.g. 'https://github.com/acme/app/edit/main/resources/docs/{path}'
+        'edit_url' => null,
+
+        // Rendered pages are cached under their path and modification time,
+        // so an edit shows up on the next request. null store = the default.
+        'cache' => [
+            'enabled' => env('KINETIX_DOCS_CACHE', true),
+            'store'   => env('KINETIX_DOCS_CACHE_STORE'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Help Center (optional)
     |--------------------------------------------------------------------------
     |

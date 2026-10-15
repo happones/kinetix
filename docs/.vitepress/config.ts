@@ -129,6 +129,7 @@ export default withMermaid(
           { text: "Product Tours", link: "/tours" },
           { text: "Help Center", link: "/help-center" },
           { text: "Markdown Content", link: "/markdown" },
+          { text: "Docs", link: "/docs" },
           { text: "Icons", link: "/icons" },
           { text: "Accessibility", link: "/accessibility" },
           { text: "Language Switcher", link: "/locale" },

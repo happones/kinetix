@@ -23,12 +23,14 @@ use Happones\Kinetix\Commands\ApiLogsPruneCommand;
 use Happones\Kinetix\Commands\ConfidentialEncryptExistingCommand;
 use Happones\Kinetix\Commands\ConfidentialRotateKeyCommand;
 use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
+use Happones\Kinetix\Commands\DocsCheckCommand;
 use Happones\Kinetix\Commands\DoctorCommand;
 use Happones\Kinetix\Commands\HelpScreenshotsCommand;
 use Happones\Kinetix\Commands\HelpStatusCommand;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Commands\MakeActionCommand;
 use Happones\Kinetix\Commands\MakeBillingCommand;
+use Happones\Kinetix\Commands\MakeDocsPageCommand;
 use Happones\Kinetix\Commands\MakeExporterCommand;
 use Happones\Kinetix\Commands\MakeFormCommand;
 use Happones\Kinetix\Commands\MakeHelpPageCommand;
@@ -68,6 +70,8 @@ use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Data\AccessibilityData;
 use Happones\Kinetix\Dismissals\DismissalController;
 use Happones\Kinetix\Dismissals\KinetixDismissals;
+use Happones\Kinetix\Docs\DocsController;
+use Happones\Kinetix\Docs\DocsManager;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Entitlements\Middleware\EnsureEntitled;
 use Happones\Kinetix\Exports\ExportController;
@@ -419,6 +423,8 @@ class KinetixServiceProvider extends ServiceProvider
                 MakeResourceCommand::class,
                 MakeRolesPageCommand::class,
                 MakeHelpPageCommand::class,
+                MakeDocsPageCommand::class,
+                DocsCheckCommand::class,
                 HelpScreenshotsCommand::class,
                 HelpStatusCommand::class,
                 MakeActionCommand::class,
@@ -748,6 +754,7 @@ class KinetixServiceProvider extends ServiceProvider
         // Register the optional Announcements module ("what's new" feed)
         $this->registerAnnouncements();
         $this->registerHelp();
+        $this->registerDocs();
 
         // Register the optional Locale module (language switcher)
         $this->registerLocale();
@@ -1341,6 +1348,41 @@ class KinetixServiceProvider extends ServiceProvider
                 ]),
             );
         }
+    }
+
+    /**
+     * Wire the optional Docs module: public (or `docs.routes.middleware`)
+     * pages rendered from the markdown in `docs.path`. Not team-scoped: the
+     * docs are the same for every reader.
+     */
+    protected function registerDocs(): void
+    {
+        $this->app->scoped(DocsManager::class);
+
+        if (! config('kinetix.docs.enabled', false) || ! config('kinetix.docs.routes.enabled', true)) {
+            return;
+        }
+
+        $routes = Route::middleware((array) config('kinetix.docs.routes.middleware', ['web']))
+            ->prefix(trim((string) config('kinetix.docs.routes.prefix', 'docs'), '/'))
+            ->name((string) config('kinetix.docs.routes.name', 'docs.'));
+
+        $domain = config('kinetix.docs.routes.domain');
+
+        if (is_string($domain) && $domain !== '') {
+            $routes->domain($domain);
+        }
+
+        $routes->group(function (): void {
+            Route::get('/', [DocsController::class, 'index'])->name('index');
+            Route::get('search.json', [DocsController::class, 'search'])->name('search');
+            Route::get('{section}', [DocsController::class, 'section'])
+                ->where('section', '[\w\-]+')
+                ->name('section');
+            Route::get('{section}/{page}', [DocsController::class, 'show'])
+                ->where(['section' => '[\w\-]+', 'page' => '[\w\-.]+'])
+                ->name('show');
+        });
     }
 
     /**
