@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 import KinetixBusinessHours from '@/components/KinetixBusinessHours.vue';
+import KinetixTimePicker from '@/components/KinetixTimePicker.vue';
 
 const i18n = createI18n({
     legacy: false,
@@ -16,6 +17,8 @@ const i18n = createI18n({
                 business_hours_remove_range: 'Remove hours',
                 business_hours_apply_all: 'Apply to all days',
                 business_hours_closed: 'Closed',
+                business_hours_opens: '{day} opens at',
+                business_hours_closes: '{day} closes at',
             },
         },
     },
@@ -44,10 +47,19 @@ describe('KinetixBusinessHours', () => {
         expect(wrapper.text()).toContain('Sunday');
         // Six days arrive missing → closed.
         expect(wrapper.text().match(/Closed/g)).toHaveLength(6);
-        // Monday shows its range inputs.
-        const times = wrapper.findAll('input[type="time"]');
+        // Monday shows its range as two Kinetix time pickers, named for the day.
+        const times = wrapper.findAllComponents(KinetixTimePicker);
         expect(times).toHaveLength(2);
-        expect((times[0].element as HTMLInputElement).value).toBe('09:00');
+        expect(times[0].props('value')).toBe('09:00');
+        expect(wrapper.find('input[type="time"]').exists()).toBe(false);
+        expect(
+            wrapper
+                .find('button[aria-label^="Monday opens at"]')
+                .attributes('aria-label'),
+        ).toBe('Monday opens at, 09:00 AM');
+        expect(
+            wrapper.find('button[aria-label^="Monday closes at"]').exists(),
+        ).toBe(true);
     });
 
     it('emits an updated full week when toggling a day', async () => {
@@ -104,9 +116,28 @@ describe('KinetixBusinessHours', () => {
         expect(emitted.monday.ranges).toHaveLength(2);
 
         // Editing the first start time emits the change without mutating props.
-        await wrapper.find('input[type="time"]').setValue('08:30');
+        wrapper
+            .findAllComponents(KinetixTimePicker)[0]
+            .vm.$emit('update:value', '08:30');
+        await wrapper.vm.$nextTick();
 
         emitted = wrapper.emitted('update:value')!.at(-1)![0] as any;
         expect(emitted.monday.ranges[0].start).toBe('08:30');
+    });
+
+    it('passes the clock and the minute step to its pickers', () => {
+        const wrapper = mount(KinetixBusinessHours, {
+            props: { value: week(), hour12: false, minuteStep: 15 },
+            global: { plugins: [i18n] },
+        });
+        const picker = wrapper.findAllComponents(KinetixTimePicker)[0];
+
+        expect(picker.props('hour12')).toBe(false);
+        expect(picker.props('minuteStep')).toBe(15);
+        expect(
+            wrapper
+                .find('button[aria-label^="Monday opens at"]')
+                .attributes('aria-label'),
+        ).toBe('Monday opens at, 09:00');
     });
 });

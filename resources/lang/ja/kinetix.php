@@ -171,6 +171,8 @@ return [
     'business_hours_remove_range'             => '時間帯を削除',
     'business_hours_apply_all'                => 'すべての曜日に適用',
     'business_hours_closed'                   => '休業',
+    'business_hours_opens'                    => '{day}の開始時刻',
+    'business_hours_closes'                   => '{day}の終了時刻',
     'plan_locked_title'                       => 'アップグレードが必要です',
     'plan_locked_body'                        => 'この機能は現在のプランには含まれていません。',
     'plan_upgrade'                            => 'プランをアップグレード',

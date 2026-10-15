@@ -173,6 +173,8 @@ return [
     'business_hours_remove_range'    => 'Quitar horario',
     'business_hours_apply_all'       => 'Aplicar a todos los días',
     'business_hours_closed'          => 'Cerrado',
+    'business_hours_opens'           => '{day} abre a las',
+    'business_hours_closes'          => '{day} cierra a las',
     'plan_locked_title'              => 'Se requiere mejorar el plan',
     'plan_locked_body'               => 'Esta funcionalidad no está incluida en tu plan actual.',
     'plan_upgrade'                   => 'Mejorar plan',

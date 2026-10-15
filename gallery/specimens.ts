@@ -7,6 +7,7 @@ import KinetixTable from '@/components/KinetixTable.vue';
 import KinetixFormSchema from '@/components/KinetixFormSchema.vue';
 import KinetixInfolist from '@/components/KinetixInfolist.vue';
 import KinetixMarkdownContent from '@/components/KinetixMarkdownContent.vue';
+import KinetixBusinessHours from '@/components/KinetixBusinessHours.vue';
 import KinetixGenerator from '@/components/KinetixGenerator.vue';
 import KinetixGdprPanel from '@/components/KinetixGdprPanel.vue';
 import KinetixTokenManager from '@/components/KinetixTokenManager.vue';
@@ -2616,6 +2617,28 @@ export const specimens: Specimen[] = [
         props: {
             editor: 'markdown',
             value: '# Markdown\n\nWrite in **Markdown** with a live *preview*.\n\n- Zero dependencies\n- Stores the raw source',
+        },
+    },
+    {
+        name: 'business-hours',
+        title: 'Business hours (two ranges on Monday)',
+        component: KinetixBusinessHours,
+        frame: 'card',
+        width: 640,
+        props: {
+            value: {
+                monday: {
+                    enabled: true,
+                    ranges: [
+                        { start: '09:00', end: '13:00' },
+                        { start: '15:00', end: '19:00' },
+                    ],
+                },
+                tuesday: {
+                    enabled: true,
+                    ranges: [{ start: '09:00', end: '17:00' }],
+                },
+            },
         },
     },
     {

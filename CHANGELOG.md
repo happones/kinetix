@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.235.1] - 2026-10-15
+
+### Fixed
+
+- **(published)** `BusinessHours` picked times with the browser's native time
+  inputs, unlike every other Kinetix field. It uses the Kinetix time picker
+  now, each one named for screen readers ("Monday opens at, 09:00 AM"), with
+  `->twentyFourHour()` / `->minuteStep()` like `TimePicker`. Its "Add hours" /
+  "Apply to all days" row wraps on a phone instead of spilling past it.
+- **(published)** The markdown editor (`RichEditor::make()->markdown()`) wore
+  the classes of a one-line input, so its text area was squeezed to an input's
+  height. It's a fixed-height textarea again (10rem, resizable, scrolling past
+  that), with a focus ring on the whole editor.
+- **(published)** `<KinetixTimePicker>` takes `aria-label` (the time is read
+  after it), and in a narrow slot its clock icon gives its room to the time.
+
 ## [0.235.0] - 2026-10-15
 
 ### Added

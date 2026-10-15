@@ -939,6 +939,13 @@ use Happones\Kinetix\Forms\Components\BusinessHours;
 BusinessHours::make('hours');
 ```
 
+Times are picked with the same picker as `TimePicker` (12-hour with AM/PM by
+default), each one named for screen readers ("Monday opens at, 09:00 AM"):
+
+```php
+BusinessHours::make('hours')->twentyFourHour()->minuteStep(15);
+```
+
 Pair the column with the `AsWeeklySchedule` cast to read it back as a value
 object:
 

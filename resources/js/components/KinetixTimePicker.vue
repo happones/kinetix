@@ -33,6 +33,11 @@ const props = withDefaults(
     defineProps<{
         /** The field's id: what its label points at. */
         id?: string;
+        /**
+         * Names the control when no `<label>` points at it (a row of pickers);
+         * the chosen time is read after it.
+         */
+        ariaLabel?: string | null;
         value?: string | null;
         native?: boolean;
         hour12?: boolean;
@@ -57,6 +62,7 @@ const props = withDefaults(
         minuteStep: 5,
         confirm: false,
         timezone: null,
+        ariaLabel: null,
     },
 );
 
@@ -94,6 +100,12 @@ const minutes = computed(() =>
         { length: Math.ceil(60 / props.minuteStep) },
         (_, i) => i * props.minuteStep,
     ),
+);
+
+const accessibleName = computed(() =>
+    props.ariaLabel
+        ? `${props.ariaLabel}, ${formatted.value ?? props.placeholder ?? t('kinetix.pick_time')}`
+        : undefined,
 );
 
 const formatted = computed(() => {
@@ -240,6 +252,7 @@ watch(open, (isOpen) => {
         :id="id"
         v-if="native"
         type="time"
+        :aria-label="ariaLabel ?? undefined"
         :value="value"
         :disabled="disabled"
         :class="inputClass"
@@ -257,16 +270,19 @@ watch(open, (isOpen) => {
             <button
                 type="button"
                 v-bind="id ? { id } : {}"
+                :aria-label="accessibleName"
                 :disabled="disabled"
                 :class="
                     cn(
                         buttonVariants({ variant: 'outline' }),
-                        'font-normal w-full touch-manipulation justify-start text-left',
+                        // A container: in a narrow slot (a row of pickers on
+                        // a phone) the clock icon gives its room to the time.
+                        'font-normal min-w-0 @container w-full touch-manipulation justify-start overflow-hidden text-left',
                         !hasValue && 'text-muted-foreground',
                     )
                 "
             >
-                <Clock class="mr-2 h-4 w-4" />
+                <Clock class="mr-2 h-4 w-4 hidden shrink-0 @[7.5rem]:block" />
                 {{ formatted ?? placeholder ?? t('kinetix.pick_time') }}
             </button>
         </PopoverTrigger>

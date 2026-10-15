@@ -173,6 +173,8 @@ return [
     'business_hours_remove_range'    => 'Remover horário',
     'business_hours_apply_all'       => 'Aplicar a todos os dias',
     'business_hours_closed'          => 'Fechado',
+    'business_hours_opens'           => '{day} abre às',
+    'business_hours_closes'          => '{day} fecha às',
     'plan_locked_title'              => 'Upgrade necessário',
     'plan_locked_body'               => 'Este recurso não está incluído no seu plano atual.',
     'plan_upgrade'                   => 'Fazer upgrade',

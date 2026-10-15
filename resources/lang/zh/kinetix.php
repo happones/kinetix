@@ -171,6 +171,8 @@ return [
     'business_hours_remove_range'             => '移除时段',
     'business_hours_apply_all'                => '应用到所有天',
     'business_hours_closed'                   => '休息',
+    'business_hours_opens'                    => '{day}开门时间',
+    'business_hours_closes'                   => '{day}关门时间',
     'plan_locked_title'                       => '需要升级',
     'plan_locked_body'                        => '当前套餐不包含此功能。',
     'plan_upgrade'                            => '升级套餐',

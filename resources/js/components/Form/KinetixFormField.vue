@@ -162,7 +162,11 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     },
     'business-hours': {
         component: KinetixBusinessHours,
-        props: (c) => ({ disabled: c.isDisabled }),
+        props: (c) => ({
+            disabled: c.isDisabled,
+            hour12: c.hour12 ?? true,
+            minuteStep: c.minuteStep ?? 5,
+        }),
     },
     'address-picker': {
         component: KinetixAddressPicker,

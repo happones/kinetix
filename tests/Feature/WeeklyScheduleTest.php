@@ -175,4 +175,13 @@ class WeeklyScheduleTest extends TestCase
 
         $this->assertTrue($validator->fails());
     }
+
+    public function test_the_business_hours_field_sets_its_pickers_clock_and_step(): void
+    {
+        $default = BusinessHours::make('hours')->toData('create')->toArray();
+        $custom  = BusinessHours::make('hours')->twentyFourHour()->minuteStep(15)->toData('create')->toArray();
+
+        $this->assertSame([true, 5], [$default['hour12'], $default['minuteStep']]);
+        $this->assertSame([false, 15], [$custom['hour12'], $custom['minuteStep']]);
+    }
 }

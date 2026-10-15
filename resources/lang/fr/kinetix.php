@@ -173,6 +173,8 @@ return [
     'business_hours_remove_range'    => 'Supprimer les horaires',
     'business_hours_apply_all'       => 'Appliquer à tous les jours',
     'business_hours_closed'          => 'Fermé',
+    'business_hours_opens'           => '{day} ouvre à',
+    'business_hours_closes'          => '{day} ferme à',
     'plan_locked_title'              => 'Mise à niveau requise',
     'plan_locked_body'               => 'Cette fonctionnalité n\'est pas incluse dans votre forfait actuel.',
     'plan_upgrade'                   => 'Mettre à niveau',

@@ -171,6 +171,8 @@ return [
     'business_hours_remove_range'             => 'Удалить интервал',
     'business_hours_apply_all'                => 'Применить ко всем дням',
     'business_hours_closed'                   => 'Закрыто',
+    'business_hours_opens'                    => '{day}: открытие',
+    'business_hours_closes'                   => '{day}: закрытие',
     'plan_locked_title'                       => 'Требуется обновление тарифа',
     'plan_locked_body'                        => 'Эта функция не входит в ваш текущий тариф.',
     'plan_upgrade'                            => 'Обновить тариф',

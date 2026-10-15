@@ -2,10 +2,7 @@
 import { Eye, Pencil } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-    inputClass,
-    markdownContentClass,
-} from '@/composables/useKinetixShadcnVariants';
+import { markdownContentClass } from '@/composables/useKinetixShadcnVariants';
 
 /**
  * Zero-dependency Markdown editor: a textarea with a live preview tab. Stores the
@@ -108,7 +105,7 @@ function onInput(event: Event): void {
 
 <template>
     <div
-        class="shadow-xs overflow-hidden rounded-md border border-input bg-transparent dark:bg-input/30"
+        class="shadow-xs overflow-hidden rounded-md border border-input bg-transparent transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30"
     >
         <div
             class="gap-1 p-1 flex items-center border-b border-border bg-muted/40"
@@ -145,16 +142,13 @@ function onInput(event: Event): void {
             :disabled="disabled"
             :placeholder="placeholder ?? ''"
             rows="8"
-            :class="[
-                inputClass,
-                'font-mono rounded-none border-0 shadow-none focus-visible:ring-0',
-            ]"
+            class="font-mono min-h-32 h-40 px-3 py-2 md:text-sm text-base block w-full resize-y bg-transparent outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
             @input="onInput"
         />
         <div
             v-else
             :class="[
-                'kx-md min-h-32 px-3 py-2 text-sm text-foreground',
+                'kx-md min-h-40 px-3 py-2 text-sm text-foreground',
                 markdownContentClass,
             ]"
             v-html="preview"

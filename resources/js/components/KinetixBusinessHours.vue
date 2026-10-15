@@ -2,13 +2,13 @@
 import { Copy, Plus, X } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixButton from './KinetixButton.vue';
+import KinetixTimePicker from './KinetixTimePicker.vue';
 import KinetixSwitch from './primitives/KinetixSwitch.vue';
 
 /**
  * Weekly business-hours editor — one row per day: enable switch + one or
- * more HH:MM ranges (native time inputs) + add/remove range + "apply to all
+ * more HH:MM ranges (Kinetix time pickers) + add/remove range + "apply to all
  * days". The BusinessHours form field's frontend; value is the normalized
  * full-week object the `AsWeeklySchedule` cast stores. Day names come from
  * `Intl` in the active locale — no per-day translation keys.
@@ -17,8 +17,11 @@ const props = withDefaults(
     defineProps<{
         value?: Record<string, DayEntry> | null;
         disabled?: boolean;
+        /** 12-hour clock with AM/PM (default); false for 24-hour. */
+        hour12?: boolean;
+        minuteStep?: number;
     }>(),
-    { value: null, disabled: false },
+    { value: null, disabled: false, hour12: true, minuteStep: 5 },
 );
 
 const emit = defineEmits<{
@@ -164,41 +167,48 @@ const applyToAll = (day: string): void => {
                         :key="index"
                         class="gap-2 flex items-center"
                     >
-                        <input
-                            type="time"
-                            :value="range.start"
-                            :class="inputClass"
-                            class="w-28"
-                            :disabled="disabled"
-                            @input="
-                                updateRange(
-                                    day,
-                                    index,
-                                    'start',
-                                    ($event.target as HTMLInputElement).value,
-                                )
-                            "
-                        />
+                        <div class="max-w-40 min-w-0 flex-1">
+                            <KinetixTimePicker
+                                :value="range.start"
+                                :hour12="hour12"
+                                :minute-step="minuteStep"
+                                :disabled="disabled"
+                                :aria-label="
+                                    t('kinetix.business_hours_opens', {
+                                        day: dayLabel(dayIndex),
+                                    })
+                                "
+                                @update:value="
+                                    updateRange(
+                                        day,
+                                        index,
+                                        'start',
+                                        $event ?? '',
+                                    )
+                                "
+                            />
+                        </div>
                         <span
                             class="text-sm text-muted-foreground"
                             aria-hidden="true"
                             >–</span
                         >
-                        <input
-                            type="time"
-                            :value="range.end"
-                            :class="inputClass"
-                            class="w-28"
-                            :disabled="disabled"
-                            @input="
-                                updateRange(
-                                    day,
-                                    index,
-                                    'end',
-                                    ($event.target as HTMLInputElement).value,
-                                )
-                            "
-                        />
+                        <div class="max-w-40 min-w-0 flex-1">
+                            <KinetixTimePicker
+                                :value="range.end"
+                                :hour12="hour12"
+                                :minute-step="minuteStep"
+                                :disabled="disabled"
+                                :aria-label="
+                                    t('kinetix.business_hours_closes', {
+                                        day: dayLabel(dayIndex),
+                                    })
+                                "
+                                @update:value="
+                                    updateRange(day, index, 'end', $event ?? '')
+                                "
+                            />
+                        </div>
                         <KinetixButton
                             v-if="schedule[day].ranges.length > 1"
                             variant="ghost"
@@ -214,7 +224,7 @@ const applyToAll = (day: string): void => {
                         </KinetixButton>
                     </div>
 
-                    <div class="gap-2 flex items-center">
+                    <div class="gap-2 flex flex-wrap items-center">
                         <KinetixButton
                             variant="ghost"
                             size="sm"
