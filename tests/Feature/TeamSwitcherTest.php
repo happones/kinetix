@@ -101,6 +101,7 @@ class TeamSwitcherTest extends TestCase
         $this->assertTrue($payload['teams'][0]['current']);
         $this->assertFalse($payload['teams'][1]['current']);
         $this->assertStringEndsWith('/teams/globex/switch', $payload['teams'][1]['url']);
+        $this->assertSame('globex', $payload['teams'][1]['key']);
         $this->assertSame('Acme', $payload['current']['name']);
         $this->assertStringEndsWith('/teams/create', $payload['createUrl']);
     }

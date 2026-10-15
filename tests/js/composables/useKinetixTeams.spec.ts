@@ -20,6 +20,51 @@ describe('useKinetixTeams', () => {
         }
     });
 
+    describe('switching while keeping the page', () => {
+        const beta = {
+            id: 2,
+            key: 'beta',
+            name: 'Beta',
+            url: '/teams/beta/switch',
+            current: false,
+        };
+
+        it('reopens the same page for the new team once the switch lands', () => {
+            props.kinetix_config = { team: 'acme' };
+            window.history.pushState({}, '', '/acme/products/7?tab=stock#top');
+
+            useKinetixTeams().switchTeam(beta, { keepPage: true });
+
+            expect(visit).toHaveBeenCalledWith(
+                '/teams/beta/switch',
+                expect.any(Object),
+            );
+            visit.mock.calls[0][1].onSuccess();
+            expect(visit).toHaveBeenLastCalledWith(
+                '/beta/products/7?tab=stock#top',
+                { replace: true },
+            );
+        });
+
+        it('leaves a page outside the team to the switch route', () => {
+            props.kinetix_config = { team: 'acme' };
+            window.history.pushState({}, '', '/settings/profile');
+
+            useKinetixTeams().switchTeam(beta, { keepPage: true });
+
+            expect(visit).toHaveBeenCalledWith('/teams/beta/switch');
+        });
+
+        it('does not keep the page unless asked', () => {
+            props.kinetix_config = { team: 'acme' };
+            window.history.pushState({}, '', '/acme/products');
+
+            useKinetixTeams().switchTeam(beta);
+
+            expect(visit).toHaveBeenCalledWith('/teams/beta/switch');
+        });
+    });
+
     describe('team-aware links', () => {
         it('prefixes app paths with the resolved team route key', () => {
             props.kinetix_config = { team: 'acme' };

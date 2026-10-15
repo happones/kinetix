@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.231.0] - 2026-10-14
+
+### Added
+
+- **(published)** `<KinetixTeamSwitcher keep-page>` reopens the current page
+  for the new team after a switch (`/acme/products/7` → `/beta/products/7`)
+  instead of leaving it to the switch route's redirect; also
+  `useKinetixTeams().switchTeam(team, { keepPage: true })`. Each team in
+  `kinetix_teams` carries its route `key` for it.
+- **(published)** `#trigger="{ current }"` and `#create` slots, so a host
+  keeps its own trigger (a sidebar menu button) and its own "New team" (a
+  modal), and `side` / `align` props to place the menu.
+
 ## [0.230.0] - 2026-10-14
 
 ### Added

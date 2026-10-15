@@ -70,6 +70,36 @@ en/es/fr/pt).
 
 ---
 
+
+### Staying on the page, your trigger, your "New team"
+
+```vue
+<KinetixTeamSwitcher keep-page side="right">
+    <!-- Your own trigger, e.g. a sidebar menu button. -->
+    <template #trigger="{ current }">
+        <SidebarMenuButton>{{ current?.name }}</SidebarMenuButton>
+    </template>
+
+    <!-- Your own "New team" item, e.g. one that opens your modal. -->
+    <template #create>
+        <CreateTeamModal>
+            <DropdownMenuItem @select.prevent>New team</DropdownMenuItem>
+        </CreateTeamModal>
+    </template>
+</KinetixTeamSwitcher>
+```
+
+| Prop / slot | What it does |
+|---|---|
+| `keep-page` | After switching, reopen the current page for the new team: `/acme/products/7` becomes `/beta/products/7`. A page outside the team segment is left to your switch route. |
+| `side` / `align` | Where the menu opens (`bottom` / `start` by default) |
+| `#trigger="{ current }"` | Replaces the button; it becomes the menu's trigger |
+| `#create` | Replaces the "New team" item, which otherwise visits `create_route` |
+
+Each team in `kinetix_teams` carries its `key` (its route key, as it appears in
+URLs), and `useKinetixTeams().switchTeam(team, { keepPage: true })` does the
+same from your own component.
+
 ## Building team-aware links
 
 The same composable is how you link between **your own** pages in a multitenant

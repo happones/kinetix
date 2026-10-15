@@ -56,3 +56,10 @@ You provide `teams.switch` (e.g. a controller calling `$user->switchTeam($team)`
 optional "New team". `useKinetixTeams()` → `{ teams, current, createUrl,
 switchTeam }`; `switchTeam(team)` visits `team.url` (no-op for the current team).
 i18n `teams_switch/select/new`.
+
+- `keep-page` (or `switchTeam(team, { keepPage: true })`): after switching, reopen
+  the same page for the new team (`/acme/x` → `/beta/x`); each team carries its
+  route `key`.
+- `#trigger="{ current }"` replaces the button (e.g. a sidebar menu button);
+  `#create` replaces "New team" (e.g. an item opening your modal);
+  `side` / `align` place the menu.

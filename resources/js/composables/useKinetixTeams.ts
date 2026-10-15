@@ -68,7 +68,16 @@ export function useKinetixTeams() {
             : `${prefix}${clean}`;
     }
 
-    function switchTeam(team: KinetixTeamOption): void {
+    /**
+     * Switch to a team by visiting its switch URL. With `keepPage`, a page
+     * under the team's URL segment (`/acme/products/7`) reopens for the new
+     * team (`/beta/products/7`) once the switch lands, instead of wherever
+     * the switch route redirects.
+     */
+    function switchTeam(
+        team: KinetixTeamOption,
+        options: { keepPage?: boolean } = {},
+    ): void {
         if (team.current || !team.url) {
             return;
         }
@@ -81,7 +90,20 @@ export function useKinetixTeams() {
             return;
         }
 
-        router.visit(team.url);
+        const samePage =
+            options.keepPage && typeof window !== 'undefined'
+                ? samePageFor(team, currentTeamKey.value)
+                : null;
+
+        if (samePage === null) {
+            router.visit(team.url);
+
+            return;
+        }
+
+        router.visit(team.url, {
+            onSuccess: () => router.visit(samePage, { replace: true }),
+        });
     }
 
     return {
@@ -92,6 +114,30 @@ export function useKinetixTeams() {
         teamUrl,
         switchTeam,
     };
+}
+
+/**
+ * The current page with the team's URL segment swapped for another team's,
+ * or null when the page doesn't carry the current team in its path.
+ */
+function samePageFor(
+    team: KinetixTeamOption,
+    currentKey: string | number | null,
+): string | null {
+    if (currentKey === null || team.key == null) {
+        return null;
+    }
+
+    const segment = `/${encodeURIComponent(String(currentKey))}`;
+    const { pathname, search, hash } = window.location;
+
+    if (pathname !== segment && !pathname.startsWith(`${segment}/`)) {
+        return null;
+    }
+
+    const rest = pathname.slice(segment.length);
+
+    return `/${encodeURIComponent(String(team.key))}${rest}${search}${hash}`;
 }
 
 /**

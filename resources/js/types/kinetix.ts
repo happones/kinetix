@@ -438,6 +438,8 @@ export interface KinetixPresenceState {
 /** A team the user can switch to, with a ready-made switch URL. */
 export interface KinetixTeamOption {
     id: number | string;
+    /** The team's route key, as it appears in a URL (`/{key}/...`). */
+    key?: number | string | null;
     name: string;
     url: string | null;
     current: boolean;

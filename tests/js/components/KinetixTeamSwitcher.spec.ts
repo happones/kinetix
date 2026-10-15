@@ -53,6 +53,35 @@ describe('KinetixTeamSwitcher', () => {
         expect(w.text()).toContain('Acme');
         expect(w.find('button').attributes('aria-label')).toBe('Switch team');
     });
+
+    it('takes the host\'s own trigger and "New team" item', async () => {
+        const w = mount(KinetixTeamSwitcher, {
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+            slots: {
+                trigger: `<template #trigger="{ current }"><button class="host-trigger">{{ current.name }} ▾</button></template>`,
+                create: '<div class="host-create">Create in a modal</div>',
+            },
+        });
+
+        expect(w.find('.host-trigger').text()).toBe('Acme ▾');
+        expect(w.find('button[aria-label="Switch team"]').exists()).toBe(false);
+
+        const trigger = w.get('.host-trigger');
+        await trigger.trigger('pointerdown', {
+            button: 0,
+            pointerType: 'mouse',
+        });
+        await trigger.trigger('click');
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(document.body.querySelector('.host-create')?.textContent).toBe(
+            'Create in a modal',
+        );
+        expect(document.body.textContent).not.toContain('New team');
+
+        w.unmount();
+    });
 });
 
 const Harness = defineComponent({

@@ -40,7 +40,10 @@ class TeamSwitcherManager
 
         $teams = $this->teamsFor($user)
             ->map(fn (Model $team): array => [
-                'id'      => $team->getKey(),
+                'id' => $team->getKey(),
+                // The team in a URL (`/{key}/...`): what a switch that keeps
+                // the page swaps in.
+                'key'     => $team->getRouteKey(),
                 'name'    => (string) $team->getAttribute($this->nameAttribute()),
                 'url'     => $this->switchUrl($team),
                 'current' => $team->getKey() === $currentKey,
