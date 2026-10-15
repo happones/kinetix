@@ -338,4 +338,8 @@ class AccountSetup
 
 A callable array keeps `config:cache` working; a closure in config doesn't.
 
+With such a gate, don't give `<KinetixWizard>` the `slug`: finishing it would
+ask the `complete` endpoint, which refuses. Let its last step submit your form,
+and the gate opens once the controller saves the data.
+
 All strings are localized (`wizard_*`, en/es/fr/pt).
