@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.234.2] - 2026-10-14
+
+### Fixed
+
+- **(published)** More long unbroken values that widened a phone:
+  - an infolist entry's label, when it comes from data (a file name in a
+    `RepeatableEntry`, say);
+  - an activity log change line holding JSON (`gallery: null → [{...}]`).
+    Both now wrap.
+
+### Changed
+
+- `npm run audit:mobile` also reports text wider than its own element (one
+  long word, even when an ancestor clips it out of sight), and any read a
+  specimen makes that the gallery stubs don't answer. The activity log
+  specimen had rendered empty because its stub missed the query string.
+
 ## [0.234.1] - 2026-10-14
 
 ### Fixed

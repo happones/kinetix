@@ -302,7 +302,7 @@ const isEmpty = (value: unknown) =>
         >
             <span
                 v-if="entry.label"
-                class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                class="text-xs font-medium tracking-wide [overflow-wrap:anywhere] text-muted-foreground uppercase"
             >
                 {{ entry.label }}
             </span>

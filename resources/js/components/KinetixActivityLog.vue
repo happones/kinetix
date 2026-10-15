@@ -120,7 +120,7 @@ function changeList(entry: KinetixActivityEntry): string[] {
                     <li
                         v-for="(line, i) in changeList(entry)"
                         :key="i"
-                        class="font-mono"
+                        class="font-mono [overflow-wrap:anywhere]"
                     >
                         {{ line }}
                     </li>

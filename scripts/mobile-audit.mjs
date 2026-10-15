@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 // Mobile layout audit: renders every gallery specimen at phone widths (and one
 // desktop width) with the frame as wide as the screen, and reports what pushes
 // the page sideways or spills out of its box — the bugs a phone shows first —
-// plus every pointer target below WCAG 2.2's 24×24px minimum (2.5.8, with its
+// (a long word too wide for its own box included, even when an ancestor
+// clips it out of sight), plus every pointer target below WCAG 2.2's 24×24px minimum (2.5.8, with its
 // spacing, equivalent-label and inline exceptions; see measureTargets()).
 //
 //   npm run audit:mobile                 every specimen
@@ -106,9 +107,51 @@ function measure() {
       return `${label(el)} +${Math.round(Math.max(box.right - vw, -box.left))}px`;
     });
 
+  // Text wider than its own element: one long word (a URL, a hash, JSON)
+  // that pushes the page sideways, or that an ancestor silently cuts off.
+  // Deliberate truncation (text-overflow: ellipsis) and text inside a
+  // horizontal scroller don't count.
+  const scrolls = (el) => {
+    for (let node = el; node && node !== document.body; node = node.parentElement) {
+      const style = getComputedStyle(node);
+
+      if (style.textOverflow === "ellipsis" || style.overflowX === "auto" || style.overflowX === "scroll") {
+        return true;
+      }
+    }
+
+    return false;
+  };
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const textCulprits = [];
+
+  for (let node = walker.nextNode(); node && textCulprits.length < 3; node = walker.nextNode()) {
+    const parent = node.parentElement;
+
+    if (!node.textContent.trim() || !parent || invisible(parent) || scrolls(parent)) {
+      continue;
+    }
+
+    const box = parent.getBoundingClientRect();
+
+    // A visually hidden label (a 1px clipped box) is screen-reader text.
+    if (box.width <= 1 || box.height <= 1) {
+      continue;
+    }
+
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const text = range.getBoundingClientRect();
+    const over = Math.round(Math.max(text.right - box.right, text.right - vw));
+
+    if (text.width >= 1 && over > 1) {
+      textCulprits.push(`text "${node.textContent.trim().slice(0, 24)}" in ${label(parent)} +${over}px`);
+    }
+  }
+
   return {
     pageOverflow: document.documentElement.scrollWidth - vw,
-    culprits,
+    culprits: [...culprits, ...textCulprits],
   };
 }
 
@@ -277,6 +320,13 @@ async function audit(specimen, width) {
 
     const { pageOverflow, culprits } = await page.evaluate(measure);
     const targets = await page.evaluate(measureTargets);
+    // A read the gallery stubs don't answer renders the specimen empty, so
+    // there would be nothing to audit.
+    const unanswered = await page.evaluate(() =>
+      (globalThis.__kinetixCalls ?? []).filter((call) => !call.hit && call.body === null).map((call) => call.url),
+    );
+
+    culprits.push(...[...new Set(unanswered)].map((url) => `no gallery fixture for ${url}`));
 
     if (pageOverflow > 0 || culprits.length || targets.length) {
       findings.push({

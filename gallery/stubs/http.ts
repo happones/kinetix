@@ -282,7 +282,7 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
-        match: /\/activity$/,
+        match: /\/activity(\?|$)/,
         data: {
             data: [
                 {
@@ -294,8 +294,13 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
                     subjectType: 'Order',
                     subjectId: 1042,
                     changes: {
-                        old: { status: 'pending' },
-                        attributes: { status: 'paid' },
+                        // A JSON value has no spaces to wrap at.
+                        old: { status: 'pending', receipt: null },
+                        attributes: {
+                            status: 'paid',
+                            receipt:
+                                '{"path":"orders\\/receipts\\/7f3c9a1e2b4d5f60a8c7e9b1d3f5a7c9.pdf"}',
+                        },
                     },
                     createdAt: '2026-06-20T10:00:00Z',
                 },
@@ -1263,11 +1268,16 @@ export async function kinetixFetch<T = unknown>(
     // Recorded so browser (Playwright) assertions can verify which endpoint a
     // click actually fired, with what payload.
     const g = globalThis as unknown as {
-        __kinetixCalls?: Array<{ url: string; body: unknown }>;
+        __kinetixCalls?: Array<{ url: string; body: unknown; hit: boolean }>;
     };
-    (g.__kinetixCalls ??= []).push({ url, body: init?.body ?? null });
-
     const hit = fixtures.find((f) => f.match.test(url));
+
+    (g.__kinetixCalls ??= []).push({
+        url,
+        body: init?.body ?? null,
+        hit: hit !== undefined,
+    });
+
     return (hit ? (hit.data as T) : null) ?? null;
 }
 

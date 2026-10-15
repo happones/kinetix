@@ -1110,6 +1110,12 @@ const infolist = {
                     label: 'Customer',
                     state: 'Ada Lovelace',
                 }),
+                // A label taken from data (a file name) can be one long word.
+                entry({
+                    type: 'text',
+                    label: '42YHGGBZVUfaRszU24rCH6oW7w3AuwVTq1oF9oAi.jpg',
+                    state: '3.1 KB',
+                }),
                 entry({
                     type: 'text',
                     label: 'Email',
