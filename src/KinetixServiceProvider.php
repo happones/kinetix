@@ -2037,6 +2037,16 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::post('locale', [LocaleController::class, 'update'])->name('kinetix.locale.update');
             });
+
+        // A language is the reader's, not a team's: a guest (the login
+        // screen, public docs) or a signed-in user outside the team pages
+        // switches it too, at the unprefixed URL those pages call.
+        if (config('kinetix.teams', false)) {
+            Route::middleware(['web'])
+                ->prefix((string) config('kinetix.route_prefix', '_kinetix'))
+                ->post('locale', [LocaleController::class, 'update'])
+                ->name('kinetix.locale.switch');
+        }
     }
 
     /**

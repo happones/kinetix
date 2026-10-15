@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.237.3] - 2026-10-15
+
+### Fixed
+
+- **The language switcher answered 404 to guests when teams are on.** The
+  switch endpoint (documented as reachable before login) was only registered
+  under `{current_team}`, so the login screen and public pages (docs) called a
+  URL that didn't exist. With teams on it is also registered without the team
+  segment (`kinetix.locale.switch`).
+
 ## [0.237.2] - 2026-10-15
 
 ### Fixed

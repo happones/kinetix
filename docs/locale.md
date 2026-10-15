@@ -183,6 +183,11 @@ switch endpoint is **auth-optional** so it works before login:
 | Method | Route             | Name                   |
 | ------ | ----------------- | ---------------------- |
 | `POST` | `{prefix}/locale` | `kinetix.locale.update` |
+| `POST` | `_kinetix/locale` | `kinetix.locale.switch` (teams on: the same switch without the team segment) |
+
+With teams on, the first one sits under `{current_team}` like every Kinetix
+endpoint; pages with no team in reach — the login screen, public docs — call
+the second.
 
 Body: `{ "locale": "es" }`. Unsupported codes are rejected with `422`.
 
