@@ -40,7 +40,20 @@ existing spatie media carry `id`.
 
 ## Standalone vs spatie
 
-- **No spatie**: self-contained uploader; persist the value array yourself.
+- **No spatie**: self-contained uploader; store the value array in your own
+  column, but only after `KinetixMedia::keep()` (never the raw request array):
+
+```php
+$product->gallery = KinetixMedia::keep(
+    $state['gallery'] ?? [],
+    current: $product->gallery ?? [],
+    directory: 'products', // the field's directory()
+);
+```
+
+  `keep()` keeps stored items, accepts a new one only from the current user's
+  upload directory for the field when the file exists, and reads url/name/size/
+  mime from the disk.
 - **spatie/laravel-medialibrary** (record implements `HasMedia`): hydrate +
   persist via the helper:
 
@@ -50,8 +63,9 @@ use Happones\Kinetix\Media\KinetixMedia;
 // fill
 $form->fill(['gallery' => KinetixMedia::items($product, 'images', 'thumb')]);
 
-// save (adds new, removes deleted, reorders) — no-op without spatie
-KinetixMedia::sync($product, 'images', $state['gallery']);
+// save (adds new, removes deleted, reorders) — no-op without spatie.
+// Pass the field's directory(): new files must be the user's own uploads there.
+KinetixMedia::sync($product, 'images', $state['gallery'], directory: 'products');
 ```
 
 ## Frontend

@@ -212,16 +212,6 @@ class UploadController
      */
     protected function directoryFor(array $config, Request $request): string
     {
-        $directory = trim((string) ($config['directory'] ?? 'uploads'), '/');
-
-        if (! config('kinetix.filesystem.scope_uploads_by_user', true)) {
-            return $directory;
-        }
-
-        $userKey = $request->user()?->getAuthIdentifier();
-
-        return $userKey === null
-            ? $directory
-            : $directory.'/'.md5((string) $userKey);
+        return UploadDirectory::for($config['directory'] ?? null, $request->user()?->getAuthIdentifier());
     }
 }

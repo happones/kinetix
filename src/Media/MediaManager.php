@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Media;
 
+use Happones\Kinetix\Forms\UploadDirectory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Bridges the <KinetixMediaLibrary> field to spatie/laravel-medialibrary when it
@@ -70,6 +72,10 @@ class MediaManager
 
         $disk ??= (string) config('kinetix.filesystem.disk', 'public');
 
+        // A new file can only be one the current user just uploaded for this
+        // field: their own upload directory, never anywhere on the disk.
+        $uploads = UploadDirectory::for($directory, auth()->user()?->getAuthIdentifier());
+
         // `$items` reflects submitted form state, so both the ids and the paths in
         // it are client-controlled. Existing media is therefore matched against
         // what this record actually owns, and new files must sit inside the
@@ -94,7 +100,7 @@ class MediaManager
                 continue;
             }
 
-            if (is_string($path) && $path !== '' && $this->isPathAllowed($path, $directory)) {
+            if (is_string($path) && $path !== '' && UploadDirectory::contains($uploads, $path)) {
                 $media        = $record->addMediaFromDisk($path, $disk)->toMediaCollection($collection);
                 $orderedIds[] = $media->getKey();
             }
@@ -116,18 +122,48 @@ class MediaManager
     }
 
     /**
-     * Whether a client-supplied path may be pulled into a media collection.
+     * The submitted items safe to store in your own column, when spatie isn't
+     * in play: an item already stored ($current, matched by path) keeps its
+     * stored data; a new one must be a file the current user uploaded for this
+     * field (their upload directory) that exists. Name, size, mime and URL
+     * come from the disk, never the request. Order follows $items.
+     *
+     * @param  array<int, mixed>                $items   submitted, client-controlled
+     * @param  array<int, mixed>                $current what the record stores
+     * @return array<int, array<string, mixed>>
      */
-    protected function isPathAllowed(string $path, ?string $directory): bool
+    public function keep(array $items, array $current = [], ?string $directory = null, ?string $disk = null): array
     {
-        if (str_contains($path, '..')) {
-            return false;
+        $disk ??= (string) config('kinetix.filesystem.disk', 'public');
+        $uploads = UploadDirectory::for($directory, auth()->user()?->getAuthIdentifier());
+        $storage = Storage::disk($disk);
+        $stored  = collect($current)->filter(fn ($item): bool => is_array($item) && is_string($item['path'] ?? null))->keyBy('path');
+        $kept    = [];
+
+        foreach ($items as $item) {
+            $path = is_array($item) ? ($item['path'] ?? null) : null;
+
+            if (! is_string($path) || $path === '' || isset($kept[$path])) {
+                continue;
+            }
+
+            if ($stored->has($path)) {
+                $kept[$path] = $stored->get($path);
+
+                continue;
+            }
+
+            if (UploadDirectory::contains($uploads, $path) && $storage->exists($path)) {
+                $kept[$path] = [
+                    'path' => $path,
+                    'url'  => $storage->url($path),
+                    'name' => basename($path),
+                    'size' => $storage->size($path),
+                    'mime' => $storage->mimeType($path) ?: null,
+                ];
+            }
         }
 
-        if ($directory === null) {
-            return true;
-        }
-
-        return str_starts_with($path, trim($directory, '/').'/');
+        return array_values($kept);
     }
 }

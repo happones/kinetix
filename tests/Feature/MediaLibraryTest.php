@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Forms\Components\MediaLibrary;
+use Happones\Kinetix\Forms\UploadDirectory;
 use Happones\Kinetix\Media\KinetixMedia;
 use Happones\Kinetix\Media\MediaManager;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 
 class MediaProduct extends Model
 {
@@ -67,4 +70,64 @@ class MediaLibraryTest extends TestCase
     {
         $this->assertSame([], KinetixMedia::items(new MediaProduct(['id' => 1]), 'images'));
     }
+
+    public function test_keep_accepts_only_the_users_own_uploads_and_rebuilds_them_from_the_disk(): void
+    {
+        Storage::fake('public');
+        config()->set('kinetix.filesystem.scope_uploads_by_user', true);
+        $this->actingAs(new MediaUser(['id' => 7]));
+
+        $mine    = 'products/'.md5('7').'/mug.jpg';
+        $theirs  = 'products/'.md5('8').'/secret.pdf';
+        $outside = 'exports/report.csv';
+        $stored  = 'products/'.md5('8').'/kept.jpg';
+
+        foreach ([$mine, $theirs, $outside] as $path) {
+            Storage::disk('public')->put($path, 'x');
+        }
+
+        $kept = KinetixMedia::keep(
+            [
+                ['path' => $stored, 'url' => 'https://evil.example/forged'],
+                ['path' => $mine, 'url' => 'javascript:alert(1)', 'name' => 'forged'],
+                ['path' => $mine],
+                ['path' => $theirs],
+                ['path' => $outside],
+                ['path' => 'products/'.md5('7').'/../../exports/report.csv'],
+                ['path' => 'products/'.md5('7').'/missing.jpg'],
+            ],
+            current: [['path' => $stored, 'url' => '/storage/kept.jpg', 'name' => 'kept.jpg']],
+            directory: 'products',
+        );
+
+        $this->assertSame([$stored, $mine], array_column($kept, 'path'));
+        $this->assertSame('/storage/kept.jpg', $kept[0]['url']);
+        $this->assertSame(Storage::disk('public')->url($mine), $kept[1]['url']);
+        $this->assertSame('mug.jpg', $kept[1]['name']);
+    }
+
+    public function test_an_upload_directory_is_the_users_own_unless_scoping_is_off(): void
+    {
+        config()->set('kinetix.filesystem.scope_uploads_by_user', true);
+        $this->assertSame('products/'.md5('7'), UploadDirectory::for('/products/', 7));
+        $this->assertSame('uploads/'.md5('7'), UploadDirectory::for(null, 7));
+
+        config()->set('kinetix.filesystem.scope_uploads_by_user', false);
+        $this->assertSame('products', UploadDirectory::for('products', 7));
+    }
+
+    public function test_the_facade_hands_sync_the_fields_directory(): void
+    {
+        $manager = $this->mock(MediaManager::class);
+        $record  = new MediaProduct(['id' => 1]);
+
+        $manager->shouldReceive('sync')->once()->with($record, 'images', [], 'public', 'products');
+
+        KinetixMedia::sync($record, 'images', [], 'public', 'products');
+    }
+}
+
+class MediaUser extends User
+{
+    protected $guarded = [];
 }

@@ -53,9 +53,37 @@ grip and can't be reordered.
 
 ## Standalone (no spatie)
 
-Without spatie the field is a self-contained uploader: persist the value array
-however you like (e.g. a JSON column). Uploaded files land on the configured disk
-via the shared `{prefix}/uploads/store` endpoint.
+Without spatie the field is a self-contained uploader: uploaded files land on
+the configured disk via the shared `{prefix}/uploads/store` endpoint, and you
+store the value array in your own column (e.g. a JSON `gallery` column).
+
+The submitted array is client state, so don't store it as-is. Pass it through
+`KinetixMedia::keep()` with what the record already holds:
+
+```php
+use Happones\Kinetix\Media\KinetixMedia;
+
+$state = $form->getState($request->all());
+
+$product->gallery = KinetixMedia::keep(
+    $state['gallery'] ?? [],
+    current: $product->gallery ?? [],
+    directory: 'products', // the field's directory()
+);
+```
+
+`keep()` returns the items in the submitted order:
+
+- an item already stored (matched by `path` in `current`) keeps its stored data;
+- a new item is kept only if it's a file **the current user uploaded** for this
+  field (their upload directory) and it exists on the disk;
+- `url`, `name`, `size` and `mime` of a new item are read from the disk, never
+  taken from the request;
+- anything else is dropped: another user's upload, a path outside the
+  directory, a `..` path, a missing file, a duplicate.
+
+Removing an item from the array doesn't delete the file. Clean up stored files
+yourself if you need to.
 
 ---
 
@@ -95,11 +123,13 @@ $form = ProductResource::form(Form::make($product))->fill([
 
 // update() — reconcile the collection with the submitted state
 $state = $form->getState($request->all());
-KinetixMedia::sync($product, 'images', $state['gallery']);
+KinetixMedia::sync($product, 'images', $state['gallery'], directory: 'products');
 ```
 
 `sync()` adds newly uploaded files, removes the ones the user deleted, and
-persists the new order — all on the bound collection. It's a **no-op** when
+persists the new order — all on the bound collection. Pass the field's
+`directory()`: a new file is only accepted from the current user's uploads for
+it (when the field has no directory, the default `uploads` applies). It's a **no-op** when
 spatie isn't installed (or the record isn't `HasMedia`), so the same form code is
 safe either way.
 
@@ -117,7 +147,9 @@ safe either way.
 | `disk()` · `directory()` · `acceptedFileTypes()` · `maxSize()` | inherited from FileUpload |
 
 `KinetixMedia::items($record, $collection, $conversion?)` → the field's item
-array. `KinetixMedia::sync($record, $collection, $items, $disk?)` → persist.
+array. `KinetixMedia::sync($record, $collection, $items, $disk?, $directory?)` → persist
+to spatie. `KinetixMedia::keep($items, $current?, $directory?, $disk?)` → the
+items safe to store in your own column.
 
 ::: tip Folders & native variants
 v1 covers the grid, reordering, upload and the spatie bridge. Folders and

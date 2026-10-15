@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.234.0] - 2026-10-14
+
+### Security
+
+- **The media library trusted submitted paths.** The form state a
+  `MediaLibrary` field submits is client-controlled:
+  - `KinetixMedia::sync()` didn't forward the field's directory, so the
+    manager accepted any path on the disk: a forged item could pull any file
+    (another user's upload, an export) into a spatie collection. A new file is
+    now accepted only from the **current user's** upload directory for the
+    field (`kinetix.filesystem.scope_uploads_by_user`), and `..` paths never.
+  - Standalone mode (no spatie) said to persist the array however you like,
+    which stored client-chosen paths, URLs and names as-is.
+
+  **Upgrade:** if your field sets `directory()`, pass it to `sync()`
+  (`KinetixMedia::sync($record, 'images', $items, directory: 'products')`),
+  otherwise new uploads are dropped. Without a directory the default
+  `uploads` applies, as before.
+
+### Added
+
+- `KinetixMedia::keep($items, $current, $directory, $disk)`: the submitted
+  items safe to store in your own column when spatie isn't in play. Stored
+  items keep their stored data; a new one must be the user's own upload and
+  exist, and its url/name/size/mime come from the disk. Order follows the
+  submission.
+
 ## [0.233.1] - 2026-10-14
 
 ### Fixed
