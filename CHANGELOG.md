@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.236.1] - 2026-10-15
+
+### Fixed
+
+- Docs: `{{ name }}` placeholders in front matter (a page's or a section's
+  title and description) were shown as written; they're filled per request
+  like the body. The values are raw there — the page escapes them.
+- **(published)** `<KinetixDocsSearch>`: a long label (Spanish, French…) pushed
+  the `/` hint out of the button; it's cut with an ellipsis now.
+
 ## [0.236.0] - 2026-10-15
 
 ### Added

@@ -40,6 +40,9 @@ class DocsManager
 
     protected ?string $fingerprint = null;
 
+    /** @var array<string, string>|null this request's placeholder values */
+    protected ?array $values = null;
+
     public function __construct(protected MarkdownRenderer $renderer) {}
 
     public function path(): string
@@ -234,8 +237,8 @@ class DocsManager
 
             $sections[$key] = new DocsSection(
                 key: $key,
-                title: $meta['section']           ?? $meta['title'] ?? Str::headline($key),
-                description: $meta['description'] ?? '',
+                title: $this->fillMeta($meta['section'] ?? $meta['title'] ?? Str::headline($key)),
+                description: $this->fillMeta($meta['description'] ?? ''),
                 order: isset($meta['order']) ? (int) $meta['order'] : PHP_INT_MAX,
                 pages: $pages,
             );
@@ -301,8 +304,8 @@ class DocsManager
             $pages[] = new DocsPage(
                 section: $section,
                 slug: $slug,
-                title: $meta['title']             ?? $this->firstHeading($markdown) ?? Str::headline($slug === '' ? $section : $slug),
-                description: $meta['description'] ?? '',
+                title: $this->fillMeta($meta['title'] ?? $this->firstHeading($markdown) ?? Str::headline($slug === '' ? $section : $slug)),
+                description: $this->fillMeta($meta['description'] ?? ''),
                 group: $file['locale'] !== $locale ? ($groups[$group] ?? $group) : $group,
                 order: $slug === '' ? PHP_INT_MIN : (isset($meta['order']) ? (int) $meta['order'] : PHP_INT_MAX),
                 path: $file['path'],
@@ -396,6 +399,22 @@ class DocsManager
             },
             $html,
         );
+    }
+
+    /**
+     * `{{ name }}` in front matter (a title, a description), filled for this
+     * request — the manager lives for one request. Raw: whoever prints it
+     * escapes it.
+     */
+    protected function fillMeta(string $text): string
+    {
+        if (! str_contains($text, '{{')) {
+            return $text;
+        }
+
+        $this->values ??= $this->placeholders();
+
+        return $this->fill((string) preg_replace('/\{\{\s*([A-Za-z][A-Za-z0-9_]*)\s*\}\}/', 'kxph__$1__kxph', $text), $this->values, escape: false);
     }
 
     /**

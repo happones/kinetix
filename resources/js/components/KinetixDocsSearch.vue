@@ -110,14 +110,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown));
     <div>
         <KinetixButton
             variant="outline"
-            class="font-normal sm:w-56 w-full justify-start text-muted-foreground"
+            class="font-normal sm:w-64 min-w-0 w-full justify-start overflow-hidden text-muted-foreground"
             :aria-label="t('kinetix.docs_search')"
             @click="show"
         >
             <template #icon><Search /></template>
-            <span class="flex-1 text-left">{{ t('kinetix.docs_search') }}</span>
+            <span class="min-w-0 flex-1 truncate text-left">{{
+                t('kinetix.docs_search')
+            }}</span>
             <kbd
-                class="px-1.5 text-xs sm:inline rounded font-mono hidden border border-border"
+                class="px-1.5 text-xs sm:inline rounded font-mono hidden shrink-0 border border-border"
                 aria-hidden="true"
                 >/</kbd
             >

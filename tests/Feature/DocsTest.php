@@ -59,7 +59,7 @@ class DocsTest extends TestCase
     private function writeDocs(): void
     {
         $this->write('en/guide/index.md', "---\nsection: Guide\ntitle: Overview\norder: 1\ndescription: Start here.\n---\n# Overview\n\nWelcome to {{ app_name }}.");
-        $this->write('en/guide/01-install.md', "---\ntitle: Install\ngroup: Basics\ndescription: Get it running.\n---\n## Requirements\n\nTeam: {{ team }}. See [configuration](configure.md#env) and [auth](../api/auth.md). Unknown: {{ nope }}.\n\n```bash\ncurl {{ api_url }}/ping\n```");
+        $this->write('en/guide/01-install.md', "---\ntitle: Install\ngroup: Basics\ndescription: Get {{ app_name }} running for {{ team }}.\n---\n## Requirements\n\nTeam: {{ team }}. See [configuration](configure.md#env) and [auth](../api/auth.md). Unknown: {{ nope }}.\n\n```bash\ncurl {{ api_url }}/ping\n```");
         $this->write('en/guide/02-configure.md', "---\ntitle: Configure\ngroup: Basics\n---\n## Env\n\nSet the env.");
         $this->write('en/guide/03-deploy.md', "---\ntitle: Deploy\ngroup: Production\n---\nShip it.");
         $this->write('en/guide/_draft.md', "---\ntitle: Draft\n---\nNot yet.");
@@ -136,6 +136,13 @@ class DocsTest extends TestCase
         $this->assertStringNotContainsString('kxph__', $html);
         $this->assertStringContainsString('href="/docs/guide/configure#env"', $html);
         $this->assertStringContainsString('href="/docs/api/auth"', $html);
+    }
+
+    public function test_front_matter_placeholders_are_filled_raw_for_the_page_to_escape(): void
+    {
+        $this->inertia('/docs/guide/install')
+            ->assertJsonPath('props.docs.page.description', 'Get '.config('app.name').' running for <acme & co>.')
+            ->assertJsonPath('props.docs.meta.description', 'Get '.config('app.name').' running for <acme & co>.');
     }
 
     public function test_the_landing_page_renders_at_the_section_url(): void
