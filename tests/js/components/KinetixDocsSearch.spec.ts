@@ -83,6 +83,8 @@ describe('KinetixDocsSearch', () => {
         await flushPromises();
 
         expect(combobox()).not.toBeNull();
+        // The reader types straight away: the field has focus, not the ✕.
+        expect(document.activeElement).toBe(combobox());
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(fetchMock.mock.calls[0][0]).toBe('/docs/search.json');
     });

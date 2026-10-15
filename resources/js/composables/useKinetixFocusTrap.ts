@@ -165,7 +165,13 @@ export function useKinetixFocusTrap(
             const root = options.container();
 
             if (root) {
-                (focusables()[0] ?? root).focus();
+                // An `autofocus` field (a search box) is where the reader
+                // starts; otherwise the first focusable element.
+                (
+                    root.querySelector<HTMLElement>('[autofocus]') ??
+                    focusables()[0] ??
+                    root
+                ).focus();
 
                 return;
             }

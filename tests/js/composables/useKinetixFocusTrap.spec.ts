@@ -12,7 +12,10 @@ import {
  * unreachable by Tab while the panel is open.
  */
 const Harness = defineComponent({
-    props: { open: { type: Boolean, default: true } },
+    props: {
+        open: { type: Boolean, default: true },
+        autofocus: { type: String, default: null },
+    },
     setup(props) {
         const panel = ref<HTMLElement | null>(null);
         const { headingId } = useKinetixFocusTrap({
@@ -27,7 +30,16 @@ const Harness = defineComponent({
                     ? h('div', { ref: panel, tabindex: '-1', id: 'panel' }, [
                           h('h2', { id: headingId }, 'Heading'),
                           h('button', { id: 'first' }, 'first'),
-                          h('button', { id: 'middle' }, 'middle'),
+                          h(
+                              'button',
+                              {
+                                  id: 'middle',
+                                  ...(props.autofocus === 'middle'
+                                      ? { autofocus: '' }
+                                      : {}),
+                              },
+                              'middle',
+                          ),
                           h('button', { id: 'last' }, 'last'),
                       ])
                     : null,
@@ -58,9 +70,9 @@ const pressTab = (shiftKey = false): boolean => {
 // keydown listener and would hijack the next test's Tab.
 const mounted: { unmount: () => void }[] = [];
 
-const mountTrap = async (open = true) => {
+const mountTrap = async (open = true, autofocus: string | null = null) => {
     const wrapper = mount(Harness, {
-        props: { open },
+        props: { open, autofocus },
         attachTo: document.body,
     });
     mounted.push(wrapper);
@@ -84,6 +96,12 @@ describe('useKinetixFocusTrap', () => {
         await mountTrap();
 
         expect(document.activeElement).toBe(byId('first'));
+    });
+
+    it('starts on the autofocus element when the panel has one', async () => {
+        await mountTrap(true, 'middle');
+
+        expect(document.activeElement).toBe(byId('middle'));
     });
 
     it('cycles Tab from the last stop back to the first', async () => {

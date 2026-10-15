@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.236.2] - 2026-10-15
+
+### Fixed
+
+- **(published)** The docs search opened with focus on the dialog's close
+  button, so typing after `/` went nowhere and Enter closed the dialog. Focus
+  starts in the search field.
+- **(published)** Every Kinetix modal's focus trap now starts on an element
+  marked `autofocus` when the panel has one (otherwise the first focusable
+  element, as before).
+
 ## [0.236.1] - 2026-10-15
 
 ### Fixed

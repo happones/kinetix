@@ -135,6 +135,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown));
                 <input
                     ref="input"
                     v-model="query"
+                    autofocus
                     type="search"
                     role="combobox"
                     aria-autocomplete="list"
