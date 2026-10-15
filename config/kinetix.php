@@ -1336,10 +1336,14 @@ return [
     'wizards' => [
         'enabled' => env('KINETIX_WIZARDS_ENABLED', false),
 
-        // Track completion per team instead of per user.
+        // Track completion per user AND team (a gate with `scope: team` is
+        // completed once for the whole team).
         'teams' => env('KINETIX_WIZARDS_TEAMS'), // null = inherit kinetix.teams
 
-        // @var array<string, string> wizard slug => route name to redirect to
+        // wizard slug => the route to send users to, or
+        // ['route' => ..., 'scope' => 'user'|'team', 'completed' => [Class::class, 'method']]
+        // where `completed` decides from your data (and the self-service
+        // endpoint can't open the gate). See docs/wizard.md.
         'gates' => [
             // 'account-setup' => 'account.setup',
         ],

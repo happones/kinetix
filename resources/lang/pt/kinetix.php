@@ -726,10 +726,12 @@ return [
     'summary_total' => 'Total',
 
     // Assistente (wizard)
-    'wizard_next'    => 'Próximo',
-    'wizard_back'    => 'Voltar',
-    'wizard_finish'  => 'Concluir',
-    'wizard_step_of' => 'Etapa :current de :total',
+    'wizard_next'                => 'Próximo',
+    'wizard_back'                => 'Voltar',
+    'wizard_finish'              => 'Concluir',
+    'wizard_step_of'             => 'Etapa :current de :total',
+    'wizard_required'            => 'Conclua a configuração primeiro.',
+    'wizard_completes_from_data' => 'Esta etapa é concluída quando as informações são salvas.',
 
     // Atalhos de teclado
     'shortcuts_title' => 'Atalhos de teclado',

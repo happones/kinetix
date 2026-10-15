@@ -92,6 +92,14 @@ Route::get('/welcome', SetupController::class)->name('account.setup'); // NOT ga
 - `<KinetixWizard slug=...>` marks completion on finish (via
   `useKinetixWizard().complete`). Completion is per user (or per team). Reset via
   `WizardManager::reset($user, $slug)`. Endpoints: `GET/POST {prefix}/wizards/{slug}[/complete]`.
+- **A setup that must hold** (team account setup): the gate as an array —
+  `['route' => 'account-setup', 'scope' => 'team', 'completed' => [AccountSetup::class, 'done']]`.
+  `scope: team` = one member completes it for the team; `completed` (callable
+  array, receives `$user, $teamKey`) decides from your data, and the
+  self-service endpoint then 403s, so the gate can't be opened by asking.
+- The middleware remembers the page they were going to: finish the setup with
+  `redirect()->intended(route('dashboard'))`. JSON requests get a 409
+  `{wizard, url}`; a wizard route under `{current_team}` gets the team.
 
 i18n `wizard_*` (en/es/fr/pt).
 

@@ -148,4 +148,69 @@ class WizardGateTest extends TestCase
 
         $this->assertFalse(app(WizardManager::class)->hasCompleted($b, 'account-setup'));
     }
+
+    public static bool $businessReady = false;
+
+    /**
+     * A data-backed gate: is the team's business set up?
+     */
+    public static function businessReady(mixed $user, int|string|null $team): bool
+    {
+        return self::$businessReady;
+    }
+
+    private function inTeam(WizardUser $user, int $team): WizardUser
+    {
+        return $user->setRelation('currentTeam', (new WizardUser)->forceFill(['id' => $team]));
+    }
+
+    public function test_a_team_gate_opens_for_every_member_once_one_completes_it(): void
+    {
+        config()->set('kinetix.teams', true);
+        config()->set('kinetix.wizards.gates.team-setup', ['route' => 'wizard.setup', 'scope' => 'team']);
+
+        $owner    = $this->inTeam($this->user(), 7);
+        $member   = $this->inTeam($this->user(), 7);
+        $stranger = $this->inTeam($this->user(), 8);
+        $wizards  = app(WizardManager::class);
+
+        $wizards->complete($owner, 'team-setup');
+
+        $this->assertTrue($wizards->hasCompleted($member, 'team-setup'));
+        $this->assertFalse($wizards->hasCompleted($stranger, 'team-setup'));
+
+        $wizards->reset($member, 'team-setup');
+
+        $this->assertFalse($wizards->hasCompleted($owner, 'team-setup'));
+    }
+
+    public function test_a_gate_your_data_decides_cannot_be_opened_by_the_endpoint(): void
+    {
+        config()->set('kinetix.wizards.gates.business', ['route' => 'wizard.setup', 'completed' => [self::class, 'businessReady']]);
+        self::$businessReady = false;
+        $user                = $this->user();
+
+        $this->actingAs($user)->postJson('/_kinetix/wizards/business/complete')->assertForbidden();
+        $this->assertFalse(app(WizardManager::class)->hasCompleted($user, 'business'));
+
+        self::$businessReady = true;
+
+        $this->assertTrue(app(WizardManager::class)->hasCompleted($user, 'business'));
+    }
+
+    public function test_a_json_request_learns_where_the_wizard_is_instead_of_being_redirected(): void
+    {
+        $this->actingAs($this->user())
+            ->getJson('/dashboard')
+            ->assertStatus(409)
+            ->assertJson(['wizard' => 'account-setup', 'url' => route('wizard.setup')]);
+    }
+
+    public function test_the_page_the_user_was_going_to_is_remembered_for_after_the_wizard(): void
+    {
+        $this->actingAs($this->user())
+            ->get('/dashboard?tab=sales')
+            ->assertRedirect(route('wizard.setup'))
+            ->assertSessionHas('url.intended', url('/dashboard?tab=sales'));
+    }
 }

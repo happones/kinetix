@@ -726,10 +726,12 @@ return [
     'summary_total' => 'Total',
 
     // Assistant (wizard)
-    'wizard_next'    => 'Suivant',
-    'wizard_back'    => 'Précédent',
-    'wizard_finish'  => 'Terminer',
-    'wizard_step_of' => 'Étape :current sur :total',
+    'wizard_next'                => 'Suivant',
+    'wizard_back'                => 'Précédent',
+    'wizard_finish'              => 'Terminer',
+    'wizard_step_of'             => 'Étape :current sur :total',
+    'wizard_required'            => 'Terminez d\'abord la configuration.',
+    'wizard_completes_from_data' => 'Cette étape se termine quand ses informations sont enregistrées.',
 
     // Raccourcis clavier
     'shortcuts_title' => 'Raccourcis clavier',

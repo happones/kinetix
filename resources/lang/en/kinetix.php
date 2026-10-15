@@ -752,10 +752,12 @@ return [
     'summary_total' => 'Total',
 
     // Wizard
-    'wizard_next'    => 'Next',
-    'wizard_back'    => 'Back',
-    'wizard_finish'  => 'Finish',
-    'wizard_step_of' => 'Step :current of :total',
+    'wizard_next'                => 'Next',
+    'wizard_back'                => 'Back',
+    'wizard_finish'              => 'Finish',
+    'wizard_step_of'             => 'Step :current of :total',
+    'wizard_required'            => 'Finish setting up first.',
+    'wizard_completes_from_data' => 'This step completes when its information is saved.',
 
     // Keyboard shortcuts
     'shortcuts_title' => 'Keyboard shortcuts',

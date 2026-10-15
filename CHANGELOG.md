@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.233.0] - 2026-10-14
+
+### Added
+
+- **A wizard gate can be completed once for the whole team** (`'scope' => 'team'`).
+  With `wizards.teams` on, completion was per user and team, so after the
+  owner set the team up every other member was still sent to the wizard.
+- **A wizard gate can be decided by your data** (`'completed' => [Class::class, 'method']`):
+  the gate opens when the information exists, and the self-service
+  `complete` endpoint answers 403, so it can't be opened by asking.
+  A gate stays a plain route name when it needs neither.
+- The gate middleware remembers the page the user was going to (finish with
+  `redirect()->intended(...)`), answers a JSON request with a 409
+  `{ wizard, url }` instead of a redirect, and passes the team segment to a
+  wizard route under `{current_team}`.
+
 ## [0.232.0] - 2026-10-14
 
 ### Added

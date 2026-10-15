@@ -283,9 +283,59 @@ opens:
 <KinetixWizard slug="account-setup" :steps="steps" @finish="router.visit('/dashboard')" />
 ```
 
-Completion is stored per user (or per team when `kinetix.wizards.teams` is on).
-The self-service endpoints are `GET {prefix}/wizards/{slug}` (status) and
-`POST {prefix}/wizards/{slug}/complete`. To re-run a wizard, call
+Completion is stored per user (or per user and team when `kinetix.wizards.teams`
+is on). The self-service endpoints are `GET {prefix}/wizards/{slug}` (status)
+and `POST {prefix}/wizards/{slug}/complete`. To re-run a wizard, call
 `WizardManager::reset($user, $slug)`.
+
+The page the user was going to is remembered, so the wizard's controller can
+send them back to it when it's done:
+
+```php
+return redirect()->intended(route('dashboard'));
+```
+
+A JSON request under a gated route gets a `409` with `{ wizard, url }` instead
+of a redirect, and a wizard route under the team segment (`{current_team}`)
+gets the team being served.
+
+### A setup that must hold: team scope and your data
+
+An account setup that a whole team depends on needs two more things: one
+member completes it for everyone, and finishing the wizard isn't enough —
+the information it collects must exist. Give the gate as an array:
+
+```php
+// config/kinetix.php
+'wizards' => [
+    'gates' => [
+        'account-setup' => [
+            'route'     => 'account-setup',
+            'scope'     => 'team',                               // once for the whole team
+            'completed' => [App\Kinetix\AccountSetup::class, 'done'], // your data decides
+        ],
+    ],
+],
+```
+
+```php
+namespace App\Kinetix;
+
+class AccountSetup
+{
+    public static function done(User $user, int|string|null $teamKey): bool
+    {
+        return BusinessProfile::query()->where('team_id', $teamKey)->whereNotNull('completed_at')->exists();
+    }
+}
+```
+
+| Key | What it does |
+|---|---|
+| `route` | Where gated routes send the user (the string form's value) |
+| `scope` | `user` (default): each user completes it. `team`: one member completes it for the team |
+| `completed` | A callable array (or invokable class) receiving the user and the team key. It decides completion from your data instead of a stored row, and the self-service `complete` endpoint then answers `403`: the gate opens when the data is saved, never by asking |
+
+A callable array keeps `config:cache` working; a closure in config doesn't.
 
 All strings are localized (`wizard_*`, en/es/fr/pt).

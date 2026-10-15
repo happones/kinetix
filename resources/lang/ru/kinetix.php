@@ -669,6 +669,8 @@ return [
     'wizard_back'                      => 'Назад',
     'wizard_finish'                    => 'Завершить',
     'wizard_step_of'                   => 'Шаг :current из :total',
+    'wizard_required'                  => 'Сначала завершите настройку.',
+    'wizard_completes_from_data'       => 'Этот шаг завершается после сохранения данных.',
     'shortcuts_title'                  => 'Горячие клавиши',
     'timezone_placeholder'             => 'Выберите часовой пояс…',
     'timezone_search_placeholder'      => 'Поиск часовых поясов…',

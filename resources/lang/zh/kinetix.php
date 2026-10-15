@@ -669,6 +669,8 @@ return [
     'wizard_back'                      => '上一步',
     'wizard_finish'                    => '完成',
     'wizard_step_of'                   => '第 :current 步，共 :total 步',
+    'wizard_required'                  => '请先完成设置。',
+    'wizard_completes_from_data'       => '保存信息后此步骤即完成。',
     'shortcuts_title'                  => '键盘快捷键',
     'timezone_placeholder'             => '选择时区…',
     'timezone_search_placeholder'      => '搜索时区…',

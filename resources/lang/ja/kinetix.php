@@ -669,6 +669,8 @@ return [
     'wizard_back'                      => '戻る',
     'wizard_finish'                    => '完了',
     'wizard_step_of'                   => ':total ステップ中 :current',
+    'wizard_required'                  => '先にセットアップを完了してください。',
+    'wizard_completes_from_data'       => 'この手順は情報を保存すると完了します。',
     'shortcuts_title'                  => 'キーボードショートカット',
     'timezone_placeholder'             => 'タイムゾーンを選択…',
     'timezone_search_placeholder'      => 'タイムゾーンを検索…',

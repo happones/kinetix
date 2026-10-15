@@ -27,6 +27,9 @@ class WizardController
 
     public function complete(Request $request, string $slug): JsonResponse
     {
+        // A gate your data decides isn't opened by asking: save the data.
+        abort_if($this->manager->completesFromData($slug), 403, __('kinetix.wizard_completes_from_data'));
+
         $this->manager->complete($this->user($request), $slug);
 
         return response()->json(['status' => 'success', 'slug' => $slug]);
