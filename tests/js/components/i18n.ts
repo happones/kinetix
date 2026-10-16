@@ -96,6 +96,8 @@ export const i18n = createI18n({
                 member_provision: 'Add member',
                 member_resend: 'Resend',
                 member_revoke: 'Remove',
+                member_no_assignable_roles:
+                    'There is no role you can give a new member yet — create one in Roles & permissions first.',
                 member_search: 'Search members…',
                 member_revoke_confirm:
                     'Remove {email}? Their role will be removed and the member marked as revoked.',

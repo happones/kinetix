@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.243.2] - 2026-10-15
+
+### Fixed
+
+- **(published)** `<KinetixMemberProvisioner>` with no assignable role: **Add
+  member** did nothing and said nothing. The button is disabled and the form
+  says why (`member_no_assignable_roles`, in every locale) until a role
+  arrives.
+
 ## [0.243.1] - 2026-10-15
 
 ### Fixed

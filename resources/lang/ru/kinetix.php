@@ -461,6 +461,7 @@ return [
     'member_phone'                          => 'Телефон',
     'member_role'                           => 'Роль',
     'member_provision'                      => 'Добавить участника',
+    'member_no_assignable_roles'            => 'Пока нет роли, которую можно дать новому участнику, — сначала создайте её в разделе «Роли и права».',
     'member_resend'                         => 'Отправить снова',
     'member_revoke'                         => 'Убрать',
     'no_members'                            => 'Участников пока нет.',

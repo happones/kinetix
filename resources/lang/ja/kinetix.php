@@ -461,6 +461,7 @@ return [
     'member_phone'                          => '電話番号',
     'member_role'                           => 'ロール',
     'member_provision'                      => 'メンバーを追加',
+    'member_no_assignable_roles'            => '新しいメンバーに付与できるロールがまだありません。先に「ロールと権限」で作成してください。',
     'member_resend'                         => '再送信',
     'member_revoke'                         => '削除',
     'no_members'                            => 'メンバーはまだいません。',

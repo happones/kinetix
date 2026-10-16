@@ -492,6 +492,7 @@ return [
     'member_phone'                  => 'Téléphone',
     'member_role'                   => 'Rôle',
     'member_provision'              => 'Ajouter un membre',
+    'member_no_assignable_roles'    => 'Aucun rôle ne peut encore être donné à un nouveau membre — créez-en un d\'abord dans Rôles et permissions.',
     'member_resend'                 => 'Renvoyer',
     'member_revoke'                 => 'Retirer',
     'no_members'                    => 'Aucun membre pour le moment.',

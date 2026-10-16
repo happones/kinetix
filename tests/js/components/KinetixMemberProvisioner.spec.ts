@@ -89,6 +89,25 @@ describe('KinetixMemberProvisioner', () => {
         expect(wrapper.emitted('submit')).toBeUndefined();
     });
 
+    it('says why nobody can be added when there is no role to give', async () => {
+        const wrapper = mountProvisioner([]);
+
+        expect(wrapper.text()).toContain('There is no role you can give');
+        expect(
+            wrapper.get('button[type="submit"]').attributes('disabled'),
+        ).toBeDefined();
+        expect(wrapper.get('form').attributes('aria-describedby')).toBe(
+            'kinetix-member-no-roles',
+        );
+
+        // Roles arriving later (the allow-list loads async) clear it.
+        await wrapper.setProps({ assignableRoles: ['editor'] });
+        expect(wrapper.text()).not.toContain('There is no role you can give');
+        expect(
+            wrapper.get('button[type="submit"]').attributes('disabled'),
+        ).toBeUndefined();
+    });
+
     it('defaults the role once the async allow-list arrives', async () => {
         // The parent loads the allow-list after mount, so the provisioner
         // starts with []. Without the watcher the select stayed empty and a

@@ -461,6 +461,7 @@ return [
     'member_phone'                          => '电话',
     'member_role'                           => '角色',
     'member_provision'                      => '添加成员',
+    'member_no_assignable_roles'            => '还没有可分配给新成员的角色——请先在“角色与权限”中创建一个。',
     'member_resend'                         => '重新发送',
     'member_revoke'                         => '移除',
     'no_members'                            => '暂无成员。',

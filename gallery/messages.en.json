@@ -454,6 +454,7 @@
         "member_phone": "Phone",
         "member_role": "Role",
         "member_provision": "Add member",
+        "member_no_assignable_roles": "There is no role you can give a new member yet — create one in Roles & permissions first.",
         "member_resend": "Resend",
         "member_revoke": "Remove",
         "no_members": "No members yet.",

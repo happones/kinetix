@@ -492,6 +492,7 @@ return [
     'member_phone'                  => 'Telefone',
     'member_role'                   => 'Papel',
     'member_provision'              => 'Adicionar membro',
+    'member_no_assignable_roles'    => 'Ainda não há uma função que você possa dar a um novo membro — crie uma primeiro em Funções e permissões.',
     'member_resend'                 => 'Reenviar',
     'member_revoke'                 => 'Remover',
     'no_members'                    => 'Ainda não há membros.',

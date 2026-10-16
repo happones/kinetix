@@ -66,6 +66,12 @@ const identifierLabel = computed(() =>
     t(`kinetix.member_${props.identifierType}`),
 );
 
+/**
+ * No role this person may hand out: the form can't add anybody, so it says
+ * why instead of a submit that silently did nothing.
+ */
+const noRoles = computed(() => props.assignableRoles.length === 0);
+
 function submit(): void {
     if (!identifier.value || !role.value) {
         return;
@@ -81,7 +87,8 @@ function submit(): void {
     <!-- items-end keeps the inputs and the (label-less) submit button bottom-aligned;
        every control is h-9 so tops align too. -->
     <form
-        class="gap-3 sm:flex-row sm:items-end flex flex-col"
+        class="gap-3 sm:flex-row sm:flex-wrap sm:items-end flex flex-col"
+        :aria-describedby="noRoles ? 'kinetix-member-no-roles' : undefined"
         @submit.prevent="submit"
     >
         <div class="space-y-2 flex-1">
@@ -111,8 +118,16 @@ function submit(): void {
             />
         </div>
 
-        <KinetixButton type="submit" :loading="submitting">
+        <KinetixButton type="submit" :loading="submitting" :disabled="noRoles">
             {{ t('kinetix.member_provision') }}
         </KinetixButton>
+
+        <p
+            v-if="noRoles"
+            id="kinetix-member-no-roles"
+            class="text-sm sm:basis-full text-muted-foreground"
+        >
+            {{ t('kinetix.member_no_assignable_roles') }}
+        </p>
     </form>
 </template>
