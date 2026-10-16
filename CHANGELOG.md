@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.242.0] - 2026-10-15
+
+### Added
+
+- The member activation page receives `team`, the name of the business the
+  person is joining, and **(published)** `<KinetixMemberActivation>` says it
+  ("You were invited to join Acme Coffee") — a set-password form naming no
+  business reads like any phishing page. Forward `team` (and `identifier`)
+  from your `Kinetix/MemberActivation` page; see the membership docs.
+
+### Fixed
+
+- **(published)** `KinetixModal` keeps wide content inside the panel: its grid
+  column was sized to the content, so the import wizard's review step (a wide
+  sample table) spilled past the dialog's edge, buttons included.
+- **(published)** The import preview numbers its sample rows by their line in
+  the file (2 under a header), as the skipped-rows notice does — the same row
+  was "row 3" in the preview and "row 4" in the notice.
+- A skipped import row is reported under its column's label ("The Name field
+  is required."), not the column's internal name.
+- **(published)** Removing a pending member asks to cancel the invitation
+  (not to strip a role), its confirm button says **Remove**, and the toast
+  says the invitation was cancelled.
+
 ## [0.241.0] - 2026-10-15
 
 ### Added

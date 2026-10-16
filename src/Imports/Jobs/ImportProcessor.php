@@ -131,6 +131,7 @@ class ImportProcessor implements ShouldQueue
         try {
             $headers = FileReader::headers($localPath, $options);
             $rules   = $this->mappedRules($importer);
+            $labels  = $this->columnLabels($importer);
 
             // Failed rows are written out as they happen instead of collected:
             // a wholly mismatched million-row file would otherwise hold a
@@ -150,12 +151,12 @@ class ImportProcessor implements ShouldQueue
                     continue;
                 }
 
-                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber);
+                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber, $labels);
                 $buffer = [];
             }
 
             if ($buffer !== []) {
-                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber);
+                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber, $labels);
             }
         } finally {
             KinetixDisk::discardTemp($localPath, $isTemp);
@@ -172,6 +173,7 @@ class ImportProcessor implements ShouldQueue
      * @param array<int, array<int, string|null>> $chunk
      * @param array<string, array<int, mixed>>    $rules
      * @param array<int, string>                  $failures
+     * @param array<string, string>               $labels
      */
     protected function processChunk(
         array $chunk,
@@ -181,14 +183,15 @@ class ImportProcessor implements ShouldQueue
         int &$failed,
         array &$failures,
         int &$rowNumber,
+        array $labels = [],
     ): void {
-        DB::transaction(function () use ($chunk, $importer, $rules, &$imported, &$failed, &$failures, &$rowNumber): void {
+        DB::transaction(function () use ($chunk, $importer, $rules, $labels, &$imported, &$failed, &$failures, &$rowNumber): void {
             foreach ($chunk as $row) {
                 $rowNumber++;
                 $data = $this->mapRow($row);
 
                 if ($rules !== []) {
-                    $validator = Validator::make($data, $rules);
+                    $validator = Validator::make($data, $rules, [], $labels);
 
                     if ($validator->fails()) {
                         $failed++;
@@ -309,6 +312,26 @@ class ImportProcessor implements ShouldQueue
         }
 
         return $data;
+    }
+
+    /**
+     * Each column's label, as the template and the mapping step show it, for
+     * the validation messages: "The Name field is required.", not "The name
+     * field is required." in a column the file calls "Nombre".
+     *
+     * @return array<string, string>
+     */
+    protected function columnLabels(Importer $importer): array
+    {
+        $labels = [];
+
+        foreach ($importer::getColumns() as $column) {
+            if ($column->getLabel() !== '') {
+                $labels[$column->getName()] = $column->getLabel();
+            }
+        }
+
+        return $labels;
     }
 
     /**

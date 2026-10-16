@@ -22,6 +22,11 @@ const props = defineProps<{
     maxColumns: number;
     /** Reverse lookup: the target column label a header feeds, if any. */
     columnForHeader: (index: number) => string | null;
+    /**
+     * The file row the first sample row is on — 2 under a header — so a row
+     * here has the number a skipped-rows notice and a spreadsheet give it.
+     */
+    firstRow?: number;
 }>();
 
 const { t } = useI18n();
@@ -136,7 +141,7 @@ const hiddenCount = computed(
                             scope="row"
                             class="px-3 py-2 text-xs font-normal text-right text-muted-foreground tabular-nums"
                         >
-                            {{ rowIndex + 1 }}
+                            {{ (firstRow ?? 1) + rowIndex }}
                         </th>
                         <td
                             v-for="index in visibleIndexes"

@@ -131,6 +131,31 @@ describe('KinetixMemberList', () => {
         wrapper.unmount();
     });
 
+    it('asks to cancel a pending invitation, not to strip a role, with the action on the button', async () => {
+        const wrapper = mountList();
+
+        await wrapper
+            .findAll('button')
+            .find((b) =>
+                (b.attributes('aria-label') ?? '').startsWith(
+                    'Remove — pending@example.com',
+                ),
+            )!
+            .trigger('click');
+        await wrapper.vm.$nextTick();
+
+        const dialog = document.querySelector('[role="dialog"]') as HTMLElement;
+        expect(dialog.textContent).toContain(
+            'Cancel the invitation for pending@example.com?',
+        );
+        expect(
+            [...dialog.querySelectorAll('button')].map((b) =>
+                b.textContent?.trim(),
+            ),
+        ).toContain('Remove');
+        wrapper.unmount();
+    });
+
     it('shows a skeleton on first load instead of a blank panel', () => {
         provisions.value = [];
         loading.value = true;

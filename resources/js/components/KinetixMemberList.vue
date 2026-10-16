@@ -154,7 +154,10 @@ async function confirmRevoke(): Promise<void> {
         'revoke',
         rowKey(member),
         () => revoke(member),
-        t('kinetix.member_revoked'),
+        // A pending invitation was never a member: what ends is the invite.
+        member.status === 'pending'
+            ? t('kinetix.member_invite_cancelled')
+            : t('kinetix.member_revoked'),
         t('kinetix.delete_failed'),
     );
 
@@ -340,10 +343,14 @@ function statusLabel(status: KinetixMemberProvision['status']): string {
             v-model:open="isRevokeOpen"
             :heading="t('kinetix.member_revoke')"
             :description="
-                t('kinetix.member_revoke_confirm', {
-                    email: revokeTarget?.email ?? '',
-                })
+                t(
+                    revokeTarget?.status === 'pending'
+                        ? 'kinetix.member_revoke_pending_confirm'
+                        : 'kinetix.member_revoke_confirm',
+                    { email: revokeTarget?.email ?? '' },
+                )
             "
+            :submit-label="t('kinetix.member_revoke')"
             color="danger"
             :processing="busyKind === 'revoke'"
             @confirm="confirmRevoke"

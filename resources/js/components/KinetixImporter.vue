@@ -330,6 +330,7 @@ const summaryRows = computed(() => {
                         :preview="preview"
                         :max-columns="settings.previewColumns"
                         :column-for-header="columnForHeader"
+                        :first-row="parseOptions.hasHeader ? 2 : 1"
                     />
 
                     <p class="text-xs text-muted-foreground">

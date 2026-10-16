@@ -105,6 +105,10 @@ export const i18n = createI18n({
                 member_provision_failed: 'Could not add member.',
                 member_role_updated: 'Role updated.',
                 member_revoked: 'Member removed.',
+                member_revoke_pending_confirm:
+                    'Cancel the invitation for {email}? Their link stops working.',
+                member_invite_cancelled: 'Invitation cancelled.',
+                activation_team: 'You were invited to join {team}.',
                 no_members: 'No members yet.',
                 show_more: 'Show more',
                 // relation managers (attach/detach)

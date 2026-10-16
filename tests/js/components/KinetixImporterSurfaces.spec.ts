@@ -164,6 +164,17 @@ describe('ImporterPreview — bounded on both axes', () => {
         expect(w.findAll('button')).toHaveLength(0);
     });
 
+    it('numbers a sample row by its line in the file, as a skipped-rows notice does', () => {
+        const w = mountWith(ImporterPreview, {
+            preview: preview(2),
+            maxColumns: 0,
+            columnForHeader: () => null,
+            firstRow: 2,
+        });
+
+        expect(w.get('tbody th[scope="row"]').text()).toBe('2');
+    });
+
     it('keeps the horizontal scroll inside its own container', () => {
         const w = mountWith(ImporterPreview, {
             preview: preview(24),

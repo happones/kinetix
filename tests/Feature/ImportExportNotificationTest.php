@@ -112,6 +112,14 @@ class FlakyRowImporter extends NotifyWidgetImporter
     }
 }
 
+class LabelledWidgetImporter extends NotifyWidgetImporter
+{
+    public static function getColumns(): array
+    {
+        return [ImportColumn::make('name')->label('Widget name')->rules(['required'])];
+    }
+}
+
 class CustomMessageImporter extends NotifyWidgetImporter
 {
     public function getStartedNotificationBody(): string
@@ -307,6 +315,32 @@ class ImportExportNotificationTest extends TestCase
 
         $this->assertSame('Custom import failed', $data['title']);
         $this->assertSame('danger', $data['status']);
+    }
+
+    /**
+     * A skipped row is reported under the column's label — the name the file
+     * and the template use — and by its line in the file, header included.
+     */
+    public function test_a_skipped_row_is_reported_by_its_column_label_and_file_line(): void
+    {
+        $user = NotifyRecipient::create(['name' => 'A']);
+        Storage::disk('local')->put('kinetix-imports/labelled.csv', "name,code\nAda,1\n,2\n");
+
+        (new ImportProcessor(
+            LabelledWidgetImporter::class,
+            'kinetix-imports/labelled.csv',
+            ['delimiter' => ',', 'enclosure' => '"', 'skipLines' => 0, 'hasHeader' => true],
+            ['name'      => 0],
+            NotifyRecipient::class,
+            $user->id,
+        ))->handle();
+
+        $description = (string) $this->latestNotificationData($user)['description'];
+
+        $this->assertStringContainsString((string) __('kinetix.import_failed_row', [
+            'row'    => 3,
+            'reason' => __('validation.required', ['attribute' => 'Widget name']),
+        ]), $description);
     }
 
     public function test_import_failures_are_downloadable_as_a_csv_of_the_failed_rows(): void

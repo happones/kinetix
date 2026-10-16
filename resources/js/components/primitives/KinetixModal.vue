@@ -179,11 +179,15 @@ const { headingId } = useKinetixFocusTrap({
                          itself is the fixed element, so the close button's
                          absolute top-4 right-4 anchors to it. Here the panel
                          sits inside a fixed flex wrapper — without relative,
-                         the button anchors to the VIEWPORT and disappears. -->
+                         the button anchors to the VIEWPORT and disappears.
+                         `grid-cols-[minmax(0,1fr)]`: an implicit grid column
+                         is sized `auto`, so wide content (a preview table)
+                         grew it past the panel and spilled over its edge;
+                         a 0 minimum keeps it inside, scrolling on its own. -->
                     <div
                         ref="panelEl"
                         tabindex="-1"
-                        class="rounded-lg p-6 shadow-lg gap-4 relative grid w-full max-w-[calc(100%-2rem)] border bg-background outline-none"
+                        class="rounded-lg p-6 shadow-lg gap-4 relative grid w-full max-w-[calc(100%-2rem)] grid-cols-[minmax(0,1fr)] border bg-background outline-none"
                         :class="[
                             maxWidth,
                             scrollBody || fullscreen
