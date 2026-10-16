@@ -567,20 +567,35 @@ Need a custom layout? Compose the presentational
 `<KinetixMemberActivation>` is the public set-password screen. Create the page
 file at **`resources/js/pages/Kinetix/MemberActivation.vue`** (that's what the
 default `membership.activation_view` resolves to — or change the config to any
-page you already have), forwarding the `email` and `action` props the
-controller passes:
+page you already have), forwarding the props the controller passes —
+`identifier` (the email, username or phone the member is known by), `email`,
+`team` (the name of the business they are joining, `null` without teams) and
+the signed `action` URL:
 
 ```vue
 <script setup lang="ts">
 import KinetixMemberActivation from "@/components/kinetix/KinetixMemberActivation.vue";
 
-defineProps<{ email: string; action: string }>();
+defineProps<{
+  identifier?: string | null;
+  email?: string | null;
+  team?: string | null;
+  action: string;
+}>();
 </script>
 
 <template>
-  <KinetixMemberActivation :email="email" :action="action" />
+  <KinetixMemberActivation
+    :identifier="identifier"
+    :email="email"
+    :team="team"
+    :action="action"
+  />
 </template>
 ```
+
+The page says who is inviting them ("You were invited to join Acme Coffee") —
+a set-password form that names no business reads like any phishing page.
 
 <Screenshot name="member-activation" alt="Member activation — set password" />
 

@@ -9,6 +9,7 @@ use Happones\Kinetix\Credentials\KinetixIdentity;
 use Happones\Kinetix\Credentials\KinetixPasswords;
 use Happones\Kinetix\Data\MemberProvisionData;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\HostKeys;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Support\Arrayable;
@@ -231,8 +232,28 @@ class MembershipController
                 'identifier' => $provision->identifier(),
                 'email'      => $provision->email,
                 'action'     => $request->fullUrl(),
+                // Who is inviting them: a set-password page that names no
+                // business reads like any phishing form.
+                'team' => $this->teamName($provision),
             ],
         );
+    }
+
+    /**
+     * The name of the team a provision joins, when the app's Team model has
+     * one. Null without teams, or when it can't be read.
+     */
+    protected function teamName(MemberProvision $provision): ?string
+    {
+        $model = $provision->team_id !== null ? HostKeys::teamModel() : null;
+
+        if ($model === null) {
+            return null;
+        }
+
+        $name = $model::query()->find($provision->team_id)?->getAttribute('name');
+
+        return is_string($name) && $name !== '' ? $name : null;
     }
 
     /**

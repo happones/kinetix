@@ -27,8 +27,10 @@ const props = withDefaults(
         identifier?: string | null;
         email?: string | null;
         action: string;
+        /** The business they are joining, so the page says who is asking. */
+        team?: string | null;
     }>(),
-    { identifier: null, email: null },
+    { identifier: null, email: null, team: null },
 );
 
 /** What to show the person so they know whose account they are activating. */
@@ -53,6 +55,9 @@ function submit(): void {
             <h1 class="text-xl font-semibold text-foreground">
                 {{ t('kinetix.activation_title') }}
             </h1>
+            <p v-if="team" class="text-sm text-foreground">
+                {{ t('kinetix.activation_team', { team }) }}
+            </p>
             <p v-if="shownIdentifier" class="text-sm text-muted-foreground">
                 {{ shownIdentifier }}
             </p>

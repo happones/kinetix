@@ -11,9 +11,13 @@ use Happones\Kinetix\Membership\MemberProvisionStatus;
 use Happones\Kinetix\Permissions\KinetixPermissions;
 use Happones\Kinetix\Tests\Concerns\CreatesMembershipTables;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -31,6 +35,23 @@ class MemberUser extends Authenticatable
     protected $guarded = [];
 
     protected $guard_name = 'web';
+}
+
+class MemberTeam extends Model
+{
+    protected $table = 'member_teams';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+}
+
+class MemberTeamUser extends MemberUser
+{
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(MemberTeam::class, 'member_team_user', 'user_id', 'team_id');
+    }
 }
 
 class MembershipTest extends TestCase
@@ -152,6 +173,43 @@ class MembershipTest extends TestCase
             'user_id' => $user->id,
             'name'    => 'Jane Doe',
         ]);
+    }
+
+    /**
+     * The set-password page says which business is asking — without it, it
+     * reads like any form wanting a password.
+     */
+    public function test_the_activation_page_names_the_team_being_joined(): void
+    {
+        Schema::create('member_teams', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('name');
+        });
+        config(['auth.providers.users.model' => MemberTeamUser::class]);
+        $team = MemberTeam::create(['name' => 'Acme Coffee']);
+
+        $joining = MemberProvision::create([
+            'email'      => 'jane@example.com',
+            'role'       => 'editor',
+            'team_id'    => $team->id,
+            'status'     => MemberProvisionStatus::Pending,
+            'expires_at' => now()->addDay(),
+        ]);
+        $teamless = MemberProvision::create([
+            'email'      => 'solo@example.com',
+            'role'       => 'editor',
+            'status'     => MemberProvisionStatus::Pending,
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $page = fn (MemberProvision $provision): array => $this->withHeader('X-Inertia', 'true')
+            ->withHeader('X-Inertia-Version', '1')
+            ->get(URL::temporarySignedRoute('kinetix.membership.activate.show', now()->addDay(), ['provision' => $provision->id]))
+            ->assertOk()
+            ->json('props');
+
+        $this->assertSame('Acme Coffee', $page($joining)['team']);
+        $this->assertNull($page($teamless)['team']);
     }
 
     public function test_activation_link_rejected_once_consumed(): void

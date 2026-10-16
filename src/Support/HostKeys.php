@@ -156,7 +156,7 @@ class HostKeys
      * back to bigint — pin `kinetix.key_types.team` when the relation isn't
      * inspectable at migrate time.
      */
-    protected static function teamModel(): ?string
+    public static function teamModel(): ?string
     {
         $user = static::userModel();
 
