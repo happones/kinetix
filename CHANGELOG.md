@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.243.1] - 2026-10-15
+
+### Fixed
+
+- **(published)** The notifications drawer's close button was named "Cerrar"
+  in every language and was a 20px target; it reads `kinetix.close` and is a
+  32px button.
+
 ## [0.243.0] - 2026-10-15
 
 ### Added

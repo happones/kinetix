@@ -66,10 +66,13 @@ onMounted(() => {
                         </h2>
 
                         <!-- Close button -->
+                        <!-- Named in the reader's language (it was a hard-coded
+                             "Cerrar"), and a 32px target around the 20px icon. -->
                         <button
+                            type="button"
+                            class="size-8 inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                            :aria-label="t('kinetix.close')"
                             @click="store.closeDrawer"
-                            class="rounded-md text-muted-foreground hover:text-foreground focus:outline-none"
-                            aria-label="Cerrar"
                         >
                             <X class="h-5 w-5" />
                         </button>

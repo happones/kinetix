@@ -15,6 +15,7 @@ export const i18n = createI18n({
             kinetix: {
                 // click-to-copy
                 copy: 'Copy',
+                close: 'Close',
                 copied: 'Copied!',
                 copy_failed: "Couldn't copy",
                 // pickers & preview
