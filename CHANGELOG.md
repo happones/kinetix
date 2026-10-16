@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.243.0] - 2026-10-15
+
+### Added
+
+- Exporters take the `context(Request $request)` hook importers have: called
+  when the export is started, carried in the queue payload and restored on
+  the worker before `query()` runs, so an export can be scoped to the team it
+  was started from (`$this->context['team_id']`). Both share the
+  `CarriesQueueContext` concern. An unscoped `query()` exports every tenant's
+  rows — see "Multi-tenancy: scoping an export" in the import/export docs.
+
 ## [0.242.0] - 2026-10-15
 
 ### Added

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Exports;
 
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
+use Happones\Kinetix\Support\Concerns\CarriesQueueContext;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -15,6 +16,8 @@ use RuntimeException;
 
 abstract class Exporter
 {
+    use CarriesQueueContext;
+
     /**
      * The Eloquent model exported by default.
      */
@@ -374,6 +377,9 @@ abstract class Exporter
             // from must be captured now (null when notifications aren't
             // team-scoped — the notification then stays global).
             KinetixTeams::keyFor('notifications'),
+            // What the exporter's query needs from the request it was started
+            // in (its team), restored on the worker before query() runs.
+            $this->context !== [] ? $this->context : $this->context(request()),
         );
 
         // Only pin a specific queue when the exporter defines one; otherwise use

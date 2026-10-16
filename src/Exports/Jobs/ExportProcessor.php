@@ -40,6 +40,7 @@ class ExportProcessor implements ShouldQueue
      * @param int|string|null        $teamKey        captured at dispatch (the worker has no
      *                                               request); stamps the notification when
      *                                               notifications are team-scoped
+     * @param array<string, mixed>   $context        the exporter's context(), captured at dispatch
      */
     public function __construct(
         protected string $exporterClass,
@@ -47,6 +48,7 @@ class ExportProcessor implements ShouldQueue
         protected int|string|null $recipientId = null,
         protected array $parameters = [],
         protected int|string|null $teamKey = null,
+        protected array $context = [],
     ) {}
 
     /**
@@ -92,7 +94,7 @@ class ExportProcessor implements ShouldQueue
     public function handle(): void
     {
         /** @var Exporter $exporter */
-        $exporter = (new $this->exporterClass)->withParameters($this->parameters);
+        $exporter = (new $this->exporterClass)->withParameters($this->parameters)->withContext($this->context);
         $format   = $exporter->format();
 
         $storedName   = Str::uuid()->toString().'.'.$format;

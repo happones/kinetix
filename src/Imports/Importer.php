@@ -6,26 +6,21 @@ namespace Happones\Kinetix\Imports;
 
 use Happones\Kinetix\Data\ImportColumnData;
 use Happones\Kinetix\Data\ImportSettingsData;
+use Happones\Kinetix\Support\Concerns\CarriesQueueContext;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
 abstract class Importer
 {
+    use CarriesQueueContext;
+
     /**
      * The Eloquent model this importer writes to.
      */
     protected static ?string $model = null;
-
-    /**
-     * Request-captured context restored on the queued worker (see context()).
-     *
-     * @var array<string, mixed>
-     */
-    protected array $context = [];
 
     /**
      * Whether the import modal offers a "Download template" link — a CSV whose
@@ -302,47 +297,6 @@ abstract class Importer
     public function getTemplateHeaders(): array
     {
         return array_map(fn (ImportColumn $column): string => $column->getLabel(), static::getColumns());
-    }
-
-    /**
-     * Capture request context to carry into the queued job — the worker has no
-     * request, so anything tenant-scoped (current team, acting user, …) must be
-     * captured here. The returned array is serialized with the job and restored
-     * on the worker instance before any importRow() call; read it back via
-     * `$this->context` or getContext().
-     *
-     *     public function context(Request $request): array
-     *     {
-     *         return ['team_id' => $request->user()?->currentTeam?->getKey()];
-     *     }
-     *
-     * @return array<string, mixed> serializable values only
-     */
-    public function context(Request $request): array
-    {
-        return [];
-    }
-
-    /**
-     * Restore captured context on this instance (called by the queued job).
-     *
-     * @param array<string, mixed> $context
-     */
-    public function withContext(array $context): static
-    {
-        $this->context = $context;
-
-        return $this;
-    }
-
-    /**
-     * The context captured at dispatch time (empty when dispatched without one).
-     *
-     * @return array<string, mixed>
-     */
-    public function getContext(): array
-    {
-        return $this->context;
     }
 
     /**

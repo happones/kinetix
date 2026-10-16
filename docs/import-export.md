@@ -761,9 +761,35 @@ class InvoiceExporter extends Exporter
 > the one Kinetix group registered **without** the `{current_team}` prefix:
 > both URLs are built server-side and token-signed, and the download link is
 > generated inside a queued job, which has no team route context. Team scoping
-> of the exported **data** belongs in the exporter's own `query()` (see the
-> importer's multi-tenancy section — the same "carry the context into the
-> queue" rule applies).
+> of the exported **data** belongs in the exporter's own `query()`, fed by the
+> same `context()` hook importers have — below.
+
+### Multi-tenancy: scoping an export to the team it was started from
+
+An export runs on the worker, where there is no request and no current team.
+Override `context()` — called when the export is started, inside the request —
+and read it back in `query()`:
+
+```php
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+
+class ProductExporter extends Exporter
+{
+    public function context(Request $request): array
+    {
+        return ['team_id' => $request->user()?->currentTeam?->getKey()];
+    }
+
+    public function query(): Builder
+    {
+        return Product::query()->where('team_id', $this->context['team_id'] ?? null);
+    }
+}
+```
+
+> **Warning**: an unscoped `query()` exports every tenant's rows. The context
+> travels in the queue payload — keep it to serializable scalars.
 
 ---
 

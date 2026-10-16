@@ -15,10 +15,12 @@ use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
@@ -52,6 +54,25 @@ class NotifyWidgetExporter extends Exporter
     public static function getColumns(): array
     {
         return [ExportColumn::make('name')];
+    }
+}
+
+class ContextWidgetExporter extends NotifyWidgetExporter
+{
+    /** @var array<int, array<string, mixed>> */
+    public static array $seen = [];
+
+    public function context(Request $request): array
+    {
+        return ['team_id' => 42];
+    }
+
+    public function query(): Builder
+    {
+        // What a tenant-scoped query would filter by.
+        static::$seen[] = $this->context;
+
+        return parent::query();
     }
 }
 
@@ -212,6 +233,33 @@ class ImportExportNotificationTest extends TestCase
             '/exports/download',
             (string) json_encode($data['actions'], JSON_UNESCAPED_SLASHES),
         );
+    }
+
+    /**
+     * The worker has no request: an exporter's query scoped to the team it
+     * was started from reads that team from the context captured at dispatch
+     * — an unscoped query exported every tenant's rows.
+     */
+    public function test_the_export_carries_the_exporters_context_to_the_worker(): void
+    {
+        Queue::fake();
+        $user = NotifyRecipient::create(['name' => 'A']);
+
+        (new ContextWidgetExporter)->export($user);
+
+        $job = null;
+        Queue::assertPushed(ExportProcessor::class, function (ExportProcessor $pushed) use (&$job): bool {
+            $job = $pushed;
+
+            return true;
+        });
+
+        ContextWidgetExporter::$seen = [];
+        $job->handle();
+
+        // Every query the worker runs sees it.
+        $this->assertNotEmpty(ContextWidgetExporter::$seen);
+        $this->assertSame([['team_id' => 42]], array_values(array_unique(ContextWidgetExporter::$seen, SORT_REGULAR)));
     }
 
     public function test_export_skips_failing_rows_and_reports_them_as_a_warning(): void
