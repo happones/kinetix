@@ -39,7 +39,7 @@ const onUpdate = (value: boolean | 'indeterminate') => {
         :id="id"
         :model-value="isChecked"
         :disabled="disabled"
-        class="peer size-4 shadow-xs after:-inset-1 relative flex shrink-0 items-center justify-center rounded-[4px] border border-input transition-shadow outline-none after:absolute after:content-[''] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:bg-input/30 dark:aria-invalid:ring-destructive/40 dark:data-[state=checked]:bg-primary"
+        class="peer size-4 shadow-xs relative flex shrink-0 items-center justify-center rounded-[4px] border border-input transition-shadow outline-none after:absolute after:-inset-[5px] after:content-[''] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:bg-input/30 dark:aria-invalid:ring-destructive/40 dark:data-[state=checked]:bg-primary"
         @update:model-value="onUpdate"
     >
         <CheckboxIndicator

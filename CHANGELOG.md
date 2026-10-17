@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.244.1] - 2026-10-17
+
+### Fixed
+
+- **(published)** `KinetixSwitch` was an 18px-tall tap target — every
+  `Toggle`, toggle column, the business-hours editor and the announcement
+  manager. An invisible `::after` extends it to 32×26px, as on the checkbox.
+- **(published)** The checkbox's extended hit area (0.244.0) reached 22×22px,
+  not 24: the `::after` hangs off the padding box, 1px inside the border. It
+  now reaches 5px out — 24×24px.
+
 ## [0.244.0] - 2026-10-17
 
 ### Added
