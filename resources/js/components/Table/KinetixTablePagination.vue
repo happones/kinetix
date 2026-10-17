@@ -138,7 +138,11 @@ const getPerPageOptions = (options?: number[]) => {
             <span v-else>{{ t('kinetix.no_records') }}</span>
         </div>
 
-        <div class="gap-4 flex items-center">
+        <!-- Wraps: the pager and the page size don't fit one phone-width
+             row, and the card clipped both ends of it. -->
+        <div
+            class="gap-x-4 gap-y-3 flex max-w-full flex-wrap items-center justify-center"
+        >
             <nav
                 :aria-label="t('kinetix.pagination')"
                 class="gap-1 flex items-center"
@@ -210,9 +214,12 @@ const getPerPageOptions = (options?: number[]) => {
 
             <!-- Page Size selector -->
             <div class="gap-2 text-xs flex items-center text-muted-foreground">
-                <span>{{ t('kinetix.per_page') }}</span>
+                <span class="whitespace-nowrap">{{
+                    t('kinetix.per_page')
+                }}</span>
                 <div class="w-16">
                     <KinetixSelect
+                        :aria-label="t('kinetix.per_page')"
                         :value="pagination.perPage"
                         :options="getPerPageOptions(paginationPageOptions)"
                         @update:value="emit('change-per-page', Number($event))"

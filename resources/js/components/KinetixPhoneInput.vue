@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixCombobox from './KinetixCombobox.vue';
 
@@ -30,6 +31,8 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ (e: 'update:value', value: string): void }>();
+
+const { t } = useI18n();
 
 const countries = computed<PhoneCountry[]>(() => props.config?.countries ?? []);
 
@@ -112,6 +115,7 @@ function onNational(event: Event): void {
                 :value="country"
                 :options="options"
                 :disabled="disabled"
+                :aria-label="t('kinetix.phone_country_code')"
                 @update:value="onCountry"
             />
         </div>

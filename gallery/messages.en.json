@@ -269,6 +269,7 @@
         "address_state": "State / Province",
         "address_postal": "Postal code",
         "address_country": "Country",
+        "phone_country_code": "Country code",
         "address_search": "Search address…",
         "editor_write": "Write",
         "editor_preview": "Preview",

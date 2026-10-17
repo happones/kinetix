@@ -272,6 +272,7 @@ return [
     'address_state'                           => 'Регион / штат',
     'address_postal'                          => 'Почтовый индекс',
     'address_country'                         => 'Страна',
+    'phone_country_code'                      => 'Код страны',
     'address_search'                          => 'Поиск адреса…',
     'editor_write'                            => 'Редактор',
     'editor_preview'                          => 'Предпросмотр',

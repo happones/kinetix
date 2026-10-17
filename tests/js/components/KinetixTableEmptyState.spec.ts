@@ -128,4 +128,23 @@ describe('table empty state', () => {
 
         wrapper.unmount();
     });
+
+    it('keeps the empty message in the visible width of a table wider than the screen', () => {
+        const wrapper = mount(KinetixTable, {
+            props: { table: baseTable() },
+            global: { plugins: [i18n], stubs },
+        });
+
+        // A size container, and the message pinned to its visible part (cqw)
+        // instead of centred across every column.
+        expect(wrapper.find('.kinetix-scroll-x').classes()).toContain(
+            '@container/kx-scroll',
+        );
+        const message = wrapper.find('td[colspan] > div');
+        expect(message.classes()).toEqual(
+            expect.arrayContaining(['sticky', 'left-0', 'w-[100cqw]']),
+        );
+
+        wrapper.unmount();
+    });
 });

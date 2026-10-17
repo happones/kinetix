@@ -668,7 +668,9 @@ const totalColumnSpan = computed(
             />
 
             <!-- HTML Table -->
-            <div class="kinetix-scroll-x overflow-x-auto">
+            <!-- A size container: the empty state below measures the visible
+                 width with cqw, not the (wider) table's. -->
+            <div class="kinetix-scroll-x @container/kx-scroll overflow-x-auto">
                 <table class="min-w-full divide-y divide-border">
                     <KinetixTableHead
                         :columns-to-render="columnsToRender"
@@ -957,60 +959,76 @@ const totalColumnSpan = computed(
                                     (table.bulkActions.length > 0 ? 1 : 0) +
                                     (canReorder ? 1 : 0)
                                 "
-                                :class="
-                                    table.emptyState
-                                        ? 'p-4'
-                                        : 'px-6 py-12 text-sm text-center text-muted-foreground'
-                                "
+                                class="p-0"
                             >
-                                <KinetixEmptyState
-                                    v-if="table.emptyState"
-                                    :icon="table.emptyState.icon"
-                                    :title="
-                                        table.emptyState.heading ??
-                                        t('kinetix.no_records_found')
+                                <!-- Pinned to the visible part of the scroller and as
+                                     wide as it: spanning a table wider than a phone,
+                                     the centred message sat half off-screen. -->
+                                <div
+                                    class="left-0 sticky w-[100cqw]"
+                                    :class="
+                                        table.emptyState
+                                            ? 'p-4'
+                                            : 'px-6 py-12 text-sm text-center text-muted-foreground'
                                     "
-                                    :description="table.emptyState.description"
                                 >
-                                    <template
-                                        v-for="(action, i) in table.emptyState
-                                            .actions"
-                                        :key="`empty-${i}`"
+                                    <KinetixEmptyState
+                                        v-if="table.emptyState"
+                                        :icon="table.emptyState.icon"
+                                        :title="
+                                            table.emptyState.heading ??
+                                            t('kinetix.no_records_found')
+                                        "
+                                        :description="
+                                            table.emptyState.description
+                                        "
                                     >
-                                        <KinetixButton
-                                            :variant="
-                                                action.color
-                                                    ? actionButtonVariant(
-                                                          action.color,
-                                                      )
-                                                    : 'default'
-                                            "
-                                            size="sm"
-                                            :disabled="actionProcessing"
-                                            :loading="
-                                                actionProcessing &&
-                                                actionProcessingName ===
-                                                    action.name
-                                            "
-                                            @click="handleActionClick(action)"
+                                        <template
+                                            v-for="(action, i) in table
+                                                .emptyState.actions"
+                                            :key="`empty-${i}`"
                                         >
-                                            <template #icon>
-                                                <component
-                                                    :is="
-                                                        resolveIcon(action.icon)
-                                                    "
-                                                    v-if="
-                                                        resolveIcon(action.icon)
-                                                    "
-                                                />
-                                            </template>
-                                            {{ action.label }}
-                                        </KinetixButton>
+                                            <KinetixButton
+                                                :variant="
+                                                    action.color
+                                                        ? actionButtonVariant(
+                                                              action.color,
+                                                          )
+                                                        : 'default'
+                                                "
+                                                size="sm"
+                                                :disabled="actionProcessing"
+                                                :loading="
+                                                    actionProcessing &&
+                                                    actionProcessingName ===
+                                                        action.name
+                                                "
+                                                @click="
+                                                    handleActionClick(action)
+                                                "
+                                            >
+                                                <template #icon>
+                                                    <component
+                                                        :is="
+                                                            resolveIcon(
+                                                                action.icon,
+                                                            )
+                                                        "
+                                                        v-if="
+                                                            resolveIcon(
+                                                                action.icon,
+                                                            )
+                                                        "
+                                                    />
+                                                </template>
+                                                {{ action.label }}
+                                            </KinetixButton>
+                                        </template>
+                                    </KinetixEmptyState>
+                                    <template v-else>
+                                        {{ t('kinetix.no_records_found') }}
                                     </template>
-                                </KinetixEmptyState>
-                                <template v-else>
-                                    {{ t('kinetix.no_records_found') }}
-                                </template>
+                                </div>
                             </td>
                         </tr>
                     </tbody>

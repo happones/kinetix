@@ -272,6 +272,7 @@ return [
     'address_state'                           => '省 / 州',
     'address_postal'                          => '邮政编码',
     'address_country'                         => '国家',
+    'phone_country_code'                      => '国家/地区代码',
     'address_search'                          => '搜索地址…',
     'editor_write'                            => '编写',
     'editor_preview'                          => '预览',

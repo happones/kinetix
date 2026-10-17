@@ -274,13 +274,14 @@ return [
     'preview_unavailable'    => 'Preview not available for this file type.',
 
     // Address picker & filter
-    'address_line1'   => 'Address line 1',
-    'address_line2'   => 'Address line 2',
-    'address_city'    => 'City',
-    'address_state'   => 'State / Province',
-    'address_postal'  => 'Postal code',
-    'address_country' => 'Country',
-    'address_search'  => 'Search address…',
+    'address_line1'      => 'Address line 1',
+    'address_line2'      => 'Address line 2',
+    'address_city'       => 'City',
+    'address_state'      => 'State / Province',
+    'address_postal'     => 'Postal code',
+    'address_country'    => 'Country',
+    'phone_country_code' => 'Country code',
+    'address_search'     => 'Search address…',
 
     // Rich text editor
     'editor_write'          => 'Write',

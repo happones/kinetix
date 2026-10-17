@@ -272,6 +272,7 @@ return [
     'address_state'                           => '都道府県 / 州',
     'address_postal'                          => '郵便番号',
     'address_country'                         => '国',
+    'phone_country_code'                      => '国番号',
     'address_search'                          => '住所を検索…',
     'editor_write'                            => '編集',
     'editor_preview'                          => 'プレビュー',

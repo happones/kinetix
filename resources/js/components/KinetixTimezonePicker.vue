@@ -217,7 +217,16 @@ const triggerClass =
         @update:model-value="onSelect"
     >
         <ComboboxAnchor as-child>
-            <ComboboxTrigger :class="triggerClass">
+            <!-- Focusable and named by the field's label: the primitive's
+                 tabindex="-1" + aria-label="Show popup" overridden (see
+                 KinetixCombobox). -->
+            <ComboboxTrigger
+                :aria-label="
+                    ($attrs['aria-label'] as string | undefined) ?? undefined
+                "
+                tabindex="0"
+                :class="triggerClass"
+            >
                 <span
                     class="min-w-0 gap-1.5 flex flex-1 items-center truncate"
                     :class="

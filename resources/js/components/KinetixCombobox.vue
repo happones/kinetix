@@ -138,7 +138,20 @@ const triggerClass =
         @update:model-value="onSelect"
     >
         <ComboboxAnchor as-child>
-            <ComboboxTrigger :id="id" v-bind="$attrs" :class="triggerClass">
+            <!-- The trigger IS the control here (the search input lives in the
+                 popup), so it must reach the keyboard and carry the field's
+                 name. Its primitive hard-codes tabindex="-1" and an English
+                 aria-label="Show popup" that outranked the field's <label>:
+                 overridden — an aria-label the caller passes still wins. -->
+            <ComboboxTrigger
+                :id="id"
+                v-bind="$attrs"
+                :aria-label="
+                    ($attrs['aria-label'] as string | undefined) ?? undefined
+                "
+                tabindex="0"
+                :class="triggerClass"
+            >
                 <span
                     :class="
                         selectedLabel

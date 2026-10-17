@@ -274,13 +274,14 @@ return [
     'preview_unavailable'    => 'Pré-visualização indisponível para este tipo de arquivo.',
 
     // Address picker & filter
-    'address_line1'   => 'Endereço linha 1',
-    'address_line2'   => 'Endereço linha 2',
-    'address_city'    => 'Cidade',
-    'address_state'   => 'Estado / Província',
-    'address_postal'  => 'Código postal',
-    'address_country' => 'País',
-    'address_search'  => 'Buscar endereço…',
+    'address_line1'      => 'Endereço linha 1',
+    'address_line2'      => 'Endereço linha 2',
+    'address_city'       => 'Cidade',
+    'address_state'      => 'Estado / Província',
+    'address_postal'     => 'Código postal',
+    'address_country'    => 'País',
+    'phone_country_code' => 'Código do país',
+    'address_search'     => 'Buscar endereço…',
 
     // Rich text editor
     'editor_write'          => 'Escrever',

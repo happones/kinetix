@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.244.0] - 2026-10-17
+
+### Added
+
+- `kinetix.locale.regions` maps a language to the region it formats numbers,
+  money and calendars in (`'es' => 'es-MX'`). A bare `es` grouped "12.999" but
+  not "1199" in the same column and used Spain's separators. It drives
+  `->money()`, numeric columns, table summaries, usage meters and the locale
+  pickers get (`KinetixLocale::bcp47()`); translations still come from the
+  language.
+- `kinetix:doctor` reports Kinetix `user_id` / `team_id` columns whose type
+  doesn't match the app's keys — the `char(26)` columns holding numbers that
+  key detection before 0.219.15 created for a User/Team using `HasUlids` only
+  for a public column — and `php artisan kinetix:fix-key-columns` writes the
+  migration that converts them (`--dry-run` lists them). A column holding
+  anything but numbers is listed, not touched; PostgreSQL gets its `USING`
+  cast.
+
+### Fixed
+
+- **(published)** Tables on a phone: the empty message was centred across
+  every column of a table wider than the screen and showed half off it — it
+  is pinned to the visible width; the paginator and page size no longer
+  overflow the card (they wrap); sortable headers are 24px targets, not 16px;
+  checkboxes get a 24px hit area; the page-size select is named.
+- **(published)** Searchable selects (`KinetixCombobox`, the timezone picker,
+  the phone's country, the address country) were announced as "Show popup",
+  in English, instead of by their field label, and could not be reached with
+  Tab (`tabindex="-1"` from the primitive). They take their label's name and
+  the keyboard; the phone's country selector is named `phone_country_code`.
+
 ## [0.243.2] - 2026-10-15
 
 ### Fixed

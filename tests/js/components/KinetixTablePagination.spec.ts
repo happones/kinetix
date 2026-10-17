@@ -69,6 +69,17 @@ const render = (pagination: Record<string, unknown>) =>
         global: { plugins: [i18n] },
     });
 
+describe('KinetixTablePagination on a phone', () => {
+    it('wraps its controls and names the page-size select', () => {
+        const wrapper = render(lengthAware);
+        const controls = wrapper.find('nav').element.parentElement!;
+
+        // Pager + page size don't fit one phone row: they wrap, not clip.
+        expect(controls.className).toContain('flex-wrap');
+        expect(wrapper.find('[aria-label="Per page:"]').exists()).toBe(true);
+    });
+});
+
 describe('KinetixTablePagination', () => {
     describe('length-aware mode', () => {
         it('shows the total and the page count', () => {
