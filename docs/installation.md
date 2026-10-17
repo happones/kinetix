@@ -718,6 +718,22 @@ guidance for those tables first.
 shipped have `unsignedBigInteger` columns on disk; write an `ALTER` migration
 of your own — converting existing integer data to UUIDs is not automatic.
 
+**Text columns holding numbers (installs before 0.219.15).** Detection used to
+read a model's traits, so a User or Team that uses `HasUlids` only for a public
+`ulid` next to its auto-increment id got `char(26)` `user_id` / `team_id`
+columns holding numbers. `php artisan kinetix:doctor` lists any such column,
+and
+
+```bash
+php artisan kinetix:fix-key-columns            # writes the migration
+php artisan kinetix:fix-key-columns --dry-run  # only lists the columns
+php artisan migrate
+```
+
+writes a migration (it does not run it) converting them to `unsignedBigInteger`,
+with PostgreSQL's `USING` cast where it's needed. A column holding anything but
+numbers — a real ULID — is listed and left alone.
+
 ### Affected migrations by feature
 
 Publish tags follow `kinetix-<feature>-migrations`. Columns referencing YOUR

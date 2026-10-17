@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tests\Unit;
 
 use Happones\Kinetix\Forms\Components\DatePicker;
 use Happones\Kinetix\Infolists\Components\TextEntry;
+use Happones\Kinetix\Support\KinetixLocale;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Filters\DateFilter;
 use Happones\Kinetix\Tests\TestCase;
@@ -154,6 +155,33 @@ class LocalizedDateFormattingTest extends TestCase
         $state = (string) TextColumn::make('price')->money('EUR')->getState($record);
         $this->assertStringContainsString('1.234,50', $state);
         $this->assertStringContainsString('€', $state);
+    }
+
+    /**
+     * A bare language formats as its default region: `es` grouped "12.999"
+     * but not "1199", side by side. `kinetix.locale.regions` gives it one.
+     */
+    public function test_money_formats_in_the_region_the_language_is_mapped_to(): void
+    {
+        Schema::create('priced_records', function (Blueprint $table) {
+            $table->increments('id');
+            $table->decimal('price', 10, 2);
+        });
+        $cheap  = PricedRecord::create(['price' => 1199]);
+        $pricey = PricedRecord::create(['price' => 12999]);
+        $column = fn () => TextColumn::make('price')->money('MXN');
+
+        app()->setLocale('es');
+        config(['kinetix.locale.regions' => ['es' => 'es-MX']]);
+
+        $this->assertSame('$1,199.00', $column()->getState($cheap));
+        $this->assertSame('$12,999.00', $column()->getState($pricey));
+        $this->assertSame('es-MX', KinetixLocale::bcp47());
+
+        // Unmapped, the language alone (and its quirks) is what formats.
+        config(['kinetix.locale.regions' => []]);
+        $this->assertSame('es', KinetixLocale::bcp47());
+        $this->assertStringNotContainsString('1,199', (string) $column()->getState($cheap));
     }
 
     public function test_money_supports_divide_by_and_an_explicit_locale(): void

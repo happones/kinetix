@@ -25,6 +25,7 @@ use Happones\Kinetix\Commands\ConfidentialRotateKeyCommand;
 use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
 use Happones\Kinetix\Commands\DocsCheckCommand;
 use Happones\Kinetix\Commands\DoctorCommand;
+use Happones\Kinetix\Commands\FixKeyColumnsCommand;
 use Happones\Kinetix\Commands\HelpScreenshotsCommand;
 use Happones\Kinetix\Commands\HelpStatusCommand;
 use Happones\Kinetix\Commands\InstallCommand;
@@ -451,6 +452,7 @@ class KinetixServiceProvider extends ServiceProvider
                 InstallCommand::class,
                 RoutesCommand::class,
                 DoctorCommand::class,
+                FixKeyColumnsCommand::class,
             ]);
 
             // Publish config

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Support\Concerns;
 
+use Happones\Kinetix\Support\KinetixLocale;
 use NumberFormatter;
 
 /**
@@ -110,7 +111,7 @@ trait FormatsAggregateValue
     {
         return $this->numberLocale
             ?? config('kinetix.tables.number_locale')
-            ?? app()->getLocale();
+            ?? KinetixLocale::bcp47();
     }
 
     protected function applyAffixes(string $value): string

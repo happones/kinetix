@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Data;
 
 use Happones\Kinetix\Billing\Plan;
 use Happones\Kinetix\Billing\UsageMetric;
+use Happones\Kinetix\Support\KinetixLocale;
 use NumberFormatter;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -106,7 +107,7 @@ class UsageMetricData extends Data
         $decimals = floor($value) == $value ? 0 : 2;
 
         if (class_exists(NumberFormatter::class)) {
-            $formatter = new NumberFormatter(app()->getLocale(), NumberFormatter::DECIMAL);
+            $formatter = new NumberFormatter(KinetixLocale::bcp47(), NumberFormatter::DECIMAL);
             $formatter->setAttribute(NumberFormatter::FRACTION_DIGITS, $decimals);
 
             return (string) $formatter->format($value);

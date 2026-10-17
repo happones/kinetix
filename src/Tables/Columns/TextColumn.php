@@ -9,6 +9,7 @@ use Happones\Kinetix\Support\Concerns\FormatsDates;
 use Happones\Kinetix\Support\Concerns\FormatsMoney;
 use Happones\Kinetix\Support\Contracts\HasColor;
 use Happones\Kinetix\Support\Contracts\HasLabel;
+use Happones\Kinetix\Support\KinetixLocale;
 use Illuminate\Database\Eloquent\Model;
 
 class TextColumn extends Column
@@ -225,7 +226,7 @@ class TextColumn extends Column
     protected function formatNumericValue(mixed $value): string
     {
         $config = $this->numericConfig ?? ['decimals' => 0, 'locale' => null];
-        $locale = $config['locale']    ?? $this->dateLocale ?? app()->getLocale();
+        $locale = $config['locale']    ?? $this->dateLocale ?? KinetixLocale::bcp47();
 
         if (! class_exists(\NumberFormatter::class)) {
             return number_format((float) $value, $config['decimals']);

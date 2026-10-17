@@ -14,6 +14,7 @@ use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\HostKeyColumns;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\PublishedFiles;
 use Illuminate\Console\Command;
@@ -67,6 +68,7 @@ class DoctorCommand extends Command
         $this->checkNotificationPreferences();
         $this->checkConfigCallbacks();
         $this->checkTenantColumns();
+        $this->checkHostKeyColumns();
         $this->checkGlobalData();
         $this->checkFrontend();
         $this->checkTheme();
@@ -827,6 +829,28 @@ class DoctorCommand extends Command
         $this->error_('Tenancy', count($pending).' table(s) are missing their team_id column',
             'The module is team-scoped but the table predates the tenant migration, so rows are neither '
             .'stamped nor filtered. Publish the tag and run migrate.', $pending);
+    }
+
+    /**
+     * `user_id` / `team_id` columns typed for a different key than the app's
+     * — what `auto` detection before 0.219.15 left behind for a User/Team
+     * that used `HasUlids` only for a public column: a char(26) holding a
+     * number, joined against an integer key.
+     */
+    protected function checkHostKeyColumns(): void
+    {
+        $mismatched = HostKeyColumns::mismatched();
+
+        if ($mismatched === []) {
+            return;
+        }
+
+        $this->error_('Database', count($mismatched).' Kinetix key column(s) don\'t match the app\'s keys',
+            'Created by an older key detection. php artisan kinetix:fix-key-columns writes the migration that converts them.',
+            array_map(
+                static fn (array $c): string => "{$c['table']}.{$c['column']} is {$c['actual']}; the {$c['kind']} key is {$c['expected']}",
+                $mismatched,
+            ));
     }
 
     /**

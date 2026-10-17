@@ -214,6 +214,30 @@ KinetixLocale::options();        // [['code' => 'en', 'label' => 'English'], ...
 
 ---
 
+## Formatting region: `es` vs `es-MX`
+
+Numbers, money and calendars format in the app locale. A bare language formats
+as that language's default region, which is rarely the one your users live in:
+plain `es` groups five-digit numbers but not four-digit ones — `$1199` next to
+`$12.999` in the same column — and uses Spain's separators. Map each language to
+the region it formats in:
+
+```php
+// config/kinetix.php
+'locale' => [
+    // …
+    'regions' => [
+        'es' => 'es-MX',   // $1,199.00 and $12,999.00
+        'pt' => 'pt-BR',
+    ],
+],
+```
+
+The mapping drives `->money()`, numeric columns, table summaries, usage meters
+and the locale Kinetix hands date/number pickers (`KinetixLocale::bcp47()`).
+Translations still come from the language (`lang/es`). A column's own
+`->locale()` or `->money(locale: …)` always wins.
+
 ## Translating labels you declare in PHP (schemas)
 
 Switching the locale only changes what a **translatable** string resolves to. Kinetix

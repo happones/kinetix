@@ -1363,6 +1363,14 @@ return [
 
         // Session key used to remember the selected locale.
         'session_key' => 'kinetix.locale',
+
+        // The region each language formats numbers, money and calendars in,
+        // as a BCP-47 tag. A bare language formats as its default region —
+        // `es` groups "12.999" but not "1199" and uses Spain's separators —
+        // so an app on `es` for Mexico maps 'es' => 'es-MX'.
+        'regions' => [
+            // 'es' => 'es-MX',
+        ],
     ],
 
     /*

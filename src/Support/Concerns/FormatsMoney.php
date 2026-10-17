@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Support\Concerns;
 
+use Happones\Kinetix\Support\KinetixLocale;
 use NumberFormatter;
 
 /**
@@ -62,6 +63,6 @@ trait FormatsMoney
     {
         return $this->moneyLocale
             ?? $this->dateLocale        // the column/entry ->locale() (FormatsDates)
-            ?? app()->getLocale();
+            ?? KinetixLocale::bcp47();  // the app locale, in its configured region
     }
 }
