@@ -143,6 +143,8 @@ conversation that a person is assigned to (`skip_assigned`).
 
 ## 3. Steps
 
+::: v-pre
+
 | Step                 | What it does                                                                                                                                                           | Outputs                        |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | **Message**          | Says something. `{{contact.name}}` and the other variables are filled in.                                                                                              | Next                           |
@@ -166,6 +168,8 @@ Every run starts knowing `contact.name`, `contact.key` (the number or chat id),
 Questions, options, set steps and API requests add their own. API requests
 also add `http.status`. Use any of them as `{{name}}` in texts, URLs, headers,
 bodies and condition values.
+
+:::
 
 ### Calling your API
 

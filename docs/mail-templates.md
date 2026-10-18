@@ -1,7 +1,7 @@
 # Mail Templates
 
 Editable email templates — a subject + **Markdown or HTML** body with
-`{{ variable }}` placeholders — managed from a UI and stored in the database.
+<code v-pre>{{ variable }}</code> placeholders — managed from a UI and stored in the database.
 Your application supplies the variable values and triggers the sends; Kinetix
 handles storage, rendering and a test-send. Non-developers can edit the copy
 without touching code.
@@ -94,7 +94,7 @@ import KinetixMailTemplates from '@/components/kinetix/KinetixMailTemplates.vue'
 ```
 
 Pick a template (or **New template**), edit its name/key/subject, choose
-**Markdown** or **HTML**, write the body with `{{ variable }}` placeholders,
+**Markdown** or **HTML**, write the body with <code v-pre>{{ variable }}</code> placeholders,
 declare the variables (with sample values), and watch the **live preview** render
 with the samples. **Send test** delivers it to any address. Strings are localized
 (`mail_*`, en/es/fr/pt).

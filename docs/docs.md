@@ -117,7 +117,7 @@ Kinetix turns those into page URLs (`/docs/guide/configure#environment`).
 
 ### Placeholders
 
-`{{ name }}` is filled in per request, in text and in code blocks alike:
+<code v-pre>{{ name }}</code> is filled in per request, in text and in code blocks alike:
 
 ```bash
 curl {{ app_url }}/api/ping -H "Authorization: Bearer {{ token_prefix }}…"
