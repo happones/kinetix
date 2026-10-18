@@ -9,6 +9,7 @@ import {
     Send,
     Trash2,
     Unlink,
+    Users,
 } from '@lucide/vue';
 import {
     DropdownMenuContent,
@@ -34,10 +35,21 @@ const props = defineProps<{
     channel: KinetixChannel;
     /** Whether the line is linked by scanning a QR (else by a token). */
     scannable: boolean;
+    /** Whether lines have agents (the inbox is on). */
+    agents?: boolean;
 }>();
 
 const emit = defineEmits<{
-    (e: 'link' | 'test' | 'restart' | 'disconnect' | 'rename' | 'remove'): void;
+    (
+        e:
+            | 'link'
+            | 'test'
+            | 'restart'
+            | 'disconnect'
+            | 'rename'
+            | 'remove'
+            | 'agents',
+    ): void;
 }>();
 
 const { t } = useI18n();
@@ -116,6 +128,15 @@ const itemClass =
                         >
                             <RotateCw class="size-4" />
                             {{ t('kinetix.channel_restart') }}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            v-if="agents"
+                            :class="itemClass"
+                            data-test="channel-agents"
+                            @select="emit('agents')"
+                        >
+                            <Users class="size-4" />
+                            {{ t('kinetix.channel_agents') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             :class="itemClass"

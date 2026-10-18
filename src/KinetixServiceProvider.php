@@ -18,9 +18,12 @@ use Happones\Kinetix\Billing\Middleware\EnsurePlanCapability;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Billing\PlanCatalog;
 use Happones\Kinetix\Calendar\CalendarMoveController;
+use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Channels\ChannelController;
 use Happones\Kinetix\Channels\ChannelManager;
 use Happones\Kinetix\Channels\ChannelWebhookController;
+use Happones\Kinetix\Channels\Events\ChannelMessageReceived;
+use Happones\Kinetix\Channels\Events\ChannelMessageStatusUpdated;
 use Happones\Kinetix\Channels\Evolution\EvolutionClientGateway;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
@@ -103,6 +106,10 @@ use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
 use Happones\Kinetix\Imports\ImportController;
+use Happones\Kinetix\Inbox\ChannelAgentController;
+use Happones\Kinetix\Inbox\InboxController;
+use Happones\Kinetix\Inbox\InboxManager;
+use Happones\Kinetix\Inbox\RecordInboxActivity;
 use Happones\Kinetix\Kanban\KanbanMoveController;
 use Happones\Kinetix\Locale\LocaleController;
 use Happones\Kinetix\Locale\LocaleManager;
@@ -280,6 +287,7 @@ class KinetixServiceProvider extends ServiceProvider
         // The channel drivers' registry, and the Evolution API seam behind
         // WhatsApp lines (bind your own EvolutionGateway to replace it).
         $this->app->singleton(ChannelManager::class);
+        $this->app->singleton(InboxManager::class);
         $this->app->bindIf(EvolutionGateway::class, EvolutionClientGateway::class);
 
         // The developer-token scope registry, seeded from config.
@@ -561,6 +569,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000041_create_kinetix_channels_table.php' => database_path('migrations/2026_01_01_000041_create_kinetix_channels_table.php'),
             ], 'kinetix-channels-migrations');
 
+            // Publish the optional Inbox module's migration (conversations).
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php' => database_path('migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'),
+            ], 'kinetix-inbox-migrations');
+
             // Publish the optional Onboarding module's migration.
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000006_create_kinetix_onboarding_table.php' => database_path('migrations/2026_01_01_000006_create_kinetix_onboarding_table.php'),
@@ -736,6 +749,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Channels module (WhatsApp / Telegram lines)
         $this->registerChannels();
+
+        // Register the optional Inbox module (conversations on those lines)
+        $this->registerInbox();
 
         // Register the optional API request logs module (middleware + viewer feed)
         $this->registerApiLogs();
@@ -1545,6 +1561,74 @@ class KinetixServiceProvider extends ServiceProvider
 
             Broadcast::channel('kinetix.channels', static fn (Model $user): bool => $authorize($user));
             Broadcast::channel('kinetix.channels.{team}', $authorize);
+        }
+    }
+
+    /**
+     * Wire the optional Inbox module (on top of Channels): the
+     * `conversations.view` / `conversations.view_all` abilities, recording
+     * what reaches the lines and their delivery receipts, the inbox and
+     * line-agent endpoints, and — when broadcasting is on — each line's
+     * private channel, authorized for whoever sees that line.
+     */
+    protected function registerInbox(): void
+    {
+        if (! config('kinetix.inbox.enabled', false) || ! config('kinetix.channels.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('conversations')
+            ->label('kinetix.permission_feature_conversations')
+            ->ability('view', 'kinetix.permission_ability_view_conversations')
+            ->ability('view_all', 'kinetix.permission_ability_view_all_conversations');
+
+        $this->app['events']->listen(ChannelMessageReceived::class, [RecordInboxActivity::class, 'received']);
+        $this->app['events']->listen(ChannelMessageStatusUpdated::class, [RecordInboxActivity::class, 'statusUpdated']);
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = KinetixTeams::routePrefix($prefix);
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        KinetixTeams::routes($middleware)
+            ->prefix("{$prefix}/inbox")
+            ->group(function () {
+                Route::get('/', [InboxController::class, 'index'])->name('kinetix.inbox.index');
+                Route::get('messages/{message}', [InboxController::class, 'message'])->name('kinetix.inbox.message');
+                Route::get('messages/{message}/media', [InboxController::class, 'media'])->name('kinetix.inbox.media');
+                Route::post('messages/{message}/retry', [InboxController::class, 'retry'])->name('kinetix.inbox.retry');
+                Route::get('{conversation}', [InboxController::class, 'show'])->name('kinetix.inbox.show');
+                Route::get('{conversation}/messages', [InboxController::class, 'messages'])->name('kinetix.inbox.messages');
+                Route::post('{conversation}/messages', [InboxController::class, 'send'])->name('kinetix.inbox.send');
+                Route::post('{conversation}/read', [InboxController::class, 'read'])->name('kinetix.inbox.read');
+                Route::get('{conversation}/assignees', [InboxController::class, 'assignees'])->name('kinetix.inbox.assignees');
+                Route::post('{conversation}/assign', [InboxController::class, 'assign'])->name('kinetix.inbox.assign');
+                Route::post('{conversation}/archive', [InboxController::class, 'archive'])->name('kinetix.inbox.archive');
+                Route::post('{conversation}/unarchive', [InboxController::class, 'unarchive'])->name('kinetix.inbox.unarchive');
+            });
+
+        KinetixTeams::routes($middleware)
+            ->prefix("{$prefix}/channels")
+            ->group(function () {
+                Route::get('{channel}/agents', [ChannelAgentController::class, 'show'])->name('kinetix.channels.agents');
+                Route::put('{channel}/agents', [ChannelAgentController::class, 'update'])->name('kinetix.channels.agents.update');
+            });
+
+        if (config('kinetix.channels.broadcast', false) && class_exists(Broadcast::class)) {
+            Broadcast::channel('kinetix.inbox.{channel}', static function (Model $user, int|string $channel): bool {
+                $line = Channel::query()->find($channel);
+
+                return $line !== null
+                    && Gate::forUser($user)->allows('conversations.view')
+                    && ($line->team_id === null || KinetixTeams::userBelongsTo($user, $line->team_id))
+                    && app(InboxManager::class)->seesChannel($user, $line);
+            });
         }
     }
 

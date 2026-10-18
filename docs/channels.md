@@ -213,6 +213,18 @@ A refused send throws `ChannelException`, with a message fit to show.
 
 ---
 
+## 7. The inbox
+
+Turn on the [Inbox](inbox.md) and every message that reaches a line lands in a
+team conversation. The team answers with files, replies and internal notes,
+and the line manager gains an **Agents** action per line. WhatsApp lines also
+report delivery and read receipts (`ChannelMessageStatusUpdated`).
+
+Lines added before receipts existed get them after a **Restart**, which points
+their webhook at Kinetix again with today's events.
+
+---
+
 ## 7. Another provider
 
 A provider is a `ChannelDriver`: how its lines link (`linkMethods()`), how
@@ -228,6 +240,18 @@ KinetixChannels::extend('sms', App\Channels\SmsDriver::class);
 
 The manager offers it at once. Add `channel_provider_sms` to your translations
 for its name.
+
+A driver can do more by implementing any of these optional interfaces:
+
+| Interface        | What it adds                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| `SendsMessages`  | `send(Channel, OutgoingMessage): ?string` — files and replies, returning the provider's id. |
+| `DownloadsMedia` | `downloadMedia(Channel, $mediaRef)` — the file of an inbound message.                       |
+| `ReportsHandle`  | `handle(Channel)` — the line's number or username, for a line linked by polling.            |
+
+Fill `InboundMessage::$replyTo` and `$mediaRef`, and `WebhookResult::$statuses`
+(the provider's id → `sent`, `delivered`, `read` or `failed`), and the inbox
+follows along.
 
 To talk to Evolution through your own client, bind
 `Happones\Kinetix\Channels\Evolution\EvolutionGateway`. The same seam makes

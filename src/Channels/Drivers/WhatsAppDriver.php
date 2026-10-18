@@ -7,11 +7,16 @@ namespace Happones\Kinetix\Channels\Drivers;
 use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Channels\ChannelDriver;
 use Happones\Kinetix\Channels\ChannelException;
+use Happones\Kinetix\Channels\ChannelManager;
 use Happones\Kinetix\Channels\ChannelStatus;
+use Happones\Kinetix\Channels\DownloadedMedia;
+use Happones\Kinetix\Channels\DownloadsMedia;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use Happones\Kinetix\Channels\InboundMessage;
 use Happones\Kinetix\Channels\LinkState;
+use Happones\Kinetix\Channels\OutgoingMessage;
 use Happones\Kinetix\Channels\ReportsHandle;
+use Happones\Kinetix\Channels\SendsMessages;
 use Happones\Kinetix\Channels\WebhookResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -23,12 +28,12 @@ use Throwable;
  * pairing code on the phone. The server calls the line's webhook with the
  * secret in `X-Kinetix-Channel-Secret`.
  */
-class WhatsAppDriver implements ChannelDriver, ReportsHandle
+class WhatsAppDriver implements ChannelDriver, DownloadsMedia, ReportsHandle, SendsMessages
 {
     public const SECRET_HEADER = 'X-Kinetix-Channel-Secret';
 
     /** @var list<string> */
-    protected const EVENTS = ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT'];
+    protected const EVENTS = ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'MESSAGES_UPDATE'];
 
     public function __construct(protected EvolutionGateway $gateway) {}
 
@@ -104,9 +109,15 @@ class WhatsAppDriver implements ChannelDriver, ReportsHandle
         $this->call(fn () => $this->gateway->logout($instance));
     }
 
+    /**
+     * Restart the session, and point the webhook at Kinetix again with
+     * today's events — what brings a line added by an older version up to
+     * date (delivery receipts).
+     */
     public function restart(Channel $channel): void
     {
         $instance = $this->instance($channel);
+        $this->call(fn () => $this->gateway->setWebhook($instance, app(ChannelManager::class)->webhookUrl($channel), self::EVENTS, [self::SECRET_HEADER => $channel->webhook_secret]));
         $this->call(fn () => $this->gateway->restart($instance));
     }
 
@@ -119,8 +130,36 @@ class WhatsAppDriver implements ChannelDriver, ReportsHandle
 
     public function sendText(Channel $channel, string $to, string $text): void
     {
+        $this->send($channel, new OutgoingMessage($to, $text));
+    }
+
+    public function send(Channel $channel, OutgoingMessage $message): ?string
+    {
         $instance = $this->instance($channel);
-        $this->call(fn () => $this->gateway->sendText($instance, $to, $text));
+
+        if (! $message->hasMedia()) {
+            return $this->call(fn (): ?string => $this->gateway->sendText($instance, $message->to, (string) $message->text, $message->replyTo));
+        }
+
+        return $this->call(fn (): ?string => $this->gateway->sendMedia(
+            $instance,
+            $message->to,
+            $message->mediaType ?? 'document',
+            base64_encode((string) $message->mediaContents),
+            $message->mediaMime ?? 'application/octet-stream',
+            $message->mediaName ?? 'file',
+            $message->text,
+            $message->replyTo,
+        ));
+    }
+
+    public function downloadMedia(Channel $channel, string $mediaRef): ?DownloadedMedia
+    {
+        $instance = $this->instance($channel);
+        $media    = $this->call(fn (): ?array => $this->gateway->mediaBase64($instance, $mediaRef));
+        $contents = $media !== null ? base64_decode($media['base64'], true) : false;
+
+        return $contents === false ? null : new DownloadedMedia($contents, $media['mimetype'] ?? null, $media['fileName'] ?? null);
     }
 
     public function verifyWebhook(Channel $channel, Request $request): bool
@@ -145,6 +184,7 @@ class WhatsAppDriver implements ChannelDriver, ReportsHandle
                 qr: $this->dataUri(data_get($data, 'qrcode.base64')),
             ),
             'messages.upsert' => new WebhookResult(messages: $this->messages($data)),
+            'messages.update' => new WebhookResult(statuses: $this->statuses((array) $request->input('data', []))),
             default           => WebhookResult::none(),
         };
     }
@@ -186,19 +226,96 @@ class WhatsAppDriver implements ChannelDriver, ReportsHandle
             $isGroup    = str_ends_with($jid, '@g.us');
             $content    = (array) ($item['message'] ?? []);
             $timestamp  = data_get($item, 'messageTimestamp');
+            $type       = $this->type((string) ($item['messageType'] ?? array_key_first($content) ?? ''));
+            $id         = is_scalar($key = data_get($item, 'key.id')) ? (string) $key : null;
+            $media      = $this->media($content);
             $messages[] = new InboundMessage(
                 from: $isGroup ? $jid : (string) preg_replace('/@.*$/', '', $jid),
                 fromName: is_string($name = $item['pushName'] ?? null) && $name !== '' ? $name : null,
                 text: $this->text($content),
-                type: $this->type((string) ($item['messageType'] ?? array_key_first($content) ?? '')),
-                externalId: is_scalar($id = data_get($item, 'key.id')) ? (string) $id : null,
+                type: $type,
+                externalId: $id,
                 isGroup: $isGroup,
                 receivedAt: is_numeric($timestamp) ? Carbon::createFromTimestamp((int) $timestamp) : now(),
                 raw: $item,
+                replyTo: $this->quoted($content),
+                // The server fetches a message's file by the message's own id.
+                mediaRef: $media !== null ? $id : null,
+                mediaMime: $media['mimetype'] ?? null,
+                mediaName: $media['fileName'] ?? null,
             );
         }
 
         return $messages;
+    }
+
+    /**
+     * The delivery receipts of a `messages.update` call — one, or a list.
+     *
+     * @param  array<int|string, mixed> $data
+     * @return array<string, string>
+     */
+    protected function statuses(array $data): array
+    {
+        $items    = array_is_list($data) ? $data : [$data];
+        $statuses = [];
+
+        foreach ($items as $item) {
+            $id     = data_get($item, 'keyId') ?? data_get($item, 'key.id');
+            $status = match (data_get($item, 'status') ?? data_get($item, 'update.status')) {
+                'SERVER_ACK', 2        => 'sent',
+                'DELIVERY_ACK', 3      => 'delivered',
+                'READ', 'PLAYED', 4, 5 => 'read',
+                'ERROR', 0             => 'failed',
+                default                => null,
+            };
+
+            if (is_scalar($id) && $status !== null) {
+                $statuses[(string) $id] = $status;
+            }
+        }
+
+        return $statuses;
+    }
+
+    /**
+     * The file part of a message (its MIME type and name), when it has one.
+     *
+     * @param  array<string, mixed>                                     $content
+     * @return array{mimetype: string|null, fileName: string|null}|null
+     */
+    protected function media(array $content): ?array
+    {
+        foreach (['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage', 'documentWithCaptionMessage.message.documentMessage'] as $path) {
+            $part = data_get($content, $path);
+
+            if (is_array($part)) {
+                return [
+                    'mimetype' => is_string($part['mimetype'] ?? null) ? $part['mimetype'] : null,
+                    'fileName' => is_string($part['fileName'] ?? null) ? $part['fileName'] : null,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The id of the message this one answers, from its context.
+     *
+     * @param array<string, mixed> $content
+     */
+    protected function quoted(array $content): ?string
+    {
+        foreach ($content as $part) {
+            $id = is_array($part) ? data_get($part, 'contextInfo.stanzaId') : null;
+
+            if (is_string($id) && $id !== '') {
+                return $id;
+            }
+        }
+
+        return null;
     }
 
     /**

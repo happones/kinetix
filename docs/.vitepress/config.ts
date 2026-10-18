@@ -173,6 +173,7 @@ export default withMermaid(
           { text: "Feature Flags", link: "/feature-flags" },
           { text: "Webhooks", link: "/webhooks" },
           { text: "Channels (WhatsApp & Telegram)", link: "/channels" },
+          { text: "Inbox", link: "/inbox" },
           { text: "Integration Logs", link: "/integration-logs" },
           { text: "PDF Templates", link: "/pdf-templates" },
           { text: "Queue Health", link: "/queue" },

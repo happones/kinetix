@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.249.0] - 2026-10-18
+
+### Added
+
+- **Inbox**: a team inbox for the lines of Channels. Every message that reaches
+  a WhatsApp number or a Telegram bot lands in a conversation, answered from
+  one screen. Turn on `kinetix.inbox`, publish `kinetix-inbox-migrations`, and
+  mount `<KinetixInbox>`.
+  - **(published)** `<KinetixInbox>`:
+    - the list has server-side search and *All / Unread / Mine / Unassigned / Archived* filters, plus a line picker, with infinite scroll;
+    - the thread loads older messages, separates them by day, and shows images, video, voice notes and documents with delivery ticks;
+    - a refused message stays in the thread with its reason and a retry;
+    - the composer sends on Enter, attaches a file with a preview, answers a specific message, and writes internal notes;
+    - conversations can be assigned and archived, and the list and thread take turns on a phone;
+    - the `aside` slot holds a side panel, the `conversation` prop opens one on load, and `@open` reports the open one.
+  - **Unread is per person** (each user's own read cursor).
+  - **Agents per line**: `conversations.view` sees the lines a user answers, while `conversations.view_all` and `channels.manage` see every line.
+    - The rule holds on every endpoint, file and realtime channel.
+    - **(published)** The line manager gains an **Agents** action.
+  - Sending is optimistic. Files a contact sends are fetched on the queue onto a private disk and served only to people who see the conversation.
+  - Live updates broadcast ids only on `kinetix.inbox.{line}` (when `channels.broadcast` is on). Without broadcasting, the inbox polls.
+  - `ConversationMessageCreated` is the hook for bots, and `inbox.contact_resolver` links conversations to your own contacts.
+- **Channels**:
+  - WhatsApp lines report delivery and read receipts (`ChannelMessageStatusUpdated`), and receive replies and files.
+  - Optional driver interfaces: `SendsMessages`, `DownloadsMedia`.
+  - `InboundMessage` gains `replyTo` and `mediaRef`.
+  - **Restart** brings a line added earlier up to date.
+
+### Changed
+
+- `EvolutionGateway::sendText()` now takes an optional quoted message id and returns the provider's id for what it sent. The gateway also gained `sendMedia()` and `mediaBase64()`.
+  - Update a gateway of your own (tests usually bind one) accordingly.
+- **(published)** `KinetixFilePreview` marks the `kinetix:preview` event handled, so a sender can skip its own fallback.
+
 ## [0.248.0] - 2026-10-17
 
 ### Added

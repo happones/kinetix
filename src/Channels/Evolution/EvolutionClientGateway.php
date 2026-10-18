@@ -81,9 +81,47 @@ class EvolutionClientGateway implements EvolutionGateway
         $this->client($instance)->instance->delete();
     }
 
-    public function sendText(string $instance, string $to, string $text): void
+    public function sendText(string $instance, string $to, string $text, ?string $quotedId = null): ?string
     {
-        $this->client($instance)->message->sendText($to, $text);
+        $response = $this->service()->post("/message/sendText/{$instance}", array_filter([
+            'number' => $to,
+            'text'   => $text,
+            'quoted' => $quotedId !== null ? ['key' => ['id' => $quotedId]] : null,
+        ]));
+
+        return $this->filled(data_get($response, 'key.id'));
+    }
+
+    public function sendMedia(string $instance, string $to, string $type, string $base64, string $mime, string $fileName, ?string $caption = null, ?string $quotedId = null): ?string
+    {
+        $quoted = $quotedId !== null ? ['key' => ['id' => $quotedId]] : null;
+
+        // A voice note goes through its own endpoint, played as one.
+        $response = $type === 'audio'
+            ? $this->service()->post("/message/sendWhatsAppAudio/{$instance}", array_filter(['number' => $to, 'audio' => $base64, 'quoted' => $quoted]))
+            : $this->service()->post("/message/sendMedia/{$instance}", array_filter([
+                'number'    => $to,
+                'mediatype' => $type,
+                'mimetype'  => $mime,
+                'caption'   => $caption,
+                'media'     => $base64,
+                'fileName'  => $fileName,
+                'quoted'    => $quoted,
+            ]));
+
+        return $this->filled(data_get($response, 'key.id'));
+    }
+
+    public function mediaBase64(string $instance, string $messageId): ?array
+    {
+        $response = $this->client($instance)->chat->getBase64FromMediaMessage($messageId);
+        $base64   = $this->filled(data_get($response, 'base64'));
+
+        return $base64 === null ? null : [
+            'base64'   => $base64,
+            'mimetype' => $this->filled(data_get($response, 'mimetype')),
+            'fileName' => $this->filled(data_get($response, 'fileName')),
+        ];
     }
 
     protected function client(string $instance): EvolutionApiClient

@@ -8,8 +8,12 @@ use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Channels\ChannelDriver;
 use Happones\Kinetix\Channels\ChannelException;
 use Happones\Kinetix\Channels\ChannelStatus;
+use Happones\Kinetix\Channels\DownloadedMedia;
+use Happones\Kinetix\Channels\DownloadsMedia;
 use Happones\Kinetix\Channels\InboundMessage;
 use Happones\Kinetix\Channels\LinkState;
+use Happones\Kinetix\Channels\OutgoingMessage;
+use Happones\Kinetix\Channels\SendsMessages;
 use Happones\Kinetix\Channels\WebhookResult;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -24,7 +28,7 @@ use Illuminate\Support\Facades\Http;
  * `X-Telegram-Bot-Api-Secret-Token`. Speaks the Bot API over HTTP — to
  * api.telegram.org or a self-hosted Bot API server (`api_url`).
  */
-class TelegramDriver implements ChannelDriver
+class TelegramDriver implements ChannelDriver, DownloadsMedia, SendsMessages
 {
     public const SECRET_HEADER = 'X-Telegram-Bot-Api-Secret-Token';
 
@@ -89,7 +93,56 @@ class TelegramDriver implements ChannelDriver
 
     public function sendText(Channel $channel, string $to, string $text): void
     {
-        $this->call($this->token($channel), 'sendMessage', ['chat_id' => $to, 'text' => $text]);
+        $this->send($channel, new OutgoingMessage($to, $text));
+    }
+
+    public function send(Channel $channel, OutgoingMessage $message): ?string
+    {
+        $replyTo = $message->replyTo !== null ? ['message_id' => (int) $message->replyTo, 'allow_sending_without_reply' => true] : null;
+
+        if (! $message->hasMedia()) {
+            $result = $this->call($this->token($channel), 'sendMessage', array_filter([
+                'chat_id'          => $message->to,
+                'text'             => (string) $message->text,
+                'reply_parameters' => $replyTo,
+            ], static fn ($value): bool => $value !== null));
+        } else {
+            // A multipart upload carries object fields as JSON strings.
+            $reply = $replyTo !== null ? ['reply_parameters' => (string) json_encode($replyTo)] : [];
+
+            [$method, $field] = match ($message->mediaType) {
+                'image' => ['sendPhoto', 'photo'],
+                'video' => ['sendVideo', 'video'],
+                'audio' => ['sendAudio', 'audio'],
+                default => ['sendDocument', 'document'],
+            };
+
+            $result = $this->call($this->token($channel), $method, array_filter([
+                'chat_id' => $message->to,
+                'caption' => $message->text,
+                ...$reply,
+            ], static fn ($value): bool => $value !== null), attach: [$field, (string) $message->mediaContents, $message->mediaName ?? 'file']);
+        }
+
+        return isset($result['message_id']) ? (string) $result['message_id'] : null;
+    }
+
+    public function downloadMedia(Channel $channel, string $mediaRef): ?DownloadedMedia
+    {
+        $token = $this->token($channel);
+        $file  = $this->call($token, 'getFile', ['file_id' => $mediaRef]);
+        $path  = $file['file_path'] ?? null;
+
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $base     = rtrim((string) config('kinetix.channels.providers.telegram.api_url', 'https://api.telegram.org'), '/');
+        $response = Http::timeout((int) config('kinetix.channels.providers.telegram.timeout', 10))->get("{$base}/file/bot{$token}/{$path}");
+
+        return $response->successful()
+            ? new DownloadedMedia($response->body(), $response->header('Content-Type') ?: null, basename($path))
+            : null;
     }
 
     public function verifyWebhook(Channel $channel, Request $request): bool
@@ -107,20 +160,51 @@ class TelegramDriver implements ChannelDriver
             return WebhookResult::none();
         }
 
-        $chat = (array) ($message['chat'] ?? []);
-        $from = (array) ($message['from'] ?? []);
-        $name = trim(($from['first_name'] ?? '').' '.($from['last_name'] ?? '')) ?: ($from['username'] ?? null);
+        $chat  = (array) ($message['chat'] ?? []);
+        $from  = (array) ($message['from'] ?? []);
+        $media = $this->media($message);
+        $name  = trim(($from['first_name'] ?? '').' '.($from['last_name'] ?? '')) ?: ($from['username'] ?? null);
+
+        $type = $this->type($message);
 
         return new WebhookResult(messages: [new InboundMessage(
             from: (string) ($chat['id'] ?? ''),
             fromName: is_string($name) && $name !== '' ? $name : null,
             text: $message['text'] ?? $message['caption'] ?? null,
-            type: $this->type($message),
+            type: $type,
             externalId: isset($message['message_id']) ? (string) $message['message_id'] : null,
             isGroup: ! in_array($chat['type'] ?? 'private', ['private'], true),
             receivedAt: isset($message['date']) ? Carbon::createFromTimestamp((int) $message['date']) : now(),
             raw: $request->all(),
+            replyTo: isset($message['reply_to_message']['message_id']) ? (string) $message['reply_to_message']['message_id'] : null,
+            mediaRef: $media['file_id']    ?? null,
+            mediaMime: $media['mime_type'] ?? ($type === 'image' ? 'image/jpeg' : null),
+            mediaName: $media['file_name'] ?? null,
         )]);
+    }
+
+    /**
+     * The file of a message: a photo's largest size, or the document, video,
+     * voice note, audio or sticker.
+     *
+     * @param  array<string, mixed>      $message
+     * @return array<string, mixed>|null
+     */
+    protected function media(array $message): ?array
+    {
+        if (isset($message['photo']) && is_array($message['photo']) && $message['photo'] !== []) {
+            $largest = end($message['photo']);
+
+            return is_array($largest) ? $largest : null;
+        }
+
+        foreach (['document', 'video', 'voice', 'audio', 'sticker'] as $key) {
+            if (isset($message[$key]) && is_array($message[$key])) {
+                return $message[$key];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -161,15 +245,19 @@ class TelegramDriver implements ChannelDriver
      * Call a Bot API method and return its `result`. A rejected token is a
      * failure the line shows (under `$field` while it's being created).
      *
-     * @param  array<string, mixed> $parameters
+     * @param  array<string, mixed>                        $parameters
+     * @param  array{0: string, 1: string, 2: string}|null $attach     a file to upload: field, contents, name
      * @return array<string, mixed>
      */
-    protected function call(string $token, string $method, array $parameters = [], ?string $field = null): array
+    protected function call(string $token, string $method, array $parameters = [], ?string $field = null, ?array $attach = null): array
     {
         $url = rtrim((string) config('kinetix.channels.providers.telegram.api_url', 'https://api.telegram.org'), '/')."/bot{$token}/{$method}";
 
         try {
-            $response = Http::timeout((int) config('kinetix.channels.providers.telegram.timeout', 10))->acceptJson()->post($url, $parameters);
+            $request  = Http::timeout((int) config('kinetix.channels.providers.telegram.timeout', 10))->acceptJson();
+            $response = $attach !== null
+                ? $request->attach($attach[0], $attach[1], $attach[2])->post($url, $parameters)
+                : $request->post($url, $parameters);
         } catch (ConnectionException $exception) {
             throw new ChannelException(__('kinetix::kinetix.channel_error_unreachable'), previous: $exception);
         }

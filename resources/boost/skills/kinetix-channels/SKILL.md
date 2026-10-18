@@ -64,6 +64,12 @@ php artisan vendor:publish --tag=kinetix-channels-migrations
   Bind a fake gateway in tests.
 - **Telegram**: bot tokens only (getMe → setWebhook with secret_token). No
   MTProto / personal-account login.
+- **Optional driver interfaces** (used by the inbox):
+  - `SendsMessages::send(Channel, OutgoingMessage): ?string` returns the external id;
+  - `DownloadsMedia::downloadMedia(Channel, $mediaRef)`;
+  - `ReportsHandle::handle(Channel)`.
+  - Fill `InboundMessage` `replyTo` / `mediaRef` / `mediaMime` / `mediaName`, and `WebhookResult::$statuses` → `ChannelMessageStatusUpdated`.
+  - WhatsApp subscribes `MESSAGES_UPDATE`; `restart()` re-registers the webhook.
 - **New provider**: implement `ChannelDriver`, `KinetixChannels::extend('key', Driver::class)`,
   add `channel_provider_{key}` translation. Throw `ChannelException` (message
   shown to users; `forField('token', …)` for a field error).

@@ -1,0 +1,440 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Happones\Kinetix\Tests\Feature;
+
+use Happones\Kinetix\Channels\Channel;
+use Happones\Kinetix\Channels\ChannelStatus;
+use Happones\Kinetix\Channels\Drivers\TelegramDriver;
+use Happones\Kinetix\Channels\Drivers\WhatsAppDriver;
+use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
+use Happones\Kinetix\Inbox\Conversation;
+use Happones\Kinetix\Inbox\ConversationMessage;
+use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
+use Happones\Kinetix\Inbox\Events\InboxUpdated;
+use Happones\Kinetix\Inbox\MessageStatus;
+use Happones\Kinetix\Permissions\KinetixPermissions;
+use Happones\Kinetix\Tests\Fakes\FakeEvolutionGateway;
+use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionServiceProvider;
+use Spatie\Permission\Traits\HasRoles;
+
+class InboxUser extends Authenticatable
+{
+    use HasRoles;
+
+    protected $table = 'users';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    protected $guard_name = 'web';
+}
+
+class InboxMembers
+{
+    /** @return iterable<InboxUser> */
+    public static function all(): iterable
+    {
+        return InboxUser::query()->get();
+    }
+}
+
+class InboxTest extends TestCase
+{
+    private FakeEvolutionGateway $evolution;
+
+    private Channel $line;
+
+    /**
+     * @param  Application              $app
+     * @return array<int, class-string>
+     */
+    protected function getPackageProviders($app): array
+    {
+        return [...parent::getPackageProviders($app), PermissionServiceProvider::class];
+    }
+
+    /**
+     * @param Application $app
+     */
+    protected function defineEnvironment($app): void
+    {
+        parent::defineEnvironment($app);
+
+        $app['config']->set('cache.default', 'array');
+        $app['config']->set('queue.default', 'sync');
+        $app['config']->set('auth.providers.users.model', InboxUser::class);
+        $app['config']->set('kinetix.channels.enabled', true);
+        $app['config']->set('kinetix.inbox.enabled', true);
+        $app['config']->set('kinetix.inbox.members', [InboxMembers::class, 'all']);
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Schema::create('users', function ($table) {
+            $table->increments('id');
+            $table->string('name')->nullable();
+        });
+
+        foreach (['permissions', 'roles'] as $name) {
+            Schema::create($name, function ($table) {
+                $table->bigIncrements('id');
+                $table->string('name');
+                $table->string('guard_name');
+                $table->timestamps();
+            });
+        }
+
+        foreach (['role_has_permissions' => 'role_id', 'model_has_permissions' => 'model_id', 'model_has_roles' => 'model_id'] as $table => $key) {
+            Schema::create($table, function ($blueprint) use ($table) {
+                $blueprint->unsignedBigInteger($table === 'model_has_roles' ? 'role_id' : 'permission_id');
+                $blueprint->unsignedBigInteger($table === 'role_has_permissions' ? 'role_id' : 'model_id');
+
+                if ($table !== 'role_has_permissions') {
+                    $blueprint->string('model_type');
+                }
+            });
+        }
+
+        (include __DIR__.'/../../database/migrations/2026_01_01_000041_create_kinetix_channels_table.php')->up();
+        (include __DIR__.'/../../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php')->up();
+
+        foreach (KinetixPermissions::all() as $name) {
+            Permission::findOrCreate($name, 'web');
+        }
+
+        $this->evolution = new FakeEvolutionGateway;
+        $this->app->instance(EvolutionGateway::class, $this->evolution);
+
+        $this->line = Channel::create(['provider' => 'whatsapp', 'name' => 'Sales', 'external_id' => 'kinetix_sales', 'status' => ChannelStatus::Connected]);
+    }
+
+    /** @param list<string> $permissions */
+    private function user(string $name, array $permissions = ['conversations.view']): InboxUser
+    {
+        $user = InboxUser::create(['name' => $name]);
+        $user->givePermissionTo($permissions);
+
+        return $user;
+    }
+
+    private function admin(): InboxUser
+    {
+        return $this->user('Admin', ['conversations.view', 'conversations.view_all']);
+    }
+
+    private function hook(array $payload, ?Channel $line = null): TestResponse
+    {
+        $line ??= $this->line;
+        $header = $line->provider === 'telegram' ? TelegramDriver::SECRET_HEADER : WhatsAppDriver::SECRET_HEADER;
+
+        return $this->postJson("/_kinetix/channels/webhook/{$line->public_id}", $payload, [$header => $line->webhook_secret]);
+    }
+
+    private function inbound(string $id, string $text, array $extra = []): TestResponse
+    {
+        return $this->hook(['event' => 'messages.upsert', 'data' => array_replace_recursive([
+            'key'              => ['remoteJid' => '5215599999999@s.whatsapp.net', 'fromMe' => false, 'id' => $id],
+            'pushName'         => 'Ada',
+            'message'          => ['conversation' => $text],
+            'messageType'      => 'conversation',
+            'messageTimestamp' => 1760000000,
+        ], $extra)]);
+    }
+
+    public function test_what_reaches_a_line_lands_in_one_conversation_once(): void
+    {
+        Event::fake([ConversationMessageCreated::class]);
+
+        $this->inbound('A1', 'Hola')->assertOk();
+        $this->inbound('A1', 'Hola')->assertOk();   // the provider repeats itself
+        $this->inbound('A2', '¿Tienen envío?', ['pushName' => 'Ada Lovelace', 'message' => ['conversation' => null, 'extendedTextMessage' => ['text' => '¿Tienen envío?', 'contextInfo' => ['stanzaId' => 'A1']]], 'messageType' => 'extendedTextMessage'])->assertOk();
+
+        $conversation = Conversation::query()->sole();
+
+        $this->assertSame('5215599999999', $conversation->contact_key);
+        $this->assertSame('Ada Lovelace', $conversation->contact_name);
+        $this->assertSame(2, $conversation->messages()->count());
+        $this->assertSame('A1', $conversation->messages()->latest('id')->first()?->replyTo?->external_id);
+        Event::assertDispatchedTimes(ConversationMessageCreated::class, 2);
+    }
+
+    public function test_an_inbound_file_is_fetched_onto_the_inbox_disk_and_streamed(): void
+    {
+        Storage::fake('local');
+
+        $this->inbound('IMG1', '', ['message' => ['conversation' => null, 'imageMessage' => ['mimetype' => 'image/jpeg', 'caption' => 'Mi pedido']], 'messageType' => 'imageMessage']);
+
+        $message = ConversationMessage::query()->sole();
+        $this->assertSame('image', $message->type);
+        $this->assertSame('Mi pedido', $message->body);
+        $this->assertNotNull($message->media_path);
+        Storage::disk('local')->assertExists((string) $message->media_path);
+        $this->assertSame([['kinetix_sales', 'IMG1']], $this->evolution->callsTo('mediaBase64'));
+
+        $this->actingAs($this->admin())
+            ->get("/_kinetix/inbox/messages/{$message->id}/media")
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+    }
+
+    public function test_agents_see_only_the_lines_they_answer(): void
+    {
+        $other = Channel::create(['provider' => 'whatsapp', 'name' => 'Billing', 'external_id' => 'kinetix_billing', 'status' => ChannelStatus::Connected]);
+        $this->inbound('A1', 'Hola');
+        $this->hook(['event' => 'messages.upsert', 'data' => ['key' => ['remoteJid' => '5215511111111@s.whatsapp.net', 'id' => 'B1'], 'message' => ['conversation' => 'Factura']]], $other);
+
+        $agent = $this->user('Agent');
+
+        $this->actingAs($agent)->getJson('/_kinetix/inbox')->assertOk()->assertJsonCount(0, 'conversations')->assertJsonCount(0, 'channels');
+
+        DB::table('kinetix_channel_agents')->insert(['channel_id' => $this->line->id, 'user_id' => $agent->id]);
+
+        $this->actingAs($agent)->getJson('/_kinetix/inbox')
+            ->assertJsonCount(1, 'conversations')
+            ->assertJsonPath('conversations.0.channel.name', 'Sales')
+            ->assertJsonPath('me.seesAll', false);
+
+        $billing = Conversation::query()->where('channel_id', $other->id)->sole();
+        $this->actingAs($agent)->getJson("/_kinetix/inbox/{$billing->id}/messages")->assertNotFound();
+
+        $this->actingAs($this->admin())->getJson('/_kinetix/inbox')->assertJsonCount(2, 'conversations');
+        $this->actingAs($this->user('Line manager', ['conversations.view', 'channels.manage']))->getJson('/_kinetix/inbox')->assertJsonCount(2, 'conversations');
+        $this->actingAs($this->user('Outsider', []))->getJson('/_kinetix/inbox')->assertForbidden();
+    }
+
+    public function test_unread_is_counted_per_user(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $this->inbound('A2', '¿Siguen abiertos?');
+
+        $ada   = $this->admin();
+        $grace = $this->admin();
+        $id    = Conversation::query()->sole()->id;
+
+        $this->actingAs($ada)->getJson('/_kinetix/inbox')->assertJsonPath('conversations.0.unread', 2);
+        $this->actingAs($ada)->postJson("/_kinetix/inbox/{$id}/read")->assertOk();
+
+        $this->actingAs($ada)->getJson('/_kinetix/inbox')->assertJsonPath('conversations.0.unread', 0);
+        $this->actingAs($ada)->getJson('/_kinetix/inbox?filter=unread')->assertJsonCount(0, 'conversations');
+        $this->actingAs($grace)->getJson('/_kinetix/inbox?filter=unread')->assertJsonPath('conversations.0.unread', 2);
+    }
+
+    public function test_a_reply_goes_out_quoting_the_message_and_follows_its_receipts(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $conversation = Conversation::query()->sole();
+        $quoted       = ConversationMessage::query()->sole();
+
+        $response = $this->actingAs($this->admin())
+            ->postJson("/_kinetix/inbox/{$conversation->id}/messages", ['body' => 'Sí, enviamos a todo el país.', 'reply_to' => $quoted->id])
+            ->assertCreated()
+            ->assertJsonPath('message.status', 'sent')
+            ->assertJsonPath('message.direction', 'out')
+            ->assertJsonPath('message.replyTo.body', 'Hola')
+            ->assertJsonPath('message.authorName', 'Admin');
+
+        $this->assertSame(['kinetix_sales', '5215599999999', 'Sí, enviamos a todo el país.', 'A1'], $this->evolution->callsTo('sendText')[0]);
+
+        $sent = ConversationMessage::query()->findOrFail($response->json('message.id'));
+        $this->assertNotNull($sent->external_id);
+
+        $this->hook(['event' => 'messages.update', 'data' => ['keyId' => $sent->external_id, 'status' => 'READ']]);
+        $this->hook(['event' => 'messages.update', 'data' => ['keyId' => $sent->external_id, 'status' => 'DELIVERY_ACK']]);
+        $this->hook(['event' => 'messages.update', 'data' => ['keyId' => $sent->external_id, 'status' => 'ERROR']]);
+
+        // Receipts arrive out of order; a message never moves back.
+        $this->assertSame(MessageStatus::Read, $sent->fresh()?->status);
+    }
+
+    public function test_a_file_is_attached_within_the_accepted_types(): void
+    {
+        Storage::fake('local');
+        $this->inbound('A1', 'Hola');
+        $conversation = Conversation::query()->sole();
+        $admin        = $this->admin();
+
+        $this->actingAs($admin)
+            ->post("/_kinetix/inbox/{$conversation->id}/messages", ['attachment' => UploadedFile::fake()->create('cotizacion.pdf', 20, 'application/pdf'), 'body' => 'Tu cotización'], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('message.type', 'document')
+            ->assertJsonPath('message.mediaName', 'cotizacion.pdf')
+            ->assertJsonPath('message.mediaReady', true);
+
+        [$instance, $to, $type, , $mime, $name, $caption] = $this->evolution->callsTo('sendMedia')[0];
+        $this->assertSame(['kinetix_sales', '5215599999999', 'document', 'application/pdf', 'cotizacion.pdf', 'Tu cotización'], [$instance, $to, $type, $mime, $name, $caption]);
+
+        $this->actingAs($admin)
+            ->post("/_kinetix/inbox/{$conversation->id}/messages", ['attachment' => UploadedFile::fake()->create('virus.exe', 20, 'application/x-msdownload')], ['Accept' => 'application/json'])
+            ->assertJsonValidationErrors(['attachment']);
+    }
+
+    public function test_a_refused_message_stays_in_the_thread_to_retry(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $conversation            = Conversation::query()->sole();
+        $admin                   = $this->admin();
+        $this->evolution->failOn = 'sendText';
+
+        $id = $this->actingAs($admin)
+            ->postJson("/_kinetix/inbox/{$conversation->id}/messages", ['body' => 'Hola'])
+            ->assertCreated()
+            ->assertJsonPath('message.status', 'failed')
+            ->json('message.id');
+
+        $this->evolution->failOn = null;
+
+        $this->actingAs($admin)->postJson("/_kinetix/inbox/messages/{$id}/retry")->assertJsonPath('message.status', 'sent');
+    }
+
+    public function test_internal_notes_never_reach_the_contact(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $conversation = Conversation::query()->sole();
+
+        $this->actingAs($this->admin())
+            ->postJson("/_kinetix/inbox/{$conversation->id}/messages", ['body' => 'Cliente VIP, dar prioridad', 'note' => true])
+            ->assertCreated()
+            ->assertJsonPath('message.direction', 'note');
+
+        $this->assertSame([], $this->evolution->callsTo('sendText'));
+
+        // Nor does searching the inbox match them.
+        $this->actingAs($this->admin())->getJson('/_kinetix/inbox?search=VIP')->assertJsonCount(0, 'conversations');
+        $this->actingAs($this->admin())->getJson('/_kinetix/inbox?search=Ada')->assertJsonCount(1, 'conversations');
+    }
+
+    public function test_a_conversation_is_assigned_to_someone_who_sees_its_line(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $conversation = Conversation::query()->sole();
+        $admin        = $this->admin();
+        $agent        = $this->user('Agent');
+        $stranger     = $this->user('Stranger');
+        DB::table('kinetix_channel_agents')->insert(['channel_id' => $this->line->id, 'user_id' => $agent->id]);
+
+        $this->actingAs($admin)->getJson("/_kinetix/inbox/{$conversation->id}/assignees")
+            ->assertJsonFragment(['name' => 'Agent'])
+            ->assertJsonMissing(['name' => 'Stranger']);
+
+        $this->actingAs($admin)->postJson("/_kinetix/inbox/{$conversation->id}/assign", ['user_id' => $stranger->id])->assertJsonValidationErrors(['user_id']);
+        $this->actingAs($admin)->postJson("/_kinetix/inbox/{$conversation->id}/assign", ['user_id' => $agent->id])
+            ->assertJsonPath('conversation.assignee.name', 'Agent');
+
+        $this->actingAs($agent)->getJson('/_kinetix/inbox?filter=mine')->assertJsonCount(1, 'conversations');
+        $this->actingAs($agent)->getJson('/_kinetix/inbox?filter=unassigned')->assertJsonCount(0, 'conversations');
+    }
+
+    public function test_an_archived_conversation_comes_back_when_the_contact_writes(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $conversation = Conversation::query()->sole();
+        $admin        = $this->admin();
+
+        $this->actingAs($admin)->postJson("/_kinetix/inbox/{$conversation->id}/archive")->assertJsonPath('conversation.archived', true);
+        $this->actingAs($admin)->getJson('/_kinetix/inbox')->assertJsonCount(0, 'conversations');
+        $this->actingAs($admin)->getJson('/_kinetix/inbox?filter=archived')->assertJsonCount(1, 'conversations');
+
+        $this->inbound('A2', '¿Siguen ahí?');
+
+        $this->actingAs($admin)->getJson('/_kinetix/inbox')->assertJsonCount(1, 'conversations');
+    }
+
+    public function test_a_thread_pages_back_and_catches_up(): void
+    {
+        config(['kinetix.inbox.messages_page_size' => 2]);
+
+        foreach (['A1', 'A2', 'A3'] as $id) {
+            $this->inbound($id, "Mensaje {$id}");
+        }
+
+        $conversation = Conversation::query()->sole();
+        $admin        = $this->admin();
+
+        $latest = $this->actingAs($admin)->getJson("/_kinetix/inbox/{$conversation->id}/messages")
+            ->assertJsonPath('hasMore', true)
+            ->assertJsonPath('messages.0.body', 'Mensaje A2')
+            ->assertJsonPath('messages.1.body', 'Mensaje A3');
+
+        $this->actingAs($admin)->getJson("/_kinetix/inbox/{$conversation->id}/messages?before=".$latest->json('messages.0.id'))
+            ->assertJsonPath('hasMore', false)
+            ->assertJsonPath('messages.0.body', 'Mensaje A1');
+
+        $this->inbound('A4', 'Mensaje A4');
+
+        $this->actingAs($admin)->getJson("/_kinetix/inbox/{$conversation->id}/messages?after=".$latest->json('messages.1.id'))
+            ->assertJsonCount(1, 'messages')
+            ->assertJsonPath('messages.0.body', 'Mensaje A4');
+    }
+
+    public function test_line_agents_are_managed_with_the_line(): void
+    {
+        $agent = $this->user('Agent');
+
+        $this->actingAs($this->user('Agent 2'))->getJson("/_kinetix/channels/{$this->line->id}/agents")->assertForbidden();
+
+        $manager = $this->user('Manager', ['channels.manage']);
+
+        $this->actingAs($manager)->putJson("/_kinetix/channels/{$this->line->id}/agents", ['user_ids' => [$agent->id]])
+            ->assertOk()
+            ->assertJsonPath('agents', [$agent->id]);
+
+        $this->actingAs($manager)->putJson("/_kinetix/channels/{$this->line->id}/agents", ['user_ids' => [999]])->assertJsonValidationErrors(['user_ids']);
+    }
+
+    public function test_telegram_replies_and_files_reach_the_inbox(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'api.telegram.org/bot123:ABC/getFile'       => Http::response(['ok' => true, 'result' => ['file_path' => 'photos/file_1.jpg']]),
+            'api.telegram.org/file/bot123:ABC/photos/*' => Http::response('jpeg-bytes', 200, ['Content-Type' => 'image/jpeg']),
+            'api.telegram.org/bot123:ABC/sendMessage'   => Http::response(['ok' => true, 'result' => ['message_id' => 51]]),
+        ]);
+
+        $bot = Channel::create(['provider' => 'telegram', 'name' => 'Bot', 'status' => ChannelStatus::Connected, 'credentials' => ['token' => '123:ABC']]);
+
+        $this->hook(['update_id' => 1, 'message' => [
+            'message_id' => 7, 'date' => 1760000000,
+            'chat'       => ['id' => 4242, 'type' => 'private'], 'from' => ['id' => 4242, 'first_name' => 'Grace'],
+            'photo'      => [['file_id' => 'small'], ['file_id' => 'large']], 'caption' => 'Así llegó',
+        ]], $bot)->assertOk();
+
+        $message = ConversationMessage::query()->sole();
+        $this->assertSame('image', $message->type);
+        Storage::disk('local')->assertExists((string) $message->media_path);
+        Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/getFile') && $request['file_id'] === 'large');
+
+        $this->actingAs($this->admin())
+            ->postJson("/_kinetix/inbox/{$message->conversation_id}/messages", ['body' => 'Lo revisamos', 'reply_to' => $message->id])
+            ->assertJsonPath('message.status', 'sent');
+
+        Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/sendMessage') && $request['reply_parameters']['message_id'] === 7);
+        $this->assertSame('51', ConversationMessage::query()->latest('id')->first()?->external_id);
+    }
+
+    public function test_changes_broadcast_ids_only_on_the_lines_channel(): void
+    {
+        config(['kinetix.channels.broadcast' => true]);
+        Event::fake([InboxUpdated::class]);
+
+        $this->inbound('A1', 'Hola');
+
+        Event::assertDispatched(InboxUpdated::class, fn (InboxUpdated $event): bool => $event->channelName === "kinetix.inbox.{$this->line->id}"
+            && array_keys($event->payload)                                                                 === ['conversationId', 'channelId', 'messageId']);
+    }
+}

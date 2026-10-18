@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Channels;
 
 use Happones\Kinetix\Channels\Events\ChannelMessageReceived;
+use Happones\Kinetix\Channels\Events\ChannelMessageStatusUpdated;
 use Happones\Kinetix\Channels\Events\ChannelQrUpdated;
 use Happones\Kinetix\Channels\Events\ChannelStatusChanged;
 use Happones\Kinetix\Channels\Events\ChannelUpdated;
@@ -215,6 +216,10 @@ class ChannelManager
 
         foreach ($result->messages as $message) {
             ChannelMessageReceived::dispatch($channel, $message);
+        }
+
+        foreach ($result->statuses as $externalId => $status) {
+            ChannelMessageStatusUpdated::dispatch($channel, (string) $externalId, $status);
         }
     }
 

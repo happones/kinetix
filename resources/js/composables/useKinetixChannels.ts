@@ -40,6 +40,8 @@ export function useKinetixChannels() {
     const providers = ref<KinetixChannelProvider[]>([]);
     const limit = ref<number | null>(null);
     const broadcast = ref<string | null>(null);
+    /** Whether lines have agents (the inbox is on). */
+    const agentsEnabled = ref(false);
     const loading = ref(false);
     const loaded = ref(false);
 
@@ -65,11 +67,13 @@ export function useKinetixChannels() {
                 providers: KinetixChannelProvider[];
                 limit: number | null;
                 broadcast: string | null;
+                agents?: boolean;
             }>(base());
             channels.value = data?.channels ?? [];
             providers.value = data?.providers ?? [];
             limit.value = data?.limit ?? null;
             broadcast.value = data?.broadcast ?? null;
+            agentsEnabled.value = data?.agents ?? false;
         } finally {
             loading.value = false;
             loaded.value = true;
@@ -171,6 +175,28 @@ export function useKinetixChannels() {
         });
     }
 
+    /** Who answers a line, and the team members to choose from. */
+    async function agents(channel: KinetixChannel): Promise<{
+        agents: (number | string)[];
+        members: {
+            id: number | string;
+            name: string | null;
+            seesAll: boolean;
+        }[];
+    } | null> {
+        return kinetixFetch(`${base()}/${channel.id}/agents`);
+    }
+
+    async function saveAgents(
+        channel: KinetixChannel,
+        userIds: (number | string)[],
+    ): Promise<void> {
+        await kinetixFetch(`${base()}/${channel.id}/agents`, {
+            method: 'PUT',
+            body: { user_ids: userIds },
+        });
+    }
+
     let listening: string | null = null;
 
     /**
@@ -212,6 +238,7 @@ export function useKinetixChannels() {
         providers,
         limit,
         broadcast,
+        agentsEnabled,
         loading,
         loaded,
         load,
@@ -223,6 +250,8 @@ export function useKinetixChannels() {
         disconnect,
         restart,
         test,
+        agents,
+        saveAgents,
         listen,
     };
 }

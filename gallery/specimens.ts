@@ -14,6 +14,7 @@ import KinetixGdprPanel from '@/components/KinetixGdprPanel.vue';
 import KinetixTokenManager from '@/components/KinetixTokenManager.vue';
 import KinetixWebhookManager from '@/components/KinetixWebhookManager.vue';
 import KinetixChannelManager from '@/components/KinetixChannelManager.vue';
+import KinetixInbox from '@/components/KinetixInbox.vue';
 import KinetixChannelLinker from '@/components/Channels/KinetixChannelLinker.vue';
 import KinetixConnectedAccounts from '@/components/KinetixConnectedAccounts.vue';
 import KinetixSessions from '@/components/KinetixSessions.vue';
@@ -3116,6 +3117,13 @@ export const specimens: Specimen[] = [
         title: 'Channels — WhatsApp and Telegram lines',
         component: KinetixChannelManager,
         width: 880,
+    },
+    {
+        name: 'inbox',
+        title: 'Inbox — conversations on WhatsApp and Telegram lines',
+        component: KinetixInbox,
+        width: 1180,
+        props: { conversation: 1, style: 'height: 640px' },
     },
     {
         name: 'channel-linker',

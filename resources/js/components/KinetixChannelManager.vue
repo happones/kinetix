@@ -7,6 +7,7 @@ import type { KinetixChannelUpdate } from '@/composables/useKinetixChannels';
 import { useKinetixChannels } from '@/composables/useKinetixChannels';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixChannel, KinetixChannelLink } from '@/types/kinetix';
+import KinetixChannelAgentsDialog from './Channels/KinetixChannelAgentsDialog.vue';
 import KinetixChannelCard from './Channels/KinetixChannelCard.vue';
 import KinetixChannelCreateDialog from './Channels/KinetixChannelCreateDialog.vue';
 import KinetixChannelLinker from './Channels/KinetixChannelLinker.vue';
@@ -40,6 +41,7 @@ const {
     channels,
     providers,
     limit,
+    agentsEnabled,
     loaded,
     load,
     rename,
@@ -57,6 +59,8 @@ const firstLink = ref<KinetixChannelLink | null>(null);
 const lastUpdate = ref<KinetixChannelUpdate | null>(null);
 
 const renaming = ref<KinetixChannel | null>(null);
+const staffing = ref<KinetixChannel | null>(null);
+const agentsOpen = ref(false);
 const newName = ref('');
 const testing = ref<KinetixChannel | null>(null);
 const testTo = ref('');
@@ -324,6 +328,11 @@ const confirmCopy = computed(() => {
                 @test="startTest(channel)"
                 @restart="onRestart(channel)"
                 @disconnect="confirming = { channel, action: 'disconnect' }"
+                :agents="agentsEnabled"
+                @agents="
+                    staffing = channel;
+                    agentsOpen = true;
+                "
                 @rename="startRename(channel)"
                 @remove="confirming = { channel, action: 'remove' }"
             />
@@ -346,6 +355,11 @@ const confirmCopy = computed(() => {
             :initial-link="firstLink"
             :update="lastUpdate"
             @linked="onLinked"
+        />
+
+        <KinetixChannelAgentsDialog
+            v-model:open="agentsOpen"
+            :channel="staffing"
         />
 
         <!-- Rename -->

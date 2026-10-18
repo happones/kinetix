@@ -36,6 +36,8 @@ class ChannelController
             'providers' => $this->manager->providers(),
             'limit'     => $this->manager->limit($this->teamId()),
             'broadcast' => $this->manager->broadcastChannel($this->teamId()),
+            // With the inbox on, each line has its agents.
+            'agents' => config('kinetix.inbox.enabled', false) === true,
         ]);
     }
 

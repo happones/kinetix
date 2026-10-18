@@ -803,6 +803,57 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Inbox (conversations on the lines)
+    |--------------------------------------------------------------------------
+    |
+    | A team inbox on top of Channels: every message that reaches a line is
+    | recorded in a conversation, answered from <KinetixInbox> — with files,
+    | replies to a message and internal notes — assigned and archived. Agents
+    | (`conversations.view`) see the lines they're given in the line manager;
+    | `conversations.view_all` and `channels.manage` see every line. Unread is
+    | per user. Publish the tables with `kinetix-inbox-migrations`.
+    |
+    */
+    'inbox' => [
+        'enabled' => env('KINETIX_INBOX_ENABLED', false),
+
+        // Where message files live (inbound ones are fetched on the queue);
+        // null = kinetix.filesystem.private_disk. Keep it private.
+        'disk'      => env('KINETIX_INBOX_DISK'),
+        'directory' => 'kinetix/inbox',
+
+        // What the team may attach: a size cap (KB) and MIME types ([] = any).
+        'max_upload_kb'  => 16384,
+        'accepted_mimes' => [
+            'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+            'video/mp4', 'video/quicktime', 'audio/mpeg', 'audio/ogg', 'audio/mp4', 'audio/wav',
+            'application/pdf', 'text/plain', 'text/csv',
+            'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/zip',
+        ],
+
+        // The team's members — whom lines are given to and conversations
+        // assigned to: a callable array [Class::class, 'method'] receiving the
+        // team key, or null for the team model's `members_relation`.
+        'members'          => null,
+        'members_relation' => 'members',
+        'name_attribute'   => 'name',
+
+        // Link a new conversation to your own contact model: a callable array
+        // receiving the Conversation and returning a model (or null).
+        'contact_resolver' => null,
+
+        // Without broadcasting, how often (seconds) the inbox refreshes the
+        // list and the open conversation.
+        'poll' => ['list' => 15, 'thread' => 5],
+
+        'page_size'          => 25,
+        'messages_page_size' => 40,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | API Request Logs (optional)
     |--------------------------------------------------------------------------
     |

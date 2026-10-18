@@ -45,5 +45,22 @@ interface EvolutionGateway
 
     public function delete(string $instance): void;
 
-    public function sendText(string $instance, string $to, string $text): void;
+    /**
+     * Send a text — answering `$quotedId` when given — and return the
+     * provider's id for it.
+     */
+    public function sendText(string $instance, string $to, string $text, ?string $quotedId = null): ?string;
+
+    /**
+     * Send a file (`$type` image, video, audio or document, as base64) and
+     * return the provider's id for it.
+     */
+    public function sendMedia(string $instance, string $to, string $type, string $base64, string $mime, string $fileName, ?string $caption = null, ?string $quotedId = null): ?string;
+
+    /**
+     * The file of a message the line received, by the message's id.
+     *
+     * @return array{base64: string, mimetype: string|null, fileName: string|null}|null
+     */
+    public function mediaBase64(string $instance, string $messageId): ?array;
 }

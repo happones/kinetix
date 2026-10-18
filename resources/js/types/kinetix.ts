@@ -572,6 +572,66 @@ export interface KinetixChannelLink {
     expiresIn: number | null;
 }
 
+/** A message in an inbox conversation: from the contact (`in`), the team (`out`) or an internal `note`. */
+export interface KinetixConversationMessage {
+    id: number | string;
+    conversationId: number | string;
+    direction: 'in' | 'out' | 'note';
+    /** text, image, video, audio, document, sticker, location, contact, other */
+    type: string;
+    body: string | null;
+    status: 'received' | 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+    error: string | null;
+    hasMedia: boolean;
+    /** An inbound file is fetched on the queue: false until it's stored. */
+    mediaReady: boolean;
+    mediaMime: string | null;
+    mediaName: string | null;
+    mediaSize: number | null;
+    replyTo: {
+        id: number | string;
+        body: string | null;
+        type: string;
+        direction: 'in' | 'out' | 'note';
+    } | null;
+    authorName: string | null;
+    sentAt: string | null;
+    /** Client-only: a message still on its way from this browser. */
+    localId?: string;
+}
+
+/** A line talking with one contact, as the inbox lists it. */
+export interface KinetixConversation {
+    id: number | string;
+    channel: { id: number | string; provider: string; name: string };
+    contactKey: string;
+    contactName: string | null;
+    isGroup: boolean;
+    assignee: { id: number | string; name: string | null } | null;
+    lastMessage: KinetixConversationMessage | null;
+    lastMessageAt: string | null;
+    /** The current user's unread count. */
+    unread: number;
+    archived: boolean;
+}
+
+/** A line the current user answers in the inbox. */
+export interface KinetixInboxChannel {
+    id: number | string;
+    provider: string;
+    name: string;
+    status: KinetixChannelStatus;
+    /** Its private broadcast channel, when broadcasting is on. */
+    broadcast: string | null;
+}
+
+export type KinetixInboxFilter =
+    | 'all'
+    | 'unread'
+    | 'mine'
+    | 'unassigned'
+    | 'archived';
+
 /** A customer webhook endpoint (the secret is never included). */
 export interface KinetixWebhookEndpoint {
     id: number | string | null;

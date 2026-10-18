@@ -72,6 +72,9 @@ function onPreview(event: Event): void {
         return;
     }
 
+    // Tell a cancelable sender it's handled (it then skips its own fallback,
+    // e.g. opening the file in a new tab).
+    event.preventDefault();
     detail.value = next;
     zoomed.value = false;
     open.value = true;

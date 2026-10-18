@@ -14,6 +14,7 @@ use Happones\Kinetix\Channels\Events\ChannelStatusChanged;
 use Happones\Kinetix\Channels\Events\ChannelUpdated;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use Happones\Kinetix\Permissions\KinetixPermissions;
+use Happones\Kinetix\Tests\Fakes\FakeEvolutionGateway;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,7 +23,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
-use RuntimeException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionServiceProvider;
 use Spatie\Permission\Traits\HasRoles;
@@ -38,85 +38,6 @@ class ChannelUser extends Authenticatable
     protected $guarded = [];
 
     protected $guard_name = 'web';
-}
-
-/** An Evolution API server in memory: records every call, answers as configured. */
-class FakeEvolutionGateway implements EvolutionGateway
-{
-    /** @var list<array{0: string, 1: array<int, mixed>}> */
-    public array $calls = [];
-
-    public string $state = 'connecting';
-
-    public ?string $failOn = null;
-
-    public function create(string $instance): array
-    {
-        return $this->record('create', func_get_args(), ['id' => 'evo-1', 'token' => 'instance-token']);
-    }
-
-    public function setWebhook(string $instance, string $url, array $events, array $headers): void
-    {
-        $this->record('setWebhook', func_get_args());
-    }
-
-    public function connect(string $instance, ?string $phoneNumber = null): array
-    {
-        return $this->record('connect', func_get_args(), ['qr' => 'iVBORw0KGgo=', 'pairingCode' => $phoneNumber ? 'ABCD1234' : null]);
-    }
-
-    public function state(string $instance): string
-    {
-        return $this->record('state', func_get_args(), $this->state);
-    }
-
-    public ?string $owner = '5215512345678@s.whatsapp.net';
-
-    public function owner(string $instance): ?string
-    {
-        return $this->record('owner', func_get_args(), $this->owner);
-    }
-
-    public function logout(string $instance): void
-    {
-        $this->record('logout', func_get_args());
-    }
-
-    public function restart(string $instance): void
-    {
-        $this->record('restart', func_get_args());
-    }
-
-    public function delete(string $instance): void
-    {
-        $this->record('delete', func_get_args());
-    }
-
-    public function sendText(string $instance, string $to, string $text): void
-    {
-        $this->record('sendText', func_get_args());
-    }
-
-    /** @return list<array<int, mixed>> */
-    public function callsTo(string $method): array
-    {
-        return array_values(array_map(static fn (array $call): array => $call[1], array_filter($this->calls, static fn (array $call): bool => $call[0] === $method)));
-    }
-
-    /**
-     * @param  array<int, mixed> $arguments
-     * @return mixed
-     */
-    private function record(string $method, array $arguments, mixed $result = null)
-    {
-        $this->calls[] = [$method, $arguments];
-
-        if ($this->failOn === $method) {
-            throw new RuntimeException('Evolution is down', 500);
-        }
-
-        return $result;
-    }
 }
 
 class ChannelsTest extends TestCase
