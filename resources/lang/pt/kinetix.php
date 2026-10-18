@@ -1385,4 +1385,17 @@ return [
     'inbox_bot_waiting_reply'         => 'aguardando resposta',
     'inbox_bot_waiting_delay'         => 'aguardando para continuar',
     'inbox_stop_bot'                  => 'Parar',
+
+    // Inbox quick replies
+    'permission_ability_manage_quick_replies' => 'Gerenciar respostas rápidas',
+    'inbox_quick_replies'                     => 'Respostas rápidas',
+    'inbox_quick_replies_description'         => 'Respostas salvas que sua equipe insere digitando / e o atalho.',
+    'inbox_quick_replies_search'              => 'Buscar respostas',
+    'inbox_quick_replies_empty'               => 'Ainda não há respostas rápidas.',
+    'inbox_quick_replies_manage'              => 'Gerenciar respostas rápidas',
+    'inbox_quick_reply_new'                   => 'Nova resposta',
+    'inbox_quick_reply_shortcut'              => 'Atalho',
+    'inbox_quick_reply_shortcut_help'         => 'Uma palavra, sem espaços. Digite-a depois de / no campo de mensagem.',
+    'inbox_quick_reply_body'                  => 'Texto',
+    'inbox_enter_hint_replies'                => 'Enter envia, Shift+Enter adiciona uma linha, / insere uma resposta rápida.',
 ];

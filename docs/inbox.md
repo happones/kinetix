@@ -69,6 +69,8 @@ import KinetixInbox from '@/components/kinetix/KinetixInbox.vue';
 </template>
 ```
 
+<Screenshot name="inbox" alt="The inbox: conversations with unread counts, and a thread with a quoted reply, an internal note, a document, delivery ticks and a failed message to retry" />
+
 **The list.** It searches by contact, number or message text, and has filters:
 _All_, _Unread_, _Mine_, _Unassigned_ and _Archived_. With several lines you
 can also pick one. Each conversation shows:
@@ -237,7 +239,37 @@ The Channels events (`ChannelMessageReceived`, …) keep firing as before.
 
 ---
 
-## 7. Bots
+## 7. Quick replies
+
+<Screenshot name="inbox-quick-replies" alt="Quick replies picker above the composer, with search and the replies' text filled in for the contact" />
+
+Quick replies are the team's saved answers.
+
+- **Insert one:** type `/` and its shortcut at the start of a word in the
+  composer. The suggestions filter as you type: ↑ and ↓ move, Enter or Tab
+  inserts, Esc closes. The lightning button lists them all, with a search.
+- **Where it goes:** a reply goes in where the cursor is (or replaces the
+  `/shortcut` being typed), so you can edit it before sending.
+- **Variables:** these four are filled in for the open conversation: the
+  contact's name and number, the agent's name, and the line's name.
+
+::: v-pre
+
+They are written `{{contact.name}}`, `{{contact.key}}`, `{{agent.name}}` and
+`{{line.name}}`.
+
+:::
+
+Everyone with `conversations.view` uses them. `conversations.quick_replies`
+creates, edits and deletes them, from **Manage quick replies** in the picker.
+A shortcut is one word (letters, numbers, `-` and `_`), unique in the team.
+
+The migration ships in `kinetix-inbox-migrations`. Publish it again after
+upgrading.
+
+---
+
+## 8. Bots
 
 With [Flows](flows.md) on:
 

@@ -97,6 +97,10 @@ common layout is one page for the list and one for the editor:
 
 Flows are created, turned on and off, duplicated and deleted from there.
 
+<Screenshot name="flow-list" alt="The team's bot flows with their trigger, lines, status, live version and conversations handled" />
+
+<Screenshot name="flow-editor" alt="The flow editor: the steps palette, a flow on the canvas branching on business hours and a menu, and the flow settings" />
+
 **The editor:**
 
 - **Steps** sit in the palette on the left. Drag one onto the canvas, or click

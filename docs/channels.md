@@ -69,6 +69,8 @@ import KinetixChannelManager from '@/components/kinetix/KinetixChannelManager.vu
 </template>
 ```
 
+<Screenshot name="channel-manager" alt="Lines: connected WhatsApp and Telegram lines, one linking, one failed with its reason" />
+
 A team adds a line by choosing its provider and naming it:
 
 - **A WhatsApp line** opens straight on its first QR. The code refreshes
@@ -76,6 +78,8 @@ A team adds a line by choosing its provider and naming it:
   dialog follows the line's status until WhatsApp reports it linked. On a phone
   it starts on the pairing code instead: the phone showing the QR can't scan
   itself.
+
+<Screenshot name="channel-linker" alt="Linking a WhatsApp number: the steps, the QR with the time left on it, waiting for the scan" />
 - **A Telegram line** asks for the bot token. A rejected token shows under the
   field; an accepted one connects at once.
 

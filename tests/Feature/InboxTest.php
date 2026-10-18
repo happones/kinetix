@@ -14,6 +14,7 @@ use Happones\Kinetix\Inbox\ConversationMessage;
 use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
 use Happones\Kinetix\Inbox\Events\InboxUpdated;
 use Happones\Kinetix\Inbox\MessageStatus;
+use Happones\Kinetix\Inbox\QuickReply;
 use Happones\Kinetix\Permissions\KinetixPermissions;
 use Happones\Kinetix\Tests\Fakes\FakeEvolutionGateway;
 use Happones\Kinetix\Tests\TestCase;
@@ -113,6 +114,7 @@ class InboxTest extends TestCase
 
         (include __DIR__.'/../../database/migrations/2026_01_01_000041_create_kinetix_channels_table.php')->up();
         (include __DIR__.'/../../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php')->up();
+        (include __DIR__.'/../../database/migrations/2026_01_01_000044_create_kinetix_quick_replies_table.php')->up();
 
         foreach (KinetixPermissions::all() as $name) {
             Permission::findOrCreate($name, 'web');
@@ -425,6 +427,40 @@ class InboxTest extends TestCase
 
         Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/sendMessage') && $request['reply_parameters']['message_id'] === 7);
         $this->assertSame('51', ConversationMessage::query()->latest('id')->first()?->external_id);
+    }
+
+    public function test_everyone_in_the_inbox_uses_quick_replies_and_managers_curate_them(): void
+    {
+        $agent   = $this->user('Agent');
+        $manager = $this->user('Lead', ['conversations.view', 'conversations.quick_replies']);
+
+        $this->actingAs($agent)->postJson('/_kinetix/inbox/replies', ['shortcut' => 'hola', 'body' => 'Hola'])->assertForbidden();
+
+        $id = $this->actingAs($manager)
+            ->postJson('/_kinetix/inbox/replies', ['shortcut' => '/Precios', 'body' => 'Hola {{contact.name}}, nuestra lista: https://acme.mx/precios'])
+            ->assertCreated()
+            ->assertJsonPath('reply.shortcut', 'precios')
+            ->json('reply.id');
+
+        // One word, once per team.
+        $this->actingAs($manager)->postJson('/_kinetix/inbox/replies', ['shortcut' => 'precios', 'body' => 'otra'])->assertJsonValidationErrors(['shortcut']);
+        $this->actingAs($manager)->postJson('/_kinetix/inbox/replies', ['shortcut' => 'dos palabras', 'body' => 'x'])->assertJsonValidationErrors(['shortcut']);
+
+        $this->actingAs($agent)->getJson('/_kinetix/inbox/replies')
+            ->assertOk()
+            ->assertJsonPath('replies.0.shortcut', 'precios')
+            ->assertJsonPath('canManage', false);
+
+        $this->actingAs($manager)->putJson("/_kinetix/inbox/replies/{$id}", ['shortcut' => 'precios', 'body' => 'Lista nueva'])
+            ->assertJsonPath('reply.body', 'Lista nueva');
+        $this->actingAs($manager)->getJson('/_kinetix/inbox/replies')->assertJsonPath('canManage', true);
+
+        // Another team's replies stay out of reach.
+        $other = QuickReply::create(['team_id' => 7, 'shortcut' => 'ajena', 'body' => 'x']);
+        $this->actingAs($manager)->deleteJson("/_kinetix/inbox/replies/{$other->id}")->assertNotFound();
+
+        $this->actingAs($manager)->deleteJson("/_kinetix/inbox/replies/{$id}")->assertOk();
+        $this->actingAs($agent)->getJson('/_kinetix/inbox/replies')->assertJsonCount(0, 'replies');
     }
 
     public function test_changes_broadcast_ids_only_on_the_lines_channel(): void

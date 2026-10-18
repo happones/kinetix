@@ -1320,4 +1320,17 @@ return [
     'inbox_bot_waiting_reply'         => '等待回复',
     'inbox_bot_waiting_delay'         => '等待继续',
     'inbox_stop_bot'                  => '停止',
+
+    // Inbox quick replies
+    'permission_ability_manage_quick_replies' => '管理快捷回复',
+    'inbox_quick_replies'                     => '快捷回复',
+    'inbox_quick_replies_description'         => '团队输入 / 和快捷词即可插入的预设回复。',
+    'inbox_quick_replies_search'              => '搜索回复',
+    'inbox_quick_replies_empty'               => '还没有快捷回复。',
+    'inbox_quick_replies_manage'              => '管理快捷回复',
+    'inbox_quick_reply_new'                   => '新建回复',
+    'inbox_quick_reply_shortcut'              => '快捷词',
+    'inbox_quick_reply_shortcut_help'         => '一个词，不含空格。在输入框中 / 后面输入。',
+    'inbox_quick_reply_body'                  => '内容',
+    'inbox_enter_hint_replies'                => 'Enter 发送，Shift+Enter 换行，/ 插入快捷回复。',
 ];

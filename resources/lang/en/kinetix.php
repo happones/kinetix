@@ -1411,4 +1411,17 @@ return [
     'inbox_bot_waiting_reply'         => 'waiting for a reply',
     'inbox_bot_waiting_delay'         => 'waiting to continue',
     'inbox_stop_bot'                  => 'Stop',
+
+    // Inbox quick replies
+    'permission_ability_manage_quick_replies' => 'Manage quick replies',
+    'inbox_quick_replies'                     => 'Quick replies',
+    'inbox_quick_replies_description'         => 'Saved answers your team inserts by typing / and their shortcut.',
+    'inbox_quick_replies_search'              => 'Search replies',
+    'inbox_quick_replies_empty'               => 'No quick replies yet.',
+    'inbox_quick_replies_manage'              => 'Manage quick replies',
+    'inbox_quick_reply_new'                   => 'New reply',
+    'inbox_quick_reply_shortcut'              => 'Shortcut',
+    'inbox_quick_reply_shortcut_help'         => 'One word, without spaces. Type it after / in the composer.',
+    'inbox_quick_reply_body'                  => 'Text',
+    'inbox_enter_hint_replies'                => 'Enter sends, Shift+Enter adds a line, / inserts a quick reply.',
 ];

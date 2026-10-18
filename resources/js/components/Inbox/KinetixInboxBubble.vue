@@ -303,7 +303,7 @@ const statusLabel = computed(() =>
             <button
                 v-if="!message.localId || message.id !== message.localId"
                 type="button"
-                class="gap-1 font-medium inline-flex items-center underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+                class="gap-1 font-medium min-h-6 px-1 -mx-1 inline-flex items-center underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
                 data-test="inbox-retry"
                 @click="emit('retry')"
             >

@@ -411,6 +411,8 @@ export interface Specimen {
     slots?: Record<string, () => unknown>;
     /** Capture width in px (the gallery frame). */
     width?: number;
+    /** Viewport height for openSelector / fullPage captures (default 460). */
+    height?: number;
     /** Wrap in a card so bare components show realistic in-app chrome. */
     frame?: 'card' | 'bare';
     /** Click this selector then capture the full page (for teleported popovers). */
@@ -3128,6 +3130,15 @@ export const specimens: Specimen[] = [
         props: { conversation: 1, style: 'height: 640px' },
     },
     {
+        name: 'inbox-quick-replies',
+        title: 'Inbox — quick replies in the composer',
+        component: KinetixInbox,
+        width: 1180,
+        openSelector: '[data-test="inbox-quick-replies"]',
+        height: 720,
+        props: { conversation: 1, style: 'height: 640px' },
+    },
+    {
         name: 'flow-list',
         title: "Flows — the team's bots",
         component: KinetixFlowList,
@@ -3145,6 +3156,7 @@ export const specimens: Specimen[] = [
         title: 'Channels — linking a WhatsApp number by QR',
         component: KinetixChannelLinker,
         fullPage: true,
+        height: 600,
         props: {
             open: true,
             channel: {

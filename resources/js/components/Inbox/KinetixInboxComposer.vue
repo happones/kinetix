@@ -1,15 +1,35 @@
 <script setup lang="ts">
-import { FileText, Lock, Paperclip, SendHorizontal, X } from '@lucide/vue';
+import {
+    FileText,
+    Lock,
+    Paperclip,
+    SendHorizontal,
+    Settings2,
+    X,
+    Zap,
+} from '@lucide/vue';
+import {
+    PopoverContent,
+    PopoverPortal,
+    PopoverRoot,
+    PopoverTrigger,
+} from 'reka-ui';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { KinetixInboxDraft } from '@/composables/useKinetixInbox';
-import type { KinetixConversationMessage } from '@/types/kinetix';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
+import type {
+    KinetixConversationMessage,
+    KinetixQuickReply,
+} from '@/types/kinetix';
 import { cn } from '../primitives/cn';
 
 /**
  * Writing in a thread: a reply to the contact, or an internal note the
  * contact never sees. Enter sends, Shift+Enter breaks the line; a file goes
  * with the text (shown before sending), and a quoted message rides on top.
+ * Quick replies come in where the cursor is: type `/` and their shortcut,
+ * or pick one from the lightning button; their variables are filled in.
  */
 const props = withDefaults(
     defineProps<{
@@ -18,13 +38,27 @@ const props = withDefaults(
         maxUploadKb?: number;
         accept?: string;
         disabled?: boolean;
+        /** The team's quick replies. */
+        replies?: KinetixQuickReply[];
+        /** What their {{variables}} become here (contact.name, agent.name…). */
+        replyVariables?: Record<string, string>;
+        /** Show "Manage quick replies" in the picker. */
+        canManageReplies?: boolean;
     }>(),
-    { replyTo: null, maxUploadKb: 16384, accept: '', disabled: false },
+    {
+        replyTo: null,
+        maxUploadKb: 16384,
+        accept: '',
+        disabled: false,
+        replies: () => [],
+        replyVariables: () => ({}),
+        canManageReplies: false,
+    },
 );
 
 const emit = defineEmits<{
     (e: 'send', draft: KinetixInboxDraft): void;
-    (e: 'cancel-reply'): void;
+    (e: 'cancel-reply' | 'manage-replies'): void;
 }>();
 
 const { t } = useI18n();
@@ -119,7 +153,120 @@ function submit(): void {
     nextTick(() => textarea.value?.focus());
 }
 
+// ── Quick replies ─────────────────────────────────────────────────────────
+
+/** The "/query" being typed before the cursor, and where it starts. */
+const slash = ref<{ start: number; query: string } | null>(null);
+const activeIndex = ref(0);
+const pickerOpen = ref(false);
+const pickerSearch = ref('');
+let caret = { start: 0, end: 0 };
+
+function matching(query: string, limit: number): KinetixQuickReply[] {
+    const q = query.toLowerCase();
+    const starts = props.replies.filter((r) => r.shortcut.startsWith(q));
+    const others = props.replies.filter(
+        (r) =>
+            !r.shortcut.startsWith(q) &&
+            (r.shortcut.includes(q) || r.body.toLowerCase().includes(q)),
+    );
+
+    return [...starts, ...others].slice(0, limit);
+}
+
+const suggestions = computed(() =>
+    slash.value && props.replies.length ? matching(slash.value.query, 6) : [],
+);
+const pickerResults = computed(() => matching(pickerSearch.value.trim(), 50));
+
+function remember(): void {
+    const el = textarea.value;
+
+    if (el) {
+        caret = { start: el.selectionStart, end: el.selectionEnd };
+    }
+}
+
+/** Open the suggestions while "/shortcut" is being typed at a word's start. */
+function detectSlash(): void {
+    const el = textarea.value;
+    remember();
+
+    if (!el) {
+        return;
+    }
+
+    const before = el.value.slice(0, el.selectionStart);
+    const match = /(?:^|\s)\/([\p{L}\p{N}_-]*)$/u.exec(before);
+
+    slash.value = match
+        ? { start: el.selectionStart - match[1].length - 1, query: match[1] }
+        : null;
+    activeIndex.value = 0;
+}
+
+/** A reply's body with its variables filled in for this conversation. */
+function render(text: string): string {
+    return text.replace(
+        /\{\{\s*([\w.]+)\s*\}\}/g,
+        (_m, key: string) => props.replyVariables[key] ?? '',
+    );
+}
+
+/** Put a reply where the cursor is (replacing a "/query" being typed). */
+function insertReply(reply: KinetixQuickReply): void {
+    const text = render(reply.body);
+    const from = slash.value ? slash.value.start : caret.start;
+    const to = slash.value ? caret.start : caret.end;
+
+    body.value = body.value.slice(0, from) + text + body.value.slice(to);
+    slash.value = null;
+    pickerOpen.value = false;
+    pickerSearch.value = '';
+
+    nextTick(() => {
+        const el = textarea.value;
+
+        if (el) {
+            el.focus();
+            el.setSelectionRange(from + text.length, from + text.length);
+            remember();
+        }
+    });
+}
+
 function onKeydown(event: KeyboardEvent): void {
+    if (suggestions.value.length) {
+        const count = suggestions.value.length;
+
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            activeIndex.value =
+                (activeIndex.value +
+                    (event.key === 'ArrowDown' ? 1 : count - 1)) %
+                count;
+
+            return;
+        }
+
+        if (
+            (event.key === 'Enter' || event.key === 'Tab') &&
+            !event.isComposing
+        ) {
+            event.preventDefault();
+            insertReply(suggestions.value[activeIndex.value]);
+
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            slash.value = null;
+
+            return;
+        }
+    }
+
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
         event.preventDefault();
         submit();
@@ -227,7 +374,41 @@ defineExpose({ focus: () => textarea.value?.focus() });
                 </button>
             </div>
 
-            <div class="gap-1 p-1.5 flex items-end">
+            <div class="gap-1 p-1.5 relative flex items-end">
+                <!-- "/shortcut" suggestions, above the field -->
+                <ul
+                    v-if="suggestions.length"
+                    id="kinetix-inbox-replies"
+                    class="left-0 right-0 mb-2 p-1 max-h-64 rounded-lg shadow-lg absolute bottom-full z-10 overflow-y-auto border border-border bg-popover text-popover-foreground"
+                    role="listbox"
+                    :aria-label="t('kinetix.inbox_quick_replies')"
+                    data-test="inbox-reply-suggestions"
+                >
+                    <li
+                        v-for="(reply, index) in suggestions"
+                        :id="`kinetix-inbox-reply-${reply.id}`"
+                        :key="reply.id"
+                        role="option"
+                        :aria-selected="index === activeIndex"
+                        class="px-2 py-1.5 cursor-pointer rounded-md"
+                        :class="
+                            index === activeIndex
+                                ? 'bg-accent text-accent-foreground'
+                                : ''
+                        "
+                        @mousedown.prevent="insertReply(reply)"
+                        @mouseenter="activeIndex = index"
+                    >
+                        <span class="font-mono text-xs font-medium"
+                            >/{{ reply.shortcut }}</span
+                        >
+                        <span
+                            class="text-xs block truncate text-muted-foreground"
+                            >{{ render(reply.body) }}</span
+                        >
+                    </li>
+                </ul>
+
                 <button
                     v-if="!note"
                     type="button"
@@ -239,6 +420,89 @@ defineExpose({ focus: () => textarea.value?.focus() });
                 >
                     <Paperclip class="size-4" />
                 </button>
+                <PopoverRoot
+                    v-if="replies.length || canManageReplies"
+                    v-model:open="pickerOpen"
+                >
+                    <PopoverTrigger
+                        class="size-9 rounded-lg inline-flex shrink-0 items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none disabled:opacity-50"
+                        :aria-label="t('kinetix.inbox_quick_replies')"
+                        :disabled="disabled"
+                        data-test="inbox-quick-replies"
+                        @mousedown="remember"
+                    >
+                        <Zap class="size-4" />
+                    </PopoverTrigger>
+                    <PopoverPortal>
+                        <PopoverContent
+                            side="top"
+                            align="start"
+                            :side-offset="8"
+                            :collision-padding="8"
+                            class="p-2 rounded-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 shadow-lg z-[var(--kinetix-z-popover,120)] flex max-h-(--reka-popover-content-available-height) w-[min(20rem,calc(100vw-1rem))] flex-col border border-border bg-popover text-popover-foreground outline-none"
+                        >
+                            <input
+                                v-model="pickerSearch"
+                                type="search"
+                                :class="[inputClass, 'h-8 mb-2']"
+                                :placeholder="
+                                    t('kinetix.inbox_quick_replies_search')
+                                "
+                                :aria-label="
+                                    t('kinetix.inbox_quick_replies_search')
+                                "
+                                data-test="inbox-quick-replies-search"
+                            />
+                            <ul class="min-h-0 max-h-64 overflow-y-auto">
+                                <li
+                                    v-if="pickerResults.length === 0"
+                                    class="px-2 py-3 text-xs text-center text-muted-foreground"
+                                >
+                                    {{
+                                        replies.length
+                                            ? t('kinetix.inbox_no_results')
+                                            : t(
+                                                  'kinetix.inbox_quick_replies_empty',
+                                              )
+                                    }}
+                                </li>
+                                <li
+                                    v-for="reply in pickerResults"
+                                    :key="reply.id"
+                                >
+                                    <button
+                                        type="button"
+                                        class="px-2 py-1.5 w-full rounded-md text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                                        :data-test="`inbox-quick-reply-${reply.shortcut}`"
+                                        @click="insertReply(reply)"
+                                    >
+                                        <span
+                                            class="font-mono text-xs font-medium"
+                                            >/{{ reply.shortcut }}</span
+                                        >
+                                        <span
+                                            class="text-xs line-clamp-2 block text-muted-foreground"
+                                            >{{ render(reply.body) }}</span
+                                        >
+                                    </button>
+                                </li>
+                            </ul>
+                            <button
+                                v-if="canManageReplies"
+                                type="button"
+                                class="mt-2 gap-1.5 px-2 py-1.5 text-xs font-medium flex items-center rounded-md border-t border-border text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:outline-none"
+                                data-test="inbox-manage-replies"
+                                @click="
+                                    pickerOpen = false;
+                                    emit('manage-replies');
+                                "
+                            >
+                                <Settings2 class="size-3.5" />
+                                {{ t('kinetix.inbox_quick_replies_manage') }}
+                            </button>
+                        </PopoverContent>
+                    </PopoverPortal>
+                </PopoverRoot>
                 <input
                     ref="picker"
                     type="file"
@@ -263,9 +527,27 @@ defineExpose({ focus: () => textarea.value?.focus() });
                             : t('kinetix.inbox_placeholder')
                     "
                     :disabled="disabled"
-                    class="min-h-9 px-2 py-2 text-base md:text-sm max-h-40 flex-1 resize-none bg-transparent outline-none placeholder:text-muted-foreground disabled:opacity-50"
+                    class="min-h-9 min-w-0 px-2 py-2 text-base md:text-sm max-h-40 flex-1 resize-none bg-transparent outline-none placeholder:text-muted-foreground disabled:opacity-50"
                     data-test="inbox-input"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    :aria-expanded="suggestions.length > 0"
+                    :aria-controls="
+                        suggestions.length ? 'kinetix-inbox-replies' : undefined
+                    "
+                    :aria-activedescendant="
+                        suggestions.length
+                            ? `kinetix-inbox-reply-${suggestions[activeIndex]?.id}`
+                            : undefined
+                    "
                     @keydown="onKeydown"
+                    @input="detectSlash"
+                    @click="detectSlash"
+                    @keyup="remember"
+                    @blur="
+                        remember();
+                        slash = null;
+                    "
                 />
 
                 <button
@@ -304,7 +586,9 @@ defineExpose({ focus: () => textarea.value?.focus() });
             {{
                 note
                     ? t('kinetix.inbox_note_hint')
-                    : t('kinetix.inbox_enter_hint')
+                    : replies.length
+                      ? t('kinetix.inbox_enter_hint_replies')
+                      : t('kinetix.inbox_enter_hint')
             }}
         </p>
     </div>

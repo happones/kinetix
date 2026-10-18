@@ -1,6 +1,6 @@
 ---
 name: kinetix-inbox
-description: "Team inbox on Kinetix Channels lines: conversations, per-user unread, line agents, replies with files and quotes, internal notes, assignment, archive, receipts. Activates when working with KinetixInbox, useKinetixInbox, conversations, ConversationMessageCreated or line agents."
+description: "Team inbox on Kinetix Channels lines: conversations, per-user unread, line agents, replies with files and quotes, quick replies, internal notes, assignment, archive, receipts. Activates when working with KinetixInbox, useKinetixInbox, conversations, ConversationMessageCreated or line agents."
 license: MIT
 metadata:
   author: happones
@@ -45,6 +45,7 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations   # needs kinetix-chan
     - `kinetix_conversation_messages` (direction `in|out|note`; status `received|pending|sent|delivered|read|failed`; unique `conversation_id+external_id`)
     - `kinetix_conversation_reads` (per-user cursor)
     - `kinetix_channel_agents`
+    - `kinetix_quick_replies` (team × `shortcut`, unique)
 - **Visibility**: always go through `InboxManager::conversationsFor($user, $teamKey)` and `visibleChannelIds()`.
     - `conversations.view_all` or `channels.manage` sees every line.
     - `conversations.view` sees only lines where the user is an agent.
@@ -63,3 +64,7 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations   # needs kinetix-chan
     - `<KinetixInbox>` = `Inbox/KinetixInboxList` + `KinetixInboxThread` (+ `KinetixInboxBubble`, `KinetixInboxComposer`).
     - Optimistic send uses `localId`.
     - Images dispatch a cancelable `kinetix:preview`; if unhandled, they open in a new tab.
+- **Quick replies**:
+    - Endpoints: `inbox/replies` (GET `{replies, canManage}` for `conversations.view`; POST/PUT/DELETE behind `conversations.quick_replies`).
+    - Shortcuts are stored lowercased without the `/`; `[\pL\pN_-]+`, unique per team.
+    - The composer suggests on `/word` before the caret and fills `{{contact.name}}`, `{{contact.key}}`, `{{agent.name}}`, `{{line.name}}` on insert. `KinetixInboxQuickReplies` is the manager modal.

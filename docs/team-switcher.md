@@ -82,6 +82,8 @@ own switcher without a wrapper:
 
 `button` (the default) is an outlined header button.
 
+<Screenshot name="team-switcher-sidebar" alt="Sidebar team switcher: each team with its logo or default icon and a dot in its type's color" />
+
 `useKinetixTeams()` exposes `{ teams, current, createUrl, labels, switchTeam }`
 for a custom UI; `<KinetixTeamAvatar :team="team" />` draws a team's mark and
 `<KinetixTeamIndicator :team="team" />` its indicator on their own.

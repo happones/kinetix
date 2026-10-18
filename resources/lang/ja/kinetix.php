@@ -1320,4 +1320,17 @@ return [
     'inbox_bot_waiting_reply'         => '返信待ち',
     'inbox_bot_waiting_delay'         => '続行待ち',
     'inbox_stop_bot'                  => '停止',
+
+    // Inbox quick replies
+    'permission_ability_manage_quick_replies' => 'クイック返信を管理',
+    'inbox_quick_replies'                     => 'クイック返信',
+    'inbox_quick_replies_description'         => 'チームが / とショートカットを入力して挿入できる保存済みの返信です。',
+    'inbox_quick_replies_search'              => '返信を検索',
+    'inbox_quick_replies_empty'               => 'クイック返信はまだありません。',
+    'inbox_quick_replies_manage'              => 'クイック返信を管理',
+    'inbox_quick_reply_new'                   => '新しい返信',
+    'inbox_quick_reply_shortcut'              => 'ショートカット',
+    'inbox_quick_reply_shortcut_help'         => 'スペースなしの1語です。入力欄で / の後に入力します。',
+    'inbox_quick_reply_body'                  => '本文',
+    'inbox_enter_hint_replies'                => 'Enter で送信、Shift+Enter で改行、/ でクイック返信を挿入。',
 ];

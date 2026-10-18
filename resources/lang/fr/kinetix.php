@@ -1385,4 +1385,17 @@ return [
     'inbox_bot_waiting_reply'         => 'attend une réponse',
     'inbox_bot_waiting_delay'         => 'attend pour continuer',
     'inbox_stop_bot'                  => 'Arrêter',
+
+    // Inbox quick replies
+    'permission_ability_manage_quick_replies' => 'Gérer les réponses rapides',
+    'inbox_quick_replies'                     => 'Réponses rapides',
+    'inbox_quick_replies_description'         => 'Réponses enregistrées que votre équipe insère en tapant / suivi de leur raccourci.',
+    'inbox_quick_replies_search'              => 'Rechercher des réponses',
+    'inbox_quick_replies_empty'               => 'Aucune réponse rapide pour le moment.',
+    'inbox_quick_replies_manage'              => 'Gérer les réponses rapides',
+    'inbox_quick_reply_new'                   => 'Nouvelle réponse',
+    'inbox_quick_reply_shortcut'              => 'Raccourci',
+    'inbox_quick_reply_shortcut_help'         => 'Un seul mot, sans espaces. Tapez-le après / dans la zone de saisie.',
+    'inbox_quick_reply_body'                  => 'Texte',
+    'inbox_enter_hint_replies'                => 'Entrée envoie, Maj+Entrée ajoute une ligne, / insère une réponse rapide.',
 ];

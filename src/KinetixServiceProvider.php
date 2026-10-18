@@ -116,6 +116,7 @@ use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
 use Happones\Kinetix\Inbox\Events\ConversationReplied;
 use Happones\Kinetix\Inbox\InboxController;
 use Happones\Kinetix\Inbox\InboxManager;
+use Happones\Kinetix\Inbox\QuickReplyController;
 use Happones\Kinetix\Inbox\RecordInboxActivity;
 use Happones\Kinetix\Kanban\KanbanMoveController;
 use Happones\Kinetix\Locale\LocaleController;
@@ -580,7 +581,8 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional Inbox module's migration (conversations).
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php' => database_path('migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'        => database_path('migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000044_create_kinetix_quick_replies_table.php' => database_path('migrations/2026_01_01_000044_create_kinetix_quick_replies_table.php'),
             ], 'kinetix-inbox-migrations');
 
             // Publish the optional Flows module's migration (bots).
@@ -1597,7 +1599,8 @@ class KinetixServiceProvider extends ServiceProvider
         app(PermissionRegistry::class)->feature('conversations')
             ->label('kinetix.permission_feature_conversations')
             ->ability('view', 'kinetix.permission_ability_view_conversations')
-            ->ability('view_all', 'kinetix.permission_ability_view_all_conversations');
+            ->ability('view_all', 'kinetix.permission_ability_view_all_conversations')
+            ->ability('quick_replies', 'kinetix.permission_ability_manage_quick_replies');
 
         $this->app['events']->listen(ChannelMessageReceived::class, [RecordInboxActivity::class, 'received']);
         $this->app['events']->listen(ChannelMessageStatusUpdated::class, [RecordInboxActivity::class, 'statusUpdated']);
@@ -1617,6 +1620,11 @@ class KinetixServiceProvider extends ServiceProvider
             ->prefix("{$prefix}/inbox")
             ->group(function () {
                 Route::get('/', [InboxController::class, 'index'])->name('kinetix.inbox.index');
+                // Before {conversation}: "replies" is not a conversation.
+                Route::get('replies', [QuickReplyController::class, 'index'])->name('kinetix.inbox.replies');
+                Route::post('replies', [QuickReplyController::class, 'store'])->name('kinetix.inbox.replies.store');
+                Route::put('replies/{reply}', [QuickReplyController::class, 'update'])->name('kinetix.inbox.replies.update');
+                Route::delete('replies/{reply}', [QuickReplyController::class, 'destroy'])->name('kinetix.inbox.replies.destroy');
                 Route::get('messages/{message}', [InboxController::class, 'message'])->name('kinetix.inbox.message');
                 Route::get('messages/{message}/media', [InboxController::class, 'media'])->name('kinetix.inbox.media');
                 Route::post('messages/{message}/retry', [InboxController::class, 'retry'])->name('kinetix.inbox.retry');

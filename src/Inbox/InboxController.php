@@ -77,7 +77,11 @@ class InboxController
                 'status'    => $line->status->value,
                 'broadcast' => $this->inbox->broadcastChannel($line->getKey()),
             ])->values(),
-            'me'   => ['id' => $user->getKey(), 'seesAll' => $this->inbox->seesAll($user)],
+            'me' => [
+                'id'      => $user->getKey(),
+                'name'    => $this->inbox->userName($user),
+                'seesAll' => $this->inbox->seesAll($user),
+            ],
             'poll' => (array) config('kinetix.inbox.poll', ['list' => 15, 'thread' => 5]),
             // Whether bots can be started and stopped from the thread.
             'flows'    => (bool) config('kinetix.flows.enabled', false),

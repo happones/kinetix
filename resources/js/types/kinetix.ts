@@ -617,6 +617,15 @@ export interface KinetixConversation {
     archived: boolean;
 }
 
+/** A saved answer the team inserts in the inbox with `/shortcut`. */
+export interface KinetixQuickReply {
+    id: number | string;
+    /** One word, typed after `/`. */
+    shortcut: string;
+    /** May use {{contact.name}}, {{contact.key}}, {{agent.name}} and {{line.name}}. */
+    body: string;
+}
+
 /** A line the current user answers in the inbox. */
 export interface KinetixInboxChannel {
     id: number | string;

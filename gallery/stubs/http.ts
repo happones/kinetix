@@ -522,6 +522,29 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        match: /\/inbox\/replies$/,
+        data: {
+            replies: [
+                {
+                    id: 1,
+                    shortcut: 'horario',
+                    body: 'Abrimos de lunes a sábado de 9:00 a 19:00.',
+                },
+                {
+                    id: 2,
+                    shortcut: 'precios',
+                    body: 'Hola {{contact.name}}, te comparto nuestra lista de precios: https://acme.mx/precios',
+                },
+                {
+                    id: 3,
+                    shortcut: 'envio',
+                    body: 'Enviamos a todo el país en 2 a 3 días hábiles.',
+                },
+            ],
+            canManage: true,
+        },
+    },
+    {
         match: /\/inbox\?/,
         data: {
             conversations: [

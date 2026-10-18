@@ -11,6 +11,7 @@ import type {
     KinetixConversationMessage,
     KinetixInboxChannel,
     KinetixInboxFilter,
+    KinetixQuickReply,
     KinetixSharedProps,
 } from '@/types/kinetix';
 
@@ -18,7 +19,7 @@ interface IndexResponse {
     conversations: KinetixConversation[];
     hasMore: boolean;
     channels: KinetixInboxChannel[];
-    me: { id: number | string; seesAll: boolean };
+    me: { id: number | string; name?: string | null; seesAll: boolean };
     poll: { list: number; thread: number };
     composer: { maxUploadKb: number; accept: string };
     flows?: boolean;
@@ -58,6 +59,8 @@ export function useKinetixInbox() {
     const hasMore = ref(false);
     /** Whether bots can be started and stopped from the thread. */
     const flowsEnabled = ref(false);
+    const quickReplies = ref<KinetixQuickReply[]>([]);
+    const canManageReplies = ref(false);
     const loading = ref(false);
     const loaded = ref(false);
     const pageNumber = ref(1);
@@ -482,6 +485,48 @@ export function useKinetixInbox() {
         });
     }
 
+    async function loadReplies(): Promise<void> {
+        const data = await kinetixFetch<{
+            replies: KinetixQuickReply[];
+            canManage: boolean;
+        }>(`${base()}/replies`).catch(() => null);
+
+        quickReplies.value = data?.replies ?? [];
+        canManageReplies.value = data?.canManage ?? false;
+    }
+
+    /** Create (no id) or update a quick reply; the list stays sorted by shortcut. */
+    async function saveReply(
+        reply: Partial<KinetixQuickReply> & { shortcut: string; body: string },
+    ): Promise<KinetixQuickReply | null> {
+        const data = await kinetixFetch<{ reply: KinetixQuickReply }>(
+            reply.id ? `${base()}/replies/${reply.id}` : `${base()}/replies`,
+            {
+                method: reply.id ? 'PUT' : 'POST',
+                body: { shortcut: reply.shortcut, body: reply.body },
+            },
+        );
+
+        if (data?.reply) {
+            const saved = data.reply;
+            quickReplies.value = [
+                ...quickReplies.value.filter((r) => r.id !== saved.id),
+                saved,
+            ].sort((a, b) => a.shortcut.localeCompare(b.shortcut));
+        }
+
+        return data?.reply ?? null;
+    }
+
+    async function removeReply(reply: KinetixQuickReply): Promise<void> {
+        await kinetixFetch(`${base()}/replies/${reply.id}`, {
+            method: 'DELETE',
+        });
+        quickReplies.value = quickReplies.value.filter(
+            (r) => r.id !== reply.id,
+        );
+    }
+
     /** Where a message's file is served. */
     const mediaUrl = (
         message: KinetixConversationMessage,
@@ -575,6 +620,11 @@ export function useKinetixInbox() {
         me,
         composer,
         flowsEnabled,
+        quickReplies,
+        canManageReplies,
+        loadReplies,
+        saveReply,
+        removeReply,
         hasMore,
         loading,
         loaded,

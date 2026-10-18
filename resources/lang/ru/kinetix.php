@@ -1320,4 +1320,17 @@ return [
     'inbox_bot_waiting_reply'         => 'ждёт ответа',
     'inbox_bot_waiting_delay'         => 'ждёт, чтобы продолжить',
     'inbox_stop_bot'                  => 'Остановить',
+
+    // Inbox quick replies
+    'permission_ability_manage_quick_replies' => 'Управление быстрыми ответами',
+    'inbox_quick_replies'                     => 'Быстрые ответы',
+    'inbox_quick_replies_description'         => 'Сохранённые ответы, которые команда вставляет, набрав / и сокращение.',
+    'inbox_quick_replies_search'              => 'Поиск ответов',
+    'inbox_quick_replies_empty'               => 'Быстрых ответов пока нет.',
+    'inbox_quick_replies_manage'              => 'Управлять быстрыми ответами',
+    'inbox_quick_reply_new'                   => 'Новый ответ',
+    'inbox_quick_reply_shortcut'              => 'Сокращение',
+    'inbox_quick_reply_shortcut_help'         => 'Одно слово без пробелов. Наберите его после / в поле сообщения.',
+    'inbox_quick_reply_body'                  => 'Текст',
+    'inbox_enter_hint_replies'                => 'Enter отправляет, Shift+Enter — новая строка, / вставляет быстрый ответ.',
 ];

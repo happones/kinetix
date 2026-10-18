@@ -306,6 +306,106 @@ describe('KinetixInboxComposer', () => {
     });
 });
 
+describe('KinetixInboxComposer quick replies', () => {
+    const replies = [
+        {
+            id: 1,
+            shortcut: 'precios',
+            body: 'Hola {{contact.name}}, soy {{agent.name}}. Lista: acme.mx',
+        },
+        { id: 2, shortcut: 'horario', body: 'Abrimos de 9 a 18' },
+    ];
+
+    const mountComposer = () =>
+        mount(KinetixInboxComposer, {
+            props: {
+                replies,
+                replyVariables: {
+                    'contact.name': 'Ada',
+                    'agent.name': 'Grace',
+                },
+                canManageReplies: true,
+            },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+
+    it('suggests replies for "/shortcut" and inserts one where it was typed, variables filled in', async () => {
+        const w = mountComposer();
+        const input = w.get('[data-test="inbox-input"]');
+        const el = input.element as HTMLTextAreaElement;
+
+        el.value = 'Claro. /pre';
+        el.setSelectionRange(11, 11);
+        await input.trigger('input');
+
+        const options = w.findAll('[role="option"]');
+        expect(options).toHaveLength(1);
+        expect(input.attributes('aria-expanded')).toBe('true');
+
+        await input.trigger('keydown', { key: 'Enter' });
+
+        expect(el.value).toBe('Claro. Hola Ada, soy Grace. Lista: acme.mx');
+        expect(w.emitted('send')).toBeUndefined();
+        expect(w.find('[role="listbox"]').exists()).toBe(false);
+        w.unmount();
+    });
+
+    it('moves through suggestions with the arrows and closes them with Escape', async () => {
+        const w = mountComposer();
+        const input = w.get('[data-test="inbox-input"]');
+        const el = input.element as HTMLTextAreaElement;
+
+        el.value = '/';
+        el.setSelectionRange(1, 1);
+        await input.trigger('input');
+        expect(w.findAll('[role="option"]')).toHaveLength(2);
+
+        await input.trigger('keydown', { key: 'ArrowDown' });
+        expect(
+            w.findAll('[role="option"]')[1].attributes('aria-selected'),
+        ).toBe('true');
+
+        await input.trigger('keydown', { key: 'Escape' });
+        expect(w.find('[role="listbox"]').exists()).toBe(false);
+
+        // A "/" inside a word (a URL) is not a shortcut.
+        el.value = 'https://acme.mx/pre';
+        el.setSelectionRange(19, 19);
+        await input.trigger('input');
+        expect(w.find('[role="listbox"]').exists()).toBe(false);
+        w.unmount();
+    });
+
+    it('offers the picker, with a way to manage the replies', async () => {
+        const w = mountComposer();
+
+        await w.get('[data-test="inbox-quick-replies"]').trigger('click');
+        await flushPromises();
+
+        (
+            document.querySelector(
+                '[data-test="inbox-quick-reply-horario"]',
+            ) as HTMLButtonElement
+        ).click();
+        await flushPromises();
+        expect(
+            (w.get('[data-test="inbox-input"]').element as HTMLTextAreaElement)
+                .value,
+        ).toBe('Abrimos de 9 a 18');
+
+        await w.get('[data-test="inbox-quick-replies"]').trigger('click');
+        await flushPromises();
+        (
+            document.querySelector(
+                '[data-test="inbox-manage-replies"]',
+            ) as HTMLButtonElement
+        ).click();
+        expect(w.emitted('manage-replies')).toHaveLength(1);
+        w.unmount();
+    });
+});
+
 describe('KinetixInboxBubble', () => {
     const bubble = (overrides: Partial<KinetixConversationMessage>) =>
         mount(KinetixInboxBubble, {

@@ -27,6 +27,7 @@ import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixConversation,
     KinetixConversationMessage,
+    KinetixQuickReply,
 } from '@/types/kinetix';
 import KinetixChannelProviderIcon from '../Channels/KinetixChannelProviderIcon.vue';
 import KinetixInboxBubble from './KinetixInboxBubble.vue';
@@ -57,6 +58,10 @@ const props = defineProps<{
         | ((flowId: number | string) => Promise<KinetixInboxBots['run']>)
         | null;
     stopBot?: (() => Promise<void>) | null;
+    replies?: KinetixQuickReply[];
+    /** What quick replies' {{variables}} become (agent.name comes from the inbox). */
+    agentName?: string | null;
+    canManageReplies?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -64,6 +69,7 @@ const emit = defineEmits<{
     (e: 'send', draft: KinetixInboxDraft): void;
     (e: 'retry', message: KinetixConversationMessage): void;
     (e: 'assign', userId: number | string | null): void;
+    (e: 'manage-replies'): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -120,6 +126,13 @@ function send(draft: KinetixInboxDraft): void {
         setTimeout(() => void loadBots(), 800);
     }
 }
+
+const replyVariables = computed<Record<string, string>>(() => ({
+    'contact.name': props.conversation.contactName ?? '',
+    'contact.key': props.conversation.contactKey,
+    'agent.name': props.agentName ?? '',
+    'line.name': props.conversation.channel.name,
+}));
 
 const title = computed(
     () => props.conversation.contactName ?? props.conversation.contactKey,
@@ -323,7 +336,7 @@ const itemClass =
             <DropdownMenuRoot @update:open="loadAssignees">
                 <DropdownMenuTrigger
                     :class="buttonVariants({ variant: 'outline', size: 'sm' })"
-                    class="max-w-40"
+                    class="max-w-40 relative"
                     data-test="inbox-assign"
                 >
                     <UserRound class="size-4" />
@@ -527,6 +540,10 @@ const itemClass =
         </div>
 
         <KinetixInboxComposer
+            :replies="replies ?? []"
+            :reply-variables="replyVariables"
+            :can-manage-replies="canManageReplies"
+            @manage-replies="emit('manage-replies')"
             :reply-to="replyTo"
             :max-upload-kb="composer.maxUploadKb"
             :accept="composer.accept"

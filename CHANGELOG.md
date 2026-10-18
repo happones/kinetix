@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.251.0] - 2026-10-18
+
+### Added
+
+- **Inbox quick replies**: the team's saved answers, inserted where the cursor
+  is.
+  - Type `/` and a shortcut to get suggestions (keyboard-navigable, announced
+    as a combobox), or pick one from the lightning button, which has a search.
+  - The contact's name and number, the agent's name and the line's name fill
+    in on insert.
+  - **(published)** `KinetixInboxQuickReplies` manages them, behind the new
+    `conversations.quick_replies` ability; everyone in the inbox uses them.
+  - The new migration ships in `kinetix-inbox-migrations`; publish it again.
+
+### Fixed
+
+- The inbox's assign button no longer pushes a 320px-wide screen sideways.
+
+### Docs
+
+- Screenshots for Channels (line manager and linker), the Inbox (with quick
+  replies), Flows (list and editor) and the sidebar team switcher.
+
 ## [0.250.0] - 2026-10-18
 
 ### Added

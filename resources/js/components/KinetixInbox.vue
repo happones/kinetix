@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { MessagesSquare } from '@lucide/vue';
-import { onMounted, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import type { KinetixInboxDraft } from '@/composables/useKinetixInbox';
@@ -10,6 +10,7 @@ import type {
     KinetixConversationMessage,
 } from '@/types/kinetix';
 import KinetixInboxList from './Inbox/KinetixInboxList.vue';
+import KinetixInboxQuickReplies from './Inbox/KinetixInboxQuickReplies.vue';
 import KinetixInboxThread from './Inbox/KinetixInboxThread.vue';
 
 /**
@@ -37,8 +38,10 @@ const { t } = useI18n();
 const inbox = useKinetixInbox();
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
+const managingReplies = ref(false);
 
 onMounted(async () => {
+    void inbox.loadReplies();
     await inbox.loadList();
 
     if (props.conversation !== null) {
@@ -128,6 +131,10 @@ function retry(message: KinetixConversationMessage): void {
             "
             :start-bot="(flowId) => inbox.startBot(inbox.active.value!, flowId)"
             :stop-bot="() => inbox.stopBot(inbox.active.value!)"
+            :replies="inbox.quickReplies.value"
+            :agent-name="inbox.me.value?.name ?? null"
+            :can-manage-replies="inbox.canManageReplies.value"
+            @manage-replies="managingReplies = true"
             @back="back"
             @load-older="inbox.loadOlder()"
             @send="send"
@@ -161,6 +168,13 @@ function retry(message: KinetixConversationMessage): void {
                 </p>
             </slot>
         </div>
+
+        <KinetixInboxQuickReplies
+            v-model:open="managingReplies"
+            :replies="inbox.quickReplies.value"
+            :save="inbox.saveReply"
+            :remove="inbox.removeReply"
+        />
 
         <aside
             v-if="inbox.active.value && $slots.aside"
