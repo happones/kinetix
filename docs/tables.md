@@ -470,7 +470,15 @@ MultiSelectFilter::make('status')->options(PostStatus::class);
 // Remote search multi-select filter
 MultiSelectFilter::make('user_ids')
     ->searchUsing(User::class, 'name', ['name', 'email']);
+
+// A "Select all" checkbox over the options
+MultiSelectFilter::make('status')->options(PostStatus::class)->bulkToggleable();
 ```
+
+`->bulkToggleable()` adds a **Select all** checkbox above the options, with a
+count (`2/5`), as on the form's `CheckboxList`: it checks every option in view
+or clears them, shows a dash when only some are checked, and with a search acts
+on the options the search left, keeping the rest of the selection.
 
 ### 4. `TernaryFilter`
 A tri-state dropdown (All / true / false) for boolean columns.

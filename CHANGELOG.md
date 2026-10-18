@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.246.0] - 2026-10-17
+
+### Added
+
+- `MultiSelectFilter::make()->bulkToggleable()`: the same **Select all**
+  checkbox (with its `2/5` count and in-between dash) as the form's
+  `CheckboxList`, above a table filter's options — over the options a search
+  left, when searchable.
+
+### Fixed
+
+- **(published)** A table's Filters panel had no height limit: with many
+  filters it opened above its button with the top ones off-screen and out of
+  reach. It — and the Columns panel — now fits the space available and
+  scrolls inside, 8px clear of the screen's edge.
+
 ## [0.245.0] - 2026-10-17
 
 ### Added

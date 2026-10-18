@@ -1152,6 +1152,8 @@ export interface KinetixTableFilter {
     timezone?: string | null;
     isSearchable?: boolean;
     searchToken?: string | null;
+    /** MultiSelectFilter: a "Select all" checkbox above the options. */
+    isBulkToggleable?: boolean;
     weekStartsOn?: number | null;
     /** FormFilter: serialized form fields rendered inside the filter. */
     schema?: unknown[];

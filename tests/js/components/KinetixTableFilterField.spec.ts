@@ -47,6 +47,20 @@ const mountField = (f: any, value: unknown = null) =>
         },
     });
 
+describe('the multi-select filter', () => {
+    it('hands the checkbox list its Select all when the filter offers it', () => {
+        const list = (extra: Record<string, unknown>) =>
+            mountField(
+                filter({ type: 'multi-select', options: { a: 'A' }, ...extra }),
+            ).findComponent({ name: 'KinetixCheckboxList' });
+
+        expect(list({ isBulkToggleable: true }).props('bulkToggleable')).toBe(
+            true,
+        );
+        expect(list({}).props('bulkToggleable')).toBeFalsy();
+    });
+});
+
 describe('KinetixTableFilterField dispatcher', () => {
     it('resolves the select field for select and ternary types', () => {
         expect(

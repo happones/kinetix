@@ -116,6 +116,20 @@ class FiltersTest extends TestCase
 
         $this->assertSame('multi-select', $data->type);
         $this->assertSame(['draft' => 'Draft', 'published' => 'Published'], $data->options);
+        $this->assertFalse($data->isBulkToggleable);
+    }
+
+    public function test_multi_select_can_offer_select_all(): void
+    {
+        $data = MultiSelectFilter::make('status')
+            ->options(['draft' => 'Draft', 'published' => 'Published'])
+            ->searchable()
+            ->bulkToggleable()
+            ->toData();
+
+        $this->assertTrue($data->isBulkToggleable);
+        $this->assertTrue($data->isSearchable);
+        $this->assertSame(['draft' => 'Draft', 'published' => 'Published'], $data->options);
     }
 
     public function test_single_date_filter_matches_exact_day_by_default(): void

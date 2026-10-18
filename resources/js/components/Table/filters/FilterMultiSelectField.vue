@@ -18,6 +18,7 @@ const emit = defineEmits<{
         :options="filter.options"
         :searchable="filter.isSearchable"
         :search-token="filter.searchToken"
+        :bulk-toggleable="filter.isBulkToggleable"
         @update:value="emit('update', $event)"
     />
 </template>
