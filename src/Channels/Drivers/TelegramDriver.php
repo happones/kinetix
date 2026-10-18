@@ -105,6 +105,11 @@ class TelegramDriver implements ChannelDriver, DownloadsMedia, SendsMessages
                 'chat_id'          => $message->to,
                 'text'             => (string) $message->text,
                 'reply_parameters' => $replyTo,
+                // Options as buttons, one per row; a tap comes back as the option's label.
+                'reply_markup' => $message->options !== [] ? ['inline_keyboard' => array_map(
+                    static fn (string $option): array => [['text' => $option, 'callback_data' => mb_substr($option, 0, 60)]],
+                    $message->options,
+                )] : null,
             ], static fn ($value): bool => $value !== null));
         } else {
             // A multipart upload carries object fields as JSON strings.
@@ -155,6 +160,18 @@ class TelegramDriver implements ChannelDriver, DownloadsMedia, SendsMessages
     public function parseWebhook(Channel $channel, Request $request): WebhookResult
     {
         $message = $request->input('message') ?? $request->input('business_message');
+
+        // A tap on a button: the option, as if typed.
+        if (! is_array($message) && is_array($callback = $request->input('callback_query'))) {
+            rescue(fn () => $this->call($this->token($channel), 'answerCallbackQuery', ['callback_query_id' => $callback['id'] ?? '']), report: false);
+
+            $message = [
+                'message_id' => 'cb-'.($callback['id'] ?? ''),
+                'chat'       => (array) data_get($callback, 'message.chat', []),
+                'from'       => (array) ($callback['from'] ?? []),
+                'text'       => (string) ($callback['data'] ?? ''),
+            ];
+        }
 
         if (! is_array($message)) {
             return WebhookResult::none();

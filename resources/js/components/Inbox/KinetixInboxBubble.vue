@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     AlertCircle,
+    Bot,
     Check,
     CheckCheck,
     Clock,
@@ -124,6 +125,14 @@ const statusLabel = computed(() =>
                         class="font-normal opacity-80"
                         >· {{ message.authorName }}</span
                     >
+                </p>
+
+                <p
+                    v-if="message.bot && message.direction === 'out'"
+                    class="gap-1 font-medium mb-0.5 flex items-center text-[11px] opacity-80"
+                >
+                    <Bot class="size-3" />
+                    {{ message.authorName ?? t('kinetix.flow_bot') }}
                 </p>
 
                 <!-- The message it answers -->

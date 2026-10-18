@@ -174,6 +174,7 @@ export default withMermaid(
           { text: "Webhooks", link: "/webhooks" },
           { text: "Channels (WhatsApp & Telegram)", link: "/channels" },
           { text: "Inbox", link: "/inbox" },
+          { text: "Bot flows", link: "/flows" },
           { text: "Integration Logs", link: "/integration-logs" },
           { text: "PDF Templates", link: "/pdf-templates" },
           { text: "Queue Health", link: "/queue" },

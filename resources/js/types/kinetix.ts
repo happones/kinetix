@@ -596,6 +596,8 @@ export interface KinetixConversationMessage {
     } | null;
     authorName: string | null;
     sentAt: string | null;
+    /** Sent by a bot (a flow), not a person. */
+    bot?: boolean;
     /** Client-only: a message still on its way from this browser. */
     localId?: string;
 }
@@ -631,6 +633,88 @@ export type KinetixInboxFilter =
     | 'mine'
     | 'unassigned'
     | 'archived';
+
+/** A node of a bot flow, as the editor saves it. */
+export interface KinetixFlowNode {
+    id: string;
+    /** start, message, question, options, condition, set, http, delay, hours, handoff, end */
+    type: string;
+    position: { x: number; y: number };
+    data: Record<string, unknown>;
+}
+
+/** A wire from a node's output (`sourceHandle`: next, yes, an option id…) to the next node. */
+export interface KinetixFlowEdge {
+    id: string;
+    source: string;
+    sourceHandle: string;
+    target: string;
+}
+
+export interface KinetixFlowGraph {
+    nodes: KinetixFlowNode[];
+    edges: KinetixFlowEdge[];
+}
+
+/** A bot flow as the list shows it. */
+export interface KinetixFlow {
+    id: number | string;
+    name: string;
+    status: 'draft' | 'active' | 'inactive';
+    trigger: {
+        type: 'keyword' | 'first_message' | 'any_message' | 'manual';
+        keywords?: string[];
+        match?: 'contains' | 'exact' | 'regex';
+    };
+    /** The lines it runs on; null for every line. */
+    channelIds: (number | string)[] | null;
+    priority: number;
+    /** The published version's number; null until first published. */
+    version: number | null;
+    /** The draft differs from what's published. */
+    unpublished: boolean;
+    runs: number;
+    activeRuns: number;
+    updatedAt: string | null;
+}
+
+/** A flow opened in the editor: its draft graph and what blocks publishing. */
+export interface KinetixFlowDetail extends KinetixFlow {
+    graph: KinetixFlowGraph;
+    problems: { node: string | null; message: string }[];
+    versions: {
+        id: number | string;
+        number: number;
+        createdAt: string | null;
+    }[];
+    nodeTypes: string[];
+    lines: { id: number | string; name: string; provider: string }[];
+    /** Whom a handoff can assign to. */
+    members: { id: number | string; name: string | null }[];
+}
+
+/** One turn of the editor's test chat. */
+export interface KinetixFlowSimulation {
+    entries: {
+        kind: 'bot' | 'note' | 'system';
+        text: string;
+        options: string[];
+    }[];
+    state: Record<string, unknown>;
+    node: string | null;
+    status: string;
+    path: string[];
+}
+
+/** How a published version did, per node. */
+export interface KinetixFlowStats {
+    version: { id: number | string; number: number } | null;
+    nodes: Record<
+        string,
+        { entered: number; waiting: number; stopped: number; completed: number }
+    >;
+    runs: number;
+}
 
 /** A customer webhook endpoint (the secret is never included). */
 export interface KinetixWebhookEndpoint {

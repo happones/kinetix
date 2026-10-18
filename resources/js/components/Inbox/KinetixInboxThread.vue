@@ -3,7 +3,9 @@ import {
     Archive,
     ArchiveRestore,
     ArrowLeft,
+    Bot,
     Check,
+    CircleStop,
     UserRound,
 } from '@lucide/vue';
 import {
@@ -17,7 +19,10 @@ import {
 } from 'reka-ui';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixInboxDraft } from '@/composables/useKinetixInbox';
+import type {
+    KinetixInboxBots,
+    KinetixInboxDraft,
+} from '@/composables/useKinetixInbox';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixConversation,
@@ -46,6 +51,12 @@ const props = defineProps<{
     fetchAssignees: () => Promise<
         { id: number | string; name: string | null }[]
     >;
+    /** Bots in this conversation (absent when flows are off). */
+    fetchBots?: (() => Promise<KinetixInboxBots | null>) | null;
+    startBot?:
+        | ((flowId: number | string) => Promise<KinetixInboxBots['run']>)
+        | null;
+    stopBot?: (() => Promise<void>) | null;
 }>();
 
 const emit = defineEmits<{
@@ -63,6 +74,52 @@ const replyTo = ref<KinetixConversationMessage | null>(null);
 const assignees = ref<{ id: number | string; name: string | null }[] | null>(
     null,
 );
+const bots = ref<KinetixInboxBots | null>(null);
+const botBusy = ref(false);
+
+async function loadBots(): Promise<void> {
+    bots.value = props.fetchBots
+        ? await props.fetchBots().catch(() => null)
+        : null;
+}
+
+async function launchBot(flowId: number | string): Promise<void> {
+    if (!props.startBot || !bots.value) {
+        return;
+    }
+
+    botBusy.value = true;
+
+    try {
+        bots.value = { ...bots.value, run: await props.startBot(flowId) };
+    } finally {
+        botBusy.value = false;
+    }
+}
+
+async function haltBot(): Promise<void> {
+    if (!props.stopBot || !bots.value) {
+        return;
+    }
+
+    botBusy.value = true;
+
+    try {
+        await props.stopBot();
+        bots.value = { ...bots.value, run: null };
+    } finally {
+        botBusy.value = false;
+    }
+}
+
+/** Sending pauses a bot on the server: check again shortly after. */
+function send(draft: KinetixInboxDraft): void {
+    emit('send', draft);
+
+    if (bots.value?.run && !draft.note) {
+        setTimeout(() => void loadBots(), 800);
+    }
+}
 
 const title = computed(
     () => props.conversation.contactName ?? props.conversation.contactKey,
@@ -186,8 +243,10 @@ watch(
     () => {
         replyTo.value = null;
         assignees.value = null;
+        void loadBots();
         nextTick(toBottom);
     },
+    { immediate: true },
 );
 
 let observer: IntersectionObserver | null = null;
@@ -327,6 +386,51 @@ const itemClass =
                 </DropdownMenuPortal>
             </DropdownMenuRoot>
 
+            <DropdownMenuRoot v-if="bots">
+                <DropdownMenuTrigger
+                    :class="
+                        buttonVariants({
+                            variant: bots.run ? 'secondary' : 'ghost',
+                            size: 'icon-sm',
+                        })
+                    "
+                    :aria-label="t('kinetix.inbox_bots')"
+                    data-test="inbox-bots"
+                >
+                    <Bot class="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                    <DropdownMenuContent
+                        align="end"
+                        :side-offset="4"
+                        :collision-padding="8"
+                        class="rounded-lg p-1 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-[var(--kinetix-z-popover,120)] min-w-[14rem] border border-border bg-popover text-popover-foreground"
+                    >
+                        <DropdownMenuLabel
+                            class="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                        >
+                            {{ t('kinetix.inbox_start_bot') }}
+                        </DropdownMenuLabel>
+                        <p
+                            v-if="bots.flows.length === 0"
+                            class="px-2 py-1.5 text-sm text-muted-foreground"
+                        >
+                            {{ t('kinetix.inbox_no_bots') }}
+                        </p>
+                        <DropdownMenuItem
+                            v-for="flow in bots.flows"
+                            :key="flow.id"
+                            :class="itemClass"
+                            :disabled="botBusy"
+                            :data-test="`inbox-start-bot-${flow.id}`"
+                            @select="launchBot(flow.id)"
+                        >
+                            {{ flow.name }}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenuPortal>
+            </DropdownMenuRoot>
+
             <button
                 type="button"
                 :class="buttonVariants({ variant: 'ghost', size: 'icon-sm' })"
@@ -347,6 +451,33 @@ const itemClass =
                 <Archive v-else class="size-4" />
             </button>
         </header>
+
+        <!-- A bot is answering: say so, with a way to take over. -->
+        <div
+            v-if="bots?.run"
+            class="gap-2 px-3 py-2 text-xs flex items-center border-b border-border bg-primary/5 text-foreground"
+            role="status"
+            data-test="inbox-bot-running"
+        >
+            <Bot class="size-4 shrink-0 text-primary" />
+            <span class="min-w-0 flex-1">
+                {{ t('kinetix.inbox_bot_active', { name: bots.run.flow }) }}
+                <span class="text-muted-foreground"
+                    >· {{ t(`kinetix.inbox_bot_${bots.run.status}`) }}</span
+                >
+            </span>
+            <button
+                type="button"
+                :class="buttonVariants({ variant: 'outline', size: 'sm' })"
+                class="h-7"
+                :disabled="botBusy"
+                data-test="inbox-stop-bot"
+                @click="haltBot"
+            >
+                <CircleStop class="size-3.5" />
+                {{ t('kinetix.inbox_stop_bot') }}
+            </button>
+        </div>
 
         <div
             ref="scroller"
@@ -399,7 +530,7 @@ const itemClass =
             :reply-to="replyTo"
             :max-upload-kb="composer.maxUploadKb"
             :accept="composer.accept"
-            @send="emit('send', $event)"
+            @send="send"
             @cancel-reply="replyTo = null"
         />
     </section>

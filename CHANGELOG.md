@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.250.0] - 2026-10-18
+
+### Added
+
+- **Flows**: bots built in a visual editor, answering the lines of Channels in
+  the Inbox. Turn on `kinetix.flows`, publish `kinetix-flows-migrations`,
+  register Vue Flow in your app entry (`registerKinetixFlowEditor()`, optional
+  and code-split) and mount `<KinetixFlowList>` and `<KinetixFlowEditor>`
+  behind the new `flows.manage` ability.
+  - **Triggers**: a keyword (contains, exact or regex), a contact's first
+    message, any message, or manual from the inbox, per line and with a
+    priority. One bot per conversation; conversations a person is assigned to
+    stay with them.
+  - **Steps**: message, question (validated text, number, email or phone),
+    options, condition, set variable, API request (SSRF-guarded), wait,
+    business hours, hand to the team, end — with `{{variables}}`.
+    - Options show as buttons on Telegram and as a numbered menu on WhatsApp.
+  - **(published)** `<KinetixFlowEditor>`:
+    - drag or click steps onto the canvas and wire their outputs;
+    - set each step up, with variables inserted at the cursor;
+    - the draft saves as you go, and problems are pointed out per step;
+    - **Publish** freezes a version (running conversations finish on theirs);
+    - **Test** runs the unsaved draft in a chat that sends nothing, highlighting the step it's on;
+    - **Stats** shows per step how many conversations reached it, are waiting there or stopped there.
+  - **(published)** `<KinetixFlowList>`: flows with trigger, lines, status, live version, unpublished changes and conversations handled; create, edit, turn on/off, duplicate and delete.
+  - **(published)** In the inbox:
+    - the thread shows the bot answering, with **Stop**, plus a menu to start a flow by hand;
+    - a person replying pauses the bot;
+    - bot messages are signed with the flow's name.
+  - `FlowRunFinished` (with the collected variables), `KinetixFlows::start()`, and `KinetixFlows::node()` to add a kind of step (`FlowNode`).
+  - `kinetix:flows:resume` resumes waits the queue missed.
+- **Channels**: `OutgoingMessage::$options` — Telegram sends inline buttons and reads taps (`callback_query`), and WhatsApp sends a numbered menu.
+
 ## [0.249.0] - 2026-10-18
 
 ### Added

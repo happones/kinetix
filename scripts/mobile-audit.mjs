@@ -142,7 +142,11 @@ function measure() {
     const range = document.createRange();
     range.selectNodeContents(node);
     const text = range.getBoundingClientRect();
-    const over = Math.round(Math.max(text.right - box.right, text.right - vw));
+    // Past the screen only matters when nothing clips it (a panned canvas
+    // or a scroller hides what's beyond its edge; the page doesn't move).
+    const over = Math.round(
+      clipped(parent) ? text.right - box.right : Math.max(text.right - box.right, text.right - vw),
+    );
 
     if (text.width >= 1 && over > 1) {
       textCulprits.push(`text "${node.textContent.trim().slice(0, 24)}" in ${label(parent)} +${over}px`);

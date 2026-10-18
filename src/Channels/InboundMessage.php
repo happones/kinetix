@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Channels;
 
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 
 /**
  * A message that reached a line, the same shape for every provider: who sent
@@ -26,7 +26,7 @@ final class InboundMessage
         public readonly string $type,
         public readonly ?string $externalId,
         public readonly bool $isGroup,
-        public readonly Carbon $receivedAt,
+        public readonly CarbonInterface $receivedAt,
         public readonly array $raw = [],
         public readonly ?string $replyTo = null,
         public readonly ?string $mediaRef = null,

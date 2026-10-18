@@ -1,0 +1,249 @@
+<script setup lang="ts">
+import { Hand, MessageCircle, MessagesSquare, Search } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { inputClass } from '@/composables/useKinetixShadcnVariants';
+import type { KinetixFlow } from '@/types/kinetix';
+import KinetixChannelProviderIcon from '../Channels/KinetixChannelProviderIcon.vue';
+import KinetixCheckbox from '../KinetixCheckbox.vue';
+import KinetixLabel from '../KinetixLabel.vue';
+
+/**
+ * What starts a flow and where it runs: a keyword, a contact's first
+ * message, any message, or only by hand from the inbox; on every line or
+ * some; and which flow wins when several match (priority).
+ */
+const props = defineProps<{
+    trigger: KinetixFlow['trigger'];
+    channelIds: (number | string)[] | null;
+    priority: number;
+    lines: { id: number | string; name: string; provider: string }[];
+}>();
+
+const emit = defineEmits<{
+    (e: 'update:trigger', value: KinetixFlow['trigger']): void;
+    (e: 'update:channelIds', value: (number | string)[] | null): void;
+    (e: 'update:priority', value: number): void;
+}>();
+
+const { t } = useI18n();
+
+const TYPES = [
+    { key: 'keyword', icon: Search },
+    { key: 'first_message', icon: MessageCircle },
+    { key: 'any_message', icon: MessagesSquare },
+    { key: 'manual', icon: Hand },
+] as const;
+
+const keywordText = ref((props.trigger.keywords ?? []).join(', '));
+
+watch(
+    () => props.trigger.keywords,
+    (keywords) => {
+        const current = keywordText.value
+            .split(',')
+            .map((k) => k.trim())
+            .filter(Boolean);
+
+        if (JSON.stringify(current) !== JSON.stringify(keywords ?? [])) {
+            keywordText.value = (keywords ?? []).join(', ');
+        }
+    },
+);
+
+const allLines = computed(
+    () => props.channelIds === null || props.channelIds.length === 0,
+);
+
+function setType(type: KinetixFlow['trigger']['type']): void {
+    emit('update:trigger', { ...props.trigger, type });
+}
+
+function setKeywords(value: string): void {
+    keywordText.value = value;
+    emit('update:trigger', {
+        ...props.trigger,
+        keywords: value
+            .split(',')
+            .map((keyword) => keyword.trim())
+            .filter(Boolean),
+    });
+}
+
+function toggleLine(id: number | string, on: boolean): void {
+    const current = new Set((props.channelIds ?? []).map(String));
+
+    if (on) {
+        current.add(String(id));
+    } else {
+        current.delete(String(id));
+    }
+
+    const next = props.lines
+        .filter((line) => current.has(String(line.id)))
+        .map((line) => line.id);
+
+    emit('update:channelIds', next.length ? next : null);
+}
+</script>
+
+<template>
+    <div class="space-y-5" data-test="flow-settings">
+        <div>
+            <h3 class="text-sm font-semibold text-foreground">
+                {{ t('kinetix.flow_settings') }}
+            </h3>
+            <p class="text-xs text-muted-foreground">
+                {{ t('kinetix.flow_settings_help') }}
+            </p>
+        </div>
+
+        <fieldset class="space-y-2">
+            <legend class="text-sm font-medium mb-2 text-foreground">
+                {{ t('kinetix.flow_trigger') }}
+            </legend>
+            <label
+                v-for="type in TYPES"
+                :key="type.key"
+                class="gap-3 rounded-lg p-2.5 flex cursor-pointer items-start border transition-colors has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50"
+                :class="
+                    trigger.type === type.key
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-accent/50'
+                "
+                :data-test="`flow-trigger-${type.key}`"
+            >
+                <input
+                    type="radio"
+                    name="flow-trigger"
+                    class="sr-only"
+                    :value="type.key"
+                    :checked="trigger.type === type.key"
+                    @change="setType(type.key)"
+                />
+                <component
+                    :is="type.icon"
+                    class="size-4 mt-0.5 shrink-0 text-muted-foreground"
+                />
+                <span class="min-w-0">
+                    <span class="text-sm font-medium block text-foreground">{{
+                        t(`kinetix.flow_trigger_${type.key}`)
+                    }}</span>
+                    <span class="text-xs block text-muted-foreground">{{
+                        t(`kinetix.flow_trigger_${type.key}_help`)
+                    }}</span>
+                </span>
+            </label>
+        </fieldset>
+
+        <template v-if="trigger.type === 'keyword'">
+            <div class="space-y-2">
+                <KinetixLabel for="flow-keywords">{{
+                    t('kinetix.flow_keywords')
+                }}</KinetixLabel>
+                <input
+                    id="flow-keywords"
+                    :value="keywordText"
+                    :class="inputClass"
+                    :placeholder="t('kinetix.flow_keywords_placeholder')"
+                    aria-describedby="flow-keywords-help"
+                    data-test="flow-keywords"
+                    @input="
+                        setKeywords(($event.target as HTMLInputElement).value)
+                    "
+                />
+                <p
+                    id="flow-keywords-help"
+                    class="text-xs text-muted-foreground"
+                >
+                    {{ t('kinetix.flow_keywords_help') }}
+                </p>
+            </div>
+            <div class="space-y-2">
+                <KinetixLabel for="flow-match">{{
+                    t('kinetix.flow_keyword_match')
+                }}</KinetixLabel>
+                <select
+                    id="flow-match"
+                    :value="trigger.match ?? 'contains'"
+                    :class="inputClass"
+                    @change="
+                        emit('update:trigger', {
+                            ...trigger,
+                            match: ($event.target as HTMLSelectElement)
+                                .value as 'contains' | 'exact' | 'regex',
+                        })
+                    "
+                >
+                    <option
+                        v-for="match in ['contains', 'exact', 'regex']"
+                        :key="match"
+                        :value="match"
+                    >
+                        {{ t(`kinetix.flow_keyword_${match}`) }}
+                    </option>
+                </select>
+            </div>
+        </template>
+
+        <fieldset v-if="lines.length" class="space-y-2">
+            <legend class="text-sm font-medium mb-2 text-foreground">
+                {{ t('kinetix.flow_lines') }}
+            </legend>
+            <label class="gap-2 text-sm flex items-center text-foreground">
+                <KinetixCheckbox
+                    :checked="allLines"
+                    @change="
+                        emit('update:channelIds', $event ? null : [lines[0].id])
+                    "
+                />
+                {{ t('kinetix.flow_lines_all') }}
+            </label>
+            <template v-if="!allLines">
+                <label
+                    v-for="line in lines"
+                    :key="line.id"
+                    class="gap-2 pl-6 text-sm flex items-center text-foreground"
+                >
+                    <KinetixCheckbox
+                        :checked="
+                            (channelIds ?? [])
+                                .map(String)
+                                .includes(String(line.id))
+                        "
+                        @change="toggleLine(line.id, $event)"
+                    />
+                    <KinetixChannelProviderIcon
+                        :provider="line.provider"
+                        size="sm"
+                    />
+                    {{ line.name }}
+                </label>
+            </template>
+        </fieldset>
+
+        <div class="space-y-2">
+            <KinetixLabel for="flow-priority">{{
+                t('kinetix.flow_priority')
+            }}</KinetixLabel>
+            <input
+                id="flow-priority"
+                :value="priority"
+                type="number"
+                min="0"
+                max="1000"
+                :class="[inputClass, 'w-28']"
+                aria-describedby="flow-priority-help"
+                @input="
+                    emit(
+                        'update:priority',
+                        Number(($event.target as HTMLInputElement).value) || 0,
+                    )
+                "
+            />
+            <p id="flow-priority-help" class="text-xs text-muted-foreground">
+                {{ t('kinetix.flow_priority_help') }}
+            </p>
+        </div>
+    </div>
+</template>

@@ -138,7 +138,8 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, ReportsHandle, Se
         $instance = $this->instance($channel);
 
         if (! $message->hasMedia()) {
-            return $this->call(fn (): ?string => $this->gateway->sendText($instance, $message->to, (string) $message->text, $message->replyTo));
+            // Buttons aren't reliable on WhatsApp outside its official API: options go as a numbered menu.
+            return $this->call(fn (): ?string => $this->gateway->sendText($instance, $message->to, $message->textWithOptions(), $message->replyTo));
         }
 
         return $this->call(fn (): ?string => $this->gateway->sendMedia(

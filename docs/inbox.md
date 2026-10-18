@@ -237,6 +237,17 @@ The Channels events (`ChannelMessageReceived`, …) keep firing as before.
 
 ---
 
+## 7. Bots
+
+With [Flows](flows.md) on:
+
+- bots answer conversations, and their messages show in the thread signed with the flow's name;
+- the thread shows which bot is answering, with **Stop**;
+- its bot menu starts any active flow of the line by hand;
+- when someone on the team replies, the bot steps back.
+
+---
+
 ## Notes
 
 - A message that arrives twice is recorded once: the provider's id is unique

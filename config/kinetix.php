@@ -854,6 +854,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Flows (bots in the inbox)
+    |--------------------------------------------------------------------------
+    |
+    | Bots built in the visual editor (<KinetixFlowEditor>, gated by
+    | `flows.manage`): a contact's message starts the flow whose trigger
+    | matches — a keyword, a first message, any message — or someone starts it
+    | from the inbox. Edits are drafts until published; a running conversation
+    | finishes on the version it started. Needs Channels and the Inbox; publish
+    | the tables with `kinetix-flows-migrations` and schedule
+    | `kinetix:flows:resume` every minute (delays).
+    |
+    */
+    'flows' => [
+        'enabled' => env('KINETIX_FLOWS_ENABLED', false),
+
+        // The bot steps back when someone on the team answers, and doesn't
+        // start in a conversation a person is assigned to.
+        'pause_on_reply' => true,
+        'skip_assigned'  => true,
+
+        // Nodes a run may go through at once (a loop guard).
+        'max_steps' => 50,
+
+        // HTTP nodes: timeout (seconds), and whether the simulator makes the
+        // calls for real (URLs are SSRF-checked either way).
+        'http_timeout'  => 10,
+        'simulate_http' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | API Request Logs (optional)
     |--------------------------------------------------------------------------
     |

@@ -121,6 +121,13 @@ function retry(message: KinetixConversationMessage): void {
             :composer="inbox.composer.value"
             :media-url="inbox.mediaUrl"
             :fetch-assignees="() => inbox.assignees(inbox.active.value!)"
+            :fetch-bots="
+                inbox.flowsEnabled.value
+                    ? () => inbox.bots(inbox.active.value!)
+                    : null
+            "
+            :start-bot="(flowId) => inbox.startBot(inbox.active.value!, flowId)"
+            :stop-bot="() => inbox.stopBot(inbox.active.value!)"
             @back="back"
             @load-older="inbox.loadOlder()"
             @send="send"

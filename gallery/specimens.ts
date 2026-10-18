@@ -14,6 +14,8 @@ import KinetixGdprPanel from '@/components/KinetixGdprPanel.vue';
 import KinetixTokenManager from '@/components/KinetixTokenManager.vue';
 import KinetixWebhookManager from '@/components/KinetixWebhookManager.vue';
 import KinetixChannelManager from '@/components/KinetixChannelManager.vue';
+import KinetixFlowEditor from '@/components/KinetixFlowEditor.vue';
+import KinetixFlowList from '@/components/KinetixFlowList.vue';
 import KinetixInbox from '@/components/KinetixInbox.vue';
 import KinetixChannelLinker from '@/components/Channels/KinetixChannelLinker.vue';
 import KinetixConnectedAccounts from '@/components/KinetixConnectedAccounts.vue';
@@ -3124,6 +3126,19 @@ export const specimens: Specimen[] = [
         component: KinetixInbox,
         width: 1180,
         props: { conversation: 1, style: 'height: 640px' },
+    },
+    {
+        name: 'flow-list',
+        title: "Flows — the team's bots",
+        component: KinetixFlowList,
+        width: 880,
+    },
+    {
+        name: 'flow-editor',
+        title: 'Flows — the visual bot editor',
+        component: KinetixFlowEditor,
+        width: 1280,
+        props: { flowId: 1, backable: true, style: 'height: 720px' },
     },
     {
         name: 'channel-linker',

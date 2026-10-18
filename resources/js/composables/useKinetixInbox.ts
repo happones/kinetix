@@ -21,6 +21,13 @@ interface IndexResponse {
     me: { id: number | string; seesAll: boolean };
     poll: { list: number; thread: number };
     composer: { maxUploadKb: number; accept: string };
+    flows?: boolean;
+}
+
+/** The bot running in a conversation, and the ones that can be started there. */
+export interface KinetixInboxBots {
+    flows: { id: number | string; name: string }[];
+    run: { id: number | string; flow: string; status: string } | null;
 }
 
 export interface KinetixInboxDraft {
@@ -49,6 +56,8 @@ export function useKinetixInbox() {
         accept: '',
     });
     const hasMore = ref(false);
+    /** Whether bots can be started and stopped from the thread. */
+    const flowsEnabled = ref(false);
     const loading = ref(false);
     const loaded = ref(false);
     const pageNumber = ref(1);
@@ -143,6 +152,7 @@ export function useKinetixInbox() {
             channels.value = data.channels;
             me.value = data.me;
             composer.value = data.composer;
+            flowsEnabled.value = data.flows ?? false;
             poll = data.poll;
             subscribe();
         } catch (error) {
@@ -445,6 +455,33 @@ export function useKinetixInbox() {
     const unarchive = (conversation: KinetixConversation): Promise<void> =>
         conversationAction(conversation, 'unarchive');
 
+    async function bots(
+        conversation: KinetixConversation,
+    ): Promise<KinetixInboxBots | null> {
+        return kinetixFetch<KinetixInboxBots>(
+            `${base()}/${conversation.id}/flows`,
+        );
+    }
+
+    async function startBot(
+        conversation: KinetixConversation,
+        flowId: number | string,
+    ): Promise<KinetixInboxBots['run']> {
+        const data = await kinetixFetch<{ run: KinetixInboxBots['run'] }>(
+            `${base()}/${conversation.id}/flows/${flowId}`,
+            { method: 'POST' },
+        );
+        await catchUp();
+
+        return data?.run ?? null;
+    }
+
+    async function stopBot(conversation: KinetixConversation): Promise<void> {
+        await kinetixFetch(`${base()}/${conversation.id}/flows/stop`, {
+            method: 'POST',
+        });
+    }
+
     /** Where a message's file is served. */
     const mediaUrl = (
         message: KinetixConversationMessage,
@@ -537,6 +574,7 @@ export function useKinetixInbox() {
         channels,
         me,
         composer,
+        flowsEnabled,
         hasMore,
         loading,
         loaded,
@@ -561,6 +599,9 @@ export function useKinetixInbox() {
         archive,
         unarchive,
         mediaUrl,
+        bots,
+        startBot,
+        stopBot,
     };
 }
 

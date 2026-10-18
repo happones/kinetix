@@ -35,6 +35,7 @@ use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
 use Happones\Kinetix\Commands\DocsCheckCommand;
 use Happones\Kinetix\Commands\DoctorCommand;
 use Happones\Kinetix\Commands\FixKeyColumnsCommand;
+use Happones\Kinetix\Commands\FlowsResumeCommand;
 use Happones\Kinetix\Commands\HelpScreenshotsCommand;
 use Happones\Kinetix\Commands\HelpStatusCommand;
 use Happones\Kinetix\Commands\InstallCommand;
@@ -89,6 +90,10 @@ use Happones\Kinetix\Features\FeatureManager;
 use Happones\Kinetix\Features\Middleware\EnsureFeature;
 use Happones\Kinetix\Flash\FlashController;
 use Happones\Kinetix\Flash\KinetixFlash;
+use Happones\Kinetix\Flows\FlowController;
+use Happones\Kinetix\Flows\FlowEngine;
+use Happones\Kinetix\Flows\FlowInboxController;
+use Happones\Kinetix\Flows\NodeRegistry;
 use Happones\Kinetix\Forms\FormRecomputeController;
 use Happones\Kinetix\Forms\SearchController;
 use Happones\Kinetix\Forms\TableRepeaterController;
@@ -107,6 +112,8 @@ use Happones\Kinetix\Impersonation\ImpersonationManager;
 use Happones\Kinetix\Impersonation\Middleware\DenyWhileImpersonating;
 use Happones\Kinetix\Imports\ImportController;
 use Happones\Kinetix\Inbox\ChannelAgentController;
+use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
+use Happones\Kinetix\Inbox\Events\ConversationReplied;
 use Happones\Kinetix\Inbox\InboxController;
 use Happones\Kinetix\Inbox\InboxManager;
 use Happones\Kinetix\Inbox\RecordInboxActivity;
@@ -288,6 +295,7 @@ class KinetixServiceProvider extends ServiceProvider
         // WhatsApp lines (bind your own EvolutionGateway to replace it).
         $this->app->singleton(ChannelManager::class);
         $this->app->singleton(InboxManager::class);
+        $this->app->singleton(NodeRegistry::class);
         $this->app->bindIf(EvolutionGateway::class, EvolutionClientGateway::class);
 
         // The developer-token scope registry, seeded from config.
@@ -460,6 +468,7 @@ class KinetixServiceProvider extends ServiceProvider
                 ActivityPruneCommand::class,
                 WebhooksPruneCommand::class,
                 ChannelsSyncCommand::class,
+                FlowsResumeCommand::class,
                 SendReportsCommand::class,
                 PermissionsSyncCommand::class,
                 ApiLogsPruneCommand::class,
@@ -573,6 +582,11 @@ class KinetixServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php' => database_path('migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'),
             ], 'kinetix-inbox-migrations');
+
+            // Publish the optional Flows module's migration (bots).
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000043_create_kinetix_flows_tables.php' => database_path('migrations/2026_01_01_000043_create_kinetix_flows_tables.php'),
+            ], 'kinetix-flows-migrations');
 
             // Publish the optional Onboarding module's migration.
             $this->publishes([
@@ -752,6 +766,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Inbox module (conversations on those lines)
         $this->registerInbox();
+
+        // Register the optional Flows module (bots in those conversations)
+        $this->registerFlows();
 
         // Register the optional API request logs module (middleware + viewer feed)
         $this->registerApiLogs();
@@ -1630,6 +1647,68 @@ class KinetixServiceProvider extends ServiceProvider
                     && app(InboxManager::class)->seesChannel($user, $line);
             });
         }
+    }
+
+    /**
+     * Wire the optional Flows module (on top of the Inbox): the `flows.manage`
+     * ability, bots answering what reaches the lines (and stepping back when
+     * a person answers), the flow editor's endpoints and the inbox's
+     * start/stop.
+     */
+    protected function registerFlows(): void
+    {
+        if (! config('kinetix.flows.enabled', false) || ! config('kinetix.inbox.enabled', false) || ! config('kinetix.channels.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('flows')
+            ->label('kinetix.permission_feature_flows')
+            ->ability('manage', 'kinetix.permission_ability_manage_flows');
+
+        $this->app['events']->listen(ConversationMessageCreated::class, static function (ConversationMessageCreated $event): void {
+            app(FlowEngine::class)->onMessage($event->conversation, $event->message);
+        });
+
+        $this->app['events']->listen(ConversationReplied::class, static function (ConversationReplied $event): void {
+            if (config('kinetix.flows.pause_on_reply', true)) {
+                app(FlowEngine::class)->pause($event->conversation);
+            }
+        });
+
+        $prefix     = config('kinetix.route_prefix', '_kinetix');
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        if (config('kinetix.teams', false)) {
+            $prefix = KinetixTeams::routePrefix($prefix);
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        KinetixTeams::routes($middleware)
+            ->prefix("{$prefix}/flows")
+            ->group(function () {
+                Route::get('/', [FlowController::class, 'index'])->name('kinetix.flows.index');
+                Route::post('/', [FlowController::class, 'store'])->name('kinetix.flows.store');
+                Route::get('{flow}', [FlowController::class, 'show'])->name('kinetix.flows.show');
+                Route::put('{flow}', [FlowController::class, 'update'])->name('kinetix.flows.update');
+                Route::delete('{flow}', [FlowController::class, 'destroy'])->name('kinetix.flows.destroy');
+                Route::post('{flow}/publish', [FlowController::class, 'publish'])->name('kinetix.flows.publish');
+                Route::post('{flow}/activate', [FlowController::class, 'activate'])->name('kinetix.flows.activate');
+                Route::post('{flow}/deactivate', [FlowController::class, 'deactivate'])->name('kinetix.flows.deactivate');
+                Route::post('{flow}/duplicate', [FlowController::class, 'duplicate'])->name('kinetix.flows.duplicate');
+                Route::post('{flow}/simulate', [FlowController::class, 'simulate'])->name('kinetix.flows.simulate');
+                Route::get('{flow}/stats', [FlowController::class, 'stats'])->name('kinetix.flows.stats');
+            });
+
+        KinetixTeams::routes($middleware)
+            ->prefix("{$prefix}/inbox")
+            ->group(function () {
+                Route::get('{conversation}/flows', [FlowInboxController::class, 'index'])->name('kinetix.inbox.flows');
+                Route::post('{conversation}/flows/stop', [FlowInboxController::class, 'stop'])->name('kinetix.inbox.flows.stop');
+                Route::post('{conversation}/flows/{flow}', [FlowInboxController::class, 'start'])->name('kinetix.inbox.flows.start');
+            });
     }
 
     /**

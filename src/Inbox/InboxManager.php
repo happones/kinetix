@@ -11,6 +11,7 @@ use Happones\Kinetix\Channels\InboundMessage;
 use Happones\Kinetix\Channels\OutgoingMessage;
 use Happones\Kinetix\Channels\SendsMessages;
 use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
+use Happones\Kinetix\Inbox\Events\ConversationReplied;
 use Happones\Kinetix\Inbox\Events\InboxUpdated;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\HostKeys;
@@ -357,7 +358,35 @@ class InboxManager
             $this->broadcast($conversation, $message);
         } else {
             $this->deliver($message);
+            // A person answered: whatever bot was talking steps back.
+            ConversationReplied::dispatch($conversation, $message);
         }
+
+        return $message->refresh();
+    }
+
+    /**
+     * Send as a bot (a flow): text, optionally offering options to pick, or
+     * an internal note. Signed with the bot's name; never pauses a bot.
+     *
+     * @param list<string> $options
+     */
+    public function sendAsBot(Conversation $conversation, string $text, string $name, array $options = [], bool $note = false): ConversationMessage
+    {
+        $outgoing = new OutgoingMessage($conversation->contact_key, $text, options: $options);
+
+        $message = $conversation->messages()->create([
+            'direction' => $note ? MessageDirection::Note : MessageDirection::Out,
+            'type'      => 'text',
+            'body'      => $outgoing->textWithOptions(),
+            'status'    => $note ? MessageStatus::Sent : MessageStatus::Pending,
+            'meta'      => ['bot' => true, 'author_name' => $name, 'prompt' => $text, 'options' => $options],
+            'sent_at'   => now(),
+        ]);
+
+        $this->touch($conversation, $message);
+
+        $note ? $this->broadcast($conversation, $message) : $this->deliver($message);
 
         return $message->refresh();
     }
@@ -370,14 +399,17 @@ class InboxManager
 
         try {
             $driver   = $this->channels->for($channel);
+            $options  = array_values(array_filter((array) ($message->meta['options'] ?? []), 'is_string'));
             $outgoing = new OutgoingMessage(
                 to: $conversation->contact_key,
-                text: $message->body,
+                // A menu goes as its prompt plus options (buttons where the line has them).
+                text: $options                      !== [] ? (string) ($message->meta['prompt'] ?? $message->body) : $message->body,
                 mediaContents: $message->media_path !== null ? Storage::disk($this->disk())->get($message->media_path) : null,
                 mediaMime: $message->media_mime,
                 mediaName: $message->media_name,
                 mediaType: $message->type === 'sticker' ? 'image' : $message->type,
                 replyTo: $message->replyTo?->external_id,
+                options: $options,
             );
 
             if ($driver instanceof SendsMessages) {

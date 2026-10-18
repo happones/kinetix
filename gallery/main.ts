@@ -2,6 +2,7 @@ import { createPinia } from 'pinia';
 import { createApp, defineComponent, h } from 'vue';
 import { createI18n } from 'vue-i18n';
 import { Toaster } from 'vue-sonner';
+import { registerKinetixFlowEditor } from '@/composables/useKinetixFlowEngine';
 import { registerKinetixTiptap } from '@/composables/useKinetixRichEditorEngine';
 import enMessages from './messages.en.json';
 import { specimens } from './specimens';
@@ -13,6 +14,23 @@ registerKinetixTiptap(async () => ({
     core: await import('@tiptap/core'),
     starterKit: await import('@tiptap/starter-kit'),
 }));
+
+// Vue Flow too (the flow editor's canvas), with its stylesheets.
+registerKinetixFlowEditor(async () => {
+    await Promise.all([
+        import('@vue-flow/core/dist/style.css'),
+        import('@vue-flow/core/dist/theme-default.css'),
+        import('@vue-flow/controls/dist/style.css'),
+        import('@vue-flow/minimap/dist/style.css'),
+    ]);
+
+    return {
+        core: await import('@vue-flow/core'),
+        background: await import('@vue-flow/background'),
+        controls: await import('@vue-flow/controls'),
+        minimap: await import('@vue-flow/minimap'),
+    };
+});
 
 const params = new URLSearchParams(location.search);
 const name = params.get('s') ?? specimens[0].name;

@@ -254,6 +254,274 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        match: /\/flows$/,
+        data: {
+            flows: [
+                {
+                    id: 1,
+                    name: 'Welcome & menu',
+                    status: 'active',
+                    trigger: { type: 'first_message' },
+                    channelIds: null,
+                    priority: 10,
+                    version: 3,
+                    unpublished: true,
+                    runs: 1284,
+                    activeRuns: 12,
+                    updatedAt: '2026-10-17T10:00:00Z',
+                },
+                {
+                    id: 2,
+                    name: 'Order status',
+                    status: 'active',
+                    trigger: {
+                        type: 'keyword',
+                        keywords: ['order', 'pedido', 'tracking'],
+                        match: 'contains',
+                    },
+                    channelIds: [1],
+                    priority: 5,
+                    version: 1,
+                    unpublished: false,
+                    runs: 342,
+                    activeRuns: 3,
+                    updatedAt: '2026-10-15T10:00:00Z',
+                },
+                {
+                    id: 3,
+                    name: 'Satisfaction survey',
+                    status: 'draft',
+                    trigger: { type: 'manual' },
+                    channelIds: null,
+                    priority: 0,
+                    version: null,
+                    unpublished: true,
+                    runs: 0,
+                    activeRuns: 0,
+                    updatedAt: '2026-10-17T09:00:00Z',
+                },
+            ],
+            lines: [
+                { id: 1, name: 'Sales', provider: 'whatsapp' },
+                { id: 2, name: 'Support bot', provider: 'telegram' },
+            ],
+        },
+    },
+    {
+        match: /\/flows\/\d+\/stats/,
+        data: {
+            version: { id: 3, number: 3 },
+            runs: 1284,
+            nodes: {
+                start: { entered: 1284, waiting: 0, stopped: 0, completed: 0 },
+                hours: { entered: 1284, waiting: 0, stopped: 0, completed: 0 },
+                menu: { entered: 1102, waiting: 9, stopped: 41, completed: 0 },
+                closed: {
+                    entered: 182,
+                    waiting: 0,
+                    stopped: 0,
+                    completed: 182,
+                },
+                prices: {
+                    entered: 512,
+                    waiting: 0,
+                    stopped: 0,
+                    completed: 512,
+                },
+                order: { entered: 377, waiting: 3, stopped: 12, completed: 0 },
+                api: { entered: 362, waiting: 0, stopped: 0, completed: 362 },
+                human: { entered: 172, waiting: 0, stopped: 172, completed: 0 },
+            },
+        },
+    },
+    {
+        match: /\/flows\/\d+\/simulate/,
+        data: {
+            entries: [
+                {
+                    kind: 'bot',
+                    text: 'Hi Test contact! What can we help you with?',
+                    options: ['Prices', 'Track my order', 'Talk to someone'],
+                },
+            ],
+            state: {
+                node: 'menu',
+                variables: { contact: { name: 'Test contact' } },
+                attempts: 0,
+                status: 'waiting_reply',
+            },
+            node: 'menu',
+            status: 'waiting_reply',
+            path: ['start', 'hours', 'menu'],
+        },
+    },
+    {
+        match: /\/flows\/\d+$/,
+        data: {
+            flow: {
+                id: 1,
+                name: 'Welcome & menu',
+                status: 'active',
+                trigger: { type: 'first_message' },
+                channelIds: null,
+                priority: 10,
+                version: 3,
+                unpublished: true,
+                runs: 1284,
+                activeRuns: 12,
+                updatedAt: '2026-10-17T10:00:00Z',
+                graph: {
+                    nodes: [
+                        {
+                            id: 'start',
+                            type: 'start',
+                            position: { x: 0, y: 140 },
+                            data: {},
+                        },
+                        {
+                            id: 'hours',
+                            type: 'hours',
+                            position: { x: 300, y: 120 },
+                            data: {
+                                timezone: 'America/Mexico_City',
+                                schedule: null,
+                            },
+                        },
+                        {
+                            id: 'menu',
+                            type: 'options',
+                            position: { x: 620, y: 0 },
+                            data: {
+                                text: 'Hi {{contact.name}}! What can we help you with?',
+                                variable: 'topic',
+                                options: [
+                                    { id: 'o1', label: 'Prices' },
+                                    { id: 'o2', label: 'Track my order' },
+                                    { id: 'o3', label: 'Talk to someone' },
+                                ],
+                            },
+                        },
+                        {
+                            id: 'closed',
+                            type: 'message',
+                            position: { x: 620, y: 330 },
+                            data: {
+                                text: "We're closed now. We open at 9:00 and will reply first thing.",
+                            },
+                        },
+                        {
+                            id: 'prices',
+                            type: 'message',
+                            position: { x: 960, y: -120 },
+                            data: {
+                                text: 'Here is our price list: https://acme.mx/prices',
+                            },
+                        },
+                        {
+                            id: 'order',
+                            type: 'question',
+                            position: { x: 960, y: 60 },
+                            data: {
+                                text: "What's your order number?",
+                                variable: 'order_id',
+                                validate: 'number',
+                            },
+                        },
+                        {
+                            id: 'api',
+                            type: 'http',
+                            position: { x: 1280, y: 40 },
+                            data: {
+                                method: 'GET',
+                                url: 'https://api.acme.mx/orders/{{order_id}}',
+                                save: [{ variable: 'state', path: 'status' }],
+                            },
+                        },
+                        {
+                            id: 'human',
+                            type: 'handoff',
+                            position: { x: 960, y: 260 },
+                            data: {
+                                assign_to: null,
+                                note: 'Wants to talk to someone about {{topic}}',
+                            },
+                        },
+                    ],
+                    edges: [
+                        {
+                            id: 'e1',
+                            source: 'start',
+                            sourceHandle: 'next',
+                            target: 'hours',
+                        },
+                        {
+                            id: 'e2',
+                            source: 'hours',
+                            sourceHandle: 'open',
+                            target: 'menu',
+                        },
+                        {
+                            id: 'e3',
+                            source: 'hours',
+                            sourceHandle: 'closed',
+                            target: 'closed',
+                        },
+                        {
+                            id: 'e4',
+                            source: 'menu',
+                            sourceHandle: 'o1',
+                            target: 'prices',
+                        },
+                        {
+                            id: 'e5',
+                            source: 'menu',
+                            sourceHandle: 'o2',
+                            target: 'order',
+                        },
+                        {
+                            id: 'e6',
+                            source: 'menu',
+                            sourceHandle: 'o3',
+                            target: 'human',
+                        },
+                        {
+                            id: 'e7',
+                            source: 'order',
+                            sourceHandle: 'next',
+                            target: 'api',
+                        },
+                    ],
+                },
+                problems: [],
+                versions: [
+                    { id: 3, number: 3, createdAt: '2026-10-16T10:00:00Z' },
+                    { id: 2, number: 2, createdAt: '2026-10-10T10:00:00Z' },
+                ],
+                nodeTypes: [
+                    'start',
+                    'message',
+                    'question',
+                    'options',
+                    'condition',
+                    'set',
+                    'http',
+                    'delay',
+                    'hours',
+                    'handoff',
+                    'end',
+                ],
+                lines: [
+                    { id: 1, name: 'Sales', provider: 'whatsapp' },
+                    { id: 2, name: 'Support bot', provider: 'telegram' },
+                ],
+                members: [
+                    { id: 2, name: 'Grace Hopper' },
+                    { id: 3, name: 'Alan Turing' },
+                ],
+            },
+        },
+    },
+    {
         match: /\/inbox\?/,
         data: {
             conversations: [
