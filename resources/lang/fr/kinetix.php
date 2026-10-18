@@ -413,6 +413,9 @@ return [
     // Rôles et permissions
     'save'                                  => 'Enregistrer',
     'select_all'                            => 'Tout sélectionner',
+    'checkbox_list_search'                  => 'Rechercher des options…',
+    'checkbox_list_loading'                 => 'Chargement…',
+    'checkbox_list_empty'                   => 'Aucune option trouvée.',
     'search_permissions'                    => 'Rechercher des permissions…',
     'role_name'                             => 'Nom du rôle',
     'role_members'                          => '{count} membre | {count} membres',

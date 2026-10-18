@@ -413,6 +413,9 @@ return [
     // Papéis e permissões
     'save'                                  => 'Salvar',
     'select_all'                            => 'Selecionar tudo',
+    'checkbox_list_search'                  => 'Buscar opções…',
+    'checkbox_list_loading'                 => 'Carregando…',
+    'checkbox_list_empty'                   => 'Nenhuma opção encontrada.',
     'search_permissions'                    => 'Buscar permissões…',
     'role_name'                             => 'Nome do papel',
     'role_members'                          => '{count} membro | {count} membros',

@@ -208,6 +208,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         props: (c) => ({
             options: c.options,
             inline: c.isInline,
+            bulkToggleable: c.isBulkToggleable,
             disabled: c.isDisabled,
             searchable: c.isSearchable,
             searchToken: c.searchToken,

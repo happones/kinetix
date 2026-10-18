@@ -11,6 +11,8 @@ class CheckboxList extends Select
 {
     protected bool $isInline = false;
 
+    protected bool $isBulkToggleable = false;
+
     protected function getType(): string
     {
         return 'checkbox-list';
@@ -26,6 +28,18 @@ class CheckboxList extends Select
         return $this;
     }
 
+    /**
+     * A "Select all" checkbox above the options: it checks every option in
+     * view (the ones a search left, when searchable), or clears them, and
+     * shows a dash when only some are checked.
+     */
+    public function bulkToggleable(bool $condition = true): static
+    {
+        $this->isBulkToggleable = $condition;
+
+        return $this;
+    }
+
     public function toData(string $operation, ?Model $record = null): ?FormFieldData
     {
         $data = parent::toData($operation, $record);
@@ -33,7 +47,8 @@ class CheckboxList extends Select
             return null;
         }
 
-        $data->isInline = $this->isInline;
+        $data->isInline         = $this->isInline;
+        $data->isBulkToggleable = $this->isBulkToggleable;
 
         return $data;
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type { KinetixSharedProps } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
@@ -13,6 +14,8 @@ const props = withDefaults(
         inline?: boolean;
         searchable?: boolean;
         searchToken?: string | null;
+        /** A "Select all" checkbox over the options in view. */
+        bulkToggleable?: boolean;
     }>(),
     {
         value: () => [],
@@ -21,6 +24,7 @@ const props = withDefaults(
         inline: false,
         searchable: false,
         searchToken: null,
+        bulkToggleable: false,
     },
 );
 
@@ -29,6 +33,7 @@ const emit = defineEmits<{
 }>();
 
 const page = usePage<KinetixSharedProps>();
+const { t } = useI18n();
 
 const searchQuery = ref('');
 const loading = ref(false);
@@ -150,6 +155,26 @@ function isChecked(val: string): boolean {
     return selectedSet.value.has(val);
 }
 
+/**
+ * "Select all" acts on the options in view — all of them, or the ones the
+ * search left — and leaves any other selection as it is.
+ */
+const inView = computed<string[]>(() => Object.keys(filteredItems.value));
+const selectedInView = computed(
+    () => inView.value.filter((val) => selectedSet.value.has(val)).length,
+);
+const allInView = computed(
+    () =>
+        inView.value.length > 0 && selectedInView.value === inView.value.length,
+);
+
+function toggleAll(checked: boolean): void {
+    const visible = new Set(inView.value);
+    const kept = (props.value ?? []).filter((v) => !visible.has(String(v)));
+
+    emit('update:value', checked ? [...kept, ...inView.value] : kept);
+}
+
 function toggleValue(val: string, checked: boolean): void {
     const current = [...(props.value ?? [])];
     const index = current.findIndex((v) => String(v) === val);
@@ -171,7 +196,8 @@ function toggleValue(val: string, checked: boolean): void {
             <input
                 type="text"
                 class="h-8 px-3 py-1 text-xs shadow-xs w-full rounded-md border border-input bg-transparent focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none dark:bg-input/30"
-                placeholder="Search..."
+                :placeholder="t('kinetix.checkbox_list_search')"
+                :aria-label="t('kinetix.checkbox_list_search')"
                 :value="searchQuery"
                 :disabled="disabled"
                 @input="onSearchInput"
@@ -180,9 +206,30 @@ function toggleValue(val: string, checked: boolean): void {
                 v-if="loading"
                 class="right-2.5 animate-pulse absolute top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground"
             >
-                Loading...
+                {{ t('kinetix.checkbox_list_loading') }}
             </span>
         </div>
+
+        <!-- Select all: checked when every option in view is, a dash when
+             some are; a click on the dash selects them all. -->
+        <label
+            v-if="bulkToggleable && inView.length > 0"
+            class="gap-2 text-xs font-medium pb-2 flex items-center border-b border-border text-foreground select-none"
+            :class="
+                disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+            "
+        >
+            <KinetixCheckbox
+                :checked="allInView"
+                :indeterminate="selectedInView > 0"
+                :disabled="disabled"
+                @change="toggleAll"
+            />
+            {{ t('kinetix.select_all') }}
+            <span class="font-normal text-muted-foreground tabular-nums">
+                {{ selectedInView }}/{{ inView.length }}
+            </span>
+        </label>
 
         <!-- Checkbox list items -->
         <div
@@ -215,7 +262,7 @@ function toggleValue(val: string, checked: boolean): void {
                 v-if="itemsToRender.length === 0"
                 class="text-xs text-muted-foreground"
             >
-                No options found.
+                {{ t('kinetix.checkbox_list_empty') }}
             </span>
         </div>
     </div>

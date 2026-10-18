@@ -35,6 +35,8 @@ class FormFieldData extends Data
         public bool $isCopyable = false,
         public bool $isRevealable = false,
         public bool $isInline = false,
+        /** CheckboxList: a "Select all" checkbox above the options. */
+        public bool $isBulkToggleable = false,
         public ?array $options = null,
         // Select searchable (combobox). `searchToken` (when set) points the
         // search box at a remote, server-filtered source.

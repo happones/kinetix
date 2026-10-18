@@ -1497,6 +1497,14 @@ CheckboxList::make('permissions')
 |---|---|
 | `->options(array\|Closure\|string)` | Choices map, closure, or Enum class (inherited from `Select`) |
 | `->inline(bool = true)` | Lay checkboxes out horizontally instead of stacked |
+| `->bulkToggleable(bool = true)` | A **Select all** checkbox above the options, with a count (`2/5`). It checks every option in view, or clears them, and shows a dash when only some are checked. With `->searchable()` it acts on the options the search left, and leaves the rest of the selection as it is |
+
+```php
+CheckboxList::make('channels')
+    ->options(['mail' => 'Mail', 'sms' => 'SMS', 'push' => 'Push'])
+    ->searchable()
+    ->bulkToggleable();
+```
 
 ### 10. `ColorPicker`
 A native color swatch paired with a hex text input. The stored value is the hex string (e.g. `#4f46e5`).

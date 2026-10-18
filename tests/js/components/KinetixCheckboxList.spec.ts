@@ -100,4 +100,59 @@ describe('KinetixCheckboxList', () => {
         expect(w.text()).toContain('Watermelon');
         expect(w.text()).toContain('Grape');
     });
+
+    describe('select all', () => {
+        const master = (w: ReturnType<typeof mountIt>) =>
+            w.findAllComponents(KinetixCheckbox)[0];
+
+        it('is only there when the field asks for it', () => {
+            expect(mountIt().text()).not.toContain('kinetix.select_all');
+            expect(mountIt({ bulkToggleable: true }).text()).toContain(
+                'kinetix.select_all',
+            );
+        });
+
+        it('checks every option, then clears them', async () => {
+            const w = mountIt({ bulkToggleable: true, value: [] });
+
+            await master(w).vm.$emit('change', true);
+            expect(w.emitted('update:value')?.at(-1)?.[0]).toEqual([
+                '1',
+                '2',
+                '3',
+            ]);
+
+            await w.setProps({ value: ['1', '2', '3'] });
+            expect(master(w).props('checked')).toBe(true);
+
+            await master(w).vm.$emit('change', false);
+            expect(w.emitted('update:value')?.at(-1)?.[0]).toEqual([]);
+        });
+
+        it('shows a dash over a partial selection, and its count', () => {
+            const w = mountIt({ bulkToggleable: true, value: ['2'] });
+
+            expect(master(w).props('checked')).toBe(false);
+            expect(master(w).props('indeterminate')).toBe(true);
+            // Announced as partly checked, not as unchecked.
+            expect(master(w).find('button').attributes('aria-checked')).toBe(
+                'mixed',
+            );
+            expect(w.text()).toContain('1/3');
+        });
+
+        it('acts on what the search left, keeping the rest of the selection', async () => {
+            const w = mountIt({
+                bulkToggleable: true,
+                searchable: true,
+                value: ['1'],
+            });
+
+            await w.find('input[type="text"]').setValue('an'); // Banana only
+            await master(w).vm.$emit('change', true);
+
+            // Apple stays; Banana joins; Cherry (filtered out) is untouched.
+            expect(w.emitted('update:value')?.at(-1)?.[0]).toEqual(['1', '2']);
+        });
+    });
 });

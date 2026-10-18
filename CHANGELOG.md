@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.245.0] - 2026-10-17
+
+### Added
+
+- `CheckboxList::make()->bulkToggleable()`: a **Select all** checkbox above the
+  options, with a count (`2/5`). It checks every option in view or clears them,
+  shows a dash (announced as mixed) when only some are checked, and with
+  `->searchable()` acts on the options the search left, keeping the rest of
+  the selection.
+- **(published)** `KinetixCheckbox` takes `indeterminate`.
+
+### Fixed
+
+- **(published)** `KinetixCheckboxList`'s search placeholder, loading and empty
+  texts were hard-coded English; they read `checkbox_list_*` in every locale.
+
 ## [0.244.1] - 2026-10-17
 
 ### Fixed

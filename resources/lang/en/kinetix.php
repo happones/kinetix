@@ -413,6 +413,9 @@ return [
     // Roles & permissions
     'save'                                  => 'Save',
     'select_all'                            => 'Select all',
+    'checkbox_list_search'                  => 'Search options…',
+    'checkbox_list_loading'                 => 'Loading…',
+    'checkbox_list_empty'                   => 'No options found.',
     'search_permissions'                    => 'Search permissions…',
     'role_name'                             => 'Role name',
     'role_members'                          => '{count} member | {count} members',
