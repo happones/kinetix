@@ -115,6 +115,7 @@ Each module ships with a dedicated `docs/<feature>.md` guide, translations
   [Feature Flags](docs/feature-flags.md),
   [Impersonation](docs/impersonation.md),
   [Activity Log](docs/activity.md), [Webhooks](docs/webhooks.md),
+  [Channels — WhatsApp & Telegram lines](docs/channels.md),
   [Developer Tokens](docs/tokens.md), [Connected Accounts](docs/connected-accounts.md),
   [Integration Logs](docs/integration-logs.md), [Health](docs/health.md),
   [Queue](docs/queue.md), [Sessions](docs/sessions.md).

@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.248.0] - 2026-10-17
+
+### Added
+
+- **Channels**: messaging lines a SaaS team links to talk with its customers —
+  **WhatsApp numbers** through an Evolution API server (linked by QR code or
+  by a pairing code typed on the phone; needs
+  `happones/laravel-evolution-client ^4.0`) and **Telegram bots** (a BotFather
+  token; nothing extra). Turn on `kinetix.channels`, publish
+  `kinetix-channels-migrations` and mount `<KinetixChannelManager>`, gated by
+  the new `channels.manage` ability.
+  - **(published)** `<KinetixChannelManager>`: add a line (provider picker,
+    name, bot token), see its number or username and status, send a test
+    message, restart, unlink, rename and delete; a team's line limit
+    (`channels.limit` — a number or a plan's callable) shows as `2 of 3 lines`.
+  - **(published)** `<KinetixChannelLinker>`: the QR refreshes itself before
+    it expires, with the time left; a pairing code for phones that can't scan
+    (the default on a phone); a linked screen once the provider confirms.
+    Polls the status while open, and takes broadcasts when
+    `channels.broadcast` is on (`channel.updated` on the private
+    `kinetix.channels.{team}`).
+  - Each line has its own webhook, authenticated by its own secret, and
+    Kinetix normalizes what arrives: `ChannelMessageReceived` (the same
+    `InboundMessage` for every provider), `ChannelStatusChanged`,
+    `ChannelQrUpdated`. Reply with `KinetixChannels::sendText()`.
+  - `kinetix:channels:sync` checks linked lines against their provider;
+    linking works even when webhooks can't reach the app.
+  - `KinetixChannels::extend()` registers another provider (`ChannelDriver`);
+    `EvolutionGateway` is the seam to swap the Evolution client.
+  - Credentials are encrypted and, like the webhook secret, never sent to the
+    browser.
+
 ## [0.247.0] - 2026-10-17
 
 ### Added

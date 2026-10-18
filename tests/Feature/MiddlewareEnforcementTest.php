@@ -134,6 +134,10 @@ class MiddlewareEnforcementTest extends TestCase
             || $name === 'kinetix.locale.update'
             // Session alerts show on guest pages too. Closing one only removes
             // an entry from the requester's OWN session (CSRF still applies).
-            || $name === 'kinetix.flash.dismiss';
+            || $name === 'kinetix.flash.dismiss'
+            // Providers (Evolution, Telegram) call a line's webhook with no
+            // session: each line's own secret, checked by its driver, is the
+            // credential.
+            || $name === 'kinetix.channels.webhook';
     }
 }

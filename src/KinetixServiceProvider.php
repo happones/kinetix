@@ -18,8 +18,14 @@ use Happones\Kinetix\Billing\Middleware\EnsurePlanCapability;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
 use Happones\Kinetix\Billing\PlanCatalog;
 use Happones\Kinetix\Calendar\CalendarMoveController;
+use Happones\Kinetix\Channels\ChannelController;
+use Happones\Kinetix\Channels\ChannelManager;
+use Happones\Kinetix\Channels\ChannelWebhookController;
+use Happones\Kinetix\Channels\Evolution\EvolutionClientGateway;
+use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
 use Happones\Kinetix\Commands\ApiLogsPruneCommand;
+use Happones\Kinetix\Commands\ChannelsSyncCommand;
 use Happones\Kinetix\Commands\ConfidentialEncryptExistingCommand;
 use Happones\Kinetix\Commands\ConfidentialRotateKeyCommand;
 use Happones\Kinetix\Commands\DispatchDueReportSchedulesCommand;
@@ -271,6 +277,11 @@ class KinetixServiceProvider extends ServiceProvider
         $this->app->singleton(WebhookEventRegistry::class);
         $this->app->singleton(WebhookDispatcher::class);
 
+        // The channel drivers' registry, and the Evolution API seam behind
+        // WhatsApp lines (bind your own EvolutionGateway to replace it).
+        $this->app->singleton(ChannelManager::class);
+        $this->app->bindIf(EvolutionGateway::class, EvolutionClientGateway::class);
+
         // The developer-token scope registry, seeded from config.
         $this->app->singleton(TokenScopeRegistry::class, function (): TokenScopeRegistry {
             $registry = new TokenScopeRegistry;
@@ -440,6 +451,7 @@ class KinetixServiceProvider extends ServiceProvider
                 MakePageCommand::class,
                 ActivityPruneCommand::class,
                 WebhooksPruneCommand::class,
+                ChannelsSyncCommand::class,
                 SendReportsCommand::class,
                 PermissionsSyncCommand::class,
                 ApiLogsPruneCommand::class,
@@ -543,6 +555,11 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php' => database_path('migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php'),
                 __DIR__.'/../database/migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'      => database_path('migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'),
             ], 'kinetix-webhooks-migrations');
+
+            // Publish the optional Channels module's migration (linked lines).
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000041_create_kinetix_channels_table.php' => database_path('migrations/2026_01_01_000041_create_kinetix_channels_table.php'),
+            ], 'kinetix-channels-migrations');
 
             // Publish the optional Onboarding module's migration.
             $this->publishes([
@@ -716,6 +733,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Webhooks module (outbound event delivery)
         $this->registerWebhooks();
+
+        // Register the optional Channels module (WhatsApp / Telegram lines)
+        $this->registerChannels();
 
         // Register the optional API request logs module (middleware + viewer feed)
         $this->registerApiLogs();
@@ -1471,6 +1491,61 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
                 Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->name('kinetix.webhooks.redeliver');
             });
+    }
+
+    /**
+     * Wire the optional Channels module: the `channels.manage` ability, the
+     * team's line endpoints, the providers' webhook endpoint (outside the web
+     * middleware: each line authenticates its provider by its own secret) and,
+     * when broadcasting is on, the private channel lines update on.
+     */
+    protected function registerChannels(): void
+    {
+        if (! config('kinetix.channels.enabled', false)) {
+            return;
+        }
+
+        app(PermissionRegistry::class)->feature('channels')
+            ->label('kinetix.permission_feature_channels')
+            ->ability('manage', 'kinetix.permission_ability_manage_channels');
+
+        $base       = config('kinetix.route_prefix', '_kinetix');
+        $prefix     = $base;
+        $middleware = config('kinetix.middleware', ['web', 'auth']);
+
+        Route::middleware((array) config('kinetix.channels.webhook_middleware', []))
+            ->post("{$base}/channels/webhook/{channel}", ChannelWebhookController::class)
+            ->name('kinetix.channels.webhook');
+
+        if (config('kinetix.teams', false)) {
+            $prefix = KinetixTeams::routePrefix($prefix);
+
+            if (class_exists(PermissionRegistrar::class)) {
+                $middleware[] = 'kinetix.permissions.team';
+            }
+        }
+
+        KinetixTeams::routes($middleware)
+            ->prefix("{$prefix}/channels")
+            ->group(function () {
+                Route::get('/', [ChannelController::class, 'index'])->name('kinetix.channels.index');
+                Route::post('/', [ChannelController::class, 'store'])->name('kinetix.channels.store');
+                Route::put('{channel}', [ChannelController::class, 'update'])->name('kinetix.channels.update');
+                Route::delete('{channel}', [ChannelController::class, 'destroy'])->name('kinetix.channels.destroy');
+                Route::get('{channel}/link', [ChannelController::class, 'link'])->name('kinetix.channels.link');
+                Route::get('{channel}/status', [ChannelController::class, 'status'])->name('kinetix.channels.status');
+                Route::post('{channel}/disconnect', [ChannelController::class, 'disconnect'])->name('kinetix.channels.disconnect');
+                Route::post('{channel}/restart', [ChannelController::class, 'restart'])->name('kinetix.channels.restart');
+                Route::post('{channel}/test', [ChannelController::class, 'test'])->name('kinetix.channels.test');
+            });
+
+        if (config('kinetix.channels.broadcast', false) && class_exists(Broadcast::class)) {
+            $authorize = static fn (Model $user, int|string|null $team = null): bool => Gate::forUser($user)->allows('channels.manage')
+                && ($team === null || KinetixTeams::userBelongsTo($user, $team));
+
+            Broadcast::channel('kinetix.channels', static fn (Model $user): bool => $authorize($user));
+            Broadcast::channel('kinetix.channels.{team}', $authorize);
+        }
     }
 
     /**

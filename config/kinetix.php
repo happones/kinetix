@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use Happones\Kinetix\Channels\Drivers\TelegramDriver;
+use Happones\Kinetix\Channels\Drivers\WhatsAppDriver;
+
 return [
 
     /*
@@ -735,6 +738,67 @@ return [
         'log_payloads'   => env('KINETIX_WEBHOOKS_LOG_PAYLOADS', true),
         'response_limit' => env('KINETIX_WEBHOOKS_RESPONSE_LIMIT', 1000),
         'retention_days' => env('KINETIX_WEBHOOKS_RETENTION_DAYS', 30),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Channels (WhatsApp / Telegram lines)
+    |--------------------------------------------------------------------------
+    |
+    | Lines a team links to talk with its customers: WhatsApp numbers through
+    | an Evolution API server (QR or pairing code; needs
+    | happones/laravel-evolution-client) and Telegram bots (a @BotFather
+    | token; nothing extra). Mount <KinetixChannelManager> where teams manage
+    | them, gated by `channels.manage`, and listen for
+    | ChannelMessageReceived to answer. Publish the table with
+    | `kinetix-channels-migrations`.
+    |
+    */
+    'channels' => [
+        'enabled' => env('KINETIX_CHANNELS_ENABLED', false),
+
+        'teams' => env('KINETIX_CHANNELS_TEAMS'), // null = inherit kinetix.teams
+
+        // How many lines a team may have: a number, a callable array
+        // [Plans::class, 'lines'] receiving the team key (a plan's
+        // allowance), or null for no limit.
+        'limit' => null,
+
+        // The public base URL providers call webhooks on — a tunnel
+        // (ngrok, Expose) in development; null = app.url. Telegram only
+        // calls HTTPS URLs.
+        'webhook_url'        => env('KINETIX_CHANNELS_WEBHOOK_URL'),
+        'webhook_middleware' => [],
+
+        // How often (seconds) the status endpoint the linker polls asks the
+        // provider itself — what links a line even when webhooks can't reach
+        // the app. Schedule kinetix:channels:sync for lines nobody watches.
+        'check_interval' => 5,
+
+        // Broadcast status and QR changes on the private channel
+        // `kinetix.channels.{team}` (needs Laravel Echo); the linker polls
+        // either way.
+        'broadcast' => env('KINETIX_CHANNELS_BROADCAST', false),
+
+        'providers' => [
+            'whatsapp' => [
+                'enabled' => env('KINETIX_CHANNELS_WHATSAPP', true),
+                'driver'  => WhatsAppDriver::class,
+                // The Evolution API server; null = evolution.base_url / api_key.
+                'base_url'        => env('KINETIX_CHANNELS_EVOLUTION_URL'),
+                'api_key'         => env('KINETIX_CHANNELS_EVOLUTION_KEY'),
+                'integration'     => 'WHATSAPP-BAILEYS',
+                'instance_prefix' => 'kinetix_',
+                'qr_ttl'          => 30, // seconds a QR shows before it refreshes
+            ],
+            'telegram' => [
+                'enabled' => env('KINETIX_CHANNELS_TELEGRAM', true),
+                'driver'  => TelegramDriver::class,
+                // api.telegram.org, or your self-hosted Bot API server.
+                'api_url' => env('KINETIX_CHANNELS_TELEGRAM_API', 'https://api.telegram.org'),
+                'timeout' => 10,
+            ],
+        ],
     ],
 
     /*

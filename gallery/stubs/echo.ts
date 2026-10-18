@@ -42,3 +42,14 @@ export function useEcho() {
 }
 
 export function configureEcho() {}
+
+export function echoIsConfigured() {
+    return false;
+}
+
+export function echo() {
+    return {
+        private: () => ({ listen() {} }),
+        leave() {},
+    };
+}

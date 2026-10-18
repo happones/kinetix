@@ -533,6 +533,45 @@ export interface KinetixImpersonationState {
     user?: { id: number | string | null; name: string | null };
 }
 
+/** Where a line stands with its provider. */
+export type KinetixChannelStatus =
+    | 'disconnected'
+    | 'connecting'
+    | 'connected'
+    | 'failed';
+
+/** How a provider links a line: scanning a QR, typing a code on the phone, or a token. */
+export type KinetixChannelLinkMethod = 'qr' | 'pairing_code' | 'token';
+
+/** A linked line — a WhatsApp number, a Telegram bot (credentials never included). */
+export interface KinetixChannel {
+    id: number | string;
+    provider: string;
+    name: string;
+    status: KinetixChannelStatus;
+    /** "+5215512345678", "@acme_bot" — once linked. */
+    handle: string | null;
+    lastError: string | null;
+    connectedAt: string | null;
+    lastEventAt: string | null;
+    createdAt: string | null;
+}
+
+/** A provider a team can add lines with. */
+export interface KinetixChannelProvider {
+    key: string;
+    label: string;
+    methods: KinetixChannelLinkMethod[];
+}
+
+/** Linking in progress: the QR (a data URI) or pairing code, and how long it lasts. */
+export interface KinetixChannelLink {
+    status: KinetixChannelStatus;
+    qr: string | null;
+    pairingCode: string | null;
+    expiresIn: number | null;
+}
+
 /** A customer webhook endpoint (the secret is never included). */
 export interface KinetixWebhookEndpoint {
     id: number | string | null;

@@ -13,6 +13,8 @@ import KinetixGenerator from '@/components/KinetixGenerator.vue';
 import KinetixGdprPanel from '@/components/KinetixGdprPanel.vue';
 import KinetixTokenManager from '@/components/KinetixTokenManager.vue';
 import KinetixWebhookManager from '@/components/KinetixWebhookManager.vue';
+import KinetixChannelManager from '@/components/KinetixChannelManager.vue';
+import KinetixChannelLinker from '@/components/Channels/KinetixChannelLinker.vue';
 import KinetixConnectedAccounts from '@/components/KinetixConnectedAccounts.vue';
 import KinetixSessions from '@/components/KinetixSessions.vue';
 import KinetixSocialButton from '@/components/KinetixSocialButton.vue';
@@ -374,6 +376,29 @@ import KinetixWidgetsGrid from '@/components/KinetixWidgetsGrid.vue';
 import KinetixKanban from '@/components/KinetixKanban.vue';
 import KinetixEventCalendar from '@/components/KinetixEventCalendar.vue';
 import KinetixRelationManagers from '@/components/KinetixRelationManagers.vue';
+
+// A QR-looking pattern for the channel linker specimen (not a real code).
+const GALLERY_QR = `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" shape-rendering="crispEdges">${Array.from(
+        { length: 441 },
+        (_, i) => {
+            const x = i % 21;
+            const y = Math.floor(i / 21);
+            const finder = (fx: number, fy: number) =>
+                x >= fx && x < fx + 7 && y >= fy && y < fy + 7
+                    ? x === fx ||
+                      x === fx + 6 ||
+                      y === fy ||
+                      y === fy + 6 ||
+                      (x >= fx + 2 && x <= fx + 4 && y >= fy + 2 && y <= fy + 4)
+                    : null;
+            const f = finder(0, 0) ?? finder(14, 0) ?? finder(0, 14);
+            const on = f ?? (x * 7 + y * 13 + x * y) % 3 === 0;
+
+            return on ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : '';
+        },
+    ).join('')}</svg>`,
+)}`;
 
 export interface Specimen {
     name: string;
@@ -3085,6 +3110,38 @@ export const specimens: Specimen[] = [
         title: 'Webhook manager',
         component: KinetixWebhookManager,
         width: 760,
+    },
+    {
+        name: 'channel-manager',
+        title: 'Channels — WhatsApp and Telegram lines',
+        component: KinetixChannelManager,
+        width: 880,
+    },
+    {
+        name: 'channel-linker',
+        title: 'Channels — linking a WhatsApp number by QR',
+        component: KinetixChannelLinker,
+        fullPage: true,
+        props: {
+            open: true,
+            channel: {
+                id: 3,
+                provider: 'whatsapp',
+                name: 'Billing',
+                status: 'connecting',
+                handle: null,
+                lastError: null,
+                connectedAt: null,
+                lastEventAt: null,
+                createdAt: '2026-10-17T09:00:00Z',
+            },
+            initialLink: {
+                status: 'connecting',
+                qr: GALLERY_QR,
+                pairingCode: null,
+                expiresIn: 30,
+            },
+        },
     },
     {
         name: 'gdpr-panel',

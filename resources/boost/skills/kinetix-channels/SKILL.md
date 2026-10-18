@@ -1,0 +1,72 @@
+---
+name: kinetix-channels
+description: "Messaging lines for SaaS teams: link WhatsApp numbers (Evolution API, QR or pairing code) and Telegram bots (token), receive normalized messages, send replies. Activates when working with KinetixChannelManager, ChannelMessageReceived, channel drivers or Evolution/Telegram integrations."
+license: MIT
+metadata:
+  author: happones
+---
+
+# Kinetix Channels Development
+
+## When to Apply
+
+Activate this skill when:
+
+- Mounting `<KinetixChannelManager>` / `<KinetixChannelLinker>` or using `useKinetixChannels`.
+- Handling inbound messages (`ChannelMessageReceived`) or sending (`KinetixChannels::sendText`).
+- Adding a provider (`KinetixChannels::extend`) or touching the WhatsApp (Evolution) / Telegram drivers.
+
+## Documentation
+
+For full details, reference `docs/channels.md` (published at https://happones.github.io/kinetix/channels).
+
+## Configuration
+
+```bash
+composer require happones/laravel-evolution-client   # WhatsApp only (^4.0)
+php artisan vendor:publish --tag=kinetix-channels-migrations
+```
+
+```php
+'channels' => [
+    'enabled' => env('KINETIX_CHANNELS_ENABLED', false),
+    'teams'   => env('KINETIX_CHANNELS_TEAMS'),       // null = inherit kinetix.teams
+    'limit'   => null,                                // int | [Class::class, 'method'](teamKey) | null
+    'webhook_url' => env('KINETIX_CHANNELS_WEBHOOK_URL'), // tunnel in dev; Telegram needs HTTPS
+    'check_interval' => 5,                            // status endpoint asks the provider every N s
+    'broadcast' => env('KINETIX_CHANNELS_BROADCAST', false), // channel.updated on private kinetix.channels.{team}
+    'providers' => [
+        'whatsapp' => ['enabled' => true, 'driver' => WhatsAppDriver::class, 'base_url' => null, 'api_key' => null, 'qr_ttl' => 30],
+        'telegram' => ['enabled' => true, 'driver' => TelegramDriver::class, 'api_url' => 'https://api.telegram.org'],
+    ],
+],
+```
+
+## Rules
+
+- **Lines are `Channel` models** (`kinetix_channels`): team-scoped via
+  `KinetixTeams::keyFor('channels')`; `credentials` is `encrypted:array` and,
+  with `webhook_secret`, never serialized (`ChannelData`).
+- **Webhook**: `POST {prefix}/channels/webhook/{public_id}`, outside the web
+  middleware, verified per line (`X-Kinetix-Channel-Secret` for Evolution,
+  `X-Telegram-Bot-Api-Secret-Token` for Telegram). Unknown line and bad secret
+  both answer 401.
+- **Inbound**: listen for `ChannelMessageReceived` (`InboundMessage`: from,
+  fromName, text, type, externalId, isGroup, receivedAt, raw). Own messages are
+  skipped. Reply with `KinetixChannels::sendText($channel, $message->from, …)`.
+  Queue heavy listeners.
+- **Status**: `ChannelManager::transition()` is the one way to change it (fires
+  `ChannelStatusChanged`, broadcasts). The polled status endpoint syncs with the
+  provider at most every `check_interval` s; schedule `kinetix:channels:sync`.
+- **Evolution**: always through `EvolutionGateway` (default
+  `EvolutionClientGateway` builds a per-instance client — never mutate the
+  package singleton). Instance name = `instance_prefix` + lower(public_id).
+  Bind a fake gateway in tests.
+- **Telegram**: bot tokens only (getMe → setWebhook with secret_token). No
+  MTProto / personal-account login.
+- **New provider**: implement `ChannelDriver`, `KinetixChannels::extend('key', Driver::class)`,
+  add `channel_provider_{key}` translation. Throw `ChannelException` (message
+  shown to users; `forField('token', …)` for a field error).
+- Endpoints: index, store, update (name), destroy, `{id}/link?phone=`,
+  `{id}/status`, `{id}/disconnect`, `{id}/restart`, `{id}/test` — all
+  `channels.manage`.

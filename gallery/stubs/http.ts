@@ -254,6 +254,84 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        match: /\/channels$/,
+        data: {
+            channels: [
+                {
+                    id: 1,
+                    provider: 'whatsapp',
+                    name: 'Sales',
+                    status: 'connected',
+                    handle: '+52 55 1234 5678',
+                    lastError: null,
+                    connectedAt: '2026-10-12T15:00:00Z',
+                    lastEventAt: '2026-10-17T08:40:00Z',
+                    createdAt: '2026-10-12T14:58:00Z',
+                },
+                {
+                    id: 2,
+                    provider: 'telegram',
+                    name: 'Support bot',
+                    status: 'connected',
+                    handle: '@acme_support_bot',
+                    lastError: null,
+                    connectedAt: '2026-10-14T10:00:00Z',
+                    lastEventAt: '2026-10-17T08:12:00Z',
+                    createdAt: '2026-10-14T10:00:00Z',
+                },
+                {
+                    id: 3,
+                    provider: 'whatsapp',
+                    name: 'Billing',
+                    status: 'connecting',
+                    handle: null,
+                    lastError: null,
+                    connectedAt: null,
+                    lastEventAt: null,
+                    createdAt: '2026-10-17T09:00:00Z',
+                },
+                {
+                    id: 4,
+                    provider: 'telegram',
+                    name: 'Old promo bot',
+                    status: 'failed',
+                    handle: '@acme_promo_bot',
+                    lastError:
+                        'Telegram rejected this bot token. Copy it again from BotFather.',
+                    connectedAt: null,
+                    lastEventAt: null,
+                    createdAt: '2026-09-01T10:00:00Z',
+                },
+            ],
+            providers: [
+                {
+                    key: 'whatsapp',
+                    label: 'WhatsApp',
+                    methods: ['qr', 'pairing_code'],
+                },
+                { key: 'telegram', label: 'Telegram', methods: ['token'] },
+            ],
+            limit: 5,
+            broadcast: null,
+        },
+    },
+    {
+        match: /\/channels\/\d+\/status$/,
+        data: {
+            channel: {
+                id: 3,
+                provider: 'whatsapp',
+                name: 'Billing',
+                status: 'connecting',
+                handle: null,
+                lastError: null,
+                connectedAt: null,
+                lastEventAt: null,
+                createdAt: '2026-10-17T09:00:00Z',
+            },
+        },
+    },
+    {
         match: /\/webhooks$/,
         data: {
             endpoints: [

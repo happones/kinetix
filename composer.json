@@ -30,7 +30,8 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.0",
         "dompdf/dompdf": "^3.0",
-        "phiki/phiki": "^2.0"
+        "phiki/phiki": "^2.0",
+        "happones/laravel-evolution-client": "^4.0"
     },
     "suggest": {
         "dompdf/dompdf": "Required only for PDF exports (^3.0) — when an Exporter sets format() to 'pdf'. Other formats (csv/xlsx) need nothing extra.",
@@ -46,7 +47,8 @@
         "spatie/laravel-health": "Preferred driver for the Kinetix health feature (^1.0). When installed, Kinetix surfaces its registered checks; otherwise a native set of checks is used.",
         "spatie/laravel-medialibrary": "Required for the Kinetix media-library feature (^11.0). Models must implement HasMedia; without it the media manager is a no-op.",
         "spatie/laravel-permission": "Roles & permissions for the Kinetix permissions feature (^6.0). Required only if you enable kinetix.permissions.",
-        "spatie/laravel-webhook-server": "Preferred delivery driver for the Kinetix webhooks feature (^3.0). When installed, deliveries route through its tuned retries/backoff; otherwise Kinetix's native queued job is used."
+        "spatie/laravel-webhook-server": "Preferred delivery driver for the Kinetix webhooks feature (^3.0). When installed, deliveries route through its tuned retries/backoff; otherwise Kinetix's native queued job is used.",
+        "happones/laravel-evolution-client": "Required for WhatsApp lines in the Kinetix channels feature (^4.0) — linking by QR code or pairing code through an Evolution API server. Telegram lines need nothing extra."
     },
     "autoload": {
         "psr-4": {

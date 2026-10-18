@@ -1,0 +1,75 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Happones\Kinetix\Channels;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+
+/**
+ * A messaging line a team links — a WhatsApp number, a Telegram bot — through
+ * one of the registered channel drivers. Its credentials are encrypted, and
+ * `public_id` + `webhook_secret` authenticate the provider's webhook calls.
+ *
+ * @property int|string           $id
+ * @property string               $public_id
+ * @property int|string|null      $team_id
+ * @property string               $provider
+ * @property string               $name
+ * @property ChannelStatus        $status
+ * @property string|null          $handle
+ * @property string|null          $external_id
+ * @property array<string, mixed> $credentials
+ * @property string               $webhook_secret
+ * @property array<string, mixed> $meta
+ * @property string|null          $last_error
+ * @property Carbon|null          $connected_at
+ * @property Carbon|null          $last_event_at
+ * @property Carbon|null          $checked_at
+ * @property Carbon|null          $created_at
+ */
+class Channel extends Model
+{
+    protected $table = 'kinetix_channels';
+
+    protected $guarded = [];
+
+    protected $hidden = ['credentials', 'webhook_secret'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Channel $channel): void {
+            $channel->public_id      ??= (string) Str::ulid();
+            $channel->webhook_secret ??= Str::random(48);
+            $channel->status         ??= ChannelStatus::Disconnected;
+        });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'status'        => ChannelStatus::class,
+            'credentials'   => 'encrypted:array',
+            'meta'          => 'array',
+            'connected_at'  => 'datetime',
+            'last_event_at' => 'datetime',
+            'checked_at'    => 'datetime',
+        ];
+    }
+
+    /** A credential the driver stored at provisioning (a bot token, an instance token). */
+    public function credential(string $key): mixed
+    {
+        return ($this->credentials ?? [])[$key] ?? null;
+    }
+
+    public function isConnected(): bool
+    {
+        return $this->status === ChannelStatus::Connected;
+    }
+}
