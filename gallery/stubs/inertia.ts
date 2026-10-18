@@ -33,15 +33,50 @@ const page = {
             ],
         },
         // Surfaced for the team switcher specimen.
+        // Each row: a default-logo icon + a dot, initials + an icon in place
+        // of the dot, a plain row with neither.
         kinetix_teams: {
             enabled: true,
-            current: { id: 1, name: 'Acme Inc.' },
+            current: {
+                id: 1,
+                name: 'Acme Inc.',
+                initials: 'AI',
+                logoIcon: 'building-2',
+                accent: '#16a34a',
+            },
             createUrl: '/teams/create',
             teams: [
-                { id: 1, name: 'Acme Inc.', url: '#', current: true },
-                { id: 2, name: 'Globex', url: '#', current: false },
-                { id: 3, name: 'Initech', url: '#', current: false },
+                {
+                    id: 1,
+                    name: 'Acme Inc.',
+                    url: '#',
+                    current: true,
+                    initials: 'AI',
+                    logoIcon: 'building-2',
+                    accent: '#16a34a',
+                },
+                {
+                    id: 2,
+                    name: 'Globex Healthcare',
+                    url: '#',
+                    current: false,
+                    initials: 'GH',
+                    accent: 'var(--color-info)',
+                    icon: 'pill',
+                },
+                {
+                    id: 3,
+                    name: 'Initech',
+                    url: '#',
+                    current: false,
+                    initials: 'I',
+                },
             ],
+            labels: {
+                switch: 'Switch account',
+                select: 'Choose an account',
+                create: 'New account',
+            },
         },
         // Surfaced for the plan-lock specimens: a plan WITHOUT the gated
         // capability, so every <KinetixPlanLock> renders its locked state.

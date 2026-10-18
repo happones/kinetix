@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Permissions;
 
+use Happones\Kinetix\Support\KinetixTrans;
+
 /**
  * A permission "feature" (a resource or module) and the abilities it exposes.
  * Permission keys are namespaced as `{feature}.{ability}` (e.g. `posts.update`),
@@ -129,15 +131,7 @@ class Feature
 
     private static function translated(string $label): string
     {
-        $translated = __($label);
-
-        // Kinetix's own keys read from the package itself when the host has
-        // not published (or has trimmed) its copy of the translations.
-        if ($translated === $label && str_starts_with($label, 'kinetix.')) {
-            $translated = __('kinetix::'.$label);
-        }
-
-        return is_string($translated) && $translated !== 'kinetix::'.$label ? $translated : $label;
+        return KinetixTrans::line($label);
     }
 
     /**

@@ -436,11 +436,25 @@ export interface KinetixPresenceState {
 }
 
 /** A team the user can switch to, with a ready-made switch URL. */
-export interface KinetixTeamOption {
+/** What tells a team apart besides its name (`kinetix.team_switcher.*`). */
+export interface KinetixTeamIdentity {
+    name: string;
+    /** "AC" for "Acme Coffee": the mark when there's no logo at all. */
+    initials?: string;
+    /** The logo's URL (or the default logo's image), when `logo` is on. */
+    logo?: string | null;
+    /** The default logo's Lucide icon, for a team without a logo. */
+    logoIcon?: string | null;
+    /** The indicator's CSS color, when `indicator` is on. */
+    accent?: string | null;
+    /** A Lucide icon in place of the indicator's dot. */
+    icon?: string | null;
+}
+
+export interface KinetixTeamOption extends KinetixTeamIdentity {
     id: number | string;
     /** The team's route key, as it appears in a URL (`/{key}/...`). */
     key?: number | string | null;
-    name: string;
     url: string | null;
     current: boolean;
 }
@@ -449,10 +463,12 @@ export interface KinetixTeamOption {
 export interface KinetixTeamsState {
     enabled: boolean;
     teams: KinetixTeamOption[];
-    current: { id: number | string; name: string } | null;
+    current: (KinetixTeamIdentity & { id: number | string }) | null;
     createUrl: string | null;
     /** The switch route's verb: a GET visit to a POST-only route is a 405. */
     switchMethod?: 'get' | 'post' | 'put' | 'patch';
+    /** The switcher's words, in the app's terms (`team_switcher.labels`). */
+    labels?: { switch: string; select: string; create: string };
 }
 
 /** A single breadcrumb item, derived from a Kinetix Resource. */

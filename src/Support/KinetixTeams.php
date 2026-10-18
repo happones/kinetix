@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Support;
 
+use Happones\Kinetix\Teams\TeamSwitcherManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
@@ -210,5 +211,17 @@ class KinetixTeams
         }
 
         return $user?->currentTeam?->getKey();
+    }
+
+    /**
+     * Where to send someone who just created a team: what
+     * `kinetix.team_switcher.redirect_after_create` says (a route name or a
+     * callable array), else the app's own `$default`.
+     *
+     *     return redirect(KinetixTeams::redirectAfterCreate($team, route('teams.edit', $team)));
+     */
+    public static function redirectAfterCreate(Model $team, string $default): string
+    {
+        return app(TeamSwitcherManager::class)->redirectAfterCreate($team, $default);
     }
 }

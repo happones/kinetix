@@ -359,6 +359,54 @@ return [
 
         // Optional route name to create a team — shown as "New team" when set.
         'create_route' => env('KINETIX_TEAM_CREATE_ROUTE'),
+
+        // The switcher's words, in your app's terms (an "account" instead of
+        // a "team"): translation keys or plain strings.
+        'labels' => [
+            'switch' => 'kinetix.teams_switch',  // the menu's heading
+            'select' => 'kinetix.teams_select',  // the trigger with no team
+            'create' => 'kinetix.teams_new',     // the create item
+        ],
+
+        // Where to land after creating a team, read by
+        // KinetixTeams::redirectAfterCreate($team, $default) in your create
+        // action: a route name (given the team's route key), a callable array
+        // [Class::class, 'method'] receiving the team and returning a URL, or
+        // null for your own default.
+        'redirect_after_create' => null,
+
+        // The mark on the left: a logo per team. `attribute` holds a URL or a
+        // path on `disk` (null = the default disk); `resolver` — a callable
+        // array receiving the team — overrides both. A team without one shows
+        // `default` — a Lucide icon name ('building-2') or an image URL/path —
+        // and, with no default, its initials.
+        'logo' => [
+            'enabled'   => false,
+            'attribute' => 'logo',
+            'disk'      => null,
+            'resolver'  => null,
+            'default'   => null,
+        ],
+
+        // The indicator on the right: a small dot in the color of the team's
+        // type — an industry, a plan, an environment. `attribute` can be an
+        // enum with getColor(), or a value `colors` maps to a CSS color (#hex,
+        // oklch(), var(--x)) or a status name (primary, success, warning,
+        // danger, info, gray); `resolver` (a callable array) overrides both.
+        //
+        // `icon` (a Lucide name) replaces the dot for every team, `icons`
+        // per type, `enum_icons` with an enum's getIcon(), and `icon_resolver`
+        // (a callable array) overrides them all.
+        'indicator' => [
+            'enabled'       => false,
+            'attribute'     => null,
+            'colors'        => [],
+            'resolver'      => null,
+            'icon'          => null,
+            'icons'         => [],
+            'enum_icons'    => false,
+            'icon_resolver' => null,
+        ],
     ],
 
     /*

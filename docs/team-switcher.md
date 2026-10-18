@@ -2,7 +2,7 @@
 
 A header dropdown to **switch the active team**. The official Laravel starter kit
 has no teams concept, so this is a complete Kinetix feature — but Kinetix does
-**not own your `Team` model**. It resolves the user's teams *by convention* and
+**not own your `Team` model**. It resolves the user's teams _by convention_ and
 shares them (each with a ready-made switch URL) via the `kinetix_teams` Inertia
 prop; the component just visits that URL. So it works with whatever switch route
 your app already has.
@@ -64,16 +64,117 @@ import KinetixTeamSwitcher from '@/components/kinetix/KinetixTeamSwitcher.vue';
 </template>
 ```
 
-It shows the current team with a `Users` icon; the dropdown lists every team (the
-active one marked), plus a **New team** entry when `create_route` is set.
-Selecting a team visits its switch URL; the already-active team is a no-op.
+It shows the current team with its mark — a logo, or its initials — and the
+dropdown lists every team the same way (the active one checked), plus a **New
+team** entry when `create_route` is set. Selecting a team visits its switch
+URL; the already-active team is a no-op.
 
-`useKinetixTeams()` exposes `{ teams, current, createUrl, switchTeam }` for a
-custom UI. Strings are localized (`teams_switch`, `teams_select`, `teams_new`;
-en/es/fr/pt).
+`variant` dresses the trigger for where it sits, so it replaces a starter kit's
+own switcher without a wrapper:
+
+```vue
+<!-- In the sidebar: a full-width row; collapsed to icons, only the mark. -->
+<KinetixTeamSwitcher variant="sidebar" keep-page side="right" />
+
+<!-- In a header: a compact item. -->
+<KinetixTeamSwitcher variant="header" keep-page align="end" />
+```
+
+`button` (the default) is an outlined header button.
+
+`useKinetixTeams()` exposes `{ teams, current, createUrl, labels, switchTeam }`
+for a custom UI; `<KinetixTeamAvatar :team="team" />` draws a team's mark and
+`<KinetixTeamIndicator :team="team" />` its indicator on their own.
+
+### A team's logo and color indicator
+
+Telling teams apart by name alone gets hard past a few. Each row can show the
+team's **logo** on the left and, on the right, an **indicator**: a small dot in
+the color of the team's type — an industry, a plan, an environment. Both are
+turned on in `config/kinetix.php`:
+
+```php
+'team_switcher' => [
+    // …
+    'logo' => [
+        'enabled'   => true,
+        'attribute' => 'logo_path',   // a URL, or a path on `disk`
+        'disk'      => 'public',
+        'resolver'  => null,          // or [TeamLogos::class, 'for'] → URL|null
+        'default'   => 'building-2',  // no logo: a Lucide icon, or an image URL/path
+    ],
+    'indicator' => [
+        'enabled'   => true,
+        'attribute' => 'industry',    // an enum with getColor(), or a value…
+        'colors'    => [              // …this map turns into a color
+            'retail'     => '#16a34a',
+            'healthcare' => 'info',   // a status name follows the theme
+        ],
+        'resolver'  => null,          // or [TeamColors::class, 'for'] → color|null
+    ],
+],
+```
+
+- **The logo:** a team without one shows `default` — a Lucide icon name, or an
+  image (a URL, a root path, or a path with an image extension on `disk`) —
+  and, with no default either, its initials. A logo that fails to load falls
+  back the same way.
+- **The indicator's color** is any CSS color (`#hex`, `oklch()`, `var(--x)`)
+  or one of Kinetix's status names (`primary`, `success`, `warning`, `danger`,
+  `info`, `gray`), which follow light and dark mode. Anything else is ignored.
+  When the sidebar collapses to icons, the dot moves to the logo's corner.
+- **An icon instead of the dot**, in the same color:
+
+    ```php
+    'indicator' => [
+        // …
+        'icon'          => 'sparkles',                // for every team
+        'icons'         => ['retail' => 'store'],     // per type, winning over `icon`
+        'enum_icons'    => true,                      // the enum's own getIcon()
+        'icon_resolver' => [TeamIcons::class, 'for'], // wins over all of them
+    ],
+    ```
+
+  Icons are names from Kinetix's icon set; register any other once with
+  `registerIcons()` (see [Icons](icons.md)).
+- **A resolver** is a callable array (`[Class::class, 'method']`) receiving
+  the team; it wins over the attribute. Closures in config break
+  `config:cache`.
+
+### Your app's words
+
+A "team" may be an account, a store, a workspace. Name it in `labels` —
+translation keys or plain strings:
+
+```php
+'labels' => [
+    'switch' => 'Switch account',
+    'select' => 'Choose an account',
+    'create' => 'New account',
+],
+```
+
+The `#create` slot receives it as `label`, so your own create item says the
+same.
+
+### Where creating a team lands
+
+Kinetix doesn't own your create action, but it can decide where it lands.
+Set `redirect_after_create` to a route name (given the team's route key) or a
+callable array receiving the team and returning a URL, and read it in your
+action:
+
+```php
+use Happones\Kinetix\Support\KinetixTeams;
+
+$team = $createTeam->handle($request->user(), $request->validated('name'));
+
+return redirect(KinetixTeams::redirectAfterCreate($team, route('teams.edit', $team)));
+```
+
+Unset, your own default (the second argument) applies.
 
 ---
-
 
 ### Staying on the page, your trigger, your "New team"
 
@@ -93,12 +194,13 @@ en/es/fr/pt).
 </KinetixTeamSwitcher>
 ```
 
-| Prop / slot | What it does |
-|---|---|
-| `keep-page` | After switching, reopen the current page for the new team: `/acme/products/7` becomes `/beta/products/7`. A page outside the team segment is left to your switch route. |
-| `side` / `align` | Where the menu opens (`bottom` / `start` by default) |
-| `#trigger="{ current }"` | Replaces the button; it becomes the menu's trigger |
-| `#create` | Replaces the "New team" item, which otherwise visits `create_route` |
+| Prop / slot              | What it does                                                                                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keep-page`              | After switching, reopen the current page for the new team: `/acme/products/7` becomes `/beta/products/7`. A page outside the team segment is left to your switch route. |
+| `variant`                | `button` (default), `sidebar` or `header` — the trigger for where it sits                                                                                               |
+| `side` / `align`         | Where the menu opens (`bottom` / `start` by default)                                                                                                                    |
+| `#trigger="{ current }"` | Replaces the button; it becomes the menu's trigger                                                                                                                      |
+| `#create="{ label }"`    | Replaces the "New team" item, which otherwise visits `create_route`; `label` is your `labels.create`                                                                    |
 
 Each team in `kinetix_teams` carries its `key` (its route key, as it appears in
 URLs), and `useKinetixTeams().switchTeam(team, { keepPage: true })` does the
@@ -118,14 +220,15 @@ const { teamUrl, currentTeamKey } = useKinetixTeams();
 </script>
 
 <template>
-  <Link :href="teamUrl('/projects')">Projects</Link>   <!-- /acme/projects -->
+    <Link :href="teamUrl('/projects')">Projects</Link>
+    <!-- /acme/projects -->
 </template>
 ```
 
-| | |
-|---|---|
-| `teamUrl(path)` | The path prefixed with the active team segment; unchanged when teams are off, and never double-prefixed |
-| `currentTeamKey` | The raw segment (`'acme'`), or `null` when teams are off |
+|                  |                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `teamUrl(path)`  | The path prefixed with the active team segment; unchanged when teams are off, and never double-prefixed |
+| `currentTeamKey` | The raw segment (`'acme'`), or `null` when teams are off                                                |
 
 Two reasons to prefer it over hand-built strings:
 

@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.247.0] - 2026-10-17
+
+### Added
+
+- **(published)** The team switcher shows each team as itself. On the left,
+  its **logo** (`team_switcher.logo` — an attribute holding a URL or a path on
+  a disk, or a resolver); without one, `logo.default` — a Lucide icon or an
+  image URL/path — and then its initials, also when an image fails to load.
+  On the right, an **indicator** (`team_switcher.indicator`): a small dot in
+  the color of the team's type — a theme color name, any CSS color, an enum's
+  `getColor()` or a `colors` map — that an icon can replace (`icon` for every
+  team, `icons` per type, `enum_icons` for the enum's `getIcon()`, or an
+  `icon_resolver`). With the sidebar collapsed, the dot rides on the logo's
+  corner. Both are off by default.
+- **(published)** `KinetixTeamAvatar` (a team's mark) and
+  `KinetixTeamIndicator` (its dot or icon), used by the switcher and reusable
+  elsewhere.
+- **(published)** `KinetixTeamSwitcher` `variant`: `button` (the default),
+  `sidebar` — a full-width sidebar row that keeps only the team's mark when the
+  sidebar collapses to icons — and `header`. Its menu fits the screen and
+  scrolls inside with many teams.
+- `team_switcher.labels`: the switcher's words (`switch`, `select`, `create`),
+  so it can say "account" or "business" where your app does — translation
+  keys or plain text. The `create` slot receives the label.
+- `team_switcher.redirect_after_create` and
+  `KinetixTeams::redirectAfterCreate($team, $default)`: where creating a team
+  lands — a route name (given the new team's route key) or a callable array —
+  for your app's store action to return.
+
+### Changed
+
+- **(published)** The switcher's trigger is named for screen readers with the
+  current team (`Switch team: Acme`), not only the action.
+
 ## [0.246.0] - 2026-10-17
 
 ### Added

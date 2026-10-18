@@ -2934,6 +2934,13 @@ export const specimens: Specimen[] = [
         openSelector: '#specimen button',
     },
     {
+        name: 'team-switcher-sidebar',
+        title: 'Team switcher, sidebar variant',
+        component: KinetixTeamSwitcher,
+        width: 260,
+        props: { variant: 'sidebar' },
+    },
+    {
         name: 'online-users',
         title: 'Online users (presence)',
         component: KinetixOnlineUsers,

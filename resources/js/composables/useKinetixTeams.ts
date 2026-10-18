@@ -30,6 +30,8 @@ export function useKinetixTeams() {
     const teams = computed<KinetixTeamOption[]>(() => state.value?.teams ?? []);
     const current = computed(() => state.value?.current ?? null);
     const createUrl = computed(() => state.value?.createUrl ?? null);
+    /** The switcher's words in the app's terms (`team_switcher.labels`). */
+    const labels = computed(() => state.value?.labels ?? null);
 
     /**
      * The active team's route key — the `{current_team}` segment the server
@@ -119,6 +121,7 @@ export function useKinetixTeams() {
         current,
         currentTeamKey,
         createUrl,
+        labels,
         teamUrl,
         switchTeam,
     };
