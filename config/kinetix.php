@@ -856,6 +856,10 @@ return [
         // receiving the Conversation and returning a model (or null).
         'contact_resolver' => null,
 
+        // Messages the line sends outside the inbox — typed on its phone, or
+        // answered by a bot the provider runs — show in the thread too.
+        'mirror_sent' => true,
+
         // Without broadcasting, how often (seconds) the inbox refreshes the
         // list and the open conversation.
         'poll' => ['list' => 15, 'thread' => 5],

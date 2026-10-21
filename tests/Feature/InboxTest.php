@@ -8,10 +8,13 @@ use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Channels\ChannelStatus;
 use Happones\Kinetix\Channels\Drivers\TelegramDriver;
 use Happones\Kinetix\Channels\Drivers\WhatsAppDriver;
+use Happones\Kinetix\Channels\Events\ChannelMessageSent;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
+use Happones\Kinetix\Channels\InboundMessage;
 use Happones\Kinetix\Inbox\Conversation;
 use Happones\Kinetix\Inbox\ConversationMessage;
 use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
+use Happones\Kinetix\Inbox\Events\ConversationReplied;
 use Happones\Kinetix\Inbox\Events\InboxUpdated;
 use Happones\Kinetix\Inbox\MessageStatus;
 use Happones\Kinetix\Inbox\QuickReply;
@@ -302,6 +305,105 @@ class InboxTest extends TestCase
         $this->evolution->failOn = null;
 
         $this->actingAs($admin)->postJson("/_kinetix/inbox/messages/{$id}/retry")->assertJsonPath('message.status', 'sent');
+    }
+
+    /** The line itself sent a message: from its phone (`messages.upsert`) or through the server (`send.message`). */
+    private function lineSent(string $id, string $text, string $event = 'messages.upsert', string $to = '5215599999999'): TestResponse
+    {
+        return $this->hook(['event' => $event, 'data' => [
+            'key'              => ['remoteJid' => "{$to}@s.whatsapp.net", 'fromMe' => true, 'id' => $id],
+            'pushName'         => 'Acme Ventas',
+            'message'          => ['conversation' => $text],
+            'messageType'      => 'conversation',
+            'messageTimestamp' => 1760000100,
+        ]]);
+    }
+
+    public function test_what_the_line_sends_from_its_phone_shows_in_the_thread_once(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $conversation = Conversation::query()->sole();
+
+        $this->lineSent('P1', 'Te llamo en 5 minutos')->assertOk();
+        $this->lineSent('P1', 'Te llamo en 5 minutos', 'send.message')->assertOk();
+
+        $sent = ConversationMessage::query()->where('direction', 'out')->sole();
+        $this->assertSame(['Te llamo en 5 minutos', 'P1', MessageStatus::Sent, null], [$sent->body, $sent->external_id, $sent->status, $sent->author_id]);
+
+        // The line's own name never renames the contact.
+        $this->assertSame('Ada', $conversation->fresh()?->contact_name);
+
+        $admin = $this->admin();
+        $this->actingAs($admin)->getJson("/_kinetix/inbox/{$conversation->id}/messages")
+            ->assertJsonPath('messages.1.fromPhone', true)
+            ->assertJsonPath('messages.1.bot', false);
+
+        // Only what the contact wrote counts as unread.
+        $this->actingAs($admin)->getJson("/_kinetix/inbox/{$conversation->id}")->assertJsonPath('conversation.unread', 1);
+
+        // A chat the phone starts opens a conversation too.
+        $this->lineSent('P2', '¿Recibiste el pedido?', to: '5215522222222');
+        $this->assertSame(2, Conversation::query()->count());
+    }
+
+    public function test_a_bot_the_provider_runs_signs_its_answers(): void
+    {
+        $this->line->update(['meta' => ['bot' => ['integration' => 'typebot', 'id' => 'bot-1', 'name' => 'Asistente']]]);
+        $this->inbound('A1', 'Hola');
+        Event::fake([ConversationReplied::class]);
+
+        $this->lineSent('B1', '¡Hola! ¿En qué te ayudo?', 'send.message');
+
+        $conversation = Conversation::query()->sole();
+        $this->actingAs($this->admin())->getJson("/_kinetix/inbox/{$conversation->id}/messages")
+            ->assertJsonPath('messages.1.body', '¡Hola! ¿En qué te ayudo?')
+            ->assertJsonPath('messages.1.bot', true)
+            ->assertJsonPath('messages.1.authorName', 'Asistente')
+            ->assertJsonPath('messages.1.fromPhone', false);
+
+        // A bot answering isn't a person taking over.
+        Event::assertNotDispatched(ConversationReplied::class);
+    }
+
+    public function test_the_inbox_own_sends_coming_back_are_not_doubled(): void
+    {
+        $this->inbound('A1', 'Hola');
+        $conversation = Conversation::query()->sole();
+        $admin        = $this->admin();
+
+        // Reported after the id was stored.
+        $id = $this->actingAs($admin)->postJson("/_kinetix/inbox/{$conversation->id}/messages", ['body' => 'Uno'])->json('message.id');
+        $this->lineSent((string) ConversationMessage::query()->findOrFail($id)->external_id, 'Uno', 'send.message');
+
+        // Reported while the send was still in flight.
+        $this->evolution->onSend = function (string $to, string $text, string $externalId): void {
+            ChannelMessageSent::dispatch($this->line, new InboundMessage(from: $to, fromName: null, text: $text, type: 'text', externalId: $externalId, isGroup: false, receivedAt: now(), raw: []));
+        };
+        $this->actingAs($admin)->postJson("/_kinetix/inbox/{$conversation->id}/messages", ['body' => 'Dos'])->assertJsonPath('message.status', 'sent');
+        $this->evolution->onSend = null;
+
+        // Marked failed by a timeout, yet it went out.
+        $this->evolution->failOn = 'sendText';
+        $failed                  = $this->actingAs($admin)->postJson("/_kinetix/inbox/{$conversation->id}/messages", ['body' => 'Tres'])->json('message.id');
+        $this->evolution->failOn = null;
+        $this->lineSent('X3', 'Tres', 'send.message');
+
+        $this->assertSame(['Uno', 'Dos', 'Tres'], ConversationMessage::query()->where('direction', 'out')->orderBy('id')->pluck('body')->all());
+        $this->assertSame([MessageStatus::Sent, 'X3', null], [
+            ConversationMessage::query()->findOrFail($failed)->status,
+            ConversationMessage::query()->findOrFail($failed)->external_id,
+            ConversationMessage::query()->findOrFail($failed)->error,
+        ]);
+    }
+
+    public function test_mirroring_the_lines_sends_can_be_turned_off(): void
+    {
+        config(['kinetix.inbox.mirror_sent' => false]);
+        $this->inbound('A1', 'Hola');
+
+        $this->lineSent('P1', 'Desde el teléfono');
+
+        $this->assertSame(0, ConversationMessage::query()->where('direction', 'out')->count());
     }
 
     public function test_internal_notes_never_reach_the_contact(): void

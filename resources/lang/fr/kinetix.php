@@ -1164,6 +1164,7 @@ return [
     'inbox_unarchive'                           => 'Remettre dans la boîte',
     'inbox_reply'                               => 'Répondre',
     'inbox_note'                                => 'Note interne',
+    'inbox_sent_from_phone'                     => 'Envoyé depuis le téléphone',
     'inbox_compose_mode'                        => 'Que rédiger',
     'inbox_replying_to'                         => 'En réponse à',
     'inbox_cancel_reply'                        => 'Annuler la réponse',

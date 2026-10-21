@@ -60,9 +60,18 @@ class FakeEvolutionGateway implements EvolutionBotGateway, EvolutionGateway
         $this->record('delete', func_get_args());
     }
 
+    /** @var (callable(string, string, string): void)|null Runs while a text is being sent. */
+    public $onSend = null;
+
     public function sendText(string $instance, string $to, string $text, ?string $quotedId = null): ?string
     {
-        return $this->record('sendText', func_get_args(), 'OUT-'.count($this->calls));
+        $id = 'OUT-'.count($this->calls);
+
+        if ($this->onSend !== null && $this->failOn !== 'sendText') {
+            ($this->onSend)($to, $text, $id);
+        }
+
+        return $this->record('sendText', func_get_args(), $id);
     }
 
     public function sendMedia(string $instance, string $to, string $type, string $base64, string $mime, string $fileName, ?string $caption = null, ?string $quotedId = null): ?string

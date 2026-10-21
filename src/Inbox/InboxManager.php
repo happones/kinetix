@@ -264,6 +264,96 @@ class InboxManager
         return $message;
     }
 
+    /**
+     * A message the line sent outside the inbox — from its phone, or from a
+     * bot the provider runs on it — recorded as sent, once. One the inbox sent
+     * itself, reported back before its id was stored, is matched instead.
+     */
+    public function recordSent(Channel $channel, InboundMessage $sent): ?ConversationMessage
+    {
+        $conversation = $this->conversationFor($channel, $sent);
+
+        if ($sent->externalId !== null && $conversation->messages()->where('external_id', $sent->externalId)->exists()) {
+            return null;
+        }
+
+        if ($this->claimOwnSend($conversation, $sent)) {
+            return null;
+        }
+
+        $bot = $channel->meta['bot'] ?? null;
+
+        try {
+            $message = $conversation->messages()->create([
+                'direction'   => MessageDirection::Out,
+                'type'        => $sent->type,
+                'body'        => $sent->text,
+                'media_mime'  => $sent->mediaMime,
+                'media_name'  => $sent->mediaName,
+                'media_ref'   => $sent->mediaRef,
+                'status'      => MessageStatus::Sent,
+                'external_id' => $sent->externalId,
+                'reply_to_id' => $this->replyTarget($conversation, $sent->replyTo),
+                'meta'        => is_array($bot)
+                    ? array_filter(['bot' => true, 'author_name' => is_string($bot['name'] ?? null) ? $bot['name'] : null])
+                    : ['from_phone' => true],
+                'sent_at' => $sent->receivedAt,
+            ]);
+        } catch (QueryException) {
+            return null;
+        }
+
+        $this->touch($conversation, $message);
+
+        if ($sent->hasMedia()) {
+            DownloadConversationMedia::dispatch($message->getKey());
+        }
+
+        $this->broadcast($conversation, $message);
+
+        // Someone answered from the phone: a flow talking there steps back.
+        if (! is_array($bot)) {
+            ConversationReplied::dispatch($conversation, $message);
+        }
+
+        return $message;
+    }
+
+    /**
+     * The inbox's own send reported back by the line before its id was
+     * stored (or after a timeout marked it failed although it went out): the
+     * oldest recent unconfirmed message with the same content takes the id.
+     */
+    protected function claimOwnSend(Conversation $conversation, InboundMessage $sent): bool
+    {
+        if ($sent->externalId === null) {
+            return false;
+        }
+
+        $text = trim((string) $sent->text);
+        $own  = $conversation->messages()
+            ->where('direction', MessageDirection::Out->value)
+            ->whereNull('external_id')
+            ->whereIn('status', [MessageStatus::Pending->value, MessageStatus::Failed->value])
+            ->where('created_at', '>=', now()->subMinutes(5))
+            ->oldest('id')
+            ->get()
+            ->first(static fn (ConversationMessage $message): bool => trim((string) $message->body) === $text
+                && $message->hasMedia()                                                             === $sent->hasMedia());
+
+        if ($own === null) {
+            return false;
+        }
+
+        $own->update($own->status === MessageStatus::Failed
+            ? ['external_id' => $sent->externalId, 'status' => MessageStatus::Sent, 'error' => null]
+            : ['external_id' => $sent->externalId]);
+
+        $this->broadcast($conversation, $own);
+
+        return true;
+    }
+
     /** A delivery receipt: a message only ever moves forward, or to failed before it was delivered. */
     public function recordStatus(Channel $channel, string $externalId, string $status): void
     {

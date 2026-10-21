@@ -1164,6 +1164,7 @@ return [
     'inbox_unarchive'                           => 'Voltar para a caixa de entrada',
     'inbox_reply'                               => 'Responder',
     'inbox_note'                                => 'Nota interna',
+    'inbox_sent_from_phone'                     => 'Enviado pelo telefone',
     'inbox_compose_mode'                        => 'O que escrever',
     'inbox_replying_to'                         => 'Respondendo a',
     'inbox_cancel_reply'                        => 'Cancelar resposta',

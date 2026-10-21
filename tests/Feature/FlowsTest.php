@@ -328,6 +328,26 @@ class FlowsTest extends TestCase
         $this->assertSame(['¿Tu nombre?', 'Hola Ada, soy Grace'], $this->botSaid());
     }
 
+    public function test_someone_answering_from_the_phone_pauses_the_bot_too(): void
+    {
+        $this->flow(['ask' => ['question', ['text' => '¿Tu nombre?', 'variable' => 'name']]]);
+        $this->say('hola', 'A1');
+
+        // The bot's own question coming back from the line isn't a person.
+        $this->postJson("/_kinetix/channels/webhook/{$this->line->public_id}", ['event' => 'send.message', 'data' => [
+            'key'     => ['remoteJid' => '5215599999999@s.whatsapp.net', 'fromMe' => true, 'id' => (string) ConversationMessage::query()->where('direction', 'out')->value('external_id')],
+            'message' => ['conversation' => '¿Tu nombre?'],
+        ]], [WhatsAppDriver::SECRET_HEADER => $this->line->webhook_secret])->assertOk();
+        $this->assertSame(FlowRunStatus::WaitingReply, $this->latestRun()->status);
+
+        $this->postJson("/_kinetix/channels/webhook/{$this->line->public_id}", ['event' => 'messages.upsert', 'data' => [
+            'key'     => ['remoteJid' => '5215599999999@s.whatsapp.net', 'fromMe' => true, 'id' => 'PHONE1'],
+            'message' => ['conversation' => 'Ada, te marco yo'],
+        ]], [WhatsAppDriver::SECRET_HEADER => $this->line->webhook_secret])->assertOk();
+
+        $this->assertSame(FlowRunStatus::Paused, $this->latestRun()->status);
+    }
+
     public function test_a_running_conversation_finishes_on_the_version_it_started(): void
     {
         $flow = $this->flow([

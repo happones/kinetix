@@ -1099,6 +1099,7 @@ return [
     'inbox_unarchive'                           => '移回收件箱',
     'inbox_reply'                               => '回复',
     'inbox_note'                                => '内部备注',
+    'inbox_sent_from_phone'                     => '从手机发送',
     'inbox_compose_mode'                        => '输入类型',
     'inbox_replying_to'                         => '回复',
     'inbox_cancel_reply'                        => '取消回复',

@@ -38,7 +38,7 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
     public const SECRET_HEADER = 'X-Kinetix-Channel-Secret';
 
     /** @var list<string> */
-    protected const EVENTS = ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'MESSAGES_UPDATE'];
+    protected const EVENTS = ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'SEND_MESSAGE'];
 
     public function __construct(protected EvolutionGateway $gateway) {}
 
@@ -110,8 +110,14 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
 
         $channel->meta = [
             ...($channel->meta ?? []),
-            'bot' => array_filter(['integration' => $bot->integration, 'id' => $id, 'credentials' => $credentials]),
+            'bot' => array_filter(['integration' => $bot->integration, 'id' => $id, 'credentials' => $credentials, 'name' => $bot->name]),
         ];
+
+        // What the bot sends reaches the inbox: a line set up before Kinetix
+        // listened for its own sends starts listening now.
+        if ($channel->exists) {
+            $this->gateway->setWebhook($instance, app(ChannelManager::class)->webhookUrl($channel), self::EVENTS, [self::SECRET_HEADER => $channel->webhook_secret]);
+        }
     }
 
     public function detachBot(Channel $channel): void
@@ -274,7 +280,9 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
                 status: ChannelStatus::Connecting,
                 qr: $this->dataUri(data_get($data, 'qrcode.base64')),
             ),
-            'messages.upsert' => new WebhookResult(messages: $this->messages($data)),
+            'messages.upsert' => new WebhookResult(messages: $this->messages($data), sent: $this->messages($data, fromLine: true)),
+            // What the server sent for the line: Kinetix's sends, its bot's.
+            'send.message'    => new WebhookResult(sent: $this->messages($data, fromLine: true)),
             'messages.update' => new WebhookResult(statuses: $this->statuses((array) $request->input('data', []))),
             default           => WebhookResult::none(),
         };
@@ -290,19 +298,20 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
     }
 
     /**
-     * The inbound messages of a `messages.upsert` call — one message, or a
-     * list of them — leaving out the line's own.
+     * The messages of a `messages.upsert` or `send.message` call — one
+     * message, or a list of them: what contacts wrote, or (`$fromLine`) what
+     * the line itself sent, addressed to the contact it went to.
      *
      * @param  array<string, mixed> $data
      * @return list<InboundMessage>
      */
-    protected function messages(array $data): array
+    protected function messages(array $data, bool $fromLine = false): array
     {
         $items    = isset($data['key']) ? [$data] : (array) ($data['messages'] ?? []);
         $messages = [];
 
         foreach ($items as $item) {
-            if (! is_array($item) || data_get($item, 'key.fromMe') === true) {
+            if (! is_array($item) || (data_get($item, 'key.fromMe') === true) !== $fromLine) {
                 continue;
             }
 
@@ -322,7 +331,8 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
             $media      = $this->media($content);
             $messages[] = new InboundMessage(
                 from: $isGroup ? $jid : (string) preg_replace('/@.*$/', '', $jid),
-                fromName: is_string($name = $item['pushName'] ?? null) && $name !== '' ? $name : null,
+                // On the line's own messages the name is the line's, not the contact's.
+                fromName: ! $fromLine && is_string($name = $item['pushName'] ?? null) && $name !== '' ? $name : null,
                 text: $this->text($content),
                 type: $type,
                 externalId: $id,

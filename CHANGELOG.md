@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.254.0] - 2026-10-21
+
+### Added
+
+- **The inbox shows what a WhatsApp line sends outside it.**
+  - Messages typed on the linked phone show on the team's side, marked
+    _Sent from the phone_. They count as a person answering, so a flow steps
+    back.
+  - A bot the provider runs on the line has its answers signed with its name
+    (`WhatsAppBot::named()`, or _Bot_). The integration never shows.
+  - Each one is recorded once and none counts as unread. The inbox's own
+    sends that come back from the line are matched to the message already in
+    the thread, even when they arrive before the send finishes. A message
+    marked failed by a timeout although it went out turns sent.
+  - **(published)** `KinetixInboxBubble` shows the label; messages carry
+    `fromPhone`.
+  - New `ChannelMessageSent` event and `WebhookResult::$sent`. WhatsApp lines
+    now subscribe to `SEND_MESSAGE`. Older lines pick it up after a
+    **Restart**, or when a bot is attached.
+  - `kinetix.inbox.mirror_sent` (new, on by default) turns it off.
+
 ## [0.253.0] - 2026-10-21
 
 ### Added

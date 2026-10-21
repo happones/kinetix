@@ -1099,6 +1099,7 @@ return [
     'inbox_unarchive'                           => '受信箱に戻す',
     'inbox_reply'                               => '返信',
     'inbox_note'                                => '社内メモ',
+    'inbox_sent_from_phone'                     => 'スマートフォンから送信',
     'inbox_compose_mode'                        => '書く内容',
     'inbox_replying_to'                         => '返信先',
     'inbox_cancel_reply'                        => '返信をやめる',

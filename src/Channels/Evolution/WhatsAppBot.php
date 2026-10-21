@@ -30,6 +30,8 @@ final class WhatsAppBot
         public readonly array $bot,
         public readonly array $settings = [],
         public readonly ?array $credentials = null,
+        /** How its messages are signed in the inbox; null = "Bot". */
+        public readonly ?string $name = null,
     ) {
         // It's a segment of the server's URL.
         if (preg_match('/^[A-Za-z0-9]+$/', $integration) !== 1) {
@@ -111,7 +113,7 @@ final class WhatsAppBot
 
     /**
      * From config: `['integration' => 'typebot', 'bot' => [...], 'settings' => [...]]`
-     * (`credentials` too, for OpenAI).
+     * (`credentials` too, for OpenAI; `name` for how it signs in the inbox).
      *
      * @param self|array<string, mixed> $definition
      */
@@ -128,6 +130,7 @@ final class WhatsAppBot
             (array) ($definition['bot'] ?? []),
             (array) ($definition['settings'] ?? []),
             is_array($credentials) ? ['name' => (string) ($credentials['name'] ?? 'kinetix'), 'apiKey' => (string) ($credentials['apiKey'] ?? '')] : null,
+            is_string($definition['name'] ?? null) ? $definition['name'] : null,
         );
     }
 
@@ -139,7 +142,13 @@ final class WhatsAppBot
      */
     public function withSettings(array $settings): self
     {
-        return new self($this->integration, $this->bot, $settings, $this->credentials);
+        return new self($this->integration, $this->bot, $settings, $this->credentials, $this->name);
+    }
+
+    /** The name its messages carry in the inbox ("Asistente"); the integration never shows. */
+    public function named(string $name): self
+    {
+        return new self($this->integration, $this->bot, $this->settings, $this->credentials, $name);
     }
 
     /**

@@ -304,8 +304,9 @@ KinetixChannels::detachBot($line);
 
 - A line with such a bot is left to it: [Flows](flows.md) don't start there on
   their own. Its conversations still reach the inbox.
-- What the bot sends goes straight from the server to WhatsApp. It doesn't
-  appear in the inbox thread.
+- What the bot sends shows in the inbox thread, signed with its name.
+  `->named('Asistente')` sets the name; otherwise it's _Bot_. The integration
+  never shows.
 - If the bot can't be created, the line isn't created either. The team sees
   that the line couldn't be set up; the reason goes to your log.
 - Your own `EvolutionGateway` runs bots once it also implements

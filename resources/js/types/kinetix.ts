@@ -603,8 +603,10 @@ export interface KinetixConversationMessage {
     } | null;
     authorName: string | null;
     sentAt: string | null;
-    /** Sent by a bot (a flow), not a person. */
+    /** Sent by a bot (a flow, or one the provider runs), not a person. */
     bot?: boolean;
+    /** Sent from the line's phone, outside the inbox. */
+    fromPhone?: boolean;
     /** Client-only: a message still on its way from this browser. */
     localId?: string;
 }

@@ -43,6 +43,10 @@ php artisan migrate
     // Link a new conversation to your own contact model.
     'contact_resolver' => null,
 
+    // What the line sends outside the inbox (its phone, a bot the provider
+    // runs) shows in the thread too.
+    'mirror_sent' => true,
+
     // Without broadcasting, how often (seconds) the inbox refreshes.
     'poll' => ['list' => 15, 'thread' => 5],
 ],
@@ -278,6 +282,26 @@ With [Flows](flows.md) on:
 - its bot menu starts any active flow of the line by hand;
 - when someone on the team replies, the bot steps back.
 
+### Messages sent outside the inbox
+
+A WhatsApp line also sends messages the inbox didn't write. They show in the
+thread too, on the team's side, so the conversation reads whole:
+
+- **From the phone.** What someone types in WhatsApp on the linked phone is
+  marked _Sent from the phone_. It counts as a person answering: a flow talking
+  there steps back.
+- **From a bot the provider runs** ([a bot behind the line](channels.md#_8-a-bot-behind-the-line-whatsapp)).
+  Its answers are signed with the bot's name, or _Bot_. The integration behind
+  it never shows.
+
+Each one is recorded once, and none counts as unread. The inbox's own messages
+come back from the line too, sometimes before the send finishes; they're
+matched to the message already in the thread instead of showing twice. One
+marked failed after a timeout although it went out turns sent.
+
+Turn it off with `'mirror_sent' => false`. Lines set up before this listen for
+their bot's sends after a **Restart**, or when a bot is attached.
+
 ---
 
 ## Notes
@@ -286,6 +310,5 @@ With [Flows](flows.md) on:
   per conversation.
 - A delivery receipt never moves a message back. A late _delivered_ doesn't
   undo _read_, and a failure after delivery is ignored.
-- The line's own messages sent from the phone app aren't recorded yet.
 - Files are stored on a private disk and served only through the inbox's own
   endpoint, to people who see the conversation.

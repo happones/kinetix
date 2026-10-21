@@ -458,6 +458,26 @@ describe('KinetixInboxBubble', () => {
         expect(click.defaultPrevented).toBe(true);
     });
 
+    it('says when the line answered from its phone or through its bot', () => {
+        const phone = bubble({
+            direction: 'out',
+            status: 'sent',
+            fromPhone: true,
+        });
+        expect(phone.get('[data-test="inbox-from-phone"]').text()).toBe(
+            'kinetix.inbox_sent_from_phone',
+        );
+
+        const bot = bubble({
+            direction: 'out',
+            status: 'sent',
+            bot: true,
+            authorName: 'Asistente',
+        });
+        expect(bot.text()).toContain('Asistente');
+        expect(bot.find('[data-test="inbox-from-phone"]').exists()).toBe(false);
+    });
+
     it('sets an internal note apart and offers no reply to it', () => {
         const note = bubble({
             direction: 'note',

@@ -31,8 +31,10 @@ class ConversationMessageData extends Data
         public ?array $replyTo,
         public ?string $authorName,
         public ?string $sentAt,
-        /** Sent by a bot (a flow), not a person. */
+        /** Sent by a bot (a flow, or one the provider runs), not a person. */
         public bool $bot = false,
+        /** Sent from the line's phone, outside the inbox. */
+        public bool $fromPhone = false,
     ) {}
 
     public static function fromModel(ConversationMessage $message, ?string $authorName = null): self
@@ -60,7 +62,8 @@ class ConversationMessageData extends Data
             ],
             $authorName ?? (is_string($message->meta['author_name'] ?? null) ? $message->meta['author_name'] : null),
             ($message->sent_at ?? $message->created_at)?->toIso8601String(),
-            ($message->meta['bot'] ?? false) === true,
+            ($message->meta['bot'] ?? false)        === true,
+            ($message->meta['from_phone'] ?? false) === true,
         );
     }
 }

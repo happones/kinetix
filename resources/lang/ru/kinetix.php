@@ -1099,6 +1099,7 @@ return [
     'inbox_unarchive'                           => 'Вернуть во входящие',
     'inbox_reply'                               => 'Ответ',
     'inbox_note'                                => 'Внутренняя заметка',
+    'inbox_sent_from_phone'                     => 'Отправлено с телефона',
     'inbox_compose_mode'                        => 'Что написать',
     'inbox_replying_to'                         => 'Ответ на',
     'inbox_cancel_reply'                        => 'Отменить ответ',

@@ -68,3 +68,7 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations   # needs kinetix-chan
     - Endpoints: `inbox/replies` (GET `{replies, canManage}` for `conversations.view`; POST/PUT/DELETE behind `conversations.quick_replies`).
     - Shortcuts are stored lowercased without the `/`; `[\pL\pN_-]+`, unique per team.
     - The composer suggests on `/word` before the caret and fills `{{contact.name}}`, `{{contact.key}}`, `{{agent.name}}`, `{{line.name}}` on insert. `KinetixInboxQuickReplies` is the manager modal.
+- **Messages sent outside the inbox** (WhatsApp `fromMe` on `messages.upsert`, and `send.message`):
+    - The driver returns them as `WebhookResult::$sent` → `ChannelMessageSent` → `InboxManager::recordSent()` (`inbox.mirror_sent`, default on).
+    - Phone sends get `meta.from_phone` and fire `ConversationReplied`. A provider-run bot's get `meta.bot` with the line's `meta.bot.name`.
+    - The inbox's own sends coming back are deduped by `external_id`, or claimed by `claimOwnSend()` (oldest recent pending/failed Out message, same body). Never count as unread.

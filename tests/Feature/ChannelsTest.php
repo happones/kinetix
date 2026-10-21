@@ -246,6 +246,10 @@ class ChannelsTest extends TestCase
         $line = $this->line();
 
         KinetixChannels::attachBot($line, WhatsAppBot::typebot('https://typebot.test', 'ventas', ['triggerType' => 'keyword', 'triggerOperator' => 'equals', 'triggerValue' => 'menu']));
+
+        // The line starts listening for what the server sends for it.
+        [, , $events] = $this->evolution->callsTo('setWebhook')[0];
+        $this->assertContains('SEND_MESSAGE', $events);
         KinetixChannels::attachBot($line->fresh(), WhatsAppBot::dify('https://dify.test/v1', 'app-key'));
 
         $this->assertSame([['kinetix_line', 'typebot', 'bot-0']], $this->evolution->callsTo('deleteBot'));

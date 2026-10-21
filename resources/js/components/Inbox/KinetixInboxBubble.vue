@@ -10,6 +10,7 @@ import {
     FileText,
     Lock,
     RotateCw,
+    Smartphone,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -133,6 +134,14 @@ const statusLabel = computed(() =>
                 >
                     <Bot class="size-3" />
                     {{ message.authorName ?? t('kinetix.flow_bot') }}
+                </p>
+                <p
+                    v-else-if="message.fromPhone && message.direction === 'out'"
+                    class="gap-1 font-medium mb-0.5 flex items-center text-[11px] opacity-80"
+                    data-test="inbox-from-phone"
+                >
+                    <Smartphone class="size-3" />
+                    {{ t('kinetix.inbox_sent_from_phone') }}
                 </p>
 
                 <!-- The message it answers -->
