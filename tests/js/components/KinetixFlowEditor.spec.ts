@@ -331,6 +331,166 @@ describe('KinetixFlowEditor', () => {
     });
 });
 
+describe('KinetixFlowEditor settings and steps', () => {
+    it('takes keywords as chips and switches what starts the flow', async () => {
+        vi.useFakeTimers();
+        const saved: Record<string, unknown>[] = [];
+        serve({
+            'GET /_kinetix/flows/1': () => ({
+                flow: detail({
+                    trigger: {
+                        type: 'keyword',
+                        keywords: [],
+                        match: 'contains',
+                    },
+                }),
+            }),
+            'PUT /_kinetix/flows/1': (body) => {
+                saved.push(body as Record<string, unknown>);
+
+                return { flow: detail() };
+            },
+        });
+        registerKinetixFlowEditor(async () => fakeEngine);
+
+        const w = mount(KinetixFlowEditor, {
+            props: { flowId: 1 },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+
+        const keywords = w.get('#flow-keywords');
+        await keywords.setValue('hola, buenas');
+        await keywords.trigger('keydown', { key: 'Enter' });
+        await vi.advanceTimersByTimeAsync(900);
+        await flushPromises();
+
+        expect(saved.at(-1)?.trigger).toMatchObject({
+            type: 'keyword',
+            keywords: ['hola', 'buenas'],
+        });
+
+        const firstMessage = w.get('[data-test="flow-trigger-first_message"]');
+        expect(firstMessage.attributes('role')).toBe('radio');
+        await firstMessage.trigger('click');
+        await vi.advanceTimersByTimeAsync(900);
+        await flushPromises();
+
+        expect(saved.at(-1)?.trigger).toMatchObject({ type: 'first_message' });
+        w.unmount();
+    });
+
+    it('explains options only for the providers turned on', async () => {
+        const graph = {
+            nodes: [
+                {
+                    id: 'start',
+                    type: 'start',
+                    position: { x: 0, y: 0 },
+                    data: {},
+                },
+                {
+                    id: 'menu',
+                    type: 'options',
+                    position: { x: 300, y: 0 },
+                    data: {
+                        text: '¿Qué necesitas?',
+                        options: [
+                            { id: 'a', label: 'Ventas' },
+                            { id: 'b', label: 'Soporte' },
+                        ],
+                    },
+                },
+            ],
+            edges: [],
+        };
+
+        for (const [providers, key] of [
+            [['whatsapp'], 'kinetix.flow_options_hint_whatsapp'],
+            [['telegram'], 'kinetix.flow_options_hint_telegram'],
+            [['whatsapp', 'telegram'], 'kinetix.flow_options_hint'],
+        ] as const) {
+            serve({
+                'GET /_kinetix/flows/1': () => ({
+                    flow: detail({ graph, providers: [...providers] }),
+                }),
+            });
+            registerKinetixFlowEditor(async () => fakeEngine);
+
+            const w = mount(KinetixFlowEditor, {
+                props: { flowId: 1 },
+                global: { plugins: [i18n] },
+            });
+            await flushPromises();
+            await w.get('[data-test="flow-node-menu"]').trigger('click');
+
+            expect(w.get('[data-test="flow-inspector"]').text()).toContain(key);
+            w.unmount();
+        }
+    });
+
+    it('suggests the flow variables for a condition rule', async () => {
+        serve({
+            'GET /_kinetix/flows/1': () => ({
+                flow: detail({
+                    graph: {
+                        nodes: [
+                            {
+                                id: 'start',
+                                type: 'start',
+                                position: { x: 0, y: 0 },
+                                data: {},
+                            },
+                            {
+                                id: 'check',
+                                type: 'condition',
+                                position: { x: 300, y: 0 },
+                                data: {
+                                    match: 'all',
+                                    rules: [
+                                        {
+                                            variable: '',
+                                            operator: 'equals',
+                                            value: '',
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                        edges: [],
+                    },
+                }),
+            }),
+        });
+        registerKinetixFlowEditor(async () => fakeEngine);
+
+        const w = mount(KinetixFlowEditor, {
+            props: { flowId: 1 },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+        await w.get('[data-test="flow-node-check"]').trigger('click');
+
+        const variable = w.get(
+            '[data-test="flow-inspector"] input[aria-label="kinetix.flow_field_variable"]',
+        );
+        expect(variable.attributes('role')).toBe('combobox');
+        await variable.setValue('contact.na');
+        await flushPromises();
+
+        const options = [...document.querySelectorAll('[role="option"]')].map(
+            (option) => option.textContent?.trim(),
+        );
+        expect(options).toContain('contact.name');
+        expect(w.findAll('select, datalist, input[type="radio"]')).toHaveLength(
+            0,
+        );
+        w.unmount();
+    });
+});
+
 describe('flow nodes', () => {
     it('exposes one output per option plus anything else, as the PHP node does', () => {
         const outputs = flowKind('options').outputs(

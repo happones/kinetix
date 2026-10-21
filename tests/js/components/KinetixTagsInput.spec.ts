@@ -11,8 +11,10 @@ const i18n = createI18n({
     messages: { en: { kinetix: { tag_remove: 'Remove tag' } } },
 });
 
-const mountTags = (options: { props: Record<string, unknown> }) =>
-    mount(KinetixTagsInput, { ...options, global: { plugins: [i18n] } });
+const mountTags = (options: {
+    props: Record<string, unknown>;
+    attrs?: Record<string, unknown>;
+}) => mount(KinetixTagsInput, { ...options, global: { plugins: [i18n] } });
 
 describe('KinetixTagsInput', () => {
     it('renders the existing tags', () => {
@@ -32,6 +34,31 @@ describe('KinetixTagsInput', () => {
         await input.trigger('keydown', { key: 'Enter' });
 
         expect(wrapper.emitted('update:value')?.[0]).toEqual([['design']]);
+    });
+
+    it('adds each item of a pasted list', async () => {
+        const wrapper = mountTags({ props: { value: ['php'] } });
+        const input = wrapper.find('input');
+
+        await input.setValue('vue, php,  laravel ,');
+        await input.trigger('blur');
+
+        expect(wrapper.emitted('update:value')?.[0]).toEqual([
+            ['php', 'vue', 'laravel'],
+        ]);
+        expect((input.element as HTMLInputElement).value).toBe('');
+    });
+
+    it('describes the text field, not its box', () => {
+        const wrapper = mountTags({
+            props: { value: [] },
+            attrs: { 'aria-describedby': 'help', 'data-test': 'tags' },
+        });
+
+        expect(wrapper.find('input').attributes('aria-describedby')).toBe(
+            'help',
+        );
+        expect(wrapper.attributes('data-test')).toBe('tags');
     });
 
     it('does not add a duplicate tag', async () => {

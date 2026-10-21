@@ -4,6 +4,7 @@ import { computed, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { KinetixFlowEngine } from '@/composables/useKinetixFlowEngine';
 import { cn } from '../primitives/cn';
+import KinetixTooltip from '../primitives/KinetixTooltip.vue';
 import { FLOW_EDITOR } from './flowEditorContext';
 import { flowKind } from './flowNodes';
 
@@ -29,6 +30,15 @@ const outputs = computed(() => kind.value.outputs(props.data, t));
 const summary = computed(() => kind.value.summary(props.data, t));
 const problem = computed(() => editor?.problems.value[props.id] ?? null);
 const stat = computed(() => editor?.stats.value?.[props.id] ?? null);
+const statText = computed(() =>
+    stat.value
+        ? t('kinetix.flow_stats_tooltip', {
+              entered: stat.value.entered,
+              waiting: stat.value.waiting,
+              stopped: stat.value.stopped,
+          })
+        : null,
+);
 const active = computed(() => editor?.activeNode.value === props.id);
 const visited = computed(() => editor?.path.value.includes(props.id) ?? false);
 const label = computed(() => {
@@ -72,19 +82,14 @@ const label = computed(() => {
             <span class="text-sm font-semibold min-w-0 flex-1 truncate">{{
                 label
             }}</span>
-            <span
-                v-if="stat"
-                class="px-1.5 py-0.5 font-medium rounded-full bg-muted text-[11px] text-muted-foreground tabular-nums"
-                :title="
-                    t('kinetix.flow_stats_tooltip', {
-                        entered: stat.entered,
-                        waiting: stat.waiting,
-                        stopped: stat.stopped,
-                    })
-                "
-                data-test="flow-node-stat"
-                >{{ stat.entered }}</span
-            >
+            <KinetixTooltip v-if="stat" :text="statText">
+                <span
+                    class="px-1.5 py-0.5 font-medium rounded-full bg-muted text-[11px] text-muted-foreground tabular-nums"
+                    data-test="flow-node-stat"
+                    ><span aria-hidden="true">{{ stat.entered }}</span
+                    ><span class="sr-only">{{ statText }}</span></span
+                >
+            </KinetixTooltip>
             <AlertCircle
                 v-if="problem"
                 class="size-4 shrink-0 text-destructive"

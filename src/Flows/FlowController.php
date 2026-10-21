@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Flows;
 
 use Happones\Kinetix\Channels\Channel;
+use Happones\Kinetix\Channels\ChannelManager;
 use Happones\Kinetix\Inbox\InboxManager;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
@@ -281,6 +282,8 @@ class FlowController
                 ->values(),
             'nodeTypes' => $this->nodes->types(),
             'lines'     => $this->lines(),
+            // The providers turned on: copy names only those.
+            'providers' => array_keys(app(ChannelManager::class)->available()),
             // Whom a handoff can assign to.
             'members' => app(InboxManager::class)->members($this->teamId())
                 ->map(static fn (Model $user): array => ['id' => $user->getKey(), 'name' => app(InboxManager::class)->userName($user)])

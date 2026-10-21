@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useAttrs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixCombobox from './KinetixCombobox.vue';
@@ -31,6 +31,22 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ (e: 'update:value', value: string): void }>();
+
+defineOptions({ inheritAttrs: false });
+
+// aria-* (describedby, invalid…) describe the number field; class and data-*
+// stay on the wrapper.
+const attrs = useAttrs();
+const inputAttrs = computed(() =>
+    Object.fromEntries(
+        Object.entries(attrs).filter(([key]) => key.startsWith('aria-')),
+    ),
+);
+const boxAttrs = computed(() =>
+    Object.fromEntries(
+        Object.entries(attrs).filter(([key]) => !key.startsWith('aria-')),
+    ),
+);
 
 const { t } = useI18n();
 
@@ -109,32 +125,37 @@ function onNational(event: Event): void {
 </script>
 
 <template>
-    <div class="gap-2 flex items-center">
-        <div class="w-44 shrink-0">
-            <KinetixCombobox
-                :value="country"
-                :options="options"
-                :disabled="disabled"
-                :aria-label="t('kinetix.phone_country_code')"
-                @update:value="onCountry"
-            />
-        </div>
-        <div class="relative flex-1">
-            <span
-                class="inset-y-0 left-3 text-sm pointer-events-none absolute flex items-center text-muted-foreground"
-                >+{{ dialFor(country) }}</span
-            >
-            <input
-                :id="id"
-                :value="national"
-                type="tel"
-                inputmode="tel"
-                :disabled="disabled"
-                :placeholder="placeholder ?? ''"
-                :class="inputClass"
-                class="pl-12"
-                @input="onNational"
-            />
+    <!-- Side by side where there's room; the country on top of the number
+         in a narrow box (a phone, a side panel). -->
+    <div v-bind="boxAttrs" class="@container">
+        <div class="gap-2 @xs:flex-row @xs:items-center flex flex-col">
+            <div class="@xs:w-44 w-full shrink-0">
+                <KinetixCombobox
+                    :value="country"
+                    :options="options"
+                    :disabled="disabled"
+                    :aria-label="t('kinetix.phone_country_code')"
+                    @update:value="onCountry"
+                />
+            </div>
+            <div class="min-w-0 relative flex-1">
+                <span
+                    class="inset-y-0 left-3 text-sm pointer-events-none absolute flex items-center text-muted-foreground"
+                    >+{{ dialFor(country) }}</span
+                >
+                <input
+                    :id="id"
+                    v-bind="inputAttrs"
+                    :value="national"
+                    type="tel"
+                    inputmode="tel"
+                    :disabled="disabled"
+                    :placeholder="placeholder ?? ''"
+                    :class="inputClass"
+                    class="pl-12"
+                    @input="onNational"
+                />
+            </div>
         </div>
     </div>
 </template>

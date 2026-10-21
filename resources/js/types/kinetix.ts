@@ -564,6 +564,13 @@ export interface KinetixChannelProvider {
     methods: KinetixChannelLinkMethod[];
 }
 
+/** The phone field where a number is typed for a pairing code. */
+export interface KinetixChannelPhoneField {
+    /** ISO alpha-2; null = the browser's region. */
+    defaultCountry: string | null;
+    countries: { code: string; name: string; dial: string }[];
+}
+
 /** Linking in progress: the QR (a data URI) or pairing code, and how long it lasts. */
 export interface KinetixChannelLink {
     status: KinetixChannelStatus;
@@ -618,6 +625,12 @@ export interface KinetixConversation {
 }
 
 /** A saved answer the team inserts in the inbox with `/shortcut`. */
+/** One choice of `<KinetixSelect>` when the options' order matters. */
+export interface KinetixSelectOption {
+    value: string | number;
+    label: string;
+}
+
 export interface KinetixQuickReply {
     id: number | string;
     /** One word, typed after `/`. */
@@ -700,6 +713,8 @@ export interface KinetixFlowDetail extends KinetixFlow {
     lines: { id: number | string; name: string; provider: string }[];
     /** Whom a handoff can assign to. */
     members: { id: number | string; name: string | null }[];
+    /** The providers turned on (`whatsapp`, `telegram`…). */
+    providers?: string[];
 }
 
 /** One turn of the editor's test chat. */

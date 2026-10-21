@@ -23,14 +23,12 @@ import { toast } from 'vue-sonner';
 import type { KinetixFlowEngine } from '@/composables/useKinetixFlowEngine';
 import { loadKinetixFlowEngine } from '@/composables/useKinetixFlowEngine';
 import { useKinetixFlows } from '@/composables/useKinetixFlows';
-import {
-    buttonVariants,
-    inputClass,
-} from '@/composables/useKinetixShadcnVariants';
+import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
     KinetixFlowDetail,
     KinetixFlowGraph,
     KinetixFlowStats,
+    KinetixSelectOption,
 } from '@/types/kinetix';
 import { FLOW_EDITOR } from './Flows/flowEditorContext';
 import {
@@ -44,7 +42,9 @@ import KinetixFlowNode from './Flows/KinetixFlowNode.vue';
 import KinetixFlowSettings from './Flows/KinetixFlowSettings.vue';
 import KinetixFlowSimulator from './Flows/KinetixFlowSimulator.vue';
 import KinetixButton from './KinetixButton.vue';
+import KinetixSelect from './KinetixSelect.vue';
 import KinetixBadge from './primitives/KinetixBadge.vue';
+import KinetixTooltip from './primitives/KinetixTooltip.vue';
 
 /**
  * The visual bot editor: drag steps onto the canvas, wire their outputs,
@@ -103,6 +103,13 @@ const panel = ref<'auto' | 'settings' | 'test'>('auto');
 const panelOpen = ref(false);
 const showStats = ref(false);
 const statsVersion = ref<number | string | null>(null);
+const versionOptions = computed<KinetixSelectOption[]>(() => [
+    { value: '', label: t('kinetix.flow_version_live') },
+    ...(flow.value?.versions ?? []).map((version) => ({
+        value: version.id,
+        label: `v${version.number}`,
+    })),
+]);
 const saving = ref<'saved' | 'saving' | 'dirty' | 'error'>('saved');
 const publishing = ref(false);
 const showProblems = ref(false);
@@ -658,46 +665,57 @@ const statusColor = computed(
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    :class="
-                        buttonVariants({
-                            variant: showStats ? 'secondary' : 'ghost',
-                            size: 'sm',
-                        })
-                    "
-                    :aria-pressed="showStats"
-                    :disabled="!flow?.version"
-                    :title="
+                <KinetixTooltip
+                    :text="
                         flow?.version
-                            ? undefined
+                            ? null
                             : t('kinetix.flow_stats_unpublished')
                     "
-                    data-test="flow-stats-toggle"
-                    @click="showStats = !showStats"
+                    side="bottom"
                 >
-                    <BarChart3 class="size-4" />
-                    <span class="md:inline hidden">{{
-                        t('kinetix.flow_stats')
-                    }}</span>
-                </button>
-                <select
-                    v-if="showStats && (flow?.versions.length ?? 0) > 1"
-                    v-model="statsVersion"
-                    :class="[inputClass, 'h-8 w-24 text-xs md:text-xs']"
-                    :aria-label="t('kinetix.flow_version')"
-                >
-                    <option :value="null">
-                        {{ t('kinetix.flow_version_live') }}
-                    </option>
-                    <option
-                        v-for="version in flow?.versions ?? []"
-                        :key="version.id"
-                        :value="version.id"
+                    <!-- A disabled button gets no pointer or focus: the
+                         wrapper carries the hint. -->
+                    <span
+                        class="inline-flex rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                        :tabindex="flow?.version ? undefined : 0"
                     >
-                        v{{ version.number }}
-                    </option>
-                </select>
+                        <button
+                            type="button"
+                            :class="
+                                buttonVariants({
+                                    variant: showStats ? 'secondary' : 'ghost',
+                                    size: 'sm',
+                                })
+                            "
+                            :aria-pressed="showStats"
+                            :disabled="!flow?.version"
+                            data-test="flow-stats-toggle"
+                            @click="showStats = !showStats"
+                        >
+                            <BarChart3 class="size-4" />
+                            <span class="md:inline hidden">{{
+                                t('kinetix.flow_stats')
+                            }}</span>
+                        </button>
+                    </span>
+                </KinetixTooltip>
+                <div
+                    v-if="showStats && (flow?.versions.length ?? 0) > 1"
+                    class="w-24"
+                >
+                    <KinetixSelect
+                        :value="
+                            statsVersion === null ? '' : String(statsVersion)
+                        "
+                        :options="versionOptions"
+                        size="sm"
+                        :aria-label="t('kinetix.flow_version')"
+                        data-test="flow-stats-version"
+                        @update:value="
+                            statsVersion = $event === '' ? null : $event
+                        "
+                    />
+                </div>
 
                 <button
                     type="button"
@@ -935,6 +953,7 @@ npm install @vue-flow/core @vue-flow/background @vue-flow/controls @vue-flow/min
                     :variables="variables"
                     :members="flow?.members ?? []"
                     :problem="problemMap[selected.id] ?? null"
+                    :providers="flow?.providers ?? []"
                     @update="updateSelected"
                     @delete="deleteSelected"
                 />

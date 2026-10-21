@@ -34,6 +34,10 @@ php artisan migrate
     // calls HTTPS URLs.
     'webhook_url' => env('KINETIX_CHANNELS_WEBHOOK_URL'),
 
+    // The country preselected for a pairing code's number (ISO, e.g. 'MX');
+    // null = the browser's region.
+    'phone_country' => env('KINETIX_CHANNELS_PHONE_COUNTRY'),
+
     'providers' => [
         'whatsapp' => [
             'enabled'  => env('KINETIX_CHANNELS_WHATSAPP', true),
@@ -50,7 +54,9 @@ php artisan migrate
 ```
 
 Turn a provider off with `'enabled' => false` and it disappears from the
-picker.
+picker. The copy follows: with only WhatsApp on, the manager, the add dialog
+and the bot editor talk about WhatsApp numbers and never mention Telegram (and
+the other way around).
 
 ---
 
@@ -77,9 +83,13 @@ A team adds a line by choosing its provider and naming it:
   itself before it expires (a few times, then it waits for a click), and the
   dialog follows the line's status until WhatsApp reports it linked. On a phone
   it starts on the pairing code instead: the phone showing the QR can't scan
-  itself.
+  itself. The number for the code is typed with a country picker, so it always
+  goes out with its country code.
 
 <Screenshot name="channel-linker" alt="Linking a WhatsApp number: the steps, the QR with the time left on it, waiting for the scan" />
+
+<Screenshot name="channel-linker-pairing" alt="Linking by pairing code: the number typed with its country picked from a list" />
+
 - **A Telegram line** asks for the bot token. A rejected token shows under the
   field; an accepted one connects at once.
 

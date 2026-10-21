@@ -775,6 +775,10 @@ return [
         // the app. Schedule kinetix:channels:sync for lines nobody watches.
         'check_interval' => 5,
 
+        // The country preselected where a WhatsApp number is typed for a
+        // pairing code (ISO alpha-2, e.g. 'MX'); null = the browser's region.
+        'phone_country' => env('KINETIX_CHANNELS_PHONE_COUNTRY'),
+
         // Broadcast status and QR changes on the private channel
         // `kinetix.channels.{team}` (needs Laravel Echo); the linker polls
         // either way.

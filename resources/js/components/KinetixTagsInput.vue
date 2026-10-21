@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, useAttrs } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { tagRemoveButtonClass } from '@/composables/useKinetixShadcnVariants';
 
@@ -31,6 +31,22 @@ const emit = defineEmits<{
     (e: 'update:value', value: string[]): void;
 }>();
 
+defineOptions({ inheritAttrs: false });
+
+// aria-* (describedby, invalid, label…) describe the text field itself;
+// everything else (class, data-*) stays on the box.
+const attrs = useAttrs();
+const inputAttrs = computed(() =>
+    Object.fromEntries(
+        Object.entries(attrs).filter(([key]) => key.startsWith('aria-')),
+    ),
+);
+const boxAttrs = computed(() =>
+    Object.fromEntries(
+        Object.entries(attrs).filter(([key]) => !key.startsWith('aria-')),
+    ),
+);
+
 const { t } = useI18n();
 const draft = ref('');
 // The tag a repeat pointed at: highlighted, and said, instead of silently
@@ -47,27 +63,44 @@ const same = (a: string, b: string): boolean =>
     props.ignoreCase ? a.toLowerCase() === b.toLowerCase() : a === b;
 
 const addTag = () => {
-    const candidate = draft.value.trim();
+    // A pasted list ("a, b, c") adds each of its items.
+    const candidates = draft.value
+        .split(/[,\n]/)
+        .map((part) => part.trim())
+        .filter(Boolean);
 
-    if (!candidate) {
+    if (candidates.length === 0) {
         return;
     }
 
-    const existing = tags().find((tag) => same(tag, candidate));
+    const next = [...tags()];
+    let repeat: string | null = null;
 
-    if (existing !== undefined) {
-        repeated.value = existing;
+    for (const candidate of candidates) {
+        const existing = next.find((tag) => same(tag, candidate));
 
-        return;
+        if (existing !== undefined) {
+            repeat = existing;
+
+            continue;
+        }
+
+        if (props.maxItems !== null && next.length >= props.maxItems) {
+            break;
+        }
+
+        next.push(candidate);
     }
 
-    if (full.value) {
+    repeated.value = repeat;
+
+    // Nothing new: keep what was typed, so it can be fixed.
+    if (next.length === tags().length) {
         return;
     }
 
     draft.value = '';
-    repeated.value = null;
-    emit('update:value', [...tags(), candidate]);
+    emit('update:value', next);
 };
 
 const removeTag = (tag: string) => {
@@ -92,7 +125,7 @@ const onKeydown = (event: KeyboardEvent) => {
 </script>
 
 <template>
-    <div>
+    <div v-bind="boxAttrs">
         <div
             class="min-h-9 gap-1.5 px-2 py-1 text-sm shadow-xs flex w-full flex-wrap items-center rounded-md border border-input bg-background transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
             :class="disabled ? 'cursor-not-allowed opacity-50' : ''"
@@ -117,6 +150,7 @@ const onKeydown = (event: KeyboardEvent) => {
 
             <input
                 :id="id"
+                v-bind="inputAttrs"
                 v-model="draft"
                 type="text"
                 :disabled="disabled || full"

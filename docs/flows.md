@@ -110,7 +110,8 @@ Flows are created, turned on and off, duplicated and deleted from there.
 - Select a step to set it up on the right. Variables insert where the cursor
   is.
 - With no step selected (or the start selected) the panel shows the **flow
-  settings**: what starts it, its keywords, its lines and its priority.
+  settings**: what starts it, its keywords (Enter or a comma after each one,
+  or paste a list), its lines and its priority.
 - Changes save to the **draft** as you go. **Publish** freezes the draft as a
   new version and turns the flow on. A step with a problem shows it, and the
   toolbar lists every problem; publishing waits until there are none.

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixChannels } from '@/composables/useKinetixChannels';
@@ -12,6 +13,7 @@ import KinetixButton from '../KinetixButton.vue';
 import KinetixLabel from '../KinetixLabel.vue';
 import KinetixModal from '../primitives/KinetixModal.vue';
 import KinetixChannelProviderIcon from './KinetixChannelProviderIcon.vue';
+import { providerCopyKey } from './providerCopy';
 
 /**
  * Adding a line: pick where it lives (each provider says how it links), name
@@ -40,6 +42,16 @@ const name = ref('');
 const token = ref('');
 const processing = ref(false);
 const errors = ref<Record<string, string>>({});
+
+// With one provider there's nothing to choose: say what's being added.
+const descriptionKey = computed(() =>
+    props.providers.length > 1
+        ? 'kinetix.channel_add_description'
+        : providerCopyKey(
+              'kinetix.channel_add_description',
+              props.providers.map((p) => p.key),
+          ),
+);
 
 const selected = computed(
     () => props.providers.find((p) => p.key === provider.value) ?? null,
@@ -99,7 +111,7 @@ async function submit(): Promise<void> {
     <KinetixModal
         :open="open"
         :title="t('kinetix.channel_add')"
-        :description="t('kinetix.channel_add_description')"
+        :description="t(descriptionKey)"
         :processing="processing"
         @update:open="emit('update:open', $event)"
     >
@@ -108,29 +120,25 @@ async function submit(): Promise<void> {
             class="space-y-5"
             @submit.prevent="submit"
         >
-            <fieldset v-if="providers.length > 1" class="space-y-2">
-                <legend class="text-sm font-medium mb-2 text-foreground">
+            <div v-if="providers.length > 1" class="space-y-2">
+                <p
+                    id="kinetix-channel-provider-label"
+                    class="text-sm font-medium mb-2 text-foreground"
+                >
                     {{ t('kinetix.channel_choose_provider') }}
-                </legend>
-                <div class="gap-2 sm:grid-cols-2 grid grid-cols-1">
-                    <label
+                </p>
+                <RadioGroupRoot
+                    v-model="provider"
+                    class="gap-2 sm:grid-cols-2 grid grid-cols-1"
+                    aria-labelledby="kinetix-channel-provider-label"
+                >
+                    <RadioGroupItem
                         v-for="p in providers"
                         :key="p.key"
-                        class="gap-3 rounded-lg p-3 flex cursor-pointer items-center border transition-colors has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50"
-                        :class="
-                            provider === p.key
-                                ? 'border-primary bg-primary/5'
-                                : 'border-border hover:bg-accent/50'
-                        "
+                        :value="p.key"
+                        class="gap-3 rounded-lg p-3 flex w-full cursor-pointer items-center border text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:border-primary data-[state=checked]:bg-primary/5 data-[state=unchecked]:border-border data-[state=unchecked]:hover:bg-accent/50"
                         :data-test="`channel-provider-${p.key}`"
                     >
-                        <input
-                            v-model="provider"
-                            type="radio"
-                            name="provider"
-                            :value="p.key"
-                            class="sr-only"
-                        />
                         <KinetixChannelProviderIcon :provider="p.key" />
                         <span class="min-w-0">
                             <span
@@ -141,9 +149,9 @@ async function submit(): Promise<void> {
                                 hint(p)
                             }}</span>
                         </span>
-                    </label>
-                </div>
-            </fieldset>
+                    </RadioGroupItem>
+                </RadioGroupRoot>
+            </div>
 
             <div class="space-y-2">
                 <KinetixLabel for="kinetix-channel-name">{{

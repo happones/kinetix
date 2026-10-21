@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Channels;
 
 use Happones\Kinetix\Data\ChannelData;
+use Happones\Kinetix\Forms\Components\PhoneInput;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +39,8 @@ class ChannelController
             'broadcast' => $this->manager->broadcastChannel($this->teamId()),
             // With the inbox on, each line has its agents.
             'agents' => config('kinetix.inbox.enabled', false) === true,
+            // Where a number is typed for a pairing code.
+            'phone' => $this->phoneField(),
         ]);
     }
 
@@ -219,5 +222,28 @@ class ChannelController
     protected function teamId(): int|string|null
     {
         return KinetixTeams::keyFor('channels');
+    }
+
+    /**
+     * The phone field of a provider that links by pairing code: its countries
+     * and the one preselected. Null when no provider offers one.
+     *
+     * @return array{defaultCountry: string|null, countries: list<array{code: string, name: string, dial: string}>}|null
+     */
+    protected function phoneField(): ?array
+    {
+        $pairing = collect($this->manager->providers())
+            ->contains(static fn (array $provider): bool => in_array('pairing_code', $provider['methods'], true));
+
+        if (! $pairing) {
+            return null;
+        }
+
+        $country = config('kinetix.channels.phone_country');
+
+        return [
+            'defaultCountry' => is_string($country) && $country !== '' ? strtoupper($country) : null,
+            'countries'      => PhoneInput::countryList(),
+        ];
     }
 }

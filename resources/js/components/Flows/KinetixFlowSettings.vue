@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Hand, MessageCircle, MessagesSquare, Search } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { RadioGroupItem, RadioGroupRoot } from 'reka-ui';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
-import type { KinetixFlow } from '@/types/kinetix';
+import type { KinetixFlow, KinetixSelectOption } from '@/types/kinetix';
 import KinetixChannelProviderIcon from '../Channels/KinetixChannelProviderIcon.vue';
 import KinetixCheckbox from '../KinetixCheckbox.vue';
 import KinetixLabel from '../KinetixLabel.vue';
+import KinetixSelect from '../KinetixSelect.vue';
+import KinetixTagsInput from '../KinetixTagsInput.vue';
 
 /**
  * What starts a flow and where it runs: a keyword, a contact's first
@@ -35,20 +38,13 @@ const TYPES = [
     { key: 'manual', icon: Hand },
 ] as const;
 
-const keywordText = ref((props.trigger.keywords ?? []).join(', '));
+const MATCHES = ['contains', 'exact', 'regex'] as const;
 
-watch(
-    () => props.trigger.keywords,
-    (keywords) => {
-        const current = keywordText.value
-            .split(',')
-            .map((k) => k.trim())
-            .filter(Boolean);
-
-        if (JSON.stringify(current) !== JSON.stringify(keywords ?? [])) {
-            keywordText.value = (keywords ?? []).join(', ');
-        }
-    },
+const matchOptions = computed<KinetixSelectOption[]>(() =>
+    MATCHES.map((match) => ({
+        value: match,
+        label: t(`kinetix.flow_keyword_${match}`),
+    })),
 );
 
 const allLines = computed(
@@ -59,14 +55,14 @@ function setType(type: KinetixFlow['trigger']['type']): void {
     emit('update:trigger', { ...props.trigger, type });
 }
 
-function setKeywords(value: string): void {
-    keywordText.value = value;
+function setKeywords(keywords: string[]): void {
+    emit('update:trigger', { ...props.trigger, keywords });
+}
+
+function setMatch(match: string): void {
     emit('update:trigger', {
         ...props.trigger,
-        keywords: value
-            .split(',')
-            .map((keyword) => keyword.trim())
-            .filter(Boolean),
+        match: match as (typeof MATCHES)[number],
     });
 }
 
@@ -98,59 +94,58 @@ function toggleLine(id: number | string, on: boolean): void {
             </p>
         </div>
 
-        <fieldset class="space-y-2">
-            <legend class="text-sm font-medium mb-2 text-foreground">
-                {{ t('kinetix.flow_trigger') }}
-            </legend>
-            <label
-                v-for="type in TYPES"
-                :key="type.key"
-                class="gap-3 rounded-lg p-2.5 flex cursor-pointer items-start border transition-colors has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50"
-                :class="
-                    trigger.type === type.key
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:bg-accent/50'
-                "
-                :data-test="`flow-trigger-${type.key}`"
+        <div class="space-y-2">
+            <p
+                id="flow-trigger-label"
+                class="text-sm font-medium mb-2 text-foreground"
             >
-                <input
-                    type="radio"
-                    name="flow-trigger"
-                    class="sr-only"
+                {{ t('kinetix.flow_trigger') }}
+            </p>
+            <RadioGroupRoot
+                :model-value="trigger.type"
+                class="space-y-2"
+                aria-labelledby="flow-trigger-label"
+                @update:model-value="
+                    setType($event as KinetixFlow['trigger']['type'])
+                "
+            >
+                <RadioGroupItem
+                    v-for="type in TYPES"
+                    :key="type.key"
                     :value="type.key"
-                    :checked="trigger.type === type.key"
-                    @change="setType(type.key)"
-                />
-                <component
-                    :is="type.icon"
-                    class="size-4 mt-0.5 shrink-0 text-muted-foreground"
-                />
-                <span class="min-w-0">
-                    <span class="text-sm font-medium block text-foreground">{{
-                        t(`kinetix.flow_trigger_${type.key}`)
-                    }}</span>
-                    <span class="text-xs block text-muted-foreground">{{
-                        t(`kinetix.flow_trigger_${type.key}_help`)
-                    }}</span>
-                </span>
-            </label>
-        </fieldset>
+                    class="gap-3 rounded-lg p-2.5 flex w-full cursor-pointer items-start border text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:border-primary data-[state=checked]:bg-primary/5 data-[state=unchecked]:border-border data-[state=unchecked]:hover:bg-accent/50"
+                    :data-test="`flow-trigger-${type.key}`"
+                >
+                    <component
+                        :is="type.icon"
+                        class="size-4 mt-0.5 shrink-0 text-muted-foreground"
+                    />
+                    <span class="min-w-0">
+                        <span
+                            class="text-sm font-medium block text-foreground"
+                            >{{ t(`kinetix.flow_trigger_${type.key}`) }}</span
+                        >
+                        <span class="text-xs block text-muted-foreground">{{
+                            t(`kinetix.flow_trigger_${type.key}_help`)
+                        }}</span>
+                    </span>
+                </RadioGroupItem>
+            </RadioGroupRoot>
+        </div>
 
         <template v-if="trigger.type === 'keyword'">
             <div class="space-y-2">
                 <KinetixLabel for="flow-keywords">{{
                     t('kinetix.flow_keywords')
                 }}</KinetixLabel>
-                <input
+                <KinetixTagsInput
                     id="flow-keywords"
-                    :value="keywordText"
-                    :class="inputClass"
+                    :value="trigger.keywords ?? []"
+                    ignore-case
                     :placeholder="t('kinetix.flow_keywords_placeholder')"
                     aria-describedby="flow-keywords-help"
                     data-test="flow-keywords"
-                    @input="
-                        setKeywords(($event.target as HTMLInputElement).value)
-                    "
+                    @update:value="setKeywords"
                 />
                 <p
                     id="flow-keywords-help"
@@ -163,26 +158,12 @@ function toggleLine(id: number | string, on: boolean): void {
                 <KinetixLabel for="flow-match">{{
                     t('kinetix.flow_keyword_match')
                 }}</KinetixLabel>
-                <select
+                <KinetixSelect
                     id="flow-match"
                     :value="trigger.match ?? 'contains'"
-                    :class="inputClass"
-                    @change="
-                        emit('update:trigger', {
-                            ...trigger,
-                            match: ($event.target as HTMLSelectElement)
-                                .value as 'contains' | 'exact' | 'regex',
-                        })
-                    "
-                >
-                    <option
-                        v-for="match in ['contains', 'exact', 'regex']"
-                        :key="match"
-                        :value="match"
-                    >
-                        {{ t(`kinetix.flow_keyword_${match}`) }}
-                    </option>
-                </select>
+                    :options="matchOptions"
+                    @update:value="setMatch"
+                />
             </div>
         </template>
 

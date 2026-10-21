@@ -13,6 +13,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.252.0] - 2026-10-21
+
+### Changed
+
+- **Messaging copy names only the providers turned on.** With only WhatsApp
+  (or only Telegram) enabled, the line manager, its empty state, the add-line
+  dialog and the bot editor's options hint talk about that provider alone.
+  - **(published)** `KinetixChannelManager`, `KinetixChannelCreateDialog`,
+    `KinetixFlowInspector`; flow details carry `providers`.
+- **The messaging components use Kinetix controls throughout**: no browser
+  select, datalist, radio or title tooltip is left in the lines, inbox and
+  bot components, and a scan test keeps it that way.
+  - **(published)** Every select (inbox line filter, stats version, keyword
+    match, the steps' fields) is a `KinetixSelect`; the trigger and provider
+    pickers are reka radio groups (arrow keys move between them).
+  - **(published)** Keywords are chips (`KinetixTagsInput`): Enter or a comma
+    after each one, or paste a list.
+  - **(published)** A condition's variable suggests the flow's variables as
+    you type and still takes any name; the business-hours time zone is a
+    searchable `KinetixCombobox`.
+  - **(published)** The number for a WhatsApp pairing code is a
+    `KinetixPhoneInput` with a country picker: the country is
+    `kinetix.channels.phone_country` (new), else the browser's region. The
+    channels index sends the countries as `phone`.
+
+### Added
+
+- **(published)** `primitives/KinetixTooltip`: a hint on hover and keyboard
+  focus for the element it wraps (used for the inbox archive button, the
+  unpublished stats button and the per-step statistics).
+- **(published)** `KinetixSelect` takes `size="sm"`, and its options as a list
+  of `{ value, label }` when the order matters (an object always lists
+  integer-like keys first). An empty choice in an object now stays on top.
+- `PhoneInput::countryList()` returns the phone field's countries.
+
+### Fixed
+
+- **(published)** `KinetixTagsInput` and `KinetixPhoneInput` put `aria-*`
+  attributes (describedby, invalid) on their text field instead of the
+  wrapper, so helper text and errors are announced. `KinetixPhoneInput` stacks
+  the country over the number in a narrow box.
+
 ## [0.251.0] - 2026-10-18
 
 ### Added

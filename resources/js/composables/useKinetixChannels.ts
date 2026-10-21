@@ -5,6 +5,7 @@ import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixChannel,
     KinetixChannelLink,
+    KinetixChannelPhoneField,
     KinetixChannelProvider,
     KinetixSharedProps,
 } from '@/types/kinetix';
@@ -42,6 +43,7 @@ export function useKinetixChannels() {
     const broadcast = ref<string | null>(null);
     /** Whether lines have agents (the inbox is on). */
     const agentsEnabled = ref(false);
+    const phoneField = ref<KinetixChannelPhoneField | null>(null);
     const loading = ref(false);
     const loaded = ref(false);
 
@@ -68,12 +70,14 @@ export function useKinetixChannels() {
                 limit: number | null;
                 broadcast: string | null;
                 agents?: boolean;
+                phone?: KinetixChannelPhoneField | null;
             }>(base());
             channels.value = data?.channels ?? [];
             providers.value = data?.providers ?? [];
             limit.value = data?.limit ?? null;
             broadcast.value = data?.broadcast ?? null;
             agentsEnabled.value = data?.agents ?? false;
+            phoneField.value = data?.phone ?? null;
         } finally {
             loading.value = false;
             loaded.value = true;
@@ -239,6 +243,7 @@ export function useKinetixChannels() {
         limit,
         broadcast,
         agentsEnabled,
+        phoneField,
         loading,
         loaded,
         load,

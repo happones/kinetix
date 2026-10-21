@@ -117,12 +117,42 @@ describe('KinetixChannelManager', () => {
         expect(document.querySelector('#kinetix-channel-token')).toBeNull();
         (
             document.querySelector(
-                '[data-test="channel-provider-telegram"] input',
-            ) as HTMLInputElement
+                '[data-test="channel-provider-telegram"]',
+            ) as HTMLButtonElement
         ).click();
         await flushPromises();
 
         expect(document.querySelector('#kinetix-channel-token')).not.toBeNull();
+        w.unmount();
+    });
+
+    it('names only the providers turned on', async () => {
+        serve({
+            'GET /_kinetix/channels': () => ({
+                ...index(),
+                providers: [providers[0]],
+            }),
+        });
+
+        const w = mount(KinetixChannelManager, {
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+
+        expect(w.text()).toContain('kinetix.channels_description_whatsapp');
+        expect(w.text()).toContain(
+            'kinetix.channels_empty_description_whatsapp',
+        );
+
+        await w.get('[data-test="channel-add"]').trigger('click');
+        await flushPromises();
+        expect(document.body.textContent).toContain(
+            'kinetix.channel_add_description_whatsapp',
+        );
+        expect(
+            document.querySelector('[data-test="channel-provider-whatsapp"]'),
+        ).toBeNull();
         w.unmount();
     });
 
@@ -190,8 +220,8 @@ describe('KinetixChannelManager', () => {
         await flushPromises();
         (
             document.querySelector(
-                '[data-test="channel-provider-telegram"] input',
-            ) as HTMLInputElement
+                '[data-test="channel-provider-telegram"]',
+            ) as HTMLButtonElement
         ).click();
         await flushPromises();
         (
@@ -339,6 +369,73 @@ describe('KinetixChannelLinker', () => {
             document.querySelector('[data-test="channel-pairing-code"]')
                 ?.textContent,
         ).toBe('ABCD-1234');
+        w.unmount();
+    });
+});
+
+describe('KinetixChannelLinker phone', () => {
+    it('asks for the number with a country picker and sends it whole', async () => {
+        serve({
+            'GET /_kinetix/channels/1/link?phone=': () => ({
+                channel: line(),
+                link: {
+                    status: 'connecting',
+                    qr: null,
+                    pairingCode: 'ABCD1234',
+                    expiresIn: 60,
+                },
+            }),
+            'GET /_kinetix/channels/1/link': () => ({
+                channel: line(),
+                link: {
+                    status: 'connecting',
+                    qr: 'data:image/png;base64,QR',
+                    pairingCode: null,
+                    expiresIn: 30,
+                },
+            }),
+            'GET /_kinetix/channels/1/status': () => ({ channel: line() }),
+        });
+
+        const w = mount(KinetixChannelLinker, {
+            props: {
+                open: true,
+                channel: line(),
+                phoneField: {
+                    defaultCountry: 'MX',
+                    countries: [
+                        { code: 'MX', name: 'Mexico', dial: '52' },
+                        { code: 'US', name: 'United States', dial: '1' },
+                    ],
+                },
+            },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+
+        (
+            document.querySelector(
+                '[data-test="channel-link-mode"]',
+            ) as HTMLButtonElement
+        ).click();
+        await flushPromises();
+
+        const phone = document.querySelector(
+            '#kinetix-channel-phone',
+        ) as HTMLInputElement;
+        expect(phone.getAttribute('aria-describedby')).toBe(
+            'kinetix-channel-phone-help',
+        );
+        phone.value = '55 1234 5678';
+        phone.dispatchEvent(new Event('input'));
+        await flushPromises();
+        phone.form?.dispatchEvent(new Event('submit'));
+        await flushPromises();
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/_kinetix/channels/1/link?phone=%2B525512345678',
+        );
         w.unmount();
     });
 });

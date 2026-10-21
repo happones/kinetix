@@ -14,9 +14,14 @@ import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
-import type { KinetixChannel, KinetixChannelLink } from '@/types/kinetix';
+import type {
+    KinetixChannel,
+    KinetixChannelLink,
+    KinetixChannelPhoneField,
+} from '@/types/kinetix';
 import KinetixButton from '../KinetixButton.vue';
 import KinetixLabel from '../KinetixLabel.vue';
+import KinetixPhoneInput from '../KinetixPhoneInput.vue';
 import KinetixCopyable from '../primitives/KinetixCopyable.vue';
 import KinetixModal from '../primitives/KinetixModal.vue';
 
@@ -37,8 +42,10 @@ const props = withDefaults(
         initialLink?: KinetixChannelLink | null;
         /** The latest broadcast for this line (a new QR, a status). */
         update?: KinetixChannelUpdate | null;
+        /** Countries for the number a pairing code is asked for. */
+        phoneField?: KinetixChannelPhoneField | null;
     }>(),
-    { pairing: true, initialLink: null, update: null },
+    { pairing: true, initialLink: null, update: null, phoneField: null },
 );
 
 const emit = defineEmits<{
@@ -57,6 +64,30 @@ const mode = ref<'qr' | 'phone'>('qr');
 const qr = ref<string | null>(null);
 const pairingCode = ref<string | null>(null);
 const phone = ref('');
+
+/**
+ * The country picker's setup: the configured country, else the browser's
+ * region (es-MX → MX).
+ */
+const phoneConfig = computed(() => {
+    if (!props.phoneField?.countries.length) {
+        return null;
+    }
+
+    const region = navigator.language.split('-')[1]?.toUpperCase() ?? null;
+    const listed = (code: string | null): code is string =>
+        !!code && props.phoneField!.countries.some((c) => c.code === code);
+    const preferred = props.phoneField.defaultCountry;
+
+    return {
+        countries: props.phoneField.countries,
+        defaultCountry: listed(preferred)
+            ? preferred
+            : listed(region)
+              ? region
+              : 'US',
+    };
+});
 const loading = ref(false);
 const error = ref<string | null>(null);
 const remaining = ref(0);
@@ -455,7 +486,17 @@ const steps = computed(() => [
                     <KinetixLabel for="kinetix-channel-phone">{{
                         t('kinetix.channel_phone')
                     }}</KinetixLabel>
+                    <KinetixPhoneInput
+                        v-if="phoneConfig"
+                        id="kinetix-channel-phone"
+                        :value="phone"
+                        :config="phoneConfig"
+                        placeholder="55 1234 5678"
+                        aria-describedby="kinetix-channel-phone-help"
+                        @update:value="phone = $event"
+                    />
                     <input
+                        v-else
                         id="kinetix-channel-phone"
                         v-model="phone"
                         type="tel"
@@ -469,7 +510,11 @@ const steps = computed(() => [
                         id="kinetix-channel-phone-help"
                         class="text-xs text-muted-foreground"
                     >
-                        {{ t('kinetix.channel_phone_help') }}
+                        {{
+                            phoneConfig
+                                ? t('kinetix.channel_phone_help_country')
+                                : t('kinetix.channel_phone_help')
+                        }}
                     </p>
                     <KinetixButton
                         type="submit"

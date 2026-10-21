@@ -30,6 +30,7 @@ import type {
     KinetixQuickReply,
 } from '@/types/kinetix';
 import KinetixChannelProviderIcon from '../Channels/KinetixChannelProviderIcon.vue';
+import KinetixTooltip from '../primitives/KinetixTooltip.vue';
 import KinetixInboxBubble from './KinetixInboxBubble.vue';
 import KinetixInboxComposer from './KinetixInboxComposer.vue';
 
@@ -444,25 +445,36 @@ const itemClass =
                 </DropdownMenuPortal>
             </DropdownMenuRoot>
 
-            <button
-                type="button"
-                :class="buttonVariants({ variant: 'ghost', size: 'icon-sm' })"
-                :aria-label="
+            <KinetixTooltip
+                :text="
                     conversation.archived
                         ? t('kinetix.inbox_unarchive')
                         : t('kinetix.inbox_archive')
                 "
-                :title="
-                    conversation.archived
-                        ? t('kinetix.inbox_unarchive')
-                        : t('kinetix.inbox_archive')
-                "
-                data-test="inbox-archive"
-                @click="emit(conversation.archived ? 'unarchive' : 'archive')"
+                side="bottom"
             >
-                <ArchiveRestore v-if="conversation.archived" class="size-4" />
-                <Archive v-else class="size-4" />
-            </button>
+                <button
+                    type="button"
+                    :class="
+                        buttonVariants({ variant: 'ghost', size: 'icon-sm' })
+                    "
+                    :aria-label="
+                        conversation.archived
+                            ? t('kinetix.inbox_unarchive')
+                            : t('kinetix.inbox_archive')
+                    "
+                    data-test="inbox-archive"
+                    @click="
+                        emit(conversation.archived ? 'unarchive' : 'archive')
+                    "
+                >
+                    <ArchiveRestore
+                        v-if="conversation.archived"
+                        class="size-4"
+                    />
+                    <Archive v-else class="size-4" />
+                </button>
+            </KinetixTooltip>
         </header>
 
         <!-- A bot is answering: say so, with a way to take over. -->

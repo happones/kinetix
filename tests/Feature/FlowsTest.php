@@ -340,6 +340,20 @@ class FlowsTest extends TestCase
         $this->assertSame('Versión 2, Grace', $this->botSaid()[3]);
     }
 
+    public function test_the_editor_learns_which_providers_are_on(): void
+    {
+        $builder = $this->builder();
+
+        $id = $this->actingAs($builder)->postJson('/_kinetix/flows', ['name' => 'Bienvenida'])
+            ->assertCreated()
+            ->assertJsonPath('flow.providers', ['whatsapp', 'telegram'])
+            ->json('flow.id');
+
+        config(['kinetix.channels.providers.telegram.enabled' => false]);
+
+        $this->actingAs($builder)->getJson("/_kinetix/flows/{$id}")->assertJsonPath('flow.providers', ['whatsapp']);
+    }
+
     public function test_a_draft_with_problems_cannot_be_published(): void
     {
         $builder = $this->builder();

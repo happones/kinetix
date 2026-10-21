@@ -34,6 +34,7 @@ php artisan vendor:publish --tag=kinetix-channels-migrations
     'limit'   => null,                                // int | [Class::class, 'method'](teamKey) | null
     'webhook_url' => env('KINETIX_CHANNELS_WEBHOOK_URL'), // tunnel in dev; Telegram needs HTTPS
     'check_interval' => 5,                            // status endpoint asks the provider every N s
+    'phone_country' => env('KINETIX_CHANNELS_PHONE_COUNTRY'), // pairing-code number's country; null = browser region
     'broadcast' => env('KINETIX_CHANNELS_BROADCAST', false), // channel.updated on private kinetix.channels.{team}
     'providers' => [
         'whatsapp' => ['enabled' => true, 'driver' => WhatsAppDriver::class, 'base_url' => null, 'api_key' => null, 'qr_ttl' => 30],

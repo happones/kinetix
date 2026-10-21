@@ -50,23 +50,24 @@ class PhoneInput extends Field
         return $this;
     }
 
-    public function toData(string $operation, ?Model $record = null): ?FormFieldData
+    /**
+     * The countries a phone can be typed for, by name, each with its dial
+     * code — what the phone field's country picker lists.
+     *
+     * @param  array<int, string>|null                               $only ISO alpha-2 codes; null = all.
+     * @return list<array{code: string, name: string, dial: string}>
+     */
+    public static function countryList(?array $only = null): array
     {
-        $data = parent::toData($operation, $record);
-
-        if ($data === null) {
-            return null;
-        }
-
-        $names = Countries::all();
-        $dials = DialCodes::all();
-        $codes = $this->only ?? array_keys($dials);
-
+        $names     = Countries::all();
+        $dials     = DialCodes::all();
         $countries = [];
-        foreach ($codes as $code) {
+
+        foreach ($only ?? array_keys($dials) as $code) {
             if (! isset($dials[$code])) {
                 continue;
             }
+
             $countries[] = [
                 'code' => $code,
                 'name' => $names[$code] ?? $code,
@@ -76,9 +77,20 @@ class PhoneInput extends Field
 
         usort($countries, static fn (array $a, array $b): int => strcmp($a['name'], $b['name']));
 
+        return $countries;
+    }
+
+    public function toData(string $operation, ?Model $record = null): ?FormFieldData
+    {
+        $data = parent::toData($operation, $record);
+
+        if ($data === null) {
+            return null;
+        }
+
         $data->phoneConfig = [
             'defaultCountry' => $this->defaultCountry,
-            'countries'      => $countries,
+            'countries'      => self::countryList($this->only),
         ];
 
         return $data;

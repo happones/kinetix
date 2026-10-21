@@ -12,6 +12,7 @@ import KinetixChannelCard from './Channels/KinetixChannelCard.vue';
 import KinetixChannelCreateDialog from './Channels/KinetixChannelCreateDialog.vue';
 import KinetixChannelLinker from './Channels/KinetixChannelLinker.vue';
 import KinetixChannelProviderIcon from './Channels/KinetixChannelProviderIcon.vue';
+import { providerCopyKey } from './Channels/providerCopy';
 import KinetixButton from './KinetixButton.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixLabel from './KinetixLabel.vue';
@@ -42,6 +43,7 @@ const {
     providers,
     limit,
     agentsEnabled,
+    phoneField,
     loaded,
     load,
     rename,
@@ -51,6 +53,9 @@ const {
     test,
     listen,
 } = useKinetixChannels();
+
+/** The providers on offer: the copy names only those. */
+const providerKeys = computed(() => providers.value.map((p) => p.key));
 
 const creating = ref(false);
 const linking = ref<KinetixChannel | null>(null);
@@ -243,9 +248,21 @@ const confirmCopy = computed(() => {
                 <h2 class="text-lg font-semibold text-foreground">
                     {{ t('kinetix.channels_title') }}
                 </h2>
-                <p class="text-sm text-muted-foreground">
-                    {{ t('kinetix.channels_description') }}
+                <p v-if="loaded" class="text-sm text-muted-foreground">
+                    {{
+                        t(
+                            providerCopyKey(
+                                'kinetix.channels_description',
+                                providerKeys,
+                            ),
+                        )
+                    }}
                 </p>
+                <span
+                    v-else
+                    class="mt-1.5 h-4 w-72 rounded motion-safe:animate-pulse block max-w-full bg-muted"
+                    aria-hidden="true"
+                />
             </div>
             <div class="gap-3 sm:ml-auto flex shrink-0 items-center">
                 <span
@@ -303,7 +320,14 @@ const confirmCopy = computed(() => {
                 {{ t('kinetix.channels_empty_title') }}
             </h3>
             <p class="mt-1 text-sm max-w-sm text-muted-foreground">
-                {{ t('kinetix.channels_empty_description') }}
+                {{
+                    t(
+                        providerCopyKey(
+                            'kinetix.channels_empty_description',
+                            providerKeys,
+                        ),
+                    )
+                }}
             </p>
             <KinetixButton
                 size="sm"
@@ -354,6 +378,7 @@ const confirmCopy = computed(() => {
             "
             :initial-link="firstLink"
             :update="lastUpdate"
+            :phone-field="phoneField"
             @linked="onLinked"
         />
 

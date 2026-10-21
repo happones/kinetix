@@ -7,8 +7,10 @@ import type {
     KinetixConversation,
     KinetixInboxChannel,
     KinetixInboxFilter,
+    KinetixSelectOption,
 } from '@/types/kinetix';
 import KinetixChannelProviderIcon from '../Channels/KinetixChannelProviderIcon.vue';
+import KinetixSelect from '../KinetixSelect.vue';
 import { cn } from '../primitives/cn';
 
 /**
@@ -131,6 +133,10 @@ function snippet(conversation: KinetixConversation): string {
 }
 
 const showLines = computed(() => props.channels.length > 1);
+const lineOptions = computed<KinetixSelectOption[]>(() => [
+    { value: '', label: t('kinetix.inbox_all_lines') },
+    ...props.channels.map((line) => ({ value: line.id, label: line.name })),
+]);
 </script>
 
 <template>
@@ -174,24 +180,19 @@ const showLines = computed(() => props.channels.length > 1);
                 </button>
             </div>
 
-            <select
+            <KinetixSelect
                 v-if="showLines"
-                v-model="channelId"
+                :value="channelId === null ? '' : String(channelId)"
+                :options="lineOptions"
+                size="sm"
                 :aria-label="t('kinetix.inbox_line')"
-                :class="[inputClass, 'h-8 text-xs md:text-xs']"
                 data-test="inbox-line"
-            >
-                <option :value="null">
-                    {{ t('kinetix.inbox_all_lines') }}
-                </option>
-                <option
-                    v-for="line in channels"
-                    :key="line.id"
-                    :value="line.id"
-                >
-                    {{ line.name }}
-                </option>
-            </select>
+                @update:value="
+                    channelId =
+                        channels.find((line) => String(line.id) === $event)
+                            ?.id ?? null
+                "
+            />
         </div>
 
         <ul class="min-h-0 flex-1 overflow-y-auto overscroll-contain">

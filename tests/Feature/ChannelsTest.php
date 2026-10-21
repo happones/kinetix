@@ -154,6 +154,22 @@ class ChannelsTest extends TestCase
             ->assertJsonPath('broadcast', null);
     }
 
+    public function test_the_pairing_code_number_comes_with_its_countries(): void
+    {
+        $phone = $this->actingAs($this->manager())->getJson('/_kinetix/channels')
+            ->assertJsonPath('phone.defaultCountry', null)
+            ->json('phone.countries');
+
+        $this->assertContains(['code' => 'MX', 'name' => 'Mexico', 'dial' => '52'], $phone);
+
+        config(['kinetix.channels.phone_country' => 'mx']);
+        $this->actingAs($this->manager())->getJson('/_kinetix/channels')->assertJsonPath('phone.defaultCountry', 'MX');
+
+        // No provider links by pairing code: nothing to type a number into.
+        config(['kinetix.channels.providers.whatsapp.enabled' => false]);
+        $this->actingAs($this->manager())->getJson('/_kinetix/channels')->assertJsonPath('phone', null);
+    }
+
     public function test_a_whatsapp_line_is_provisioned_with_its_webhook_and_opens_on_its_first_qr(): void
     {
         $response = $this->actingAs($this->manager())

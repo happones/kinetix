@@ -6,10 +6,14 @@ import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
-import type { KinetixFlowNode } from '@/types/kinetix';
+import type { KinetixFlowNode, KinetixSelectOption } from '@/types/kinetix';
+import { providerCopyKey } from '../Channels/providerCopy';
 import KinetixBusinessHours from '../KinetixBusinessHours.vue';
+import KinetixCombobox from '../KinetixCombobox.vue';
 import KinetixLabel from '../KinetixLabel.vue';
+import KinetixSelect from '../KinetixSelect.vue';
 import { flowId, flowKind } from './flowNodes';
+import KinetixFlowVariableInput from './KinetixFlowVariableInput.vue';
 
 /**
  * The settings of the selected node, by kind: what to say, what to ask and
@@ -22,6 +26,8 @@ const props = defineProps<{
     variables: string[];
     members: { id: number | string; name: string | null }[];
     problem?: string | null;
+    /** The providers turned on: the options hint names only those. */
+    providers?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -105,13 +111,61 @@ const rules = computed(() =>
 const headers = computed(() => list<{ key: string; value: string }>('headers'));
 const saves = computed(() => list<{ variable: string; path: string }>('save'));
 
-const timezones = computed<string[]>(() => {
+/** The combobox's stand-in for "no zone of its own": the app's. */
+const APP_TIMEZONE = '__app';
+
+const timezoneOptions = computed<Record<string, string>>(() => {
     const intl = Intl as unknown as {
         supportedValuesOf?: (key: string) => string[];
     };
+    const options: Record<string, string> = {
+        [APP_TIMEZONE]: t('kinetix.flow_timezone_default'),
+    };
 
-    return intl.supportedValuesOf?.('timeZone') ?? [];
+    for (const zone of intl.supportedValuesOf?.('timeZone') ?? []) {
+        options[zone] = zone.replaceAll('_', ' ');
+    }
+
+    // A zone this browser doesn't list still shows.
+    const current = String(data.value.timezone ?? '');
+
+    if (current && !(current in options)) {
+        options[current] = current;
+    }
+
+    return options;
 });
+
+const choices = (
+    keys: readonly string[],
+    label: (key: string) => string,
+): KinetixSelectOption[] =>
+    keys.map((key) => ({ value: key, label: label(key) }));
+
+const validateOptions = computed(() =>
+    choices(['text', 'number', 'email', 'phone'], (key) =>
+        t(`kinetix.flow_validate_${key}`),
+    ),
+);
+const matchOptions = computed(() =>
+    choices(['all', 'any'], (key) => t(`kinetix.flow_match_${key}`)),
+);
+const methodOptions = choices(
+    ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    (key) => key,
+);
+const unitOptions = computed(() =>
+    choices(['minutes', 'hours', 'days'], (key) =>
+        t(`kinetix.flow_unit_${key}`),
+    ),
+);
+const assigneeOptions = computed<KinetixSelectOption[]>(() => [
+    { value: '', label: t('kinetix.flow_assign_anyone') },
+    ...props.members.map((member) => ({
+        value: member.id,
+        label: member.name ?? String(member.id),
+    })),
+]);
 
 const label = computed(() => {
     const key = `kinetix.flow_node_${props.node.type}`;
@@ -131,6 +185,10 @@ const OPERATORS = [
     'empty',
     'not_empty',
 ];
+
+const operatorOptions = computed(() =>
+    choices(OPERATORS, (key) => t(`kinetix.flow_op_${key}`)),
+);
 </script>
 
 <template>
@@ -219,30 +277,12 @@ const OPERATORS = [
                     <KinetixLabel for="flow-validate">{{
                         t('kinetix.flow_field_validate')
                     }}</KinetixLabel>
-                    <select
+                    <KinetixSelect
                         id="flow-validate"
                         :value="String(data.validate ?? 'text')"
-                        :class="inputClass"
-                        @change="
-                            set(
-                                'validate',
-                                ($event.target as HTMLSelectElement).value,
-                            )
-                        "
-                    >
-                        <option
-                            v-for="validation in [
-                                'text',
-                                'number',
-                                'email',
-                                'phone',
-                            ]"
-                            :key="validation"
-                            :value="validation"
-                        >
-                            {{ t(`kinetix.flow_validate_${validation}`) }}
-                        </option>
-                    </select>
+                        :options="validateOptions"
+                        @update:value="set('validate', $event)"
+                    />
                 </div>
             </div>
             <div class="space-y-2">
@@ -341,7 +381,14 @@ const OPERATORS = [
                 />
             </div>
             <p class="text-xs text-muted-foreground">
-                {{ t('kinetix.flow_options_hint') }}
+                {{
+                    t(
+                        providerCopyKey(
+                            'kinetix.flow_options_hint',
+                            providers ?? [],
+                        ),
+                    )
+                }}
             </p>
         </template>
 
@@ -351,21 +398,12 @@ const OPERATORS = [
                 <KinetixLabel for="flow-match">{{
                     t('kinetix.flow_field_match')
                 }}</KinetixLabel>
-                <select
+                <KinetixSelect
                     id="flow-match"
                     :value="String(data.match ?? 'all')"
-                    :class="inputClass"
-                    @change="
-                        set('match', ($event.target as HTMLSelectElement).value)
-                    "
-                >
-                    <option value="all">
-                        {{ t('kinetix.flow_match_all') }}
-                    </option>
-                    <option value="any">
-                        {{ t('kinetix.flow_match_any') }}
-                    </option>
-                </select>
+                    :options="matchOptions"
+                    @update:value="set('match', $event)"
+                />
             </div>
             <div
                 v-for="(rule, index) in rules"
@@ -373,17 +411,13 @@ const OPERATORS = [
                 class="space-y-2 rounded-lg p-3 border border-border"
             >
                 <div class="gap-2 flex">
-                    <input
+                    <KinetixFlowVariableInput
                         :value="rule.variable"
-                        :class="[inputClass, 'font-mono']"
+                        :variables="variables"
                         :placeholder="t('kinetix.flow_field_variable')"
                         :aria-label="t('kinetix.flow_field_variable')"
-                        list="kinetix-flow-variables"
-                        @input="
-                            setItem('rules', index, {
-                                variable: ($event.target as HTMLInputElement)
-                                    .value,
-                            })
+                        @update:value="
+                            setItem('rules', index, { variable: $event })
                         "
                     />
                     <button
@@ -401,21 +435,14 @@ const OPERATORS = [
                         <X class="size-4" />
                     </button>
                 </div>
-                <select
+                <KinetixSelect
                     :value="rule.operator"
-                    :class="inputClass"
+                    :options="operatorOptions"
                     :aria-label="t('kinetix.flow_field_operator')"
-                    @change="
-                        setItem('rules', index, {
-                            operator: ($event.target as HTMLSelectElement)
-                                .value,
-                        })
+                    @update:value="
+                        setItem('rules', index, { operator: $event })
                     "
-                >
-                    <option v-for="op in OPERATORS" :key="op" :value="op">
-                        {{ t(`kinetix.flow_op_${op}`) }}
-                    </option>
-                </select>
+                />
                 <input
                     v-if="!['empty', 'not_empty'].includes(rule.operator)"
                     :value="rule.value"
@@ -484,31 +511,14 @@ const OPERATORS = [
         <!-- HTTP -->
         <template v-if="node.type === 'http'">
             <div class="gap-2 flex">
-                <select
-                    :value="String(data.method ?? 'GET')"
-                    :class="[inputClass, 'w-28 shrink-0']"
-                    :aria-label="t('kinetix.flow_field_method')"
-                    @change="
-                        set(
-                            'method',
-                            ($event.target as HTMLSelectElement).value,
-                        )
-                    "
-                >
-                    <option
-                        v-for="method in [
-                            'GET',
-                            'POST',
-                            'PUT',
-                            'PATCH',
-                            'DELETE',
-                        ]"
-                        :key="method"
-                        :value="method"
-                    >
-                        {{ method }}
-                    </option>
-                </select>
+                <div class="w-28 shrink-0">
+                    <KinetixSelect
+                        :value="String(data.method ?? 'GET')"
+                        :options="methodOptions"
+                        :aria-label="t('kinetix.flow_field_method')"
+                        @update:value="set('method', $event)"
+                    />
+                </div>
                 <input
                     :value="String(data.url ?? '')"
                     type="url"
@@ -682,22 +692,12 @@ const OPERATORS = [
                     )
                 "
             />
-            <select
+            <KinetixSelect
                 :value="String(data.unit ?? 'hours')"
-                :class="inputClass"
+                :options="unitOptions"
                 :aria-label="t('kinetix.flow_field_unit')"
-                @change="
-                    set('unit', ($event.target as HTMLSelectElement).value)
-                "
-            >
-                <option
-                    v-for="unit in ['minutes', 'hours', 'days']"
-                    :key="unit"
-                    :value="unit"
-                >
-                    {{ t(`kinetix.flow_unit_${unit}`) }}
-                </option>
-            </select>
+                @update:value="set('unit', $event)"
+            />
         </div>
 
         <!-- Business hours -->
@@ -706,26 +706,14 @@ const OPERATORS = [
                 <KinetixLabel for="flow-timezone">{{
                     t('kinetix.flow_field_timezone')
                 }}</KinetixLabel>
-                <input
+                <KinetixCombobox
                     id="flow-timezone"
-                    :value="String(data.timezone ?? '')"
-                    :class="inputClass"
-                    list="kinetix-flow-timezones"
-                    :placeholder="t('kinetix.flow_timezone_default')"
-                    @change="
-                        set(
-                            'timezone',
-                            ($event.target as HTMLInputElement).value,
-                        )
+                    :value="String(data.timezone || APP_TIMEZONE)"
+                    :options="timezoneOptions"
+                    @update:value="
+                        set('timezone', $event === APP_TIMEZONE ? '' : $event)
                     "
                 />
-                <datalist id="kinetix-flow-timezones">
-                    <option
-                        v-for="zone in timezones"
-                        :key="zone"
-                        :value="zone"
-                    />
-                </datalist>
             </div>
             <KinetixBusinessHours
                 :value="(data.schedule as Record<string, never> | null) ?? null"
@@ -739,32 +727,23 @@ const OPERATORS = [
                 <KinetixLabel for="flow-assign">{{
                     t('kinetix.flow_field_assign_to')
                 }}</KinetixLabel>
-                <select
+                <KinetixSelect
                     id="flow-assign"
                     :value="
                         data.assign_to === null || data.assign_to === undefined
                             ? ''
                             : String(data.assign_to)
                     "
-                    :class="inputClass"
-                    @change="
+                    :options="assigneeOptions"
+                    @update:value="
                         set(
                             'assign_to',
-                            ($event.target as HTMLSelectElement).value || null,
+                            members.find(
+                                (member) => String(member.id) === $event,
+                            )?.id ?? null,
                         )
                     "
-                >
-                    <option value="">
-                        {{ t('kinetix.flow_assign_anyone') }}
-                    </option>
-                    <option
-                        v-for="member in members"
-                        :key="member.id"
-                        :value="String(member.id)"
-                    >
-                        {{ member.name }}
-                    </option>
-                </select>
+                />
             </div>
             <div class="space-y-2">
                 <KinetixLabel for="flow-note">{{
@@ -807,12 +786,5 @@ const OPERATORS = [
                 </button>
             </div>
         </div>
-        <datalist id="kinetix-flow-variables">
-            <option
-                v-for="variable in variables"
-                :key="variable"
-                :value="variable"
-            />
-        </datalist>
     </div>
 </template>
