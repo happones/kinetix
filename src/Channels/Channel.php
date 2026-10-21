@@ -72,4 +72,10 @@ class Channel extends Model
     {
         return $this->status === ChannelStatus::Connected;
     }
+
+    /** Whether the provider runs a bot of its own on this line ({@see HostsBots}). */
+    public function hasExternalBot(): bool
+    {
+        return is_array($this->meta['bot'] ?? null);
+    }
 }

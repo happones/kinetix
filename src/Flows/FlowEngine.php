@@ -48,6 +48,11 @@ class FlowEngine
             return;
         }
 
+        // The provider answers this line with a bot of its own.
+        if ($conversation->channel->hasExternalBot()) {
+            return;
+        }
+
         $flow = $this->match($conversation, $message);
 
         if ($flow !== null) {

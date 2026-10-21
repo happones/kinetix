@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.253.0] - 2026-10-21
+
+### Added
+
+- **A bot behind a WhatsApp line**: the Evolution server can run one of its
+  integrations on a line (Evolution Bot, Typebot, OpenAI, Dify, Flowise, n8n,
+  EvoAI). It's for apps whose bot lives behind the scenes: the team only
+  links its number.
+  - `kinetix.channels.providers.whatsapp.bot` (new) gives every new line a
+    bot. It takes a definition, or a callable array that receives the line and
+    returns a `WhatsAppBot`, to pick one per team or plan.
+  - `WhatsAppBot::evolutionBot()`, `typebot()`, `openai()` (stores the key as
+    credentials first), `dify()`, `flowise()`, `n8n()`, `evoai()` and
+    `make()`. By default the bot answers every message and steps back once
+    someone writes from the line.
+  - `KinetixChannels::attachBot($line, $bot)` and `detachBot($line)` work on
+    lines already set up.
+  - Kinetix Flows don't start on their own on a line with such a bot.
+  - If the bot can't be created, the line isn't created either, and the
+    reason goes to the log.
+  - The new `EvolutionBotGateway` interface carries the bot calls. The default
+    gateway implements it; a custom `EvolutionGateway` adds it to run bots.
+
 ## [0.252.0] - 2026-10-21
 
 ### Changed

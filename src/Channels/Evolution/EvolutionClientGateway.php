@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Channels\Evolution;
 
 use Happones\LaravelEvolutionClient\EvolutionApiClient;
 use Happones\LaravelEvolutionClient\Services\EvolutionService;
+use RuntimeException;
 
 /**
  * {@see EvolutionGateway} over happones/laravel-evolution-client. Each call
@@ -13,7 +14,7 @@ use Happones\LaravelEvolutionClient\Services\EvolutionService;
  * queue worker or under Octane. The server and key come from
  * `kinetix.channels.providers.whatsapp` (falling back to `evolution.*`).
  */
-class EvolutionClientGateway implements EvolutionGateway
+class EvolutionClientGateway implements EvolutionBotGateway, EvolutionGateway
 {
     public function create(string $instance): array
     {
@@ -122,6 +123,42 @@ class EvolutionClientGateway implements EvolutionGateway
             'mimetype' => $this->filled(data_get($response, 'mimetype')),
             'fileName' => $this->filled(data_get($response, 'fileName')),
         ];
+    }
+
+    public function createBot(string $instance, string $integration, array $bot): string
+    {
+        $response = $this->service()->post("/{$integration}/create/{$instance}", $bot);
+
+        return $this->id($response, $integration);
+    }
+
+    public function createBotCredentials(string $instance, string $integration, string $name, string $apiKey): string
+    {
+        $response = $this->service()->post("/{$integration}/creds/{$instance}", ['name' => $name, 'apiKey' => $apiKey]);
+
+        return $this->id($response, $integration);
+    }
+
+    public function botSettings(string $instance, string $integration, array $settings): void
+    {
+        $this->service()->post("/{$integration}/settings/{$instance}", $settings);
+    }
+
+    public function deleteBot(string $instance, string $integration, string $botId): void
+    {
+        $this->service()->delete("/{$integration}/delete/{$botId}/{$instance}");
+    }
+
+    /** @param array<array-key, mixed> $response */
+    protected function id(array $response, string $integration): string
+    {
+        $id = data_get($response, 'id') ?? data_get($response, "{$integration}.id");
+
+        if (! is_scalar($id) || (string) $id === '') {
+            throw new RuntimeException("Evolution created the {$integration} item without an id.");
+        }
+
+        return (string) $id;
     }
 
     protected function client(string $instance): EvolutionApiClient

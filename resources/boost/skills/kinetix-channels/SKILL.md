@@ -37,7 +37,8 @@ php artisan vendor:publish --tag=kinetix-channels-migrations
     'phone_country' => env('KINETIX_CHANNELS_PHONE_COUNTRY'), // pairing-code number's country; null = browser region
     'broadcast' => env('KINETIX_CHANNELS_BROADCAST', false), // channel.updated on private kinetix.channels.{team}
     'providers' => [
-        'whatsapp' => ['enabled' => true, 'driver' => WhatsAppDriver::class, 'base_url' => null, 'api_key' => null, 'qr_ttl' => 30],
+        'whatsapp' => ['enabled' => true, 'driver' => WhatsAppDriver::class, 'base_url' => null, 'api_key' => null, 'qr_ttl' => 30,
+                       'bot' => null], // definition | [Class::class, 'method'](Channel) → ?WhatsAppBot
         'telegram' => ['enabled' => true, 'driver' => TelegramDriver::class, 'api_url' => 'https://api.telegram.org'],
     ],
 ],
@@ -63,6 +64,15 @@ php artisan vendor:publish --tag=kinetix-channels-migrations
   `EvolutionClientGateway` builds a per-instance client — never mutate the
   package singleton). Instance name = `instance_prefix` + lower(public_id).
   Bind a fake gateway in tests.
+- **Provider-run bots (WhatsApp)**: an Evolution integration on the line, for apps whose bot lives behind the scenes.
+  - Integrations: `evolutionBot`, `typebot`, `openai`, `dify`, `flowise`, `n8n`, `evoai`.
+  - Build them with `WhatsAppBot::evolutionBot|typebot|openai|dify|flowise|n8n|evoai|make()`.
+  - `providers.whatsapp.bot` attaches one on provisioning. A failure removes the instance and the line isn't created.
+  - Existing lines: `KinetixChannels::attachBot($line, $bot)` / `detachBot($line)`.
+  - Stored in `meta.bot` (not serialized); `Channel::hasExternalBot()`.
+  - Flows don't auto-start on such lines.
+  - Needs a gateway implementing `EvolutionBotGateway`.
+  - Defaults: `enabled`, `triggerType: all`, `stopBotFromMe: true`.
 - **Telegram**: bot tokens only (getMe → setWebhook with secret_token). No
   MTProto / personal-account login.
 - **Optional driver interfaces** (used by the inbox):

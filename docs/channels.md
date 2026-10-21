@@ -239,7 +239,81 @@ their webhook at Kinetix again with today's events.
 
 ---
 
-## 7. Another provider
+## 8. A bot behind the line (WhatsApp)
+
+Some apps build their bots in [Flows](flows.md). Others only need the team to
+link its number, while a bot of their own answers behind the scenes. For
+those, the Evolution server can run one of its integrations on every new
+WhatsApp line: Evolution Bot, Typebot, OpenAI, Dify, Flowise, n8n or EvoAI.
+The team never sees it. Its line looks and links like any other.
+
+```php
+// config/kinetix.php → channels.providers.whatsapp
+'bot' => [
+    'integration' => 'evolutionBot',
+    'bot'         => ['apiUrl' => env('SUPPORT_BOT_URL'), 'apiKey' => env('SUPPORT_BOT_KEY')],
+    'settings'    => ['expire' => 30], // the integration's defaults for the line
+],
+```
+
+To give a bot only to some teams or plans, point `bot` at a callable array.
+It receives the line being set up and returns a `WhatsAppBot`, or null for
+none:
+
+```php
+'bot' => [App\Channels\LineBots::class, 'for'],
+```
+
+```php
+use Happones\Kinetix\Channels\Channel;
+use Happones\Kinetix\Channels\Evolution\WhatsAppBot;
+
+public static function for(Channel $line): ?WhatsAppBot
+{
+    return match (Team::find($line->team_id)?->plan) {
+        'pro'   => WhatsAppBot::openai(config('services.openai.key'), options: ['systemMessages' => ['You answer for Acme.']]),
+        'basic' => WhatsAppBot::evolutionBot('https://bots.acme.test/whatsapp', apiKey: config('services.bots.key')),
+        default => null,
+    };
+}
+```
+
+| Constructor                                       | Integration                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| `WhatsAppBot::evolutionBot($apiUrl, $apiKey)`     | Posts each message to your endpoint and sends its answer.     |
+| `WhatsAppBot::typebot($url, $typebot)`            | A Typebot flow.                                               |
+| `WhatsAppBot::openai($apiKey, $botType)`          | OpenAI. The key is stored on the server as credentials first. |
+| `WhatsAppBot::dify($apiUrl, $apiKey, $botType)`   | A Dify app.                                                   |
+| `WhatsAppBot::flowise($apiUrl, $apiKey)`          | A Flowise chatflow.                                           |
+| `WhatsAppBot::n8n($webhookUrl, $user, $password)` | An n8n workflow.                                              |
+| `WhatsAppBot::evoai($agentUrl, $apiKey)`          | An EvoAI agent.                                               |
+| `WhatsAppBot::make($integration, $payload)`       | Any integration, with its payload as Evolution documents it.  |
+
+Every constructor takes the integration's other fields as `$options`. The bot
+answers every message (`triggerType: all`) unless you set a trigger, and it
+steps back in a chat once someone writes from the line, through the inbox or
+the phone (`stopBotFromMe`). `->withSettings([...])` sets the integration's
+defaults for the line.
+
+Lines already set up take a bot, or drop it, from your code:
+
+```php
+KinetixChannels::attachBot($line, WhatsAppBot::typebot('https://typebot.io', 'sales')); // replaces the one it had
+KinetixChannels::detachBot($line);
+```
+
+- A line with such a bot is left to it: [Flows](flows.md) don't start there on
+  their own. Its conversations still reach the inbox.
+- What the bot sends goes straight from the server to WhatsApp. It doesn't
+  appear in the inbox thread.
+- If the bot can't be created, the line isn't created either. The team sees
+  that the line couldn't be set up; the reason goes to your log.
+- Your own `EvolutionGateway` runs bots once it also implements
+  `EvolutionBotGateway`.
+
+---
+
+## 9. Another provider
 
 A provider is a `ChannelDriver`: how its lines link (`linkMethods()`), how
 they're set up (`provision()`), linked, checked, unlinked, restarted and

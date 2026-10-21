@@ -11,15 +11,20 @@ use Happones\Kinetix\Channels\ChannelManager;
 use Happones\Kinetix\Channels\ChannelStatus;
 use Happones\Kinetix\Channels\DownloadedMedia;
 use Happones\Kinetix\Channels\DownloadsMedia;
+use Happones\Kinetix\Channels\Evolution\EvolutionBotGateway;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
+use Happones\Kinetix\Channels\Evolution\WhatsAppBot;
+use Happones\Kinetix\Channels\HostsBots;
 use Happones\Kinetix\Channels\InboundMessage;
 use Happones\Kinetix\Channels\LinkState;
 use Happones\Kinetix\Channels\OutgoingMessage;
 use Happones\Kinetix\Channels\ReportsHandle;
 use Happones\Kinetix\Channels\SendsMessages;
 use Happones\Kinetix\Channels\WebhookResult;
+use Happones\Kinetix\Support\ConfigCallback;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use LogicException;
 use Throwable;
 
 /**
@@ -28,7 +33,7 @@ use Throwable;
  * pairing code on the phone. The server calls the line's webhook with the
  * secret in `X-Kinetix-Channel-Secret`.
  */
-class WhatsAppDriver implements ChannelDriver, DownloadsMedia, ReportsHandle, SendsMessages
+class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, ReportsHandle, SendsMessages
 {
     public const SECRET_HEADER = 'X-Kinetix-Channel-Secret';
 
@@ -69,6 +74,91 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, ReportsHandle, Se
         $channel->external_id = $instance;
         $channel->credentials = array_filter(['instance_id' => $created['id'], 'token' => $created['token']]);
         $channel->status      = ChannelStatus::Connecting;
+
+        $bot = $this->configuredBot($channel);
+
+        if ($bot !== null) {
+            try {
+                $this->attachBot($channel, $bot);
+            } catch (Throwable $exception) {
+                // A line that needs its bot isn't left without it; the team
+                // only sees that the line couldn't be set up.
+                report($exception);
+                rescue(fn () => $this->gateway->delete($instance), report: false);
+
+                throw new ChannelException(__('kinetix::kinetix.channel_error_unreachable'), previous: $exception);
+            }
+        }
+    }
+
+    public function attachBot(Channel $channel, WhatsAppBot $bot): void
+    {
+        $gateway  = $this->botGateway();
+        $instance = $this->instance($channel);
+
+        $this->detachBot($channel);
+
+        $credentials = $bot->credentials !== null
+            ? $gateway->createBotCredentials($instance, $bot->integration, $bot->credentials['name'], $bot->credentials['apiKey'])
+            : null;
+
+        if ($bot->settings !== []) {
+            $gateway->botSettings($instance, $bot->integration, $bot->settings);
+        }
+
+        $id = $gateway->createBot($instance, $bot->integration, $bot->payload($credentials));
+
+        $channel->meta = [
+            ...($channel->meta ?? []),
+            'bot' => array_filter(['integration' => $bot->integration, 'id' => $id, 'credentials' => $credentials]),
+        ];
+    }
+
+    public function detachBot(Channel $channel): void
+    {
+        $bot = $channel->meta['bot'] ?? null;
+
+        if (! is_array($bot)) {
+            return;
+        }
+
+        if ($channel->external_id !== null && is_string($bot['integration'] ?? null) && is_string($bot['id'] ?? null)) {
+            try {
+                $this->botGateway()->deleteBot($channel->external_id, $bot['integration'], $bot['id']);
+            } catch (Throwable $exception) {
+                // Gone from the server already: nothing left to take off.
+                if ($exception->getCode() !== 404) {
+                    throw $exception;
+                }
+            }
+        }
+
+        $meta = $channel->meta;
+        unset($meta['bot']);
+        $channel->meta = $meta;
+    }
+
+    /**
+     * The bot a new line gets from `kinetix.channels.providers.whatsapp.bot`:
+     * a definition, or a callable array receiving the line (its team, its
+     * name) and returning one — or null for none.
+     */
+    protected function configuredBot(Channel $channel): ?WhatsAppBot
+    {
+        $setting  = config('kinetix.channels.providers.whatsapp.bot');
+        $callback = ConfigCallback::resolve($setting);
+        $bot      = $callback !== null ? $callback($channel) : $setting;
+
+        return $bot instanceof WhatsAppBot || (is_array($bot) && $bot !== []) ? WhatsAppBot::from($bot) : null;
+    }
+
+    protected function botGateway(): EvolutionBotGateway
+    {
+        if (! $this->gateway instanceof EvolutionBotGateway) {
+            throw new LogicException('The Evolution gateway in use can\'t run bots: implement '.EvolutionBotGateway::class.'.');
+        }
+
+        return $this->gateway;
     }
 
     public function link(Channel $channel, ?string $phoneNumber = null): LinkState

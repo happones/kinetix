@@ -794,6 +794,14 @@ return [
                 'integration'     => 'WHATSAPP-BAILEYS',
                 'instance_prefix' => 'kinetix_',
                 'qr_ttl'          => 30, // seconds a QR shows before it refreshes
+
+                // A bot the Evolution server runs on every new line, behind the
+                // scenes (the team only links the number): null, a definition
+                // ['integration' => 'evolutionBot', 'bot' => [...], 'settings' => [...]],
+                // or a callable array [Class::class, 'method'] receiving the
+                // line and returning a WhatsAppBot (or null) — per team or plan.
+                // Kinetix Flows leave such lines to it.
+                'bot' => null,
             ],
             'telegram' => [
                 'enabled' => env('KINETIX_CHANNELS_TELEGRAM', true),

@@ -187,6 +187,18 @@ class FlowsTest extends TestCase
         $this->assertCount(1, $this->botSaid());
     }
 
+    public function test_a_line_answered_by_its_providers_bot_is_left_to_it(): void
+    {
+        $this->flow(['hi' => ['message', ['text' => 'Hola']]]);
+        $this->line->update(['meta' => ['bot' => ['integration' => 'evolutionBot', 'id' => 'bot-1']]]);
+
+        $this->say('Hola, buen día', 'A1')->assertOk();
+
+        // The conversation is in the inbox; Kinetix doesn't answer over that bot.
+        $this->assertSame([], $this->botSaid());
+        $this->assertSame(1, ConversationMessage::query()->count());
+    }
+
     public function test_a_question_waits_validates_and_branches(): void
     {
         $this->flow(

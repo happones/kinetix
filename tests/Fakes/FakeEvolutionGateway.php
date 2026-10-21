@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Fakes;
 
+use Happones\Kinetix\Channels\Evolution\EvolutionBotGateway;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use RuntimeException;
 
 /** An Evolution API server in memory: records every call, answers as configured. */
-class FakeEvolutionGateway implements EvolutionGateway
+class FakeEvolutionGateway implements EvolutionBotGateway, EvolutionGateway
 {
     /** @var list<array{0: string, 1: array<int, mixed>}> */
     public array $calls = [];
@@ -72,6 +73,26 @@ class FakeEvolutionGateway implements EvolutionGateway
     public function mediaBase64(string $instance, string $messageId): ?array
     {
         return $this->record('mediaBase64', func_get_args(), ['base64' => base64_encode('fake-image-bytes'), 'mimetype' => 'image/jpeg', 'fileName' => null]);
+    }
+
+    public function createBot(string $instance, string $integration, array $bot): string
+    {
+        return $this->record('createBot', func_get_args(), 'bot-'.count($this->callsTo('createBot')));
+    }
+
+    public function createBotCredentials(string $instance, string $integration, string $name, string $apiKey): string
+    {
+        return $this->record('createBotCredentials', func_get_args(), 'creds-1');
+    }
+
+    public function botSettings(string $instance, string $integration, array $settings): void
+    {
+        $this->record('botSettings', func_get_args());
+    }
+
+    public function deleteBot(string $instance, string $integration, string $botId): void
+    {
+        $this->record('deleteBot', func_get_args());
     }
 
     /** @return list<array<int, mixed>> */

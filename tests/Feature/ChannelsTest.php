@@ -13,6 +13,8 @@ use Happones\Kinetix\Channels\Events\ChannelQrUpdated;
 use Happones\Kinetix\Channels\Events\ChannelStatusChanged;
 use Happones\Kinetix\Channels\Events\ChannelUpdated;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
+use Happones\Kinetix\Channels\Evolution\WhatsAppBot;
+use Happones\Kinetix\Channels\KinetixChannels;
 use Happones\Kinetix\Permissions\KinetixPermissions;
 use Happones\Kinetix\Tests\Fakes\FakeEvolutionGateway;
 use Happones\Kinetix\Tests\TestCase;
@@ -23,6 +25,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
+use InvalidArgumentException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionServiceProvider;
 use Spatie\Permission\Traits\HasRoles;
@@ -168,6 +171,98 @@ class ChannelsTest extends TestCase
         // No provider links by pairing code: nothing to type a number into.
         config(['kinetix.channels.providers.whatsapp.enabled' => false]);
         $this->actingAs($this->manager())->getJson('/_kinetix/channels')->assertJsonPath('phone', null);
+    }
+
+    public function test_a_new_whatsapp_line_gets_the_configured_bot_behind_the_scenes(): void
+    {
+        config(['kinetix.channels.providers.whatsapp.bot' => [
+            'integration' => 'evolutionBot',
+            'bot'         => ['apiUrl' => 'https://bots.test/whatsapp', 'apiKey' => 'secret', 'delayMessage' => 800],
+            'settings'    => ['expire' => 30],
+        ]]);
+
+        $this->actingAs($this->manager())
+            ->postJson('/_kinetix/channels', ['provider' => 'whatsapp', 'name' => 'Sales'])
+            ->assertCreated()
+            ->assertJsonMissingPath('channel.meta')
+            ->assertDontSee('bots.test');
+
+        $channel                        = Channel::query()->sole();
+        [$instance, $integration, $bot] = $this->evolution->callsTo('createBot')[0];
+
+        $this->assertSame($channel->external_id, $instance);
+        $this->assertSame('evolutionBot', $integration);
+        $this->assertSame([
+            'enabled'       => true,
+            'triggerType'   => 'all',
+            'stopBotFromMe' => true,
+            'apiUrl'        => 'https://bots.test/whatsapp',
+            'apiKey'        => 'secret',
+            'delayMessage'  => 800,
+        ], $bot);
+        $this->assertSame([$instance, 'evolutionBot', ['expire' => 30]], $this->evolution->callsTo('botSettings')[0]);
+        $this->assertSame(['integration' => 'evolutionBot', 'id' => 'bot-0'], $channel->meta['bot']);
+        $this->assertTrue($channel->hasExternalBot());
+    }
+
+    public function test_a_callback_picks_each_lines_bot_and_openai_stores_its_key_first(): void
+    {
+        config(['kinetix.channels.providers.whatsapp.bot' => [ChannelBots::class, 'for']]);
+        ChannelBots::$asked = [];
+
+        $this->actingAs($this->manager())->postJson('/_kinetix/channels', ['provider' => 'whatsapp', 'name' => 'Plain'])->assertCreated();
+        $this->assertSame([], $this->evolution->callsTo('createBot'));
+        $this->assertFalse(Channel::query()->where('name', 'Plain')->sole()->hasExternalBot());
+
+        $this->actingAs($this->manager())->postJson('/_kinetix/channels', ['provider' => 'whatsapp', 'name' => 'Sales'])->assertCreated();
+
+        $this->assertSame(['Plain', 'Sales'], ChannelBots::$asked);
+        [, $integration, $name, $key] = $this->evolution->callsTo('createBotCredentials')[0];
+        [, , $bot]                    = $this->evolution->callsTo('createBot')[0];
+
+        $this->assertSame(['openai', 'kinetix', 'sk-test'], [$integration, $name, $key]);
+        $this->assertSame('creds-1', $bot['openaiCredsId']);
+        $this->assertSame(['chatCompletion', 'gpt-4o-mini'], [$bot['botType'], $bot['model']]);
+        $this->assertSame('creds-1', Channel::query()->where('name', 'Sales')->sole()->meta['bot']['credentials']);
+    }
+
+    public function test_a_line_whose_bot_fails_is_not_left_half_made(): void
+    {
+        config(['kinetix.channels.providers.whatsapp.bot' => WhatsAppBot::n8n('https://n8n.test/webhook/wa')]);
+        $this->evolution->failOn = 'createBot';
+
+        $this->actingAs($this->manager())
+            ->postJson('/_kinetix/channels', ['provider' => 'whatsapp', 'name' => 'Sales'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('provider')
+            ->assertDontSee('n8n');
+
+        $this->assertSame(0, Channel::query()->count());
+        $this->assertCount(1, $this->evolution->callsTo('delete'));
+    }
+
+    public function test_an_existing_line_swaps_and_drops_its_bot(): void
+    {
+        $line = $this->line();
+
+        KinetixChannels::attachBot($line, WhatsAppBot::typebot('https://typebot.test', 'ventas', ['triggerType' => 'keyword', 'triggerOperator' => 'equals', 'triggerValue' => 'menu']));
+        KinetixChannels::attachBot($line->fresh(), WhatsAppBot::dify('https://dify.test/v1', 'app-key'));
+
+        $this->assertSame([['kinetix_line', 'typebot', 'bot-0']], $this->evolution->callsTo('deleteBot'));
+        $this->assertSame('keyword', $this->evolution->callsTo('createBot')[0][2]['triggerType']);
+        $this->assertSame(['integration' => 'dify', 'id' => 'bot-1'], $line->fresh()->meta['bot']);
+
+        KinetixChannels::detachBot($line->fresh());
+
+        $this->assertFalse($line->fresh()->hasExternalBot());
+        $this->assertSame(['kinetix_line', 'dify', 'bot-1'], $this->evolution->callsTo('deleteBot')[1]);
+    }
+
+    public function test_an_integration_name_cannot_reach_another_endpoint(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        WhatsAppBot::make('../instance/delete', []);
     }
 
     public function test_a_whatsapp_line_is_provisioned_with_its_webhook_and_opens_on_its_first_qr(): void
@@ -427,5 +522,19 @@ class ChannelsTest extends TestCase
 
         Event::assertDispatched(ChannelUpdated::class, fn (ChannelUpdated $event): bool => $event->channelName === 'kinetix.channels'
             && $event->payload['status']                                                                       === 'connected' && $event->broadcastAs() === 'channel.updated');
+    }
+}
+
+class ChannelBots
+{
+    /** @var list<string> */
+    public static array $asked = [];
+
+    /** Only the sales line gets a bot. */
+    public static function for(Channel $line): ?WhatsAppBot
+    {
+        static::$asked[] = $line->name;
+
+        return $line->name === 'Sales' ? WhatsAppBot::openai('sk-test') : null;
     }
 }
