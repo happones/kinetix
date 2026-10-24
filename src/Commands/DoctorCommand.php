@@ -854,12 +854,25 @@ class DoctorCommand extends Command
 
             if (! array_key_exists($key, $app)) {
                 $missing[] = $path;
-            } elseif (is_array($value) && $value !== [] && is_array($app[$key])) {
+            } elseif (is_array($value) && $value !== [] && is_array($app[$key]) && ! static::isChosenMap($value, $app[$key])) {
                 $missing = [...$missing, ...static::missingKeys($value, $app[$key], $path)];
             }
         }
 
         return $missing;
+    }
+
+    /**
+     * A nested map of plain values the app already set (`locale.locales`:
+     * code => label) is a choice, not settings: leaving entries out is
+     * the point.
+     *
+     * @param array<array-key, mixed> $defaults
+     * @param array<array-key, mixed> $app
+     */
+    protected static function isChosenMap(array $defaults, array $app): bool
+    {
+        return $app !== [] && array_filter($defaults, static fn (mixed $value): bool => ! is_scalar($value) && $value !== null) === [];
     }
 
     /**

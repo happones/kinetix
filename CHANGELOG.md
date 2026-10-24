@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.257.1] - 2026-10-24
+
+### Fixed
+
+- `kinetix:doctor` no longer reports entries an app left out of a map of plain
+  values it already set (`locale.locales` narrowed to its own languages) as
+  missing config keys.
+
 ## [0.257.0] - 2026-10-24
 
 ### Added

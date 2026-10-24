@@ -119,6 +119,8 @@ class DoctorCommandTest extends TestCase
     {
         $package = require __DIR__.'/../../config/kinetix.php';
         unset($package['inbox']['mirror_sent'], $package['billing']['lock_plans_during_trial']);
+        // A list of choices the app narrowed is not a missing key.
+        $package['locale']['locales'] = array_slice((array) $package['locale']['locales'], 0, 1, true);
         File::put(config_path('kinetix.php'), '<?php return '.var_export($package, true).';');
 
         try {
@@ -126,6 +128,7 @@ class DoctorCommandTest extends TestCase
                 ->expectsOutputToContain('2 key(s) of the package are missing from config/kinetix.php')
                 ->expectsOutputToContain('inbox.mirror_sent')
                 ->expectsOutputToContain('billing.lock_plans_during_trial')
+                ->doesntExpectOutputToContain('locale.locales')
                 ->assertSuccessful();
         } finally {
             File::delete(config_path('kinetix.php'));
