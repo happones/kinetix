@@ -478,6 +478,19 @@ describe('KinetixInboxBubble', () => {
         expect(bot.find('[data-test="inbox-from-phone"]').exists()).toBe(false);
     });
 
+    it('keeps a message deleted for everyone, marked', () => {
+        const deleted = bubble({
+            direction: 'in',
+            body: 'Mi número es 55 1234 5678',
+            deletedAt: '2026-10-24T10:00:00Z',
+        });
+
+        expect(deleted.get('[data-test="inbox-deleted"]').text()).toBe(
+            'kinetix.inbox_deleted_by_contact',
+        );
+        expect(deleted.text()).toContain('Mi número es 55 1234 5678');
+    });
+
     it('sets an internal note apart and offers no reply to it', () => {
         const note = bubble({
             direction: 'note',

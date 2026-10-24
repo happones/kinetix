@@ -22,6 +22,7 @@ use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Channels\ChannelController;
 use Happones\Kinetix\Channels\ChannelManager;
 use Happones\Kinetix\Channels\ChannelWebhookController;
+use Happones\Kinetix\Channels\Events\ChannelMessageDeleted;
 use Happones\Kinetix\Channels\Events\ChannelMessageReceived;
 use Happones\Kinetix\Channels\Events\ChannelMessageSent;
 use Happones\Kinetix\Channels\Events\ChannelMessageStatusUpdated;
@@ -1605,6 +1606,7 @@ class KinetixServiceProvider extends ServiceProvider
 
         $this->app['events']->listen(ChannelMessageReceived::class, [RecordInboxActivity::class, 'received']);
         $this->app['events']->listen(ChannelMessageSent::class, [RecordInboxActivity::class, 'sent']);
+        $this->app['events']->listen(ChannelMessageDeleted::class, [RecordInboxActivity::class, 'deleted']);
         $this->app['events']->listen(ChannelMessageStatusUpdated::class, [RecordInboxActivity::class, 'statusUpdated']);
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');

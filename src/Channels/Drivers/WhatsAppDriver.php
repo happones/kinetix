@@ -38,7 +38,7 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
     public const SECRET_HEADER = 'X-Kinetix-Channel-Secret';
 
     /** @var list<string> */
-    protected const EVENTS = ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'SEND_MESSAGE'];
+    protected const EVENTS = ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'MESSAGES_DELETE', 'SEND_MESSAGE'];
 
     public function __construct(protected EvolutionGateway $gateway) {}
 
@@ -303,7 +303,8 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
                 status: ChannelStatus::Connecting,
                 qr: $this->dataUri(data_get($data, 'qrcode.base64')),
             ),
-            'messages.upsert' => new WebhookResult(messages: $this->messages($data), sent: $this->messages($data, fromLine: true)),
+            'messages.upsert' => new WebhookResult(messages: $this->messages($data), sent: $this->messages($data, fromLine: true), deleted: $this->revoked($data)),
+            'messages.delete' => new WebhookResult(deleted: $this->deletedIds($data)),
             // What the server sent for the line: Kinetix's sends, its bot's.
             'send.message'    => new WebhookResult(sent: $this->messages($data, fromLine: true)),
             'messages.update' => new WebhookResult(statuses: $this->statuses((array) $request->input('data', []))),
@@ -346,6 +347,15 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
                 $jid = (string) (data_get($item, 'key.senderPn') ?? data_get($item, 'key.remoteJidAlt') ?? $jid);
             }
 
+            if (! $this->isChat($jid)) {
+                continue;
+            }
+
+            // A "deleted for everyone" notice, not a message ({@see revoked()}).
+            if (data_get($item, 'message.protocolMessage') !== null) {
+                continue;
+            }
+
             $isGroup    = str_ends_with($jid, '@g.us');
             $content    = (array) ($item['message'] ?? []);
             $timestamp  = data_get($item, 'messageTimestamp');
@@ -371,6 +381,69 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
         }
 
         return $messages;
+    }
+
+    /**
+     * The messages a `messages.upsert` call says were deleted for everyone:
+     * a `protocolMessage` of type REVOKE naming the message it takes back.
+     *
+     * @param  array<string, mixed> $data
+     * @return list<string>
+     */
+    protected function revoked(array $data): array
+    {
+        $items = isset($data['key']) ? [$data] : (array) ($data['messages'] ?? []);
+        $ids   = [];
+
+        foreach ($items as $item) {
+            $protocol = data_get($item, 'message.protocolMessage');
+
+            if (is_array($protocol) && in_array($protocol['type'] ?? null, ['REVOKE', 0], true) && is_scalar($id = data_get($protocol, 'key.id'))) {
+                $ids[] = (string) $id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * The ids of a `messages.delete` call: one message's key, or a list.
+     *
+     * @param  array<int|string, mixed> $data
+     * @return list<string>
+     */
+    protected function deletedIds(array $data): array
+    {
+        $ids = [];
+
+        foreach (array_is_list($data) ? $data : [$data] as $item) {
+            $id = data_get($item, 'id') ?? data_get($item, 'key.id') ?? data_get($item, 'keyId');
+
+            if (is_scalar($id) && (string) $id !== '') {
+                $ids[] = (string) $id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Whether a JID is a conversation the inbox takes. Statuses
+     * (`status@broadcast`) never are; with `providers.whatsapp.direct_only`,
+     * neither are groups, broadcast lists or channels (newsletters) — only
+     * one-to-one chats.
+     */
+    protected function isChat(string $jid): bool
+    {
+        if ($jid === '' || $jid === 'status@broadcast') {
+            return false;
+        }
+
+        if (! config('kinetix.channels.providers.whatsapp.direct_only', false)) {
+            return true;
+        }
+
+        return ! str_ends_with($jid, '@g.us') && ! str_ends_with($jid, '@broadcast') && ! str_ends_with($jid, '@newsletter');
     }
 
     /**

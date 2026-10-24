@@ -105,7 +105,7 @@ class FlowController
         ], static fn ($value): bool => $value !== null));
 
         if (array_key_exists('channel_ids', $data)) {
-            $allowed           = Channel::query()->where('team_id', $this->teamId())->pluck('id')->map('strval')->all();
+            $allowed           = Channel::query()->where('team_id', $this->teamId())->visibleTo(auth()->user())->pluck('id')->map('strval')->all();
             $flow->channel_ids = $data['channel_ids'] === null || $data['channel_ids'] === []
                 ? null
                 : array_values(array_filter($data['channel_ids'], static fn ($id): bool => in_array((string) $id, $allowed, true)));
@@ -296,7 +296,7 @@ class FlowController
      */
     protected function lines(): array
     {
-        return Channel::query()->where('team_id', $this->teamId())->orderBy('name')->get()
+        return Channel::query()->where('team_id', $this->teamId())->visibleTo(auth()->user())->orderBy('name')->get()
             ->map(static fn (Channel $line): array => ['id' => $line->getKey(), 'name' => $line->name, 'provider' => $line->provider])
             ->values()
             ->all();

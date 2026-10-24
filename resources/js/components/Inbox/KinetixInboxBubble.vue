@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     AlertCircle,
+    Ban,
     Bot,
     Check,
     CheckCheck,
@@ -144,6 +145,19 @@ const statusLabel = computed(() =>
                     {{ t('kinetix.inbox_sent_from_phone') }}
                 </p>
 
+                <p
+                    v-if="message.deletedAt"
+                    class="gap-1 font-medium mb-0.5 flex items-center text-[11px] italic opacity-80"
+                    data-test="inbox-deleted"
+                >
+                    <Ban class="size-3" />
+                    {{
+                        incoming
+                            ? t('kinetix.inbox_deleted_by_contact')
+                            : t('kinetix.inbox_deleted')
+                    }}
+                </p>
+
                 <!-- The message it answers -->
                 <div
                     v-if="message.replyTo"
@@ -235,6 +249,7 @@ const statusLabel = computed(() =>
                 <p
                     v-if="message.body"
                     class="break-words whitespace-pre-wrap"
+                    :class="message.deletedAt ? 'line-through opacity-70' : ''"
                     dir="auto"
                 >
                     {{ message.body }}

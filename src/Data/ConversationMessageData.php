@@ -35,6 +35,8 @@ class ConversationMessageData extends Data
         public bool $bot = false,
         /** Sent from the line's phone, outside the inbox. */
         public bool $fromPhone = false,
+        /** When it was deleted for everyone (it stays in the thread, marked). */
+        public ?string $deletedAt = null,
     ) {}
 
     public static function fromModel(ConversationMessage $message, ?string $authorName = null): self
@@ -64,6 +66,7 @@ class ConversationMessageData extends Data
             ($message->sent_at ?? $message->created_at)?->toIso8601String(),
             ($message->meta['bot'] ?? false)        === true,
             ($message->meta['from_phone'] ?? false) === true,
+            is_string($message->meta['deleted_at'] ?? null) ? $message->meta['deleted_at'] : null,
         );
     }
 }

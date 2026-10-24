@@ -16,11 +16,13 @@ use Happones\Kinetix\Inbox\ConversationMessage;
 use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
 use Happones\Kinetix\Inbox\Events\ConversationReplied;
 use Happones\Kinetix\Inbox\Events\InboxUpdated;
+use Happones\Kinetix\Inbox\InboxManager;
 use Happones\Kinetix\Inbox\MessageStatus;
 use Happones\Kinetix\Inbox\QuickReply;
 use Happones\Kinetix\Permissions\KinetixPermissions;
 use Happones\Kinetix\Tests\Fakes\FakeEvolutionGateway;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Http\UploadedFile;
@@ -151,7 +153,7 @@ class InboxTest extends TestCase
         return $this->postJson("/_kinetix/channels/webhook/{$line->public_id}", $payload, [$header => $line->webhook_secret]);
     }
 
-    private function inbound(string $id, string $text, array $extra = []): TestResponse
+    private function inbound(string $id, string $text, array $extra = [], ?Channel $line = null): TestResponse
     {
         return $this->hook(['event' => 'messages.upsert', 'data' => array_replace_recursive([
             'key'              => ['remoteJid' => '5215599999999@s.whatsapp.net', 'fromMe' => false, 'id' => $id],
@@ -159,7 +161,7 @@ class InboxTest extends TestCase
             'message'          => ['conversation' => $text],
             'messageType'      => 'conversation',
             'messageTimestamp' => 1760000000,
-        ], $extra)]);
+        ], $extra)], $line);
     }
 
     public function test_what_reaches_a_line_lands_in_one_conversation_once(): void
@@ -406,6 +408,85 @@ class InboxTest extends TestCase
         $this->assertSame(0, ConversationMessage::query()->where('direction', 'out')->count());
     }
 
+    public function test_a_message_deleted_for_everyone_stays_marked(): void
+    {
+        $this->inbound('A1', 'Mi número es 55 1234 5678');
+        $this->inbound('A2', 'Perdón, me equivoqué');
+
+        // Taken back by the contact: a REVOKE notice on upsert…
+        $this->hook(['event' => 'messages.upsert', 'data' => [
+            'key'     => ['remoteJid' => '5215599999999@s.whatsapp.net', 'fromMe' => false, 'id' => 'REVOKE1'],
+            'message' => ['protocolMessage' => ['type' => 'REVOKE', 'key' => ['id' => 'A1']]],
+        ]])->assertOk();
+        // …or the delete event.
+        $this->hook(['event' => 'messages.delete', 'data' => ['id' => 'A2', 'remoteJid' => '5215599999999@s.whatsapp.net']])->assertOk();
+
+        $this->assertSame(2, ConversationMessage::query()->count());
+        $conversation = Conversation::query()->sole();
+        $this->actingAs($this->admin())->getJson("/_kinetix/inbox/{$conversation->id}/messages")
+            ->assertJsonPath('messages.0.body', 'Mi número es 55 1234 5678')
+            ->assertJsonPath('messages.0.deletedAt', fn ($at) => is_string($at))
+            ->assertJsonPath('messages.1.deletedAt', fn ($at) => is_string($at));
+    }
+
+    public function test_statuses_never_reach_the_inbox_and_groups_can_be_left_out(): void
+    {
+        $this->inbound('S1', 'Mi estado', ['key' => ['remoteJid' => 'status@broadcast']]);
+        $this->inbound('G1', 'Hola grupo', ['key' => ['remoteJid' => '120363000000000000@g.us']]);
+        $this->assertSame(1, Conversation::query()->count());
+
+        config(['kinetix.channels.providers.whatsapp.direct_only' => true]);
+        $this->inbound('G2', 'Otro', ['key' => ['remoteJid' => '120363000000000001@g.us']]);
+        $this->inbound('N1', 'Boletín', ['key' => ['remoteJid' => '120363000000000002@newsletter']]);
+        $this->inbound('A1', 'Hola');
+
+        $this->assertSame(['120363000000000000@g.us', '5215599999999'], Conversation::query()->orderBy('id')->pluck('contact_key')->all());
+    }
+
+    public function test_the_business_writes_first_and_variables_are_filled_on_send(): void
+    {
+        config(['kinetix.inbox.variables' => [InboxTestVariables::class, 'for']]);
+        Event::fake([ConversationReplied::class]);
+        $inbox = app(InboxManager::class);
+
+        $conversation = $inbox->conversationWith($this->line, '+52 1 55 3333 4444', 'Grace');
+        $this->assertSame('5215533334444', $conversation->contact_key);
+        $this->assertSame($conversation->id, $inbox->conversationWith($this->line, '5215533334444')->id);
+
+        // A reminder from your code: no author, so no person took over.
+        $message = $inbox->send($conversation, null, 'Hola {{contact.name}}, te escribe {{ negocio }} desde {{line.name}}. {{desconocida}}');
+
+        $this->assertSame('Hola Grace, te escribe Acme desde Sales. {{desconocida}}', $message->body);
+        $this->assertSame(MessageStatus::Sent, $message->status);
+        $this->assertSame(['kinetix_sales', '5215533334444', 'Hola Grace, te escribe Acme desde Sales. {{desconocida}}', null], $this->evolution->callsTo('sendText')[0]);
+        Event::assertNotDispatched(ConversationReplied::class);
+
+        $agent = $this->admin();
+        $this->actingAs($agent)->postJson("/_kinetix/inbox/{$conversation->id}/messages", ['body' => 'Soy {{agent.name}}'])
+            ->assertJsonPath('message.body', 'Soy Admin');
+    }
+
+    public function test_lines_a_user_should_not_see_stay_out_of_the_manager_and_the_inbox(): void
+    {
+        $personal = Channel::create(['provider' => 'whatsapp', 'name' => 'Personal de Grace', 'external_id' => 'kinetix_grace', 'status' => ChannelStatus::Connected, 'meta' => ['personal' => true]]);
+        $this->inbound('A1', 'Hola');
+        $this->inbound('P1', 'Hola Grace', [], $personal);
+        config(['kinetix.channels.visible' => [InboxTestVariables::class, 'hidePersonal'], 'kinetix.channels.limit' => 1]);
+
+        $admin = $this->user('Manager', ['conversations.view', 'conversations.view_all', 'channels.manage']);
+
+        $this->actingAs($admin)->getJson('/_kinetix/channels')->assertJsonCount(1, 'channels')->assertJsonPath('channels.0.name', 'Sales');
+        $this->actingAs($admin)->getJson("/_kinetix/channels/{$personal->id}/status")->assertNotFound();
+        $this->assertSame(2, Conversation::query()->count());
+        $this->actingAs($admin)->getJson('/_kinetix/inbox?filter=all')
+            ->assertJsonCount(1, 'conversations')
+            ->assertJsonPath('conversations.0.channel.name', 'Sales');
+
+        // The personal line doesn't count against the plan: still one of one.
+        $this->actingAs($admin)->postJson('/_kinetix/channels', ['provider' => 'whatsapp', 'name' => 'Otra'])
+            ->assertJsonValidationErrors('name');
+    }
+
     public function test_internal_notes_never_reach_the_contact(): void
     {
         $this->inbound('A1', 'Hola');
@@ -574,5 +655,19 @@ class InboxTest extends TestCase
 
         Event::assertDispatched(InboxUpdated::class, fn (InboxUpdated $event): bool => $event->channelName === "kinetix.inbox.{$this->line->id}"
             && array_keys($event->payload)                                                                 === ['conversationId', 'channelId', 'messageId']);
+    }
+}
+
+class InboxTestVariables
+{
+    /** @return array<string, string> */
+    public static function for(Conversation $conversation, mixed $author): array
+    {
+        return ['negocio' => 'Acme'];
+    }
+
+    public static function hidePersonal(Builder $lines, mixed $user): void
+    {
+        $lines->where(fn ($query) => $query->whereNull('meta')->orWhere('meta', 'not like', '%"personal":true%'));
     }
 }

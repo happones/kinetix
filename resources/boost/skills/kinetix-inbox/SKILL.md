@@ -72,3 +72,7 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations   # needs kinetix-chan
     - The driver returns them as `WebhookResult::$sent` → `ChannelMessageSent` → `InboxManager::recordSent()` (`inbox.mirror_sent`, default on).
     - Phone sends get `meta.from_phone` and fire `ConversationReplied`. A provider-run bot's get `meta.bot` with the line's `meta.bot.name`.
     - The inbox's own sends coming back are deduped by `external_id`, or claimed by `claimOwnSend()` (oldest recent pending/failed Out message, same body). Never count as unread.
+- **Deleted for everyone**: WhatsApp `messages.delete` / REVOKE `protocolMessage` → `ChannelMessageDeleted` → `InboxManager::recordDeleted()` sets `meta.deleted_at` (payload `deletedAt`); the message stays.
+- **Writing first**: `InboxManager::conversationWith($line, $contactKey, $name)` + `send($conversation, null, $text)` (no author = no `ConversationReplied`).
+- **Variables**: `send()` fills `{{contact.name|contact.key|agent.name|line.name}}` plus `inbox.variables` (callable(Conversation, ?author): array); unknown stay.
+- **Line visibility**: `channels.visible` callable(Builder $lines, ?user) via `Channel::visibleTo()` in the manager, the plan count, agents, the inbox and flows.

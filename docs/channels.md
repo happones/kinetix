@@ -41,6 +41,11 @@ php artisan migrate
     'providers' => [
         'whatsapp' => [
             'enabled'  => env('KINETIX_CHANNELS_WHATSAPP', true),
+            // Only one-to-one chats reach the inbox (no groups, broadcast
+            // lists or channels). Statuses never do.
+            'direct_only' => false,
+            // "typing…" before each message, longer for longer texts.
+            'typing' => ['enabled' => false, 'min_ms' => 800, 'ms_per_char' => 40, 'max_ms' => 6000],
             'base_url' => env('KINETIX_CHANNELS_EVOLUTION_URL'), // null = evolution.base_url
             'api_key'  => env('KINETIX_CHANNELS_EVOLUTION_KEY'), // null = evolution.api_key
             'qr_ttl'   => 30,
@@ -216,6 +221,24 @@ public static function lines(int|string|null $teamKey): ?int
 
 The manager shows `2 of 3 lines` and disables **Add line** at the limit; the
 server refuses past it too.
+
+### Lines a user doesn't see
+
+`visible` narrows which of the team's lines a user sees and manages. It's a
+callable array receiving the lines query and the user. The line manager, its
+plan count, the inbox and the bot editor all go through it, e.g. to keep each
+member's personal line to themselves:
+
+```php
+'visible' => [App\Channels\LineVisibility::class, 'scope'],
+```
+
+```php
+public static function scope(Builder $lines, ?User $user): void
+{
+    $lines->where(fn ($q) => $q->whereNull('owner_id')->orWhere('owner_id', $user?->id));
+}
+```
 
 ---
 

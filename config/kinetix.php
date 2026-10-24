@@ -764,6 +764,12 @@ return [
         // allowance), or null for no limit.
         'limit' => null,
 
+        // Which of the team's lines a user sees and manages: a callable array
+        // [Class::class, 'method'] receiving the lines query and the user —
+        // e.g. leave members' personal lines out of the manager, the plan
+        // count, the inbox and the bot editor. Null = every line of the team.
+        'visible' => null,
+
         // The public base URL providers call webhooks on — a tunnel
         // (ngrok, Expose) in development; null = app.url. Telegram only
         // calls HTTPS URLs.
@@ -794,6 +800,20 @@ return [
                 'integration'     => 'WHATSAPP-BAILEYS',
                 'instance_prefix' => 'kinetix_',
                 'qr_ttl'          => 30, // seconds a QR shows before it refreshes
+
+                // Only one-to-one chats reach the inbox: groups, broadcast lists
+                // and channels (newsletters) are left out. Statuses always are.
+                'direct_only' => env('KINETIX_CHANNELS_WHATSAPP_DIRECT_ONLY', false),
+
+                // "typing…" before each message, longer for longer texts, so
+                // the number doesn't answer like a bot: min_ms + ms_per_char ×
+                // length, capped at max_ms.
+                'typing' => [
+                    'enabled'     => env('KINETIX_CHANNELS_WHATSAPP_TYPING', false),
+                    'min_ms'      => 800,
+                    'ms_per_char' => 40,
+                    'max_ms'      => 6000,
+                ],
 
                 // Events the line's webhook subscribes to besides Kinetix's own
                 // (e.g. 'MESSAGES_DELETE' for a listener of your own).
@@ -859,6 +879,12 @@ return [
         // Link a new conversation to your own contact model: a callable array
         // receiving the Conversation and returning a model (or null).
         'contact_resolver' => null,
+
+        // Your own {{placeholders}} for messages and quick replies, filled in
+        // on send next to contact.name, contact.key, agent.name and line.name:
+        // a callable array [Class::class, 'method'] receiving the conversation
+        // and the author, returning ['negocio' => 'Acme', ...].
+        'variables' => null,
 
         // Messages the line sends outside the inbox — typed on its phone, or
         // answered by a bot the provider runs — show in the thread too.

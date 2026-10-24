@@ -87,6 +87,7 @@ class EvolutionClientGateway implements EvolutionBotGateway, EvolutionGateway
         $response = $this->service()->post("/message/sendText/{$instance}", array_filter([
             'number' => $to,
             'text'   => $text,
+            'delay'  => $this->typingDelay($text),
             'quoted' => $quotedId !== null ? ['key' => ['id' => $quotedId]] : null,
         ]));
 
@@ -99,9 +100,10 @@ class EvolutionClientGateway implements EvolutionBotGateway, EvolutionGateway
 
         // A voice note goes through its own endpoint, played as one.
         $response = $type === 'audio'
-            ? $this->service()->post("/message/sendWhatsAppAudio/{$instance}", array_filter(['number' => $to, 'audio' => $base64, 'quoted' => $quoted]))
+            ? $this->service()->post("/message/sendWhatsAppAudio/{$instance}", array_filter(['number' => $to, 'audio' => $base64, 'delay' => $this->typingDelay(null), 'quoted' => $quoted]))
             : $this->service()->post("/message/sendMedia/{$instance}", array_filter([
                 'number'    => $to,
+                'delay'     => $this->typingDelay($caption),
                 'mediatype' => $type,
                 'mimetype'  => $mime,
                 'caption'   => $caption,
@@ -159,6 +161,25 @@ class EvolutionClientGateway implements EvolutionBotGateway, EvolutionGateway
         }
 
         return (string) $id;
+    }
+
+    /**
+     * How long the contact sees "typing…" before a message lands
+     * (`providers.whatsapp.typing`): a base plus some per character, capped —
+     * so a number answering at once doesn't read as a bot. Evolution shows
+     * the presence for the `delay` it's given. Null when off.
+     */
+    protected function typingDelay(?string $text): ?int
+    {
+        $typing = (array) $this->setting('typing', []);
+
+        if (! ($typing['enabled'] ?? false)) {
+            return null;
+        }
+
+        $delay = (int) ($typing['min_ms'] ?? 800) + mb_strlen((string) $text) * (int) ($typing['ms_per_char'] ?? 40);
+
+        return min($delay, (int) ($typing['max_ms'] ?? 6000));
     }
 
     protected function client(string $instance): EvolutionApiClient

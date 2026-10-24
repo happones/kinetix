@@ -67,6 +67,7 @@ class ChannelAgentController
 
         return Channel::query()
             ->where('team_id', KinetixTeams::keyFor('channels'))
+            ->visibleTo($request->user())
             ->whereKey($request->route('channel'))
             ->firstOrFail();
     }

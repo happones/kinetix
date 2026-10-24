@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Channels;
 
+use Happones\Kinetix\Support\ConfigCallback;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -77,5 +79,25 @@ class Channel extends Model
     public function hasExternalBot(): bool
     {
         return is_array($this->meta['bot'] ?? null);
+    }
+
+    /**
+     * The lines a user sees and manages: `channels.visible`, a callable array
+     * receiving the query and the user, narrows them — e.g. to leave each
+     * member's personal line out of the team's manager, its plan count and
+     * the inbox. The line manager, the inbox and the bot editor all use it.
+     *
+     * @param  Builder<Channel> $query
+     * @return Builder<Channel>
+     */
+    public function scopeVisibleTo(Builder $query, ?Model $user): Builder
+    {
+        $callback = ConfigCallback::resolve(config('kinetix.channels.visible'));
+
+        if ($callback !== null) {
+            $callback($query, $user);
+        }
+
+        return $query;
     }
 }

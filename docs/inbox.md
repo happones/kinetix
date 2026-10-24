@@ -241,6 +241,45 @@ Event::listen(function (ConversationMessageCreated $event): void {
 
 The Channels events (`ChannelMessageReceived`, …) keep firing as before.
 
+::: v-pre
+
+### Writing first
+
+To send a reminder or a campaign message to someone who hasn't written, open
+their conversation with `conversationWith()` and send with no author. A
+WhatsApp number is kept as digits, the way contacts' messages file it, so
+their answer lands in the same thread:
+
+```php
+$inbox        = app(InboxManager::class);
+$conversation = $inbox->conversationWith($line, '+52 55 1234 5678', 'Ada');
+
+$inbox->send($conversation, null, 'Hola {{contact.name}}, tu cita es mañana a las 10.');
+```
+
+A message without an author isn't a person taking over, so a flow talking in
+the conversation keeps going.
+
+### Variables
+
+`{{contact.name}}`, `{{contact.key}}`, `{{agent.name}}` and `{{line.name}}` are
+filled in when a message is sent: from the composer, the API or your code.
+The composer also fills them as soon as a quick reply is inserted. Add your own
+with a callable array; a placeholder nobody knows stays as written:
+
+```php
+'variables' => [App\Inbox\Variables::class, 'for'],
+```
+
+```php
+public static function for(Conversation $conversation, ?Model $agent): array
+{
+    return ['negocio' => Team::find($conversation->team_id)?->name];
+}
+```
+
+:::
+
 ---
 
 ## 7. Quick replies
@@ -298,6 +337,11 @@ Each one is recorded once, and none counts as unread. The inbox's own messages
 come back from the line too, sometimes before the send finishes; they're
 matched to the message already in the thread instead of showing twice. One
 marked failed after a timeout although it went out turns sent.
+
+A message deleted for everyone, by the contact or from the line's phone,
+stays in the thread, marked _Deleted by the contact_ (or _Deleted_), with its
+text struck through: the team still knows what was said and that it was taken
+back.
 
 Turn it off with `'mirror_sent' => false`. Lines set up before this listen for
 their bot's sends after a **Restart**, or when a bot is attached.

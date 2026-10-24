@@ -55,7 +55,7 @@ class InboxManager
      */
     public function visibleChannelIds(Model $user, int|string|null $teamKey): array
     {
-        $lines = Channel::query()->where('team_id', $teamKey);
+        $lines = Channel::query()->where('team_id', $teamKey)->visibleTo($user);
 
         if (! $this->seesAll($user)) {
             $lines->whereIn('id', DB::table('kinetix_channel_agents')->where('user_id', $user->getKey())->select('channel_id'));
@@ -354,6 +354,25 @@ class InboxManager
         return true;
     }
 
+    /**
+     * A message deleted for everyone: kept in the thread, marked deleted, so
+     * the team still knows what was said and that it was taken back.
+     */
+    public function recordDeleted(Channel $channel, string $externalId): void
+    {
+        $message = ConversationMessage::query()
+            ->where('external_id', $externalId)
+            ->whereIn('conversation_id', Conversation::query()->where('channel_id', $channel->getKey())->select('id'))
+            ->first();
+
+        if ($message === null || isset($message->meta['deleted_at'])) {
+            return;
+        }
+
+        $message->update(['meta' => [...($message->meta ?? []), 'deleted_at' => now()->toIso8601String()]]);
+        $this->broadcast($message->conversation, $message);
+    }
+
     /** A delivery receipt: a message only ever moves forward, or to failed before it was delivered. */
     public function recordStatus(Channel $channel, string $externalId, string $status): void
     {
@@ -423,13 +442,90 @@ class InboxManager
     // ── Sending ───────────────────────────────────────────────────────────
 
     /**
+     * What `{{variable}}` placeholders in a message stand for: the contact's
+     * name and number, the agent's and the line's name, plus the app's own
+     * from `inbox.variables` — a callable array receiving the conversation
+     * and the author, returning `['negocio' => 'Acme', …]`.
+     *
+     * @return array<string, string>
+     */
+    public function variables(Conversation $conversation, ?Model $author = null): array
+    {
+        $variables = [
+            'contact.name' => (string) ($conversation->contact_name ?? ''),
+            'contact.key'  => (string) $conversation->contact_key,
+            'agent.name'   => (string) ($this->userName($author) ?? ''),
+            'line.name'    => (string) ($conversation->channel->name ?? ''),
+        ];
+
+        $callback = ConfigCallback::resolve(config('kinetix.inbox.variables'));
+
+        foreach ($callback !== null ? (array) $callback($conversation, $author) : [] as $name => $value) {
+            if (is_string($name) && (is_scalar($value) || $value === null)) {
+                $variables[$name] = (string) $value;
+            }
+        }
+
+        return $variables;
+    }
+
+    /**
+     * Fill the placeholders a message still carries (a quick reply typed
+     * through the API, or an app variable the composer doesn't know). One it
+     * doesn't know stays as written.
+     */
+    public function fillVariables(Conversation $conversation, ?Model $author, string $text): string
+    {
+        if (! str_contains($text, '{{')) {
+            return $text;
+        }
+
+        $variables = $this->variables($conversation, $author);
+
+        return (string) preg_replace_callback(
+            '/\{\{\s*([\w.]+)\s*\}\}/u',
+            static fn (array $match): string => $variables[$match[1]] ?? $match[0],
+            $text,
+        );
+    }
+
+    /**
+     * The conversation with a contact on a line, opened when there's none
+     * yet — for the business writing first (a reminder, a campaign). A
+     * WhatsApp number is kept as digits, the way contacts' messages file it.
+     *
+     *     $inbox->send($inbox->conversationWith($line, '+52 55 1234 5678', 'Ada'), null, 'Tu cita es mañana');
+     */
+    public function conversationWith(Channel $channel, string $contactKey, ?string $contactName = null): Conversation
+    {
+        $isGroup = str_ends_with($contactKey, '@g.us');
+        $key     = $channel->provider === 'whatsapp' && ! $isGroup ? (string) preg_replace('/\D/', '', $contactKey) : trim($contactKey);
+
+        if ($key === '') {
+            throw new ChannelException(__('kinetix::kinetix.inbox_error_contact_required'));
+        }
+
+        $conversation = Conversation::query()->firstOrCreate(
+            ['channel_id' => $channel->getKey(), 'contact_key' => $key],
+            ['team_id' => $channel->team_id, 'contact_name' => $contactName, 'is_group' => $isGroup],
+        );
+
+        if ($contactName !== null && $conversation->contact_name === null) {
+            $conversation->update(['contact_name' => $contactName]);
+        }
+
+        return $conversation;
+    }
+
+    /**
      * Send from the team — text and/or a file, optionally answering a
      * message — or write an internal note. The message is stored first, so a
      * refusal leaves it in the thread, failed, to retry.
      */
-    public function send(Conversation $conversation, Model $author, ?string $text, ?UploadedFile $file = null, ?ConversationMessage $replyTo = null, bool $note = false): ConversationMessage
+    public function send(Conversation $conversation, ?Model $author, ?string $text, ?UploadedFile $file = null, ?ConversationMessage $replyTo = null, bool $note = false): ConversationMessage
     {
         $media = $file !== null ? $this->store($conversation, $file) : [];
+        $text  = $text !== null ? $this->fillVariables($conversation, $author, $text) : null;
 
         $message = $conversation->messages()->create([
             'direction'   => $note ? MessageDirection::Note : MessageDirection::Out,
@@ -437,7 +533,7 @@ class InboxManager
             'body'        => $text !== null && trim($text) !== '' ? $text : null,
             'status'      => $note ? MessageStatus::Sent : MessageStatus::Pending,
             'reply_to_id' => $replyTo?->getKey(),
-            'author_id'   => $author->getKey(),
+            'author_id'   => $author?->getKey(),
             'sent_at'     => now(),
             ...$media,
         ]);
@@ -448,8 +544,12 @@ class InboxManager
             $this->broadcast($conversation, $message);
         } else {
             $this->deliver($message);
-            // A person answered: whatever bot was talking steps back.
-            ConversationReplied::dispatch($conversation, $message);
+
+            // A person answered: whatever bot was talking steps back. Your
+            // code writing (no author: a reminder) isn't a person taking over.
+            if ($author !== null) {
+                ConversationReplied::dispatch($conversation, $message);
+            }
         }
 
         return $message->refresh();

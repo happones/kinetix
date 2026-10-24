@@ -607,6 +607,8 @@ export interface KinetixConversationMessage {
     bot?: boolean;
     /** Sent from the line's phone, outside the inbox. */
     fromPhone?: boolean;
+    /** When it was deleted for everyone; it stays in the thread, marked. */
+    deletedAt?: string | null;
     /** Client-only: a message still on its way from this browser. */
     localId?: string;
 }

@@ -12,6 +12,7 @@ use Happones\Kinetix\Channels\Events\ChannelMessageReceived;
 use Happones\Kinetix\Channels\Events\ChannelQrUpdated;
 use Happones\Kinetix\Channels\Events\ChannelStatusChanged;
 use Happones\Kinetix\Channels\Events\ChannelUpdated;
+use Happones\Kinetix\Channels\Evolution\EvolutionClientGateway;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use Happones\Kinetix\Channels\Evolution\WhatsAppBot;
 use Happones\Kinetix\Channels\KinetixChannels;
@@ -523,6 +524,25 @@ class ChannelsTest extends TestCase
         $this->actingAs($user)->postJson("/_kinetix/channels/{$channel->id}/disconnect")
             ->assertOk()
             ->assertJsonPath('channel.status', 'disconnected');
+    }
+
+    public function test_typing_lasts_longer_for_longer_texts_when_turned_on(): void
+    {
+        $gateway = new class extends EvolutionClientGateway
+        {
+            public function delayFor(?string $text): ?int
+            {
+                return $this->typingDelay($text);
+            }
+        };
+
+        $this->assertNull($gateway->delayFor('Hola'));
+
+        config(['kinetix.channels.providers.whatsapp.typing' => ['enabled' => true, 'min_ms' => 500, 'ms_per_char' => 50, 'max_ms' => 2000]]);
+
+        $this->assertSame(700, $gateway->delayFor('Hola'));
+        $this->assertSame(500, $gateway->delayFor(null));
+        $this->assertSame(2000, $gateway->delayFor(str_repeat('a', 500)));
     }
 
     public function test_more_webhook_events_can_be_subscribed(): void

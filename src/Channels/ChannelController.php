@@ -211,7 +211,7 @@ class ChannelController
      */
     protected function scoped(): Builder
     {
-        return Channel::query()->where('team_id', $this->teamId());
+        return Channel::query()->where('team_id', $this->teamId())->visibleTo(auth()->user());
     }
 
     protected function find(Request $request): Channel

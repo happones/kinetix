@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Channels;
 
+use Happones\Kinetix\Channels\Events\ChannelMessageDeleted;
 use Happones\Kinetix\Channels\Events\ChannelMessageReceived;
 use Happones\Kinetix\Channels\Events\ChannelMessageSent;
 use Happones\Kinetix\Channels\Events\ChannelMessageStatusUpdated;
@@ -221,6 +222,10 @@ class ChannelManager
 
         foreach ($result->sent as $message) {
             ChannelMessageSent::dispatch($channel, $message);
+        }
+
+        foreach ($result->deleted as $externalId) {
+            ChannelMessageDeleted::dispatch($channel, $externalId);
         }
 
         foreach ($result->statuses as $externalId => $status) {

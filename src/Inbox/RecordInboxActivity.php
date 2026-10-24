@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Inbox;
 
+use Happones\Kinetix\Channels\Events\ChannelMessageDeleted;
 use Happones\Kinetix\Channels\Events\ChannelMessageReceived;
 use Happones\Kinetix\Channels\Events\ChannelMessageSent;
 use Happones\Kinetix\Channels\Events\ChannelMessageStatusUpdated;
@@ -26,6 +27,11 @@ class RecordInboxActivity
         if (config('kinetix.inbox.mirror_sent', true)) {
             $this->inbox->recordSent($event->channel, $event->message);
         }
+    }
+
+    public function deleted(ChannelMessageDeleted $event): void
+    {
+        $this->inbox->recordDeleted($event->channel, $event->externalId);
     }
 
     public function statusUpdated(ChannelMessageStatusUpdated $event): void

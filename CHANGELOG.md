@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.257.0] - 2026-10-24
+
+### Added
+
+- **Messages deleted for everyone stay in the thread, marked.** WhatsApp
+  `MESSAGES_DELETE` events and REVOKE notices mark the message _Deleted by the
+  contact_ (or _Deleted_), with its text struck through, instead of being
+  ignored. The REVOKE notice itself is no longer recorded as an empty message.
+  - New `ChannelMessageDeleted` event and `WebhookResult::$deleted`.
+  - **(published)** `KinetixInboxBubble` shows the mark; messages carry
+    `deletedAt`.
+- **One-to-one chats only** (`providers.whatsapp.direct_only`): groups,
+  broadcast lists and channels (newsletters) stay out of the inbox. Statuses
+  (`status@broadcast`) never come in, with or without it.
+- **"typing…" before sending** (`providers.whatsapp.typing`): Evolution shows
+  the presence for a delay that grows with the text's length (`min_ms` +
+  `ms_per_char` × length, capped at `max_ms`). No more overriding the
+  gateway's `sendText`/`sendMedia` for it.
+- **Variables filled on send.** `{{contact.name}}`, `{{contact.key}}`,
+  `{{agent.name}}` and `{{line.name}}` are filled server-side too, for
+  messages from the API or your code. `inbox.variables` (a callable array)
+  adds your own; an unknown placeholder stays as written. See also
+  `InboxManager::variables()` and `fillVariables()`.
+- **Writing first.** `InboxManager::conversationWith($line, $contactKey,
+  $name)` opens the conversation for a reminder or a campaign, keeping a
+  WhatsApp number as digits so the contact's answer lands in the same thread.
+  `send()` takes a null author for messages from your code, which don't pause
+  a flow.
+- **Who sees each line** (`channels.visible`): a callable array receiving the
+  lines query and the user. The line manager, its plan count, the line agents,
+  the inbox and the bot editor all go through it (`Channel::visibleTo()`), so
+  members' personal lines stay out of the team's list and plan.
+
 ## [0.256.0] - 2026-10-24
 
 ### Fixed
