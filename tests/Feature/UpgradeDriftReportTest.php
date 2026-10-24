@@ -61,6 +61,22 @@ class UpgradeDriftReportTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_blank_lines_and_trailing_spaces_are_not_local_edits(): void
+    {
+        $this->artisan('vendor:publish', ['--tag' => 'kinetix-components'])->assertSuccessful();
+        PublishedFiles::record();
+
+        // What a formatter of someone else's files leaves behind (boost:update
+        // on the published skills).
+        $file = resource_path('js/components/kinetix/KinetixToaster.vue');
+        File::put($file, str_replace("\n", "  \n\n", (string) File::get($file)));
+
+        $this->assertSame([], PublishedFiles::drifted());
+
+        File::append($file, "<!-- a real edit -->\n");
+        $this->assertSame(['resources/js/components/kinetix/KinetixToaster.vue'], PublishedFiles::drifted());
+    }
+
     public function test_upstream_changes_are_not_reported_as_local_edits(): void
     {
         // Simulate an app sitting on a PREVIOUS Kinetix version: the file on

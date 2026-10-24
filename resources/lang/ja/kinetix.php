@@ -1059,6 +1059,7 @@ return [
     'channel_error_missing'               => 'プロバイダーはこの回線を認識していません。削除して追加し直してください。',
     'channel_error_telegram_token'        => 'Telegram がこのトークンを拒否しました。BotFather からもう一度コピーしてください。',
     'channel_error_telegram'              => 'Telegram がリクエストを拒否しました（ :reason ）',
+    'channel_error_whatsapp'              => 'WhatsApp がリクエストを拒否しました（ :reason ）',
 
     // Inbox (conversations on the lines)
     'permission_feature_conversations'          => '会話',

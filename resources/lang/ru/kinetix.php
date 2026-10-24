@@ -1059,6 +1059,7 @@ return [
     'channel_error_missing'               => 'Провайдер больше не знает эту линию. Удалите её и добавьте снова.',
     'channel_error_telegram_token'        => 'Telegram отклонил этот токен. Скопируйте его снова из BotFather.',
     'channel_error_telegram'              => 'Telegram отклонил запрос: :reason',
+    'channel_error_whatsapp'              => 'WhatsApp отклонил запрос: :reason',
 
     // Inbox (conversations on the lines)
     'permission_feature_conversations'          => 'Переписки',

@@ -115,6 +115,23 @@ class DoctorCommandTest extends TestCase
             ->assertFailed();
     }
 
+    public function test_keys_missing_from_the_published_config_are_named(): void
+    {
+        $package = require __DIR__.'/../../config/kinetix.php';
+        unset($package['inbox']['mirror_sent'], $package['billing']['lock_plans_during_trial']);
+        File::put(config_path('kinetix.php'), '<?php return '.var_export($package, true).';');
+
+        try {
+            $this->artisan('kinetix:doctor')
+                ->expectsOutputToContain('2 key(s) of the package are missing from config/kinetix.php')
+                ->expectsOutputToContain('inbox.mirror_sent')
+                ->expectsOutputToContain('billing.lock_plans_during_trial')
+                ->assertSuccessful();
+        } finally {
+            File::delete(config_path('kinetix.php'));
+        }
+    }
+
     public function test_two_i18n_bundles_are_a_warning(): void
     {
         File::ensureDirectoryExists(resource_path('js'));

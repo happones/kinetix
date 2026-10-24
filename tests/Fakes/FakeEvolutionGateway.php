@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Fakes;
 
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Happones\Kinetix\Channels\Evolution\EvolutionBotGateway;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use RuntimeException;
@@ -17,6 +20,9 @@ class FakeEvolutionGateway implements EvolutionBotGateway, EvolutionGateway
     public string $state = 'connecting';
 
     public ?string $failOn = null;
+
+    /** What `failOn` throws instead of a 500 (a refusal with its body). */
+    public ?\Throwable $failWith = null;
 
     public function create(string $instance): array
     {
@@ -84,6 +90,18 @@ class FakeEvolutionGateway implements EvolutionBotGateway, EvolutionGateway
         return $this->record('mediaBase64', func_get_args(), ['base64' => base64_encode('fake-image-bytes'), 'mimetype' => 'image/jpeg', 'fileName' => null]);
     }
 
+    /** A 4xx the way the Evolution client reports it: a generic message over the server's body. */
+    public static function refusal(int $status, string $reason): \Throwable
+    {
+        $body = json_encode(['status' => $status, 'error' => 'Bad Request', 'response' => ['message' => [$reason]]]);
+
+        return new RuntimeException('Bad Request', $status, new ClientException(
+            'Client error',
+            new Request('DELETE', 'https://evolution.test'),
+            new Response($status, [], (string) $body),
+        ));
+    }
+
     public function createBot(string $instance, string $integration, array $bot): string
     {
         return $this->record('createBot', func_get_args(), 'bot-'.count($this->callsTo('createBot')));
@@ -119,7 +137,7 @@ class FakeEvolutionGateway implements EvolutionBotGateway, EvolutionGateway
         $this->calls[] = [$method, $arguments];
 
         if ($this->failOn === $method) {
-            throw new RuntimeException('Evolution is down', 500);
+            throw $this->failWith ?? new RuntimeException('Evolution is down', 500);
         }
 
         return $result;

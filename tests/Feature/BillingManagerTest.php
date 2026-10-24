@@ -11,12 +11,15 @@ use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class FakeStripeSubscription
 {
@@ -570,6 +573,53 @@ class BillingManagerTest extends TestCase
         $manager = BillingManager::resolve();
         $this->assertInstanceOf(FakeBillable::class, $manager->billable());
         $this->assertEquals($team->id, $manager->billable()->id);
+    }
+
+    public function test_the_team_in_the_url_must_be_one_of_the_users_teams(): void
+    {
+        Schema::create('billing_members', function (Blueprint $table) {
+            $table->unsignedInteger('user_id');
+            $table->unsignedInteger('fake_billable_id');
+        });
+
+        $mine   = FakeBillable::create();
+        $theirs = FakeBillable::create();
+        DB::table('billing_members')->insert(['user_id' => 7, 'fake_billable_id' => $mine->id]);
+
+        $user     = new BillingMemberUser;
+        $user->id = 7;
+        $this->actingAs($user);
+
+        // The default billable (a user) doesn't stop the team being found:
+        // the team model comes from the user's teams relation.
+        config(['kinetix.billing.teams' => true, 'kinetix.billing.billable' => 'App\\Models\\User']);
+
+        $this->routeTeam((string) $mine->id);
+        $this->assertSame($mine->id, BillingManager::resolve()->billable()->getKey());
+
+        // Someone else's business: 404, never its billing.
+        BillingManager::forgetBillable();
+        $this->routeTeam((string) $theirs->id);
+
+        try {
+            BillingManager::resolve();
+            $this->fail('Another team\'s billing must not resolve.');
+        } catch (HttpException $exception) {
+            $this->assertSame(404, $exception->getStatusCode());
+        }
+    }
+
+    private function routeTeam(string $team): void
+    {
+        request()->setRouteResolver(static fn () => new class($team)
+        {
+            public function __construct(protected string $team) {}
+
+            public function parameter(string $name, $default = null)
+            {
+                return $name === 'team' ? $this->team : null;
+            }
+        });
     }
 
     public function test_subscription_data_includes_trial_information(): void
@@ -1161,5 +1211,15 @@ class BillingManagerTest extends TestCase
         $billable->sub->stripe_price = '';
 
         $this->assertNull(BillingManager::for($billable)->subscriptionData()['stripePrice']);
+    }
+}
+
+class BillingMemberUser extends User
+{
+    protected $table = 'billing_member_users';
+
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(FakeBillable::class, 'billing_members', 'user_id', 'fake_billable_id');
     }
 }

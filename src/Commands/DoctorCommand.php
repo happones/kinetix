@@ -67,6 +67,7 @@ class DoctorCommand extends Command
         $this->checkMembership();
         $this->checkNotificationPreferences();
         $this->checkConfigCallbacks();
+        $this->checkConfigKeys();
         $this->checkTenantColumns();
         $this->checkHostKeyColumns();
         $this->checkGlobalData();
@@ -789,6 +790,76 @@ class DoctorCommand extends Command
         $this->error_('Config cache', count($closures).' closure(s) in Kinetix config',
             'php artisan config:cache will abort ("non-serializable"), so the app cannot deploy with a cached '
             .'config. Use [Class::class, \'method\'] or an invokable class-string instead.', $closures);
+    }
+
+    /**
+     * Keys the package's config has and the app's published copy lacks.
+     * Laravel's `mergeConfigFrom` only fills in whole top-level sections: a
+     * new key inside a section the app already defines (`inbox.mirror_sent`,
+     * `billing.lock_plans_during_trial`) never arrives, silently.
+     */
+    protected function checkConfigKeys(): void
+    {
+        $published = config_path('kinetix.php');
+
+        if (! File::exists($published)) {
+            return;
+        }
+
+        $app     = require $published;
+        $package = require __DIR__.'/../../config/kinetix.php';
+
+        if (! is_array($app) || ! is_array($package)) {
+            return;
+        }
+
+        $missing = [];
+
+        foreach ($package as $section => $defaults) {
+            // A whole missing section is merged in by Laravel.
+            if (is_array($defaults) && is_array($app[$section] ?? null)) {
+                $missing = [...$missing, ...static::missingKeys($defaults, $app[$section], (string) $section)];
+            }
+        }
+
+        if ($missing === []) {
+            $this->ok('Config', 'config/kinetix.php has every key the package knows');
+
+            return;
+        }
+
+        $this->warn_('Config', count($missing).' key(s) of the package are missing from config/kinetix.php',
+            'Laravel only merges whole top-level sections, so these use their built-in defaults and never show '
+            .'up for you to set. Copy them from vendor/happones/kinetix/config/kinetix.php.', array_slice($missing, 0, 25));
+    }
+
+    /**
+     * Dot paths of `$defaults` missing from `$app`, walking nested sections
+     * (not lists, which are values).
+     *
+     * @param  array<array-key, mixed> $defaults
+     * @param  array<array-key, mixed> $app
+     * @return list<string>
+     */
+    protected static function missingKeys(array $defaults, array $app, string $prefix): array
+    {
+        if (array_is_list($defaults)) {
+            return [];
+        }
+
+        $missing = [];
+
+        foreach ($defaults as $key => $value) {
+            $path = "{$prefix}.{$key}";
+
+            if (! array_key_exists($key, $app)) {
+                $missing[] = $path;
+            } elseif (is_array($value) && $value !== [] && is_array($app[$key])) {
+                $missing = [...$missing, ...static::missingKeys($value, $app[$key], $path)];
+            }
+        }
+
+        return $missing;
     }
 
     /**

@@ -69,6 +69,20 @@ class PublishedFiles
     }
 
     /**
+     * A published file's hash with its whitespace normalized: line endings,
+     * trailing spaces and blank lines don't count. Tools that reformat files
+     * they don't own (`boost:update` adds blank lines to skills) aren't local
+     * edits.
+     */
+    public static function fingerprint(string $path): string
+    {
+        $lines = preg_split('/\R/', (string) File::get($path)) ?: [];
+        $lines = array_filter(array_map('rtrim', $lines), static fn (string $line): bool => $line !== '');
+
+        return md5(implode("\n", $lines));
+    }
+
+    /**
      * Record the hashes of the published files as they exist on disk right
      * now — called after a publish, so the manifest describes exactly what
      * Kinetix wrote. The next drift check compares against THIS, which is what
@@ -79,7 +93,7 @@ class PublishedFiles
         $hashes = [];
 
         foreach (static::eachPublishedTarget() as $target) {
-            $hashes[static::relative($target)] = (string) md5_file($target);
+            $hashes[static::relative($target)] = static::fingerprint($target);
         }
 
         File::ensureDirectoryExists(dirname(static::manifestPath()));
@@ -115,7 +129,9 @@ class PublishedFiles
             $relative = static::relative($target);
             $baseline = $recorded[$relative] ?? null;
 
-            if ($baseline !== null && md5_file($target) !== $baseline) {
+            // A manifest recorded before fingerprints held raw md5s: either
+            // matching means the file is as published.
+            if ($baseline !== null && md5_file($target) !== $baseline && static::fingerprint($target) !== $baseline) {
                 $drifted[] = $relative;
             }
         }

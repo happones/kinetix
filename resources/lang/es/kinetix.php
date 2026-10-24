@@ -1124,6 +1124,7 @@ return [
     'channel_error_missing'               => 'El proveedor ya no reconoce esta línea. Elimínala y agrégala de nuevo.',
     'channel_error_telegram_token'        => 'Telegram rechazó este token. Cópialo de nuevo desde BotFather.',
     'channel_error_telegram'              => 'Telegram rechazó la solicitud: :reason',
+    'channel_error_whatsapp'              => 'WhatsApp rechazó la solicitud: :reason',
 
     // Inbox (conversations on the lines)
     'permission_feature_conversations'          => 'Conversaciones',

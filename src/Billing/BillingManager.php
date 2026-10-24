@@ -10,6 +10,7 @@ use Happones\Kinetix\Data\UsageMetricData;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection as SupportCollection;
 use RuntimeException;
 use Throwable;
@@ -130,46 +131,79 @@ class BillingManager
         $subdomainColumn = config('kinetix.tenancy.subdomain');
 
         if ($subdomainColumn !== null) {
-            return static::findTeamFromSubdomain($subdomainColumn) ?? ($user->currentTeam ?? null);
+            return static::findTeamFromSubdomain($user, (string) $subdomainColumn) ?? ($user->currentTeam ?? null);
         }
 
-        return static::findTeamFromRoute() ?? ($user->currentTeam ?? null);
+        return static::findTeamFromRoute($user) ?? ($user->currentTeam ?? null);
     }
 
-    protected static function findTeamFromSubdomain(string $column): ?Model
+    protected static function findTeamFromSubdomain($user, string $column): ?Model
     {
-        $host  = request()->getHost();
-        $parts = explode('.', $host);
+        $parts = explode('.', request()->getHost());
 
         if (count($parts) < 2) {
             return null;
         }
 
-        $subdomain = $parts[0];
-
-        /** @var class-string<Model> $modelClass */
-        $modelClass = config('kinetix.billing.billable', 'App\\Models\\Team');
-
-        if (! class_exists($modelClass)) {
-            return null;
-        }
-
-        return $modelClass::query()->where($column, $subdomain)->first();
+        return static::memberTeam($user, $column, $parts[0]);
     }
 
-    protected static function findTeamFromRoute(): ?Model
+    /**
+     * The `{team}` (or `{current_team}`) segment as one of the user's teams.
+     * Someone else's team answers 404, as {@see KinetixTeams::currentTeamKey()}
+     * does: a slug in the URL never opens another business's billing.
+     */
+    protected static function findTeamFromRoute($user): ?Model
     {
         $request = request();
-        $team    = $request->route('team');
-
-        if ($team instanceof Model) {
-            return $team;
-        }
+        $team    = $request->route('team') ?? $request->route('current_team');
 
         if ($team === null) {
             return null;
         }
 
+        if ($team instanceof Model) {
+            return static::memberTeam($user, $team->getKeyName(), $team->getKey());
+        }
+
+        return static::memberTeam($user, null, $team);
+    }
+
+    /**
+     * Find a team among the user's own (`team_switcher.teams_relation`) by a
+     * column — the route key when none is given — or abort with 404. The team
+     * model comes from that relation, not from `billing.billable`, which in a
+     * user-billed app names the user.
+     */
+    protected static function memberTeam($user, ?string $column, mixed $value): ?Model
+    {
+        $relationName = (string) config('kinetix.team_switcher.teams_relation', 'teams');
+
+        if (! $user instanceof Model || ! method_exists($user, $relationName)) {
+            return static::legacyTeamLookup($column, $value);
+        }
+
+        $relation = $user->{$relationName}();
+
+        if (! $relation instanceof Relation) {
+            return static::legacyTeamLookup($column, $value);
+        }
+
+        $related = $relation->getRelated();
+        $team    = $relation->where($related->qualifyColumn($column ?? $related->getRouteKeyName()), $value)->first();
+
+        abort_if($team === null, 404);
+
+        return $team;
+    }
+
+    /**
+     * Without a teams relation there's nothing to check membership against:
+     * the configured billable is looked up as before, and membership is the
+     * host's middleware's to enforce.
+     */
+    protected static function legacyTeamLookup(?string $column, mixed $value): ?Model
+    {
         /** @var class-string<Model> $modelClass */
         $modelClass = config('kinetix.billing.billable', 'App\\Models\\Team');
 
@@ -177,9 +211,7 @@ class BillingManager
             return null;
         }
 
-        $modelInstance = new $modelClass;
-
-        return $modelClass::query()->where($modelInstance->getRouteKeyName(), $team)->first();
+        return $modelClass::query()->where($column ?? (new $modelClass)->getRouteKeyName(), $value)->first();
     }
 
     // -------------------------------------------------------------------

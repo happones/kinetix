@@ -1059,6 +1059,7 @@ return [
     'channel_error_missing'               => '服务商已不再识别这条线路。请删除后重新添加。',
     'channel_error_telegram_token'        => 'Telegram 拒绝了这个令牌。请从 BotFather 重新复制。',
     'channel_error_telegram'              => 'Telegram 拒绝了请求：:reason',
+    'channel_error_whatsapp'              => 'WhatsApp 拒绝了请求：:reason',
 
     // Inbox (conversations on the lines)
     'permission_feature_conversations'          => '对话',

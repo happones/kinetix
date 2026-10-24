@@ -1150,6 +1150,7 @@ return [
     'channel_error_missing'               => 'The provider no longer knows this line. Delete it and add it again.',
     'channel_error_telegram_token'        => 'Telegram rejected this bot token. Copy it again from BotFather.',
     'channel_error_telegram'              => 'Telegram refused the request: :reason',
+    'channel_error_whatsapp'              => 'WhatsApp refused the request: :reason',
 
     // Inbox (conversations on the lines)
     'permission_feature_conversations'          => 'Conversations',

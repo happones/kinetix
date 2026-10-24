@@ -42,6 +42,20 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
 
     public function __construct(protected EvolutionGateway $gateway) {}
 
+    /**
+     * The events the line's webhook subscribes to: Kinetix's own, plus
+     * `providers.whatsapp.webhook_events`. Override it in a child driver to
+     * add more — every call that points the webhook at Kinetix uses it.
+     *
+     * @return list<string>
+     */
+    protected function webhookEvents(): array
+    {
+        $extra = array_filter((array) config('kinetix.channels.providers.whatsapp.webhook_events', []), 'is_string');
+
+        return array_values(array_unique([...static::EVENTS, ...$extra]));
+    }
+
     public function linkMethods(): array
     {
         return ['qr', 'pairing_code'];
@@ -63,7 +77,7 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
         }
 
         try {
-            $this->gateway->setWebhook($instance, $webhookUrl, self::EVENTS, [self::SECRET_HEADER => $channel->webhook_secret]);
+            $this->gateway->setWebhook($instance, $webhookUrl, $this->webhookEvents(), [self::SECRET_HEADER => $channel->webhook_secret]);
         } catch (Throwable $exception) {
             // No half-made line left on the server.
             rescue(fn () => $this->gateway->delete($instance), report: false);
@@ -116,7 +130,7 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
         // What the bot sends reaches the inbox: a line set up before Kinetix
         // listened for its own sends starts listening now.
         if ($channel->exists) {
-            $this->gateway->setWebhook($instance, app(ChannelManager::class)->webhookUrl($channel), self::EVENTS, [self::SECRET_HEADER => $channel->webhook_secret]);
+            $this->gateway->setWebhook($instance, app(ChannelManager::class)->webhookUrl($channel), $this->webhookEvents(), [self::SECRET_HEADER => $channel->webhook_secret]);
         }
     }
 
@@ -202,7 +216,16 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
     public function disconnect(Channel $channel): void
     {
         $instance = $this->instance($channel);
-        $this->call(fn () => $this->gateway->logout($instance));
+
+        try {
+            $this->call(fn () => $this->gateway->logout($instance));
+        } catch (ChannelException $exception) {
+            // Refused because it isn't linked anymore ("instance is not
+            // connected"): unlinking it is already done.
+            if (! $exception->refusedByProvider || $this->call(fn (): string => $this->gateway->state($instance)) === 'open') {
+                throw $exception;
+            }
+        }
     }
 
     /**
@@ -213,7 +236,7 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
     public function restart(Channel $channel): void
     {
         $instance = $this->instance($channel);
-        $this->call(fn () => $this->gateway->setWebhook($instance, app(ChannelManager::class)->webhookUrl($channel), self::EVENTS, [self::SECRET_HEADER => $channel->webhook_secret]));
+        $this->call(fn () => $this->gateway->setWebhook($instance, app(ChannelManager::class)->webhookUrl($channel), $this->webhookEvents(), [self::SECRET_HEADER => $channel->webhook_secret]));
         $this->call(fn () => $this->gateway->restart($instance));
     }
 
@@ -499,11 +522,44 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
         try {
             return $call();
         } catch (Throwable $exception) {
-            if ($exception->getCode() === 404) {
+            $status = (int) $exception->getCode();
+
+            if ($status === 404) {
                 throw new ChannelException(__('kinetix::kinetix.channel_error_missing'), previous: $exception);
+            }
+
+            // The server answered, and said no: its reason, not "unreachable".
+            if ($status >= 400 && $status < 500) {
+                throw new ChannelException(
+                    __('kinetix::kinetix.channel_error_whatsapp', ['reason' => $this->providerReason($exception)]),
+                    previous: $exception,
+                    refusedByProvider: true,
+                );
             }
 
             throw $exception;
         }
+    }
+
+    /**
+     * Why the server refused: Evolution puts it in the body's
+     * `response.message` (a string or a list), under a generic `error`
+     * ("Bad Request") the client keeps as the exception's message.
+     */
+    protected function providerReason(Throwable $exception): string
+    {
+        for ($cause = $exception; $cause !== null; $cause = $cause->getPrevious()) {
+            if (method_exists($cause, 'getResponse') && is_object($response = $cause->getResponse()) && method_exists($response, 'getBody')) {
+                $body    = json_decode((string) $response->getBody(), true);
+                $message = is_array($body) ? (data_get($body, 'response.message') ?? data_get($body, 'message')) : null;
+                $message = is_array($message) ? implode(' ', array_filter($message, 'is_string')) : $message;
+
+                if (is_string($message) && trim($message) !== '') {
+                    return trim($message);
+                }
+            }
+        }
+
+        return $exception->getMessage();
     }
 }

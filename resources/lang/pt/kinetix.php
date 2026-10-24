@@ -1124,6 +1124,7 @@ return [
     'channel_error_missing'               => 'O provedor não reconhece mais esta linha. Exclua-a e adicione de novo.',
     'channel_error_telegram_token'        => 'O Telegram recusou este token. Copie-o de novo no BotFather.',
     'channel_error_telegram'              => 'O Telegram recusou a solicitação: :reason',
+    'channel_error_whatsapp'              => 'O WhatsApp recusou a solicitação: :reason',
 
     // Inbox (conversations on the lines)
     'permission_feature_conversations'          => 'Conversas',

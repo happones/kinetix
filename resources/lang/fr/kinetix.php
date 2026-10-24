@@ -1124,6 +1124,7 @@ return [
     'channel_error_missing'               => 'Le fournisseur ne connaît plus cette ligne. Supprimez-la et ajoutez-la à nouveau.',
     'channel_error_telegram_token'        => 'Telegram a refusé ce jeton. Copiez-le à nouveau depuis BotFather.',
     'channel_error_telegram'              => 'Telegram a refusé la requête : :reason',
+    'channel_error_whatsapp'              => 'WhatsApp a refusé la requête : :reason',
 
     // Inbox (conversations on the lines)
     'permission_feature_conversations'          => 'Conversations',

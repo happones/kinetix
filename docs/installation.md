@@ -85,6 +85,13 @@ composer.json and re-publish manually with `--force`, reviewing the
 [changelog](https://github.com/happones/kinetix/blob/main/CHANGELOG.md) entries
 marked **(published)**.
 
+`php artisan kinetix:doctor` names the published files with local edits.
+Whitespace a tool adds (blank lines, trailing spaces, as `boost:update` leaves in
+the skills) doesn't count as an edit. Doctor also lists **config keys the package
+added that your `config/kinetix.php` lacks**: Laravel merges only whole top-level
+sections, so a new key inside a section you already publish (`inbox.mirror_sent`)
+falls back to its default without ever showing up for you to set.
+
 **Keep your formatters off them too.** The Laravel Vue starter kit's scripts
 (`prettier --write resources/`, repo-wide eslint) sweep the published paths, so
 a plain `npm run format` reformats the vendor-managed copies — and the next

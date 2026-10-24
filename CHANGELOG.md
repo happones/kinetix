@@ -13,6 +13,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.256.0] - 2026-10-24
+
+### Fixed
+
+- **Security: billing now checks that the team in the URL is the user's.**
+  - Before this, `BillingManager` looked up the `{team}` segment without
+    checking membership, so anyone signed in could open, or cancel, another
+    business's billing by changing the slug.
+  - It's now looked up among the user's teams (`team_switcher.teams_relation`)
+    and someone else's team answers 404, as `KinetixTeams::currentTeamKey()`
+    does. This applies to subdomain tenancy too.
+- **Team billing with the default `billing.billable`.** It is
+  `App\Models\User`, but the route lookup assumed a team model, so it never
+  found one and fell back to the user's current team whatever the URL said.
+  The team model now comes from the user's teams relation.
+- **A provider refusal no longer reads as "couldn't connect".** A 4xx from
+  Evolution (e.g. 400 "instance is not connected") answers 422 with the
+  server's reason (`channel_error_whatsapp`), read from the response body
+  under the client's generic "Bad Request". Unlinking a line that's already
+  logged out counts as done.
+  - `ChannelException::$refusedByProvider` is new.
+- **A child WhatsApp driver can add webhook events.** `webhookEvents()`
+  replaces `self::EVENTS` everywhere the webhook is set. The new
+  `providers.whatsapp.webhook_events` config adds events without a subclass.
+- **`kinetix:doctor` no longer flags whitespace as local edits.** Blank lines
+  and trailing spaces, such as the ones `boost:update` leaves in the published
+  skills, now count as unchanged. The manifest records whitespace-normalized
+  fingerprints; old manifests still compare.
+
+### Added
+
+- **`kinetix:doctor` names package config keys missing from
+  `config/kinetix.php`.** Laravel merges only whole top-level sections, so a
+  new key inside one you publish (`inbox.mirror_sent`,
+  `billing.lock_plans_during_trial`) falls back to its default unseen.
+
 ## [0.255.0] - 2026-10-23
 
 ### Fixed

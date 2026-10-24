@@ -59,6 +59,10 @@ If the billable is **not** the authenticated user (e.g. the user's current team)
 
 If you want to bill **Teams** (or any model other than the default `User`), follow these additional steps:
 
+::: tip The team in the URL must be the user's
+With team billing on, the `{team}` (or `{current_team}`) segment is looked up **among the user's own teams** (`kinetix.team_switcher.teams_relation`), and someone else's team answers **404**. Changing the slug never opens or cancels another business's billing. The team model comes from that relation, so this holds even with `billing.billable` left at its default. Without a teams relation, membership is your middleware's to enforce (`kinetix.billing.middleware`).
+:::
+
 1. **Cashier Migrations**:
    In the Cashier migrations published during installation, change all foreign key references from `users` (or `user_id`) to `teams` (or `team_id`) to attach cashier tables to the Team model instead of Users.
 

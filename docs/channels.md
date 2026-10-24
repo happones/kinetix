@@ -54,7 +54,14 @@ php artisan migrate
 ```
 
 Turn a provider off with `'enabled' => false` and it disappears from the
-picker. The copy follows: with only WhatsApp on, the manager, the add dialog
+picker.
+
+When the provider answers and refuses (a 4xx), the team sees its reason, e.g.
+_WhatsApp refused the request: instance is busy_, instead of "couldn't
+connect". Unlinking a line the phone already logged out of counts as done.
+`providers.whatsapp.webhook_events` adds events to the ones Kinetix subscribes
+to (every call that points the webhook at Kinetix uses them); a child driver
+can override `webhookEvents()` instead. The copy follows: with only WhatsApp on, the manager, the add dialog
 and the bot editor talk about WhatsApp numbers and never mention Telegram (and
 the other way around).
 

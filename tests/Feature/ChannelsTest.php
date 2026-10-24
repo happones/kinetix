@@ -504,6 +504,38 @@ class ChannelsTest extends TestCase
         $this->actingAs($user)->postJson("/_kinetix/channels/{$channel->id}/restart")->assertStatus(502);
     }
 
+    public function test_a_provider_refusal_says_its_reason_and_unlinking_an_unlinked_line_succeeds(): void
+    {
+        $channel = $this->line(['status' => ChannelStatus::Connected]);
+        $user    = $this->manager();
+
+        // The server answers 400: its reason, not "couldn't connect".
+        $this->evolution->failOn   = 'restart';
+        $this->evolution->failWith = FakeEvolutionGateway::refusal(400, 'instance is busy');
+        $this->actingAs($user)->postJson("/_kinetix/channels/{$channel->id}/restart")
+            ->assertStatus(422)
+            ->assertJsonPath('message', __('kinetix::kinetix.channel_error_whatsapp', ['reason' => 'instance is busy']));
+
+        // Already logged out on the phone: unlinking it is done, not an error.
+        $this->evolution->failOn   = 'logout';
+        $this->evolution->failWith = FakeEvolutionGateway::refusal(400, 'The "kinetix_line" instance is not connected');
+        $this->evolution->state    = 'close';
+        $this->actingAs($user)->postJson("/_kinetix/channels/{$channel->id}/disconnect")
+            ->assertOk()
+            ->assertJsonPath('channel.status', 'disconnected');
+    }
+
+    public function test_more_webhook_events_can_be_subscribed(): void
+    {
+        config(['kinetix.channels.providers.whatsapp.webhook_events' => ['MESSAGES_DELETE', 'MESSAGES_UPSERT']]);
+
+        $this->actingAs($this->manager())->postJson('/_kinetix/channels', ['provider' => 'whatsapp', 'name' => 'Sales'])->assertCreated();
+
+        [, , $events] = $this->evolution->callsTo('setWebhook')[0];
+        $this->assertContains('MESSAGES_DELETE', $events);
+        $this->assertSame(1, array_count_values($events)['MESSAGES_UPSERT']);
+    }
+
     public function test_the_sync_command_records_lines_logged_out_from_the_phone(): void
     {
         $channel                = $this->line(['status' => ChannelStatus::Connected]);

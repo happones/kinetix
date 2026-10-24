@@ -795,6 +795,10 @@ return [
                 'instance_prefix' => 'kinetix_',
                 'qr_ttl'          => 30, // seconds a QR shows before it refreshes
 
+                // Events the line's webhook subscribes to besides Kinetix's own
+                // (e.g. 'MESSAGES_DELETE' for a listener of your own).
+                'webhook_events' => [],
+
                 // A bot the Evolution server runs on every new line, behind the
                 // scenes (the team only links the number): null, a definition
                 // ['integration' => 'evolutionBot', 'bot' => [...], 'settings' => [...]],
