@@ -60,6 +60,7 @@ class BillingController
             'publishableKey'         => config('cashier.key') ?? config('services.stripe.key'),
             'trialGeneric'           => (bool) config('kinetix.billing.trial_generic', false),
             'trialAvailable'         => $manager->genericTrialAvailable(),
+            'plansLocked'            => $manager->plansLocked(),
             'invoicesUseStripeUrl'   => (bool) config('kinetix.billing.invoices_use_stripe_url', false),
         ]);
     }

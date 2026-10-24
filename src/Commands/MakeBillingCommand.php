@@ -93,8 +93,10 @@ const props = withDefaults(
     trialGeneric: boolean;
     trialAvailable: boolean;
     invoicesUseStripeUrl: boolean;
+    // billing.lock_plans_during_trial: plans wait until the no-card trial ends.
+    plansLocked?: boolean;
   }>(),
-  { usage: () => [] },
+  { usage: () => [], plansLocked: false },
 );
 
 // Optional dot-path -> label map for capability rows (customise per app).
@@ -143,6 +145,8 @@ const subscribe = (plan: KinetixPlanData) => {
       :currency-symbol="currencySymbol"
       :feature-labels="featureLabels"
       :loading="billing.processing.value"
+      :can-subscribe="!plansLocked"
+      :disabled-reason="plansLocked ? t('kinetix.billing_plans_locked_during_trial') : null"
       @subscribe="subscribe"
       @update:cycle="cycle = $event"
     />

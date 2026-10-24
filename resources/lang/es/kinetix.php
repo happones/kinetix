@@ -208,6 +208,7 @@ return [
     'billing_trial_notice_title'              => 'No se requiere método de pago',
     'billing_trial_notice_description'        => 'Puedes iniciar tu prueba sin ingresar una tarjeta. Solo se te cobrará cuando termine la prueba y elijas un plan de pago.',
     'billing_trial_already_used'              => 'Ya has utilizado tu prueba gratuita. Agrega un método de pago para suscribirte.',
+    'billing_plans_locked_during_trial'       => 'Tu prueba gratuita está en curso. Podrás elegir un plan cuando termine.',
     'billing_invoices'                        => 'Facturas',
     'billing_date'                            => 'Fecha',
     'billing_total'                           => 'Total',

@@ -112,9 +112,11 @@ class HttpBillable extends Authenticatable
 
     public ?HttpBillableSubscription $sub = null;
 
+    public bool $genericTrial = false;
+
     public function onGenericTrial(): bool
     {
-        return false;
+        return $this->genericTrial;
     }
 
     public function subscribed(string $type = 'default'): bool
@@ -373,6 +375,24 @@ class BillingHttpTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(['type' => 'error', 'message' => (string) __('kinetix.billing_payment_required')], $this->flashedToast());
+    }
+
+    public function test_plans_locked_during_a_trial_are_said_on_the_page_and_refused(): void
+    {
+        config(['kinetix.billing.trial_generic' => true, 'kinetix.billing.lock_plans_during_trial' => true]);
+        $billable               = $this->billable();
+        $billable->genericTrial = true;
+
+        $this->actingAs($billable)
+            ->withHeader('X-Inertia', 'true')
+            ->withHeader('X-Inertia-Version', '1')
+            ->get(route('billing.index'))
+            ->assertJsonPath('props.plansLocked', true);
+
+        $this->actingAs($billable)->post(route('billing.subscribe'), ['plan_slug' => 'pro'])->assertRedirect();
+
+        $this->assertSame(['type' => 'error', 'message' => (string) __('kinetix.billing_plans_locked_during_trial')], $this->flashedToast());
+        $this->assertSame([], $billable->calls);
     }
 
     public function test_a_failed_action_hides_its_internals(): void

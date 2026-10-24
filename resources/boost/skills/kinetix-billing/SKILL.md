@@ -170,3 +170,9 @@ php artisan kinetix:make-billing --seeder
 - `resources/js/composables/useKinetixBilling.ts` · `useKinetixStripe.ts` · `useKinetixPlan.ts`
 - `database/migrations/*_create_kinetix_plans_table.php`
 - `src/Commands/MakeBillingCommand.php`
+
+## Trials: cancel and plan locking
+
+- `cancel()` only cancels the Stripe subscription. A no-card (generic) trial keeps running, and `KinetixSubscriptionStatus` shows no Cancel/Resume without a Stripe `status`. Never clear `trial_ends_at` to "cancel": `trial_taken_at` stays, so the trial can't be reopened.
+- `billing.lock_plans_during_trial` (env `KINETIX_BILLING_LOCK_PLANS_DURING_TRIAL`, default false): while a generic trial runs, `subscribe()` throws `BillingActionException::plansLockedDuringTrial()` for any plan except the trial's own `trial_plan`. The page gets `plansLocked`.
+- `<KinetixPricingTable :can-subscribe="bool | (plan) => bool" :disabled-reason="string|null">`: the buttons are disabled (with `aria-describedby` pointing at the reason) and the reason shows above the plans.

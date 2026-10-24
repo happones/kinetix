@@ -208,6 +208,7 @@ return [
     'billing_trial_notice_title'              => 'Nenhum método de pagamento necessário',
     'billing_trial_notice_description'        => 'Você pode iniciar sua avaliação sem inserir um cartão. Você só será cobrado quando a avaliação terminar e escolher um plano pago.',
     'billing_trial_already_used'              => 'Você já utilizou sua avaliação gratuita. Adicione um método de pagamento para assinar.',
+    'billing_plans_locked_during_trial'       => 'Sua avaliação gratuita está em andamento. Você poderá escolher um plano quando ela terminar.',
     'billing_invoices'                        => 'Faturas',
     'billing_date'                            => 'Data',
     'billing_total'                           => 'Total',

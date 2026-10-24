@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { KinetixPlanData } from '@/types/kinetix';
+import KinetixAlert from './KinetixAlert.vue';
 import KinetixPlanCard from './KinetixPlanCard.vue';
 
 const { t } = useI18n();
@@ -18,6 +19,13 @@ const props = withDefaults(
         currencySymbol?: string;
         showPlanTrials?: boolean;
         featureLabels?: Record<string, string>;
+        /**
+         * Whether a plan can be chosen now — false for all, or per plan.
+         * The current plan never shows a button either way.
+         */
+        canSubscribe?: boolean | ((plan: KinetixPlanData) => boolean);
+        /** Why plans can't be chosen now, shown above them. */
+        disabledReason?: string | null;
     }>(),
     {
         plans: () => [],
@@ -29,6 +37,8 @@ const props = withDefaults(
         currencySymbol: '$',
         showPlanTrials: true,
         featureLabels: () => ({}),
+        canSubscribe: true,
+        disabledReason: null,
     },
 );
 
@@ -36,6 +46,11 @@ const emit = defineEmits<{
     (e: 'subscribe', plan: KinetixPlanData): void;
     (e: 'update:cycle', cycle: 'monthly' | 'yearly'): void;
 }>();
+
+const allowed = (plan: KinetixPlanData): boolean =>
+    typeof props.canSubscribe === 'function'
+        ? props.canSubscribe(plan)
+        : props.canSubscribe;
 
 /** The active plan's monthly price, which tells an upgrade from a switch. */
 const currentPrice = computed(
@@ -98,6 +113,15 @@ const columns = computed(() => {
             </div>
         </div>
 
+        <KinetixAlert
+            v-if="disabledReason"
+            id="kinetix-pricing-disabled-reason"
+            color="info"
+            data-test="pricing-disabled-reason"
+        >
+            {{ disabledReason }}
+        </KinetixAlert>
+
         <div class="gap-6 grid grid-cols-1" :class="columns">
             <KinetixPlanCard
                 v-for="plan in plans"
@@ -110,7 +134,12 @@ const columns = computed(() => {
                 :current-price="currentPrice"
                 :is-selected="plan.slug === selectedSlug"
                 :loading="loading"
-                :can-subscribe="!loading"
+                :can-subscribe="!loading && allowed(plan)"
+                :disabled-reason-id="
+                    disabledReason && !allowed(plan)
+                        ? 'kinetix-pricing-disabled-reason'
+                        : null
+                "
                 :show-trial="showPlanTrials"
                 @subscribe="emit('subscribe', $event)"
             />

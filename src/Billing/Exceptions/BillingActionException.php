@@ -23,4 +23,9 @@ class BillingActionException extends RuntimeException
     {
         return new self((string) __('kinetix.billing_trial_already_used'));
     }
+
+    public static function plansLockedDuringTrial(): self
+    {
+        return new self((string) __('kinetix.billing_plans_locked_during_trial'));
+    }
 }

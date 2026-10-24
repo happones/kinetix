@@ -208,6 +208,7 @@ return [
     'billing_trial_notice_title'              => 'Aucun moyen de paiement requis',
     'billing_trial_notice_description'        => "Vous pouvez démarrer votre essai sans carte bancaire. Vous ne serez facturé qu'à la fin de l'essai si vous choisissez un forfait payant.",
     'billing_trial_already_used'              => 'Vous avez déjà utilisé votre essai gratuit. Veuillez ajouter un moyen de paiement pour vous abonner.',
+    'billing_plans_locked_during_trial'       => 'Votre essai gratuit est en cours. Vous pourrez choisir une offre à sa fin.',
     'billing_invoices'                        => 'Factures',
     'billing_date'                            => 'Date',
     'billing_total'                           => 'Total',

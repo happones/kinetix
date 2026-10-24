@@ -21,6 +21,8 @@ const props = withDefaults(
         isSelected?: boolean;
         loading?: boolean;
         canSubscribe?: boolean;
+        /** The id of what says why it can't be chosen now (aria-describedby). */
+        disabledReasonId?: string | null;
         /** 'monthly' | 'yearly' — which price to display. */
         cycle?: 'monthly' | 'yearly';
         /** Whether to show the plan's trial badge. */
@@ -43,6 +45,7 @@ const props = withDefaults(
         isSelected: false,
         loading: false,
         canSubscribe: true,
+        disabledReasonId: null,
         cycle: 'monthly',
         currencySymbol: '$',
         showTrial: true,
@@ -248,6 +251,7 @@ function confirmFree(): void {
                 type="button"
                 :class="cn(buttonVariants(), 'w-full')"
                 :disabled="loading || !canSubscribe"
+                :aria-describedby="disabledReasonId ?? undefined"
                 @click="choose"
             >
                 <Loader2

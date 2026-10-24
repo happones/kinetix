@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.255.0] - 2026-10-23
+
+### Fixed
+
+- **"Cancel subscription" ended a no-card trial for good.**
+  - **(published)** `KinetixSubscriptionStatus` showed the button whenever
+    `onTrial` was true, including a generic trial with no Stripe subscription.
+    Its confirmation promised the rest of a paid period that didn't exist.
+  - `BillingManager::cancel()` then cleared `trial_ends_at` while
+    `trial_taken_at` stayed, so access stopped at once and the trial could
+    never reopen.
+  - Now `cancel()` only cancels a Stripe subscription, and the status card
+    offers Cancel/Resume only when there is one.
+
+### Added
+
+- **Lock plans during a trial** (`billing.lock_plans_during_trial`, off by
+  default).
+  - While a no-card trial runs, `subscribe()` refuses any plan with a
+    `BillingActionException` the page shows as a message, so the lock holds
+    on the server too.
+  - The trial's own plan (`trial_plan`) can still subscribe: that's how it
+    converts.
+  - The billing page gets `plansLocked`, and `kinetix:make-billing`
+    scaffolds it into the pricing table.
+- **(published)** `KinetixPricingTable` takes `canSubscribe` (a boolean, or a
+  function of the plan) and `disabledReason`, passed on to `KinetixPlanCard`.
+  The buttons are disabled, and the reason shows above the plans and is
+  linked to each button with `aria-describedby`.
+
 ## [0.254.0] - 2026-10-21
 
 ### Added

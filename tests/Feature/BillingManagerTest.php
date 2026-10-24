@@ -418,21 +418,91 @@ class BillingManagerTest extends TestCase
         $this->assertContains('resume', $billable->sub->calls);
     }
 
-    public function test_cancel_clears_generic_trial(): void
+    public function test_cancel_leaves_a_no_card_trial_running(): void
     {
         config(['kinetix.billing.trial_generic' => true]);
 
         $billable                 = FakeBillable::create();
         $billable->isGenericTrial = true;
         $billable->trial_ends_at  = now()->addDays(10);
-        $billable->forceFill(['trial_plan' => 'pro']);
+        $billable->forceFill(['trial_plan' => 'pro', 'trial_ends_at' => now()->addDays(10), 'trial_taken_at' => now()->subDay()])->save();
+
+        // No Stripe subscription: nothing to cancel, and the trial (which
+        // can't be reopened once taken) isn't thrown away.
+        BillingManager::for($billable)->cancel();
+
+        $billable->refresh();
+        $this->assertSame('pro', $billable->getAttribute('trial_plan'));
+        $this->assertNotNull($billable->getAttribute('trial_ends_at'));
+    }
+
+    public function test_trial_taken_at_not_cleared_on_cancel(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable                 = FakeBillable::create();
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+        $billable->forceFill([
+            'trial_plan'     => 'pro',
+            'trial_ends_at'  => now()->addDays(10),
+            'trial_taken_at' => now()->subDays(5),
+        ])->save();
 
         BillingManager::for($billable)->cancel();
 
         $billable->refresh();
 
-        $this->assertNull($billable->getAttribute('trial_plan'));
-        $this->assertNull($billable->getAttribute('trial_ends_at'));
+        $this->assertNotNull($billable->getAttribute('trial_taken_at'));
+        $this->assertSame('pro', $billable->getAttribute('trial_plan'));
+        $this->assertNotNull($billable->getAttribute('trial_ends_at'));
+    }
+
+    public function test_plans_can_be_locked_while_a_no_card_trial_runs(): void
+    {
+        config(['kinetix.billing.trial_generic' => true]);
+
+        $billable                 = FakeBillable::create();
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+        $billable->forceFill(['trial_ends_at' => now()->addDays(10), 'trial_taken_at' => now()->subDay()])->save();
+
+        // Off by default.
+        $this->assertFalse(BillingManager::for($billable)->plansLocked());
+
+        config(['kinetix.billing.lock_plans_during_trial' => true]);
+        $manager = BillingManager::for($billable);
+        $this->assertTrue($manager->plansLocked());
+
+        foreach (['free', 'pro'] as $slug) {
+            try {
+                $manager->subscribe($slug, 'pm_card');
+                $this->fail("Subscribing to [{$slug}] during the trial should be refused.");
+            } catch (BillingActionException $exception) {
+                $this->assertSame(__('kinetix.billing_plans_locked_during_trial'), $exception->getMessage());
+            }
+        }
+
+        // The trial stays as it was.
+        $this->assertNotNull($billable->fresh()?->getAttribute('trial_ends_at'));
+        $this->assertSame([], $billable->calls);
+    }
+
+    public function test_a_trial_of_a_plan_still_converts_to_that_plan_when_plans_are_locked(): void
+    {
+        config(['kinetix.billing.trial_generic' => true, 'kinetix.billing.lock_plans_during_trial' => true]);
+
+        $billable                 = FakeBillable::create();
+        $billable->isGenericTrial = true;
+        $billable->trial_ends_at  = now()->addDays(10);
+        $billable->forceFill(['trial_plan' => 'pro', 'trial_taken_at' => now()->subDay()])->save();
+
+        BillingManager::for($billable)->subscribe('pro', 'pm_card');
+
+        $this->assertContains('create:price_pro_m:pm_card', $billable->calls);
+
+        $this->expectException(BillingActionException::class);
+        BillingManager::for($billable)->subscribe('free');
     }
 
     public function test_subscribe_to_free_plan_clears_generic_trial(): void
@@ -801,27 +871,6 @@ class BillingManagerTest extends TestCase
         BillingManager::for($billable)->subscribe('paid-after-trial', 'pm_card');
 
         $this->assertContains('create:price_paid_after:pm_card', $billable->calls);
-    }
-
-    public function test_trial_taken_at_not_cleared_on_cancel(): void
-    {
-        config(['kinetix.billing.trial_generic' => true]);
-
-        $billable                 = FakeBillable::create();
-        $billable->isGenericTrial = true;
-        $billable->trial_ends_at  = now()->addDays(10);
-        $billable->forceFill([
-            'trial_plan'     => 'pro',
-            'trial_taken_at' => now()->subDays(5),
-        ])->save();
-
-        BillingManager::for($billable)->cancel();
-
-        $billable->refresh();
-
-        $this->assertNotNull($billable->getAttribute('trial_taken_at'));
-        $this->assertNull($billable->getAttribute('trial_plan'));
-        $this->assertNull($billable->getAttribute('trial_ends_at'));
     }
 
     // -------------------------------------------------------------------

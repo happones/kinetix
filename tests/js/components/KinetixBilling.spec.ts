@@ -142,6 +142,39 @@ describe('KinetixPricingTable', () => {
 
         expect(wrapper.emitted('subscribe')?.[0]).toEqual([proPlan]);
     });
+
+    it('holds plans back with the reason, for all or per plan', () => {
+        const locked = mount(KinetixPricingTable, {
+            props: {
+                plans: [freePlan, proPlan],
+                canSubscribe: false,
+                disabledReason: 'Your free trial is running.',
+            },
+        });
+
+        expect(
+            locked.get('[data-test="pricing-disabled-reason"]').text(),
+        ).toContain('Your free trial is running.');
+        for (const button of locked.findAll('button')) {
+            expect(button.attributes('disabled')).toBeDefined();
+            expect(button.attributes('aria-describedby')).toBe(
+                'kinetix-pricing-disabled-reason',
+            );
+        }
+
+        const perPlan = mount(KinetixPricingTable, {
+            props: {
+                plans: [freePlan, proPlan],
+                canSubscribe: (plan: { slug: string }) => plan.slug === 'pro',
+            },
+        });
+        const [free, pro] = perPlan.findAllComponents(KinetixPlanCard);
+        expect(free.props('canSubscribe')).toBe(false);
+        expect(pro.props('canSubscribe')).toBe(true);
+        expect(
+            perPlan.find('[data-test="pricing-disabled-reason"]').exists(),
+        ).toBe(false);
+    });
 });
 
 describe('KinetixSubscriptionStatus', () => {
@@ -168,6 +201,27 @@ describe('KinetixSubscriptionStatus', () => {
         expect(wrapper.find('[role="status"], [role="alert"]').exists()).toBe(
             true,
         );
+    });
+
+    it('offers no cancel for a no-card trial, which has nothing to cancel', () => {
+        const wrapper = mount(KinetixSubscriptionStatus, {
+            props: {
+                subscription: {
+                    active: false,
+                    onGracePeriod: false,
+                    status: null,
+                    endsAt: null,
+                    stripePrice: null,
+                    onTrial: true,
+                    trialEndsAt: '2030-01-15T00:00:00Z',
+                    onGenericTrial: true,
+                    trialPlan: null,
+                    trialPlanName: null,
+                },
+            },
+        });
+
+        expect(wrapper.find('button').exists()).toBe(false);
     });
 
     it('shows the cancel button for an active subscription', () => {

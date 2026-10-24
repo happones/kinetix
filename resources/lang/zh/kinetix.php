@@ -204,6 +204,7 @@ return [
     'billing_trial_notice_title'              => '无需支付方式',
     'billing_trial_notice_description'        => '开始试用无需输入信用卡。只有在试用结束并选择付费套餐后才会收费。',
     'billing_trial_already_used'              => '您已使用过免费试用。请添加支付方式以订阅。',
+    'billing_plans_locked_during_trial'       => '您正在免费试用中。试用结束后即可选择套餐。',
     'billing_invoices'                        => '发票',
     'billing_date'                            => '日期',
     'billing_total'                           => '总计',

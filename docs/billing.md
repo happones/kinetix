@@ -178,6 +178,11 @@ Users get trial access immediately upon registration without providing their pay
     * `BillingManager::subscriptionData()` includes the `trialPlan` key with the current trial plan slug (or `null`).
     * Plans without `trial_days` create normal Stripe subscriptions as usual (payment method required).
     * **One trial per user**: Once `trial_taken_at` is set, the user cannot start another generic trial. Any subsequent subscription attempt will require a payment method and go directly to a paid subscription.
+    * **Cancelling doesn't end it**: a generic trial has no Stripe subscription, so `cancel()` leaves it running and the status card offers no **Cancel** (ending it would close the trial for good, with no period paid).
+7. **Lock plans during the trial (optional)**: set `KINETIX_BILLING_LOCK_PLANS_DURING_TRIAL=true` to keep the team on its trial until it ends.
+    * `subscribe()` refuses any plan with a `BillingActionException` the page shows as a message, so it holds on the server too, not only on screen.
+    * The billing page gets `plansLocked: true`. The scaffolded page passes it to `<KinetixPricingTable :can-subscribe="!plansLocked" :disabled-reason="…">`, which disables the buttons and says why.
+    * A trial **of a plan** (`trial_plan` set) can still subscribe to that plan, since that's how it converts. Leave the option off if your trials are meant to convert at any time.
 
 ---
 
@@ -190,6 +195,7 @@ Users get trial access immediately upon registration without providing their pay
 | `enabled` | `false` | Master switch for the module |
 | `teams` | `false` | Enable Team-scoped billing routes and automatic resolution |
 | `trial_generic` | `false` | Enable generic trials (no card upfront) and skip Stripe trials |
+| `lock_plans_during_trial` | `false` | During a generic trial, refuse other plans until it ends (the trial's own plan still converts) |
 | `billable` | `App\Models\User` | Documented billable class |
 | `plan_model` | `Happones\Kinetix\Billing\Plan` | Swap for your own Plan subclass |
 | `subscription` | `default` | Cashier subscription "type" |
@@ -693,8 +699,9 @@ use Happones\Kinetix\Billing\BillingManager;
 $manager = BillingManager::for($user);          // or BillingManager::resolve()
 $manager->plans();                               // Collection<PlanData>
 $manager->subscribe('pro', $paymentMethod, 'monthly');
-$manager->cancel();
+$manager->cancel();                              // the Stripe subscription; a no-card trial keeps running
 $manager->resume();
+$manager->plansLocked();                         // lock_plans_during_trial and a no-card trial running
 $manager->paymentMethods();                      // camelCase arrays for the UI
 $manager->invoices();
 $manager->subscriptionData();
@@ -749,10 +756,10 @@ All components are token-only (shadcn semantic tokens) and take labels via props
 
 | Component | Purpose |
 |---|---|
-| `KinetixPricingTable` | Responsive grid of plan cards + optional monthly/yearly toggle |
+| `KinetixPricingTable` | Responsive grid of plan cards + optional monthly/yearly toggle. `canSubscribe` (a boolean, or a function of the plan) disables the buttons; `disabledReason` says why, above the plans |
 | `KinetixPlanCard` | Single plan: price, highlighted features, capability rows via `featureLabels` |
 | `KinetixPaymentMethods` | Saved cards + add-card via Stripe Elements |
-| `KinetixSubscriptionStatus` | Status badge + cancel/resume |
+| `KinetixSubscriptionStatus` | Status badge + cancel/resume (only for a Stripe subscription; a no-card trial has none) |
 | `KinetixInvoicesTable` | Invoice list with per-row download |
 | `KinetixUsageMeters` | Metered-usage progress bars (renders nothing when there's nothing to show) |
 | `KinetixPlanLock` | Plan-locked feature UI: card / overlay / banner / badge padlock + upgrade CTA |

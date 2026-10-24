@@ -1774,8 +1774,14 @@ return [
         'enabled'       => env('KINETIX_BILLING_ENABLED', false),
         'teams'         => env('KINETIX_BILLING_TEAMS'), // null = inherit kinetix.teams
         'trial_generic' => env('KINETIX_BILLING_TRIAL_GENERIC', false),
-        'billable'      => env('KINETIX_BILLING_BILLABLE', 'App\\Models\\User'),
-        'plan_model'    => env('KINETIX_BILLING_PLAN_MODEL', 'Happones\\Kinetix\\Billing\\Plan'),
+
+        // During a no-card trial, refuse changing plans until it ends (the
+        // server answers billing/subscribe with a message; the page disables
+        // the buttons). A trial of a given plan (`trial_plan`) can still
+        // subscribe to that plan — that's how it converts.
+        'lock_plans_during_trial' => env('KINETIX_BILLING_LOCK_PLANS_DURING_TRIAL', false),
+        'billable'                => env('KINETIX_BILLING_BILLABLE', 'App\\Models\\User'),
+        'plan_model'              => env('KINETIX_BILLING_PLAN_MODEL', 'Happones\\Kinetix\\Billing\\Plan'),
 
         // Cashier subscription "type" (Cashier's default is 'default').
         'subscription' => env('KINETIX_BILLING_SUBSCRIPTION', 'default'),

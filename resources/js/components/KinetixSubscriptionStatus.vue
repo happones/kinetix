@@ -82,15 +82,21 @@ const trialPlanName = computed(() => {
     );
 });
 
+/**
+ * Cancel and resume act on a Stripe subscription. A no-card trial has none:
+ * "cancelling" it would end the trial for good with no period paid.
+ */
 const hasActions = computed(() => {
-    if (!props.subscription) {
+    const subscription = props.subscription;
+
+    if (!subscription || !subscription.status) {
         return false;
     }
 
     return (
-        props.subscription.active ||
-        props.subscription.onTrial ||
-        props.subscription.onGracePeriod
+        subscription.active ||
+        subscription.onTrial ||
+        subscription.onGracePeriod
     );
 });
 </script>

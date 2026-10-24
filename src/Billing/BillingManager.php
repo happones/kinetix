@@ -442,6 +442,10 @@ class BillingManager
 
         $plan = $this->resolvePlan($planSlug);
 
+        if ($this->plansLocked() && $planSlug !== ($this->billable->trial_plan ?? null)) {
+            throw BillingActionException::plansLockedDuringTrial();
+        }
+
         if ($plan->isFree()) {
             $this->cancelActiveSubscription();
             $this->clearGenericTrialIfActive();
@@ -522,13 +526,26 @@ class BillingManager
         }
     }
 
+    /**
+     * Cancel the Stripe subscription at the end of its paid period. A no-card
+     * trial has nothing to cancel and is left running: ending it would close
+     * the trial for good (`trial_taken_at` stays), with no period paid.
+     */
     public function cancel(): void
     {
         if ($this->subscribed()) {
             $this->subscription()->cancel();
         }
+    }
 
-        $this->clearGenericTrialIfActive();
+    /**
+     * Whether plans are locked while the no-card trial runs
+     * (`billing.lock_plans_during_trial`). The trial's own plan, when it has
+     * one, still takes a subscription.
+     */
+    public function plansLocked(): bool
+    {
+        return (bool) config('kinetix.billing.lock_plans_during_trial', false) && $this->isOnGenericTrial();
     }
 
     public function resume(): void

@@ -204,6 +204,7 @@ return [
     'billing_trial_notice_title'              => '支払い方法は不要です',
     'billing_trial_notice_description'        => 'クレジットカードなしでトライアルを開始できます。トライアル終了後に有料プランを選択した場合のみ課金されます。',
     'billing_trial_already_used'              => '無料トライアルは使用済みです。購読するには支払い方法を追加してください。',
+    'billing_plans_locked_during_trial'       => '無料トライアル中です。トライアル終了後にプランを選択できます。',
     'billing_invoices'                        => '請求書',
     'billing_date'                            => '日付',
     'billing_total'                           => '合計',
