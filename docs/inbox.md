@@ -327,11 +327,16 @@ A WhatsApp line also sends messages the inbox didn't write. They show in the
 thread too, on the team's side, so the conversation reads whole:
 
 - **From the phone.** What someone types in WhatsApp on the linked phone is
-  marked _Sent from the phone_. It counts as a person answering: a flow talking
-  there steps back.
+  marked _Sent from the phone_, on a line with a bot too. It counts as a person
+  answering: a flow talking there steps back.
 - **From a bot the provider runs** ([a bot behind the line](channels.md#_8-a-bot-behind-the-line-whatsapp)).
   Its answers are signed with the bot's name, or _Bot_. The integration behind
   it never shows.
+- **From the provider's API**, sent by something other than the inbox on a line
+  without a bot. It shows unsigned, and a flow talking there keeps going.
+
+The line reports each origin through a different event, so a person answering
+from the phone is never signed as the bot.
 
 Each one is recorded once, and none counts as unread. The inbox's own messages
 come back from the line too, sometimes before the send finishes; they're

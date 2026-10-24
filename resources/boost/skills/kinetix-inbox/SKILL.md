@@ -70,9 +70,10 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations   # needs kinetix-chan
     - The composer suggests on `/word` before the caret and fills `{{contact.name}}`, `{{contact.key}}`, `{{agent.name}}`, `{{line.name}}` on insert. `KinetixInboxQuickReplies` is the manager modal.
 - **Messages sent outside the inbox** (WhatsApp `fromMe` on `messages.upsert`, and `send.message`):
     - The driver returns them as `WebhookResult::$sent` → `ChannelMessageSent` → `InboxManager::recordSent()` (`inbox.mirror_sent`, default on).
-    - Phone sends get `meta.from_phone` and fire `ConversationReplied`. A provider-run bot's get `meta.bot` with the line's `meta.bot.name`.
+    - The origin comes from the event, not from whether the line has a bot: `InboundMessage::$fromPhone` is true on `messages.upsert` `fromMe` (typed on the phone), false on `send.message` (the server sent it).
+    - Phone sends get `meta.from_phone` and fire `ConversationReplied`, even on a bot line. Server sends on a line with `meta.bot` get `meta.bot` + `meta.bot.name`; on a line without one they're unsigned (no meta) and fire nothing. Custom drivers set `fromPhone` on what a person typed.
     - The inbox's own sends coming back are deduped by `external_id`, or claimed by `claimOwnSend()` (oldest recent pending/failed Out message, same body). Never count as unread.
-- **Deleted for everyone**: WhatsApp `messages.delete` / REVOKE `protocolMessage` → `ChannelMessageDeleted` → `InboxManager::recordDeleted()` sets `meta.deleted_at` (payload `deletedAt`); the message stays.
+- **Deleted for everyone**: WhatsApp `messages.delete` (one key, a list, or `{keys: [...]}`) / REVOKE `protocolMessage` → `ChannelMessageDeleted` → `InboxManager::recordDeleted()` sets `meta.deleted_at` (payload `deletedAt`); the message stays.
 - **Writing first**: `InboxManager::conversationWith($line, $contactKey, $name)` + `send($conversation, null, $text)` (no author = no `ConversationReplied`).
 - **Variables**: `send()` fills `{{contact.name|contact.key|agent.name|line.name}}` plus `inbox.variables` (callable(Conversation, ?author): array); unknown stay.
 - **Line visibility**: `channels.visible` callable(Builder $lines, ?user) via `Channel::visibleTo()` in the manager, the plan count, agents, the inbox and flows.

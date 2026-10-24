@@ -367,6 +367,46 @@ class InboxTest extends TestCase
         Event::assertNotDispatched(ConversationReplied::class);
     }
 
+    public function test_on_a_bot_line_what_someone_types_on_the_phone_is_theirs_not_the_bots(): void
+    {
+        $this->line->update(['meta' => ['bot' => ['integration' => 'typebot', 'id' => 'bot-1', 'name' => 'Asistente']]]);
+        $this->inbound('A1', 'Hola');
+        Event::fake([ConversationReplied::class]);
+
+        $this->lineSent('B1', '¡Hola! ¿En qué te ayudo?', 'send.message');
+        Event::assertNotDispatched(ConversationReplied::class);
+
+        $this->lineSent('P1', 'Soy Luis, te atiendo yo');
+
+        $conversation = Conversation::query()->sole();
+        $this->actingAs($this->admin())->getJson("/_kinetix/inbox/{$conversation->id}/messages")
+            ->assertJsonPath('messages.1.bot', true)
+            ->assertJsonPath('messages.2.body', 'Soy Luis, te atiendo yo')
+            ->assertJsonPath('messages.2.bot', false)
+            ->assertJsonPath('messages.2.authorName', null)
+            ->assertJsonPath('messages.2.fromPhone', true);
+
+        // A person took over from the phone: the bot steps back.
+        Event::assertDispatched(ConversationReplied::class, fn (ConversationReplied $event): bool => $event->message->external_id === 'P1');
+    }
+
+    public function test_a_server_send_on_a_line_without_a_bot_is_unsigned(): void
+    {
+        $this->inbound('A1', 'Hola');
+        Event::fake([ConversationReplied::class]);
+
+        $this->lineSent('S1', 'Tu pedido salió hoy', 'send.message');
+
+        $conversation = Conversation::query()->sole();
+        $this->actingAs($this->admin())->getJson("/_kinetix/inbox/{$conversation->id}/messages")
+            ->assertJsonPath('messages.1.body', 'Tu pedido salió hoy')
+            ->assertJsonPath('messages.1.bot', false)
+            ->assertJsonPath('messages.1.fromPhone', false);
+
+        // Not a person answering, so a flow talking there keeps going.
+        Event::assertNotDispatched(ConversationReplied::class);
+    }
+
     public function test_the_inbox_own_sends_coming_back_are_not_doubled(): void
     {
         $this->inbound('A1', 'Hola');
@@ -418,15 +458,19 @@ class InboxTest extends TestCase
             'key'     => ['remoteJid' => '5215599999999@s.whatsapp.net', 'fromMe' => false, 'id' => 'REVOKE1'],
             'message' => ['protocolMessage' => ['type' => 'REVOKE', 'key' => ['id' => 'A1']]],
         ]])->assertOk();
-        // …or the delete event.
+        // …or the delete event, bare…
         $this->hook(['event' => 'messages.delete', 'data' => ['id' => 'A2', 'remoteJid' => '5215599999999@s.whatsapp.net']])->assertOk();
+        // …or wrapped in `keys`, as some server builds send it.
+        $this->inbound('A3', 'Y otra cosa');
+        $this->hook(['event' => 'messages.delete', 'data' => ['keys' => [['id' => 'A3', 'remoteJid' => '5215599999999@s.whatsapp.net', 'fromMe' => false]]]])->assertOk();
 
-        $this->assertSame(2, ConversationMessage::query()->count());
+        $this->assertSame(3, ConversationMessage::query()->count());
         $conversation = Conversation::query()->sole();
         $this->actingAs($this->admin())->getJson("/_kinetix/inbox/{$conversation->id}/messages")
             ->assertJsonPath('messages.0.body', 'Mi número es 55 1234 5678')
             ->assertJsonPath('messages.0.deletedAt', fn ($at) => is_string($at))
-            ->assertJsonPath('messages.1.deletedAt', fn ($at) => is_string($at));
+            ->assertJsonPath('messages.1.deletedAt', fn ($at) => is_string($at))
+            ->assertJsonPath('messages.2.deletedAt', fn ($at) => is_string($at));
     }
 
     public function test_statuses_never_reach_the_inbox_and_groups_can_be_left_out(): void

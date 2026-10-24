@@ -303,9 +303,10 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
                 status: ChannelStatus::Connecting,
                 qr: $this->dataUri(data_get($data, 'qrcode.base64')),
             ),
-            'messages.upsert' => new WebhookResult(messages: $this->messages($data), sent: $this->messages($data, fromLine: true), deleted: $this->revoked($data)),
+            // The line's own messages here were typed on its phone…
+            'messages.upsert' => new WebhookResult(messages: $this->messages($data), sent: $this->messages($data, fromLine: true, fromPhone: true), deleted: $this->revoked($data)),
             'messages.delete' => new WebhookResult(deleted: $this->deletedIds($data)),
-            // What the server sent for the line: Kinetix's sends, its bot's.
+            // …these the server sent for it: Kinetix's sends, its bot's, the API's.
             'send.message'    => new WebhookResult(sent: $this->messages($data, fromLine: true)),
             'messages.update' => new WebhookResult(statuses: $this->statuses((array) $request->input('data', []))),
             default           => WebhookResult::none(),
@@ -324,12 +325,13 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
     /**
      * The messages of a `messages.upsert` or `send.message` call — one
      * message, or a list of them: what contacts wrote, or (`$fromLine`) what
-     * the line itself sent, addressed to the contact it went to.
+     * the line itself sent, addressed to the contact it went to — typed on its
+     * phone (`$fromPhone`) or sent by the server.
      *
      * @param  array<string, mixed> $data
      * @return list<InboundMessage>
      */
-    protected function messages(array $data, bool $fromLine = false): array
+    protected function messages(array $data, bool $fromLine = false, bool $fromPhone = false): array
     {
         $items    = isset($data['key']) ? [$data] : (array) ($data['messages'] ?? []);
         $messages = [];
@@ -377,6 +379,7 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
                 mediaRef: $media !== null ? $id : null,
                 mediaMime: $media['mimetype'] ?? null,
                 mediaName: $media['fileName'] ?? null,
+                fromPhone: $fromLine && $fromPhone,
             );
         }
 
@@ -407,13 +410,18 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
     }
 
     /**
-     * The ids of a `messages.delete` call: one message's key, or a list.
+     * The ids of a `messages.delete` call: one message's key, or a list —
+     * bare, or wrapped as `{"keys": [...]}` as some server builds send it.
      *
      * @param  array<int|string, mixed> $data
      * @return list<string>
      */
     protected function deletedIds(array $data): array
     {
+        if (is_array($data['keys'] ?? null)) {
+            $data = $data['keys'];
+        }
+
         $ids = [];
 
         foreach (array_is_list($data) ? $data : [$data] as $item) {

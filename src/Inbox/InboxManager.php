@@ -265,9 +265,11 @@ class InboxManager
     }
 
     /**
-     * A message the line sent outside the inbox — from its phone, or from a
-     * bot the provider runs on it — recorded as sent, once. One the inbox sent
-     * itself, reported back before its id was stored, is matched instead.
+     * A message the line sent outside the inbox, recorded as sent, once:
+     * typed on its phone (a person answering), sent by a bot the provider
+     * runs on it (signed with the bot's name), or sent through the provider's
+     * API by something else (unsigned). One the inbox sent itself, reported
+     * back before its id was stored, is matched instead.
      */
     public function recordSent(Channel $channel, InboundMessage $sent): ?ConversationMessage
     {
@@ -294,9 +296,11 @@ class InboxManager
                 'status'      => MessageStatus::Sent,
                 'external_id' => $sent->externalId,
                 'reply_to_id' => $this->replyTarget($conversation, $sent->replyTo),
-                'meta'        => is_array($bot)
-                    ? array_filter(['bot' => true, 'author_name' => is_string($bot['name'] ?? null) ? $bot['name'] : null])
-                    : ['from_phone' => true],
+                'meta'        => match (true) {
+                    $sent->fromPhone => ['from_phone' => true],
+                    is_array($bot)   => array_filter(['bot' => true, 'author_name' => is_string($bot['name'] ?? null) ? $bot['name'] : null]),
+                    default          => null,
+                },
                 'sent_at' => $sent->receivedAt,
             ]);
         } catch (QueryException) {
@@ -312,7 +316,7 @@ class InboxManager
         $this->broadcast($conversation, $message);
 
         // Someone answered from the phone: a flow talking there steps back.
-        if (! is_array($bot)) {
+        if ($sent->fromPhone) {
             ConversationReplied::dispatch($conversation, $message);
         }
 

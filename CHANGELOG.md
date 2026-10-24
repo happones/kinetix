@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.257.2] - 2026-10-24
+
+### Fixed
+
+- **What someone types on a bot line's phone is no longer signed as the bot.**
+  `recordSent()` decided by whether the line had a bot, so on a line with one
+  every message the line sent, phone included, was stored as the bot's, and a
+  person answering from the phone never made a flow step back. The origin now
+  comes from the event: `messages.upsert` with `fromMe` is the phone (marked
+  _Sent from the phone_, fires `ConversationReplied`), `send.message` is the
+  server (signed by the line's bot when it has one).
+  - New `InboundMessage::$fromPhone`. A custom driver that reports the line's
+    own messages sets it on what a person typed.
+  - **Behavior change:** a server send on a line without a bot (an API call
+    from outside the inbox) is no longer marked _Sent from the phone_. It shows
+    unsigned and doesn't make a flow step back, like a message sent with no
+    author.
+- **`messages.delete` wrapped as `{"keys": [...]}`** (as some Evolution builds
+  send it) now marks the messages deleted instead of being silently ignored.
+
 ## [0.257.1] - 2026-10-24
 
 ### Fixed

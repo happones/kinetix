@@ -11,7 +11,9 @@ use Carbon\CarbonInterface;
  * it (`from` is what `sendText()` takes to reply), what it says, the message
  * it answers (`replyTo`, the provider's id for it), the reference a driver
  * downloads its media by (`mediaRef`), and the provider's raw payload for
- * anything Kinetix doesn't normalize.
+ * anything Kinetix doesn't normalize. On what the line itself sent,
+ * `fromPhone` says someone typed it on the line's phone rather than the
+ * provider's server sending it (a bot it runs, an API call).
  */
 final class InboundMessage
 {
@@ -32,6 +34,7 @@ final class InboundMessage
         public readonly ?string $mediaRef = null,
         public readonly ?string $mediaMime = null,
         public readonly ?string $mediaName = null,
+        public readonly bool $fromPhone = false,
     ) {}
 
     public function hasMedia(): bool
