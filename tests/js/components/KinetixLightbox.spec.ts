@@ -237,6 +237,100 @@ describe('KinetixLightbox', () => {
     });
 });
 
+describe('KinetixLightbox rotate + slideshow', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const media = () =>
+        document.body.querySelector<HTMLElement>('img[data-lightbox-media]');
+
+    it('turns the image a quarter at a time and starts upright on the next item', async () => {
+        await open();
+
+        button('Rotate')?.click();
+        await nextTick();
+        expect(media()?.style.transform).toContain('rotate(90deg)');
+
+        press('R');
+        press('R');
+        await nextTick();
+        expect(media()?.style.transform).toContain('rotate(-90deg)');
+
+        press('ArrowRight');
+        await nextTick();
+        expect(media()?.style.transform).toContain('rotate(0deg)');
+    });
+
+    it('plays a slideshow that wraps around and pauses on demand', async () => {
+        await open({ index: 2, slideshowInterval: 1000 });
+        vi.useFakeTimers();
+
+        button('Play slideshow')?.click();
+        await nextTick();
+        expect(button('Pause slideshow')).not.toBeNull();
+        expect(
+            document.body.querySelector('.kx-lightbox-progress'),
+        ).not.toBeNull();
+
+        vi.advanceTimersByTime(1000);
+        await nextTick();
+        expect(counter()).toBe('1 / 3');
+
+        vi.advanceTimersByTime(1000);
+        await nextTick();
+        expect(counter()).toBe('2 / 3');
+
+        button('Pause slideshow')?.click();
+        await nextTick();
+        vi.advanceTimersByTime(5000);
+        await nextTick();
+        expect(counter()).toBe('2 / 3');
+        expect(document.body.querySelector('.kx-lightbox-progress')).toBeNull();
+    });
+
+    it('stops the slideshow when the image is zoomed in', async () => {
+        await open({ slideshowInterval: 1000 });
+        vi.useFakeTimers();
+
+        button('Play slideshow')?.click();
+        await nextTick();
+        button('Zoom in')?.click();
+        await nextTick();
+
+        expect(button('Play slideshow')).not.toBeNull();
+        vi.advanceTimersByTime(3000);
+        await nextTick();
+        expect(counter()).toBe('2 / 3');
+    });
+
+    it('autoplays when asked, and has no slideshow for a single item', async () => {
+        await open({ autoplay: true });
+        expect(button('Pause slideshow')).not.toBeNull();
+
+        wrapperRef.current?.unmount();
+        document.body.innerHTML = '';
+        await open({ items: [photos[0]], index: 0, autoplay: true });
+        expect(button('Play slideshow')).toBeNull();
+        expect(button('Pause slideshow')).toBeNull();
+    });
+
+    it('renders the toolbar buttons in the order given', async () => {
+        await open({ toolbar: ['download', 'rotate', 'zoom'] });
+
+        const labels = Array.from(
+            viewer()?.querySelectorAll('[aria-label]') ?? [],
+        )
+            .map((control) => control.getAttribute('aria-label'))
+            .filter((label) =>
+                ['Download', 'Rotate', 'Zoom out'].includes(label ?? ''),
+            );
+
+        expect(labels).toEqual(['Download', 'Rotate', 'Zoom out']);
+        expect(button('Play slideshow')).toBeNull();
+    });
+});
+
 describe('lightbox helpers', () => {
     it('resolves the item type from the extension unless given', () => {
         expect(resolveLightboxItemType({ url: '/x.webp' })).toBe('image');

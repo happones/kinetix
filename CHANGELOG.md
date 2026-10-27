@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.260.0] - 2026-10-26
+
+### Added
+
+- **Lightbox: rotate and slideshow** (published).
+  - `rotate` toolbar button (and `r` / `Shift`+`R`): turns the image a quarter
+    at a time and refits it, so a landscape photo turned upright still fits;
+    zoom and pan keep working at any angle, and the next item starts upright.
+  - `slideshow` toolbar button: plays the gallery every `slideshowInterval` ms
+    (default 4000) with a progress bar, wrapping around. Paging by hand
+    restarts the countdown, a drag holds it, zooming in stops it, a hidden tab
+    pauses it; slides aren't announced one by one. `autoplay` starts it on
+    open, except under reduced motion.
+  - Both are in the default toolbar; `slideshowInterval` and `autoplay` are
+    new `<KinetixFilePreview>` / `<KinetixLightbox>` options.
+
+### Fixed
+
+- **The lightbox toolbar follows the order of `toolbar`**, as documented; it
+  used to render the buttons in a fixed order. On phones the zoom buttons give
+  way to pinch and double-tap so the bar stays on one row.
+
 ## [0.259.0] - 2026-10-26
 
 ### Added

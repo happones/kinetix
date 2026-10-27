@@ -29,11 +29,13 @@ lightbox host. Its props are app-wide defaults:
 <KinetixFilePreview loop :toolbar="['zoom', 'fullscreen', 'download']" :max-zoom="6" />
 ```
 
-Options: `loop`, `toolbar` (`zoom`, `thumbnails`, `fullscreen`, `open`,
-`download`; close is always shown), `thumbnails` (`'auto'`/`true`/`false`),
-`zoom`, `maxZoom`, `closeOnBackdrop`, `swipeToClose`, `animation`
-(`zoom`/`fade`/`none`), `preload`, and `bind` (open `[data-kinetix-lightbox]`
-elements on click).
+Options: `loop`, `toolbar` (`zoom`, `rotate`, `slideshow`, `thumbnails`,
+`fullscreen`, `open`, `download`, rendered in the order given; close is always
+shown), `thumbnails` (`'auto'`/`true`/`false`), `zoom`, `maxZoom`,
+`closeOnBackdrop`, `swipeToClose`, `animation` (`zoom`/`fade`/`none`),
+`preload`, `slideshowInterval` (ms, default 4000), `autoplay` (start the
+slideshow on open; ignored under reduced motion), and `bind` (open
+`[data-kinetix-lightbox]` elements on click).
 
 ## Backend
 

@@ -12,15 +12,20 @@ import type { Ref } from 'vue';
  * - at fit, a horizontal drag follows the finger and pages to the next or
  *   previous item past a distance or speed threshold, and a vertical drag
  *   dismisses the viewer the same way;
- * - a tap that moved less than the drag threshold is a tap (`onTap`).
+ * - a tap that moved less than the drag threshold is a tap (`onTap`);
+ * - `rotate()` turns the image a quarter at a time and refits it, so a
+ *   landscape photo turned upright still fits the stage.
  *
  * The zoom math assumes the media is centered in the stage with
- * `transform-origin: center`, which is how the slide lays it out.
+ * `transform-origin: center`, which is how the slide lays it out. Offsets
+ * are applied before the rotation, so panning follows the pointer at any
+ * angle.
  */
 export interface KinetixLightboxGestureOptions {
     stage: Ref<HTMLElement | null>;
     media: () => HTMLElement | null;
     zoomable: () => boolean;
+    rotatable: () => boolean;
     maxZoom: () => number;
     /** Whether paging toward `direction` (1 = next) would move. */
     canPage: (direction: 1 | -1) => boolean;
@@ -59,6 +64,10 @@ export function useKinetixLightboxGestures(
     const dragX = ref(0);
     const dragY = ref(0);
     const gesturing = ref(false);
+    /** Degrees, accumulated (not wrapped) so a turn never spins backwards. */
+    const rotation = ref(0);
+    /** Extra scale that keeps a quarter-turned image inside the stage. */
+    const fit = ref(1);
 
     const pointers = new Map<number, Point>();
     let mode: Mode = 'idle';
@@ -67,6 +76,13 @@ export function useKinetixLightboxGestures(
     let lastTap = { time: 0, x: 0, y: 0 };
 
     const zoomed = computed(() => scale.value > 1.01);
+    const quarterTurned = computed(
+        () => Math.abs(rotation.value / 90) % 2 === 1,
+    );
+    const transform = computed(
+        () =>
+            `translate3d(${offsetX.value}px, ${offsetY.value}px, 0) rotate(${rotation.value}deg) scale(${scale.value * fit.value})`,
+    );
     const canZoomIn = computed(
         () => options.zoomable() && scale.value < options.maxZoom() - 0.01,
     );
@@ -86,12 +102,17 @@ export function useKinetixLightboxGestures(
             return { x: 0, y: 0 };
         }
 
+        const factor = next * fit.value;
+        const width = quarterTurned.value
+            ? media.offsetHeight
+            : media.offsetWidth;
+        const height = quarterTurned.value
+            ? media.offsetWidth
+            : media.offsetHeight;
+
         return {
-            x: Math.max(0, (media.offsetWidth * next - stage.clientWidth) / 2),
-            y: Math.max(
-                0,
-                (media.offsetHeight * next - stage.clientHeight) / 2,
-            ),
+            x: Math.max(0, (width * factor - stage.clientWidth) / 2),
+            y: Math.max(0, (height * factor - stage.clientHeight) / 2),
         };
     }
 
@@ -108,6 +129,54 @@ export function useKinetixLightboxGestures(
         offsetY.value = 0;
         dragX.value = 0;
         dragY.value = 0;
+    }
+
+    /** Back to fit AND upright — for a new item. */
+    function resetAll(): void {
+        reset();
+        rotation.value = 0;
+        fit.value = 1;
+    }
+
+    /** How much a quarter-turned image must shrink to fit its slide's box. */
+    function measureFit(): number {
+        const media = options.media();
+        const box = media?.parentElement;
+
+        if (!quarterTurned.value || !media || !box) {
+            return 1;
+        }
+
+        if (!media.offsetWidth || !media.offsetHeight) {
+            return 1;
+        }
+
+        const style = getComputedStyle(box);
+        const width =
+            box.clientWidth -
+            parseFloat(style.paddingLeft || '0') -
+            parseFloat(style.paddingRight || '0');
+        const height =
+            box.clientHeight -
+            parseFloat(style.paddingTop || '0') -
+            parseFloat(style.paddingBottom || '0');
+
+        return Math.min(
+            1,
+            width / media.offsetHeight,
+            height / media.offsetWidth,
+        );
+    }
+
+    /** Turn a quarter clockwise (1) or counter-clockwise (-1), back at fit. */
+    function rotate(step: 1 | -1 = 1): void {
+        if (!options.rotatable()) {
+            return;
+        }
+
+        reset();
+        rotation.value += 90 * step;
+        fit.value = measureFit();
     }
 
     /** Zoom to `next`, keeping the content under `point` (client coords) in place. */
@@ -378,6 +447,8 @@ export function useKinetixLightboxGestures(
 
     return {
         scale,
+        rotation,
+        transform,
         offsetX,
         offsetY,
         dragX,
@@ -388,6 +459,8 @@ export function useKinetixLightboxGestures(
         canZoomOut,
         dismissProgress,
         reset,
+        resetAll,
+        rotate,
         zoomTo,
         zoomIn,
         zoomOut,

@@ -2,8 +2,9 @@
 
 A full-screen media viewer for images, PDFs and other files. Images grow out of
 the thumbnail you clicked and shrink back into it on close; a gallery pages with
-the arrows, the keyboard, a swipe or a thumbnail strip; images zoom with the
-wheel, a pinch, a double-click or the toolbar, and pan by dragging.
+the arrows, the keyboard, a swipe or a thumbnail strip, or play as a
+slideshow; images zoom with the wheel, a pinch, a double-click or the toolbar,
+pan by dragging, and turn a quarter at a time.
 
 <Screenshot name="lightbox-open" alt="Lightbox — an open gallery with the toolbar, arrows, caption and thumbnail strip" />
 
@@ -45,7 +46,7 @@ The host's props are the defaults for every viewer it opens:
 ```vue
 <KinetixFilePreview
   loop
-  :toolbar="['zoom', 'fullscreen', 'open', 'download']"
+  :toolbar="['slideshow', 'zoom', 'rotate', 'fullscreen', 'open', 'download']"
   :thumbnails="false"
   :max-zoom="6"
 />
@@ -54,7 +55,7 @@ The host's props are the defaults for every viewer it opens:
 | Prop | Default | |
 |---|---|---|
 | `loop` | `false` | Page from the last item to the first and back |
-| `toolbar` | `['zoom', 'thumbnails', 'fullscreen', 'download']` | Buttons, in order: `zoom`, `thumbnails`, `fullscreen`, `open` (new tab), `download`. Close is always there |
+| `toolbar` | `['zoom', 'rotate', 'slideshow', 'thumbnails', 'fullscreen', 'download']` | Buttons, rendered in the order given: `zoom`, `rotate`, `slideshow`, `thumbnails`, `fullscreen`, `open` (new tab), `download`. Close is always there. A button that doesn't apply is left out (zoom/rotate on a PDF, slideshow or thumbnails with one item); on phones the zoom buttons give way to pinch and double-tap so the bar stays on one row |
 | `thumbnails` | `'auto'` | Thumbnail strip: `auto` shows it from 640px up (a toolbar button toggles it on phones), `true` always, `false` never |
 | `zoom` | `true` | Zoom and pan images |
 | `maxZoom` | `4` | Largest zoom, relative to the fitted image |
@@ -62,6 +63,8 @@ The host's props are the defaults for every viewer it opens:
 | `swipeToClose` | `true` | Close with a vertical swipe |
 | `animation` | `'zoom'` | `zoom` grows images from their thumbnail, `fade` cross-fades, `none` is still |
 | `preload` | `true` | Load the neighbours of the current image ahead of time |
+| `slideshowInterval` | `4000` | Milliseconds each item shows during a slideshow |
+| `autoplay` | `false` | Start the slideshow when the viewer opens (never under reduced motion) |
 | `bind` | `true` | Open `[data-kinetix-lightbox]` elements on click (see below) |
 
 ---
@@ -218,10 +221,27 @@ an item has none), and emits `change(index, item)`.
 | `←` / `→` | Previous / next |
 | `Home` / `End` | First / last |
 | `+` / `-` / `0` | Zoom in / out / back to fit |
+| `r` / `Shift`+`R` | Rotate clockwise / counter-clockwise |
 | `Esc` | Close (focus returns to the thumbnail) |
 | Wheel, pinch, double-click/tap | Zoom around the pointer |
 | Drag a zoomed image | Pan |
 | Swipe sideways / down | Page / close |
+
+### Rotate
+
+The rotate button (or `r`) turns the image a quarter clockwise and refits it,
+so a landscape photo turned upright still fits the screen; zoom and pan keep
+working at any angle. The next item starts upright. Rotation only changes the
+view — the download is the original file.
+
+### Slideshow
+
+The play button advances every `slideshowInterval` ms with a progress bar
+under the toolbar, wrapping from the last item to the first. Paging by hand
+restarts the countdown, a drag holds it, zooming in stops it, and it pauses
+while the tab is hidden. `autoplay` starts it on open, except for users who
+asked for reduced motion. The slideshow doesn't announce every slide to screen
+readers; the pause button is always there.
 
 The viewer is a dialog: focus stays inside while it is open, every button has a
 translated name, the position ("2 of 5") is announced when it changes, and the

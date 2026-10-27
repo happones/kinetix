@@ -39,6 +39,8 @@ const props = withDefaults(
         swipeToClose?: boolean;
         animation?: 'zoom' | 'fade' | 'none';
         preload?: boolean;
+        slideshowInterval?: number;
+        autoplay?: boolean;
     }>(),
     {
         // Undefined, not false: an option the host leaves out keeps the
@@ -53,6 +55,8 @@ const props = withDefaults(
         swipeToClose: undefined,
         animation: undefined,
         preload: undefined,
+        slideshowInterval: undefined,
+        autoplay: undefined,
     },
 );
 
@@ -71,6 +75,8 @@ const options = computed<KinetixLightboxOptions>(() => ({
     swipeToClose: props.swipeToClose,
     animation: props.animation,
     preload: props.preload,
+    slideshowInterval: props.slideshowInterval,
+    autoplay: props.autoplay,
     ...overrides.value,
 }));
 

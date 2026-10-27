@@ -1435,6 +1435,8 @@ export interface KinetixLightboxItem {
 /** Toolbar buttons a KinetixLightbox can show (close is always there). */
 export type KinetixLightboxToolbarButton =
     | 'zoom'
+    | 'rotate'
+    | 'slideshow'
     | 'fullscreen'
     | 'download'
     | 'open'
@@ -1451,6 +1453,10 @@ export interface KinetixLightboxOptions {
     swipeToClose?: boolean;
     animation?: 'zoom' | 'fade' | 'none';
     preload?: boolean;
+    /** Milliseconds each item shows during a slideshow. */
+    slideshowInterval?: number;
+    /** Start the slideshow on open (never under reduced motion). */
+    autoplay?: boolean;
 }
 
 /**

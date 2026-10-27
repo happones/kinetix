@@ -36,9 +36,10 @@ import { cn } from './primitives/cn';
  *
  * Images open by zooming out of the element they came from (`item.origin`)
  * and shrink back into it on close; galleries page with the arrows, the
- * keyboard (←/→, Home/End), a swipe or the thumbnail strip; images zoom with
- * the wheel, a pinch, a double-click/tap or the toolbar (+/−/0 on the
- * keyboard) and pan by dragging; a vertical swipe dismisses. PDFs show in a
+ * keyboard (←/→, Home/End), a swipe or the thumbnail strip — or play as a
+ * slideshow; images zoom with the wheel, a pinch, a double-click/tap or the
+ * toolbar (+/−/0 on the keyboard), pan by dragging and turn a quarter at a
+ * time (r / Shift+R); a vertical swipe dismisses. PDFs show in a
  * frame and anything else as a download card, so one viewer serves a mixed
  * gallery.
  *
@@ -73,12 +74,23 @@ const props = withDefaults(
         animation?: 'zoom' | 'fade' | 'none';
         /** Load the neighbours of the current image ahead of time. */
         preload?: boolean;
+        /** Milliseconds each item shows during a slideshow. */
+        slideshowInterval?: number;
+        /** Start the slideshow on open (never under reduced motion). */
+        autoplay?: boolean;
     }>(),
     {
         index: 0,
         title: null,
         loop: false,
-        toolbar: () => ['zoom', 'thumbnails', 'fullscreen', 'download'],
+        toolbar: () => [
+            'zoom',
+            'rotate',
+            'slideshow',
+            'thumbnails',
+            'fullscreen',
+            'download',
+        ],
         thumbnails: 'auto',
         zoom: true,
         maxZoom: 4,
@@ -86,6 +98,8 @@ const props = withDefaults(
         swipeToClose: true,
         animation: 'zoom',
         preload: true,
+        slideshowInterval: 4000,
+        autoplay: false,
     },
 );
 
@@ -114,12 +128,16 @@ const closing = ref(false);
 const flipping = ref(false);
 const thumbnailsVisible = ref(true);
 const fullscreen = ref(false);
+const playing = ref(false);
+/** Bumped on every countdown start, so the progress bar restarts with it. */
+const cycle = ref(0);
 const fullscreenSupported =
     typeof document !== 'undefined' && !!document.fullscreenEnabled;
 
 let pendingFlip = false;
 let flipTimer: ReturnType<typeof setTimeout> | null = null;
 let flight: Animation | null = null;
+let slideTimer: ReturnType<typeof setTimeout> | null = null;
 
 const total = computed(() => props.items.length);
 const item = computed<KinetixLightboxItem | null>(
@@ -129,6 +147,8 @@ const type = computed(() =>
     item.value ? resolveLightboxItemType(item.value) : 'other',
 );
 const zoomable = computed(() => props.zoom && type.value === 'image');
+const rotatable = computed(() => type.value === 'image');
+const canPlay = computed(() => total.value > 1);
 const zoomMotion = computed(() => props.animation === 'zoom' && !reduced.value);
 
 function clampIndex(value: number): number {
@@ -151,7 +171,7 @@ function canPage(step: 1 | -1): boolean {
     return step === 1 ? current.value < total.value - 1 : current.value > 0;
 }
 
-function show(next: number): void {
+function show(next: number, announced = true): void {
     if (next === current.value || !props.items[next]) {
         return;
     }
@@ -159,6 +179,12 @@ function show(next: number): void {
     current.value = next;
     emit('update:index', next);
     emit('change', next, props.items[next]);
+
+    // A running slideshow stays quiet: announcing every turn would talk over
+    // whatever the reader is doing.
+    if (!announced) {
+        return;
+    }
 
     const caption = props.items[next].caption;
 
@@ -181,10 +207,49 @@ function goTo(next: number): void {
     show(target);
 }
 
+function stopCountdown(): void {
+    if (slideTimer) {
+        clearTimeout(slideTimer);
+        slideTimer = null;
+    }
+}
+
+/** (Re)start the countdown to the next slide; the progress bar follows it. */
+function startCountdown(): void {
+    stopCountdown();
+
+    if (!playing.value || !props.open || !canPlay.value) {
+        return;
+    }
+
+    cycle.value++;
+    slideTimer = setTimeout(() => {
+        slideTimer = null;
+        direction.value = 1;
+        // A slideshow always wraps around, whatever `loop` says.
+        show((current.value + 1) % total.value, false);
+    }, props.slideshowInterval);
+}
+
+function toggleSlideshow(): void {
+    playing.value = !playing.value;
+}
+
+function onVisibilityChange(): void {
+    if (document.hidden) {
+        stopCountdown();
+
+        return;
+    }
+
+    startCountdown();
+}
+
 const gestures = useKinetixLightboxGestures({
     stage,
     media: () => slide.value?.media ?? null,
     zoomable: () => zoomable.value,
+    rotatable: () => rotatable.value,
     maxZoom: () => props.maxZoom,
     canPage,
     swipeToClose: () => props.swipeToClose,
@@ -201,10 +266,6 @@ const slideTransition = useKinetixTransition(() => {
     return direction.value === 1 ? 'slide-left' : 'slide-right';
 });
 
-const mediaTransform = computed(
-    () =>
-        `translate3d(${gestures.offsetX.value}px, ${gestures.offsetY.value}px, 0) scale(${gestures.scale.value})`,
-);
 const slideTransform = computed(() => {
     const shrink = 1 - gestures.dismissProgress.value * 0.15;
 
@@ -322,7 +383,8 @@ async function close(animate = true): Promise<void> {
         zoomMotion.value &&
         media &&
         slide.value?.loaded &&
-        !gestures.zoomed.value
+        !gestures.zoomed.value &&
+        gestures.rotation.value % 360 === 0
             ? runFlip(media, true)
             : null;
 
@@ -372,6 +434,8 @@ function onKeydown(event: KeyboardEvent): void {
         '=': gestures.zoomIn,
         '-': gestures.zoomOut,
         '0': gestures.reset,
+        r: () => gestures.rotate(1),
+        R: () => gestures.rotate(-1),
     };
     const action = actions[event.key];
 
@@ -416,7 +480,8 @@ function startOpening(): void {
     current.value = clampIndex(props.index);
     direction.value = 1;
     closing.value = false;
-    gestures.reset();
+    gestures.resetAll();
+    playing.value = props.autoplay && canPlay.value && !reduced.value;
     thumbnailsVisible.value =
         props.thumbnails === true ||
         (props.thumbnails === 'auto' &&
@@ -446,6 +511,7 @@ watch(
         }
 
         closing.value = false;
+        playing.value = false;
     },
     { immediate: true },
 );
@@ -469,16 +535,32 @@ watch(
 );
 
 watch(current, () => {
-    gestures.reset();
+    gestures.resetAll();
     preloadNeighbours();
+    startCountdown();
+});
+
+watch(playing, startCountdown);
+
+// Hands on the image hold the slideshow; zooming in stops it.
+watch(gestures.gesturing, (busy) =>
+    busy ? stopCountdown() : startCountdown(),
+);
+watch(gestures.zoomed, (zoomedIn) => {
+    if (zoomedIn) {
+        playing.value = false;
+    }
 });
 
 onMounted(() => {
     document.addEventListener('fullscreenchange', syncFullscreen);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('fullscreenchange', syncFullscreen);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    stopCountdown();
     flight?.cancel();
 
     if (flipTimer) {
@@ -493,6 +575,8 @@ defineExpose({
     zoomIn: gestures.zoomIn,
     zoomOut: gestures.zoomOut,
     resetZoom: gestures.reset,
+    rotate: gestures.rotate,
+    toggleSlideshow,
     close,
 });
 
@@ -540,6 +624,9 @@ const chrome = 'transition-opacity duration-150';
                         :zoomable="zoomable"
                         :can-zoom-in="gestures.canZoomIn.value"
                         :can-zoom-out="gestures.canZoomOut.value"
+                        :rotatable="rotatable"
+                        :can-play="canPlay"
+                        :playing="playing"
                         :fullscreen="fullscreen"
                         :fullscreen-supported="fullscreenSupported"
                         :download-href="downloadHref"
@@ -548,6 +635,8 @@ const chrome = 'transition-opacity duration-150';
                         :thumbnails-visible="thumbnailsVisible"
                         @zoom-in="gestures.zoomIn"
                         @zoom-out="gestures.zoomOut"
+                        @rotate="gestures.rotate(1)"
+                        @toggle-slideshow="toggleSlideshow"
                         @toggle-fullscreen="toggleFullscreen"
                         @toggle-thumbnails="
                             thumbnailsVisible = !thumbnailsVisible
@@ -571,13 +660,22 @@ const chrome = 'transition-opacity duration-150';
                         @pointercancel="gestures.onPointerCancel"
                         @wheel="gestures.onWheel"
                     >
+                        <div
+                            v-if="playing"
+                            :key="cycle"
+                            class="kx-lightbox-progress inset-x-0 top-0 h-0.5 absolute z-10 origin-left bg-primary"
+                            :style="{
+                                '--kx-lightbox-interval': `${slideshowInterval}ms`,
+                            }"
+                            aria-hidden="true"
+                        />
                         <Transition v-bind="slideTransition">
                             <LightboxSlide
                                 v-if="item"
                                 :key="current"
                                 ref="slide"
                                 :item="item"
-                                :media-transform="mediaTransform"
+                                :media-transform="gestures.transform.value"
                                 :slide-transform="slideTransform"
                                 :gesturing="gestures.gesturing.value"
                                 :zoomable="zoomable"
@@ -666,3 +764,20 @@ const chrome = 'transition-opacity duration-150';
         </DialogPortal>
     </DialogRoot>
 </template>
+
+<style scoped>
+/* The slideshow countdown: fills once per slide, restarted by its key. */
+.kx-lightbox-progress {
+    animation: kx-lightbox-progress var(--kx-lightbox-interval) linear forwards;
+}
+
+@keyframes kx-lightbox-progress {
+    from {
+        transform: scaleX(0);
+    }
+
+    to {
+        transform: scaleX(1);
+    }
+}
+</style>
