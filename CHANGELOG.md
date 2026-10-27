@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.258.0] - 2026-10-26
+
+### Added
+
+- **Lightbox: a full-screen media viewer for every image Kinetix shows**
+  (published). `<KinetixLightbox>` opens images by zooming them out of the
+  thumbnail clicked and shrinks them back into it on close; galleries page with
+  the arrows, ←/→ Home/End, a swipe or a thumbnail strip; images zoom with the
+  wheel, a pinch, a double-click/tap or the toolbar (+/−/0) and pan by
+  dragging; a vertical swipe closes. PDFs show in a frame and other files as a
+  download card. Toolbar: zoom, thumbnails, full screen, open in a new tab,
+  download. Built on Reka's Dialog (focus trap, Escape, focus back to the
+  trigger), always dark through your theme's own dark tokens, translated in
+  all seven locales, still under reduced motion. See [Lightbox](docs/lightbox.md).
+  - `<KinetixFilePreview />` is now the lightbox host: its props
+    (`loop`, `toolbar`, `thumbnails`, `zoom`, `maxZoom`, `closeOnBackdrop`,
+    `swipeToClose`, `animation`, `preload`, `bind`) are the app-wide defaults.
+    The `kinetix:preview` event keeps its single-file shape and also takes
+    `items` + `index` + `options`.
+  - `<KinetixLightboxImage>`: a thumbnail button that opens its `group` as a
+    gallery. Plain markup opens too: `data-kinetix-lightbox="group"`.
+  - `openKinetixLightbox(items, { index, options })` in
+    `useKinetixLightbox` (falls back to a new tab without a host).
+  - Help Center and Docs: images in a Markdown body open as one gallery per
+    article and are keyboard-reachable buttons (`KinetixMarkdownContent`
+    `:lightbox="false"` opts out).
+  - `ImageColumn::preview(gallery: true)`: the column's images on the page
+    browse as one gallery; `preview(gallery: false)` keeps one at a time. The
+    thumbnail is now a real button, reachable with the keyboard.
+  - `ImageEntry::preview()`: infolist images open in the lightbox.
+  - The media library browses all its images as one gallery; inbox images
+    zoom out of the bubble.
+  - `useKinetixTransition`: `slide-left` / `slide-right` presets.
+
 ## [0.257.2] - 2026-10-24
 
 ### Fixed

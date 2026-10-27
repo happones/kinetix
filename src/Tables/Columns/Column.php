@@ -300,6 +300,7 @@ abstract class Column
             isCircular: $extra['isCircular']                   ?? null,
             size: $extra['size']                               ?? null,
             isPreviewable: $extra['isPreviewable']             ?? null,
+            isPreviewGallery: $extra['isPreviewGallery']       ?? null,
             options: $extra['options']                         ?? null,
             isBadge: $extra['isBadge']                         ?? null,
             descriptionPosition: $extra['descriptionPosition'] ?? null,

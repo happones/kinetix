@@ -44,6 +44,7 @@ const wrap = computed(() => props.surface && !props.flat && !hasLayout.value);
 <template>
     <div
         class="kinetix-grid-host"
+        data-kinetix-infolist
         :class="
             wrap
                 ? 'rounded-xl p-6 shadow-sm border border-border bg-card text-card-foreground'

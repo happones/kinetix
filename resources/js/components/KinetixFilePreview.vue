@@ -1,208 +1,150 @@
 <script setup lang="ts">
-import { Download, X, ZoomIn, ZoomOut } from '@lucide/vue';
-import {
-    DialogClose,
-    DialogContent,
-    DialogOverlay,
-    DialogPortal,
-    DialogRoot,
-    DialogTitle,
-} from 'reka-ui';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
-import { cn } from './primitives/cn';
-
-const { t } = useI18n();
+import {
+    collectLightboxGroup,
+    LIGHTBOX_ATTRIBUTE,
+    normalizePreviewDetail,
+} from '@/composables/useKinetixLightbox';
+import type {
+    KinetixLightboxItem,
+    KinetixLightboxOptions,
+    KinetixLightboxToolbarButton,
+    KinetixPreviewDetail,
+} from '@/types/kinetix';
+import KinetixLightbox from './KinetixLightbox.vue';
 
 /**
- * Global file-preview lightbox. Mount once in your layout:
+ * The app's lightbox host. Mount once in your layout:
  *   <KinetixFilePreview />
  *
- * Opens on the `kinetix:preview` window event, dispatched by image columns
- * (`ImageColumn::preview()`) and `PreviewAction`. Shows images (click to zoom)
- * and PDFs in a shadcn dialog, with a download button.
+ * It opens a KinetixLightbox for
+ * - the `kinetix:preview` window event (`openKinetixLightbox()`, image
+ *   columns and entries with `preview()`, `PreviewAction`, the media library,
+ *   Markdown images) — a single file or a whole gallery;
+ * - a click on any `[data-kinetix-lightbox]` element, grouped into a gallery
+ *   by the attribute's value (turn off with `:bind="false"`).
+ *
+ * Its props are the app-wide defaults for every viewer it opens; an event's
+ * `options` override them for that one opening.
  */
-
-interface PreviewDetail {
-    url: string;
-    type?: string | null; // 'auto' | 'image' | 'pdf'
-    downloadUrl?: string | null;
-    label?: string | null;
-    downloadLabel?: string | null;
-}
-
-const open = ref(false);
-const zoomed = ref(false);
-const detail = ref<PreviewDetail | null>(null);
-
-const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)(\?|#|$)/i;
-const PDF_EXT = /\.pdf(\?|#|$)/i;
-
-const resolvedType = computed<'image' | 'pdf' | 'other'>(() => {
-    const d = detail.value;
-
-    if (!d) {
-        return 'other';
-    }
-
-    if (d.type === 'image' || d.type === 'pdf') {
-        return d.type;
-    }
-
-    if (IMAGE_EXT.test(d.url)) {
-        return 'image';
-    }
-
-    if (PDF_EXT.test(d.url)) {
-        return 'pdf';
-    }
-
-    return 'other';
-});
-
-const downloadHref = computed(
-    () => detail.value?.downloadUrl ?? detail.value?.url ?? '',
+const props = withDefaults(
+    defineProps<{
+        bind?: boolean;
+        loop?: boolean;
+        toolbar?: KinetixLightboxToolbarButton[];
+        thumbnails?: boolean | 'auto';
+        zoom?: boolean;
+        maxZoom?: number;
+        closeOnBackdrop?: boolean;
+        swipeToClose?: boolean;
+        animation?: 'zoom' | 'fade' | 'none';
+        preload?: boolean;
+    }>(),
+    {
+        // Undefined, not false: an option the host leaves out keeps the
+        // viewer's own default.
+        bind: true,
+        loop: undefined,
+        toolbar: undefined,
+        thumbnails: undefined,
+        zoom: undefined,
+        maxZoom: undefined,
+        closeOnBackdrop: undefined,
+        swipeToClose: undefined,
+        animation: undefined,
+        preload: undefined,
+    },
 );
 
-function onPreview(event: Event): void {
-    const next = (event as CustomEvent<PreviewDetail>).detail;
+const open = ref(false);
+const index = ref(0);
+const items = ref<KinetixLightboxItem[]>([]);
+const overrides = ref<KinetixLightboxOptions>({});
 
-    if (!next?.url) {
+const options = computed<KinetixLightboxOptions>(() => ({
+    loop: props.loop,
+    toolbar: props.toolbar,
+    thumbnails: props.thumbnails,
+    zoom: props.zoom,
+    maxZoom: props.maxZoom,
+    closeOnBackdrop: props.closeOnBackdrop,
+    swipeToClose: props.swipeToClose,
+    animation: props.animation,
+    preload: props.preload,
+    ...overrides.value,
+}));
+
+function show(
+    next: KinetixLightboxItem[],
+    at: number,
+    extra?: KinetixLightboxOptions,
+): void {
+    items.value = next;
+    index.value = at;
+    overrides.value = extra ?? {};
+    open.value = true;
+}
+
+function onPreview(event: Event): void {
+    const detail = (event as CustomEvent<KinetixPreviewDetail>).detail;
+    const gallery = normalizePreviewDetail(detail);
+
+    if (!gallery) {
         return;
     }
 
     // Tell a cancelable sender it's handled (it then skips its own fallback,
     // e.g. opening the file in a new tab).
     event.preventDefault();
-    detail.value = next;
-    zoomed.value = false;
-    open.value = true;
+    show(gallery.items, gallery.index, detail.options);
 }
 
-onMounted(() => window.addEventListener('kinetix:preview', onPreview));
-onBeforeUnmount(() => window.removeEventListener('kinetix:preview', onPreview));
+function onDocumentClick(event: MouseEvent): void {
+    const modified =
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey;
+
+    if (!props.bind || event.defaultPrevented || modified) {
+        return;
+    }
+
+    const trigger = (event.target as Element | null)?.closest?.(
+        `[${LIGHTBOX_ATTRIBUTE}]`,
+    );
+
+    if (!trigger) {
+        return;
+    }
+
+    const gallery = collectLightboxGroup(trigger);
+
+    if (gallery.items.length === 0) {
+        return;
+    }
+
+    event.preventDefault();
+    show(gallery.items, gallery.index);
+}
+
+onMounted(() => {
+    window.addEventListener('kinetix:preview', onPreview);
+    document.addEventListener('click', onDocumentClick);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('kinetix:preview', onPreview);
+    document.removeEventListener('click', onDocumentClick);
+});
 </script>
 
 <template>
-    <DialogRoot v-model:open="open">
-        <DialogPortal>
-            <DialogOverlay
-                class="inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed z-[var(--kinetix-z-overlay,100)]"
-            />
-            <DialogContent
-                class="max-w-4xl rounded-xl shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-[var(--kinetix-z-modal,100)] flex max-h-[90vh] w-[92vw] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border border-border bg-popover text-popover-foreground outline-none"
-            >
-                <div
-                    class="gap-2 p-3 flex items-center justify-between border-b border-border"
-                >
-                    <DialogTitle class="px-1 text-sm font-medium truncate">
-                        {{ detail?.label ?? '' }}
-                    </DialogTitle>
-                    <div class="gap-1 flex items-center">
-                        <button
-                            v-if="resolvedType === 'image'"
-                            type="button"
-                            :class="
-                                cn(
-                                    buttonVariants({
-                                        variant: 'ghost',
-                                        size: 'icon-sm',
-                                    }),
-                                )
-                            "
-                            @click="zoomed = !zoomed"
-                        >
-                            <ZoomOut v-if="zoomed" class="h-4 w-4" />
-                            <ZoomIn v-else class="h-4 w-4" />
-                        </button>
-                        <a
-                            :href="downloadHref"
-                            :download="resolvedType !== 'pdf' ? '' : undefined"
-                            target="_blank"
-                            rel="noopener"
-                            :class="
-                                cn(
-                                    buttonVariants({
-                                        variant: 'ghost',
-                                        size: 'icon-sm',
-                                    }),
-                                )
-                            "
-                        >
-                            <Download class="h-4 w-4" />
-                        </a>
-                        <DialogClose
-                            :class="
-                                cn(
-                                    buttonVariants({
-                                        variant: 'ghost',
-                                        size: 'icon-sm',
-                                    }),
-                                )
-                            "
-                        >
-                            <X class="h-4 w-4" />
-                        </DialogClose>
-                    </div>
-                </div>
-
-                <div class="min-h-0 flex-1 overflow-auto bg-muted/30">
-                    <div
-                        v-if="resolvedType === 'image'"
-                        class="p-4 flex h-full min-h-[50vh] items-center justify-center"
-                        :class="zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'"
-                        @click="zoomed = !zoomed"
-                    >
-                        <img
-                            :src="detail?.url"
-                            :alt="detail?.label ?? ''"
-                            class="origin-center transition-transform duration-200"
-                            :class="
-                                zoomed
-                                    ? 'max-w-none scale-150'
-                                    : 'max-h-[78vh] max-w-full object-contain'
-                            "
-                        />
-                    </div>
-
-                    <object
-                        v-else-if="resolvedType === 'pdf'"
-                        :data="detail?.url"
-                        type="application/pdf"
-                        class="h-[78vh] w-full"
-                    >
-                        <iframe
-                            :src="detail?.url"
-                            class="h-[78vh] w-full border-0"
-                            title="PDF preview"
-                        ></iframe>
-                    </object>
-
-                    <div
-                        v-else
-                        class="gap-3 p-8 text-sm flex min-h-[40vh] flex-col items-center justify-center text-center text-muted-foreground"
-                    >
-                        <span>{{ t('kinetix.preview_unavailable') }}</span>
-                        <a
-                            :href="downloadHref"
-                            target="_blank"
-                            rel="noopener"
-                            :class="
-                                cn(
-                                    buttonVariants({
-                                        variant: 'outline',
-                                        size: 'sm',
-                                    }),
-                                )
-                            "
-                        >
-                            <Download class="mr-2 h-4 w-4" />
-                            {{ detail?.downloadLabel ?? t('kinetix.download') }}
-                        </a>
-                    </div>
-                </div>
-            </DialogContent>
-        </DialogPortal>
-    </DialogRoot>
+    <KinetixLightbox
+        v-model:open="open"
+        v-model:index="index"
+        :items="items"
+        v-bind="options"
+    />
 </template>

@@ -29,6 +29,7 @@ class InfolistEntryData extends Data
         public ?bool $isBadge = null,
         public ?bool $isCopyable = null,
         public ?bool $isCircular = null,
+        public ?bool $isPreviewable = null,
         public int|string|null $size = null,
         public bool $isInline = false,
         // UI-only affordance flag — actual masking is enforced by

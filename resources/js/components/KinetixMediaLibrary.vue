@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n';
 import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
+import { openKinetixLightbox } from '@/composables/useKinetixLightbox';
 import { useKinetixListReorder } from '@/composables/useKinetixListReorder';
 import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
 import type { KinetixMediaItem, KinetixSharedProps } from '@/types/kinetix';
@@ -287,17 +288,28 @@ function isImageItem(item: KinetixMediaItem): boolean {
     return /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(item.url ?? '');
 }
 
-function preview(item: KinetixMediaItem): void {
+function preview(item: KinetixMediaItem, event?: MouseEvent): void {
     if (!isImageItem(item)) {
         window.open(item.url, '_blank');
 
         return;
     }
 
-    window.dispatchEvent(
-        new CustomEvent('kinetix:preview', {
-            detail: { url: item.url, type: 'image', label: item.name },
-        }),
+    // Every image of the library browses as one gallery, zooming out of the
+    // tile that was clicked.
+    const images = orderedItems.value.filter(isImageItem);
+    const tile = event?.currentTarget as Element | null | undefined;
+
+    openKinetixLightbox(
+        images.map((each) => ({
+            url: each.url,
+            type: 'image',
+            thumbnail: each.thumb ?? null,
+            alt: each.name,
+            caption: each.name,
+            origin: each === item ? (tile?.querySelector('img') ?? tile) : null,
+        })),
+        { index: Math.max(images.indexOf(item), 0) },
     );
 }
 </script>
@@ -327,7 +339,7 @@ function preview(item: KinetixMediaItem): void {
                 @dragend="onReorderEnd()"
                 @grip-pointerdown="(e) => onGripPointerDown(idx, e)"
                 @move="(delta) => moveTile(idx, delta)"
-                @preview="preview(item)"
+                @preview="preview(item, $event)"
                 @remove="remove(idx)"
             />
         </div>
@@ -374,7 +386,7 @@ function preview(item: KinetixMediaItem): void {
                             (e) => onGripPointerDown(tile.index, e)
                         "
                         @move="(delta) => moveTile(tile.index, delta)"
-                        @preview="preview(tile.item)"
+                        @preview="preview(tile.item, $event)"
                         @remove="remove(tile.index)"
                     />
                 </div>

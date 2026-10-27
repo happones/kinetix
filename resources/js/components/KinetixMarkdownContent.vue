@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { writeToClipboard } from '@/composables/useKinetixClipboard';
+import { openKinetixLightbox } from '@/composables/useKinetixLightbox';
 
 /**
  * Markdown rendered by Kinetix on the server (help articles, docs pages):
@@ -12,18 +13,26 @@ import { writeToClipboard } from '@/composables/useKinetixClipboard';
  * (arrow keys, Home/End) by event delegation, so it keeps working when the
  * HTML changes.
  *
+ * Images (except those inside a link) open in the app's lightbox
+ * (`<KinetixFilePreview />`) as one gallery per document, zooming out of the
+ * image clicked; they are keyboard-reachable buttons named after their alt
+ * text. Captions come from a `<figcaption>`, the `title` or the alt text.
+ * `:lightbox="false"` leaves images inert.
+ *
  *   <KinetixMarkdownContent :html="page.html" as="article" />
  *
  * Highlighted code ships with a light and a dark theme; the dark one applies
  * under `.dark`. Listeners and attributes fall through to the root element.
  */
-withDefaults(
+const props = withDefaults(
     defineProps<{
         html: string;
         /** The root element: `article` for a page's main content. */
         as?: 'div' | 'article' | 'section';
+        /** Open images in the lightbox. */
+        lightbox?: boolean;
     }>(),
-    { as: 'div' },
+    { as: 'div', lightbox: true },
 );
 
 /*
@@ -103,8 +112,87 @@ function selectTab(tab: HTMLElement, focus = false): void {
     }
 }
 
+/** Images the lightbox serves: a linked image keeps its link. */
+function zoomableImages(): HTMLImageElement[] {
+    return Array.from(
+        root.value?.querySelectorAll<HTMLImageElement>('img') ?? [],
+    ).filter((image) => !image.closest('a'));
+}
+
+function captionOf(image: HTMLImageElement): string | null {
+    const figcaption = image
+        .closest('figure')
+        ?.querySelector('figcaption')
+        ?.textContent?.trim();
+
+    return figcaption || image.title || image.alt || null;
+}
+
+function enhanceImages(): void {
+    if (!props.lightbox) {
+        root.value
+            ?.querySelectorAll<HTMLImageElement>('img.kx-md-zoomable')
+            .forEach((image) => {
+                image.classList.remove('kx-md-zoomable');
+                image.removeAttribute('tabindex');
+                image.removeAttribute('role');
+                image.removeAttribute('aria-haspopup');
+                image.removeAttribute('aria-label');
+            });
+
+        return;
+    }
+
+    for (const image of zoomableImages()) {
+        const name = image.alt || image.title;
+
+        image.classList.add('kx-md-zoomable');
+        image.tabIndex = 0;
+        image.setAttribute('role', 'button');
+        image.setAttribute('aria-haspopup', 'dialog');
+        image.setAttribute(
+            'aria-label',
+            name
+                ? t('kinetix.lightbox_view', { name })
+                : t('kinetix.lightbox_view_image'),
+        );
+    }
+}
+
+function openImage(image: HTMLImageElement): void {
+    const images = zoomableImages();
+
+    openKinetixLightbox(
+        images.map((each) => ({
+            url: each.currentSrc || each.src,
+            type: 'image',
+            alt: each.alt || null,
+            caption: captionOf(each),
+            origin: each,
+        })),
+        { index: Math.max(images.indexOf(image), 0) },
+    );
+}
+
+function zoomableTarget(target: HTMLElement): HTMLImageElement | null {
+    const image = target.closest<HTMLImageElement>('img.kx-md-zoomable');
+
+    return props.lightbox && image && root.value?.contains(image)
+        ? image
+        : null;
+}
+
 function onClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
+    const image = zoomableTarget(target);
+
+    if (image) {
+        event.preventDefault();
+        openImage(image);
+
+        return;
+    }
+
     const copy = target.closest<HTMLElement>('[data-kx-copy]');
 
     if (copy && root.value?.contains(copy)) {
@@ -121,6 +209,15 @@ function onClick(event: MouseEvent): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+    const image = zoomableTarget(event.target as HTMLElement);
+
+    if (image && (event.key === 'Enter' || event.key === ' ')) {
+        event.preventDefault();
+        openImage(image);
+
+        return;
+    }
+
     const tab = (event.target as HTMLElement).closest<HTMLElement>(
         '.kx-code-tabs [role="tab"]',
     );
@@ -143,6 +240,12 @@ function onKeydown(event: KeyboardEvent): void {
         selectTab(next, true);
     }
 }
+
+onMounted(enhanceImages);
+watch(
+    () => [props.html, props.lightbox],
+    () => nextTick(enhanceImages),
+);
 
 onBeforeUnmount(() => {
     timers.forEach(clearTimeout);
@@ -270,6 +373,17 @@ defineExpose({ el: root });
     border: 1px solid var(--kx-md-border);
     margin: 0.75rem 0 1.5rem;
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+.kinetix-markdown img.kx-md-zoomable {
+    cursor: zoom-in;
+    transition: box-shadow 150ms ease-out;
+}
+.kinetix-markdown img.kx-md-zoomable:hover {
+    box-shadow: 0 4px 14px rgb(0 0 0 / 0.14);
+}
+.kinetix-markdown img.kx-md-zoomable:focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--kx-md-ring) 50%, transparent);
+    outline-offset: 2px;
 }
 .kinetix-markdown hr {
     border: 0;

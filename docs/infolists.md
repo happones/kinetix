@@ -244,6 +244,7 @@ ImageEntry::make('avatar')
 | `->size(int\|string)` | Width/height in pixels (default `96`) |
 | `->defaultImageUrl(string\|Closure)` | Fallback when the attribute is empty |
 | `->disk(string)` | Storage disk used to resolve stored paths to URLs |
+| `->preview(bool $condition = true)` | Open the image in the [lightbox](/lightbox); the infolist's previewable images browse as one gallery |
 
 Stored paths are resolved to public URLs automatically via `Storage::disk()->url()`. The disk defaults to the global `kinetix.filesystem.disk` config (falling back to `public`); `->disk('s3')` overrides it per entry. Absolute values — `http(s)://`, protocol-relative `//`, root-relative `/…`, and `data:` URIs — pass through untouched.
 

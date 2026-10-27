@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Unit;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\DownloadAction;
 use Happones\Kinetix\Actions\PreviewAction;
+use Happones\Kinetix\Infolists\Components\ImageEntry;
 use Happones\Kinetix\Tables\Columns\ImageColumn;
 use Happones\Kinetix\Tests\TestCase;
 
@@ -50,5 +51,18 @@ class PreviewDownloadTest extends TestCase
     {
         $this->assertFalse(ImageColumn::make('avatar')->toData()->isPreviewable);
         $this->assertTrue(ImageColumn::make('avatar')->preview()->toData()->isPreviewable);
+    }
+
+    public function test_image_column_preview_browses_the_column_as_a_gallery_by_default(): void
+    {
+        $this->assertTrue(ImageColumn::make('avatar')->preview()->toData()->isPreviewGallery);
+        $this->assertFalse(ImageColumn::make('avatar')->preview(gallery: false)->toData()->isPreviewGallery);
+    }
+
+    public function test_image_entry_preview_flag_serializes(): void
+    {
+        $this->assertFalse(ImageEntry::make('photo')->toData('view')->isPreviewable);
+        $this->assertTrue(ImageEntry::make('photo')->preview()->toData('view')->isPreviewable);
+        $this->assertFalse(ImageEntry::make('photo')->preview(false)->toData('view')->isPreviewable);
     }
 }

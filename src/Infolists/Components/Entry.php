@@ -302,6 +302,7 @@ abstract class Entry extends Component
             isBadge: $extra['isBadge']               ?? null,
             isCopyable: $extra['isCopyable']         ?? null,
             isCircular: $extra['isCircular']         ?? null,
+            isPreviewable: $extra['isPreviewable']   ?? null,
             size: $extra['size']                     ?? null,
             isInline: $extra['isInline']             ?? false,
             isConfidential: $extra['isConfidential'] ?? null,

@@ -20,7 +20,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    (e: 'preview'): void;
+    (e: 'preview', event: MouseEvent): void;
     (e: 'remove'): void;
     /** Pointer down on the grip — touch and pen start a drag from here. */
     (e: 'grip-pointerdown', event: PointerEvent): void;
@@ -67,7 +67,7 @@ const humanSize = computed<string>(() => {
         <button
             type="button"
             class="block aspect-square w-full"
-            @click="emit('preview')"
+            @click="emit('preview', $event)"
         >
             <img
                 v-if="isImage"

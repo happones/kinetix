@@ -577,7 +577,7 @@ $table->recordActions([
 
 | Action | Defaults | Behaviour |
 |---|---|---|
-| `PreviewAction` | label `Preview`, icon `eye`, color `gray` | Opens `url` in the file-preview lightbox (zoomable image / embedded PDF, with a download button). `->preview('image'\|'pdf'\|'auto')` sets the type. |
+| `PreviewAction` | label `Preview`, icon `eye`, color `gray` | Opens `url` in the [lightbox](/lightbox) (zoomable image / embedded PDF / download card). `->preview('image'\|'pdf'\|'auto')` sets the type. |
 | `DownloadAction` | label `Download`, icon `download`, color `gray` | Forces a browser download of `url` (synthetic `<a download>` click). |
 
 Both are plain `Action`s, so `->color()`, `->icon()`, `->label()`, `->authorize()`, `->visible()` all apply. The underlying flags are `Action::download()` and `Action::preview($type)`.

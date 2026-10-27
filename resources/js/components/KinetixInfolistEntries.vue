@@ -21,6 +21,7 @@ import type { KinetixAction, KinetixInfolistEntry } from '@/types/kinetix';
 import './kinetix-grid.css';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
+import KinetixLightboxImage from './KinetixLightboxImage.vue';
 import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixCopyable from './primitives/KinetixCopyable.vue';
 
@@ -328,7 +329,29 @@ const isEmpty = (value: unknown) =>
                 }"
             />
 
-            <!-- Image entry -->
+            <!-- Image entry (preview: opens in the lightbox, one gallery per infolist) -->
+            <KinetixLightboxImage
+                v-else-if="
+                    entry.type === 'image' && entry.isPreviewable && entry.state
+                "
+                :src="String(entry.state)"
+                :alt="entry.label ?? ''"
+                :caption="entry.label ?? null"
+                group="kinetix-infolist"
+                scope="[data-kinetix-infolist]"
+                :circular="!!entry.isCircular"
+            >
+                <img
+                    :src="String(entry.state)"
+                    :alt="entry.label ?? ''"
+                    class="shadow-sm object-cover ring-1 ring-border"
+                    :class="entry.isCircular ? 'rounded-full' : 'rounded-lg'"
+                    :style="{
+                        width: `${entry.size || 96}px`,
+                        height: `${entry.size || 96}px`,
+                    }"
+                />
+            </KinetixLightboxImage>
             <img
                 v-else-if="entry.type === 'image'"
                 :src="String(entry.state)"

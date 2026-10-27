@@ -90,6 +90,7 @@ export default withMermaid(
           { text: "Calendar", link: "/calendar" },
           { text: "Forms", link: "/forms" },
           { text: "Media Library", link: "/media-library" },
+          { text: "Lightbox", link: "/lightbox" },
           { text: "Table Repeater", link: "/table-repeater" },
           { text: "Wizard", link: "/wizard" },
           { text: "Infolists", link: "/infolists" },

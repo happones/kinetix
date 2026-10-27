@@ -80,6 +80,10 @@ function preview(event: MouseEvent): void {
                 type: 'image',
                 downloadUrl: props.downloadUrl,
                 label: props.message.mediaName,
+                origin:
+                    (event.currentTarget as Element | null)?.querySelector(
+                        'img',
+                    ) ?? null,
             },
         }),
     );

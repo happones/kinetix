@@ -14,6 +14,8 @@ class ImageColumn extends Column
 
     protected bool $isPreviewable = false;
 
+    protected bool $isPreviewGallery = true;
+
     protected int|string $size = 40;
 
     protected string|Closure|null $defaultImageUrl = null;
@@ -39,11 +41,14 @@ class ImageColumn extends Column
     }
 
     /**
-     * Make the thumbnail clickable to open a zoomable preview in a lightbox.
+     * Make the thumbnail clickable to open it in the lightbox. With `$gallery`
+     * (the default) the column's images on the page browse as one gallery;
+     * pass false to open each image on its own.
      */
-    public function preview(bool $condition = true): static
+    public function preview(bool $condition = true, bool $gallery = true): static
     {
-        $this->isPreviewable = $condition;
+        $this->isPreviewable    = $condition;
+        $this->isPreviewGallery = $gallery;
 
         return $this;
     }
@@ -109,9 +114,10 @@ class ImageColumn extends Column
     protected function getExtraData(): array
     {
         return [
-            'isCircular'    => $this->isCircular,
-            'isPreviewable' => $this->isPreviewable,
-            'size'          => $this->size,
+            'isCircular'       => $this->isCircular,
+            'isPreviewable'    => $this->isPreviewable,
+            'isPreviewGallery' => $this->isPreviewGallery,
+            'size'             => $this->size,
         ];
     }
 }

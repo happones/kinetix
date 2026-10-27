@@ -1411,6 +1411,63 @@ export interface KinetixTableRecord {
     groupLabel?: string | null;
 }
 
+/** What a lightbox item shows; `auto` reads the URL's extension. */
+export type KinetixLightboxItemType = 'auto' | 'image' | 'pdf' | 'other';
+
+/** One item of a KinetixLightbox gallery. */
+export interface KinetixLightboxItem {
+    url: string;
+    type?: KinetixLightboxItemType | string | null;
+    /** Small version for the thumbnail strip and the placeholder while `url` loads. */
+    thumbnail?: string | null;
+    alt?: string | null;
+    caption?: string | null;
+    description?: string | null;
+    /** Where the download button points (defaults to `url`); `false` hides it. */
+    downloadUrl?: string | false | null;
+    downloadLabel?: string | null;
+    /** The element it was opened from: the image zooms out of it and back into it. */
+    origin?: Element | null;
+}
+
+/** Toolbar buttons a KinetixLightbox can show (close is always there). */
+export type KinetixLightboxToolbarButton =
+    | 'zoom'
+    | 'fullscreen'
+    | 'download'
+    | 'open'
+    | 'thumbnails';
+
+/** Behaviour of a KinetixLightbox, settable per instance, per host or per call. */
+export interface KinetixLightboxOptions {
+    loop?: boolean;
+    toolbar?: KinetixLightboxToolbarButton[];
+    thumbnails?: boolean | 'auto';
+    zoom?: boolean;
+    maxZoom?: number;
+    closeOnBackdrop?: boolean;
+    swipeToClose?: boolean;
+    animation?: 'zoom' | 'fade' | 'none';
+    preload?: boolean;
+}
+
+/**
+ * The `kinetix:preview` window event's detail. The single-file shape
+ * (`url`/`type`/`label`/…) and the gallery shape (`items` + `index`) are both
+ * accepted; `options` overrides the host's defaults for that one opening.
+ */
+export interface KinetixPreviewDetail {
+    url?: string | null;
+    type?: string | null;
+    label?: string | null;
+    downloadUrl?: string | null;
+    downloadLabel?: string | null;
+    origin?: Element | null;
+    items?: KinetixLightboxItem[];
+    index?: number;
+    options?: KinetixLightboxOptions;
+}
+
 /** One entry in a KinetixMediaLibrary value (an ordered array of these). */
 export interface KinetixMediaItem {
     id?: number | string | null;
@@ -1435,6 +1492,8 @@ export interface KinetixTableCellColumn {
     alignment?: 'left' | 'center' | 'right' | null;
     isCircular?: boolean;
     isPreviewable?: boolean;
+    /** Previewable images of the column browse as one gallery. */
+    isPreviewGallery?: boolean;
     size?: number | string | null;
     isCopyable?: boolean;
     isConfidential?: boolean;
@@ -1559,6 +1618,7 @@ export interface KinetixInfolistEntry {
     isBadge?: boolean | null;
     isCopyable?: boolean | null;
     isCircular?: boolean | null;
+    isPreviewable?: boolean | null;
     isConfidential?: boolean | null;
     size?: number | string | null;
     isInline: boolean;

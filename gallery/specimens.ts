@@ -1,5 +1,5 @@
 import { Folder, LayoutDashboard, Settings, Users } from '@lucide/vue';
-import { h, type Component } from 'vue';
+import { defineComponent, h, type Component } from 'vue';
 import KinetixWizard from '@/components/KinetixWizard.vue';
 import KinetixEmptyState from '@/components/KinetixEmptyState.vue';
 import KinetixOnboardingChecklist from '@/components/KinetixOnboardingChecklist.vue';
@@ -7,6 +7,8 @@ import KinetixTable from '@/components/KinetixTable.vue';
 import KinetixFormSchema from '@/components/KinetixFormSchema.vue';
 import KinetixInfolist from '@/components/KinetixInfolist.vue';
 import KinetixMarkdownContent from '@/components/KinetixMarkdownContent.vue';
+import KinetixFilePreview from '@/components/KinetixFilePreview.vue';
+import KinetixLightboxImage from '@/components/KinetixLightboxImage.vue';
 import KinetixDocs from '@/components/KinetixDocs.vue';
 import KinetixBusinessHours from '@/components/KinetixBusinessHours.vue';
 import KinetixGenerator from '@/components/KinetixGenerator.vue';
@@ -402,6 +404,44 @@ const GALLERY_QR = `data:image/svg+xml;utf8,${encodeURIComponent(
         },
     ).join('')}</svg>`,
 )}`;
+
+// Landscape-ish placeholders for the lightbox specimens (offline, any size).
+const scene = (sky: string, hill: string, sun: string) =>
+    `data:image/svg+xml;utf8,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="#fff7ed"/></linearGradient></defs><rect width="1200" height="800" fill="url(#s)"/><circle cx="880" cy="250" r="110" fill="${sun}"/><path d="M0 560 Q300 380 620 540 T1200 500 V800 H0Z" fill="${hill}"/><path d="M0 660 Q420 540 800 650 T1200 640 V800 H0Z" fill="${hill}" opacity=".7"/></svg>`,
+    )}`;
+
+const LIGHTBOX_SCENES = [
+    {
+        src: scene('#93c5fd', '#166534', '#fde68a'),
+        caption: 'Morning over the valley',
+    },
+    { src: scene('#fca5a5', '#7c2d12', '#fef3c7'), caption: 'Sunset ridge' },
+    { src: scene('#c4b5fd', '#1e3a8a', '#f5f5f4'), caption: 'Moonrise' },
+    { src: scene('#a7f3d0', '#365314', '#fef9c3'), caption: 'Spring meadow' },
+];
+
+/** Thumbnails grouped into one gallery plus the app-level host. */
+const LightboxSpecimen = defineComponent({
+    name: 'LightboxSpecimen',
+    setup() {
+        return () =>
+            h('div', { class: 'grid grid-cols-2 gap-3 sm:grid-cols-4' }, [
+                ...LIGHTBOX_SCENES.map((photo) =>
+                    h(KinetixLightboxImage, {
+                        src: photo.src,
+                        alt: photo.caption,
+                        caption: photo.caption,
+                        description: 'Photo gallery specimen',
+                        group: 'specimen',
+                        imgClass: 'aspect-[4/3] w-full rounded-lg',
+                        class: 'w-full',
+                    }),
+                ),
+                h(KinetixFilePreview),
+            ]);
+    },
+});
 
 export interface Specimen {
     name: string;
@@ -2346,6 +2386,21 @@ export const specimens: Specimen[] = [
         component: KinetixMarkdownContent,
         width: 760,
         props: { html: markdownSample, as: 'article' },
+    },
+    {
+        name: 'lightbox-thumbnails',
+        title: 'Lightbox — gallery thumbnails',
+        component: LightboxSpecimen,
+        width: 760,
+        frame: 'card',
+    },
+    {
+        name: 'lightbox-open',
+        title: 'Lightbox — open gallery (toolbar, arrows, thumbnails)',
+        component: LightboxSpecimen,
+        width: 760,
+        height: 640,
+        openSelector: 'button[data-kinetix-lightbox="specimen"]',
     },
     {
         name: 'help-article-language',

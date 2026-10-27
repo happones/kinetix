@@ -12,6 +12,8 @@ class ImageEntry extends Entry
 {
     protected bool $isCircular = false;
 
+    protected bool $isPreviewable = false;
+
     protected int|string $size = 96;
 
     protected string|Closure|null $defaultImageUrl = null;
@@ -31,6 +33,17 @@ class ImageEntry extends Entry
     public function disk(string $disk): static
     {
         $this->disk = $disk;
+
+        return $this;
+    }
+
+    /**
+     * Make the image clickable to open it in the lightbox. Previewable images
+     * of the same infolist browse as one gallery.
+     */
+    public function preview(bool $condition = true): static
+    {
+        $this->isPreviewable = $condition;
 
         return $this;
     }
@@ -96,8 +109,9 @@ class ImageEntry extends Entry
     protected function getExtraData(?Model $record = null): array
     {
         return [
-            'isCircular' => $this->isCircular,
-            'size'       => $this->size,
+            'isCircular'    => $this->isCircular,
+            'isPreviewable' => $this->isPreviewable,
+            'size'          => $this->size,
         ];
     }
 }

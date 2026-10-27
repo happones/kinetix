@@ -14,6 +14,9 @@ import { useKinetixReducedMotion } from '@/composables/useKinetixReducedMotion';
  * - `slide-down` — fades in from slightly above, leaves the same way.
  * - `slide-up`   — the same from slightly below.
  * - `scale`      — fades in from 95%.
+ * - `slide-left` — enters from the right and leaves to the left (paging
+ *                  forward through a carousel or lightbox).
+ * - `slide-right`— the mirror, for paging back.
  * - `collapse`   — grows from zero height and shrinks back, so the content
  *                  under it glides instead of jumping. It animates the ROW of
  *                  a grid, so the transitioned element must be `grid` with a
@@ -31,6 +34,8 @@ export type KinetixTransitionPreset =
     | 'slide-down'
     | 'slide-up'
     | 'scale'
+    | 'slide-left'
+    | 'slide-right'
     | 'collapse'
     | 'none';
 
@@ -73,6 +78,20 @@ const PRESETS: Record<
         enterFromClass: 'opacity-0 scale-95',
         leaveActiveClass: 'transition-[opacity,scale] duration-150 ease-in',
         leaveToClass: 'opacity-0 scale-95',
+    },
+    'slide-left': {
+        enterActiveClass:
+            'transition-[opacity,translate] duration-200 ease-out',
+        enterFromClass: 'opacity-0 translate-x-8',
+        leaveActiveClass: 'transition-[opacity,translate] duration-150 ease-in',
+        leaveToClass: 'opacity-0 -translate-x-8',
+    },
+    'slide-right': {
+        enterActiveClass:
+            'transition-[opacity,translate] duration-200 ease-out',
+        enterFromClass: 'opacity-0 -translate-x-8',
+        leaveActiveClass: 'transition-[opacity,translate] duration-150 ease-in',
+        leaveToClass: 'opacity-0 translate-x-8',
     },
     collapse: {
         // `overflow-hidden` only while moving: it would clip focus rings and

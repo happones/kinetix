@@ -63,6 +63,14 @@ script are kept, accents are folded on Latin text only), and h2/h3 make the
 table of contents. Wide tables scroll inside their own box instead of widening
 the page.
 
+### Images
+
+Images open in the [lightbox](/lightbox) as one gallery per document, zooming
+out of the image clicked, with a caption from the `<figcaption>`, the title or
+the alt text. They are keyboard-reachable buttons named after their alt text, so
+write alt text that describes the picture. Images inside a link keep the link;
+`:lightbox="false"` turns the behaviour off.
+
 ### What is stripped
 
 Raw HTML in the source is removed, `javascript:` and `data:` links are dropped,

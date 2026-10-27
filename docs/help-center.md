@@ -171,6 +171,10 @@ anything `Gate::allows()` resolves).
 
 ## 3. Screenshots
 
+Every image in an article opens in the [lightbox](/lightbox): a click zooms it
+out of the page, the arrows browse the article's other images, and the reader
+can zoom into a detail of a screenshot.
+
 Declare the pages to capture and run one command:
 
 ```php
