@@ -1085,6 +1085,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Lightbox
+    |--------------------------------------------------------------------------
+    |
+    | `markdown` opens the images of Markdown content — Help Center articles,
+    | Docs pages, any <KinetixMarkdownContent> — in the lightbox. A component's
+    | own `lightbox` prop wins over this. Image columns and entries opt in per
+    | field with `->preview()`; the viewer's options are props of
+    | <KinetixFilePreview /> in your layout.
+    |
+    */
+    'lightbox' => [
+        'markdown' => (bool) env('KINETIX_LIGHTBOX_MARKDOWN', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Dismissals (optional)
     |--------------------------------------------------------------------------
     |

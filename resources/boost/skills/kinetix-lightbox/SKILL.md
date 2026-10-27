@@ -47,7 +47,11 @@ ImageEntry::make('cover')->label(__('products.fields.cover'))->preview();     //
 ```
 
 `PreviewAction` opens its URL in the same viewer. Help Center and Docs article
-images open in it automatically.
+images open in it automatically; turn that off app-wide with
+`config/kinetix.php` → `'lightbox' => ['markdown' => false]`
+(`KINETIX_LIGHTBOX_MARKDOWN=false`), or per component with `:lightbox="false"`
+on `KinetixMarkdownContent`, `KinetixHelpArticle` or `KinetixDocs` (the prop
+wins over the config either way).
 
 ## Frontend
 

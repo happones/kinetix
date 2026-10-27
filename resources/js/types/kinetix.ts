@@ -133,6 +133,8 @@ export interface KinetixConfig {
      * auto-rotation) for everyone — see `useKinetixReducedMotion`.
      */
     motion?: 'full' | 'reduced';
+    /** `kinetix.lightbox`: whether Markdown images open in the lightbox. */
+    lightbox?: { markdown: boolean };
     /** Palette settings the client has to agree with the endpoint on. */
     spotlight?: { min_chars: number };
     broadcasting: Record<string, unknown> | null;

@@ -25,9 +25,14 @@ import AlertDescription from './primitives/AlertDescription.vue';
  * Inertia visits. A page served in the fallback language says so, and its
  * body carries its real `lang`.
  */
-const props = defineProps<{
-    docs: KinetixDocsPayload;
-}>();
+const props = withDefaults(
+    defineProps<{
+        docs: KinetixDocsPayload;
+        /** Open images in the lightbox; unset follows `kinetix.lightbox.markdown`. */
+        lightbox?: boolean;
+    }>(),
+    { lightbox: undefined },
+);
 
 const { t, locale } = useI18n();
 const { locales } = useKinetixLocale();
@@ -223,6 +228,7 @@ watch(() => props.docs.page.html, refresh);
                         ref="markdown"
                         as="article"
                         :html="docs.page.html"
+                        :lightbox="lightbox"
                         :lang="docs.page.locale"
                         dir="auto"
                         @click="onContentClick"

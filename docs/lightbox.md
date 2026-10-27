@@ -88,10 +88,23 @@ the keyboard.
 Images in a `<KinetixMarkdownContent>` body — help articles, docs pages — open in
 the lightbox as one gallery per document. The caption comes from the image's
 `<figcaption>`, its title (`![Alt](/a.png "Title")`) or its alt text. Images
-inside a link keep the link. Turn it off per instance:
+inside a link keep the link.
+
+It is on by default. Turn it off for the whole app in `config/kinetix.php` (or
+with `KINETIX_LIGHTBOX_MARKDOWN=false`):
+
+```php
+'lightbox' => [
+    'markdown' => false,
+],
+```
+
+The `lightbox` prop overrides the config either way, on
+`<KinetixMarkdownContent>`, `<KinetixHelpArticle>` and `<KinetixDocs>`:
 
 ```vue
-<KinetixMarkdownContent :html="page.html" :lightbox="false" />
+<KinetixHelpArticle :slug="slug" :lightbox="false" />
+<KinetixDocs :docs="docs" lightbox />
 ```
 
 ---

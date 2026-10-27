@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { writeToClipboard } from '@/composables/useKinetixClipboard';
-import { openKinetixLightbox } from '@/composables/useKinetixLightbox';
+import {
+    openKinetixLightbox,
+    useKinetixMarkdownLightbox,
+} from '@/composables/useKinetixLightbox';
 
 /**
  * Markdown rendered by Kinetix on the server (help articles, docs pages):
@@ -17,7 +27,8 @@ import { openKinetixLightbox } from '@/composables/useKinetixLightbox';
  * (`<KinetixFilePreview />`) as one gallery per document, zooming out of the
  * image clicked; they are keyboard-reachable buttons named after their alt
  * text. Captions come from a `<figcaption>`, the `title` or the alt text.
- * `:lightbox="false"` leaves images inert.
+ * On by default; `kinetix.lightbox.markdown = false` turns it off app-wide and
+ * the `lightbox` prop overrides either way.
  *
  *   <KinetixMarkdownContent :html="page.html" as="article" />
  *
@@ -29,10 +40,11 @@ const props = withDefaults(
         html: string;
         /** The root element: `article` for a page's main content. */
         as?: 'div' | 'article' | 'section';
-        /** Open images in the lightbox. */
+        /** Open images in the lightbox; unset follows `kinetix.lightbox.markdown`. */
         lightbox?: boolean;
     }>(),
-    { as: 'div', lightbox: true },
+    // `undefined`, not false: an unset prop defers to the app-wide config.
+    { as: 'div', lightbox: undefined },
 );
 
 /*
@@ -57,6 +69,8 @@ const tokens = [
 
 const { t } = useI18n();
 const { announce } = useKinetixAnnounce();
+const appWideLightbox = useKinetixMarkdownLightbox();
+const lightboxEnabled = computed(() => props.lightbox ?? appWideLightbox());
 const root = ref<HTMLElement | null>(null);
 const timers = new Set<ReturnType<typeof setTimeout>>();
 
@@ -129,7 +143,7 @@ function captionOf(image: HTMLImageElement): string | null {
 }
 
 function enhanceImages(): void {
-    if (!props.lightbox) {
+    if (!lightboxEnabled.value) {
         root.value
             ?.querySelectorAll<HTMLImageElement>('img.kx-md-zoomable')
             .forEach((image) => {
@@ -177,7 +191,7 @@ function openImage(image: HTMLImageElement): void {
 function zoomableTarget(target: HTMLElement): HTMLImageElement | null {
     const image = target.closest<HTMLImageElement>('img.kx-md-zoomable');
 
-    return props.lightbox && image && root.value?.contains(image)
+    return lightboxEnabled.value && image && root.value?.contains(image)
         ? image
         : null;
 }
@@ -243,7 +257,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 onMounted(enhanceImages);
 watch(
-    () => [props.html, props.lightbox],
+    () => [props.html, lightboxEnabled.value],
     () => nextTick(enhanceImages),
 );
 

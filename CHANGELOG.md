@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.259.0] - 2026-10-26
+
+### Added
+
+- **Markdown images in the lightbox can be switched off app-wide** (published).
+  New `kinetix.lightbox.markdown` config (default `true`,
+  `KINETIX_LIGHTBOX_MARKDOWN`), shared as `kinetix_config.lightbox.markdown`.
+  `<KinetixHelpArticle>` and `<KinetixDocs>` take a `lightbox` prop and pass
+  it to their Markdown body; on `<KinetixMarkdownContent>` the prop now
+  defaults to the config instead of `true`, and an explicit prop wins either
+  way. See [Lightbox → Markdown images](docs/lightbox.md#markdown-images).
+
 ## [0.258.0] - 2026-10-26
 
 ### Added

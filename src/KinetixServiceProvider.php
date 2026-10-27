@@ -2587,6 +2587,11 @@ class KinetixServiceProvider extends ServiceProvider
                 // `reduced` stills the JS-driven motion (transition presets,
                 // auto-rotation) for everyone; anything else is `full`.
                 'motion' => config('kinetix.motion') === 'reduced' ? 'reduced' : 'full',
+                // Whether Markdown images open in the lightbox (a component's
+                // `lightbox` prop wins).
+                'lightbox' => [
+                    'markdown' => (bool) config('kinetix.lightbox.markdown', true),
+                ],
                 // The palette's own gate has to agree with the endpoint's, or
                 // it fires requests the server answers with an empty payload.
                 'spotlight' => [

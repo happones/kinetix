@@ -1,7 +1,9 @@
+import { usePage } from '@inertiajs/vue3';
 import type {
     KinetixLightboxItem,
     KinetixLightboxOptions,
     KinetixPreviewDetail,
+    KinetixSharedProps,
 } from '@/types/kinetix';
 
 /**
@@ -26,6 +28,21 @@ const PDF_EXTENSION = /\.pdf(\?|#|$)/i;
 
 /** Items registered by components (KinetixLightboxImage) for their trigger. */
 const registered = new WeakMap<Element, () => KinetixLightboxItem>();
+
+/**
+ * The app-wide `kinetix.lightbox.markdown` switch (shared as
+ * `kinetix_config.lightbox.markdown`), read reactively. On by default, and
+ * outside an Inertia app (tests, a standalone widget). Call it in setup.
+ */
+export function useKinetixMarkdownLightbox(): () => boolean {
+    try {
+        const page = usePage<KinetixSharedProps>();
+
+        return () => page.props?.kinetix_config?.lightbox?.markdown ?? true;
+    } catch {
+        return () => true;
+    }
+}
 
 export function resolveLightboxItemType(
     item: Pick<KinetixLightboxItem, 'url' | 'type'>,

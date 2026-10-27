@@ -35,11 +35,14 @@ const props = withDefaults(
         indexHref?: string;
         /** Hide the per-article language chips (keep the fallback notice). */
         hideLanguageSwitcher?: boolean;
+        /** Open images in the lightbox; unset follows `kinetix.lightbox.markdown`. */
+        lightbox?: boolean;
     }>(),
     {
         articleHref: undefined,
         indexHref: undefined,
         hideLanguageSwitcher: false,
+        lightbox: undefined,
     },
 );
 
@@ -202,6 +205,7 @@ const onContentClick = (event: MouseEvent): void => {
                     as="article"
                     class="max-w-3xl mx-auto"
                     :html="article.html"
+                    :lightbox="lightbox"
                     :lang="article.locale"
                     dir="auto"
                     @click="onContentClick"
