@@ -1156,6 +1156,8 @@ export interface KinetixMemberProvision {
     expired: boolean;
     activatedAt: string | null;
     expiresAt: string | null;
+    /** When the member was provisioned (invited). */
+    invitedAt?: string | null;
     /**
      * The temporary password or activation link to hand over — present ONLY in
      * the response that created it, and never readable again.
@@ -1165,6 +1167,27 @@ export interface KinetixMemberProvision {
         value: string;
         expiresAt: string | null;
     };
+}
+
+/** A role the member picker offers, with what it means. */
+export interface KinetixMemberRole {
+    name: string;
+    /** The app's own label, for roles from its own logic (else humanized). */
+    label?: string | null;
+    /** What the role is for, when the app describes it. */
+    description?: string | null;
+    /** How many permissions it grants; null when it isn't a database role. */
+    permissions: number | null;
+    /** Shared by every team (team-NULL) rather than this team's own. */
+    global: boolean;
+}
+
+/** What the viewer may do in the members directory. */
+export interface KinetixMemberAbilities {
+    provision: boolean;
+    update: boolean;
+    revoke: boolean;
+    credentials: boolean;
 }
 
 export interface KinetixStat {

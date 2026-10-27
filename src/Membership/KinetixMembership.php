@@ -30,11 +30,9 @@ class KinetixMembership
         if ($provision->user_id !== null) {
             $user = static::user($provision->user_id);
 
-            static::withTeam($provision->team_id, function () use ($user, $provision): void {
-                if ($user !== null && method_exists($user, 'removeRole')) {
-                    $user->removeRole($provision->role);
-                }
-            });
+            if ($user !== null) {
+                static::syncRole($user, $provision, from: $provision->role, to: null);
+            }
 
             $detach = ConfigCallback::resolve(config('kinetix.membership.detach_member'));
 
@@ -44,6 +42,38 @@ class KinetixMembership
         }
 
         $provision->update(['status' => MemberProvisionStatus::Revoked]);
+    }
+
+    /**
+     * Move a member from one role to another (either side may be null: null
+     * `from` grants, null `to` removes).
+     *
+     * Roles don't have to be Roles-screen roles. When the app keeps its own
+     * notion of a member role (a column, a pivot flag, another package),
+     * `membership.assign_role` takes over — `[Class::class, 'method']`
+     * receiving `($user, ?string $to, ?string $from, MemberProvision)` — and
+     * Kinetix never touches spatie. Without it the role is a spatie role,
+     * (un)assigned in the provision's team.
+     */
+    public static function syncRole(Model $user, MemberProvision $provision, ?string $from, ?string $to): void
+    {
+        $assign = ConfigCallback::resolve(config('kinetix.membership.assign_role'));
+
+        if ($assign !== null) {
+            $assign($user, $to, $from, $provision);
+
+            return;
+        }
+
+        static::withTeam($provision->team_id, static function () use ($user, $from, $to): void {
+            if ($from !== null && $from !== $to && method_exists($user, 'removeRole')) {
+                $user->removeRole($from);
+            }
+
+            if ($to !== null && method_exists($user, 'assignRole')) {
+                $user->assignRole($to);
+            }
+        });
     }
 
     /**

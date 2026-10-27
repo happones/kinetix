@@ -74,10 +74,11 @@ Enable the module in `config/kinetix.php`:
 
     // Roles an admin is allowed to assign while provisioning. Anything outside
     // this list is rejected server-side — this is how you guarantee
-    // "I add members but they never become admin". A static array, a
-    // [Class, 'method'] pair, or an invokable class-string (see "Dynamic
-    // allow-list" below for the recommended DB-backed resolver).
-    'assignable_roles'  => ['editor', 'viewer'],
+    // "I add members but they never become admin". null (default) follows the
+    // Roles screen (this team's roles + global ones); or a static array, a
+    // [Class, 'method'] pair, or an invokable class-string — see "Where member
+    // roles come from" below. The super-admin is never assignable here.
+    'assignable_roles'  => null,
 
     // Hours an activation link stays valid
     'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
@@ -93,6 +94,12 @@ Enable the module in `config/kinetix.php`:
     // Signature: fn ($user, MemberProvision $provision) => void
     'attach_member'     => null,
     'detach_member'     => null,
+
+    // Who gives a member their role: null = a Roles-screen (spatie) role in the
+    // member's team; or [Class, 'method'] receiving
+    // ($user, ?string $to, ?string $from, MemberProvision $provision) for roles
+    // that live in your own logic. See "Roles from your own logic" below.
+    'assign_role'       => null,
 ],
 ```
 
@@ -195,16 +202,38 @@ A closure still works in development (and is fine in a service provider that
 assigns config at runtime), but the callable array is the only form that survives
 `config:cache` — so it is what the guides use.
 
-### Dynamic allow-list
+### Where member roles come from {#dynamic-allow-list}
 
-A config array covers a fixed catalog. If your teams create their own roles in
-the Roles UI, point `assignable_roles` at the built-in resolver — the invite
-picker then offers exactly what the Roles screen shows, **the current team's
-roles PLUS global (team-NULL) ones**, minus the protected roles:
+**By default the member picker is linked to the Roles screen.** With
+`assignable_roles => null` and the permissions module on, it offers exactly
+what the Roles screen shows — **the current team's roles PLUS global (team-NULL)
+ones**, minus the protected roles — so a role created a second ago in Roles &
+Permissions can be given to a member at once. Without the permissions module
+the default is `['editor', 'viewer']`. Naming the resolver does the same thing
+explicitly:
 
 ```php
 'assignable_roles' => \Happones\Kinetix\Permissions\AssignableRoles::class,
 ```
+
+::: tip Upgrading from v0.261 or earlier
+Older published configs carry `'assignable_roles' => ['editor', 'viewer']`, a
+fixed list that does **not** follow the Roles screen. Set it to `null` to link
+the two. `php artisan kinetix:doctor` says which one you have, and warns when a
+fixed list names roles that don't exist.
+:::
+
+::: warning Super-admin belongs to the team owner
+Every `permissions.protected_roles` name (just `super-admin` by default) is
+removed from the member picker **whatever `assignable_roles` returns** — a
+fixed list or a callback that names it still can't hand it out, and the
+provision, role-change and activation endpoints reject it with a 422. The
+directory says so beside the role picker, so its absence isn't a mystery.
+:::
+
+The picker also tells the person choosing what a role grants: each role comes
+with its permission count (and a *Global* mark for team-NULL roles), shown
+under the select.
 
 To withhold more names (e.g. keep `admin` promotion out of the invite flow),
 wrap it in your own invokable:
@@ -245,6 +274,52 @@ activation URL carries no `{current_team}` segment.
 An array is read as a callback **only** when it is a `[class-string, method]`
 pair, so `['editor', 'viewer']` keeps meaning exactly what it looks like.
 :::
+
+### Roles from your own logic
+
+Member roles don't have to be Roles-screen roles. If your app already decides
+what a member is — a `role` column on the team pivot, a flag, another package —
+give the picker your roles **and** take over assignment:
+
+```php
+'membership' => [
+    'assignable_roles' => \App\Kinetix\MemberRoles::class,
+    'assign_role'      => [\App\Kinetix\MemberRoles::class, 'sync'],
+],
+```
+
+```php
+namespace App\Kinetix;
+
+use Happones\Kinetix\Membership\MemberProvision;
+use Illuminate\Database\Eloquent\Model;
+
+class MemberRoles
+{
+    /** The roles a member can be given in this team, with picker copy. */
+    public function __invoke(int|string|null $teamId): array
+    {
+        return [
+            ['name' => 'cashier', 'label' => __('Cashier'), 'description' => __('Rings up sales at the till.')],
+            ['name' => 'supervisor', 'label' => __('Shift supervisor')],
+        ];
+    }
+
+    /** null $to removes (revoke); null $from grants (activation). */
+    public function sync(Model $user, ?string $to, ?string $from, MemberProvision $provision): void
+    {
+        $user->teams()->updateExistingPivot($provision->team_id, ['role' => $to]);
+    }
+}
+```
+
+- Entries may be plain names, role models, or `['name', 'label', 'description']`
+  arrays; the label replaces the humanized name everywhere in the directory and
+  the description shows under the picker.
+- With `assign_role` set, Kinetix never calls spatie for members: activation,
+  direct provisioning, role change and revoke all go through your callback.
+- The allow-list is still enforced server-side, and the protected roles are
+  still removed from it.
 
 ---
 
@@ -522,11 +597,31 @@ plus global ones, minus protected roles).
 
 ### 7.1 Members directory
 
-`<KinetixMemberList>` is the drop-in screen: it embeds the provisioning form and
-lists members (pending / active / revoked) with search, per-row pending states,
-a confirm dialog on Remove, and role change / resend / revoke. Revoked rows show
-the role as read-only history — re-provision to bring someone back (the server
-rejects role changes and resends on revoked provisions with a 422).
+`<KinetixMemberList>` is the drop-in screen. It embeds the provisioning form —
+the identifier field `membership.identifier` names (email, username or phone),
+an optional name, and the role picker with what the chosen role grants — and
+lists members with:
+
+- **Where each one stands**: *Joined* date for active members; *Invited* date
+  and link expiry for pending ones, or *Activation link expired — resend it*.
+- **Status filters with counts** (All / Active / Pending / Revoked) and a search
+  over name, identifier and role, once the list is longer than five.
+- **Role change** in place. A member whose role is no longer assignable (an
+  `admin` from before, a role you withheld) keeps it listed — locked, marked
+  *not assignable* — instead of a blank select.
+- **Resend**, **New link** (pending) / **New password** (active), and **Remove**
+  behind a confirm dialog. Each action shows only when the viewer holds its
+  ability (`members.provision`, `.update`, `.credentials`, `.revoke`) — the
+  endpoint tells the UI, so a missing ability hides a button instead of
+  answering a click with 403.
+- **The credential, once**: when provisioning hands back a temporary password or
+  a link (`direct` provisioning, `manual` delivery, a new credential), a dialog
+  shows it ready to copy, with its expiry — it is never readable again.
+
+Revoked rows show the role as read-only history — re-provision to bring someone
+back (the server rejects role changes and resends on revoked provisions with a
+422). Rows lay out by the card's width (a container query), so the directory
+reads in a narrow column too.
 
 Register only the Inertia **page** route (the data flows through the built-in
 endpoints, exactly like the roles pages):
@@ -558,9 +653,13 @@ const { can } = useKinetixCan();
 <Screenshot name="member-list" alt="Member list with provisioning form" />
 
 Need a custom layout? Compose the presentational
-`<KinetixMemberProvisioner :assignable-roles="..." @submit="...">` form with the
-`useKinetixMembers()` composable (`load`, `provision`, `resend`, `updateRole`,
-`revoke`, plus the reactive `provisions` / `assignableRoles`).
+`<KinetixMemberProvisioner :assignable-roles :roles :reserved-roles :identifier-type @submit>`
+form (`submit(identifier, role, name?)`) with the `useKinetixMembers()`
+composable: `load`, `provision(identifier, role, name?)` (returns the provision,
+with its `credential` when there is one), `issueCredential`, `resend`,
+`updateRole`, `revoke`, plus the reactive `provisions`, `assignableRoles`,
+`roles` (each with `label`, `description`, `permissions`, `global`),
+`reservedRoles`, `identifierField` and `can`.
 
 ### 7.2 Activation page
 
@@ -628,7 +727,8 @@ You can adopt either module alone:
   resolve abilities through Kinetix roles instead of the pivot enum.
 - **Provisioning without permissions** — provision members and gate the
   endpoints with your own `members.*` gates; you lose the dynamic role matrix but
-  the onboarding flow stands on its own.
+  the onboarding flow stands on its own. Bring your own roles with
+  [`assignable_roles` + `assign_role`](#roles-from-your-own-logic).
 
 ### Assigning a role to a user who already exists
 

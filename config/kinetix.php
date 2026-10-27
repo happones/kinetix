@@ -629,10 +629,18 @@ return [
     ],
 
     'membership' => [
-        'enabled'           => env('KINETIX_MEMBERSHIP_ENABLED', false),
-        'teams'             => env('KINETIX_MEMBERSHIP_TEAMS'), // null = inherit kinetix.teams
-        'user_model'        => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
-        'assignable_roles'  => ['editor', 'viewer'],
+        'enabled'    => env('KINETIX_MEMBERSHIP_ENABLED', false),
+        'teams'      => env('KINETIX_MEMBERSHIP_TEAMS'), // null = inherit kinetix.teams
+        'user_model' => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
+        // Roles a member can be given. null (default) follows the Roles
+        // screen: the team's roles + global ones when `permissions` is on,
+        // else ['editor', 'viewer']. Or a fixed array, or an invokable
+        // class-string receiving the team key. Entries may be names or, for
+        // roles from your own logic, ['name' => …, 'label' => …,
+        // 'description' => …]. The super-admin (every
+        // `permissions.protected_roles` name) is never assignable here — it
+        // belongs to the team owner — whatever this says.
+        'assignable_roles'  => null,
         'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
 
         // How a provisioned member gets an account:
@@ -673,6 +681,15 @@ return [
         // e.g. [\App\Kinetix\SyncProvisionedMember::class, 'attach']
         'attach_member' => null,
         'detach_member' => null,
+
+        // Who gives a member their role. null (default): a Roles-screen
+        // (spatie) role in the member's team. Roles from your own logic — a
+        // column, a pivot flag, another package — point this at
+        // [\App\Kinetix\MemberRoles::class, 'sync'], receiving
+        // ($user, ?string $to, ?string $from, MemberProvision $provision);
+        // null $to removes, null $from grants. Kinetix then never touches
+        // spatie for members.
+        'assign_role' => null,
     ],
 
     /*

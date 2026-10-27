@@ -150,4 +150,67 @@ describe('KinetixMemberProvisioner', () => {
         const wrapper = mountProvisioner(['support-agent']);
         expect(wrapper.text()).toContain('Support Agent');
     });
+
+    it('posts the name only when one was typed', async () => {
+        const wrapper = mountProvisioner(['editor']);
+
+        await wrapper.get('input[type="email"]').setValue('named@example.com');
+        await wrapper.get('#kinetix-member-name').setValue('  Ana Ruiz ');
+        await wrapper.get('form').trigger('submit');
+
+        expect(wrapper.emitted('submit')?.[0]).toEqual([
+            'named@example.com',
+            'editor',
+            'Ana Ruiz',
+        ]);
+    });
+
+    it('asks for the field members are provisioned by', () => {
+        const wrapper = mount(KinetixMemberProvisioner, {
+            props: { assignableRoles: ['editor'], identifierType: 'username' },
+            global: {
+                plugins: [i18n],
+                stubs: { KinetixSelect: KinetixSelectStub },
+            },
+        });
+
+        const input = wrapper.get('#kinetix-member-email');
+        expect(input.attributes('type')).toBe('text');
+        expect(input.attributes('placeholder')).not.toContain('@');
+    });
+
+    it("says what the chosen role grants, and that super-admin is the owner's", () => {
+        const wrapper = mount(KinetixMemberProvisioner, {
+            props: {
+                assignableRoles: ['editor', 'cashier'],
+                roles: [
+                    { name: 'editor', permissions: 12, global: true },
+                    {
+                        name: 'cashier',
+                        label: 'Cashier',
+                        description: 'Rings up sales.',
+                        permissions: null,
+                        global: false,
+                    },
+                ],
+                reservedRoles: ['super-admin'],
+            },
+            global: {
+                plugins: [i18n],
+                stubs: { KinetixSelect: KinetixSelectStub },
+            },
+        });
+
+        expect(
+            wrapper.get('[data-test="member-role-summary"]').text(),
+        ).toContain('12 permissions');
+        expect(
+            wrapper.get('[data-test="member-reserved-roles"]').text(),
+        ).toContain('Super Admin');
+        // App-defined roles keep their own label.
+        expect(wrapper.findAll('option').map((o) => o.text())).toEqual([
+            'Editor',
+            'Cashier',
+        ]);
+    });
 });

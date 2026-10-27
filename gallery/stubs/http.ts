@@ -1204,31 +1204,70 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         ],
     },
     {
+        // A fresh credential to hand over (the "New link" / "New password"
+        // row action) — the only response that ever carries one.
+        match: /\/members\/\d+\/credential$/,
+        data: {
+            id: 2,
+            email: 'grace@example.com',
+            identifier: 'grace@example.com',
+            name: null,
+            role: 'viewer',
+            status: 'pending',
+            expired: false,
+            activatedAt: null,
+            expiresAt: '2026-11-01T00:00:00Z',
+            invitedAt: '2026-10-25T10:00:00Z',
+            credential: {
+                type: 'link',
+                value: 'https://acme.test/_kinetix/members/activate/2?expires=1793491200&signature=4f1c9e…',
+                expiresAt: '2026-11-01T00:00:00Z',
+            },
+        },
+    },
+    {
         match: /\/members$/,
         data: {
-            provisions: [
+            provisions: galleryMembers(),
+            assignable_roles: ['billing', 'editor', 'support-agent', 'viewer'],
+            roles: [
                 {
-                    id: 1,
-                    email: 'ada@example.com',
-                    name: 'Ada Lovelace',
-                    role: 'editor',
-                    status: 'active',
-                    expired: false,
-                    activatedAt: '2026-06-10T09:00:00Z',
-                    expiresAt: null,
+                    name: 'billing',
+                    label: null,
+                    description: 'Invoices, refunds and payouts.',
+                    permissions: 9,
+                    global: false,
                 },
                 {
-                    id: 2,
-                    email: 'grace@example.com',
-                    name: null,
-                    role: 'viewer',
-                    status: 'pending',
-                    expired: false,
-                    activatedAt: null,
-                    expiresAt: '2026-07-01T00:00:00Z',
+                    name: 'editor',
+                    label: null,
+                    description: null,
+                    permissions: 24,
+                    global: true,
+                },
+                {
+                    name: 'support-agent',
+                    label: null,
+                    description: null,
+                    permissions: 11,
+                    global: false,
+                },
+                {
+                    name: 'viewer',
+                    label: null,
+                    description: null,
+                    permissions: 6,
+                    global: true,
                 },
             ],
-            assignable_roles: ['editor', 'viewer'],
+            identifier_field: 'email',
+            reserved_roles: ['super-admin'],
+            can: {
+                provision: true,
+                update: true,
+                revoke: true,
+                credentials: true,
+            },
         },
     },
     {
@@ -1945,5 +1984,83 @@ function galleryPermissionCatalog() {
         feature('Sales', 'coupons', 'Coupons', crud),
         feature('Insights', 'reports', 'Reports', ['viewAny', 'create']),
         feature('Insights', 'dashboards', 'Dashboards', ['access']),
+    ];
+}
+
+/**
+ * A members directory with every state the list explains: active, pending,
+ * an expired invitation, a revoked member, and one holding a role the picker
+ * no longer offers (admin).
+ */
+function galleryMembers() {
+    const member = (
+        id: number,
+        email: string,
+        name: string | null,
+        role: string,
+        status: 'active' | 'pending' | 'revoked',
+        dates: {
+            invitedAt: string;
+            activatedAt?: string;
+            expiresAt?: string;
+            expired?: boolean;
+        },
+    ) => ({
+        id,
+        email,
+        identifier: email,
+        name,
+        role,
+        status,
+        expired: dates.expired ?? false,
+        activatedAt: dates.activatedAt ?? null,
+        expiresAt: dates.expiresAt ?? null,
+        invitedAt: dates.invitedAt,
+    });
+
+    return [
+        member(1, 'ada@example.com', 'Ada Lovelace', 'editor', 'active', {
+            invitedAt: '2026-06-08T09:00:00Z',
+            activatedAt: '2026-06-10T09:00:00Z',
+        }),
+        member(2, 'grace@example.com', null, 'viewer', 'pending', {
+            invitedAt: '2026-10-25T10:00:00Z',
+            expiresAt: '2026-10-28T10:00:00Z',
+        }),
+        member(3, 'linus@example.com', 'Linus Torvalds', 'admin', 'active', {
+            invitedAt: '2026-03-02T09:00:00Z',
+            activatedAt: '2026-03-02T11:30:00Z',
+        }),
+        member(
+            4,
+            'margaret@example.com',
+            'Margaret Hamilton',
+            'billing',
+            'active',
+            {
+                invitedAt: '2026-08-14T09:00:00Z',
+                activatedAt: '2026-08-15T08:12:00Z',
+            },
+        ),
+        member(5, 'alan@example.com', null, 'support-agent', 'pending', {
+            invitedAt: '2026-10-01T09:00:00Z',
+            expiresAt: '2026-10-04T09:00:00Z',
+            expired: true,
+        }),
+        member(6, 'ken@example.com', 'Ken Thompson', 'viewer', 'revoked', {
+            invitedAt: '2026-02-11T09:00:00Z',
+            activatedAt: '2026-02-12T09:00:00Z',
+        }),
+        member(
+            7,
+            'barbara@example.com',
+            'Barbara Liskov',
+            'support-agent',
+            'active',
+            {
+                invitedAt: '2026-09-20T09:00:00Z',
+                activatedAt: '2026-09-21T16:40:00Z',
+            },
+        ),
     ];
 }

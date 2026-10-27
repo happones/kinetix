@@ -8,6 +8,8 @@ use Happones\Kinetix\Activity\KinetixActivity;
 use Happones\Kinetix\Credentials\KinetixIdentity;
 use Happones\Kinetix\Credentials\KinetixPasswords;
 use Happones\Kinetix\Data\MemberProvisionData;
+use Happones\Kinetix\Permissions\AssignableRoles;
+use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\HostKeys;
 use Happones\Kinetix\Support\KinetixTeams;
@@ -26,6 +28,8 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Spatie\Permission\Models\Role;
+use Throwable;
 
 /**
  * Admin-provisioned membership: an admin adds an email + role, the person
@@ -68,9 +72,24 @@ class MembershipController
             ->map(static fn (MemberProvision $provision): MemberProvisionData => MemberProvisionData::fromModel($provision))
             ->values();
 
+        $assignable = $this->assignableRoles($teamId);
+
         return response()->json([
             'provisions'       => $provisions,
-            'assignable_roles' => $this->assignableRoles($teamId),
+            'assignable_roles' => $assignable,
+            // What the UI needs to explain itself: how big each role is, which
+            // field identifies a member, which roles are never handed out here
+            // (super-admin is the team owner's), and which actions this viewer
+            // may take — so it hides a button instead of answering it with 403.
+            'roles'            => $this->roleDetails($assignable, $teamId),
+            'identifier_field' => $this->identifierField(),
+            'reserved_roles'   => SuperAdmin::protectedRoles(),
+            'can'              => [
+                'provision'   => Gate::allows('members.provision'),
+                'update'      => Gate::allows('members.update'),
+                'revoke'      => Gate::allows('members.revoke'),
+                'credentials' => Gate::allows('members.credentials'),
+            ],
         ]);
     }
 
@@ -193,15 +212,10 @@ class MembershipController
         $previousRole = $provision->role;
         $provision->update(['role' => $validated['role']]);
 
-        if ($provision->user_id !== null) {
-            $this->withTeam($provision->team_id, function () use ($provision, $previousRole, $validated): void {
-                $user = $this->resolveUser($provision->user_id);
+        $user = $provision->user_id !== null ? $this->resolveUser($provision->user_id) : null;
 
-                if ($user !== null && method_exists($user, 'assignRole') && method_exists($user, 'removeRole')) {
-                    $user->removeRole($previousRole);
-                    $user->assignRole($validated['role']);
-                }
-            });
+        if ($user !== null) {
+            KinetixMembership::syncRole($user, $provision, from: $previousRole, to: $validated['role']);
         }
 
         return response()->json(MemberProvisionData::fromModel($provision));
@@ -291,11 +305,7 @@ class MembershipController
             $attach($user, $provision);
         }
 
-        $this->withTeam($provision->team_id, static function () use ($user, $provision): void {
-            if (method_exists($user, 'assignRole')) {
-                $user->assignRole($provision->role);
-            }
-        });
+        KinetixMembership::syncRole($user, $provision, from: null, to: $provision->role);
 
         $provision->update([
             'status'       => MemberProvisionStatus::Active,
@@ -315,16 +325,76 @@ class MembershipController
      * Roles a provisioner is allowed to assign. The security boundary for the
      * "members never become admin" guarantee.
      *
-     * A static array covers a fixed catalog; apps whose teams create their own
-     * roles in the Roles UI point the config at a callback instead — a closure
-     * or the class-string of an invokable class (config:cache-safe) receiving
-     * the team key the provision belongs to.
+     * `null` (the default) follows the Roles screen: the team's roles plus
+     * global ones ({@see AssignableRoles}) when the permissions module is on,
+     * else the legacy `editor`/`viewer` pair. A static array covers a fixed
+     * catalog; a closure or the class-string of an invokable class
+     * (config:cache-safe) receives the team key the provision belongs to.
+     *
+     * Whatever the source, the protected roles (super-admin by default) are
+     * removed: that role belongs to the team owner and is never handed out
+     * through membership, even by a host list that names it.
      *
      * @return array<int, string>
      */
     protected function assignableRoles(int|string|null $teamId = null): array
     {
-        $configured = config('kinetix.membership.assignable_roles', []);
+        $reserved = SuperAdmin::protectedRoles();
+
+        return array_values(array_filter(
+            array_keys($this->roleCatalog($teamId)),
+            static fn (string $role): bool => $role !== '' && ! in_array($role, $reserved, true),
+        ));
+    }
+
+    /**
+     * The allow-list as configured, before the protected roles are removed:
+     * role name → the label and description the app gave it, if any.
+     *
+     * Entries may be names, role models, or — for roles that come from the
+     * app's own logic rather than the Roles screen —
+     * `['name' => 'cashier', 'label' => 'Cashier', 'description' => '…']`.
+     *
+     * @return array<string, array{label: string|null, description: string|null}>
+     */
+    protected function roleCatalog(int|string|null $teamId): array
+    {
+        $catalog = [];
+
+        foreach ($this->configuredRoles($teamId) as $entry) {
+            $name = match (true) {
+                $entry instanceof Model => (string) $entry->getAttribute('name'),
+                is_array($entry)        => (string) ($entry['name'] ?? ''),
+                default                 => (string) $entry,
+            };
+
+            if ($name === '' || isset($catalog[$name])) {
+                continue;
+            }
+
+            $catalog[$name] = [
+                'label'       => is_array($entry) && filled($entry['label'] ?? null) ? (string) $entry['label'] : null,
+                'description' => is_array($entry) && filled($entry['description'] ?? null) ? (string) $entry['description'] : null,
+            ];
+        }
+
+        return $catalog;
+    }
+
+    /**
+     * The raw allow-list entries.
+     *
+     * @return array<int, mixed>
+     */
+    protected function configuredRoles(int|string|null $teamId): array
+    {
+        $configured = config('kinetix.membership.assignable_roles');
+
+        if ($configured === null) {
+            return $this->followsRolesScreen()
+                ? AssignableRoles::names($teamId)
+                : ['editor', 'viewer'];
+        }
 
         // A `[Class::class, 'method']` pair resolves to a callback; any other
         // array is the static allow-list itself.
@@ -343,13 +413,70 @@ class MembershipController
             $configured = $configured->toArray();
         }
 
-        return array_values(array_map(static function (mixed $role): string {
-            if ($role instanceof Model) {
-                return (string) $role->getAttribute('name');
-            }
+        return array_values((array) $configured);
+    }
 
-            return is_array($role) ? (string) ($role['name'] ?? '') : (string) $role;
-        }, (array) $configured));
+    /**
+     * Whether the default allow-list can read the Roles screen's catalog.
+     */
+    protected function followsRolesScreen(): bool
+    {
+        return (bool) config('kinetix.permissions.enabled', false)
+            && class_exists((string) config('permission.models.role', Role::class));
+    }
+
+    /**
+     * Each assignable role with what the picker can say about it: the app's
+     * own label/description when it gave one, and — for Roles-screen roles —
+     * how many permissions it grants and whether it is global (shared by
+     * every team). Counts are null for a role that isn't a Roles-screen row:
+     * an app-defined role, or any role once `membership.assign_role` hands
+     * assignment to the app.
+     *
+     * @param  array<int, string>                                                                                                 $names
+     * @return array<int, array{name: string, label: string|null, description: string|null, permissions: int|null, global: bool}>
+     */
+    protected function roleDetails(array $names, int|string|null $teamId): array
+    {
+        $rows    = [];
+        $catalog = $this->roleCatalog($teamId);
+
+        if ($names !== []
+            && $this->followsRolesScreen()
+            && ConfigCallback::resolve(config('kinetix.membership.assign_role')) === null) {
+            try {
+                $teamsKey = (string) (config('permission.column_names.team_foreign_key') ?? 'team_id');
+                $teams    = (bool) config('permission.teams', false);
+
+                foreach (AssignableRoles::query($teamId)->whereIn('name', $names)->withCount('permissions')->get() as $role) {
+                    $name = (string) $role->getAttribute('name');
+
+                    // A team's own role shadows a global one of the same name.
+                    if (isset($rows[$name]) && $rows[$name]['global'] === false) {
+                        continue;
+                    }
+
+                    $rows[$name] = [
+                        'name'        => $name,
+                        'permissions' => (int) $role->getAttribute('permissions_count'),
+                        'global'      => $teams && $role->getAttribute($teamsKey) === null,
+                    ];
+                }
+            } catch (Throwable) {
+                // Role tables not migrated yet: fall through to bare names.
+            }
+        }
+
+        return array_map(
+            static fn (string $name): array => [
+                'name'        => $name,
+                'label'       => $catalog[$name]['label']       ?? null,
+                'description' => $catalog[$name]['description'] ?? null,
+                'permissions' => $rows[$name]['permissions']    ?? null,
+                'global'      => $rows[$name]['global']         ?? false,
+            ],
+            $names,
+        );
     }
 
     protected function assertAssignable(string $role, int|string|null $teamId = null): void
@@ -486,11 +613,7 @@ class MembershipController
             $attach($user, $provision);
         }
 
-        $this->withTeam($provision->team_id, static function () use ($user, $provision): void {
-            if (method_exists($user, 'assignRole')) {
-                $user->assignRole($provision->role);
-            }
-        });
+        KinetixMembership::syncRole($user, $provision, from: null, to: $provision->role);
 
         $provision->update([
             'status'       => MemberProvisionStatus::Active,

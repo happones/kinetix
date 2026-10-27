@@ -117,10 +117,18 @@ fails silently:
    `kinetix:permissions:sync` lists teamless roles.
 
 5. **Writing a config callback as a closure.** `assignable_roles`,
-   `attach_member` and `detach_member` as `fn (...) => ...` make
+   `attach_member`, `detach_member` and `assign_role` as `fn (...) => ...` make
    `php artisan config:cache` abort ("value at … is non-serializable"), i.e. the
    app can't deploy. Always use the serializable forms:
    `[SyncProvisionedMember::class, 'attach']` or an invokable class-string.
+6. **A fixed `assignable_roles` list in a published config.** Configs published
+   before v0.262 carry `['editor', 'viewer']`, which does NOT follow the Roles
+   screen: roles created there never reach the member picker. Set it to `null`
+   (the default) to link them; `kinetix:doctor` reports which one is in use.
+7. **Trying to make a member super-admin.** The protected roles
+   (`permissions.protected_roles`, `super-admin` by default) belong to the team
+   owner and are stripped from the allow-list whatever it says — provisioning or
+   changing a member to them is a 422. Don't work around it.
 
 ## Configuration
 
@@ -137,17 +145,35 @@ php artisan migrate
     'teams'             => env('KINETIX_MEMBERSHIP_TEAMS', false),
     'user_model'        => env('KINETIX_MEMBERSHIP_USER_MODEL', 'App\\Models\\User'),
     // The ONLY roles a provisioner may assign — the guard that keeps added
-    // members from ever becoming admin. Array, closure fn ($teamId) => array,
-    // or an invokable class-string (config:cache-safe).
-    'assignable_roles'  => ['editor', 'viewer'],
+    // members from ever becoming admin. null (default) = the Roles screen's
+    // roles for the team (team + global), else a fixed array or an invokable
+    // class-string (config:cache-safe). Entries may be names or
+    // ['name' => …, 'label' => …, 'description' => …]. Protected roles
+    // (super-admin) are always removed.
+    'assignable_roles'  => null,
     'activation_expiry' => env('KINETIX_MEMBERSHIP_ACTIVATION_HOURS', 72),
     'activation_view'   => env('KINETIX_MEMBERSHIP_ACTIVATION_VIEW', 'Kinetix/MemberActivation'),
     'redirect_after'    => env('KINETIX_MEMBERSHIP_REDIRECT', '/'),
     // Optional callables: fn ($user, MemberProvision $provision) => void
     'attach_member'     => null,
     'detach_member'     => null,
+    // Roles from the app's own logic, not spatie: [Class, 'method'] receiving
+    // ($user, ?string $to, ?string $from, MemberProvision $provision).
+    // null $to removes, null $from grants. null (default) = spatie roles.
+    'assign_role'       => null,
 ],
 ```
+
+### Roles that don't come from Roles & Permissions
+
+The member picker does NOT require the Roles screen. When the app already
+decides what a member is (a pivot `role` column, a flag, another package),
+point `assignable_roles` at an invokable returning
+`[['name' => 'cashier', 'label' => __('Cashier'), 'description' => __('…')], …]`
+and `assign_role` at the method that writes it. Kinetix then never calls
+spatie for members (activation, direct provisioning, role change, revoke all
+go through the callback), still enforces the allow-list server-side, and
+still strips the protected roles.
 
 ---
 
@@ -255,8 +281,13 @@ Components publish with `--tag=kinetix-components` and read the reactive
 
 ### 1. Members directory (drop-in)
 
-`<KinetixMemberList>` embeds the provisioning form and lists members
-(pending / active / revoked) with resend, role change and revoke:
+`<KinetixMemberList>` embeds the provisioning form (identifier field from
+`membership.identifier`, optional name, role picker showing what the role
+grants and that super-admin is the owner's) and lists members with joined /
+invited / expiry dates, status filters with counts, role change (a role that
+is no longer assignable stays listed, locked), resend, new link / new password
+(the credential shown once, to copy) and revoke. Every action shows only when
+the viewer holds its `members.*` ability:
 
 ```vue
 <script setup lang="ts">
@@ -272,9 +303,12 @@ const { can } = useKinetixCan()
 ```
 
 For a custom layout, compose the presentational
-`<KinetixMemberProvisioner :assignable-roles="..." @submit="...">` with the
-`useKinetixMembers()` composable (`load`, `provision`, `resend`, `updateRole`,
-`revoke`, plus reactive `provisions` / `assignableRoles`).
+`<KinetixMemberProvisioner :assignable-roles :roles :reserved-roles :identifier-type @submit>`
+(`submit(identifier, role, name?)`) with the `useKinetixMembers()` composable
+(`load`, `provision(identifier, role, name?)` → the provision with its one-time
+`credential`, `issueCredential`, `resend`, `updateRole`, `revoke`, plus reactive
+`provisions`, `assignableRoles`, `roles`, `reservedRoles`, `identifierField`,
+`can`).
 
 ### 2. Activation page
 

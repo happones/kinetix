@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property MemberProvisionStatus $status
  * @property Carbon|null           $expires_at
  * @property Carbon|null           $activated_at
+ * @property Carbon|null           $created_at
  */
 class MemberProvision extends Model
 {

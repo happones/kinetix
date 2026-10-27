@@ -15,6 +15,12 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\PermissionServiceProvider;
 
+/** An app-side role writer, for the doctor's assign_role check. */
+class DoctorMemberRoles
+{
+    public function sync(): void {}
+}
+
 class DoctorCommandTest extends TestCase
 {
     use CreatesPermissionTables;
@@ -82,6 +88,34 @@ class DoctorCommandTest extends TestCase
         $this->artisan('kinetix:doctor')
             ->expectsOutputToContain('attach_member is null')
             ->assertFailed();
+    }
+
+    public function test_the_default_member_roles_follow_the_roles_screen(): void
+    {
+        config()->set('kinetix.membership.enabled', true);
+        config()->set('kinetix.membership.assignable_roles', null);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('assignable roles follow the Roles screen');
+    }
+
+    public function test_a_member_list_naming_the_super_admin_is_flagged(): void
+    {
+        config()->set('kinetix.membership.enabled', true);
+        config()->set('kinetix.membership.assignable_roles', ['editor', 'super-admin']);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('assignable_roles names a protected role');
+    }
+
+    public function test_app_assigned_member_roles_are_not_cross_checked(): void
+    {
+        config()->set('kinetix.membership.enabled', true);
+        config()->set('kinetix.membership.assignable_roles', ['cashier']);
+        config()->set('kinetix.membership.assign_role', [DoctorMemberRoles::class, 'sync']);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('app-assigned role(s)');
     }
 
     public function test_a_closure_in_config_is_an_error(): void

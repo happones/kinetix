@@ -10,6 +10,7 @@ use Happones\Kinetix\Entitlements\Entitlement;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Membership\MemberActivationNotification;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
+use Happones\Kinetix\Permissions\AssignableRoles;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
@@ -693,12 +694,7 @@ class DoctorCommand extends Command
             $this->ok('Membership', 'enabled (no team scoping)');
         }
 
-        $roles = config('kinetix.membership.assignable_roles', []);
-
-        if (ConfigCallback::resolve($roles) === null && (array) $roles === []) {
-            $this->warn_('Membership', 'assignable_roles is empty',
-                'No role can be assigned, so every provision attempt returns 422.');
-        }
+        $this->checkAssignableRoles(config('kinetix.membership.assignable_roles'));
 
         // Role tables scope by the PERMISSIONS flag; membership routes scope by
         // the MEMBERSHIP flag. When they disagree, provisions and the roles they
@@ -708,6 +704,82 @@ class DoctorCommand extends Command
                 'Provisions are scoped by membership.teams while role rows are scoped by permissions.teams — '
                 .'role assignments may land in the wrong tenant. Align both flags (or leave both null to inherit kinetix.teams).');
         }
+    }
+
+    /**
+     * The member role picker: linked to the Roles screen (null / the
+     * AssignableRoles resolver), a callback, or a fixed list — and a fixed
+     * list naming roles the Roles screen doesn't have, or the owner's
+     * super-admin role, is worth a warning.
+     */
+    protected function checkAssignableRoles(mixed $roles): void
+    {
+        if ($roles === null || $roles === AssignableRoles::class) {
+            $this->ok('Membership', 'assignable roles follow the Roles screen');
+
+            return;
+        }
+
+        if (ConfigCallback::resolve($roles) !== null) {
+            $this->ok('Membership', 'assignable roles come from a callback');
+
+            return;
+        }
+
+        $names = array_values(array_map(
+            static fn (mixed $role): string => is_array($role) ? (string) ($role['name'] ?? '') : (string) $role,
+            (array) $roles,
+        ));
+
+        if ($names === []) {
+            $this->warn_('Membership', 'assignable_roles is empty',
+                'No role can be assigned, so every provision attempt returns 422. '
+                .'Set it to null to offer the roles from the Roles screen.');
+
+            return;
+        }
+
+        $reserved = array_values(array_intersect($names, SuperAdmin::protectedRoles()));
+
+        if ($reserved !== []) {
+            $this->warn_('Membership', 'assignable_roles names a protected role',
+                'The super-admin role belongs to the team owner and is never offered to members; '
+                .'remove it from the list.', $reserved);
+        }
+
+        $roleClass = config('permission.models.role', Role::class);
+
+        // App-assigned roles aren't Roles-screen rows; nothing to cross-check.
+        if (ConfigCallback::resolve(config('kinetix.membership.assign_role')) !== null) {
+            $this->ok('Membership', 'fixed list of '.count($names).' app-assigned role(s)');
+
+            return;
+        }
+
+        if (! config('kinetix.permissions.enabled', false) || ! class_exists($roleClass)) {
+            return;
+        }
+
+        try {
+            $existing = $roleClass::query()->whereIn('name', $names)->pluck('name')->all();
+        } catch (QueryException) {
+            return;
+        }
+
+        $missing = array_values(array_diff($names, $existing, $reserved));
+
+        if ($missing !== []) {
+            $this->warn_('Membership', 'assignable_roles names roles that do not exist',
+                'A member given one of these fails at activation. Create them in the Roles screen, '
+                .'or set assignable_roles to null so the picker offers exactly the roles that exist.',
+                $missing);
+
+            return;
+        }
+
+        $this->ok('Membership', 'fixed list of '.count($names).' assignable role(s)',
+            'Roles created later in the Roles screen will not appear in the member picker; '
+            .'set assignable_roles to null to keep them in sync.');
     }
 
     protected function checkNotificationPreferences(): void
@@ -774,6 +846,7 @@ class DoctorCommand extends Command
             'kinetix.membership.assignable_roles',
             'kinetix.membership.attach_member',
             'kinetix.membership.detach_member',
+            'kinetix.membership.assign_role',
         ];
 
         $closures = array_values(array_filter(

@@ -13,6 +13,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.262.0] - 2026-10-27
+
+### Changed
+
+- **Member roles follow the Roles screen by default.**
+  `membership.assignable_roles` now defaults to `null`: with the permissions
+  module on, the member picker offers this team's roles plus global ones
+  (the `AssignableRoles` resolver), so a role created in Roles & Permissions
+  can be given to a member at once; without it the default stays
+  `['editor', 'viewer']`. **Published configs keep their fixed list** — set
+  it to `null` to link the two (`kinetix:doctor` says which one you have).
+- **Super-admin is never assignable to members.** The protected roles
+  (`permissions.protected_roles`, `super-admin` by default) are removed from
+  the allow-list whatever it returns, so provisioning, role change and
+  activation reject them with a 422 even when a fixed list or callback names
+  them.
+- **Members directory UX** (published): status filters with counts, joined /
+  invited / link-expiry dates (and "Activation link expired — resend it"),
+  avatars, search over name / identifier / role, rows laid out by the card's
+  width (container queries). A member whose role is no longer assignable keeps
+  it listed, locked, instead of a blank select. Actions show only when the
+  viewer holds their `members.*` ability (the index now returns `can`).
+- **Provisioning form** (published): optional name, the field
+  `membership.identifier` names (email, username or phone — the form used to
+  send `email` whatever the setting, so username/phone provisioning failed
+  with a 422), what the chosen role grants (permission count, Global mark, or
+  the app's description) and a note that super-admin is the team owner's.
+
+### Added
+
+- **Roles from the app's own logic.** `assignable_roles` entries may be
+  `['name' => …, 'label' => …, 'description' => …]`, and the new
+  `membership.assign_role` (`[Class, 'method']`, receiving
+  `($user, ?string $to, ?string $from, MemberProvision)`) takes over every
+  role write — activation, direct provisioning, role change, revoke — so
+  member roles don't have to be Roles & Permissions roles.
+  `KinetixMembership::syncRole()` is the single entry point.
+- **Credentials shown in the directory.** A temporary password or activation
+  link the server hands back (direct provisioning, manual delivery) is shown
+  once in a dialog, ready to copy; **New link** / **New password** row actions
+  re-issue it (`members.credentials`).
+- `GET members` also returns `roles` (label, description, permission count,
+  global), `identifier_field`, `reserved_roles` and `can`; provisions carry
+  `invitedAt`. `useKinetixMembers()` exposes them plus `issueCredential()`.
+- `kinetix:doctor`: whether member roles follow the Roles screen, and warnings
+  for a fixed list naming a protected role or roles that don't exist.
+- Translation keys for the above in all seven locales.
+
 ## [0.261.0] - 2026-10-27
 
 ### Changed

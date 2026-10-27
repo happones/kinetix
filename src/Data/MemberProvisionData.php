@@ -25,6 +25,8 @@ class MemberProvisionData extends Data
         public bool $expired,
         public ?string $activatedAt,
         public ?string $expiresAt,
+        /** When the member was provisioned (invited). */
+        public ?string $invitedAt = null,
     ) {}
 
     public static function fromModel(MemberProvision $provision): self
@@ -41,6 +43,7 @@ class MemberProvisionData extends Data
             $provision->isExpired(),
             $provision->activated_at?->toIso8601String(),
             $provision->expires_at?->toIso8601String(),
+            $provision->created_at?->toIso8601String(),
         );
     }
 }
