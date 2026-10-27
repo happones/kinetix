@@ -13,8 +13,9 @@ import KinetixRoleEditorModal from './Roles/KinetixRoleEditorModal.vue';
 /**
  * A role manager built around a module × ability MATRIX: role cards (with
  * member counts) and a modal whose table has one row per feature and one
- * column per ability — click a module name to toggle its whole row; the
- * header row and module column stay sticky while the catalog scrolls. An
+ * column per ability — tri-state checkboxes per module, column, group and
+ * "Select all", a module filter, and a pinned footer; the header row and
+ * module column stay sticky while the catalog scrolls. An
  * alternative to `KinetixRoleManager` (grouped checkbox lists) for apps with
  * CRUD-shaped permission catalogs. Same endpoints, gating and team rules.
  *

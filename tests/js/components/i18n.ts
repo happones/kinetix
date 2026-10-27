@@ -87,6 +87,8 @@ export const i18n = createI18n({
                 // roles & permissions
                 save: 'Save',
                 select_all: 'Select all',
+                clear_all: 'Clear all',
+                create: 'Create',
                 search_permissions: 'Search permissions…',
                 role_name: 'Role name',
                 roles_title: 'Roles & Permissions',
@@ -108,6 +110,10 @@ export const i18n = createI18n({
                     'The {role} role is still assigned to {count} member(s). Deleting is blocked until they are reassigned.',
                 role_matrix_hint: 'Toggle permissions per module.',
                 role_matrix_module: 'Module',
+                role_filter_modules: 'Filter modules…',
+                role_selected_count: '{count} of {total} selected',
+                role_grant_column: 'Grant “{ability}” on every module',
+                role_no_modules_match: 'No module matches “{query}”.',
                 // membership
                 members_title: 'Members',
                 member_email: 'Email',

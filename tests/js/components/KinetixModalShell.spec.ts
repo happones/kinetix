@@ -107,6 +107,34 @@ describe('KinetixModal — the shell is always bounded', () => {
         w.unmount();
     });
 
+    it('contentScroll pins header and footer but lets the content own its scroller', async () => {
+        const w = mountModal({ contentScroll: true, placement: 'top' });
+        await w.vm.$nextTick();
+
+        expect(panel().className).toContain(
+            'grid-rows-[auto_minmax(0,1fr)_auto]',
+        );
+        // Bounded only where the content keeps useful room; a short viewport
+        // scrolls the whole panel instead of squeezing the content.
+        expect(panel().className).toContain(
+            '[@media(min-height:40rem)]:max-h-[calc(100dvh-2rem)]',
+        );
+        expect(panel().className).toContain(
+            '[@media(min-height:40rem)]:sm:max-h-[calc(90dvh-1rem)]',
+        );
+        expect(panel().className.split(' ')).not.toContain(
+            'max-h-[calc(100dvh-2rem)]',
+        );
+        // No ScrollArea: the body is a shrinkable flex column the content
+        // fills (a `min-h-0 flex-1 overflow-auto` child scrolls).
+        expect(scrollAreas().length).toBe(0);
+        const body = (document.body.querySelector('.kx-field') as HTMLElement)
+            .parentElement as HTMLElement;
+        expect(body.className).toContain('min-h-0');
+        expect(body.className).toContain('flex-col');
+        w.unmount();
+    });
+
     it('centers the panel by default — the shadcn dialog', async () => {
         const w = mountModal({ scrollBody: true });
         await w.vm.$nextTick();

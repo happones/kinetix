@@ -3407,7 +3407,10 @@ export const specimens: Specimen[] = [
         title: 'Role matrix editor (module × ability)',
         component: KinetixRoleMatrix,
         frame: 'card',
-        width: 760,
+        width: 960,
+        // Tall enough for the bounded layout: pinned bulk bar and footer
+        // around a scrolling matrix (shorter viewports scroll the panel).
+        height: 760,
         openSelector: '[title="Edit"]',
     },
     {

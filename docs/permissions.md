@@ -878,10 +878,24 @@ one row per feature and one column per **canonical** ability (`access`, then
 `viewAny → forceDelete`) — the header vocabulary is fixed and never grows. An
 em-dash marks abilities a feature doesn't declare; **custom abilities** render
 inside their module's expandable row (the `n/m` chip) with their full labels;
-`Feature::group()` clusters modules into titled sections. Clicking a module
-name toggles its whole row (customs included), and the **header row and module
-column stay sticky** while the catalog scrolls. Same endpoints, gating and team
-rules as `KinetixRoleManager`:
+`Feature::group()` clusters modules into titled sections. Same endpoints,
+gating and team rules as `KinetixRoleManager`.
+
+Only the matrix scrolls: the role name, the bulk bar and the **Cancel / Save
+footer stay pinned**, and inside the matrix the **header row and module column
+stay sticky**. Bulk selection is tri-state at every level — a dash means
+"some":
+
+- **Module row** — its checkbox (or its name) grants every ability of that
+  module, customs included; a second click clears it.
+- **Column header** — grants that ability (say *View*) on every module shown.
+- **Group title** — grants every module of a `Feature::group()` section.
+- **Select all / Clear all** — everything the filter shows.
+- **Filter modules…** — narrows the rows by module label, name, group or
+  custom ability (case- and accent-insensitive); Enter in it never submits.
+  A count beside it (`12 of 48 selected`) always covers the whole role.
+
+
 
 ```vue
 <KinetixCan permission="roles.manage">

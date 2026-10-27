@@ -1,23 +1,29 @@
 <script setup lang="ts">
-import { Check, ChevronRight } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { ChevronRight, Search } from '@lucide/vue';
+import { computed, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixPermissionFeature, KinetixRole } from '@/types/kinetix';
+import KinetixButton from '../KinetixButton.vue';
 import KinetixCheckbox from '../KinetixCheckbox.vue';
 import KinetixLabel from '../KinetixLabel.vue';
 import KinetixModal from '../primitives/KinetixModal.vue';
 
 /**
  * The role editor dialog shared by `KinetixRoleMatrix` and
- * `KinetixRolesOverview`: a name field plus a module × ability matrix. The
- * matrix scrolls inside its own container with a sticky header row AND a
- * sticky module column, so both the ability being granted and the module it
- * belongs to stay visible while scrolling a long catalog. The name field and
- * the Save/Cancel footer never scroll away.
+ * `KinetixRolesOverview`: a name field plus a module × ability matrix. Only
+ * the matrix scrolls — inside its own container, with a sticky header row AND
+ * a sticky module column, so both the ability being granted and the module it
+ * belongs to stay visible. The name field, the filter/select-all bar and the
+ * Cancel/Save footer stay pinned.
+ *
+ * Bulk selection is tri-state at every level: "Select all" (every module the
+ * filter shows), a column header (one ability on every shown module), a group
+ * title and a module row. Each shows a dash when partially granted; a click
+ * grants everything it covers, a second click clears it.
  *
  * `role` is the role being edited (`null` opens an empty create draft); the
  * draft is (re)seeded every time the dialog opens, and `save` emits the draft
@@ -126,12 +132,44 @@ function toggleExpanded(featureName: string): void {
     expanded.value = next;
 }
 
+// --- Filter -----------------------------------------------------------------
+
+const filter = ref('');
+
+/** Case- and accent-insensitive: "acces" finds "Accès". */
+const normalize = (value: string): string =>
+    value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/**
+ * The modules the filter shows: a match on the module's label, name or group,
+ * or on one of its custom abilities (they're the ones hidden in a chip).
+ */
+const visibleFeatures = computed<KinetixPermissionFeature[]>(() => {
+    const query = normalize(filter.value.trim());
+
+    if (!query) {
+        return props.features;
+    }
+
+    return props.features.filter((feature) =>
+        [
+            feature.label,
+            feature.name,
+            feature.group ?? '',
+            ...customAbilities(feature).map((ability) => ability.label),
+        ].some((text) => normalize(text).includes(query)),
+    );
+});
+
 // --- Grouped rows (Feature::group('HR') → titled sections) -------------------
+
+const featurePermissions = (feature: KinetixPermissionFeature): string[] =>
+    feature.abilities.map((ability) => ability.permission);
 
 const groupedFeatures = computed(() => {
     const map = new Map<string | null, KinetixPermissionFeature[]>();
 
-    for (const feature of props.features) {
+    for (const feature of visibleFeatures.value) {
         const key = feature.group ?? null;
         map.set(key, [...(map.get(key) ?? []), feature]);
     }
@@ -139,7 +177,11 @@ const groupedFeatures = computed(() => {
     // Named groups first (declaration order), ungrouped last.
     return [...map.entries()]
         .sort(([a], [b]) => Number(a === null) - Number(b === null))
-        .map(([group, features]) => ({ group, features }));
+        .map(([group, features]) => ({
+            group,
+            features,
+            permissions: features.flatMap(featurePermissions),
+        }));
 });
 
 const hasGroups = computed(() =>
@@ -171,6 +213,32 @@ const permissionFor = (
 ): string | null =>
     permissionIndex.value.get(feature.name)?.get(abilityKey) ?? null;
 
+/** Every permission the filter shows — the scope of "Select all" / "Clear all". */
+const visiblePermissions = computed<string[]>(() =>
+    visibleFeatures.value.flatMap(featurePermissions),
+);
+
+/** ability key → that ability's permission on every shown module. */
+const columnPermissions = computed<Map<string, string[]>>(
+    () =>
+        new Map(
+            abilityColumns.value.map((column) => [
+                column.key,
+                visibleFeatures.value
+                    .map((feature) => permissionFor(feature, column.key))
+                    .filter(
+                        (permission): permission is string =>
+                            permission !== null,
+                    ),
+            ]),
+        ),
+);
+
+/** The catalog's permissions, so stale names in a role don't skew the count. */
+const catalogPermissions = computed<Set<string>>(
+    () => new Set(props.features.flatMap(featurePermissions)),
+);
+
 // --- Draft state ------------------------------------------------------------
 
 const draftName = ref('');
@@ -184,6 +252,7 @@ watch(
             draftName.value = props.role?.name ?? '';
             draftPermissions.value = [...(props.role?.permissions ?? [])];
             draftGlobal.value = false;
+            filter.value = '';
         }
     },
 );
@@ -201,26 +270,50 @@ const draftSet = computed<Set<string>>(() => new Set(draftPermissions.value));
 const has = (permission: string | null): boolean =>
     permission !== null && draftSet.value.has(permission);
 
-function toggle(permission: string | null): void {
-    if (!permission) {
+const grantedCount = computed<number>(
+    () =>
+        [...catalogPermissions.value].filter((name) => draftSet.value.has(name))
+            .length,
+);
+
+/** Grant (or revoke) a set of permissions at once. */
+function setPermissions(permissions: string[], granted: boolean): void {
+    if (granted) {
+        draftPermissions.value = [
+            ...new Set([...draftPermissions.value, ...permissions]),
+        ];
+
         return;
     }
 
-    draftPermissions.value = has(permission)
-        ? draftPermissions.value.filter((name) => name !== permission)
-        : [...draftPermissions.value, permission];
+    const revoked = new Set(permissions);
+
+    draftPermissions.value = draftPermissions.value.filter(
+        (name) => !revoked.has(name),
+    );
 }
 
-/** Toggle every ability a feature declares, on/off at once. */
-function toggleRow(feature: KinetixPermissionFeature): void {
-    const names = feature.abilities.map((a) => a.permission);
-    const allOn = names.every((name) => draftSet.value.has(name));
-    const nameSet = new Set(names);
+/**
+ * A bulk checkbox's props for the permissions it covers: checked when all are
+ * granted, a dash when some are, disabled when it covers none.
+ */
+function bulkState(permissions: string[]): {
+    modelValue: boolean;
+    indeterminate: boolean;
+    disabled: boolean;
+} {
+    const granted = permissions.filter((name) => draftSet.value.has(name));
 
-    draftPermissions.value = allOn
-        ? draftPermissions.value.filter((name) => !nameSet.has(name))
-        : [...new Set([...draftPermissions.value, ...names])];
+    return {
+        modelValue:
+            permissions.length > 0 && granted.length === permissions.length,
+        indeterminate:
+            granted.length > 0 && granted.length < permissions.length,
+        disabled: permissions.length === 0,
+    };
 }
+
+const formId = `kx-role-editor-${useId()}`;
 
 function submit(): void {
     if (!draftName.value.trim()) {
@@ -243,14 +336,15 @@ function submit(): void {
         :open="open"
         :title="role ? t('kinetix.edit') : t('kinetix.create_role')"
         :description="t('kinetix.role_matrix_hint')"
-        max-width="sm:max-w-2xl"
+        max-width="sm:max-w-4xl"
         :processing="saving"
-        scroll-body
+        content-scroll
         placement="top"
         @update:open="(value: boolean) => emit('update:open', value)"
     >
         <form
-            class="gap-4 min-h-0 flex h-full flex-col"
+            :id="formId"
+            class="gap-4 min-h-0 flex flex-1 flex-col"
             @submit.prevent="submit"
         >
             <div class="space-y-2">
@@ -268,8 +362,8 @@ function submit(): void {
             </div>
 
             <!-- Super-admin only: create the role as GLOBAL (team-NULL,
-                         visible in every team). A role's team can't change
-                         later, so the toggle exists only on create. -->
+                 visible in every team). A role's team can't change later, so
+                 the toggle exists only on create. -->
             <label
                 v-if="offersGlobalToggle"
                 class="gap-2 text-sm flex cursor-pointer items-start text-foreground"
@@ -286,11 +380,74 @@ function submit(): void {
                 </span>
             </label>
 
-            <!-- Matrix: scrolls on its own; the header row and the
-                         module column stay pinned so long catalogs keep their
-                         context while granting. -->
+            <!-- Bulk bar: pinned above the matrix. Select all / Clear all act
+                 on what the filter shows; the count covers the whole role. -->
             <div
-                class="rounded-lg min-h-0 flex-1 overflow-auto border border-border"
+                class="gap-x-4 gap-y-2 flex flex-wrap items-center"
+                data-test="role-editor-bulk"
+            >
+                <div class="min-w-0 basis-48 relative flex-1">
+                    <Search
+                        class="left-2.5 size-4 pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <!-- Enter would submit the role while the user is only
+                         narrowing the list. -->
+                    <input
+                        v-model="filter"
+                        type="search"
+                        :placeholder="t('kinetix.role_filter_modules')"
+                        :aria-label="t('kinetix.role_filter_modules')"
+                        :class="[inputClass, 'pl-8']"
+                        @keydown.enter.prevent
+                    />
+                </div>
+                <div class="gap-3 flex items-center">
+                    <label
+                        class="gap-2 text-sm font-medium flex cursor-pointer items-center whitespace-nowrap text-foreground"
+                    >
+                        <KinetixCheckbox
+                            v-bind="bulkState(visiblePermissions)"
+                            data-test="role-editor-select-all"
+                            @update:model-value="
+                                (granted: boolean) =>
+                                    setPermissions(visiblePermissions, granted)
+                            "
+                        />
+                        {{ t('kinetix.select_all') }}
+                    </label>
+                    <button
+                        type="button"
+                        :class="
+                            buttonVariants({ variant: 'ghost', size: 'sm' })
+                        "
+                        :disabled="
+                            !visiblePermissions.some((name) => has(name))
+                        "
+                        data-test="role-editor-clear-all"
+                        @click="setPermissions(visiblePermissions, false)"
+                    >
+                        {{ t('kinetix.clear_all') }}
+                    </button>
+                    <span
+                        class="text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+                        data-test="role-editor-count"
+                    >
+                        {{
+                            t('kinetix.role_selected_count', {
+                                count: grantedCount,
+                                total: catalogPermissions.size,
+                            })
+                        }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Matrix: the only part that scrolls; the header row and the
+                 module column stay pinned so long catalogs keep their context
+                 while granting. -->
+            <div
+                class="rounded-lg min-h-0 flex-1 overflow-auto overscroll-contain border border-border"
             >
                 <table class="text-sm w-full">
                     <thead>
@@ -303,24 +460,86 @@ function submit(): void {
                             <th
                                 v-for="column in abilityColumns"
                                 :key="column.key"
-                                class="px-2 py-2 text-xs font-medium top-0 sticky z-20 border-b border-border bg-card text-center whitespace-nowrap"
+                                class="px-2 py-2 text-xs font-medium top-0 sticky z-20 border-b border-border bg-card text-center align-bottom"
                             >
-                                {{ column.label }}
+                                <!-- Two-word labels ("Delete permanently")
+                                     wrap instead of widening every column. -->
+                                <span
+                                    class="gap-1.5 leading-tight min-w-14 flex flex-col items-center"
+                                >
+                                    {{ column.label }}
+                                    <!-- Grant this ability on every shown module. -->
+                                    <KinetixCheckbox
+                                        v-bind="
+                                            bulkState(
+                                                columnPermissions.get(
+                                                    column.key,
+                                                ) ?? [],
+                                            )
+                                        "
+                                        :aria-label="
+                                            t('kinetix.role_grant_column', {
+                                                ability: column.label,
+                                            })
+                                        "
+                                        @update:model-value="
+                                            (granted: boolean) =>
+                                                setPermissions(
+                                                    columnPermissions.get(
+                                                        column.key,
+                                                    ) ?? [],
+                                                    granted,
+                                                )
+                                        "
+                                    />
+                                </span>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
+                        <tr
+                            v-if="filter.trim() && visibleFeatures.length === 0"
+                        >
+                            <td
+                                :colspan="abilityColumns.length + 1"
+                                class="px-3 py-8 text-sm text-center text-muted-foreground"
+                            >
+                                {{
+                                    t('kinetix.role_no_modules_match', {
+                                        query: filter.trim(),
+                                    })
+                                }}
+                            </td>
+                        </tr>
+
                         <template
                             v-for="section in groupedFeatures"
                             :key="section.group ?? '__ungrouped'"
                         >
-                            <!-- Section divider (Feature::group('HR')) -->
+                            <!-- Section divider (Feature::group('HR')), with a
+                                 checkbox for the whole group. -->
                             <tr v-if="hasGroups && section.group">
                                 <td
                                     :colspan="abilityColumns.length + 1"
                                     class="px-3 py-1.5 text-xs font-semibold tracking-wide border-b border-border bg-muted/50 text-muted-foreground uppercase"
                                 >
-                                    {{ section.group }}
+                                    <label
+                                        class="gap-2 left-3 sticky inline-flex cursor-pointer items-center"
+                                    >
+                                        <KinetixCheckbox
+                                            v-bind="
+                                                bulkState(section.permissions)
+                                            "
+                                            @update:model-value="
+                                                (granted: boolean) =>
+                                                    setPermissions(
+                                                        section.permissions,
+                                                        granted,
+                                                    )
+                                            "
+                                        />
+                                        {{ section.group }}
+                                    </label>
                                 </td>
                             </tr>
 
@@ -335,20 +554,36 @@ function submit(): void {
                                         class="p-0 left-0 sticky z-10 bg-card group-hover:bg-muted"
                                     >
                                         <span class="flex items-center">
-                                            <button
-                                                type="button"
-                                                class="px-3 py-2 font-medium text-sm min-w-0 flex-1 cursor-pointer text-left text-foreground select-none"
-                                                :title="
-                                                    t(
-                                                        'kinetix.role_matrix_hint',
-                                                    )
-                                                "
-                                                @click="toggleRow(feature)"
+                                            <!-- The whole row: every ability,
+                                                 custom ones included. -->
+                                            <label
+                                                class="gap-2.5 px-3 py-2 font-medium text-sm min-w-0 flex flex-1 cursor-pointer items-center text-foreground select-none"
                                             >
-                                                {{ feature.label }}
-                                            </button>
-                                            <!-- Custom abilities live INSIDE the row (full
-                                                         labels), never as shared columns. -->
+                                                <KinetixCheckbox
+                                                    v-bind="
+                                                        bulkState(
+                                                            featurePermissions(
+                                                                feature,
+                                                            ),
+                                                        )
+                                                    "
+                                                    @update:model-value="
+                                                        (granted: boolean) =>
+                                                            setPermissions(
+                                                                featurePermissions(
+                                                                    feature,
+                                                                ),
+                                                                granted,
+                                                            )
+                                                    "
+                                                />
+                                                <span class="whitespace-nowrap">
+                                                    {{ feature.label }}
+                                                </span>
+                                            </label>
+                                            <!-- Custom abilities live INSIDE
+                                                 the row (full labels), never as
+                                                 shared columns. -->
                                             <button
                                                 v-if="
                                                     customAbilities(feature)
@@ -386,48 +621,43 @@ function submit(): void {
                                         :key="column.key"
                                         class="px-2 py-2 text-center group-hover:bg-muted/50"
                                     >
-                                        <button
+                                        <span
                                             v-if="
                                                 permissionFor(
                                                     feature,
                                                     column.key,
                                                 )
                                             "
-                                            type="button"
-                                            class="size-6 inline-flex items-center justify-center rounded-md border transition-colors"
-                                            :class="
-                                                has(
-                                                    permissionFor(
-                                                        feature,
-                                                        column.key,
-                                                    ),
-                                                )
-                                                    ? 'border-primary bg-primary text-primary-foreground'
-                                                    : 'border-border text-transparent hover:border-primary/50'
-                                            "
-                                            :aria-pressed="
-                                                has(
-                                                    permissionFor(
-                                                        feature,
-                                                        column.key,
-                                                    ),
-                                                )
-                                            "
-                                            :aria-label="`${feature.label}: ${column.label}`"
-                                            @click="
-                                                toggle(
-                                                    permissionFor(
-                                                        feature,
-                                                        column.key,
-                                                    ),
-                                                )
-                                            "
+                                            class="flex justify-center"
                                         >
-                                            <Check class="size-3.5" />
-                                        </button>
+                                            <KinetixCheckbox
+                                                :model-value="
+                                                    has(
+                                                        permissionFor(
+                                                            feature,
+                                                            column.key,
+                                                        ),
+                                                    )
+                                                "
+                                                :aria-label="`${feature.label}: ${column.label}`"
+                                                @update:model-value="
+                                                    (granted: boolean) =>
+                                                        setPermissions(
+                                                            [
+                                                                permissionFor(
+                                                                    feature,
+                                                                    column.key,
+                                                                )!,
+                                                            ],
+                                                            granted,
+                                                        )
+                                                "
+                                            />
+                                        </span>
                                         <span
                                             v-else
                                             class="text-muted-foreground/40"
+                                            aria-hidden="true"
                                             >—</span
                                         >
                                     </td>
@@ -457,9 +687,13 @@ function submit(): void {
                                                         has(ability.permission)
                                                     "
                                                     @update:model-value="
-                                                        toggle(
-                                                            ability.permission,
-                                                        )
+                                                        (granted: boolean) =>
+                                                            setPermissions(
+                                                                [
+                                                                    ability.permission,
+                                                                ],
+                                                                granted,
+                                                            )
                                                     "
                                                 />
                                                 {{ ability.label }}
@@ -478,24 +712,21 @@ function submit(): void {
                     </tbody>
                 </table>
             </div>
-
-            <div class="gap-2 flex justify-end">
-                <button
-                    type="button"
-                    :class="buttonVariants({ variant: 'outline' })"
-                    :disabled="saving"
-                    @click="emit('update:open', false)"
-                >
-                    {{ t('kinetix.cancel') }}
-                </button>
-                <button
-                    type="submit"
-                    :class="buttonVariants()"
-                    :disabled="saving"
-                >
-                    {{ t('kinetix.save') }}
-                </button>
-            </div>
         </form>
+
+        <!-- Pinned footer, outside the scroller; submits the form by id. -->
+        <template #footer>
+            <button
+                type="button"
+                :class="buttonVariants({ variant: 'outline' })"
+                :disabled="saving"
+                @click="emit('update:open', false)"
+            >
+                {{ t('kinetix.cancel') }}
+            </button>
+            <KinetixButton type="submit" :form="formId" :loading="saving">
+                {{ role ? t('kinetix.save') : t('kinetix.create') }}
+            </KinetixButton>
+        </template>
     </KinetixModal>
 </template>

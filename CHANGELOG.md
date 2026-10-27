@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.261.0] - 2026-10-27
+
+### Changed
+
+- **Role editor: pinned footer, bulk selection, module filter** (published).
+  The create/edit role modal (`KinetixRoleMatrix`, `KinetixRolesOverview`) now
+  scrolls only the permission matrix: the role name, a new bulk bar and the
+  Cancel / Create (Save when editing) footer stay put. Bulk selection is
+  tri-state on every level: a checkbox per module row (replaces the clickable
+  module name), per column header (one ability on every module), per
+  `Feature::group()` title, plus **Select all** / **Clear all** and a live
+  "`n` of `total` selected" count. **Filter modules…** narrows rows by label,
+  name, group or custom ability, accent-insensitive; Enter in it never submits.
+  The modal is `sm:max-w-4xl` and long column headers wrap.
+- New translation keys `role_filter_modules`, `role_selected_count`,
+  `role_grant_column`, `role_no_modules_match` in all seven locales;
+  `role_matrix_hint` reworded for the checkboxes (published translations).
+
+### Added
+
+- **`KinetixModal` `contentScroll`** (published): pins header and footer like
+  `scrollBody`, but hands the body the remaining height as a flex column so
+  the content owns its scroller (sticky table headers, fixed filters above a
+  list).
+
+### Fixed
+
+- **`KinetixCheckbox` indeterminate state in dark mode** (published): the
+  dash rendered on the dark input background (nearly invisible) because
+  `dark:bg-input/30` beat `data-[state=indeterminate]:bg-primary`.
+
 ## [0.260.0] - 2026-10-26
 
 ### Added

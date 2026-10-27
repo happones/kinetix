@@ -23,6 +23,9 @@ import ScrollArea from './ScrollArea.vue';
  * screen with its top and bottom unreachable. `scrollBody` is the opt-in for
  * the other layout — header and footer pinned, only the body scrolling, in a
  * shadcn ScrollArea — never the only thing keeping content reachable.
+ * `contentScroll` pins them the same way but hands the body the remaining
+ * height as a flex column, for content that owns its scroller (a matrix with
+ * a sticky header row) and puts its own fixed controls above it.
  *
  * `placement` moves the panel: `center` is the registry's vertically centered
  * dialog; `top` anchors it near the top edge (10vh on ≥sm, centered on mobile
@@ -50,6 +53,15 @@ const props = withDefaults(
          */
         scrollBody?: boolean;
         /**
+         * Pin the header and footer like `scrollBody`, but give the body the
+         * remaining height as a flex column instead of a ScrollArea: the
+         * content picks what scrolls (a `min-h-0 flex-1 overflow-auto`
+         * child), so filters above it stay put and sticky headers inside it
+         * keep working. Below a 40rem-tall viewport the panel is left
+         * unbounded and scrolls whole, so the content keeps its height.
+         */
+        contentScroll?: boolean;
+        /**
          * Take (nearly) the whole viewport, for content that genuinely needs
          * the room — a wide data grid, an import preview of a twenty-column
          * file. The panel is bounded to the viewport and its BODY is handed the
@@ -73,6 +85,7 @@ const props = withDefaults(
         showCloseButton: true,
         processing: false,
         scrollBody: false,
+        contentScroll: false,
         fullscreen: false,
         placement: 'center',
     },
@@ -199,6 +212,17 @@ const { headingId } = useKinetixFocusTrap({
                             scrollBody && isTopAnchored()
                                 ? 'sm:max-h-[calc(90dvh-1rem)]'
                                 : '',
+                            // Content-owned scrollers are bounded only on a
+                            // viewport tall enough to leave them useful room;
+                            // on a short one (a landscape phone) the bound
+                            // would squeeze them to a sliver, so the whole
+                            // panel scrolls in the wrapper instead.
+                            contentScroll
+                                ? 'grid-rows-[auto_minmax(0,1fr)_auto] [@media(min-height:40rem)]:max-h-[calc(100dvh-2rem)]'
+                                : '',
+                            contentScroll && isTopAnchored()
+                                ? '[@media(min-height:40rem)]:sm:max-h-[calc(90dvh-1rem)]'
+                                : '',
                             fullscreen ? 'h-[calc(100dvh-2rem)]' : '',
                         ]"
                     >
@@ -260,7 +284,16 @@ const { headingId } = useKinetixFocusTrap({
                         <!-- `min-h-0` lets a full-screen body hand its own
                              height to a child that fills it (a wizard with its
                              own scroller) instead of overflowing the panel. -->
-                        <div v-else :class="fullscreen ? 'min-h-0' : ''">
+                        <div
+                            v-else
+                            :class="
+                                contentScroll
+                                    ? 'min-h-0 flex flex-col'
+                                    : fullscreen
+                                      ? 'min-h-0'
+                                      : ''
+                            "
+                        >
                             <slot />
                         </div>
 

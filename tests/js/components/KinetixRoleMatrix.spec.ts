@@ -236,16 +236,17 @@ describe('KinetixRoleMatrix', () => {
         w.unmount();
     });
 
-    it('clicking a module name toggles its whole row and saves the union', async () => {
+    it("a module's row checkbox grants its whole row and saves the union", async () => {
         const w = mountMatrix();
         await w.get('[title="Edit"]').trigger('click');
         await w.vm.$nextTick();
 
-        // Toggle the full "Orders" row on (refund was off → adds every ability).
-        // The module name is a real <button> now (keyboard/AT accessible).
-        const orders = [
-            ...document.body.querySelectorAll('tbody td button'),
-        ].find((btn) => btn.textContent?.trim() === 'Orders') as HTMLElement;
+        // Tick the "Orders" row (partially granted → grants every ability).
+        // The module name labels a real checkbox (keyboard/AT accessible).
+        const orders = [...document.body.querySelectorAll('tbody td label')]
+            .find((label) => label.textContent?.trim() === 'Orders')!
+            .querySelector('[role="checkbox"]') as HTMLElement;
+        expect(orders.getAttribute('data-state')).toBe('indeterminate');
         orders.click();
         await w.vm.$nextTick();
 

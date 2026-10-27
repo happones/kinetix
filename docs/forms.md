@@ -296,6 +296,13 @@ Cancel stay visible the whole way down. Skip it when the body hosts a dropdown
 that renders in flow and must escape the panel — a scrolling body clips it.
 `KinetixSheet` always uses the pinned layout.
 
+Pass **`content-scroll`** when the body owns its scroller — a table with a
+sticky header row, filters that must stay put above a long list. Header and
+footer are pinned the same way, but the body is a shrinkable flex column
+instead of a `ScrollArea`: give the scrolling child `min-h-0 flex-1
+overflow-auto`. A form there submits from the pinned footer through the
+button's `form` attribute (the role editor works this way).
+
 <Screenshot name="modal-scroll" alt="A 16-field form in a modal: the panel is bounded to the viewport, the title and the Cancel/Save footer stay pinned, and the body scrolls" />
 :::
 

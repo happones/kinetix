@@ -1161,73 +1161,7 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
     },
     {
         match: /\/permissions\/features$/,
-        data: [
-            {
-                name: 'users',
-                label: 'Users',
-                abilities: [
-                    {
-                        key: 'viewAny',
-                        label: 'List',
-                        permission: 'users.viewAny',
-                    },
-                    { key: 'view', label: 'View', permission: 'users.view' },
-                    {
-                        key: 'create',
-                        label: 'Create',
-                        permission: 'users.create',
-                    },
-                    {
-                        key: 'update',
-                        label: 'Update',
-                        permission: 'users.update',
-                    },
-                    {
-                        key: 'delete',
-                        label: 'Delete',
-                        permission: 'users.delete',
-                    },
-                ],
-            },
-            {
-                name: 'orders',
-                label: 'Orders',
-                abilities: [
-                    {
-                        key: 'viewAny',
-                        label: 'List',
-                        permission: 'orders.viewAny',
-                    },
-                    { key: 'view', label: 'View', permission: 'orders.view' },
-                    {
-                        key: 'update',
-                        label: 'Update',
-                        permission: 'orders.update',
-                    },
-                    {
-                        key: 'refund',
-                        label: 'Refund',
-                        permission: 'orders.refund',
-                    },
-                ],
-            },
-            {
-                name: 'reports',
-                label: 'Reports',
-                abilities: [
-                    {
-                        key: 'viewAny',
-                        label: 'List',
-                        permission: 'reports.viewAny',
-                    },
-                    {
-                        key: 'create',
-                        label: 'Create',
-                        permission: 'reports.create',
-                    },
-                ],
-            },
-        ],
+        data: galleryPermissionCatalog(),
     },
     {
         match: /\/permissions\/roles$/,
@@ -1960,4 +1894,56 @@ export function kinetixRoutePrefix(): string {
 
 export function xsrfToken(): string {
     return 'gallery-stub-token';
+}
+
+/**
+ * A realistic grouped catalog for the role editor specimens: long enough that
+ * the matrix scrolls under the pinned name field, bulk bar and footer.
+ */
+function galleryPermissionCatalog() {
+    const crud = ['viewAny', 'view', 'create', 'update', 'delete'];
+    const ability = (module: string, key: string, label = key) => ({
+        key,
+        label,
+        permission: `${module}.${key}`,
+    });
+    const feature = (
+        group: string,
+        name: string,
+        label: string,
+        keys: string[] = crud,
+        custom: [string, string][] = [],
+    ) => ({
+        name,
+        label,
+        group,
+        abilities: [
+            ...keys.map((key) => ability(name, key)),
+            ...custom.map(([key, text]) => ability(name, key, text)),
+        ],
+    });
+
+    return [
+        feature('Administration', 'users', 'Users', [...crud, 'restore']),
+        feature('Administration', 'roles', 'Roles', crud),
+        feature('Administration', 'teams', 'Teams', crud),
+        feature('Administration', 'settings', 'Settings', ['access']),
+        feature('Administration', 'audit', 'Audit log', ['viewAny', 'view']),
+        feature(
+            'Sales',
+            'orders',
+            'Orders',
+            ['viewAny', 'view', 'update'],
+            [
+                ['refund', 'Refund'],
+                ['export', 'Export'],
+            ],
+        ),
+        feature('Sales', 'customers', 'Customers', [...crud, 'forceDelete']),
+        feature('Sales', 'invoices', 'Invoices', crud, [['send', 'Send']]),
+        feature('Sales', 'products', 'Products', [...crud, 'deleteAny']),
+        feature('Sales', 'coupons', 'Coupons', crud),
+        feature('Insights', 'reports', 'Reports', ['viewAny', 'create']),
+        feature('Insights', 'dashboards', 'Dashboards', ['access']),
+    ];
 }
