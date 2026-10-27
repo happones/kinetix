@@ -130,19 +130,19 @@ function submit(): void {
 </script>
 
 <template>
-    <!-- A container: the fields sit in one row once the FORM is wide enough
-       (not the viewport), stacked otherwise. items-start + a label on every
-       column keeps the inputs aligned; the submit button gets an invisible
-       label so its top aligns too. -->
+    <!-- A container: the layout follows the FORM's width, not the viewport's.
+       Stacked when narrow; two columns (identifier | name, role | submit)
+       from @xl; one row from @4xl. A label on every cell keeps the inputs
+       aligned; the submit cell gets an invisible one so its top aligns too. -->
     <form
         class="gap-3 @container flex flex-col"
         :aria-describedby="noRoles ? 'kinetix-member-no-roles' : undefined"
         @submit.prevent="submit"
     >
         <div
-            class="gap-3 @xl:flex-row @xl:flex-wrap @xl:items-start flex flex-col"
+            class="gap-3 @xl:grid-cols-2 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_12rem_auto] grid grid-cols-1 items-start"
         >
-            <div class="space-y-2 min-w-0 @xl:basis-56 @xl:flex-1">
+            <div class="space-y-2 min-w-0">
                 <KinetixLabel for="kinetix-member-email">
                     {{ identifierLabel }}
                 </KinetixLabel>
@@ -157,7 +157,7 @@ function submit(): void {
                 />
             </div>
 
-            <div class="space-y-2 min-w-0 @xl:basis-44 @xl:flex-1">
+            <div class="space-y-2 min-w-0">
                 <KinetixLabel for="kinetix-member-name">
                     {{ t('kinetix.member_name_optional') }}
                 </KinetixLabel>
@@ -171,7 +171,7 @@ function submit(): void {
                 />
             </div>
 
-            <div class="space-y-2 @xl:w-48">
+            <div class="space-y-2 min-w-0">
                 <KinetixLabel for="kinetix-member-role">
                     {{ t('kinetix.member_role') }}
                 </KinetixLabel>

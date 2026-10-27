@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.262.1] - 2026-10-27
+
+### Fixed
+
+- **Provisioning form at medium widths** (published): in a ~700px card the
+  submit button fell to a row of its own under a large gap. The form is now a
+  container grid: stacked when narrow, identifier | name and role | submit
+  from `@xl`, one row from `@4xl`.
+
 ## [0.262.0] - 2026-10-27
 
 ### Changed
