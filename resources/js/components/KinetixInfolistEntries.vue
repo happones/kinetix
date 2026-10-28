@@ -6,6 +6,10 @@ import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { requestConfidentialUnlock } from '@/composables/useKinetixConfidential';
 import { resolveIcon as resolveActionIcon } from '@/composables/useKinetixIcons';
 import {
+    requestedIndex,
+    writeQueryParam,
+} from '@/composables/useKinetixQueryParam';
+import {
     gridColumnVars,
     resolveColumns,
     SINGLE_COLUMN,
@@ -77,11 +81,44 @@ const {
 const sectionActionClass = (action: KinetixAction) =>
     buttonVariants({ variant: actionButtonVariant(action.color), size: 'sm' });
 
-// Active tab index per Tabs entry, keyed by its position in this schema list.
-const activeTab = reactive<Record<number, number>>({});
+/**
+ * The query param a Tabs entry keeps its open tab in (`?tab=security`), so a
+ * reload or a shared link reopens it. Never inside a modal: the URL belongs to
+ * the page behind it.
+ */
+const tabParam = (entry: KinetixInfolistEntry | undefined): string | null =>
+    props.flat ? null : (entry?.queryParam ?? null);
+
+// Active tab index per Tabs entry, keyed by its position in this schema list;
+// a persisted group starts on the tab its URL names.
+const activeTab = reactive<Record<number, number>>(
+    Object.fromEntries(
+        (props.schema ?? []).flatMap((entry, index) =>
+            entry.type === 'tabs'
+                ? [
+                      [
+                          index,
+                          Math.max(
+                              0,
+                              requestedIndex(entry.schema, tabParam(entry)),
+                          ),
+                      ],
+                  ]
+                : [],
+        ),
+    ),
+);
 const currentTab = (entryIndex: number) => activeTab[entryIndex] ?? 0;
 const setActiveTab = (entryIndex: number, tabIndex: number) => {
     activeTab[entryIndex] = tabIndex;
+
+    const entry = props.schema[entryIndex];
+    const param = tabParam(entry);
+    const key = entry?.schema?.[tabIndex]?.urlKey;
+
+    if (param && key) {
+        writeQueryParam(param, key);
+    }
 };
 
 // Resolve through the shared Kinetix icon map (entry, section, tab & action

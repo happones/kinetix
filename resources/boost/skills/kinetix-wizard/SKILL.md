@@ -36,6 +36,13 @@ Advancing is blocked until the current step's **required** fields are filled
 (server validation still runs on submit). Rendered by `KinetixFormWizard` →
 `KinetixWizard`.
 
+- **The current step is in the URL by default** (`?step=profile`, client-side
+  replace): a reload/shared link reopens it, but never past an incomplete step
+  (it opens the first one with empty required fields and corrects the URL).
+  `Step::make(__('Plan'))->key('billing')` fixes a translated label's key;
+  `->persistStepInQueryString('name'|false)` per wizard; config
+  `kinetix.forms.query_string.steps`. Never inside a modal.
+
 ## Standalone component
 
 ```vue

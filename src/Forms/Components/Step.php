@@ -20,6 +20,8 @@ class Step extends Component
 
     protected ?string $icon = null;
 
+    protected ?string $urlKey = null;
+
     protected ?string $color = null;
 
     /**
@@ -55,6 +57,23 @@ class Step extends Component
         $this->description = $description;
 
         return $this;
+    }
+
+    /**
+     * This step's name in the URL (`?step=…`) when its group persists in
+     * the query string. Defaults to the slug of the label — set it when the
+     * label is translated, so a shared link works in every locale.
+     */
+    public function key(string $key): static
+    {
+        $this->urlKey = $key;
+
+        return $this;
+    }
+
+    public function getUrlKey(): ?string
+    {
+        return $this->urlKey;
     }
 
     public function icon(string $icon): static

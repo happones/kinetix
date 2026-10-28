@@ -4,6 +4,10 @@ import { computed, ref, watch } from 'vue';
 import { schemaHasError } from '@/composables/useKinetixFormErrors';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
+    requestedIndex,
+    writeQueryParam,
+} from '@/composables/useKinetixQueryParam';
+import {
     gridColumnVars,
     resolveColumns,
 } from '@/composables/useKinetixResponsiveGrid';
@@ -18,12 +22,19 @@ import KinetixFormSchema from './KinetixFormSchema.vue';
  * recurse back into KinetixFormSchema. Active tab state is local to this
  * instance (so multiple tab groups on one form stay independent).
  *
+ * URL-aware: when the server sends a `queryParam`, the open tab lives in the
+ * query string (`?tab=security`) — read on mount, written on every switch —
+ * so a reload or a shared link reopens it. Never inside a modal (`flat`): the
+ * URL belongs to the page behind it.
+ *
  * Validation-aware: a tab whose fields hold an error shows a marker on its
  * trigger, and when errors arrive the strip switches to the first offending tab
  * (unless the current one already has an error) so the message is never hidden.
  */
 const props = defineProps<{
     tabs: any[];
+    /** The query param the open tab persists in; null = local state only. */
+    queryParam?: string | null;
     values: Record<string, any>;
     errors: Record<string, string>;
     /** Forwarded to nested schemas: chrome-free Sections inside modals. */
@@ -34,7 +45,20 @@ const emit = defineEmits<{
     (e: 'update:value', name: string, value: any): void;
 }>();
 
-const active = ref('0');
+const urlParam = computed(() => (props.flat ? null : props.queryParam));
+
+const active = ref(
+    String(Math.max(0, requestedIndex(props.tabs, urlParam.value))),
+);
+
+// Every switch — a click, or the jump to an errored tab — goes to the URL.
+watch(active, (index) => {
+    const key = props.tabs[Number(index)]?.urlKey;
+
+    if (urlParam.value && key) {
+        writeQueryParam(urlParam.value, key);
+    }
+});
 
 const errorKeys = computed(() => Object.keys(props.errors ?? {}));
 

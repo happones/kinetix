@@ -1604,6 +1604,16 @@ return [
         // per user). Each debounced change of a `live()` field rebuilds the
         // form server-side. Null disables it.
         'recompute_throttle' => env('KINETIX_FORMS_RECOMPUTE_THROTTLE', '120,1'),
+
+        // Keep the open tab (form AND infolist Tabs) and the current wizard
+        // step in the URL — `?tab=security`, `?step=billing` — so a reload or
+        // a shared link reopens them. Per group: `->persistInQueryString(false)`
+        // / `->persistStepInQueryString(false)`, or a name for another param.
+        // Tabs and wizards inside modals never touch the URL.
+        'query_string' => [
+            'tabs'  => (bool) env('KINETIX_TABS_IN_QUERY_STRING', true),
+            'steps' => (bool) env('KINETIX_WIZARD_STEPS_IN_QUERY_STRING', true),
+        ],
     ],
 
     /*

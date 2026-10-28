@@ -17,6 +17,8 @@ class Tab extends Component
 
     protected ?string $icon = null;
 
+    protected ?string $urlKey = null;
+
     /**
      * @var array<int, Component>
      */
@@ -43,6 +45,23 @@ class Tab extends Component
         $this->schema = $components;
 
         return $this;
+    }
+
+    /**
+     * This tab's name in the URL (`?tab=…`) when its group persists in
+     * the query string. Defaults to the slug of the label — set it when the
+     * label is translated, so a shared link works in every locale.
+     */
+    public function key(string $key): static
+    {
+        $this->urlKey = $key;
+
+        return $this;
+    }
+
+    public function getUrlKey(): ?string
+    {
+        return $this->urlKey;
     }
 
     public function icon(string $icon): static

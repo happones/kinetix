@@ -135,6 +135,10 @@ export const router = {
     delete() {},
     visit() {},
     reload() {},
+    /** Client-side URL swap, as Inertia does it (tabs/steps in the query string). */
+    replace({ url }: { url: string }) {
+        window.history.replaceState(window.history.state, '', url);
+    },
     cancelAll() {},
     on() {
         return () => {};

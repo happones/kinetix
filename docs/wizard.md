@@ -37,6 +37,22 @@ Advancing is blocked until the **required** fields in the current step are
 filled (server-side validation still runs on submit). Fields across all steps
 are validated and saved like any other layout.
 
+### The current step lives in the URL
+
+Every step change writes it into the query string — `?step=profile` — so a
+reload or a shared link reopens it (a client-side history replace: no request,
+and Back leaves the page). A link can't skip work, though: the wizard opens the
+named step only when the steps before it are complete (their required fields
+filled). On an edit form that is usually the case; a reload of an empty create
+form starts over at the first incomplete step, and the URL is corrected to it.
+
+- Step keys are the label's slug; fix one with `Step::make(__('Plan'))->key('billing')`.
+- `->persistStepInQueryString('wizard_step')` uses another param;
+  `->persistStepInQueryString(false)` keeps it local.
+- Off app-wide with `kinetix.forms.query_string.steps` = `false` (env
+  `KINETIX_WIZARD_STEPS_IN_QUERY_STRING=false`).
+- Wizards inside a modal never touch the URL.
+
 See [§2 Step layout](#step-layout-stepper-variant-horizontal) and
 [§2 Per-step colors](#per-step-colors-stepper-variant) below for what
 `stepLayout()` and `Step::color()` do — they apply to both surfaces since the

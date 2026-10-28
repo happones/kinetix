@@ -19,6 +19,7 @@ Activate this skill when:
 - Validating either **fluently** (`$form->validate()`) or via a **FormRequest** (`KinetixFormRequest` / the `ResolvesKinetixForm` trait) — rules live in the form, never duplicated.
 - Enabling **live validation** with Laravel Precognition (`->precognitive()` / `->validationUrl()`).
 - Surfacing validation errors inside **Tabs/Wizards** (auto-switch to the offending tab/step, focus the first errored field).
+- Deep-linking a tab: the open tab is in the URL by default (`?tab=security`, the label's slug; nested groups share the param). `Tab::make(__('Security'))->key('security')` for translated labels, `->persistInQueryString('section'|false)` per group, config `kinetix.forms.query_string.tabs` (also covers infolist tabs). Never inside a modal.
 - Using lifecycle hooks (`afterStateHydrated()`, `dehydrateStateUsing()`).
 
 

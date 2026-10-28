@@ -365,6 +365,38 @@ Tabs::make()->tabs([
 ])
 ```
 
+#### The open tab lives in the URL {#tabs-in-the-query-string}
+
+Switching tabs writes the tab into the query string — `?tab=security` — so a
+reload, the redirect back after a failed save, or a link you send someone
+reopens that tab. It is a client-side history *replace*: no request to the
+server, and Back leaves the page instead of stepping through tabs. Other query
+params (a table's search, page, filters) are kept.
+
+- **The key is the slug of the label** (`Datos generales` → `datos-generales`;
+  duplicates get `-2`). When labels are translated, set a fixed key so a link
+  works in every locale: `Tab::make(__('Security'))->key('security')`.
+- **Validation still wins:** when a save fails, the form jumps to the first tab
+  holding an error, and the URL follows.
+- **A key the page doesn't have** (a hidden tab, an old link) opens the first tab.
+- **Nested tabs share the param:** `?tab=address` opens the outer tab that
+  holds the inner group *and* the inner `Address` tab.
+- **Inside a modal** (the table's create/edit/view modals) tabs never touch
+  the URL — it belongs to the page behind it.
+
+Two separate groups on one page share `?tab=` (the last one clicked is
+remembered). Give one its own param, or switch it off:
+
+```php
+Tabs::make()->persistInQueryString('section')->tabs([...]); // ?section=…
+Tabs::make()->persistInQueryString(false)->tabs([...]);     // local state only
+```
+
+It is on by default. To turn it off app-wide — for form **and** infolist tabs —
+set `kinetix.forms.query_string.tabs` to `false` (env
+`KINETIX_TABS_IN_QUERY_STRING=false`); a group that calls
+`persistInQueryString()` still opts back in.
+
 ### 5. Split
 A responsive flex row: children sit side-by-side from the `md` breakpoint and stack on small screens.
 

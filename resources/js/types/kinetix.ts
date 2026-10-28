@@ -1666,6 +1666,10 @@ export interface KinetixInfolistEntry {
     /** RepeatableEntry — each item's serialized entries + optional grid cols. */
     repeatableItems?: KinetixInfolistEntry[][] | null;
     gridColumns?: number | null;
+    /** Tabs — the query param the open tab persists in (null = not persisted). */
+    queryParam?: string | null;
+    /** Tab — its key in that param (`?tab=security`). */
+    urlKey?: string | null;
 }
 
 export interface KinetixInfolistData {

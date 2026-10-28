@@ -369,13 +369,23 @@ Tabs::make()
 |---|---|
 | `::make(?string $label = null)` | Optional accessible label for the tab group |
 | `->tabs(array)` / `->schema(array)` | The `Tab` components |
+| `->persistInQueryString(string\|bool $param = true)` | Keep the open tab in the URL under another param, or `false` for local state only (on by default as `?tab=`) |
 
 | `Tab` method | Description |
 |---|---|
 | `::make(string\|Closure $label)` | Tab label |
 | `->icon(string\|Closure)` | Tab icon (Lucide name) |
+| `->key(string)` | The tab's name in the URL (default: the label's slug) — set it when the label is translated |
 | `->columns(int)` | Inner grid columns for the tab body (default `12`) |
 | `->schema(array)` | Child components shown when the tab is active |
+
+The open tab is kept in the query string (`?tab=activity`) so a reload or a
+shared link of the Show page reopens it, exactly like
+[form tabs](/forms#tabs-in-the-query-string) — same config switch
+(`kinetix.forms.query_string.tabs`), same rules for keys, nested groups and
+modals.
+
+<Screenshot name="infolist-tabs" alt="Infolist tabs with a nested group under Billing" />
 
 ---
 

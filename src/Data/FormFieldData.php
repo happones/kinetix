@@ -136,5 +136,9 @@ class FormFieldData extends Data
         // to say before the server does: lengths, ranges, formats, character
         // sets, other fields to compare with. See FieldConstraints.
         public ?array $constraints = null,
+        // Tabs / Wizard — the query param the open tab/step persists in (null
+        // = not persisted), and each Tab / Step's key in it.
+        public ?string $queryParam = null,
+        public ?string $urlKey = null,
     ) {}
 }

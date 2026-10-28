@@ -292,6 +292,7 @@ const renderSchema = computed(() =>
         >
             <KinetixFormTabs
                 :tabs="comp.schema"
+                :query-param="comp.queryParam"
                 :values="values"
                 :errors="errors"
                 :flat="flat"

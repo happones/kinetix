@@ -1239,6 +1239,14 @@ One viewer for every image Kinetix shows. `KinetixLightbox` (controlled: `v-mode
 - **A11y**: `DialogTitle` = caption/alt/`title`/"Media viewer"; `DialogDescription` = position; the viewer div is focused on open (arrows work at once); every icon button translated (`lightbox_*` ×7 locales); position + caption announced on user paging only; thumbnails `aria-current` + border (not color alone); ←/→ Home/End +/−/0, r / Shift+R.
 - Tests `KinetixMarkdownLightboxConfig.spec.ts` + `LightboxShareTest` (config switch, prop precedence), `KinetixLightbox.spec.ts` (viewer, helpers, host delegation, Markdown, ImageCell), `KinetixFilePreview.spec.ts`, `PreviewDownloadTest`. Gallery specimens `lightbox-thumbnails` / `lightbox-open`. Skill `kinetix-lightbox`; guide `docs/lightbox.md`.
 
+## 51. Tabs and wizard steps in the query string (v0.263.0)
+
+UI state that should survive a reload goes through `useKinetixQueryParam` (REQUIRED — never hand-roll `history.replaceState`): `readQueryParam`, `writeQueryParam` (`router.replace` with `preserveState`/`preserveScroll`, `history.replaceState` fallback; skips a no-op write; keeps foreign params + hash), `requestedIndex(children, param)` (own `urlKey`, or a nested group with the SAME `queryParam` that owns the key → `?tab=address` opens outer + inner).
+
+- **Server decides**: `Tabs` (forms + infolists) and `Wizard` emit `queryParam` (`QueryStringKeys::param()`: per-group `persistInQueryString()` / `persistStepInQueryString()` `string|false` wins, else `config('kinetix.forms.query_string.tabs|steps', true)` — the `true` fallback keeps old published configs on) and each child's `urlKey` (`QueryStringKeys::assign()`: `Tab/Step::key()` → `Str::slug(heading)` → `tab-N`/`step-N`, deduped `-2`). Keys only when persisted. Hidden children take no key.
+- **Client**: `KinetixFormTabs` (`queryParam` prop from `KinetixFormSchema`), `KinetixInfolistEntries` (per-entry initial map) and `KinetixFormWizard` read on setup and write on every change (clicks AND error jumps). `flat` (= modal-hosted) disables both. The wizard clamps the URL step to the first step failing `beforeNext` and rewrites the URL when held back. `KinetixRelationManagers`' `?relation=` uses the same helpers.
+- Tests `KinetixQueryStringTabs.spec.ts`, `QueryStringTabsTest`. Gallery specimens `layout-tabs`, `infolist-tabs`, `form-wizard`, `form-wizard-filled` (stub `router.replace` swaps the URL). Docs `docs/forms.md#tabs-in-the-query-string`, `docs/infolists.md`, `docs/wizard.md`.
+
 ---
 
 ## Generators (Artisan)

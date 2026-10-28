@@ -498,16 +498,19 @@ const layouts = {
         {
             type: 'tabs',
             columnSpan: 'full',
+            queryParam: 'tab',
             schema: [
                 {
                     type: 'tab',
                     heading: 'Profile',
+                    urlKey: 'profile',
                     columns: 12,
                     schema: [ti('name', 'Name', 12)],
                 },
                 {
                     type: 'tab',
                     heading: 'Security',
+                    urlKey: 'security',
                     icon: 'settings',
                     columns: 12,
                     schema: [ti('password', 'Password', 12)],
@@ -1166,6 +1169,144 @@ const entry = (extra: Record<string, unknown>) => ({
     isInline: false,
     ...extra,
 });
+
+/** A three-step form wizard persisting its step as `?step=`. */
+const formWizardSchema = [
+    {
+        type: 'wizard',
+        columnSpan: 'full',
+        queryParam: 'step',
+        schema: [
+            {
+                type: 'wizard-step',
+                heading: 'Account',
+                urlKey: 'account',
+                columns: 12,
+                schema: [
+                    {
+                        ...ti('email', 'Email', 12),
+                        isRequired: true,
+                    },
+                ],
+            },
+            {
+                type: 'wizard-step',
+                heading: 'Company',
+                urlKey: 'company',
+                columns: 12,
+                schema: [
+                    {
+                        ...ti('company', 'Company', 12),
+                        isRequired: true,
+                    },
+                ],
+            },
+            {
+                type: 'wizard-step',
+                heading: 'Billing',
+                urlKey: 'billing',
+                columns: 12,
+                schema: [ti('plan', 'Plan', 12)],
+            },
+        ],
+    },
+];
+
+/** Nested Tabs entries sharing `?tab=` — a link can open both levels. */
+const tabbedInfolist = {
+    columns: 1,
+    operation: 'view',
+    schema: [
+        {
+            type: 'tabs',
+            columnSpan: 'full',
+            isInline: false,
+            openUrlInNewTab: false,
+            queryParam: 'tab',
+            schema: [
+                {
+                    type: 'tab',
+                    heading: 'Overview',
+                    urlKey: 'overview',
+                    icon: 'user',
+                    columns: 2,
+                    schema: [
+                        {
+                            type: 'text',
+                            name: 'name',
+                            label: 'Name',
+                            state: 'Ada Lovelace',
+                            columnSpan: 1,
+                            isInline: false,
+                            openUrlInNewTab: false,
+                        },
+                        {
+                            type: 'text',
+                            name: 'email',
+                            label: 'Email',
+                            state: 'ada@example.com',
+                            columnSpan: 1,
+                            isInline: false,
+                            openUrlInNewTab: false,
+                        },
+                    ],
+                },
+                {
+                    type: 'tab',
+                    heading: 'Billing',
+                    urlKey: 'billing',
+                    icon: 'credit-card',
+                    columns: 1,
+                    schema: [
+                        {
+                            type: 'tabs',
+                            columnSpan: 'full',
+                            isInline: false,
+                            openUrlInNewTab: false,
+                            queryParam: 'tab',
+                            schema: [
+                                {
+                                    type: 'tab',
+                                    heading: 'Plan',
+                                    urlKey: 'plan',
+                                    columns: 1,
+                                    schema: [
+                                        {
+                                            type: 'text',
+                                            name: 'plan',
+                                            label: 'Plan',
+                                            state: 'Pro — yearly',
+                                            columnSpan: 'full',
+                                            isInline: false,
+                                            openUrlInNewTab: false,
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: 'tab',
+                                    heading: 'Address',
+                                    urlKey: 'address',
+                                    columns: 1,
+                                    schema: [
+                                        {
+                                            type: 'text',
+                                            name: 'street',
+                                            label: 'Street',
+                                            state: '12 St James Square, London',
+                                            columnSpan: 'full',
+                                            isInline: false,
+                                            openUrlInNewTab: false,
+                                        },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        },
+    ],
+};
 
 const infolist = {
     columns: 2,
@@ -4291,6 +4432,33 @@ export const specimens: Specimen[] = [
                     },
                 ],
             }),
+        },
+    },
+    {
+        name: 'infolist-tabs',
+        title: 'Infolist — nested tabs kept in the query string',
+        component: KinetixInfolist,
+        width: 720,
+        props: { infolist: tabbedInfolist },
+    },
+    {
+        name: 'form-wizard',
+        title: 'Form wizard — current step kept in the query string',
+        component: KinetixFormSchema,
+        frame: 'card',
+        width: 720,
+        props: { schema: formWizardSchema, values: {}, errors: {} },
+    },
+    {
+        name: 'form-wizard-filled',
+        title: 'Form wizard — earlier steps complete (an edit form)',
+        component: KinetixFormSchema,
+        frame: 'card',
+        width: 720,
+        props: {
+            schema: formWizardSchema,
+            values: { email: 'ada@example.com', company: 'Analytical Engines' },
+            errors: {},
         },
     },
     {

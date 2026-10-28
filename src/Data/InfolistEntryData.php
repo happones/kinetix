@@ -50,5 +50,9 @@ class InfolistEntryData extends Data
         // RepeatableEntry — each item's serialized entries + optional grid cols.
         public ?array $repeatableItems = null,
         public ?int $gridColumns = null,
+        // Tabs — the query param the open tab persists in (null = not
+        // persisted), and each Tab's key in it.
+        public ?string $queryParam = null,
+        public ?string $urlKey = null,
     ) {}
 }

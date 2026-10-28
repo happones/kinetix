@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
+import {
+    readQueryParam,
+    writeQueryParam,
+} from '@/composables/useKinetixQueryParam';
 import {
     tabsListClass,
     tabsTriggerClass,
@@ -113,13 +116,7 @@ const useTabs = computed(() => props.tabs && tabs.value.length > 1);
 const TAB_PARAM = 'relation';
 
 const tabFromUrl = (): string | null => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    const requested = new URLSearchParams(window.location.search).get(
-        TAB_PARAM,
-    );
+    const requested = readQueryParam(TAB_PARAM);
 
     // A group member's relationship also lands on its group's tab (lazy
     // members revisit with their own relation param).
@@ -142,27 +139,7 @@ const active = ref(tabFromUrl() ?? tabs.value[0]?.key ?? '');
  */
 const selectTab = (relationship: string): void => {
     active.value = relationship;
-
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.set(TAB_PARAM, relationship);
-
-    try {
-        router.replace({
-            url: url.pathname + url.search,
-            preserveScroll: true,
-            preserveState: true,
-        });
-    } catch {
-        window.history.replaceState(
-            window.history.state,
-            '',
-            url.pathname + url.search,
-        );
-    }
+    writeQueryParam(TAB_PARAM, relationship);
 };
 
 // Keep the active tab valid when the manager list changes (e.g. an Inertia

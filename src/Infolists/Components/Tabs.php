@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Infolists\Components;
 
 use Happones\Kinetix\Data\InfolistEntryData;
+use Happones\Kinetix\Support\QueryStringKeys;
 use Illuminate\Database\Eloquent\Model;
 
 class Tabs extends Component
@@ -15,6 +16,8 @@ class Tabs extends Component
      * @var array<int, Tab>
      */
     protected array $tabs = [];
+
+    protected string|bool|null $queryParam = null;
 
     public function __construct(mixed $label = null)
     {
@@ -46,6 +49,19 @@ class Tabs extends Component
         return $this->tabs($tabs);
     }
 
+    /**
+     * Keep the open tab in the URL (`?tab=security`) so a reload or a shared
+     * link reopens it. On by default (`kinetix.forms.query_string.tabs`);
+     * pass a name to use another param — two groups on one page then keep
+     * their own — or `false` to switch it off for this group.
+     */
+    public function persistInQueryString(string|bool $param = true): static
+    {
+        $this->queryParam = $param;
+
+        return $this;
+    }
+
     protected function getType(): string
     {
         return 'tabs';
@@ -58,11 +74,19 @@ class Tabs extends Component
         }
 
         $tabsData = [];
+        $keys     = [];
         foreach ($this->tabs as $tab) {
             $data = $tab->toData($operation, $record);
             if ($data !== null) {
                 $tabsData[] = $data;
+                $keys[]     = $tab->getUrlKey();
             }
+        }
+
+        $queryParam = QueryStringKeys::param($this->queryParam, 'tab', 'kinetix.forms.query_string.tabs');
+
+        if ($queryParam !== null) {
+            QueryStringKeys::assign($tabsData, $keys, 'tab');
         }
 
         return new InfolistEntryData(
@@ -70,6 +94,7 @@ class Tabs extends Component
             columnSpan: $this->columnSpan,
             schema: $tabsData,
             heading: $this->label !== null ? (string) $this->label : null,
+            queryParam: $queryParam,
         );
     }
 }

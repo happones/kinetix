@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.263.0] - 2026-10-28
+
+### Added
+
+- **The open tab and the wizard step live in the URL** (published). Form tabs,
+  infolist tabs and form wizards write their state into the query string —
+  `?tab=security`, `?step=billing` — with a client-side history replace, so a
+  reload, a redirect back after a failed save or a shared link reopens it.
+  Keys are the label's slug (`Tab::key()` / `Step::key()` fix one for
+  translated labels); nested tab groups share the param (`?tab=address` opens
+  the outer and inner tab); validation still jumps to the errored tab/step and
+  the URL follows. A wizard never opens past a step whose required fields are
+  empty. Tabs and wizards inside modals never touch the URL.
+- **On by default, switchable:** `kinetix.forms.query_string.tabs` /
+  `.steps` (env `KINETIX_TABS_IN_QUERY_STRING`,
+  `KINETIX_WIZARD_STEPS_IN_QUERY_STRING`); a published config without the keys
+  counts as on. Per group: `Tabs::persistInQueryString('name'|false)`,
+  `Wizard::persistStepInQueryString('name'|false)`.
+- `useKinetixQueryParam` (published composable): `readQueryParam`,
+  `writeQueryParam`, `requestedIndex`. Relation managers' `?relation=` now use it.
+
 ## [0.262.1] - 2026-10-27
 
 ### Fixed

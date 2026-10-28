@@ -14,7 +14,7 @@ Activate this skill when:
 - Building a read-only "View" / "Show" page for a record or resource.
 - Displaying record details without editing (the display-only twin of Forms).
 - Adding entries like `TextEntry`, `IconEntry`, `ImageEntry`, or `ColorEntry`.
-- Grouping details with `Section::make()`, `Grid::make()`, `Fieldset::make()`, or `Tabs::make()->tabs([Tab::make(...)])`.
+- Grouping details with `Section::make()`, `Grid::make()`, `Fieldset::make()`, or `Tabs::make()->tabs([Tab::make(...)])`. The open tab is kept in `?tab=` by default (same rules and config as form tabs: `Tab::key()`, `Tabs::persistInQueryString('name'|false)`, `kinetix.forms.query_string.tabs`).
 - Formatting values for display (`badge()`, `date()`, `money()`, `limit()`, `copyable()`). `date()`/`dateTime()` with no argument localize to the app locale (Carbon `isoFormat`, tokens from `config('kinetix.formats')`); `isoDate()`/`isoDateTime()` take explicit tokens; `->locale()` overrides. `money()` formats via intl in the app locale (`$divideBy` for cents).
 - Resolving values with `state()` / `formatStateUsing()` callbacks or conditional visibility.
 

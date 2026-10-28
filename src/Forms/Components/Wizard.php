@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms\Components;
 
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Support\QueryStringKeys;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -34,6 +35,8 @@ class Wizard extends Component
     protected string $stepLayout = 'inline';
 
     protected ?string $slug = null;
+
+    protected string|bool|null $queryParam = null;
 
     public static function make(): static
     {
@@ -107,6 +110,20 @@ class Wizard extends Component
         return $this;
     }
 
+    /**
+     * Keep the current step in the URL (`?step=billing`) so a reload or a
+     * shared link reopens it. On by default (`kinetix.forms.query_string.steps`);
+     * pass a name to use another param, or `false` to switch it off. A step is
+     * only reopened when the steps before it are complete (their required
+     * fields filled) — otherwise the wizard opens at the first incomplete one.
+     */
+    public function persistStepInQueryString(string|bool $param = true): static
+    {
+        $this->queryParam = $param;
+
+        return $this;
+    }
+
     protected function getType(): string
     {
         return 'wizard';
@@ -119,15 +136,23 @@ class Wizard extends Component
         }
 
         $stepData = [];
+        $keys     = [];
         foreach ($this->schema as $step) {
             $data = $step->toData($operation, $record);
             if ($data !== null) {
                 $stepData[] = $data;
+                $keys[]     = $step->getUrlKey();
             }
         }
 
         if ($stepData === []) {
             return null;
+        }
+
+        $queryParam = QueryStringKeys::param($this->queryParam, 'step', 'kinetix.forms.query_string.steps');
+
+        if ($queryParam !== null) {
+            QueryStringKeys::assign($stepData, $keys, 'step');
         }
 
         return new FormFieldData(
@@ -139,6 +164,7 @@ class Wizard extends Component
             fullWidth: $this->fullWidth,
             stepLayout: $this->stepLayout,
             slug: $this->slug,
+            queryParam: $queryParam,
         );
     }
 }

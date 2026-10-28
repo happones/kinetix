@@ -3,6 +3,10 @@ import { computed, ref, watch } from 'vue';
 import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
 import { schemaHasError } from '@/composables/useKinetixFormErrors';
 import {
+    requestedIndex,
+    writeQueryParam,
+} from '@/composables/useKinetixQueryParam';
+import {
     gridColumnVars,
     resolveColumns,
 } from '@/composables/useKinetixResponsiveGrid';
@@ -19,6 +23,12 @@ import KinetixWizard from './KinetixWizard.vue';
  * Validation-aware: steps whose fields hold an error are marked on the
  * indicator, navigable regardless of linear gating, and when errors arrive the
  * wizard jumps to the first offending step (unless the current one has one).
+ *
+ * URL-aware: when the server sends a `queryParam`, the current step lives in
+ * the query string (`?step=billing`), so a reload or a shared link reopens it
+ * — but never past a step whose required fields are still empty (a reload of
+ * a create form starts over at the first incomplete step). Never inside a
+ * modal (`flat`).
  */
 const props = defineProps<{
     comp: any;
@@ -145,6 +155,41 @@ function beforeNext(index: number): boolean {
         meets(props.values[name], minItems),
     );
 }
+
+const urlParam = computed<string | null>(() =>
+    props.flat ? null : (props.comp.queryParam ?? null),
+);
+
+/** The step the URL asks for, held back at the first incomplete step before it. */
+function stepFromUrl(): number {
+    const requested = requestedIndex(props.comp.schema, urlParam.value);
+
+    for (let index = 0; index < requested; index++) {
+        if (!beforeNext(index)) {
+            return index;
+        }
+    }
+
+    return Math.max(0, requested);
+}
+
+function writeStep(index: number): void {
+    const key = props.comp.schema?.[index]?.urlKey;
+
+    if (urlParam.value && key) {
+        writeQueryParam(urlParam.value, key);
+    }
+}
+
+current.value = stepFromUrl();
+
+// Held back from the step the link named: say so in the URL too, so it never
+// shows one step while naming another.
+if (requestedIndex(props.comp.schema, urlParam.value) > current.value) {
+    writeStep(current.value);
+}
+
+watch(current, writeStep);
 </script>
 
 <template>
