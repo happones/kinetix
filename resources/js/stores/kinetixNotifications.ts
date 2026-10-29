@@ -82,7 +82,10 @@ export const useNotificationsStore = defineStore('kinetixNotifications', () => {
 
         try {
             const audio = new Audio(soundConfig.path);
-            audio.play();
+            // A page nobody has interacted with yet blocks autoplay: play()
+            // rejects, and a rejection the try can't catch is an uncaught
+            // error in the console for every notification.
+            audio.play().catch(() => {});
         } catch (e) {
             console.warn('Failed to play Kinetix notification audio:', e);
         }

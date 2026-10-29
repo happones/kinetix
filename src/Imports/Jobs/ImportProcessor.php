@@ -14,6 +14,7 @@ use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\File;
@@ -21,8 +22,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class ImportProcessor implements ShouldQueue
@@ -43,6 +44,16 @@ class ImportProcessor implements ShouldQueue
     protected ?string $failureLogPath = null;
 
     protected int $failureLogRows = 0;
+
+    /**
+     * Source header indexes of the columns marked ->sensitive(), blanked in
+     * the failed-rows CSV.
+     *
+     * @var array<int, int>
+     */
+    protected array $sensitiveIndexes = [];
+
+    protected mixed $recipientModel = null;
 
     /**
      * @param class-string<Importer>  $importerClass
@@ -112,7 +123,7 @@ class ImportProcessor implements ShouldQueue
     public function handle(): void
     {
         /** @var Importer $importer */
-        $importer = (new $this->importerClass)->withContext($this->context);
+        $importer = (new $this->importerClass)->withContext($this->context)->forUser($this->actingUser());
         $options  = ImportOptionsData::from($this->options);
 
         $disk                 = KinetixDisk::privateName();
@@ -130,8 +141,8 @@ class ImportProcessor implements ShouldQueue
 
         try {
             $headers = FileReader::headers($localPath, $options);
-            $rules   = $this->mappedRules($importer);
-            $labels  = $this->columnLabels($importer);
+
+            $this->sensitiveIndexes = $this->sensitiveIndexes($importer);
 
             // Failed rows are written out as they happen instead of collected:
             // a wholly mismatched million-row file would otherwise hold a
@@ -151,12 +162,12 @@ class ImportProcessor implements ShouldQueue
                     continue;
                 }
 
-                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber, $labels);
+                $this->processChunk($buffer, $importer, $imported, $failed, $failures, $rowNumber);
                 $buffer = [];
             }
 
             if ($buffer !== []) {
-                $this->processChunk($buffer, $importer, $rules, $imported, $failed, $failures, $rowNumber, $labels);
+                $this->processChunk($buffer, $importer, $imported, $failed, $failures, $rowNumber);
             }
         } finally {
             KinetixDisk::discardTemp($localPath, $isTemp);
@@ -168,51 +179,59 @@ class ImportProcessor implements ShouldQueue
     }
 
     /**
-     * Import one buffered chunk of rows inside a single transaction.
+     * Import one buffered chunk of rows inside a single transaction — each row
+     * in its own savepoint ({@see Importer::usesTransactionPerRow()}), so a
+     * row that fails half way leaves nothing behind, and a failed statement
+     * doesn't abort the chunk's transaction for the rows after it.
+     *
+     * Whatever a row throws — a validation failure, a {@see RowRejected}, a
+     * bad rule, a database error — fails THAT row; it never stops the job.
      *
      * @param array<int, array<int, string|null>> $chunk
-     * @param array<string, array<int, mixed>>    $rules
      * @param array<int, string>                  $failures
-     * @param array<string, string>               $labels
      */
     protected function processChunk(
         array $chunk,
         Importer $importer,
-        array $rules,
         int &$imported,
         int &$failed,
         array &$failures,
         int &$rowNumber,
-        array $labels = [],
     ): void {
-        DB::transaction(function () use ($chunk, $importer, $rules, $labels, &$imported, &$failed, &$failures, &$rowNumber): void {
+        $perRow = $importer->usesTransactionPerRow();
+
+        DB::transaction(function () use ($chunk, $importer, $perRow, &$imported, &$failed, &$failures, &$rowNumber): void {
             foreach ($chunk as $row) {
                 $rowNumber++;
                 $data = $this->mapRow($row);
 
-                if ($rules !== []) {
-                    $validator = Validator::make($data, $rules, [], $labels);
-
-                    if ($validator->fails()) {
-                        $failed++;
-                        $reason = (string) $validator->errors()->first();
-                        $this->recordFailure($failures, $rowNumber, $reason);
-                        $this->logFailedRow($rowNumber, $row, $reason);
-
-                        continue;
-                    }
-                }
-
                 try {
-                    $importer->importRow($data);
+                    $perRow
+                        ? DB::transaction(fn () => $importer->processRow($data))
+                        : $importer->processRow($data);
+
                     $imported++;
                 } catch (Throwable $e) {
                     $failed++;
-                    $this->recordFailure($failures, $rowNumber, $e->getMessage());
-                    $this->logFailedRow($rowNumber, $row, $e->getMessage());
+                    $reason = $this->failureReason($e);
+                    $this->recordFailure($failures, $rowNumber, $reason);
+                    $this->logFailedRow($rowNumber, $row, $reason);
                 }
             }
         });
+    }
+
+    /**
+     * Why a row failed: every validation message, not just the first, so one
+     * pass over the failed-rows file fixes the row.
+     */
+    protected function failureReason(Throwable $e): string
+    {
+        if ($e instanceof ValidationException) {
+            return implode(' ', $e->validator->errors()->all());
+        }
+
+        return $e->getMessage();
     }
 
     /**
@@ -249,6 +268,12 @@ class ImportProcessor implements ShouldQueue
     {
         if ($this->failureLog === null) {
             return;
+        }
+
+        foreach ($this->sensitiveIndexes as $index) {
+            if (isset($row[$index])) {
+                $row[$index] = '';
+            }
         }
 
         $this->failureLogRows++;
@@ -315,45 +340,43 @@ class ImportProcessor implements ShouldQueue
     }
 
     /**
-     * Each column's label, as the template and the mapping step show it, for
-     * the validation messages: "The Name field is required.", not "The name
-     * field is required." in a column the file calls "Nombre".
+     * The source header indexes the ->sensitive() columns are mapped to.
      *
-     * @return array<string, string>
+     * @return array<int, int>
      */
-    protected function columnLabels(Importer $importer): array
+    protected function sensitiveIndexes(Importer $importer): array
     {
-        $labels = [];
+        $indexes = [];
 
         foreach ($importer::getColumns() as $column) {
-            if ($column->getLabel() !== '') {
-                $labels[$column->getName()] = $column->getLabel();
+            if ($column->isSensitive() && isset($this->mapping[$column->getName()])) {
+                $indexes[] = (int) $this->mapping[$column->getName()];
             }
         }
 
-        return $labels;
+        return $indexes;
     }
 
     /**
-     * Build validation rules only for mapped columns that declare them.
-     *
-     * @return array<string, array<int, mixed>>
+     * The user who started the import, as the importer's acting user.
      */
-    protected function mappedRules(Importer $importer): array
+    protected function actingUser(): ?Authenticatable
     {
-        $rules = [];
+        $recipient = $this->recipient();
 
-        foreach ($importer::getColumns() as $column) {
-            $name = $column->getName();
-            // isset() excludes both unmapped (absent) and explicitly-null columns.
-            $isMapped = isset($this->mapping[$name]);
+        return $recipient instanceof Authenticatable ? $recipient : null;
+    }
 
-            if ($isMapped && $column->getRules() !== []) {
-                $rules[$name] = $column->getRules();
-            }
+    /**
+     * The user who started the import, resolved once.
+     */
+    protected function recipient(): mixed
+    {
+        if ($this->recipientClass === null || $this->recipientId === null) {
+            return null;
         }
 
-        return $rules;
+        return $this->recipientModel ??= $this->recipientClass::find($this->recipientId);
     }
 
     /**
@@ -382,11 +405,7 @@ class ImportProcessor implements ShouldQueue
      */
     protected function notify(Importer $importer, int $imported, int $failed, array $failures = [], ?string $failedRowsUrl = null): void
     {
-        if ($this->recipientClass === null || $this->recipientId === null) {
-            return;
-        }
-
-        $recipient = $this->recipientClass::find($this->recipientId);
+        $recipient = $this->recipient();
 
         if ($recipient === null) {
             return;

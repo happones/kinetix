@@ -161,6 +161,11 @@ return [
         // per window of rows instead of materializing the whole sheet — this
         // is what bounds worker memory on a huge workbook.
         'spreadsheet_chunk_size' => env('KINETIX_IMPORT_SPREADSHEET_CHUNK', 2000),
+
+        // Each row runs in its own savepoint inside the chunk's transaction,
+        // so a row that fails half way (a catalog created, the record not
+        // saved) leaves nothing behind. false = one transaction per chunk.
+        'transaction_per_row' => (bool) env('KINETIX_IMPORT_TRANSACTION_PER_ROW', true),
     ],
 
     /*

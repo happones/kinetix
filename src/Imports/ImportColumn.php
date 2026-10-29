@@ -15,7 +15,19 @@ class ImportColumn
 
     protected mixed $label;
 
+    /**
+     * Translation key the label is read from, in the current locale — and in
+     * every configured locale when matching an uploaded header.
+     */
+    protected ?string $labelKey = null;
+
     protected bool $isRequiredMapping = false;
+
+    /**
+     * Whether the cell holds a secret (password, PIN): it is blanked in the
+     * failed-rows file a user downloads.
+     */
+    protected bool $isSensitive = false;
 
     /**
      * @var array<int, mixed>
@@ -46,7 +58,22 @@ class ImportColumn
 
     public function label(string $label): static
     {
-        $this->label = $label;
+        $this->label    = $label;
+        $this->labelKey = null;
+
+        return $this;
+    }
+
+    /**
+     * Label the column with a translation key instead of a fixed string: the
+     * template is written in the downloading user's language, and a header in
+     * ANY configured locale (`kinetix.locale.locales`) maps back to it — so a
+     * template downloaded in English still maps when uploaded in Spanish.
+     */
+    public function labelKey(string $key): static
+    {
+        $this->labelKey = $key;
+        $this->label    = $key;
 
         return $this;
     }
@@ -62,23 +89,57 @@ class ImportColumn
     }
 
     /**
-     * @param array<int, mixed>|string $rules
+     * Validation rules for the cell, in any shape Validator::make() accepts:
+     * a pipe-delimited string (`'required|string'`), a list, rule objects or
+     * closures. A string is split on `|` the way Laravel splits it.
+     *
+     * @param array<int, mixed>|string|object $rules
      */
-    public function rules(array|string $rules): static
+    public function rules(array|string|object $rules): static
     {
-        $this->rules = array_merge($this->rules, is_array($rules) ? $rules : [$rules]);
+        $rules = match (true) {
+            is_string($rules) => explode('|', $rules),
+            is_array($rules)  => $rules,
+            default           => [$rules],
+        };
+
+        foreach ($rules as $rule) {
+            // A list may still carry a piped string: ['required|string', 'max:5'].
+            array_push($this->rules, ...(is_string($rule) ? explode('|', $rule) : [$rule]));
+        }
 
         return $this;
     }
 
     /**
-     * Additional header names/aliases used for automatic mapping.
+     * Additional header names that auto-map to this column.
+     *
+     * @param array<int, string> $aliases
+     */
+    public function aliases(array $aliases): static
+    {
+        $this->guesses = array_merge($this->guesses, $aliases);
+
+        return $this;
+    }
+
+    /**
+     * Same as {@see aliases()}.
      *
      * @param array<int, string> $guesses
      */
     public function guess(array $guesses): static
     {
-        $this->guesses = array_merge($this->guesses, $guesses);
+        return $this->aliases($guesses);
+    }
+
+    /**
+     * Blank this column's cell in the failed-rows file, so a password or PIN
+     * a user typed into the spreadsheet isn't handed back in a download.
+     */
+    public function sensitive(bool $condition = true): static
+    {
+        $this->isSensitive = $condition;
 
         return $this;
     }
@@ -110,7 +171,12 @@ class ImportColumn
 
     public function getLabel(): string
     {
-        return (string) $this->label;
+        return $this->labelKey !== null ? (string) __($this->labelKey) : (string) $this->label;
+    }
+
+    public function isSensitive(): bool
+    {
+        return $this->isSensitive;
     }
 
     public function isRequiredMapping(): bool
@@ -137,11 +203,12 @@ class ImportColumn
     }
 
     /**
-     * Normalize a header/name for tolerant comparison (case/spacing/punctuation insensitive).
+     * Normalize a header/name for tolerant comparison: case, spacing,
+     * punctuation and accents don't count ("Teléfono" = "telefono").
      */
     public static function normalize(string $value): string
     {
-        return (string) str($value)->lower()->replaceMatches('/[^a-z0-9]+/i', '');
+        return (string) str($value)->ascii()->lower()->replaceMatches('/[^a-z0-9]+/', '');
     }
 
     /**
@@ -155,7 +222,7 @@ class ImportColumn
             return false;
         }
 
-        $candidates = array_merge([$this->name, (string) $this->label], $this->guesses);
+        $candidates = array_merge([$this->name, $this->getLabel()], $this->labelTranslations(), $this->guesses);
 
         foreach ($candidates as $candidate) {
             if (static::normalize((string) $candidate) === $normalized) {
@@ -164,6 +231,25 @@ class ImportColumn
         }
 
         return false;
+    }
+
+    /**
+     * The label in every configured locale, when it comes from a key.
+     *
+     * @return array<int, string>
+     */
+    protected function labelTranslations(): array
+    {
+        if ($this->labelKey === null) {
+            return [];
+        }
+
+        $locales = array_keys((array) config('kinetix.locale.locales', []));
+
+        return array_map(
+            fn (string $locale): string => (string) __($this->labelKey, [], $locale),
+            array_unique([...$locales, (string) config('app.fallback_locale', 'en')]),
+        );
     }
 
     /**
@@ -198,7 +284,7 @@ class ImportColumn
     {
         return new ImportColumnData(
             name: $this->name,
-            label: (string) $this->label,
+            label: $this->getLabel(),
             isRequired: $this->isRequiredMapping,
             guesses: $this->guesses,
         );

@@ -130,6 +130,49 @@ describe('notifications store — syncFromProps (database mode)', () => {
     });
 });
 
+describe('notifications store — sound', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia());
+        vi.clearAllMocks();
+    });
+
+    it('swallows the rejection when the browser blocks autoplay', () => {
+        const blocked = Promise.reject(new Error('NotAllowedError'));
+        const handled = vi.spyOn(blocked, 'catch');
+        const play = vi.fn(() => blocked);
+        vi.stubGlobal(
+            'Audio',
+            class {
+                play = play;
+            },
+        );
+        pageProps.kinetix_config = {
+            ...(pageProps.kinetix_config as object),
+            sound: { enabled: true, path: '/ding.mp3' },
+        };
+
+        const store = useNotificationsStore();
+        store.syncFromProps([]);
+        store.isInitialized = true;
+        store.syncFromProps([
+            {
+                id: 'n1',
+                title: 'New',
+                status: 'success',
+                read: false,
+                created_at: '2026-10-29T00:00:00Z',
+            },
+        ]);
+
+        expect(play).toHaveBeenCalledTimes(1);
+        // Without a .catch() the rejection is an uncaught error per toast.
+        expect(handled).toHaveBeenCalled();
+
+        delete (pageProps.kinetix_config as Record<string, unknown>).sound;
+        vi.unstubAllGlobals();
+    });
+});
+
 describe('notifications store — toast duration', () => {
     beforeEach(() => {
         setActivePinia(createPinia());

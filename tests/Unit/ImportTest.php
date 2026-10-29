@@ -162,9 +162,9 @@ class ImportTest extends TestCase
      */
     private function invokeMappedRules(array $mapping): array
     {
-        $job    = new ImportProcessor(RuledImporter::class, '/tmp/x.csv', [], $mapping);
-        $method = new ReflectionMethod($job, 'mappedRules');
+        $job = new ImportProcessor(RuledImporter::class, '/tmp/x.csv', [], $mapping);
+        $row = (new ReflectionMethod($job, 'mapRow'))->invoke($job, ['row-0', 'a@b.c', '555']);
 
-        return $method->invoke($job, new RuledImporter);
+        return (new RuledImporter)->columnRules(array_keys($row));
     }
 }

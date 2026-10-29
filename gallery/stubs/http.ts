@@ -15,7 +15,92 @@ const col = (name: string, extra: Record<string, unknown> = {}) => ({
     ...extra,
 });
 
+/** An importer with many fields against a narrow file: stays a modal. */
+const importHeaders = [
+    'Número',
+    'Nombre',
+    'Correo',
+    'Teléfono',
+    'Puesto',
+    'Departamento',
+    'Salario',
+    'SDI',
+    'Usuario',
+    'PIN',
+];
+const importFields = [
+    'number',
+    'name',
+    'email',
+    'phone',
+    'position',
+    'department',
+    'salary',
+    'sdi',
+    'username',
+    'pin',
+    'password',
+    'rfc',
+    'curp',
+    'nss',
+    'birth_date',
+    'hire_date',
+    'shift',
+    'plant',
+    'manager',
+    'cost_center',
+    'bank',
+    'clabe',
+    'street',
+    'city',
+    'state',
+    'zip',
+    'emergency_contact',
+    'emergency_phone',
+    'blood_type',
+    'notes',
+];
+
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
+    {
+        match: /\/imports\/(upload|preview)/,
+        data: {
+            headers: importHeaders,
+            rows: [importHeaders.map((_, i) => `value ${i + 1}`)],
+            columns: importFields.map((name, i) => ({
+                name,
+                label: name
+                    .replace(/_/g, ' ')
+                    .replace(/^./, (c) => c.toUpperCase()),
+                isRequired: i < 2,
+                guesses: [],
+            })),
+            options: {
+                delimiter: ',',
+                enclosure: '"',
+                skipLines: 0,
+                hasHeader: true,
+            },
+            settings: {
+                hasPreview: true,
+                previewRows: 10,
+                previewColumns: 8,
+                layout: 'auto',
+                fullscreenThreshold: 12,
+                maxUploadSize: 102400,
+                template: 'employees.csv',
+            },
+            autoMapping: Object.fromEntries(
+                importFields.map((name, i) => [
+                    name,
+                    i < importHeaders.length ? i : null,
+                ]),
+            ),
+            isExactMatch: false,
+            fileToken: 'gallery-file',
+            totalRows: 120,
+        },
+    },
     {
         // Deferred table stats: the specimen's KPI cards arrive after the rows.
         match: /\/tables\/aggregates/,

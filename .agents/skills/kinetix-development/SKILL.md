@@ -1249,6 +1249,19 @@ UI state that should survive a reload goes through `useKinetixQueryParam` (REQUI
 
 ---
 
+## 52. Import rows validate like a FormRequest (v0.264.0)
+
+The queued `ImportProcessor` only maps rows and counts; the per-row pipeline lives in `Importer::processRow()` (REQUIRED — never validate in the job): `prepareRow()` → `record()` (resolves via `resolveRecord()` once per row, memo live only inside `processRow()`, only when `rules()`/`after()` are overridden or `$validateUsing` is set) → `validateRow()` (validator from `RowValidatorSource` or empty, then `addRules()` column rules and `rules()` SEPARATELY so a field's rules accumulate, `setCustomMessages(messages())`, `addCustomAttributes(column labels + attributes())`, `after()`) → `importRow()` with the prepared row.
+
+- **Job**: each row in `DB::transaction()` (savepoint) inside the chunk transaction when `usesTransactionPerRow()` (`$transactionPerRow` ?? `kinetix.imports.transaction_per_row`, default true). EVERYTHING per row is in one `try` — a bad rule (`validateFoo does not exist`) must fail the row, never the job. `failureReason()` joins every validation message. `->sensitive()` columns are blanked in the failed-rows CSV by their mapped header index. The job sets `forUser()` from the recipient.
+- **`RowValidatorSource`**: FormRequest → `Request::create('/', 'POST', $row)` + a bound `Route` with the record as `snake(model basename)` and `record`, user resolver = importer user, `createFrom()`, then `prepareForValidation()` + `getValidatorInstance()` via `Closure::call` (no `authorize()`); prepared row = `$request->all()`. Form/Resource → `Form::make($record)` (Resource: `::form(...)`), filled from the record (else `model()`), `makeValidator($row)`.
+- **`ImportColumn`**: `rules()` splits piped strings (also inside lists) like `ValidationRuleParser`; accepts objects/closures. `normalize()` = `ascii()->lower()->[^a-z0-9]` strip. `labelKey()` translates at read time and matches in every `kinetix.locale.locales` locale + fallback; `label()`/`labelKey()` last call wins. `aliases()` = `guess()`.
+- **Template**: UTF-8 BOM + `fputcsv` empty escape; `getTemplateDownloadName()` (final) appends `.csv` — used by the controller AND `settings()->template`. `FileReader::skipByteOrderMark()` on both CSV read paths.
+- **UI**: the modal-surface cap sits on the ScrollArea **viewport** (`viewportClass`), never the root (viewport `size-full` vs a max-height-only parent = auto → list runs over the footer). Notification sound: `audio.play().catch(() => {})`.
+- Tests `ImportRowValidationTest` (fixtures `RowEmployee*`), `ImportStartTest` (BOM, extension), `KinetixImporter.spec.ts` (viewport cap), `kinetixNotifications.spec.ts` (autoplay). Docs `docs/import-export.md#validating-rows`, `#translated-templates`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

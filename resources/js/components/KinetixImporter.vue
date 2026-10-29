@@ -159,15 +159,13 @@ const canContinue = computed(() => {
     return canStart.value;
 });
 
-const stepBodyClass = computed(() => {
-    if (props.surface === 'fullscreen') {
-        return 'min-h-0 flex-1';
-    }
-
-    // Capped rather than unbounded: this is what keeps a fifty-column file from
-    // growing the dialog past the viewport.
-    return 'max-h-[min(55vh,32rem)]';
-});
+// Capped rather than unbounded: this is what keeps a fifty-field importer
+// from growing the dialog past the viewport. The cap sits on the VIEWPORT:
+// its `size-full` against a root with only a max-height resolves to auto, so
+// a capped root lets the list run over the dialog's footer buttons.
+const stepViewportClass = computed(() =>
+    props.surface === 'fullscreen' ? '' : 'max-h-[min(55vh,32rem)]',
+);
 
 const onContinue = async (): Promise<void> => {
     if (step.value === 'file') {
@@ -269,7 +267,11 @@ const summaryRows = computed(() => {
             v-bind="
                 surface === 'sheet' || surface === 'inline'
                     ? {}
-                    : { type: 'auto', class: `-mr-3 pr-3 ${stepBodyClass}` }
+                    : {
+                          type: 'auto',
+                          class: '-mr-3 pr-3',
+                          viewportClass: stepViewportClass,
+                      }
             "
             :class="surface === 'fullscreen' ? 'min-h-0 flex-1' : ''"
         >

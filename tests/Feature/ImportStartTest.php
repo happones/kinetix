@@ -47,6 +47,14 @@ class NamedTemplateImporter extends StartImporter
     protected ?string $templateFileName = 'products.csv';
 }
 
+class ExtensionlessTemplateImporter extends StartImporter
+{
+    public function getTemplateFileName(): string
+    {
+        return 'employees-template';
+    }
+}
+
 class ImportStartTest extends TestCase
 {
     private function fileToken(): string
@@ -75,7 +83,8 @@ class ImportStartTest extends TestCase
         $response->assertHeader('content-type', 'text/csv; charset=utf-8');
         $response->assertDownload('StartImporter.csv'); // studly class default
 
-        $this->assertSame("Name,Email\n", $response->streamedContent());
+        // A UTF-8 BOM first, or Excel on Windows reads accented headers as ANSI.
+        $this->assertSame("\xEF\xBB\xBFName,Email\n", $response->streamedContent());
     }
 
     public function test_the_template_filename_is_customizable(): void
@@ -83,6 +92,15 @@ class ImportStartTest extends TestCase
         $this->get(route('kinetix.imports.template', ['importer' => NamedTemplateImporter::token()]))
             ->assertOk()
             ->assertDownload('products.csv');
+    }
+
+    public function test_a_template_name_without_an_extension_downloads_as_csv(): void
+    {
+        $this->get(route('kinetix.imports.template', ['importer' => ExtensionlessTemplateImporter::token()]))
+            ->assertOk()
+            ->assertDownload('employees-template.csv');
+
+        $this->assertSame('employees-template.csv', (new ExtensionlessTemplateImporter)->settings()->template);
     }
 
     public function test_the_template_endpoint_404s_when_disabled_or_invalid(): void

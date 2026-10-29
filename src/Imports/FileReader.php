@@ -156,6 +156,19 @@ class FileReader
     }
 
     /**
+     * Step past a UTF-8 byte order mark (Excel writes one, and so does the
+     * template), so the first header reads "Name", not "\u{FEFF}Name".
+     *
+     * @param resource $handle
+     */
+    protected static function skipByteOrderMark($handle): void
+    {
+        if (fread($handle, 3) !== "\xEF\xBB\xBF") {
+            rewind($handle);
+        }
+    }
+
+    /**
      * @return Generator<int, array<int, string|null>>
      */
     protected static function streamCsv(string $path, ImportOptionsData $options): Generator
@@ -165,6 +178,8 @@ class FileReader
         if ($handle === false) {
             return;
         }
+
+        static::skipByteOrderMark($handle);
 
         try {
             $skipped = 0;
@@ -307,6 +322,8 @@ class FileReader
         if ($handle === false) {
             return null;
         }
+
+        static::skipByteOrderMark($handle);
 
         try {
             $skipped = 0;

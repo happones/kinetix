@@ -11,6 +11,10 @@ use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator as ValidatorFacade;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator;
+use ReflectionMethod;
 use RuntimeException;
 
 abstract class Importer
@@ -75,6 +79,48 @@ abstract class Importer
      * post_max_size still cap it.
      */
     protected ?int $maxUploadSize = null;
+
+    /**
+     * Validate every row with the class the screen validates with, as well as
+     * the column rules and {@see rules()}: a FormRequest, a Form class or a
+     * Resource (its form()). See {@see RowValidatorSource} for how each runs
+     * on the queue worker.
+     *
+     * @var class-string|null
+     */
+    protected ?string $validateUsing = null;
+
+    /**
+     * Whether each row runs in its own savepoint, so a row that fails half
+     * way leaves nothing behind (and re-uploading the failed-rows file is
+     * always safe). Null inherits `kinetix.imports.transaction_per_row`.
+     */
+    protected ?bool $transactionPerRow = null;
+
+    /**
+     * The user who started the import (set on the worker), for
+     * {@see getUser()} and a FormRequest's `$this->user()`.
+     */
+    protected ?Authenticatable $user = null;
+
+    /**
+     * @var array<int, ImportColumn>|null
+     */
+    private ?array $columns = null;
+
+    /**
+     * Memo for {@see record()}, live only while {@see processRow()} runs.
+     */
+    private bool $processingRow = false;
+
+    private bool $rowRecordResolved = false;
+
+    private ?Model $rowRecord = null;
+
+    /**
+     * @var array<string, bool>
+     */
+    private array $overrides = [];
 
     /**
      * Define the target columns the file can be mapped onto.
@@ -274,7 +320,7 @@ abstract class Importer
             layout: $this->getLayout(),
             fullscreenThreshold: $this->getFullscreenThreshold(),
             maxUploadSize: $this->getMaxUploadSize(),
-            template: $this->hasDownloadableTemplate() ? $this->getTemplateFileName() : null,
+            template: $this->hasDownloadableTemplate() ? $this->getTemplateDownloadName() : null,
         );
     }
 
@@ -287,6 +333,17 @@ abstract class Importer
     {
         return $this->templateFileName
             ?? str(class_basename(static::class))->studly()->append('.csv')->toString();
+    }
+
+    /**
+     * The template's filename as downloaded: {@see getTemplateFileName()},
+     * with `.csv` added when an override left the extension off.
+     */
+    final public function getTemplateDownloadName(): string
+    {
+        $name = $this->getTemplateFileName();
+
+        return str_ends_with(strtolower($name), '.csv') ? $name : $name.'.csv';
     }
 
     /**
@@ -310,6 +367,251 @@ abstract class Importer
     }
 
     /**
+     * Whether each row runs in its own savepoint ({@see $transactionPerRow}).
+     */
+    public function usesTransactionPerRow(): bool
+    {
+        return $this->transactionPerRow ?? (bool) config('kinetix.imports.transaction_per_row', true);
+    }
+
+    /**
+     * Set the user who started the import (the queued job does this).
+     */
+    public function forUser(?Authenticatable $user): static
+    {
+        $this->user = $user;
+
+        return $this;
+    }
+
+    public function getUser(): ?Authenticatable
+    {
+        return $this->user;
+    }
+
+    /**
+     * Normalize a mapped row before it is validated and imported — the
+     * importer's prepareForValidation(). Turn "15/03/1990" into "1990-03-15"
+     * or "Sí" into true here and the rules check the value that is stored.
+     * (castStateUsing() runs later, on the validated value.)
+     *
+     * @param  array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    protected function prepareRow(array $row): array
+    {
+        return $row;
+    }
+
+    /**
+     * Rules for the row, added to each mapped column's ->rules(). Unlike
+     * those, they see the row, the captured context and the record the row
+     * updates (null when it creates one):
+     *
+     *     return [
+     *         'email'    => ['nullable', 'email', Rule::unique('employees')->ignore($record)],
+     *         'username' => ['nullable', Rule::unique('employees')
+     *             ->where('team_id', $this->context['team_id'])
+     *             ->ignore($record)],
+     *     ];
+     *
+     * @param  array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    protected function rules(array $row, ?Model $record): array
+    {
+        return [];
+    }
+
+    /**
+     * Custom validation messages, as a FormRequest's messages().
+     *
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [];
+    }
+
+    /**
+     * `:attribute` names. Each column's label is the default, so a message
+     * names the header the user sees in their file.
+     *
+     * @return array<string, string>
+     */
+    protected function attributes(): array
+    {
+        return [];
+    }
+
+    /**
+     * Checks across fields, run after the rules — each a callable receiving
+     * the validator, as a FormRequest's after():
+     *
+     *     return [function (Validator $validator) use ($row): void {
+     *         if (($row['sdi'] ?? 0) < ($row['salary'] ?? 0)) {
+     *             $validator->errors()->add('sdi', 'The SDI can't be below the salary.');
+     *         }
+     *     }];
+     *
+     * @param  array<string, mixed> $row
+     * @return array<int, callable>
+     */
+    protected function after(array $row, ?Model $record): array
+    {
+        return [];
+    }
+
+    /**
+     * Turn the current row down: it counts as failed, with this reason.
+     */
+    protected function reject(string $reason): never
+    {
+        throw new RowRejected($reason);
+    }
+
+    /**
+     * The record the current row updates (null = it creates one), resolved
+     * through {@see resolveRecord()} ONCE per row and shared by rules(),
+     * after() and importRow(). A custom importRow() reads it from here
+     * instead of resolving it again.
+     *
+     * @param array<string, mixed> $data
+     */
+    protected function record(array $data): ?Model
+    {
+        if (! $this->processingRow) {
+            return $this->resolveRecord($data);
+        }
+
+        if (! $this->rowRecordResolved) {
+            $this->rowRecord         = $this->resolveRecord($data);
+            $this->rowRecordResolved = true;
+        }
+
+        return $this->rowRecord;
+    }
+
+    /**
+     * Prepare, validate and import one mapped row — what the queued job runs
+     * for each row of the file. Throws a ValidationException, a RowRejected
+     * or whatever importRow() throws when the row fails.
+     *
+     * @param array<string, mixed> $row column name => raw cell, mapped columns only
+     */
+    public function processRow(array $row): void
+    {
+        $this->processingRow     = true;
+        $this->rowRecordResolved = false;
+        $this->rowRecord         = null;
+
+        try {
+            $mapped = array_keys($row);
+            $row    = $this->validateRow($this->prepareRow($row), $mapped);
+
+            $this->importRow($row);
+        } finally {
+            $this->processingRow     = false;
+            $this->rowRecordResolved = false;
+            $this->rowRecord         = null;
+        }
+    }
+
+    /**
+     * Validate a prepared row. Nothing runs (and no record is resolved) for
+     * an importer with no rules at all.
+     *
+     * @param array<string, mixed> $row
+     * @param array<int, string>   $mapped the columns the file maps
+     *
+     * @throws ValidationException
+     *
+     * @return array<string, mixed> the row to import — a FormRequest's
+     *                              prepareForValidation() may have changed it
+     */
+    protected function validateRow(array $row, array $mapped): array
+    {
+        $columnRules = $this->columnRules($mapped);
+        $needsRecord = $this->validateUsing !== null || $this->overrides('rules') || $this->overrides('after');
+
+        if ($columnRules === [] && ! $needsRecord) {
+            return $row;
+        }
+
+        $record = $needsRecord ? $this->record($row) : null;
+
+        [$validator, $row] = $this->validateUsing !== null
+            ? RowValidatorSource::make($this->validateUsing, $row, $record, static::getModel(), $this->user)
+            : [ValidatorFacade::make($row, []), $row];
+
+        // Added one set at a time so a field's rules from both accumulate.
+        $validator->addRules($columnRules);
+        $validator->addRules($this->rules($row, $record));
+        $validator->setCustomMessages($this->messages());
+        $validator->addCustomAttributes([...$this->columnLabels(), ...$this->attributes()]);
+        $validator->after($this->after($row, $record));
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        return $row;
+    }
+
+    /**
+     * The rules of the mapped columns that declare any.
+     *
+     * @param  array<int, string>               $mapped
+     * @return array<string, array<int, mixed>>
+     */
+    public function columnRules(array $mapped): array
+    {
+        $rules = [];
+
+        foreach ($this->columns() as $column) {
+            if (in_array($column->getName(), $mapped, true) && $column->getRules() !== []) {
+                $rules[$column->getName()] = $column->getRules();
+            }
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Each column's label, as the template and the mapping step show it:
+     * "The Nombre field is required.", not "The name field is required."
+     *
+     * @return array<string, string>
+     */
+    protected function columnLabels(): array
+    {
+        $labels = [];
+
+        foreach ($this->columns() as $column) {
+            if ($column->getLabel() !== '') {
+                $labels[$column->getName()] = $column->getLabel();
+            }
+        }
+
+        return $labels;
+    }
+
+    /**
+     * The columns, built once per importer instance rather than per row.
+     *
+     * @return array<int, ImportColumn>
+     */
+    protected function columns(): array
+    {
+        return $this->columns ??= static::getColumns();
+    }
+
+    private function overrides(string $method): bool
+    {
+        return $this->overrides[$method] ??= (new ReflectionMethod($this, $method))->getDeclaringClass()->getName() !== self::class;
+    }
+
+    /**
      * Import a single mapped row (column name => value).
      *
      * @param array<string, mixed> $data
@@ -317,9 +619,9 @@ abstract class Importer
     public function importRow(array $data): void
     {
         $model  = static::getModel();
-        $record = $this->resolveRecord($data) ?? new $model;
+        $record = $this->record($data) ?? new $model;
 
-        foreach (static::getColumns() as $column) {
+        foreach ($this->columns() as $column) {
             $name = $column->getName();
 
             if (! array_key_exists($name, $data)) {

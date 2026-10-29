@@ -84,10 +84,13 @@ class ContactImporter extends Importer
 |---|---|
 | `::make(string $name)` | Target attribute (matches the model column) |
 | `->label(string)` | Display label (auto-generated from the name otherwise) |
+| `->labelKey(string $key)` | Label from a translation key: the template is written in the user's language, and a header in **any** configured locale maps back (see [Translated templates](#translated-templates)) |
 | `->requiredMapping(bool = true)` | The user must map a source column before starting |
-| `->rules(array\|string)` | Laravel validation rules applied per row |
-| `->guess(array $aliases)` | Extra header names used for **automatic** mapping |
-| `->castStateUsing(Closure)` | Transform the raw value before saving |
+| `->rules(array\|string\|object)` | Validation rules for the cell, in any shape `Validator::make()` accepts: `'required\|string'`, a list, rule objects, closures |
+| `->aliases(array)` | Extra header names used for **automatic** mapping |
+| `->guess(array)` | Same as `aliases()` |
+| `->sensitive(bool = true)` | Blank this cell in the failed-rows download (passwords, PINs) |
+| `->castStateUsing(Closure)` | Transform the validated value before saving |
 | `->fillRecordUsing(Closure)` | Custom write onto the record (`fn ($record, $value, $row)`) |
 
 ### `Importer` API
@@ -97,7 +100,16 @@ class ContactImporter extends Importer
 | `getColumns(): array` | The target columns (required) |
 | `protected static $model` | The model written to (or override `resolveRecord()`) |
 | `resolveRecord(array $data): ?Model` | Return an existing record for upsert; `null` inserts |
+| `record(array $data): ?Model` | The record the current row updates, resolved **once** per row — read it in a custom `importRow()` |
 | `importRow(array $data): void` | Per-row handler (override for custom logic) |
+| `prepareRow(array $row): array` | Normalize a row before it is validated (see [Validating rows](#validating-rows)) |
+| `rules(array $row, ?Model $record): array` | Per-row rules, with the context and the record the row updates |
+| `messages(): array` / `attributes(): array` | Custom messages and `:attribute` names (column labels by default) |
+| `after(array $row, ?Model $record): array` | Checks across fields, as a FormRequest's `after()` |
+| `protected ?string $validateUsing = null` | Also validate with a FormRequest, a Form class or a Resource |
+| `reject(string $reason): never` | Fail the current row with a reason (throws `RowRejected`) |
+| `protected ?bool $transactionPerRow = null` | Savepoint per row (null inherits `kinetix.imports.transaction_per_row`) |
+| `getUser(): ?Authenticatable` | The user who started the import (set on the worker) |
 | `chunkSize(): int` | Rows per DB transaction (default `1000`) |
 | `queue(): ?string` | Queue the job runs on (default queue otherwise) |
 | `context(Request $request): array` | Request context captured at dispatch, restored on the worker (see below) |
@@ -106,7 +118,7 @@ class ContactImporter extends Importer
 | `ability(): ?string` | Policy ability required to run the import (null = `create` when the model has a policy) |
 | `authorize(?Authenticatable $user): bool` | Override for custom authorization; enforced on every import endpoint |
 | `protected bool $downloadableTemplate = true` | Offer a "Download template" link in the import modal |
-| `protected ?string $templateFileName = null` | Template filename (null = studly class name, `ProductImporter.csv`) |
+| `protected ?string $templateFileName = null` | Template filename (null = studly class name, `ProductImporter.csv`; `.csv` is added when missing) |
 | `protected ?bool $preview = null` | Show the sample-data table (null inherits `kinetix.imports.preview`) |
 | `protected ?int $previewRows = null` | Sample rows — **and the reader's ceiling** (null inherits config) |
 | `protected ?int $previewColumns = null` | Columns shown before the rest fold away, `0` = no cap (null inherits config) |
@@ -118,6 +130,139 @@ class ContactImporter extends Importer
 | `getStartedNotificationBody(): string` | Toast shown when the import is queued (see [Notifications](#_8-notifications-lifecycle-custom-messages)) |
 | `getCompletedNotificationTitle/Body(int $imported, int $failed): string` | Completion notification title/body |
 | `getFailedNotificationTitle/Body(): string` | Whole-job failure notification title/body |
+
+### Validating rows
+
+Each row is **prepared**, **validated** and **imported** on its own, with the
+same pieces a FormRequest has. Column `rules()` cover the simple cases; the
+importer's hooks cover the rest:
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+
+class EmployeeImporter extends Importer
+{
+    protected static ?string $model = Employee::class;
+
+    public static function getColumns(): array
+    {
+        return [
+            ImportColumn::make('number')->requiredMapping(),
+            ImportColumn::make('name')->rules('required|string|max:120'),
+            ImportColumn::make('email'),
+            ImportColumn::make('born_on'),
+            ImportColumn::make('pin')->sensitive(),
+        ];
+    }
+
+    public function resolveRecord(array $data): ?Model
+    {
+        return Employee::where('team_id', $this->context['team_id'])
+            ->where('number', $data['number'] ?? null)
+            ->first();
+    }
+
+    // Like prepareForValidation(): the rules check the value that is stored.
+    protected function prepareRow(array $row): array
+    {
+        if (preg_match('#^(\d{2})/(\d{2})/(\d{4})$#', (string) ($row['born_on'] ?? ''), $m)) {
+            $row['born_on'] = "{$m[3]}-{$m[2]}-{$m[1]}";
+        }
+
+        return $row;
+    }
+
+    // Added to the column rules. Sees the context and the record the row updates.
+    protected function rules(array $row, ?Model $record): array
+    {
+        return [
+            'born_on' => ['nullable', 'date_format:Y-m-d'],
+            'email'   => ['nullable', 'email', Rule::unique('employees')
+                ->where('team_id', $this->context['team_id'])
+                ->ignore($record)],
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return ['email.unique' => 'Another employee already uses that email.'];
+    }
+
+    // Checks across fields, run after the rules.
+    protected function after(array $row, ?Model $record): array
+    {
+        return [function (Validator $validator) use ($row): void {
+            if ((float) ($row['sdi'] ?? 0) < (float) ($row['salary'] ?? 0)) {
+                $validator->errors()->add('sdi', 'The SDI cannot be below the salary.');
+            }
+        }];
+    }
+}
+```
+
+- **Order**: `prepareRow()` → the record is resolved (once — `rules()`,
+  `after()` and `importRow()` share it; a custom `importRow()` reads it with
+  `$this->record($data)`) → validation → `importRow()` with the prepared row.
+  `castStateUsing()` runs last, on the validated value.
+- **Messages** name each field by its column **label** — the header the user
+  sees in their file. `attributes()` overrides them.
+- **Every** message of a failed row is reported, not just the first, so one
+  pass over the failed-rows file fixes the row.
+- **Turning a row down**: `$this->reject('No employee has that number.')` (or
+  `throw new RowRejected(...)`) counts the row as **failed** with that reason —
+  a bare `return` would count it as imported.
+- **Nothing breaks the job**: a bad rule, a database error, anything a row
+  throws fails *that row* and the import carries on.
+
+#### Reuse the screen's validation
+
+Point `$validateUsing` at the class the create/edit screen validates with, and
+importing can't validate differently from capturing:
+
+```php
+class EmployeeImporter extends Importer
+{
+    protected ?string $validateUsing = StoreEmployeeRequest::class;
+    // or a Form class:   EmployeeForm::class
+    // or a Resource:     EmployeeResource::class   (its form())
+}
+```
+
+- A **FormRequest** runs as on its route: `prepareForValidation()`, `rules()`,
+  `messages()`, `attributes()`, `after()` and `withValidator()` (never
+  `authorize()`). The worker has no HTTP request, so it gets one carrying the
+  row: `$this->user()` is whoever started the import, and the record the row
+  updates is the route parameter named after the model — `$this->route('employee')`
+  for `Employee` — and `$this->route('record')`. So
+  `Rule::unique('employees')->ignore($this->route('employee'))` works for
+  upserts too.
+- A **Form** class or a **Resource** adds every field's rules, messages and
+  labels, with the form filled from the record the row updates — a field the
+  file leaves out keeps the value it already has. A field the form requires
+  and the file never carries fails every row: keep it out of the form, or use
+  a FormRequest.
+- Column rules, `rules()`, `messages()`, `attributes()` and `after()` still
+  apply on top, so the columns only have to map header → field.
+
+#### One row, one savepoint
+
+Rows still commit in chunks (`chunkSize()`), but each row runs in its own
+**savepoint**: a row that fails half way — a catalog entry created, the record
+never saved — leaves nothing behind, and re-uploading the failed-rows file is
+always safe. On PostgreSQL it also keeps one failed statement from aborting the
+rest of the chunk. Switch it off per importer (`protected ?bool
+$transactionPerRow = false;`) or for the app
+(`KINETIX_IMPORT_TRANSACTION_PER_ROW=false`).
+
+#### Secrets in the failed-rows file
+
+The failed-rows CSV hands the user's own cells back so they can fix and
+re-upload them. Mark a column `->sensitive()` and its cell is left **blank**
+there — a password or PIN typed into a spreadsheet isn't handed back in a
+download (the user types it again). Hide the dialog's sample table too with
+`protected ?bool $preview = false;`.
 
 ### Authorization
 
@@ -167,6 +312,11 @@ class ProductImporter extends Importer
 }
 ```
 
+The file starts with a UTF-8 byte order mark, so Excel on Windows opens
+accented headers as written ("Teléfono", not "TelÃ©fono") and saves them back
+that way; the reader skips the mark on upload. A name an override returns
+without an extension downloads with `.csv` added.
+
 Served by `GET {prefix}/imports/template?importer={token}`
 (`kinetix.imports.template`) — 404 when the importer disables it. When opening
 the modal manually (without `ImportAction`), pass the filename via the
@@ -215,7 +365,23 @@ class ProductImporter extends Importer
 
 ### Smart auto-mapping
 
-`Importer::guessMapping($headers)` matches each column against its name, label, and `guess()` aliases using a normalized comparison (case/spacing/punctuation insensitive — `NOMBRE` ≈ `name`). It is **collision-free**: each source header is claimed by at most one target column.
+`Importer::guessMapping($headers)` matches each column against its name, label, and `aliases()` using a normalized comparison (case, spacing, punctuation and accents don't count — `NOMBRE` ≈ `name`, `Teléfono` ≈ `telefono`). It is **collision-free**: each source header is claimed by at most one target column.
+
+#### Translated templates
+
+`->label(__('employee.phone'))` fixes the label in whatever language built the
+column, so a template downloaded in English ("Phone") stops mapping when a
+Spanish user uploads it. Give the key instead:
+
+```php
+ImportColumn::make('phone')
+    ->labelKey('employee.phone')            // template: "Teléfono" / "Phone"
+    ->aliases(['Celular', 'Tel. personal']);
+```
+
+The template is written in the downloading user's language, and a header
+matches the label in **any** locale of `kinetix.locale.locales` (plus the
+fallback locale).
 
 #### Exact matches skip the mapping step
 
@@ -267,6 +433,7 @@ detected") — it never drives the import, which streams the real records.
     'layout'                 => env('KINETIX_IMPORT_LAYOUT', 'auto'),
     'fullscreen_threshold'   => env('KINETIX_IMPORT_FULLSCREEN_THRESHOLD', 12),
     'spreadsheet_chunk_size' => env('KINETIX_IMPORT_SPREADSHEET_CHUNK', 2000),
+    'transaction_per_row'    => (bool) env('KINETIX_IMPORT_TRANSACTION_PER_ROW', true),
 ],
 ```
 
@@ -525,10 +692,10 @@ The import itself is queued; the user gets a completion **notification** when it
 
 ## 6. The Queued Job
 
-`ImportProcessor` **streams** the file (`FileReader::stream()` is a generator, so the job holds one chunk of rows, never the file), maps each row by the chosen header indices, validates mapped columns against their `rules()`, calls `importRow()` per row inside chunked transactions, deletes the temp file, and finishes by sending a Kinetix notification:
+`ImportProcessor` **streams** the file (`FileReader::stream()` is a generator, so the job holds one chunk of rows, never the file), maps each row by the chosen header indices, prepares and validates it (see [Validating rows](#validating-rows)), calls `importRow()` per row — each in its own savepoint inside chunked transactions — deletes the temp file, and finishes by sending a Kinetix notification:
 
-- `Import complete` — `:imported imported, :failed skipped` (status `success`, or `warning` if any rows were skipped). A row that fails validation or whose `importRow()` throws is **skipped, never fatal** — the first 10 failures are listed in the notification body with their row number and reason.
-- When any rows failed, the notification also carries a **Download failed rows** action: a CSV of **every** failed source row (row number, the original cells, and the reason), behind the same signed, user-bound, expiring download token exports use. Rows are written to it **as they fail**, so a wholly mismatched million-row file doesn't hold a million rows in worker memory on the way there.
+- `Import complete` — `:imported imported, :failed skipped` (status `success`, or `warning` if any rows were skipped). A row that fails validation, is rejected, or throws anywhere on its way in is **skipped, never fatal** — the first 10 failures are listed in the notification body with their row number and every reason.
+- When any rows failed, the notification also carries a **Download failed rows** action: a CSV of **every** failed source row (row number, the original cells — `sensitive()` ones blanked — and the reason), behind the same signed, user-bound, expiring download token exports use. Rows are written to it **as they fail**, so a wholly mismatched million-row file doesn't hold a million rows in worker memory on the way there.
 - Sent via `broadcast()` when Echo is configured, otherwise persisted with `sendToDatabase()`.
 
 Customize the dispatch by overriding `queue()` and `chunkSize()`, the whole per-row behaviour via `importRow()` / `resolveRecord()`, and every notification message via the `get*Notification*` hooks (see [Notifications](#_8-notifications-lifecycle-custom-messages)).

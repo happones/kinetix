@@ -13,6 +13,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.264.0] - 2026-10-29
+
+### Fixed
+
+- **`ImportColumn::rules('required|string')` crashed the whole import.** A
+  piped string was stored as one rule named `required|string`, so any row with
+  a value in that column threw `Method validateRequired|string does not exist`
+  outside the per-row error handling: the job died before importing a row and
+  the user never got the completion notification. Strings are now split on `|`
+  the way Laravel splits them (also inside a list), and rule objects and
+  closures are accepted. Anything a row throws — validation, a bad rule, a
+  database error — now fails that row, never the job.
+- **Accented headers didn't auto-map.** `ImportColumn::normalize()` stripped
+  `é` as punctuation, so "Teléfono" (`telfono`) never matched "Telefono".
+  Headers are transliterated to ASCII first.
+- **The import dialog overflowed with many fields (published).** The modal
+  surface capped the ScrollArea root, whose viewport (`size-full` against a
+  max-height-only parent) grew without limit and covered **Back** and
+  **Continue**. The cap now sits on the viewport.
+- **Notification sound logged an uncaught rejection (published)** on every
+  notification that arrived before the user interacted with the page (autoplay
+  blocked). The rejection is now handled.
+- **The template opened garbled in Excel on Windows.** It now starts with a
+  UTF-8 byte order mark ("Teléfono", not "TelÃ©fono"), and the reader skips a
+  BOM on upload. A `getTemplateFileName()` override without an extension now
+  downloads as `.csv`.
+
+### Added
+
+- **Import rows validate like a FormRequest.** `Importer` gains
+  `prepareRow()` (normalize before validating, like `prepareForValidation()`),
+  `rules(array $row, ?Model $record)` (per-row rules with the captured context
+  and the record the row updates — `Rule::unique()->ignore($record)` works),
+  `messages()`, `attributes()` (column labels by default) and
+  `after(array $row, ?Model $record)` for checks across fields. Every message
+  of a failed row is reported, not just the first.
+- **`protected ?string $validateUsing`** on an importer validates each row with
+  the screen's own FormRequest, Form class or Resource, so importing and
+  capturing can't disagree. A FormRequest runs its `prepareForValidation()`,
+  rules, messages, attributes, `after()` and `withValidator()`, with
+  `$this->user()` = whoever started the import and the record the row updates
+  as the route parameter named after the model.
+- **The record a row updates is resolved once** and shared by `rules()`,
+  `after()` and `importRow()` (`$this->record($data)`).
+- **`$this->reject($reason)` / `RowRejected`** counts a row as failed with a
+  reason instead of silently as imported.
+- **One savepoint per row** inside the chunk's transaction: a row that fails
+  half way leaves nothing behind (and, on PostgreSQL, no longer aborts the rest
+  of the chunk). `kinetix.imports.transaction_per_row` /
+  `KINETIX_IMPORT_TRANSACTION_PER_ROW` (default `true`) or
+  `protected ?bool $transactionPerRow` turn it off.
+- **`ImportColumn::sensitive()`** blanks the cell in the failed-rows CSV.
+- **`ImportColumn::labelKey()`** writes the template in the user's language and
+  maps a header in any configured locale; **`aliases()`** is a clearer name for
+  `guess()` (which stays).
+- `Importer::getUser()` / `forUser()`: the user who started the import, on the
+  worker.
+
+### Upgrade notes
+
+- Publish the config or add `'transaction_per_row' => true` under `imports`
+  only if you want to switch it off; a missing key means on.
+- An importer that overrides both `resolveRecord()` and `importRow()` should
+  read the record with `$this->record($data)` in `importRow()` when it also
+  uses `rules()`/`after()`/`$validateUsing`, so it is resolved once.
+- Re-publish the components (`kinetix-components --force`) for the dialog and
+  notification-sound fixes.
+
 ## [0.263.0] - 2026-10-28
 
 ### Added

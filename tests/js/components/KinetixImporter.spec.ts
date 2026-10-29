@@ -243,8 +243,14 @@ describe('KinetixImporter — the wizard', () => {
         await chooseFile(w);
         await clickPrimary(w);
 
-        // The wizard owns a bounded scroller; the dialog itself stays put.
-        expect(w.html()).toContain('max-h-[min(55vh,32rem)]');
+        // The wizard owns a bounded scroller; the dialog itself stays put. The
+        // cap sits on the viewport: on the root alone, the viewport's
+        // `size-full` resolves to auto and the list runs over the footer.
+        const viewport = w.find('[data-slot="scroll-area-viewport"]');
+        expect(viewport.classes()).toContain('max-h-[min(55vh,32rem)]');
+        expect(w.find('[data-slot="scroll-area"]').classes()).not.toContain(
+            'max-h-[min(55vh,32rem)]',
+        );
     });
 
     it('adds no scroller of its own inside a sheet, which already has one', async () => {

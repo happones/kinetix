@@ -91,7 +91,51 @@ class SensitiveImporter extends Importer
 
 Everything falls back to `config('kinetix.imports.*')`
 (`max_upload_size`, `preview`, `preview_rows`, `preview_columns`, `layout`,
-`fullscreen_threshold`, `spreadsheet_chunk_size`).
+`fullscreen_threshold`, `spreadsheet_chunk_size`, `transaction_per_row`).
+
+### 1c. Validating rows like a FormRequest
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+
+class EmployeeImporter extends Importer
+{
+    protected static ?string $model = \App\Models\Employee::class;
+
+    // Optional: also validate with the screen's FormRequest / Form / Resource.
+    protected ?string $validateUsing = \App\Http\Requests\StoreEmployeeRequest::class;
+
+    public static function getColumns(): array
+    {
+        return [
+            ImportColumn::make('name')->rules('required|string|max:120'), // pipes OK
+            ImportColumn::make('phone')->labelKey('employee.phone')->aliases(['Celular']),
+            ImportColumn::make('pin')->sensitive(), // blanked in the failed-rows CSV
+        ];
+    }
+
+    protected function prepareRow(array $row): array { /* normalize BEFORE validation */ return $row; }
+
+    protected function rules(array $row, ?Model $record): array
+    {
+        return ['email' => ['nullable', 'email', Rule::unique('employees')
+            ->where('team_id', $this->context['team_id'])->ignore($record)]];
+    }
+
+    protected function after(array $row, ?Model $record): array
+    {
+        return [fn (Validator $v) => /* cross-field checks */ null];
+    }
+
+    public function importRow(array $data): void
+    {
+        $record = $this->record($data) ?? $this->reject('No employee has that number.');
+        // …
+    }
+}
+```
 
 ### 2. Exporter + download notification
 
@@ -122,7 +166,7 @@ class ContactExporter extends Exporter
 
 ## Best Practices
 
-- **Smart mapping is server-driven**: `Importer::guessMapping($headers)` matches headers against each column's name/label/`guess()` aliases (normalized: case/spacing/punctuation insensitive) and is **collision-free** — one source header maps to at most one target. The Vue layer only disables already-claimed options; never re-implement matching client-side.
+- **Smart mapping is server-driven**: `Importer::guessMapping($headers)` matches headers against each column's name/label/`aliases()` (normalized: case, spacing, punctuation and accents don't count; `labelKey()` labels match in every locale of `kinetix.locale.locales`) and is **collision-free** — one source header maps to at most one target. The Vue layer only disables already-claimed options; never re-implement matching client-side.
 - **Security**: the importer/exporter class travels as an encrypted `token()`; stored files are referenced by encrypted tokens constrained to `kinetix-imports` / `kinetix-exports` (traversal-guarded). Keep that pattern for any new endpoint.
 - **Scale is already handled — do not undo it (IMPORTANT)**: nothing in the import path may grow with the file. Previewing reads a SAMPLE (`FileReader::read($path, $options, $limit)` stops at the limit); the row count is counted, not parsed (CSV newline blocks; a spreadsheet's own `listWorksheetInfo()`); the queued job consumes `FileReader::stream()`, a generator, so it holds one `chunkSize()` chunk and never the file; failed rows are written to the downloadable CSV as they fail. **Never call `FileReader::read()` without a limit on a user-supplied file** and never collect rows into an array to process them — that is how a million-row import becomes a fatal memory error. Spreadsheets are read in windows of `spreadsheet_chunk_size` rows (`RowWindowFilter`), first worksheet only.
 - **Exact matches skip a step**: `Importer::isExactMatch($headers, $mapping)` is true when every target column found a header AND every non-blank header was claimed — which a file filled in from the downloadable template always satisfies. The wizard then goes straight to review. It deliberately fails when a source column goes unclaimed, because that column's data would be silently dropped; the mapping step names those columns instead.
@@ -131,8 +175,9 @@ class ContactExporter extends Exporter
 - **`surface` decides who scrolls**: `inline` (the page), `modal` (the wizard's own capped scroller), `fullscreen` (its scroller fills the panel), `sheet` (none — `KinetixSheet` already scrolls). Pass it whenever you place `KinetixImporter` in a shell of your own.
 - **Always queue heavy work**: both `ImportProcessor` and `ExportProcessor` are `ShouldQueue`. Process in chunked DB transactions (`chunkSize()`), then notify via the Kinetix `Notification` (`broadcast()` when Echo is configured, else `sendToDatabase()`).
 - **Excel vs CSV vs PDF**: CSV is parsed/written natively (RFC-4180, empty escape); `.xls`/`.xlsx` go through `phpoffice/phpspreadsheet`; `pdf` renders a landscape-A4 HTML table via the **optional** `dompdf/dompdf` (install `composer require dompdf/dompdf`; throws a clear error if missing). All in `FileWriter` — add new formats there, not in the jobs.
+- **Row pipeline (IMPORTANT)**: `processRow()` = `prepareRow()` → record resolved ONCE (`$this->record($data)`, shared by `rules()`/`after()`/`importRow()` — never call `resolveRecord()` again in a custom `importRow()`) → column rules + `rules()` + `$validateUsing` (merged per field) → `importRow()` → `castStateUsing()`. Each row runs in its own savepoint (`transaction_per_row`, default on). ANY throwable fails that row only — never let validation or rule building escape the per-row `try`. Fail a row on purpose with `$this->reject()` / `RowRejected`; a bare `return` counts as imported. Messages name fields by column label and every message is reported.
 - **Customizing**: override `importRow()`/`resolveRecord()` for upsert logic, `query()` to scope an export, and `queue()`/`chunkSize()` for throughput — do not bypass the job.
 - **Notification lifecycle is automatic**: wiring `ExportAction::exporter()` / `ImportAction::importer()` gives a queued toast immediately, a completion database notification (broadcast live when Echo is configured) and a `danger` notification if the job dies. Rows that fail to map/validate/save are **skipped, counted and reported** (status `warning`) — never fatal — and a failed import additionally attaches a **Download failed rows** CSV action (every failed row + reason, signed user-bound link). Customize every message by overriding `getStartedNotificationBody()`, `getCompletedNotificationTitle/Body(int $done, int $failed)` and `getFailedNotificationTitle/Body()` on the exporter/importer. Completion notifications require `KINETIX_DATABASE_NOTIFICATIONS=true` + the `notifications` table + `<KinetixNotifications />` mounted (or broadcasting) to be visible; they're team-stamped automatically when notifications are team-scoped.
-- **Template download**: the modal offers "Download template" by default (CSV of the column labels — they auto-map on upload). Opt out with `protected bool $downloadableTemplate = false`; rename with `protected ?string $templateFileName` (default = studly class name `.csv`). Endpoint `GET {prefix}/imports/template?importer={token}`.
+- **Template download**: the modal offers "Download template" by default (CSV of the column labels — they auto-map on upload). Opt out with `protected bool $downloadableTemplate = false`; rename with `protected ?string $templateFileName` (default = studly class name `.csv`; `.csv` is appended when an override omits it — read the name via `getTemplateDownloadName()`). The template starts with a UTF-8 BOM (Excel/Windows) and `FileReader` skips a BOM on upload. Endpoint `GET {prefix}/imports/template?importer={token}`.
 - **Multi-tenancy (IMPORTANT)**: the queued job has no request — never infer the tenant inside `importRow()` (e.g. `Team::first()` is a cross-tenant leak). Override `context(Request $request): array` to capture `['team_id' => $request->user()?->currentTeam?->getKey()]` at dispatch; it is serialized with the job and restored before any row — read it via `$this->context['team_id']` / `getContext()`. Exporters have the same hook: scope `query()` with `$this->context['team_id']` — an unscoped `query()` exports every tenant's rows.
 - **i18n & docs**: any new option/label must be added to every shipped locale under `resources/lang/*/kinetix.php` and to `docs/import-export.md`.

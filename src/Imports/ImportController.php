@@ -21,6 +21,10 @@ class ImportController
     /**
      * Download a CSV template for the importer: a header row of the column
      * labels (they auto-map on upload). 404 unless the importer enables it.
+     *
+     * It starts with a UTF-8 byte order mark, without which Excel on Windows
+     * opens the file as ANSI and mangles accented headers ("TelÃ©fono") — and
+     * saves them back that way, so they no longer map.
      */
     public function template(Request $request): mixed
     {
@@ -34,9 +38,10 @@ class ImportController
 
         return response()->streamDownload(function () use ($importer): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, $importer->getTemplateHeaders());
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, $importer->getTemplateHeaders(), ',', '"', '');
             fclose($handle);
-        }, $importer->getTemplateFileName(), ['Content-Type' => 'text/csv']);
+        }, $importer->getTemplateDownloadName(), ['Content-Type' => 'text/csv']);
     }
 
     /**

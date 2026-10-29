@@ -1,6 +1,7 @@
 import { Folder, LayoutDashboard, Settings, Users } from '@lucide/vue';
 import { defineComponent, h, type Component } from 'vue';
 import KinetixWizard from '@/components/KinetixWizard.vue';
+import KinetixImportModal from '@/components/KinetixImportModal.vue';
 import KinetixEmptyState from '@/components/KinetixEmptyState.vue';
 import KinetixOnboardingChecklist from '@/components/KinetixOnboardingChecklist.vue';
 import KinetixTable from '@/components/KinetixTable.vue';
@@ -2227,6 +2228,37 @@ const generatorField = (
     generatorConfig,
 });
 
+/** The import dialog with a button that opens it, as ImportAction does. */
+const ImporterLauncher = defineComponent({
+    name: 'ImporterLauncher',
+    setup() {
+        const open = () =>
+            window.dispatchEvent(
+                new CustomEvent('kinetix:open-importer', {
+                    detail: {
+                        importer: 'gallery-importer',
+                        template: 'employees.csv',
+                        settings: { layout: 'auto', fullscreenThreshold: 12 },
+                    },
+                }),
+            );
+
+        return () =>
+            h('div', [
+                h(
+                    'button',
+                    {
+                        type: 'button',
+                        class: 'rounded-md border px-3 py-1.5 text-sm',
+                        onClick: open,
+                    },
+                    'Import employees',
+                ),
+                h(KinetixImportModal),
+            ]);
+    },
+});
+
 export const specimens: Specimen[] = [
     {
         name: 'page-footer',
@@ -4448,6 +4480,14 @@ export const specimens: Specimen[] = [
         frame: 'card',
         width: 720,
         props: { schema: formWizardSchema, values: {}, errors: {} },
+    },
+    {
+        name: 'importer-many-fields',
+        title: 'Importer — thirty fields, a ten-column file (modal surface)',
+        component: ImporterLauncher,
+        width: 900,
+        height: 800,
+        openSelector: '#specimen button',
     },
     {
         name: 'form-wizard-filled',
