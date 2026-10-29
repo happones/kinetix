@@ -357,6 +357,8 @@ import KinetixTagsInput from '@/components/KinetixTagsInput.vue';
 import KinetixKeyValue from '@/components/KinetixKeyValue.vue';
 import KinetixCalendar from '@/components/KinetixCalendar.vue';
 import KinetixPageHeader from '@/components/KinetixPageHeader.vue';
+import KinetixTourTrigger from '@/components/KinetixTourTrigger.vue';
+import KinetixTours from '@/components/KinetixTours.vue';
 import KinetixImpersonationBanner from '@/components/KinetixImpersonationBanner.vue';
 import KinetixActionDropdown from '@/components/KinetixActionDropdown.vue';
 import KinetixMemberActivation from '@/components/KinetixMemberActivation.vue';
@@ -2226,6 +2228,44 @@ const generatorField = (
     columnSpan: 'full',
     isDisabled: false,
     generatorConfig,
+});
+
+/** A page header whose actions a tour points at, with the replay trigger. */
+const TourPage = defineComponent({
+    name: 'TourPage',
+    setup() {
+        const action = (name: string, label: string, icon: string) => ({
+            name,
+            label,
+            icon,
+            viewType: 'button',
+            color: name === 'create' ? 'primary' : 'gray',
+            shouldOpenInNewTab: false,
+            shouldClose: false,
+            shouldMarkAsRead: false,
+            shouldMarkAsUnread: false,
+        });
+
+        return () =>
+            h('div', { class: 'flex flex-col gap-4' }, [
+                h(
+                    KinetixPageHeader,
+                    {
+                        heading: 'Employees',
+                        actions: [
+                            action('import', 'Import', 'upload'),
+                            action('create', 'New employee', 'plus'),
+                        ],
+                    },
+                    {
+                        default: () =>
+                            h(KinetixTourTrigger, { iconOnly: true }),
+                    },
+                ),
+                h(KinetixTourTrigger, { variant: 'outline' }),
+                h(KinetixTours),
+            ]);
+    },
 });
 
 /** The import dialog with a button that opens it, as ImportAction does. */
@@ -4480,6 +4520,14 @@ export const specimens: Specimen[] = [
         frame: 'card',
         width: 720,
         props: { schema: formWizardSchema, values: {}, errors: {} },
+    },
+    {
+        name: 'tour-trigger',
+        title: 'Tours — page actions with data-action, replay trigger',
+        component: TourPage,
+        frame: 'card',
+        width: 900,
+        height: 640,
     },
     {
         name: 'importer-many-fields',

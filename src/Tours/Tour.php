@@ -27,6 +27,8 @@ class Tour
 
     protected bool $auto = true;
 
+    protected int $version = 1;
+
     /**
      * @var array<int, TourStep>
      */
@@ -95,22 +97,50 @@ class Tour
         return $this;
     }
 
+    /**
+     * Bump when the tour's content changes enough that people who saw it
+     * should see it again: the "seen" state is kept per version, so the id
+     * (and the URLs, translations and code that name it) stays the same.
+     */
+    public function version(int $version): static
+    {
+        $this->version = max(1, $version);
+
+        return $this;
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
+    }
+
+    /**
+     * What "seen" is stored under: the id for version 1 (so tours declared
+     * before versions existed keep their state), `id@v2` from then on.
+     */
+    public function seenKey(): string
+    {
+        return $this->version > 1 ? "{$this->id}@v{$this->version}" : $this->id;
+    }
+
     public function getPermission(): ?string
     {
         return $this->permission;
     }
 
     /**
-     * @return array{id: string, page: ?string, url: ?string, auto: bool, steps: array<int, array<string, mixed>>}
+     * @return array{id: string, version: int, seenKey: string, page: ?string, url: ?string, auto: bool, steps: array<int, array<string, mixed>>}
      */
     public function toArray(): array
     {
         return [
-            'id'    => $this->id,
-            'page'  => $this->page,
-            'url'   => $this->url,
-            'auto'  => $this->auto,
-            'steps' => array_map(static fn (TourStep $step): array => $step->toArray(), $this->steps),
+            'id'      => $this->id,
+            'version' => $this->version,
+            'seenKey' => $this->seenKey(),
+            'page'    => $this->page,
+            'url'     => $this->url,
+            'auto'    => $this->auto,
+            'steps'   => array_map(static fn (TourStep $step): array => $step->toArray(), $this->steps),
         ];
     }
 }

@@ -75,5 +75,12 @@ class ActionData extends Data
         // The id of a <form> on the page the action submits (Action::submits()),
         // e.g. a page footer's Save for the KinetixForm in the page body.
         public ?string $submitsForm = null,
+        /**
+         * Extra HTML attributes for the rendered control (see
+         * Action::extraAttributes()); `data-action` is always the name.
+         *
+         * @var array<string, string>|null
+         */
+        public ?array $extraAttributes = null,
     ) {}
 }

@@ -60,6 +60,11 @@ class Action
     /**
      * @var array<string, mixed>
      */
+    protected array $extraAttributes = [];
+
+    /**
+     * @var array<string, mixed>
+     */
     protected array $dispatchData = [];
 
     /**
@@ -127,6 +132,50 @@ class Action
         $this->label = $label;
 
         return $this;
+    }
+
+    /**
+     * HTML attributes rendered on the action's button, link or menu item —
+     * for a test hook, an analytics tag or a tour target. Merged across
+     * calls. Event-handler attributes (`on*`) are dropped, and `data-action`
+     * stays the action's name: Kinetix renders it on every action.
+     *
+     * @param array<string, mixed> $attributes scalar values; others are dropped
+     */
+    public function extraAttributes(array $attributes): static
+    {
+        $this->extraAttributes = array_merge($this->extraAttributes, $attributes);
+
+        return $this;
+    }
+
+    /**
+     * The extra attributes that are safe to render: a valid attribute name,
+     * not an event handler, not `data-action`, and a scalar value (`true`
+     * renders the bare attribute; `false`/null leave it out).
+     *
+     * @return array<string, string>
+     */
+    public function getExtraAttributes(): array
+    {
+        $attributes = [];
+
+        foreach ($this->extraAttributes as $name => $value) {
+            $name = (string) $name;
+
+            if (preg_match('/^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/', $name) !== 1
+                || str_starts_with(strtolower($name), 'on')
+                || strtolower($name) === 'data-action'
+                || $value            === false
+                || $value            === null
+                || ! is_scalar($value)) {
+                continue;
+            }
+
+            $attributes[$name] = $value === true ? '' : (string) $value;
+        }
+
+        return $attributes;
     }
 
     /**
@@ -607,6 +656,7 @@ class Action
             formOnOpen: $formOnOpen,
             submitTo: $this instanceof FormAction ? $this->getSubmitTarget($record) : null,
             submitsForm: $this->submitsForm,
+            extraAttributes: $this->getExtraAttributes() ?: null,
         );
     }
 

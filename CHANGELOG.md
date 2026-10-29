@@ -13,6 +13,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.265.0] - 2026-10-29
+
+### Added
+
+- **Every rendered action carries `data-action="<name>"` (published)** —
+  table toolbar, row, bulk bar, empty state and footer, page header and
+  footer, action groups (trigger and items), infolist sections, calendar and
+  notification actions. A stable hook for tours, E2E tests and analytics, so
+  apps no longer patch published components to add one.
+- **`Action::extraAttributes([...])`**: any other HTML attribute on the
+  rendered control. Scalars only; event handlers (`on*`) are dropped on the
+  server and in the browser, and `data-action` always stays the name.
+- **`TourStep::titleKey()` / `descriptionKey()`**: step copy as translation
+  keys, translated per request in the viewer's language. `->title(__())` in a
+  provider's `boot()` translated into the app's language, before the locale
+  middleware ran.
+- **`Tour::version(2)`**: people who saw an older version see the tour again;
+  the id stays. "Seen" is stored as `id@v2` (version 1 keeps the bare id, so
+  existing state survives).
+- **`<KinetixTourTrigger />` (published)**: "Show me around this page" —
+  replays the current page's tour, seen or manual-only, and renders nothing
+  on a page without one. Icon-only mode and a slot for menu items. New string
+  `kinetix.tour_replay` in every locale.
+- **`kinetix.tours.skip_when_automated`** (default `true`,
+  `KINETIX_TOURS_SKIP_WHEN_AUTOMATED`): tours don't auto-start in a browser
+  driven by automation (`navigator.webdriver`), whose overlay swallowed E2E
+  clicks. A test of the tour opts in with `?kinetix-tours=1` or
+  `localStorage['kinetix.tours.automated'] = '1'`; manual launches always run.
+- `useKinetixToursStore().tourFor(component, path)`.
+
+### Upgrade notes
+
+- Re-publish the components (`kinetix-components --force`) and translations
+  (`kinetix-translations --force`). A local patch adding `data-action` to the
+  toolbar can go.
+- Swap `->title(__('…'))` for `->titleKey('…')` in tour declarations.
+
 ## [0.264.0] - 2026-10-29
 
 ### Fixed

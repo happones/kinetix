@@ -661,6 +661,7 @@
         "tour_back": "Back",
         "tour_skip": "Skip",
         "tour_done": "Done",
+        "tour_replay": "Show me around this page",
         "gdpr_export_title": "Download your data",
         "gdpr_export_desc": "Request a copy of your personal data. We will email you a download link when it is ready.",
         "gdpr_export_button": "Request data export",

@@ -2730,7 +2730,7 @@ class KinetixServiceProvider extends ServiceProvider
         // for the global <KinetixTours /> host and the tours pinia store.
         Inertia::share('kinetix_tours', function () {
             if (! config('kinetix.tours.enabled', false) || ! auth()->check()) {
-                return ['enabled' => false, 'driver' => 'local', 'tours' => [], 'seen' => []];
+                return ['enabled' => false, 'driver' => 'local', 'tours' => [], 'seen' => [], 'skipWhenAutomated' => true];
             }
 
             $driver = (string) config('kinetix.tours.driver', 'local');
@@ -2750,8 +2750,11 @@ class KinetixServiceProvider extends ServiceProvider
             return [
                 'enabled' => true,
                 'driver'  => $driver,
-                'tours'   => app(TourRegistry::class)->authorizedFor($user),
-                'seen'    => $seen,
+                // Serialized here, per request: titleKey()/descriptionKey()
+                // translate after the locale middleware has run.
+                'tours'             => app(TourRegistry::class)->authorizedFor($user),
+                'seen'              => $seen,
+                'skipWhenAutomated' => (bool) config('kinetix.tours.skip_when_automated', true),
             ];
         });
 

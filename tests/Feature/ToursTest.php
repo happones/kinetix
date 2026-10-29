@@ -172,4 +172,71 @@ class ToursTest extends TestCase
         $this->assertCount(1, $registry->tours());
         $this->assertFalse($registry->tours()['a']->toArray()['auto']);
     }
+
+    public function test_step_text_from_translation_keys_follows_the_request_locale(): void
+    {
+        app('translator')->addLines(['tours.create' => 'Create records'], 'en');
+        app('translator')->addLines(['tours.create' => 'Crear registros'], 'es');
+        app('translator')->addLines(['tours.create_body' => 'Start with :what.'], 'en');
+        app('translator')->addLines(['tours.create_body' => 'Empieza con :what.'], 'es');
+
+        // Declared at boot, in the app's locale…
+        app()->setLocale('en');
+        KinetixTours::tour('posts')->steps([
+            TourStep::make('[data-action=create]')
+                ->titleKey('tours.create')
+                ->descriptionKey('tours.create_body', ['what' => 'Ada']),
+        ]);
+
+        // …and shown to a Spanish viewer after the locale middleware ran.
+        $this->actingAs(TourUser::create(['name' => 'Jane']));
+        app()->setLocale('es');
+
+        $step = $this->sharedTours()['tours'][0]['steps'][0];
+
+        $this->assertSame('Crear registros', $step['title']);
+        $this->assertSame('Empieza con Ada.', $step['description']);
+    }
+
+    public function test_a_plain_title_after_a_key_wins_and_vice_versa(): void
+    {
+        $step = TourStep::make('#x')->titleKey('tours.create')->title('Plain');
+        $this->assertSame('Plain', $step->toArray()['title']);
+
+        $step = TourStep::make('#x')->title('Plain')->titleKey('tours.missing');
+        $this->assertSame('tours.missing', $step->toArray()['title']);
+    }
+
+    public function test_a_bumped_version_stores_seen_under_its_own_key(): void
+    {
+        KinetixTours::tour('posts')->page('Kinetix/Posts/Index')->steps([TourStep::make('#a')]);
+        $user = TourUser::create(['name' => 'Jane']);
+
+        $this->actingAs($user)->postJson('/_kinetix/tours/posts/seen')->assertOk();
+        $this->assertSame(['posts'], $this->sharedTours()['seen']);
+
+        // Content changed: same id, version 2 — the v1 "seen" no longer counts.
+        KinetixTours::tour('posts')->version(2);
+        $tour = $this->sharedTours()['tours'][0];
+
+        $this->assertSame('posts', $tour['id']);
+        $this->assertSame(2, $tour['version']);
+        $this->assertSame('posts@v2', $tour['seenKey']);
+        $this->assertNotContains($tour['seenKey'], $this->sharedTours()['seen']);
+
+        $this->actingAs($user)->postJson('/_kinetix/tours/posts/seen')->assertOk();
+        $this->assertContains('posts@v2', $this->sharedTours()['seen']);
+
+        $this->actingAs($user)->deleteJson('/_kinetix/tours/posts/seen')->assertOk();
+        $this->assertSame(['posts'], $this->sharedTours()['seen']);
+    }
+
+    public function test_tours_skip_automated_browsers_unless_switched_off(): void
+    {
+        $this->actingAs(TourUser::create(['name' => 'Jane']));
+        $this->assertTrue($this->sharedTours()['skipWhenAutomated']);
+
+        config()->set('kinetix.tours.skip_when_automated', false);
+        $this->assertFalse($this->sharedTours()['skipWhenAutomated']);
+    }
 }

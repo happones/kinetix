@@ -2,6 +2,7 @@
 import { Circle, ExternalLink, Lock } from '@lucide/vue';
 import { computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { requestConfidentialUnlock } from '@/composables/useKinetixConfidential';
 import { resolveIcon as resolveActionIcon } from '@/composables/useKinetixIcons';
@@ -217,6 +218,7 @@ const isEmpty = (value: unknown) =>
                             />
                             <button
                                 v-else
+                                v-bind="actionAttributes(action)"
                                 type="button"
                                 :class="sectionActionClass(action)"
                                 @click="requestAction(action)"

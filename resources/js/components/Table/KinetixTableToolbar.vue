@@ -2,6 +2,7 @@
 import { Search } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import { actionButtonVariant } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAction, KinetixTableData } from '@/types/kinetix';
@@ -157,6 +158,7 @@ const layoutClass = computed<string>(() => {
                         />
                         <KinetixButton
                             v-else
+                            v-bind="actionAttributes(action)"
                             :variant="
                                 action.color
                                     ? actionButtonVariant(action.color)

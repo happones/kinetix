@@ -1262,6 +1262,14 @@ The queued `ImportProcessor` only maps rows and counts; the per-row pipeline liv
 
 ---
 
+## 53. Action hooks and tour i18n/versions/automation (v0.265.0)
+
+- **`data-action` (REQUIRED on every action surface)**: bind `v-bind="actionAttributes(action)"` (`composables/kinetixActionAttributes.ts`) — returns `data-action=<name>` + `extraAttributes` minus `on*`. Wired in ActionBar (button + link → page header/footer), ActionDropdown (items; trigger gets `data-action=group.name`), TableToolbar, TableBulkBar, KinetixTable (row, empty state, footer), DataTable, InfolistEntries, CalendarEventDetails, NotificationItem. NOT WidgetHeaderActions (widget links aren't Actions — no name). `Action::extraAttributes()` merges; `getExtraAttributes()` filters names (`/^[a-zA-Z_:][-a-zA-Z0-9_:.]*$/`), `on*`, `data-action`, non-scalars; `true` → bare attribute. `ActionData::$extraAttributes` null when empty.
+- **Tours**: `TourStep::titleKey/descriptionKey($key, $replace)` store the key and translate in `toArray()`, which runs inside the `kinetix_tours` share closure (after the locale middleware); the plain setter and the key setter clear each other. `Tour::version()` → `seenKey()` (`id`, or `id@vN` from 2); the controller stores `seenKey()`, the store reads `tour.seenKey ?? id` for local + database drivers. `skip_when_automated` (share `skipWhenAutomated`) gates only `matchFor()` (auto-start), never `start()`; opt-in `?kinetix-tours=1` / `localStorage['kinetix.tours.automated']='1'`. **happy-dom reports `navigator.webdriver = true`** — tour specs pin it false. `store.tourFor()` = any tour matching the page (seen or `auto(false)`), used by `KinetixTourTrigger` (renders nothing without a tour; `inheritAttrs:false` → `$attrs` on the button; i18n `tour_replay` in all 7 locales + gallery messages).
+- Tests `ActionExtraAttributesTest`, `KinetixActionAttributes.spec.ts`, `ToursTest` (key per locale, version, flag), `KinetixTours.spec.ts` (version, automation, trigger). Docs `docs/actions.md#stable-hooks-data-action`, `docs/tours.md` §2/4/6.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

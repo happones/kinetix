@@ -35,6 +35,7 @@ Action::make('edit')
 | `->color(string)` | `primary` · `secondary` · `success` · `warning` · `info` · `danger` · `gray` |
 | `->icon(?string, $position = 'before')` | Lucide icon name; pass `null` to remove it |
 | `->size(string)` | `xs` · `sm` · `md` · `lg` |
+| `->extraAttributes(array)` | HTML attributes on the rendered control (see [Stable hooks](#stable-hooks-data-action)) |
 
 Colors map to shadcn tokens (themeable, dark-mode aware), so you can reproduce the "classic" admin palette per action when you want it. These are the colors you can **opt into** with `->color()` — they are not the prebuilt defaults (`ViewAction`/`EditAction` are neutral `gray` unless you pass `->color()`; see §8):
 
@@ -90,6 +91,32 @@ so all actions live in one place and only appear once you register the routes
 (`Route::resource(...)`).
 
 ---
+
+### Stable hooks: `data-action`
+
+Every action Kinetix renders — table toolbar, row, bulk bar, page header and
+footer, empty state, infolist section, action groups (trigger and items),
+calendar and notification actions — carries `data-action="<name>"`. It is part
+of the contract: tours, E2E tests and analytics can target it without
+reaching into markup that may change.
+
+```js
+await page.click('[data-action="create"]');               // Playwright
+TourStep::make('[data-action="import"]')                    // a tour step
+```
+
+Anything else goes through `extraAttributes()` (merged across calls):
+
+```php
+Action::make('create')->extraAttributes([
+    'data-testid'       => 'employees-create',
+    'aria-keyshortcuts' => 'c',
+]);
+```
+
+Values must be scalars (`true` renders the bare attribute; `false`/`null` leave
+it out). Event-handler attributes (`on*`) are dropped on the server and again
+in the browser, and `data-action` always stays the action's name.
 
 ## 2. Confirmation Modals
 

@@ -717,10 +717,11 @@ return [
     'onboarding_status_pending'   => 'Not completed',
 
     // Product tour
-    'tour_next' => 'Next',
-    'tour_back' => 'Back',
-    'tour_skip' => 'Skip',
-    'tour_done' => 'Done',
+    'tour_next'   => 'Next',
+    'tour_back'   => 'Back',
+    'tour_skip'   => 'Skip',
+    'tour_done'   => 'Done',
+    'tour_replay' => 'Show me around this page',
 
     // GDPR self-service
     'gdpr_export_title'           => 'Download your data',

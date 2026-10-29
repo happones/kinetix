@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Circle } from '@lucide/vue';
 import { computed } from 'vue';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixHotkeys } from '@/composables/useKinetixHotkeys';
 import { resolveIcon as resolveKinetixIcon } from '@/composables/useKinetixIcons';
@@ -116,6 +117,7 @@ const linkActionClass = (action: KinetixAction) =>
 
             <a
                 v-else-if="action.viewType === 'link'"
+                v-bind="actionAttributes(action)"
                 :href="action.url ?? undefined"
                 role="button"
                 :aria-disabled="processing || undefined"
@@ -137,6 +139,7 @@ const linkActionClass = (action: KinetixAction) =>
 
             <KinetixButton
                 v-else
+                v-bind="actionAttributes(action)"
                 :variant="actionButtonVariant(action.color)"
                 :size="actionButtonSize(action.size)"
                 :disabled="processing"

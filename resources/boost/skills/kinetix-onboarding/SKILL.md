@@ -113,6 +113,30 @@ Pure presentational; `icon` is any Kinetix icon name.
 - `useKinetixTour(id, steps)` → `{ active, current, index, isFirst, isLast,
   start, startOnce, next, prev, finish, skip, reset, hasSeen }`.
 
+### Backend-driven tours (`KinetixTours::tour()` + `<KinetixTours />`)
+
+```php
+KinetixTours::tour('employees')
+    ->page('Employees/Index')
+    ->version(2)                                   // re-show after a content change; id stays
+    ->steps([
+        TourStep::make('[data-action="create"]')   // every rendered action carries data-action
+            ->titleKey('tours.employees.create')   // translated per request, viewer's locale
+            ->descriptionKey('tours.employees.create_body'),
+    ]);
+```
+
+- **Never** `->title(__('…'))` in a provider's `boot()`: it translates before the
+  locale middleware runs (app language, not the user's). Use `titleKey()` /
+  `descriptionKey()`.
+- Target Kinetix's stable hooks (`[data-action="<name>"]`), not shadcn
+  internals (`[data-slot=…]`) — those may change upstream.
+- `<KinetixTourTrigger />` replays the current page's tour (renders nothing
+  without one); slot `{ start, label, tour }` for menu items.
+- `kinetix.tours.skip_when_automated` (default true): no auto-start under
+  `navigator.webdriver`; tests of the tour opt in with `?kinetix-tours=1` or
+  `localStorage['kinetix.tours.automated'] = '1'`.
+
 i18n `onboarding_*` / `tour_*` (en/es/fr/pt). Tests: `OnboardingTest`,
 `useKinetixOnboarding.spec.ts`, `useKinetixTour.spec.ts`.
 

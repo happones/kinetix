@@ -64,6 +64,12 @@ const share = (overrides: Record<string, unknown> = {}) => {
 describe('useKinetixToursStore', () => {
     beforeEach(() => {
         setActivePinia(createPinia());
+        // happy-dom, like Playwright, reports navigator.webdriver = true,
+        // which skip_when_automated reads; these specs are about a person.
+        Object.defineProperty(navigator, 'webdriver', {
+            value: false,
+            configurable: true,
+        });
         vi.clearAllMocks();
         localStorage.clear();
         share();

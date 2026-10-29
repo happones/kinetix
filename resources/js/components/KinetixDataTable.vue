@@ -2,6 +2,7 @@
 import { Search } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixClientTable } from '@/composables/useKinetixClientTable';
@@ -188,6 +189,7 @@ const { isRowClickable, handleRowClick, handleRowKeydown } = useKinetixRowClick(
                     />
                     <button
                         v-else
+                        v-bind="actionAttributes(action)"
                         type="button"
                         :disabled="processing"
                         :class="primaryActionClass(action)"
@@ -289,6 +291,7 @@ const { isRowClickable, handleRowClick, handleRowKeydown } = useKinetixRowClick(
                                     />
                                     <button
                                         v-else
+                                        v-bind="actionAttributes(action)"
                                         :disabled="processing"
                                         :class="recordActionClass(action)"
                                         :title="

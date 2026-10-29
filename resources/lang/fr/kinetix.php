@@ -717,10 +717,11 @@ return [
     'onboarding_status_pending'   => 'À faire',
 
     // Visite guidée
-    'tour_next' => 'Suivant',
-    'tour_back' => 'Précédent',
-    'tour_skip' => 'Passer',
-    'tour_done' => 'Terminé',
+    'tour_next'   => 'Suivant',
+    'tour_back'   => 'Précédent',
+    'tour_skip'   => 'Passer',
+    'tour_done'   => 'Terminé',
+    'tour_replay' => 'Visite guidée de cette page',
 
     // RGPD libre-service
     'gdpr_export_title'           => 'Téléchargez vos données',

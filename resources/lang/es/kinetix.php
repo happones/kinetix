@@ -717,10 +717,11 @@ return [
     'onboarding_status_pending'   => 'Pendiente',
 
     // Tour del producto
-    'tour_next' => 'Siguiente',
-    'tour_back' => 'Atrás',
-    'tour_skip' => 'Omitir',
-    'tour_done' => 'Listo',
+    'tour_next'   => 'Siguiente',
+    'tour_back'   => 'Atrás',
+    'tour_skip'   => 'Omitir',
+    'tour_done'   => 'Listo',
+    'tour_replay' => 'Ver el recorrido de esta pantalla',
 
     // GDPR autoservicio
     'gdpr_export_title'           => 'Descarga tus datos',

@@ -9,6 +9,7 @@ import {
     ShoppingBag,
 } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { useNotificationsStore } from '@/stores/kinetixNotifications';
 import type { KinetixNotification } from '@/types/kinetix';
 
@@ -132,6 +133,7 @@ const formatTime = (dateStr: string) => {
                 <button
                     v-for="action in notif.actions"
                     :key="action.name"
+                    v-bind="actionAttributes(action)"
                     @click.stop="store.handleAction(notif, action)"
                     class="text-sm font-medium cursor-pointer transition-colors hover:underline"
                     :class="[

@@ -8,6 +8,41 @@ import { defineComponent, h } from 'vue';
 const page = {
     props: {
         kinetix_config: { route_prefix: '_kinetix' },
+        // Surfaced for the tour-trigger specimen (the only one that mounts
+        // the <KinetixTours /> host).
+        kinetix_tours: {
+            enabled: true,
+            driver: 'local',
+            skipWhenAutomated: true,
+            seen: [],
+            tours: [
+                {
+                    id: 'gallery-employees',
+                    version: 2,
+                    seenKey: 'gallery-employees@v2',
+                    page: 'Gallery',
+                    url: null,
+                    auto: true,
+                    steps: [
+                        {
+                            selector: '[data-action="create"]',
+                            title: 'Add employees',
+                            description:
+                                'Start here, or import a spreadsheet next to it.',
+                            side: 'bottom',
+                            align: null,
+                        },
+                        {
+                            selector: '[data-action="import"]',
+                            title: 'Import in bulk',
+                            description: null,
+                            side: 'bottom',
+                            align: null,
+                        },
+                    ],
+                },
+            ],
+        },
         // Surfaced for the impersonation banner specimen.
         kinetix_impersonation: {
             active: true,

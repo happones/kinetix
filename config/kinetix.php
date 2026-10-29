@@ -1211,6 +1211,14 @@ return [
 
         // 'local' (localStorage) or 'database' (per-user, seen/reset endpoints).
         'driver' => env('KINETIX_TOURS_DRIVER', 'local'),
+
+        // Don't auto-start tours in a browser driven by automation
+        // (navigator.webdriver: Playwright, Selenium, Cypress): the overlay
+        // would swallow the test's clicks. A test of the tour itself turns
+        // them back on with `?kinetix-tours=1` or
+        // localStorage['kinetix.tours.automated'] = '1'. Manual launches
+        // (<KinetixTourTrigger />, store.start()) always run.
+        'skip_when_automated' => (bool) env('KINETIX_TOURS_SKIP_WHEN_AUTOMATED', true),
     ],
 
     /*

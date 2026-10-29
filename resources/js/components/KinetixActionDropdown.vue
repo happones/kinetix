@@ -9,6 +9,7 @@ import {
 } from 'reka-ui';
 import { computed, getCurrentInstance, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { resolveIcon as resolveKinetixIcon } from '@/composables/useKinetixIcons';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
@@ -74,6 +75,7 @@ const onItemClick = (action: KinetixAction) => {
         <DropdownMenuRoot v-model:open="isOpen">
             <DropdownMenuTrigger
                 type="button"
+                :data-action="group.name || undefined"
                 :class="
                     group.label
                         ? buttonVariants({ variant: 'outline', size: 'sm' })
@@ -94,6 +96,7 @@ const onItemClick = (action: KinetixAction) => {
                     <DropdownMenuItem
                         v-for="(action, i) in group.actions || []"
                         :key="action.name ?? i"
+                        v-bind="actionAttributes(action)"
                         class="gap-2 px-3 py-2 text-sm flex w-full cursor-default items-center rounded-md text-left transition-colors outline-none select-none hover:bg-accent focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                         :class="getItemColorClass(action.color)"
                         @select="onItemClick(action)"

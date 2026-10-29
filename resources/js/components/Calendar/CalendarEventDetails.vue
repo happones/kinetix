@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { isIconOnlyAction, resolveIcon } from '@/composables/useKinetixIcons';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type {
@@ -84,6 +85,7 @@ const shellProps = computed(() =>
                 <button
                     v-for="(action, idx) in actions"
                     :key="idx"
+                    v-bind="actionAttributes(action)"
                     type="button"
                     :class="actionClass(action)"
                     :title="isIconOnlyAction(action) ? action.label : undefined"

@@ -668,6 +668,7 @@ return [
     'tour_back'                             => '上一步',
     'tour_skip'                             => '跳过',
     'tour_done'                             => '完成',
+    'tour_replay'                           => '查看本页导览',
     'gdpr_export_title'                     => '下载您的数据',
     'gdpr_export_desc'                      => '请求您的个人数据副本。准备好后我们会通过邮件发送下载链接。',
     'gdpr_export_button'                    => '请求数据导出',

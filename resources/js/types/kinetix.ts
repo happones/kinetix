@@ -69,6 +69,8 @@ export interface KinetixAction {
     submitTo?: { url: string; method: string } | null;
     /** The id of a <form> on the page this action submits (Action::submits()). */
     submitsForm?: string | null;
+    /** Extra HTML attributes for the control (`Action::extraAttributes()`). */
+    extraAttributes?: Record<string, string> | null;
 }
 
 /**
@@ -283,6 +285,10 @@ export interface KinetixTourStepData {
 /** A declared product tour, matched by Inertia page component or URL pattern. */
 export interface KinetixTourData {
     id: string;
+    /** `Tour::version()`; bumping it shows the tour again. */
+    version?: number;
+    /** What "seen" is stored under: the id, or `id@v2` from version 2. */
+    seenKey?: string;
     /** Inertia component pattern (`*` wildcards), e.g. `Kinetix/Posts/Index`. */
     page: string | null;
     /** URL path pattern (`*` wildcards), e.g. `/posts*`. */
@@ -297,8 +303,10 @@ export interface KinetixToursState {
     enabled: boolean;
     driver: 'local' | 'database';
     tours: KinetixTourData[];
-    /** Seen tour ids (database driver; the local driver reads localStorage). */
+    /** Seen tour keys (database driver; the local driver reads localStorage). */
     seen: string[];
+    /** Don't auto-start in a browser driven by automation (`navigator.webdriver`). */
+    skipWhenAutomated?: boolean;
 }
 
 /** How a locked feature is presented by <KinetixPlanLock>. */

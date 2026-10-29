@@ -44,13 +44,11 @@ class TourController
     {
         // Resolve by name (not positionally): with teams enabled the route
         // gains a leading `{current_team}` param.
-        $tourId = (string) $request->route('tour');
+        $tour = app(TourRegistry::class)->tours()[(string) $request->route('tour')] ?? null;
 
-        abort_unless(
-            array_key_exists($tourId, app(TourRegistry::class)->tours()),
-            404,
-        );
+        abort_if($tour === null, 404);
 
-        return $tourId;
+        // Stored per version: bumping version() shows the tour again.
+        return $tour->seenKey();
     }
 }

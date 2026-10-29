@@ -13,6 +13,7 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
@@ -905,6 +906,9 @@ const totalColumnSpan = computed(
                                             />
                                             <button
                                                 v-else
+                                                v-bind="
+                                                    actionAttributes(action)
+                                                "
                                                 :disabled="actionProcessing"
                                                 :class="
                                                     recordActionClass(action)
@@ -989,6 +993,9 @@ const totalColumnSpan = computed(
                                             :key="`empty-${i}`"
                                         >
                                             <KinetixButton
+                                                v-bind="
+                                                    actionAttributes(action)
+                                                "
                                                 :variant="
                                                     action.color
                                                         ? actionButtonVariant(
@@ -1061,6 +1068,7 @@ const totalColumnSpan = computed(
                     />
                     <KinetixButton
                         v-else
+                        v-bind="actionAttributes(action)"
                         :variant="
                             action.color
                                 ? actionButtonVariant(action.color)

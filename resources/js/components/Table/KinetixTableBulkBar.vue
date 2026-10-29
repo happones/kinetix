@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { resolveIcon } from '@/composables/useKinetixIcons';
 import {
     actionButtonVariant,
@@ -39,6 +40,7 @@ const actionClass = (action: { color?: string | null }): string =>
             <button
                 v-for="(action, i) in bulkActions"
                 :key="i"
+                v-bind="actionAttributes(action)"
                 type="button"
                 :disabled="processing"
                 :class="actionClass(action)"
