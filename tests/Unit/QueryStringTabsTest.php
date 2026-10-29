@@ -60,7 +60,8 @@ class QueryStringTabsTest extends TestCase
 
         $this->assertSame('section', $named->queryParam);
         $this->assertNull($off->queryParam);
-        $this->assertNull($off->schema[0]->urlKey);
+        // Still keyed: tours point at tabs by key whether or not the URL does.
+        $this->assertSame('one', $off->schema[0]->urlKey);
     }
 
     public function test_hidden_tabs_take_no_key(): void

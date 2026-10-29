@@ -151,9 +151,9 @@ class Wizard extends Component
 
         $queryParam = QueryStringKeys::param($this->queryParam, 'step', 'kinetix.forms.query_string.steps');
 
-        if ($queryParam !== null) {
-            QueryStringKeys::assign($stepData, $keys, 'step');
-        }
+        // Keyed whether or not the URL carries them: tours reveal and point
+        // at steps by key too.
+        QueryStringKeys::assign($stepData, $keys, 'step');
 
         return new FormFieldData(
             type: $this->getType(),

@@ -2,8 +2,9 @@
 import { usePage } from '@inertiajs/vue3';
 import { nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { requestTourReveal } from '@/composables/useKinetixTourReveal';
 import { useKinetixToursStore } from '@/stores/kinetixTours';
-import type { KinetixTourData } from '@/types/kinetix';
+import type { KinetixTourData, KinetixTourStepData } from '@/types/kinetix';
 
 /**
  * The global product-tour host. Mount ONE instance in your app layout:
@@ -38,6 +39,41 @@ const POPOVER_ROOM = 240;
 const EDGE = 72;
 /** The least of a tall target worth highlighting without scrolling. */
 const MIN_HIGHLIGHT = 160;
+/** Frames to wait for a revealed target (a tab switch, a nested group mounting). */
+const REVEAL_ATTEMPTS = 10;
+const REVEAL_FRAME = 40;
+
+/** Selectors already warned about, so a missing target warns once. */
+const warnedTargets = new Set<string>();
+
+/**
+ * The element a selector means on this page: the first VISIBLE match, and
+ * one outside content a modal hides (`aria-hidden`) before one inside it —
+ * so with a modal open over a page, the same field name points at the
+ * modal's field.
+ */
+function findTarget(selector: string): HTMLElement | null {
+    let matches: HTMLElement[];
+
+    try {
+        matches = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    } catch {
+        return null;
+    }
+
+    const visible = matches.filter(
+        (element) => element.getClientRects().length > 0,
+    );
+    const candidates = visible.length > 0 ? visible : matches;
+
+    return (
+        candidates.find(
+            (element) => element.closest('[aria-hidden="true"]') === null,
+        ) ??
+        candidates[0] ??
+        null
+    );
+}
 
 // Stands in for a target too tall to highlight whole (see tourTarget()).
 let tallTarget: HTMLElement | null = null;
@@ -54,7 +90,7 @@ let tallTarget: HTMLElement | null = null;
  * there and the page doesn't move at all.
  */
 function tourTarget(selector: string): Element | null {
-    const element = document.querySelector(selector);
+    const element = findTarget(selector);
 
     if (!element) {
         return null;
@@ -90,9 +126,51 @@ function tourTarget(selector: string): Element | null {
     return tallTarget;
 }
 
+/**
+ * Get a step's target onto the page: ask the tab groups and wizards to open
+ * what holds it, and wait a few frames for it to render (a nested group only
+ * mounts once its parent tab opens, so the request repeats). Returns the
+ * selector to highlight — the target, a fallback a wizard offered, or null.
+ */
+async function prepare(step: KinetixTourStepData): Promise<string | null> {
+    if (!step.reveal) {
+        return findTarget(step.selector) ? step.selector : null;
+    }
+
+    for (let attempt = 0; attempt < REVEAL_ATTEMPTS; attempt++) {
+        if (findTarget(step.selector)) {
+            return step.selector;
+        }
+
+        const fallback = requestTourReveal(step.reveal);
+
+        if (fallback) {
+            return fallback;
+        }
+
+        await nextTick();
+        await new Promise((resolve) => setTimeout(resolve, REVEAL_FRAME));
+    }
+
+    return findTarget(step.selector) ? step.selector : null;
+}
+
+function warnMissing(selector: string): void {
+    if (!import.meta.env?.DEV || warnedTargets.has(selector)) {
+        return;
+    }
+
+    warnedTargets.add(selector);
+    console.warn(
+        `Kinetix tours: no element matches "${selector}"; the step shows centered. Mark it ->optional() to skip it instead.`,
+    );
+}
+
 async function run(tour: KinetixTourData): Promise<void> {
     let driverFactory: (config: Record<string, unknown>) => {
-        drive: () => void;
+        drive: (index?: number) => void;
+        moveTo: (index: number) => void;
+        getActiveIndex: () => number | undefined;
         destroy: () => void;
     };
 
@@ -115,11 +193,25 @@ async function run(tour: KinetixTourData): Promise<void> {
 
     activeDriver?.destroy();
 
+    // An optional step whose target isn't here (and that nothing can
+    // reveal) is left out up front, so the progress count stays honest.
+    const steps = tour.steps.filter(
+        (step) =>
+            !step.optional || step.reveal || findTarget(step.selector) !== null,
+    );
+
+    if (steps.length === 0) {
+        return;
+    }
+
+    // Where each step points once prepared (a wizard may offer a fallback).
+    const resolved = steps.map((step) => step.selector);
+
     const instance = driverFactory({
-        showProgress: tour.steps.length > 1,
+        showProgress: steps.length > 1,
         // A one-step tour has nowhere to go back to.
         showButtons:
-            tour.steps.length > 1
+            steps.length > 1
                 ? ['next', 'previous', 'close']
                 : ['next', 'close'],
         progressText: t('kinetix.tour_progress', {
@@ -131,8 +223,16 @@ async function run(tour: KinetixTourData): Promise<void> {
         doneBtnText: t('kinetix.tour_done'),
         popoverClass: 'kinetix-tour-popover',
         stagePadding: 6,
-        steps: tour.steps.map((step) => ({
-            element: () => tourTarget(step.selector) as Element,
+        steps: steps.map((step, index) => ({
+            element: () => {
+                const target = tourTarget(resolved[index]);
+
+                if (!target) {
+                    warnMissing(resolved[index]);
+                }
+
+                return target as Element;
+            },
             popover: {
                 title: step.title ?? '',
                 description: step.description ?? '',
@@ -140,6 +240,11 @@ async function run(tour: KinetixTourData): Promise<void> {
                 ...(step.align ? { align: step.align } : {}),
             },
         })),
+        // Moving between steps goes through go(), which opens the tab or
+        // wizard step holding the next target first. "Done" on the last
+        // step lands here too, and closes the tour.
+        onNextClick: () => void go((instance.getActiveIndex() ?? -1) + 1, 1),
+        onPrevClick: () => void go((instance.getActiveIndex() ?? 1) - 1, -1),
         // Fires once per tour teardown (finished OR dismissed) — both count
         // as "seen" so the tour doesn't nag on every visit.
         onDestroyed: () => {
@@ -151,8 +256,40 @@ async function run(tour: KinetixTourData): Promise<void> {
         },
     });
 
+    /**
+     * Show step `index`, walking in `direction` past optional steps whose
+     * target never appears. Past the end, the tour is done.
+     */
+    async function go(index: number, direction: 1 | -1): Promise<void> {
+        for (let i = index; i >= 0 && i < steps.length; i += direction) {
+            const selector = await prepare(steps[i]);
+
+            if (selector === null && steps[i].optional) {
+                continue;
+            }
+
+            resolved[i] = selector ?? steps[i].selector;
+
+            if (activeDriver !== instance) {
+                return;
+            }
+
+            if (instance.getActiveIndex() === undefined) {
+                instance.drive(i);
+            } else {
+                instance.moveTo(i);
+            }
+
+            return;
+        }
+
+        if (direction === 1) {
+            instance.destroy();
+        }
+    }
+
     activeDriver = instance;
-    instance.drive();
+    await go(0, 1);
 }
 
 function autoStart(): void {

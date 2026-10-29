@@ -3,24 +3,29 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
-const { pageState, driveMock, destroyMock, driverFactory } = vi.hoisted(() => {
-    const driveMock = vi.fn();
-    const destroyMock = vi.fn();
+const { pageState, driveMock, destroyMock, moveToMock, driverFactory } =
+    vi.hoisted(() => {
+        const driveMock = vi.fn();
+        const destroyMock = vi.fn();
+        const moveToMock = vi.fn();
 
-    return {
-        pageState: {
-            props: {} as Record<string, unknown>,
-            component: 'Kinetix/Posts/Index',
-            url: '/posts?page=2',
-        },
-        driveMock,
-        destroyMock,
-        driverFactory: vi.fn(() => ({
-            drive: driveMock,
-            destroy: destroyMock,
-        })),
-    };
-});
+        return {
+            pageState: {
+                props: {} as Record<string, unknown>,
+                component: 'Kinetix/Posts/Index',
+                url: '/posts?page=2',
+            },
+            driveMock,
+            destroyMock,
+            moveToMock,
+            driverFactory: vi.fn(() => ({
+                drive: driveMock,
+                destroy: destroyMock,
+                moveTo: moveToMock,
+                getActiveIndex: () => undefined,
+            })),
+        };
+    });
 
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => pageState,

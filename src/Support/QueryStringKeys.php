@@ -10,8 +10,8 @@ use Illuminate\Support\Str;
 
 /**
  * The query-string side of Tabs and Wizard: which param a group persists its
- * open tab/step in, and the key each child is named by in the URL
- * (`?tab=security`, `?step=billing`).
+ * open tab/step in, and the key each child is named by — in the URL
+ * (`?tab=security`, `?step=billing`) and by tours (`TourStep::tab()`).
  */
 final class QueryStringKeys
 {
@@ -38,7 +38,7 @@ final class QueryStringKeys
     }
 
     /**
-     * Name each child for the URL: its explicit key, else the slug of its
+     * Name each child: its explicit key, else the slug of its
      * heading, else `{fallback}-{position}` (a heading with nothing to slug).
      * Duplicates get `-2`, `-3`… so every key in the group is unique.
      *

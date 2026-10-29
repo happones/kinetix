@@ -120,17 +120,25 @@ KinetixTours::tour('employees')
     ->page('Employees/Index')
     ->version(2)                                   // re-show after a content change; id stays
     ->steps([
-        TourStep::make('[data-action="create"]')   // every rendered action carries data-action
+        TourStep::action('create')                 // [data-action="create"]
             ->titleKey('tours.employees.create')   // translated per request, viewer's locale
             ->descriptionKey('tours.employees.create_body'),
+        TourStep::field('salary'),                 // opens the (nested) tab / wizard step holding it
+        TourStep::tab('employment'),               // opens the tab
+        TourStep::wizardStep('billing'),           // the step in the indicator
+        TourStep::tableHeader(),
+        TourStep::action('export')->optional(),    // skipped when not on the page
     ]);
 ```
 
 - **Never** `->title(__('…'))` in a provider's `boot()`: it translates before the
   locale middleware runs (app language, not the user's). Use `titleKey()` /
   `descriptionKey()`.
-- Target Kinetix's stable hooks (`[data-action="<name>"]`), not shadcn
-  internals (`[data-slot=…]`) — those may change upstream.
+- Use the step helpers (stable `data-action` / `data-kinetix-field` /
+  `data-kinetix-tab` / `data-kinetix-wizard-step` / `data-kinetix-table-header`
+  hooks), never shadcn internals (`[data-slot=…]`) or element ids. A wizard
+  never opens a step past one with required fields empty — the tour then
+  highlights the step's indicator.
 - `<KinetixTourTrigger />` replays the current page's tour (renders nothing
   without one); slot `{ start, label, tour }` for menu items.
 - `kinetix.tours.skip_when_automated` (default true): no auto-start under

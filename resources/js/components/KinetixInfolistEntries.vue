@@ -22,6 +22,10 @@ import {
     buttonVariants,
 } from '@/composables/useKinetixShadcnVariants';
 import { statusTextClass } from '@/composables/useKinetixStatusColor';
+import {
+    holdsTourTarget,
+    onTourReveal,
+} from '@/composables/useKinetixTourReveal';
 import type { KinetixAction, KinetixInfolistEntry } from '@/types/kinetix';
 import './kinetix-grid.css';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
@@ -121,6 +125,30 @@ const setActiveTab = (entryIndex: number, tabIndex: number) => {
         writeQueryParam(param, key);
     }
 };
+
+// A tour about to highlight a tab in here opens it (or the tab holding the
+// nested group it belongs to).
+onTourReveal((request) => {
+    if (request.tab === undefined) {
+        return;
+    }
+
+    (props.schema ?? []).forEach((entry, entryIndex) => {
+        if (entry.type !== 'tabs') {
+            return;
+        }
+
+        const tabIndex = (entry.schema ?? []).findIndex(
+            (tab) =>
+                tab.urlKey === request.tab ||
+                holdsTourTarget(tab.schema, { tab: request.tab }),
+        );
+
+        if (tabIndex !== -1) {
+            activeTab[entryIndex] = tabIndex;
+        }
+    });
+});
 
 // Resolve through the shared Kinetix icon map (entry, section, tab & action
 // icons), falling back to a neutral circle for unknown non-empty names.
@@ -290,6 +318,7 @@ const isEmpty = (value: unknown) =>
                 <button
                     v-for="(tab, tabIndex) in entry.schema || []"
                     :key="tabIndex"
+                    :data-kinetix-tab="tab.urlKey || undefined"
                     type="button"
                     role="tab"
                     :aria-selected="currentTab(index) === tabIndex"

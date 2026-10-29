@@ -40,10 +40,10 @@ import KinetixTours from '@/components/kinetix/KinetixTours.vue';
 
 ## 2. Declaring tours
 
-One tour per module, from any service provider. Point steps at Kinetix's own
-hooks — every rendered action carries `data-action="<name>"` (see
-[Actions](/actions#stable-hooks-data-action)) — or tag your own elements with
-`data-tour` attributes:
+One tour per module, from any service provider. Point steps at what Kinetix
+renders through the [step helpers](#pointing-at-kinetix-ui) — their selectors
+are Kinetix's to keep working — or tag your own elements with `data-tour`
+attributes:
 
 ```php
 use Happones\Kinetix\Tours\KinetixTours;
@@ -54,7 +54,7 @@ KinetixTours::tour('posts')
     ->permission('posts.viewAny')          // optional: Gate-checked server-side
     ->version(2)                           // optional: re-show after a content change
     ->steps([
-        TourStep::make('[data-action="create"]')
+        TourStep::action('create')
             ->titleKey('tours.posts.create')
             ->descriptionKey('tours.posts.create_body')
             ->side('bottom'),
@@ -73,6 +73,47 @@ KinetixTours::tour('posts')
 | `TourStep::titleKey()/descriptionKey($key, $replace = [])` | Step copy as translation keys, translated per request in the viewer's language |
 | `TourStep::title()/description()` | Step copy as ready-made strings |
 | `TourStep::side()/align()` | driver.js popover positioning (`top/right/bottom/left`, `start/center/end`) |
+
+### Pointing at Kinetix UI
+
+Prefer these to hand-written selectors: they target attributes Kinetix renders
+for exactly this purpose, so a markup change upstream can't strand a step.
+
+| Helper | Highlights | Before highlighting |
+|---|---|---|
+| `TourStep::action('create')` | The action's button — toolbar, row, bulk bar, page header or footer (`[data-action]`) | — |
+| `TourStep::field('department_id')` | A form field (`[data-kinetix-field]`) | Opens the tab — nested tabs included — or wizard step holding it |
+| `TourStep::tab('employment')` | A form or infolist tab, by key (`Tab::key()`, else the label's slug) | Opens it (and its parent tab) |
+| `TourStep::wizardStep('billing')` | A form wizard's step in its indicator | — |
+| `TourStep::tableHeader()` | A table's header: heading, search, filters, toolbar actions | — |
+| `->optional()` | — | Skips the step when its target isn't on the page |
+
+```php
+KinetixTours::tour('employee-form')
+    ->page('Employees/Edit')
+    ->steps([
+        TourStep::tab('employment')->titleKey('tours.employee.employment'),
+        TourStep::field('department_id')->titleKey('tours.employee.department'),
+        TourStep::field('salary')->titleKey('tours.employee.salary'),     // in a nested Payroll tab
+        TourStep::action('export')->optional()->titleKey('tours.employee.export'),
+    ]);
+```
+
+- **Fields in closed tabs**: reka-ui unmounts a closed tab's content, so a
+  field there isn't on the page at all. The tour asks the tab groups to open
+  the one holding it, waits for it to render, then highlights it — moving
+  backwards too.
+- **Wizards**: a step a field lives in is opened only if every step before it
+  has its required fields filled — the same rule the `?step=` URL follows. On
+  an empty create form, the tour highlights that step in the indicator instead.
+- **Missing targets**: a step whose target isn't on the page shows centered,
+  and in development the console says which selector matched nothing. Mark it
+  `->optional()` to leave it out instead (an action the viewer can't see, a
+  column toggled off); an optional step that nothing can reveal is dropped
+  before the tour starts, so the progress count stays right.
+- **A modal open over the page**: when the page and the modal hold the same
+  field name, the step points at the visible one, outside the content the
+  modal hides.
 
 ### Step copy in the viewer's language
 

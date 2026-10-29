@@ -36,6 +36,16 @@ class TourStep
 
     protected ?string $side = null;
 
+    /**
+     * What the tour opens before highlighting this step: the tab or wizard
+     * step holding a field, or the tab itself.
+     *
+     * @var array{field?: string, tab?: string}|null
+     */
+    protected ?array $reveal = null;
+
+    protected bool $optional = false;
+
     protected ?string $align = null;
 
     final protected function __construct(public readonly string $selector) {}
@@ -43,6 +53,74 @@ class TourStep
     public static function make(string $selector): static
     {
         return new static($selector);
+    }
+
+    /**
+     * The button of the action with this name — table toolbar, row, bulk
+     * bar, page header or footer — through the `data-action` hook Kinetix
+     * renders on every action.
+     */
+    public static function action(string $name): static
+    {
+        return static::make(static::attribute('data-action', $name));
+    }
+
+    /**
+     * A form field, by name. The tour opens the tab — or wizard step — that
+     * holds it first; a wizard never skips a step whose required fields are
+     * empty, so then the step's indicator is highlighted instead.
+     */
+    public static function field(string $name): static
+    {
+        $step         = static::make(static::attribute('data-kinetix-field', $name));
+        $step->reveal = ['field' => $name];
+
+        return $step;
+    }
+
+    /**
+     * A tab of a form or an infolist, by key (`Tab::key()`, else the slug of
+     * its label). The tour opens it, nested tabs included.
+     */
+    public static function tab(string $key): static
+    {
+        $step         = static::make(static::attribute('data-kinetix-tab', $key));
+        $step->reveal = ['tab' => $key];
+
+        return $step;
+    }
+
+    /**
+     * A form wizard's step in its indicator, by key (`Step::key()`, else the
+     * slug of its label).
+     */
+    public static function wizardStep(string $key): static
+    {
+        return static::make(static::attribute('data-kinetix-wizard-step', $key));
+    }
+
+    /**
+     * A table's header: its heading, search, filters and toolbar actions.
+     */
+    public static function tableHeader(): static
+    {
+        return static::make('[data-kinetix-table-header]');
+    }
+
+    /**
+     * Skip this step when its target isn't on the page (an action the
+     * viewer can't see, a column toggled off) instead of showing it centered.
+     */
+    public function optional(bool $optional = true): static
+    {
+        $this->optional = $optional;
+
+        return $this;
+    }
+
+    protected static function attribute(string $name, string $value): string
+    {
+        return '['.$name.'="'.addcslashes($value, '"\\').'"]';
     }
 
     public function title(string $title): static
@@ -109,7 +187,7 @@ class TourStep
     }
 
     /**
-     * @return array{selector: string, title: ?string, description: ?string, side: ?string, align: ?string}
+     * @return array{selector: string, title: ?string, description: ?string, side: ?string, align: ?string, reveal: array{field?: string, tab?: string}|null, optional: bool}
      */
     public function toArray(): array
     {
@@ -119,6 +197,8 @@ class TourStep
             'description' => $this->descriptionKey !== null ? (string) __(...$this->descriptionKey) : $this->description,
             'side'        => $this->side,
             'align'       => $this->align,
+            'reveal'      => $this->reveal,
+            'optional'    => $this->optional,
         ];
     }
 }

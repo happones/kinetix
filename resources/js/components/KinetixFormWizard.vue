@@ -10,6 +10,10 @@ import {
     gridColumnVars,
     resolveColumns,
 } from '@/composables/useKinetixResponsiveGrid';
+import {
+    holdsTourTarget,
+    onTourReveal,
+} from '@/composables/useKinetixTourReveal';
 import type { KinetixWizardStep } from '@/types/kinetix';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 import KinetixWizard from './KinetixWizard.vue';
@@ -44,7 +48,8 @@ const emit = defineEmits<{
 
 const steps = computed<KinetixWizardStep[]>(() =>
     (props.comp.schema ?? []).map((s: any, i: number) => ({
-        key: String(i),
+        // The step's key names it in the indicator (`data-kinetix-wizard-step`).
+        key: s.urlKey ?? String(i),
         label: s.heading,
         description: s.description,
         icon: s.icon,
@@ -182,6 +187,30 @@ function writeStep(index: number): void {
 }
 
 current.value = stepFromUrl();
+
+// A tour about to highlight a field in a step opens that step — unless a step
+// before it still has required fields empty (the same rule the URL follows):
+// then the tour points at the step in the indicator instead.
+onTourReveal((request) => {
+    const index = (props.comp.schema ?? []).findIndex((step: any) =>
+        holdsTourTarget(step.schema, request),
+    );
+
+    if (index === -1 || index === current.value) {
+        return;
+    }
+
+    for (let before = 0; before < index; before++) {
+        if (!beforeNext(before)) {
+            const key = props.comp.schema[index]?.urlKey ?? String(index);
+            request.fallback = `[data-kinetix-wizard-step="${CSS.escape(key)}"]`;
+
+            return;
+        }
+    }
+
+    current.value = index;
+});
 
 // Held back from the step the link named: say so in the URL too, so it never
 // shows one step while naming another.

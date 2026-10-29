@@ -15,6 +15,10 @@ import {
     tabsListClass,
     tabsTriggerClass,
 } from '@/composables/useKinetixShadcnVariants';
+import {
+    holdsTourTarget,
+    onTourReveal,
+} from '@/composables/useKinetixTourReveal';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 
 /**
@@ -60,6 +64,19 @@ watch(active, (index) => {
     }
 });
 
+// A tour about to highlight a field or tab in here opens the tab holding it.
+onTourReveal((request) => {
+    const index = props.tabs.findIndex(
+        (tab) =>
+            (request.tab !== undefined && tab.urlKey === request.tab) ||
+            holdsTourTarget(tab.schema, request),
+    );
+
+    if (index !== -1) {
+        active.value = String(index);
+    }
+});
+
 const errorKeys = computed(() => Object.keys(props.errors ?? {}));
 
 const tabHasError = (index: number): boolean =>
@@ -92,6 +109,7 @@ watch(
                 v-for="(tab, index) in props.tabs"
                 :key="index"
                 :value="String(index)"
+                :data-kinetix-tab="tab.urlKey || undefined"
                 :aria-invalid="tabHasError(index) || undefined"
                 :class="[
                     tabsTriggerClass,

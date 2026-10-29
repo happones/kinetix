@@ -280,6 +280,10 @@ export interface KinetixTourStepData {
     description: string | null;
     side: string | null;
     align: string | null;
+    /** What to open first: the tab/wizard step holding a field, or a tab. */
+    reveal?: { field?: string; tab?: string } | null;
+    /** Skip the step when its target isn't on the page. */
+    optional?: boolean;
 }
 
 /** A declared product tour, matched by Inertia page component or URL pattern. */

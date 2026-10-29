@@ -239,4 +239,29 @@ class ToursTest extends TestCase
         config()->set('kinetix.tours.skip_when_automated', false);
         $this->assertFalse($this->sharedTours()['skipWhenAutomated']);
     }
+
+    public function test_step_helpers_target_the_hooks_kinetix_renders(): void
+    {
+        $this->assertSame('[data-action="create"]', TourStep::action('create')->selector);
+        $this->assertSame('[data-kinetix-table-header]', TourStep::tableHeader()->selector);
+        $this->assertSame('[data-kinetix-wizard-step="billing"]', TourStep::wizardStep('billing')->selector);
+
+        $field = TourStep::field('department_id')->toArray();
+        $this->assertSame('[data-kinetix-field="department_id"]', $field['selector']);
+        $this->assertSame(['field' => 'department_id'], $field['reveal']);
+        $this->assertFalse($field['optional']);
+
+        $tab = TourStep::tab('employment')->optional()->toArray();
+        $this->assertSame('[data-kinetix-tab="employment"]', $tab['selector']);
+        $this->assertSame(['tab' => 'employment'], $tab['reveal']);
+        $this->assertTrue($tab['optional']);
+
+        // A plain selector reveals nothing.
+        $this->assertNull(TourStep::make('#x')->toArray()['reveal']);
+    }
+
+    public function test_step_helper_values_cannot_break_out_of_the_selector(): void
+    {
+        $this->assertSame('[data-action="a\\"b"]', TourStep::action('a"b')->selector);
+    }
 }

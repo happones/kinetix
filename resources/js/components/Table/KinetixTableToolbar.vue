@@ -89,6 +89,7 @@ const layoutClass = computed<string>(() => {
     <div v-if="hasContent" class="kinetix-toolbar-host">
         <div
             data-slot="card-header"
+            data-kinetix-table-header
             class="kinetix-toolbar p-6 gap-4 border-b border-border"
             :class="layoutClass"
         >

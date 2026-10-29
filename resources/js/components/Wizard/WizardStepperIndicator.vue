@@ -61,6 +61,7 @@ const { statusOf, stepDisabled, indicatorClass, stepKey } =
                 <StepperItem
                     v-for="(s, i) in steps"
                     :key="stepKey(s, i)"
+                    :data-kinetix-wizard-step="s.key"
                     :step="i + 1"
                     :disabled="stepDisabled(i)"
                     class="group min-w-0 flex disabled:pointer-events-none disabled:opacity-50"
@@ -221,6 +222,7 @@ const { statusOf, stepDisabled, indicatorClass, stepKey } =
         <StepperItem
             v-for="(s, i) in steps"
             :key="stepKey(s, i)"
+            :data-kinetix-wizard-step="s.key"
             :step="i + 1"
             :disabled="stepDisabled(i)"
             class="group gap-3 flex disabled:pointer-events-none disabled:opacity-50"

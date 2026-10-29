@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.266.0] - 2026-10-29
+
+### Added
+
+- **Tour step helpers whose selectors Kinetix keeps working**:
+  `TourStep::action('create')`, `field('department_id')`, `tab('employment')`,
+  `wizardStep('billing')` and `tableHeader()`, on new stable hooks
+  (`data-kinetix-field`, `data-kinetix-tab`, `data-kinetix-wizard-step`,
+  `data-kinetix-table-header`) instead of shadcn internals or element ids
+  (published).
+- **Tours open what hides their target.** A step on a field in a closed tab —
+  nested tabs included — or in a later wizard step opens it first, waits for it
+  to render and highlights it, forwards and backwards. A wizard still never
+  skips a step whose required fields are empty: the tour highlights that step
+  in the indicator instead.
+- **`->optional()`** skips a step whose target isn't on the page instead of
+  showing it centered; in development, a missing target logs which selector
+  matched nothing.
+- With a modal open over the page, a step points at the visible match.
+
+### Changed
+
+- Tabs and wizard steps always carry their key (`Tab::key()` / the label's
+  slug), even with `persistInQueryString(false)`; only the URL param depends on
+  it.
+
 ## [0.265.0] - 2026-10-29
 
 ### Added

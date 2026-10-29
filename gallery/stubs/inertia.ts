@@ -17,6 +17,43 @@ const page = {
             seen: [],
             tours: [
                 {
+                    // Started by the tour-reveal specimen's button: its steps
+                    // sit in closed tabs and a wizard step.
+                    id: 'gallery-reveal',
+                    page: 'Gallery',
+                    url: null,
+                    auto: false,
+                    steps: [
+                        {
+                            selector: '[data-kinetix-field="salary"]',
+                            reveal: { field: 'salary' },
+                            optional: false,
+                            title: 'Salary',
+                            description: 'Lives under Employment → Payroll.',
+                            side: 'bottom',
+                            align: null,
+                        },
+                        {
+                            selector: '[data-action="export"]',
+                            reveal: null,
+                            optional: true,
+                            title: 'Never shown',
+                            description: null,
+                            side: null,
+                            align: null,
+                        },
+                        {
+                            selector: '[data-kinetix-field="company"]',
+                            reveal: { field: 'company' },
+                            optional: false,
+                            title: 'Company',
+                            description: 'Waits behind the Account step.',
+                            side: 'bottom',
+                            align: null,
+                        },
+                    ],
+                },
+                {
                     id: 'gallery-employees',
                     version: 2,
                     seenKey: 'gallery-employees@v2',

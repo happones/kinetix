@@ -359,6 +359,7 @@ import KinetixCalendar from '@/components/KinetixCalendar.vue';
 import KinetixPageHeader from '@/components/KinetixPageHeader.vue';
 import KinetixTourTrigger from '@/components/KinetixTourTrigger.vue';
 import KinetixTours from '@/components/KinetixTours.vue';
+import { useKinetixToursStore } from '@/stores/kinetixTours';
 import KinetixImpersonationBanner from '@/components/KinetixImpersonationBanner.vue';
 import KinetixActionDropdown from '@/components/KinetixActionDropdown.vue';
 import KinetixMemberActivation from '@/components/KinetixMemberActivation.vue';
@@ -2228,6 +2229,89 @@ const generatorField = (
     columnSpan: 'full',
     isDisabled: false,
     generatorConfig,
+});
+
+/** A form whose tour targets sit in closed tabs and a later wizard step. */
+const TourRevealPage = defineComponent({
+    name: 'TourRevealPage',
+    setup() {
+        const field = (name: string, label: string, extra = {}) => ({
+            type: 'text-input',
+            name,
+            label,
+            columnSpan: 12,
+            ...extra,
+        });
+        const tab = (heading: string, urlKey: string, schema: unknown[]) => ({
+            type: 'tab',
+            heading,
+            urlKey,
+            columns: 12,
+            schema,
+        });
+        const schema = [
+            {
+                type: 'tabs',
+                columnSpan: 'full',
+                queryParam: null,
+                schema: [
+                    tab('General', 'general', [field('name', 'Name')]),
+                    tab('Employment', 'employment', [
+                        {
+                            type: 'tabs',
+                            columnSpan: 'full',
+                            queryParam: null,
+                            schema: [
+                                tab('Contract', 'contract', [
+                                    field('department_id', 'Department'),
+                                ]),
+                                tab('Payroll', 'payroll', [
+                                    field('salary', 'Salary'),
+                                ]),
+                            ],
+                        },
+                    ]),
+                ],
+            },
+            {
+                type: 'wizard',
+                columnSpan: 'full',
+                queryParam: null,
+                schema: [
+                    {
+                        type: 'wizard-step',
+                        heading: 'Account',
+                        urlKey: 'account',
+                        columns: 12,
+                        schema: [field('email', 'Email', { isRequired: true })],
+                    },
+                    {
+                        type: 'wizard-step',
+                        heading: 'Company',
+                        urlKey: 'company',
+                        columns: 12,
+                        schema: [field('company', 'Company')],
+                    },
+                ],
+            },
+        ];
+        const tours = useKinetixToursStore();
+
+        return () =>
+            h('div', { class: 'flex flex-col gap-6' }, [
+                h(
+                    'button',
+                    {
+                        type: 'button',
+                        class: 'self-start rounded-md border px-3 py-1.5 text-sm',
+                        onClick: () => tours.start('gallery-reveal'),
+                    },
+                    'Start tour',
+                ),
+                h(KinetixFormSchema, { schema, values: {}, errors: {} }),
+                h(KinetixTours),
+            ]);
+    },
 });
 
 /** A page header whose actions a tour points at, with the replay trigger. */
@@ -4520,6 +4604,14 @@ export const specimens: Specimen[] = [
         frame: 'card',
         width: 720,
         props: { schema: formWizardSchema, values: {}, errors: {} },
+    },
+    {
+        name: 'tour-reveal',
+        title: 'Tours — steps inside closed tabs and a wizard step',
+        component: TourRevealPage,
+        frame: 'card',
+        width: 900,
+        height: 760,
     },
     {
         name: 'tour-trigger',

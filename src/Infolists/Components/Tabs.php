@@ -85,9 +85,9 @@ class Tabs extends Component
 
         $queryParam = QueryStringKeys::param($this->queryParam, 'tab', 'kinetix.forms.query_string.tabs');
 
-        if ($queryParam !== null) {
-            QueryStringKeys::assign($tabsData, $keys, 'tab');
-        }
+        // Keyed whether or not the URL carries them: tours reveal and point
+        // at tabs by key too.
+        QueryStringKeys::assign($tabsData, $keys, 'tab');
 
         return new InfolistEntryData(
             type: $this->getType(),

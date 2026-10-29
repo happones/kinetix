@@ -340,9 +340,11 @@ const renderSchema = computed(() =>
             <p class="text-sm text-muted-foreground">{{ comp.content }}</p>
         </div>
 
-        <!-- Standard Form Fields -->
+        <!-- Standard Form Fields. `data-kinetix-field` is the stable hook
+             tours (TourStep::field()) and tests target. -->
         <div
             v-else
+            :data-kinetix-field="comp.name"
             :style="colStyle(comp)"
             class="kinetix-col space-y-1.5 flex flex-col"
             @focusout="touch(comp.name)"

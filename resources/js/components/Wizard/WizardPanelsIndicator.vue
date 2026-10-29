@@ -37,6 +37,7 @@ const { statusOf, hasError, stepDisabled, stepKey } = useKinetixWizardStatus({
         <button
             v-for="(s, i) in steps"
             :key="stepKey(s, i)"
+            :data-kinetix-wizard-step="s.key"
             type="button"
             :disabled="stepDisabled(i)"
             class="gap-2 rounded-lg px-3 py-2 text-sm flex items-center border text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
