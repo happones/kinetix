@@ -199,6 +199,11 @@ class ContactExporter extends Exporter
     }
 }
 
+// Relation columns: dot notation of any depth — eager loaded per chunk (no N+1, safe with preventLazyLoading).
+// ExportColumn::make('product.category.slug'); ExportColumn::make('tags.name')->separator(' | ')->distinct();
+// Extra loads for formatStateUsing(): public function with(): array { return ['customer.address']; }
+// Pages by key (chunkById) unless query() has an orderBy. Iterate with $exporter->eachChunk(fn ($records) => …).
+
 // Dispatch — the recipient receives an "Export ready" notification with a Download action.
 (new ContactExporter())->export($request->user());
 ```

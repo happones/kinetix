@@ -54,8 +54,7 @@ class ReportRunner
         $writer = new FileWriter($tempPath, $format);
         $writer->writeRow($exporter->headings());
 
-        $exporter->resolveExportQuery()->chunk(
-            $exporter->chunkSize(),
+        $exporter->eachChunk(
             function ($records) use ($writer, $exporter): void {
                 foreach ($records as $record) {
                     $writer->writeRow($exporter->mapRecord($record));

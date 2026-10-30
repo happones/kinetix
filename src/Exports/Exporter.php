@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Exports;
 
+use Closure;
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Support\Concerns\CarriesQueueContext;
 use Happones\Kinetix\Support\KinetixTeams;
@@ -11,7 +12,10 @@ use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
+use ReflectionMethod;
 use RuntimeException;
 
 abstract class Exporter
@@ -171,6 +175,110 @@ abstract class Exporter
             $query->getModel()->getQualifiedKeyName(),
             $relationObject->getQuery()->select($related->getQualifiedKeyName()),
         );
+    }
+
+    /**
+     * Extra eager loads for the export, on top of the relations the columns
+     * read through (which are loaded automatically) — for what a
+     * formatStateUsing() closure reads, or to constrain a load:
+     *
+     *     return ['customer.address', 'items' => fn ($query) => $query->select('id', 'order_id', 'sku')];
+     *
+     * @return array<int|string, mixed>
+     */
+    public function with(): array
+    {
+        return [];
+    }
+
+    /**
+     * The relations to eager load per chunk: every relation path a column's
+     * dot-notation name walks through (`product.category.slug` loads
+     * `product.category`), plus {@see with()}. Each level costs one query per
+     * chunk instead of one per record — and nothing is lazy-loaded, so an
+     * app with `Model::preventLazyLoading()` exports fine.
+     *
+     * @return array<int|string, mixed>
+     */
+    public function eagerLoads(): array
+    {
+        $root  = new (static::getModel());
+        $paths = [];
+
+        foreach (static::getColumns() as $column) {
+            $path = self::relationPath($root, explode('.', $column->getName()));
+
+            if ($path !== null) {
+                $paths[$path] = true;
+            }
+        }
+
+        return [...array_keys($paths), ...$this->with()];
+    }
+
+    /**
+     * Run $callback over the exported records, chunk by chunk, with the
+     * columns' relations eager loaded. Without an explicit order it pages by
+     * key (each chunk costs the same however deep into the table it is);
+     * with one, it keeps that order and pages by offset. Return false from
+     * the callback to stop.
+     *
+     * @param Closure(Collection<int, Model>): mixed $callback
+     */
+    public function eachChunk(Closure $callback): void
+    {
+        $query = $this->resolveExportQuery()->with($this->eagerLoads());
+        $size  = max(1, $this->chunkSize());
+        $base  = $query->getQuery();
+
+        if (($base->orders ?? []) === [] && $base->unions === null) {
+            $model = $query->getModel();
+            $query->chunkById($size, $callback, $model->getQualifiedKeyName(), $model->getKeyName());
+
+            return;
+        }
+
+        $query->chunk($size, $callback);
+    }
+
+    /**
+     * The relation segments at the start of a dot-notation path
+     * (`product.category` of `product.category.slug`), or null when the path
+     * reads no relation (a plain or JSON attribute). Only methods the model
+     * itself declares are considered, and only a Relation counts.
+     *
+     * @param array<int, string> $segments
+     */
+    private static function relationPath(Model $model, array $segments): ?string
+    {
+        $relations = [];
+
+        foreach (array_slice($segments, 0, -1) as $segment) {
+            if ($segment === '*') {
+                continue;
+            }
+
+            if (! method_exists($model, $segment)) {
+                break;
+            }
+
+            $method = new ReflectionMethod($model, $segment);
+
+            if (! $method->isPublic() || $method->getNumberOfRequiredParameters() > 0 || $method->getDeclaringClass()->getName() === Model::class) {
+                break;
+            }
+
+            $relation = $model->{$segment}();
+
+            if (! $relation instanceof Relation) {
+                break;
+            }
+
+            $relations[] = $segment;
+            $model       = $relation->getRelated();
+        }
+
+        return $relations !== [] ? implode('.', $relations) : null;
     }
 
     /**

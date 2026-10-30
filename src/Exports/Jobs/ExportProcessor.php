@@ -114,7 +114,7 @@ class ExportProcessor implements ShouldQueue
         // A record whose mapping throws is skipped — one bad row must not cost
         // the user the other N thousand. The completion notification reports
         // how many were skipped.
-        $exporter->resolveExportQuery()->chunk($exporter->chunkSize(), function ($records) use ($writer, $exporter, &$exported, &$failed): void {
+        $exporter->eachChunk(function ($records) use ($writer, $exporter, &$exported, &$failed): void {
             foreach ($records as $record) {
                 try {
                     $writer->writeRow($exporter->mapRecord($record));

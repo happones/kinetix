@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.270.0] - 2026-10-30
+
+### Added
+
+- **Relation columns export without N+1.** Dot-notation columns
+  (`category.name`, `product.category.slug`) have their relation paths eager
+  loaded with each chunk — one query per relation level per chunk instead of
+  one per record — so an app with `Model::preventLazyLoading()` exports fine.
+  `Exporter::with()` adds (or constrains) loads for what a `formatStateUsing()`
+  reads.
+- **To-many paths** (`tags.name`, `items.product.sku`) join their values
+  (`->separator()`, default `', '`; `->distinct()` drops repeats). They used to
+  export empty.
+- `Exporter::eachChunk()` iterates the export with relations loaded; the export
+  job, `ReportRunner` and the reports center run through it.
+
+### Changed
+
+- **Exports page by key** (`chunkById`) when `query()` sets no order, so every
+  chunk costs the same however deep into the table; an explicit `orderBy()` is
+  kept (offset paging, as before).
+
 ## [0.269.0] - 2026-10-30
 
 ### Added

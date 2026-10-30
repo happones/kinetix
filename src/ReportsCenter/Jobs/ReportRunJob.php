@@ -115,7 +115,7 @@ class ReportRunJob implements ShouldQueue
             $processed = 0;
             $cancelled = false;
 
-            $report->resolveExportQuery()->chunk($report->chunkSize(), function ($records) use (
+            $report->eachChunk(function ($records) use (
                 $writer,
                 $report,
                 &$processed,

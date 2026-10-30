@@ -1043,6 +1043,9 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 | `format(): string` | `'csv'` (default) or `'xlsx'` |
 | `fileName(): string` | Download file name without extension |
 | `chunkSize(): int` | Records per query chunk (default `1000`) |
+| `with(): array` | Extra eager loads (the columns' relations load automatically — see [Relation columns](#relation-columns)) |
+| `eagerLoads(): array` | The relations loaded per chunk: the columns' paths + `with()` |
+| `eachChunk(Closure)` | Iterate the exported records chunk by chunk, relations loaded (what the job, reports and the reports center run) |
 | `queue(): ?string` | Queue the job runs on |
 | `export(?Model $recipient, array $parameters = []): void` | Dispatch the queued export + notify the recipient. `$parameters` (e.g. `['ids' => [...]]`) reach the exporter inside the job |
 | `parameter(string $key, $default = null)` | Read a runtime parameter inside `query()` (e.g. the selected `ids`) |
@@ -1053,9 +1056,52 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 
 | `ExportColumn` method | Description |
 |---|---|
-| `::make(string $name)` | Source attribute (dot-notation aware, enum friendly) |
+| `::make(string $name)` | Source attribute — dot notation reads relations (`category.name`, `product.category.slug`) and JSON (`meta.color`); enum friendly |
 | `->label(string)` | Column heading |
 | `->formatStateUsing(Closure)` | Transform the value (`fn ($value, $record)`) |
+| `->separator(string)` | Joins the values of a to-many path (default `', '`) |
+| `->distinct(bool = true)` | List each value of a to-many path once |
+
+### Relation columns
+
+A column's dot-notation name walks relations of any depth and kind:
+
+```php
+public static function getColumns(): array
+{
+    return [
+        ExportColumn::make('sku'),
+        ExportColumn::make('category.name')->label('Category'),           // BelongsTo
+        ExportColumn::make('product.category.slug'),                      // nested
+        ExportColumn::make('tags.name')->label('Tags'),                   // to-many → "Oferta, Nuevo"
+        ExportColumn::make('items.product.category.name')->distinct(),    // through a HasMany, each once
+        ExportColumn::make('meta.color'),                                 // a JSON column, not a relation
+    ];
+}
+```
+
+- **Eager loaded per chunk.** The exporter reads the relation paths out of the
+  column names (`product.category.slug` → `product.category`) and loads them with
+  each chunk: one query per relation level per chunk, never one per record. Nothing
+  is lazy-loaded, so an app running `Model::preventLazyLoading()` exports fine.
+- **To-many paths** (a HasMany / BelongsToMany anywhere in the path) join every
+  value with `->separator()`; `->distinct()` drops repeats. A missing link (a
+  product without a category) leaves the cell empty.
+- **Paging.** Without an explicit order the export pages **by key** (`where id >
+  ?`), so each chunk costs the same at row 10 or row 10,000,000; with an
+  `orderBy()` in `query()` that order is kept (offset paging).
+- **More than the columns read?** A `formatStateUsing()` closure that reads
+  another relation adds it to `with()`, which can also constrain a load:
+
+```php
+public function with(): array
+{
+    return ['customer.address', 'items' => fn ($query) => $query->select('id', 'order_id', 'sku')];
+}
+```
+
+Only methods the model itself declares that return a `Relation` count as
+relations; anything else in a path (an accessor, a JSON key) is read as a value.
 
 ### Authorization
 
