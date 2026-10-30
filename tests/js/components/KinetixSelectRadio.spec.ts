@@ -86,6 +86,29 @@ describe('KinetixRadioGroup', () => {
         expect(wrapper.findAll('[role="radio"]')).toHaveLength(3);
     });
 
+    it('keeps the order of a list of id options', async () => {
+        const wrapper = mount(KinetixRadioGroup, {
+            props: {
+                value: 12,
+                options: [
+                    { value: 12, label: 'Aguascalientes' },
+                    { value: 3, label: 'Baja California' },
+                ],
+            },
+        });
+
+        expect(wrapper.text().indexOf('Aguascalientes')).toBeLessThan(
+            wrapper.text().indexOf('Baja California'),
+        );
+        expect(
+            wrapper.findAll('[role="radio"]')[0].attributes('aria-checked'),
+        ).toBe('true');
+
+        await wrapper.findAll('[role="radio"]')[1].trigger('click');
+
+        expect(wrapper.emitted('update:value')?.[0]).toEqual(['3']);
+    });
+
     it('emits update:value when an option is selected', async () => {
         const wrapper = mount(KinetixRadioGroup, {
             props: { value: null, options: { draft: 'Draft', live: 'Live' } },

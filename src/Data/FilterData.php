@@ -11,7 +11,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 class FilterData extends Data
 {
     /**
-     * @param array<string, string>|null $options
+     * @param array<int|string, mixed>|null $options value => label, or a list of {value, label} when JS would reorder the keys (see OptionList)
      */
     public function __construct(
         public string $name,

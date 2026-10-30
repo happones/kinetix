@@ -65,7 +65,8 @@ class FiltersTest extends TestCase
         $data = TernaryFilter::make('active')->trueLabel('Active')->falseLabel('Inactive')->toData();
 
         $this->assertSame('ternary', $data->type);
-        $this->assertSame(['1' => 'Active', '0' => 'Inactive'], $data->options);
+        // A list: as an object, JavaScript would list "0" (Inactive) first.
+        $this->assertSame([['value' => 1, 'label' => 'Active'], ['value' => 0, 'label' => 'Inactive']], $data->options);
     }
 
     public function test_date_range_filter_between_bounds(): void

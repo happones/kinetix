@@ -8,6 +8,7 @@ use Closure;
 use Happones\Kinetix\Data\ColumnData;
 use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\Concerns\HasAuthorization;
+use Happones\Kinetix\Support\OptionList;
 use Happones\Kinetix\Tables\ApiResourceRow;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Illuminate\Database\Eloquent\Builder;
@@ -296,12 +297,12 @@ abstract class Column
             isToggleable: $this->isToggleable,
             isToggledHiddenByDefault: $this->isToggledHiddenByDefault,
             type: $this->getType(),
-            isCopyable: $extra['isCopyable']                   ?? ($this->isCopyable ?: null),
-            isCircular: $extra['isCircular']                   ?? null,
-            size: $extra['size']                               ?? null,
-            isPreviewable: $extra['isPreviewable']             ?? null,
-            isPreviewGallery: $extra['isPreviewGallery']       ?? null,
-            options: $extra['options']                         ?? null,
+            isCopyable: $extra['isCopyable']             ?? ($this->isCopyable ?: null),
+            isCircular: $extra['isCircular']             ?? null,
+            size: $extra['size']                         ?? null,
+            isPreviewable: $extra['isPreviewable']       ?? null,
+            isPreviewGallery: $extra['isPreviewGallery'] ?? null,
+            options: OptionList::forWire($extra['options'] ?? null),
             isBadge: $extra['isBadge']                         ?? null,
             descriptionPosition: $extra['descriptionPosition'] ?? null,
             isConfidential: $extra['isConfidential']           ?? null,

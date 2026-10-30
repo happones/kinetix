@@ -15,6 +15,8 @@ import {
 } from 'reka-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { kinetixOptionList } from '@/composables/kinetixOptions';
+import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type { KinetixOption, KinetixSharedProps } from '@/types/kinetix';
 
@@ -32,7 +34,7 @@ import type { KinetixOption, KinetixSharedProps } from '@/types/kinetix';
 const props = withDefaults(
     defineProps<{
         value?: string | number | null;
-        options?: Record<string, string> | KinetixOption[] | null;
+        options?: KinetixOptions;
         placeholder?: string | null;
         id?: string;
         disabled?: boolean;
@@ -65,15 +67,8 @@ const open = ref(false);
 const loading = ref(false);
 const remote = computed(() => !!props.searchToken || !!props.fetchOptions);
 
-const toList = (
-    options: Record<string, string> | KinetixOption[] | null | undefined,
-): KinetixOption[] =>
-    Array.isArray(options)
-        ? options
-        : Object.entries(options ?? {}).map(([value, label]) => ({
-              value,
-              label,
-          }));
+// Values arrive as strings or numbers; the combobox compares strings.
+const toList = kinetixOptionList;
 
 const toMap = (list: KinetixOption[]): Record<string, string> =>
     Object.fromEntries(
@@ -120,7 +115,7 @@ async function fetchRemote(query: string): Promise<void> {
             remoteItems.value = await props.fetchOptions(query);
         } else {
             const result = await kinetixFetch<{
-                options: Record<string, string>;
+                options: KinetixOptions;
             }>(`/${kinetixRoutePrefix(page)}/forms/search`, {
                 method: 'POST',
                 body: { token: props.searchToken, q: query },

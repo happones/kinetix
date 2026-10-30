@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { KinetixTableFilter } from '@/types/kinetix';
+import { kinetixOptionList } from '@/composables/kinetixOptions';
+import type { KinetixOption, KinetixTableFilter } from '@/types/kinetix';
 import KinetixCombobox from '../../KinetixCombobox.vue';
 import KinetixSelect from '../../KinetixSelect.vue';
 
@@ -17,10 +18,10 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 // Select/ternary filters prepend an "All" sentinel so clearing is one click.
-const optionsWithAll = computed<Record<string, string>>(() => ({
-    '': t('kinetix.all'),
-    ...(props.filter.options || {}),
-}));
+const optionsWithAll = computed<KinetixOption[]>(() => [
+    { value: '', label: t('kinetix.all') },
+    ...kinetixOptionList(props.filter.options),
+]);
 </script>
 
 <template>

@@ -188,7 +188,7 @@ class ContactExporter extends Exporter
 {
     protected static ?string $model = \App\Models\Contact::class;
 
-    public function format(): string { return 'xlsx'; } // 'csv' | 'xlsx' | 'pdf'
+    public function format(): string { return 'xlsx'; } // 'csv' | 'xlsx' | 'xls' (Excel 97) | 'pdf'
 
     public static function getColumns(): array
     {
@@ -202,6 +202,8 @@ class ContactExporter extends Exporter
 // Relation columns: dot notation of any depth — eager loaded per chunk (no N+1, safe with preventLazyLoading).
 // ExportColumn::make('product.category.slug'); ExportColumn::make('tags.name')->separator(' | ')->distinct();
 // Extra loads for formatStateUsing(): public function with(): array { return ['customer.address']; }
+// Typed cells (xlsx/xls get real dates/numbers/text + number format; csv/pdf the formatted text):
+// ExportColumn::make('birthday')->date('dd/mm/yyyy'); ->numeric('0.00'); ->text() (keeps leading zeros).
 // Pages by key (chunkById) unless query() has an orderBy. Iterate with $exporter->eachChunk(fn ($records) => …).
 
 // Dispatch — the recipient receives an "Export ready" notification with a Download action.

@@ -105,7 +105,7 @@ class ExportProcessor implements ShouldQueue
         // on the configured disk so exports work on any driver (local, s3, …).
         $tempPath = (string) tempnam(sys_get_temp_dir(), 'kinetix_export_');
 
-        $writer = new FileWriter($tempPath, $format);
+        $writer = (new FileWriter($tempPath, $format))->withCellTypes($exporter->cellTypes());
         $writer->writeRow($exporter->headings());
 
         $exported = 0;

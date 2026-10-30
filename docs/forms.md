@@ -421,6 +421,11 @@ use Happones\Kinetix\Forms\Components\Placeholder;
 
 Placeholder::make('Account ID')
     ->content(fn ($record) => $record?->id ?? '—')
+
+// Or named like a field, with the label apart (a string, a closure or null):
+Placeholder::make('payroll_hint')
+    ->label(__('Before you export'))
+    ->content(__('Check the period dates first.'))
 ```
 
 All layout components share the base `columnSpan()`, `visible()/hidden()`, `visibleOn()/hiddenOn()`, and `authorize()` methods (see [§5 Operations & Visibility Constraints](#_5-operations-visibility-constraints)), and nest arbitrarily.
@@ -723,6 +728,22 @@ Define the enum once and it drives every surface: `Select`, `Radio`,
 export columns. See [Tables → Enum Support & Contracts](/tables#enum-support-contracts)
 for the color and icon contracts (`HasColor`, `HasIcon`) used by badges and
 icon columns.
+
+#### Option order
+
+Options render in the order you give them, ids included:
+
+```php
+Select::make('state_id')->options(State::query()->orderBy('name')->pluck('name', 'id'));
+```
+
+A JavaScript object would list integer-like keys first, ascending (by id, not by
+name). So when that would reorder the options, `Select`, `Radio`, `CheckboxList`,
+table filters, `SelectColumn` and the remote search send them as a list of
+`{ value, label }` instead of the map — and the published components read both.
+A custom component that renders `options` should go through
+`kinetixOptionList(options)` (`@/composables/kinetixOptions`) rather than iterate
+the object.
 
 #### Searchable (combobox)
 

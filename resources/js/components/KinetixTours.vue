@@ -26,6 +26,14 @@ const store = useKinetixToursStore();
 
 // driver.js's driver() instance for the running tour (untyped here so the
 // package compiles without the optional dependency installed).
+/** The part of driver.js's `driver()` the tours use. */
+type DriverFactory = (config: Record<string, unknown>) => {
+    drive: (index?: number) => void;
+    moveTo: (index: number) => void;
+    getActiveIndex: () => number | undefined;
+    destroy: () => void;
+};
+
 let activeDriver: { destroy: () => void } | null = null;
 let warnedMissing = false;
 
@@ -167,17 +175,16 @@ function warnMissing(selector: string): void {
 }
 
 async function run(tour: KinetixTourData): Promise<void> {
-    let driverFactory: (config: Record<string, unknown>) => {
-        drive: (index?: number) => void;
-        moveTo: (index: number) => void;
-        getActiveIndex: () => number | undefined;
-        destroy: () => void;
-    };
+    let driverFactory: DriverFactory;
 
     try {
         // Lazy import keeps driver.js code-split AND optional — apps that
-        // never enable tours don't ship or need it.
-        const module = await import('driver.js');
+        // never enable tours don't ship or need it. Typed here, not by the
+        // app: whatever version (or `declare module` shim) it has, the
+        // component only relies on these methods.
+        const module = (await import('driver.js')) as unknown as {
+            driver: DriverFactory;
+        };
         await import('driver.js/dist/driver.css');
         driverFactory = module.driver;
     } catch {

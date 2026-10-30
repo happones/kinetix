@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tables\Filters;
 use Closure;
 use Happones\Kinetix\Data\FilterData;
 use Happones\Kinetix\Support\AutoLabel;
+use Happones\Kinetix\Support\OptionList;
 use Illuminate\Database\Eloquent\Builder;
 
 class Filter
@@ -99,7 +100,7 @@ class Filter
             label: $this->label,
             default: $this->default,
             type: $this->getType(),
-            options: $extra['options']                   ?? null,
+            options: OptionList::forWire($extra['options'] ?? null),
             useCalendar: $extra['useCalendar']           ?? false,
             numberOfMonths: $extra['numberOfMonths']     ?? 1,
             locale: $extra['locale']                     ?? null,

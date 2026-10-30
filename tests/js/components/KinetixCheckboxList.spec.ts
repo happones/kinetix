@@ -42,6 +42,23 @@ describe('KinetixCheckboxList', () => {
         expect(text).toContain('Cherry');
     });
 
+    it('keeps the order of a list of id options', () => {
+        const w = mountIt({
+            options: [
+                { value: 3, label: 'Zanahoria' },
+                { value: 1, label: 'Apio' },
+            ],
+            value: [1],
+        });
+
+        expect(w.text().indexOf('Zanahoria')).toBeLessThan(
+            w.text().indexOf('Apio'),
+        );
+        expect(w.findAllComponents(KinetixCheckbox)[1].props('checked')).toBe(
+            true,
+        );
+    });
+
     it('filters items locally when search input is typed', async () => {
         const w = mountIt({ searchable: true });
         const input = w.find('input[type="text"]');

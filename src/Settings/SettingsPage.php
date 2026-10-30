@@ -6,6 +6,8 @@ namespace Happones\Kinetix\Settings;
 
 use Happones\Kinetix\Forms\Components\Component;
 use Happones\Kinetix\Forms\Form;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * A database-backed settings panel. Subclass it and return Kinetix Form
@@ -53,6 +55,27 @@ abstract class SettingsPage
     public function navigationIcon(): string
     {
         return 'settings';
+    }
+
+    /**
+     * The ability that opens and saves this page — several mean any of them.
+     * A page for someone other than the platform's settings admins (a team
+     * owner's own configuration) names its own ability here.
+     *
+     * @return string|array<int, string>
+     */
+    public function ability(): string|array
+    {
+        return 'settings.manage';
+    }
+
+    /**
+     * Whether the user may open and save this page. Defaults to
+     * {@see ability()}; override for a rule a Gate ability can't express.
+     */
+    public function authorize(?Authenticatable $user): bool
+    {
+        return $user !== null && Gate::forUser($user)->any((array) $this->ability());
     }
 
     /**

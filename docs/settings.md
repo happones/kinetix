@@ -146,6 +146,28 @@ in clear.
 - Management endpoints are gated by the **`settings.manage`** ability. With the
   [Roles & Permissions](/permissions) module enabled, grant it to a role; the
   `settings` feature auto-registers in the permission matrix when this module is on.
+- **A page can name its own ability.** A page meant for someone other than the
+  platform's settings admins — a team owner's own configuration — returns it
+  from `ability()` (several = any of them), or overrides `authorize()` for a rule
+  an ability can't express. Each user is only listed, shown and allowed to save
+  the pages they may open; the index opens the first of them, and answers 403
+  when there is none.
+
+```php
+class PayrollSettingsPage extends SettingsPage
+{
+    public function ability(): string|array
+    {
+        return ['settings.manage', 'payroll.configure'];
+    }
+
+    // Or any rule:
+    // public function authorize(?Authenticatable $user): bool
+    // {
+    //     return $user?->ownsTeam($user->currentTeam) ?? false;
+    // }
+}
+```
 - When `settings.teams` is `true`, values are scoped to the user's `currentTeam`
   (null team = global) — the same bridge the Permissions module uses — and a
   team inherits the global values it doesn't set itself (see
@@ -155,7 +177,7 @@ in clear.
 
 ## 5. Endpoints
 
-Team-aware, mounted under the Kinetix route prefix, gated by `settings.manage`:
+Team-aware, mounted under the Kinetix route prefix, gated per page (`settings.manage` unless the page says otherwise):
 
 | Method | Endpoint | Description |
 |---|---|---|

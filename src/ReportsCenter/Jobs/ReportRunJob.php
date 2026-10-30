@@ -109,7 +109,7 @@ class ReportRunJob implements ShouldQueue
             $disk         = KinetixDisk::privateName();
             $tempPath     = (string) tempnam(sys_get_temp_dir(), 'kinetix_report_');
 
-            $writer = new FileWriter($tempPath, $format);
+            $writer = (new FileWriter($tempPath, $format))->withCellTypes($report->cellTypes());
             $writer->writeRow($report->headings());
 
             $processed = 0;

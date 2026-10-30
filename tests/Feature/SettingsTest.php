@@ -28,6 +28,20 @@ class GeneralSettingsPage extends SettingsPage
     }
 }
 
+/** A team owner's own page: not for the platform's settings admins only. */
+class PayrollSettingsPage extends SettingsPage
+{
+    public function schema(): array
+    {
+        return [TextInput::make('employer_key')];
+    }
+
+    public function ability(): string|array
+    {
+        return ['settings.manage', 'payroll.configure'];
+    }
+}
+
 class SettingsUser extends Authenticatable
 {
     use HasRoles;
@@ -61,7 +75,7 @@ class SettingsTest extends TestCase
 
         $app['config']->set('cache.default', 'array');
         $app['config']->set('kinetix.settings.enabled', true);
-        $app['config']->set('kinetix.settings.pages', [GeneralSettingsPage::class]);
+        $app['config']->set('kinetix.settings.pages', [GeneralSettingsPage::class, PayrollSettingsPage::class]);
     }
 
     protected function setUp(): void
@@ -261,6 +275,44 @@ class SettingsTest extends TestCase
         $this->actingAs($this->manager())
             ->putJson('/_kinetix/settings/nope', ['x' => 1])
             ->assertNotFound();
+    }
+
+    public function test_a_page_can_be_opened_with_its_own_ability(): void
+    {
+        Permission::findOrCreate('payroll.configure', 'web');
+        $owner = SettingsUser::create(['name' => 'Owner']);
+        $owner->givePermissionTo('payroll.configure');
+
+        $this->actingAs($owner)
+            ->putJson('/_kinetix/settings/payroll', ['employer_key' => 'Y1234567'])
+            ->assertOk();
+
+        $this->assertSame('Y1234567', KinetixSettings::get('payroll.employer_key'));
+
+        $this->actingAs($owner)
+            ->getJson('/_kinetix/settings')
+            ->assertOk()
+            ->assertJsonPath('pages', [['key' => 'payroll', 'title' => 'Payroll', 'icon' => 'settings']])
+            ->assertJsonPath('active.key', 'payroll');
+
+        $this->actingAs($owner)->getJson('/_kinetix/settings/general')->assertForbidden();
+        $this->actingAs($owner)->putJson('/_kinetix/settings/general', ['site_name' => 'X'])->assertForbidden();
+    }
+
+    public function test_settings_managers_still_see_every_page(): void
+    {
+        $this->actingAs($this->manager())
+            ->getJson('/_kinetix/settings')
+            ->assertOk()
+            ->assertJsonCount(2, 'pages')
+            ->assertJsonPath('active.key', 'general');
+    }
+
+    public function test_a_user_who_may_open_no_page_is_denied_the_index(): void
+    {
+        $this->actingAs(SettingsUser::create(['name' => 'Nobody']))
+            ->getJson('/_kinetix/settings')
+            ->assertForbidden();
     }
 
     public function test_users_without_permission_are_denied(): void

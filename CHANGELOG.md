@@ -13,6 +13,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.271.0] - 2026-10-30
+
+### Added
+
+- **Typed export cells.** `ExportColumn::date('dd/mm/yyyy')` writes a real
+  spreadsheet date with that number format (no more locale-dependent
+  `12/04/2001` text), `->numeric('0.00')` a number, `->text()` text that keeps
+  its leading zeros (`06700`). In a CSV or PDF the cell holds the text the format
+  shows. A value that can't be its type is written as it is. `Exporter::cellTypes()`
+  and `FileWriter::withCellTypes()` carry them; exports, reports and the reports
+  center use them.
+- **`xls` export format** (Excel 97–2003) for systems that still import only
+  that: `format()` returns `'xls'`.
+- **Per-page settings access.** `SettingsPage::ability()` (default
+  `'settings.manage'`, an array = any of them) or an overridden `authorize()`;
+  each user is listed, shown and allowed to save only the pages they may open.
+- `Placeholder::make('name')->label(...)`: the label can be set apart from
+  `make()`, like any other field.
+
+### Fixed
+
+- **Options keep their order** (published). A JavaScript object lists
+  integer-like keys first, ascending, so `pluck('name', 'id')` ordered by name
+  rendered ordered by id — and a ternary filter listed *No* before *Yes*. When
+  that would happen, `Select`, `Radio`, `CheckboxList`, table filters,
+  `SelectColumn` and the remote search (`forms/search`) now send a list of
+  `{value, label}`; `KinetixRadioGroup`, `KinetixCheckboxList`,
+  `FilterSelectField` and `KinetixCombobox` read both shapes through the new
+  `kinetixOptionList()` (`composables/kinetixOptions.ts`).
+- **Import modes and an unsaved `resolveRecord()`.** A `resolveRecord()` that
+  returns a new, unsaved model (`firstOrNew()`) counts as no match, so `Create`
+  creates those rows instead of turning every one down as "already exists".
+- **`KinetixTours.vue` type-checks against any driver.js** (published): the
+  component types the part of `driver()` it uses, so an app's narrower
+  `declare module 'driver.js'` shim no longer fails `vue-tsc`.
+
+### Upgrade notes
+
+- **From before 0.267: `$matchBy`.** Import modes added `protected array
+  $matchBy` to `Importer`. An importer that declared its own `static $matchBy`
+  fails with *Cannot redeclare non static … as static*: drop `static` (it then
+  drives matching for the modes) or rename the property.
+- **`resolveRecord()` returns null when nothing matches**; build new records in
+  `importRow()`. Import modes count a row as matched only for a stored record.
+- **Option payloads may be lists.** A custom component that iterates a field's,
+  filter's or column's `options` as an object should use `kinetixOptionList()`;
+  maps whose order JavaScript keeps are still sent as maps.
+- Exports and reports without types are written exactly as before.
+
 ## [0.270.0] - 2026-10-30
 
 ### Added

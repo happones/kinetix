@@ -530,6 +530,10 @@ abstract class Importer
      * {@see query()} — soft-deleted records included in Replace, which brings
      * them back; with no $matchBy every row creates.
      *
+     * Return null when nothing matches and build new records in importRow():
+     * import modes count a row as matched only when this returns a stored
+     * record (an unsaved model returned here counts as no match).
+     *
      * @param array<string, mixed> $data
      */
     public function resolveRecord(array $data): ?Model
@@ -988,7 +992,10 @@ abstract class Importer
             return;
         }
 
+        // An unsaved model (a resolveRecord() that builds the new record) is
+        // no match: only a stored record makes a row an update.
         $record = $this->record($row);
+        $record = $record?->exists === true ? $record : null;
 
         if ($this->mode === ImportMode::Create && $record !== null) {
             $this->reject((string) __('kinetix.import_row_exists'));

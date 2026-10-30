@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Forms;
 use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\OptionList;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -91,6 +92,6 @@ class SearchController
             $options[(string) data_get($row, $valueColumn)] = (string) data_get($row, $labelColumn);
         }
 
-        return response()->json(['options' => $options]);
+        return response()->json(['options' => OptionList::forWire($options)]);
     }
 }

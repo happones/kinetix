@@ -290,7 +290,8 @@ abstract class Exporter
     }
 
     /**
-     * Output format: 'csv', 'xlsx', or 'pdf' (PDF requires dompdf/dompdf).
+     * Output format: 'csv', 'xlsx', 'xls' (Excel 97–2003, for systems that
+     * still import only that) or 'pdf' (PDF requires dompdf/dompdf).
      */
     public function format(): string
     {
@@ -372,6 +373,23 @@ abstract class Exporter
     public function mapRecord(Model $record): array
     {
         return array_map(fn (ExportColumn $column) => $column->getState($record), static::getColumns());
+    }
+
+    /**
+     * What each column's cells are ({@see ExportColumn::date()},
+     * {@see ExportColumn::numeric()}, {@see ExportColumn::text()}), aligned to
+     * the columns; null leaves the spreadsheet to read the value as it sees fit.
+     *
+     * @return array<int, array{type: CellType, format: string|null}|null>
+     */
+    public function cellTypes(): array
+    {
+        return array_map(
+            fn (ExportColumn $column): ?array => $column->getCellType() !== null
+                ? ['type' => $column->getCellType(), 'format' => $column->getCellFormat()]
+                : null,
+            static::getColumns(),
+        );
     }
 
     /**

@@ -12,7 +12,7 @@ class FormFieldData extends Data
 {
     /**
      * @param array<string, mixed>|int|string|null $columnSpan
-     * @param array<string, string>|null           $options
+     * @param array<int|string, mixed>|null        $options                     value => label, or a list of {value, label} when JS would reorder the keys (see OptionList)
      * @param array<string, string>|null           $extraAttributes
      * @param array<string, string>|null           $extraInputAttributes
      * @param array<string, string>|null           $extraFieldWrapperAttributes

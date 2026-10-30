@@ -1396,7 +1396,8 @@ export interface KinetixTableFilter {
         | 'week'
         | 'address'
         | 'form';
-    options?: Record<string, string>;
+    /** value → label, or a list when the order matters (integer-like keys). */
+    options?: Record<string, string> | KinetixSelectOption[];
     useCalendar?: boolean;
     numberOfMonths?: number;
     locale?: string | null;
@@ -1540,7 +1541,8 @@ export interface KinetixTableCellColumn {
     size?: number | string | null;
     isCopyable?: boolean;
     isConfidential?: boolean;
-    options?: Record<string, string> | null;
+    /** value → label, or a list when the order matters (integer-like keys). */
+    options?: Record<string, string> | KinetixSelectOption[] | null;
     inputType?: string | null;
     placeholder?: string | null;
     numberConfig?: Record<string, unknown> | null;

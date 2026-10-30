@@ -252,6 +252,23 @@ class ImportModeTest extends TestCase
         $this->assertStringContainsString(__('kinetix.import_row_not_found'), $this->failedRowsCsv());
     }
 
+    public function test_a_resolve_record_that_builds_new_records_still_creates_in_create_mode(): void
+    {
+        $this->seedProducts();
+
+        $importer = new class extends ModeProductImporter
+        {
+            public function resolveRecord(array $data): ?Model
+            {
+                return ModeProduct::query()->firstOrNew(['sku' => $data['sku']]);
+            }
+        };
+
+        $this->import($importer::class, "sku,name\nA,Apricot\nC,Cherry\n", ImportMode::Create);
+
+        $this->assertSame(['A' => 'Apple', 'B' => 'Banana', 'C' => 'Cherry'], $this->products());
+    }
+
     public function test_a_blank_key_matches_nothing_instead_of_any_record_with_a_null_key(): void
     {
         ModeProduct::create(['sku' => null, 'name' => 'Keyless']);

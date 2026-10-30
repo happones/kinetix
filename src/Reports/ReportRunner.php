@@ -51,7 +51,7 @@ class ReportRunner
         $format   = $exporter->format();
         $tempPath = (string) tempnam(sys_get_temp_dir(), 'kinetix_report_');
 
-        $writer = new FileWriter($tempPath, $format);
+        $writer = (new FileWriter($tempPath, $format))->withCellTypes($exporter->cellTypes());
         $writer->writeRow($exporter->headings());
 
         $exporter->eachChunk(

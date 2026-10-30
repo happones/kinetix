@@ -70,6 +70,17 @@ class FormLayoutTest extends TestCase
         $this->assertSame('Active', $data->content);
     }
 
+    public function test_placeholder_takes_a_name_and_a_separate_label(): void
+    {
+        $placeholder = Placeholder::make('hint')->label(fn () => 'Heads up')->content('Read me');
+        $data        = $placeholder->toData('create', null);
+
+        $this->assertSame('hint', $placeholder->getName());
+        $this->assertSame('Heads up', $data?->label);
+        $this->assertSame('Read me', $data?->content);
+        $this->assertNull(Placeholder::make('hint')->label(null)->toData('create', null)?->label);
+    }
+
     public function test_fields_inside_layout_components_are_extracted_for_validation(): void
     {
         $form = Form::make()->schema([

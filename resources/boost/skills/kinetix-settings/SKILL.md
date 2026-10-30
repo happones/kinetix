@@ -88,7 +88,10 @@ KinetixSettings::forTeam($team)->get('general.site_name');    // jobs, console, 
   `get()` returns its own value, else the global one; `forget()` in a team
   brings the global value back. Saving a page in a team stores only what
   differs from the global values. `own()` / `inherited()` split the two.
-- Endpoints (team-aware, gated by `settings.manage`): `GET {prefix}/settings`,
+- Per-page access: `SettingsPage::ability()` (default `'settings.manage'`; an array
+  = any of them) or override `authorize(?Authenticatable $user): bool`. Users only
+  see/open/save the pages they may; the index 403s when there are none.
+- Endpoints (team-aware, gated per page): `GET {prefix}/settings`,
   `GET {prefix}/settings/{page}`, `PUT {prefix}/settings/{page}` (validate + save,
   JSON). The `settings` feature auto-registers with the permission matrix when the
   Permissions module is on.

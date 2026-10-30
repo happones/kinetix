@@ -2,14 +2,17 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { kinetixOptionList } from '@/composables/kinetixOptions';
+import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixSharedProps } from '@/types/kinetix';
+import type { KinetixOption, KinetixSharedProps } from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 
 const props = withDefaults(
     defineProps<{
         value?: Array<string | number> | null;
-        options?: Record<string, string> | null;
+        /** value → label, or a list when the order matters. */
+        options?: KinetixOptions;
         disabled?: boolean;
         inline?: boolean;
         searchable?: boolean;
@@ -39,38 +42,35 @@ const searchQuery = ref('');
 const loading = ref(false);
 const remote = computed(() => !!props.searchToken);
 
-const remoteItems = ref<Record<string, string>>({});
-const labelMap = ref<Record<string, string>>({ ...(props.options ?? {}) });
+const remoteItems = ref<KinetixOption[]>([]);
+const labelMap = ref<Record<string, string>>({});
 
-watch(
-    () => props.options,
-    (next) => {
-        labelMap.value = { ...labelMap.value, ...(next ?? {}) };
-    },
-    { immediate: true },
-);
+const remember = (list: KinetixOption[]): void => {
+    const next = { ...labelMap.value };
 
-const baseItems = computed<Record<string, string>>(() =>
-    remote.value ? remoteItems.value : (props.options ?? {}),
+    list.forEach((option) => (next[option.value] = option.label));
+    labelMap.value = next;
+};
+
+const localItems = computed(() => kinetixOptionList(props.options));
+
+watch(localItems, remember, { immediate: true });
+
+const baseItems = computed<KinetixOption[]>(() =>
+    remote.value ? remoteItems.value : localItems.value,
 );
 
 // Filter items locally if not remote
-const filteredItems = computed<Record<string, string>>(() => {
+const filteredItems = computed<KinetixOption[]>(() => {
     const q = searchQuery.value.trim().toLowerCase();
 
     if (!q || remote.value) {
         return baseItems.value;
     }
 
-    const res: Record<string, string> = {};
-
-    for (const [val, lbl] of Object.entries(baseItems.value)) {
-        if (lbl.toLowerCase().includes(q)) {
-            res[val] = lbl;
-        }
-    }
-
-    return res;
+    return baseItems.value.filter((option) =>
+        option.label.toLowerCase().includes(q),
+    );
 });
 
 // Keep selected items visible even if they do not match the current search query
@@ -79,9 +79,9 @@ const itemsToRender = computed<Array<{ value: string; label: string }>>(() => {
     const seen = new Set<string>();
 
     // 1. Add all items matching search query
-    for (const [val, lbl] of Object.entries(filteredItems.value)) {
-        list.push({ value: val, label: lbl });
-        seen.add(val);
+    for (const option of filteredItems.value) {
+        list.push(option);
+        seen.add(option.value);
     }
 
     // 2. Add currently selected items that were filtered out
@@ -111,12 +111,12 @@ async function fetchRemote(query: string): Promise<void> {
     loading.value = true;
 
     try {
-        const result = await kinetixFetch<{ options: Record<string, string> }>(
+        const result = await kinetixFetch<{ options: KinetixOptions }>(
             `/${kinetixRoutePrefix(page)}/forms/search`,
             { method: 'POST', body: { token: props.searchToken, q: query } },
         );
-        remoteItems.value = result?.options ?? {};
-        labelMap.value = { ...labelMap.value, ...remoteItems.value };
+        remoteItems.value = kinetixOptionList(result?.options);
+        remember(remoteItems.value);
     } finally {
         loading.value = false;
     }
@@ -138,7 +138,7 @@ function onSearchInput(event: Event): void {
 watch(
     remote,
     (isRemote) => {
-        if (isRemote && Object.keys(remoteItems.value).length === 0) {
+        if (isRemote && remoteItems.value.length === 0) {
             fetchRemote('');
         }
     },
@@ -159,7 +159,9 @@ function isChecked(val: string): boolean {
  * "Select all" acts on the options in view — all of them, or the ones the
  * search left — and leaves any other selection as it is.
  */
-const inView = computed<string[]>(() => Object.keys(filteredItems.value));
+const inView = computed<string[]>(() =>
+    filteredItems.value.map((option) => option.value),
+);
 const selectedInView = computed(
     () => inView.value.filter((val) => selectedSet.value.has(val)).length,
 );

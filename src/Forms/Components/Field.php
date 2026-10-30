@@ -10,6 +10,7 @@ use Happones\Kinetix\Forms\FieldConstraints;
 use Happones\Kinetix\Forms\Support\Get;
 use Happones\Kinetix\Forms\Support\Set;
 use Happones\Kinetix\Support\AutoLabel;
+use Happones\Kinetix\Support\OptionList;
 use Illuminate\Database\Eloquent\Model;
 
 abstract class Field extends Component
@@ -584,7 +585,7 @@ abstract class Field extends Component
             debounce: $this->debounce,
             prefix: $prefix !== null ? (string) $prefix : null,
             suffix: $suffix !== null ? (string) $suffix : null,
-            options: $this->getFieldOptions($record),
+            options: OptionList::forWire($this->getFieldOptions($record)),
             extraAttributes: $this->extraAttributes ?: null,
             extraInputAttributes: $this->extraInputAttributes ?: null,
             extraFieldWrapperAttributes: $this->extraFieldWrapperAttributes ?: null,

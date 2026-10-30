@@ -403,6 +403,15 @@ class CustomerImporter extends Importer
   of those cells blank matches nothing (it creates). Override `resolveRecord()`
   for anything else — `Upsert` and `Update` need one of the two, and offering
   them without either throws a `LogicException` when the dialog opens.
+- **`resolveRecord()` returns null when nothing matches.** A row counts as
+  matched only when it returns a **stored** record; build new records in
+  `importRow()` (the default does `$this->record($data) ?? new $model`). An
+  unsaved model returned from `resolveRecord()` (`firstOrNew()`) is treated as no
+  match, so `Create` still creates it.
+- **`$matchBy` is an instance property** (`protected array $matchBy`). An
+  importer from before import modes that declared its own `static $matchBy`
+  must drop `static` (PHP can't redeclare a non-static property as static) — or
+  rename it.
 - **How Replace deactivates.** A model using `SoftDeletes` is soft deleted;
   otherwise `$activeColumn`, or an `active` / `is_active` column the table has,
   is set to `false`. A model with neither can't offer Replace (`LogicException`).
@@ -870,7 +879,7 @@ A queued `Exporter` streams records (CSV) or builds a workbook (Excel) to storag
 ```mermaid
 graph LR
     A[exporter->export($user)] --> J[ExportProcessor Job]
-    J -->|query->chunk| W[FileWriter csv/xlsx]
+    J -->|query->chunk| W[FileWriter csv/xlsx/xls]
     W --> F[(storage/kinetix-exports)]
     J -->|on finish| N[Notification + Download action]
     N -->|signed token| D[GET exports/download]
@@ -892,7 +901,7 @@ class ContactExporter extends Exporter
 
     public function format(): string
     {
-        return 'xlsx'; // 'csv' (default), 'xlsx', or 'pdf'
+        return 'xlsx'; // 'csv' (default), 'xlsx', 'xls' or 'pdf'
     }
 
     public static function getColumns(): array
@@ -900,9 +909,7 @@ class ContactExporter extends Exporter
         return [
             ExportColumn::make('name')->label('Full Name'),
             ExportColumn::make('email'),
-            ExportColumn::make('created_at')
-                ->label('Registered')
-                ->formatStateUsing(fn ($value) => $value?->format('Y-m-d')),
+            ExportColumn::make('created_at')->label('Registered')->date('dd/mm/yyyy'),
         ];
     }
 
@@ -940,8 +947,44 @@ public function format(): string
 }
 ```
 
-If dompdf isn't installed, a PDF export fails fast with an install hint. `csv`
-and `xlsx` need nothing extra.
+If dompdf isn't installed, a PDF export fails fast with an install hint. `csv`,
+`xlsx` and `xls` need nothing extra.
+
+### Typed cells: dates, numbers and text
+
+By default a cell is whatever its value looks like, and the spreadsheet guesses:
+a date can only leave as text (which a spreadsheet re-reads by the machine's
+locale — `12/04/2001` is April 12th or December 4th), and a key like `06700` may
+come back as the number `6700`. Say what a column is:
+
+```php
+public static function getColumns(): array
+{
+    return [
+        ExportColumn::make('birthday')->date('dd/mm/yyyy'),   // a real date, shown with that format
+        ExportColumn::make('hired_at')->date(),               // yyyy-mm-dd
+        ExportColumn::make('imss_number')->text(),            // always text: leading zeros stay
+        ExportColumn::make('daily_salary')->numeric('0.00'),  // a number, two decimals
+        ExportColumn::make('vacation_days')->numeric(),       // a number, no format
+    ];
+}
+```
+
+| Format | What a typed cell becomes |
+|---|---|
+| `xlsx`, `xls` | A real date / number / text cell, with the column's number format |
+| `csv`, `pdf` | The text that format shows (`12/04/2001`, `512.50`); `text()` changes nothing |
+
+- `date()` takes a DateTimeInterface (what a `date`/`datetime` cast gives) or a
+  parseable string — use ISO 8601 for strings, since `12/04/2001` is ambiguous.
+  The format is a spreadsheet number format (`dd/mm/yyyy`, `m/d/yyyy`,
+  `yyyy-mm-dd hh:mm`), not a PHP one.
+- A value that can't be its type (`'n/a'` in a numeric column, the summary row's
+  `Sum: 10`) is written as it is, never dropped.
+- The header row is never typed.
+- `xls` (Excel 97–2003) is for systems that still import only that format; prefer
+  `xlsx` otherwise. Both build the sheet in memory, so keep very large exports on
+  `csv`.
 
 ### Quickest: the prebuilt `ExportAction`
 
@@ -1040,7 +1083,8 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 |---|---|
 | `getColumns(): array` | The exported columns (required) |
 | `protected static $model` / `query()` | Source records (override `query()` to filter) |
-| `format(): string` | `'csv'` (default) or `'xlsx'` |
+| `format(): string` | `'csv'` (default), `'xlsx'`, `'xls'` or `'pdf'` |
+| `cellTypes(): array` | Each column's cell type and number format (from `date()` / `numeric()` / `text()`) |
 | `fileName(): string` | Download file name without extension |
 | `chunkSize(): int` | Records per query chunk (default `1000`) |
 | `with(): array` | Extra eager loads (the columns' relations load automatically — see [Relation columns](#relation-columns)) |
@@ -1061,6 +1105,9 @@ How the `ids` travel: a **bulk** action automatically merges the selected ids in
 | `->formatStateUsing(Closure)` | Transform the value (`fn ($value, $record)`) |
 | `->separator(string)` | Joins the values of a to-many path (default `', '`) |
 | `->distinct(bool = true)` | List each value of a to-many path once |
+| `->date(string $format = 'yyyy-mm-dd')` | A real date cell with that spreadsheet number format (see [Typed cells](#typed-cells-dates-numbers-and-text)) |
+| `->numeric(?string $format = null)` | A number cell, optionally formatted (`0.00`, `#,##0`) |
+| `->text()` | A text cell: leading zeros and long digit strings stay as written |
 
 ### Relation columns
 

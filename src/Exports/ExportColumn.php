@@ -25,6 +25,10 @@ class ExportColumn
 
     protected bool $distinct = false;
 
+    protected ?CellType $cellType = null;
+
+    protected ?string $cellFormat = null;
+
     /**
      * @var array<int, Summarizer>
      */
@@ -78,6 +82,54 @@ class ExportColumn
         $this->distinct = $condition;
 
         return $this;
+    }
+
+    /**
+     * Write the cell as a real date, shown with a spreadsheet number format
+     * (`dd/mm/yyyy`, `m/d/yyyy`, `yyyy-mm-dd hh:mm`…). The state may be a
+     * DateTimeInterface or a parseable string (ISO 8601 is unambiguous). In
+     * a CSV or PDF the cell holds the date as that format shows it.
+     */
+    public function date(string $format = 'yyyy-mm-dd'): static
+    {
+        $this->cellType   = CellType::Date;
+        $this->cellFormat = $format;
+
+        return $this;
+    }
+
+    /**
+     * Write the cell as a number, optionally with a spreadsheet number format
+     * (`0.00`, `#,##0`, `0%`…). A state that isn't numeric is written as text.
+     */
+    public function numeric(?string $format = null): static
+    {
+        $this->cellType   = CellType::Number;
+        $this->cellFormat = $format;
+
+        return $this;
+    }
+
+    /**
+     * Write the cell as text, never a number: keys keep their leading zeros
+     * (`06700`) and long digit strings their digits.
+     */
+    public function text(): static
+    {
+        $this->cellType   = CellType::Text;
+        $this->cellFormat = null;
+
+        return $this;
+    }
+
+    public function getCellType(): ?CellType
+    {
+        return $this->cellType;
+    }
+
+    public function getCellFormat(): ?string
+    {
+        return $this->cellFormat;
     }
 
     /**

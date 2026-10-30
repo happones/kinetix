@@ -4,17 +4,38 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Exports;
 
+use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Dompdf\Dompdf;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Writer\Csv as CsvWriter;
+use PhpOffice\PhpSpreadsheet\Writer\Xls as XlsWriter;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use RuntimeException;
+use Stringable;
+use Throwable;
 
 /**
- * Streams CSV rows directly to disk; buffers rows for Excel and writes on close.
+ * Streams CSV rows directly to disk; buffers rows for Excel (xlsx, xls) and
+ * PDF and writes them on close.
+ *
+ * Typed columns ({@see withCellTypes()}) reach a spreadsheet as real dates,
+ * numbers or text with their number format; a CSV or PDF gets the text that
+ * format shows. The first row is the header and is never typed.
  */
 class FileWriter
 {
+    /**
+     * @var array<int, array{type: CellType, format: string|null}|null>
+     */
+    private array $cellTypes = [];
+
+    private int $rows = 0;
+
     /**
      * @var resource|null
      */
@@ -41,10 +62,24 @@ class FileWriter
     }
 
     /**
+     * @param array<int, array{type: CellType, format: string|null}|null> $types aligned to the columns
+     */
+    public function withCellTypes(array $types): static
+    {
+        $this->cellTypes = array_values($types);
+
+        return $this;
+    }
+
+    /**
      * @param array<int, mixed> $row
      */
     public function writeRow(array $row): void
     {
+        if ($this->rows++ > 0 && $this->cellTypes !== []) {
+            $row = $this->typeRow(array_values($row));
+        }
+
         // PDF output is rendered as escaped HTML, never evaluated as a formula,
         // so it keeps the values verbatim.
         if ($this->format !== 'pdf') {
@@ -84,6 +119,73 @@ class FileWriter
             : $value;
     }
 
+    /**
+     * Turn the typed cells of a row into what they are: a date into a
+     * spreadsheet serial (or, for text formats, the text its format shows),
+     * a numeric string into a number, anything into text. A value that can't
+     * be what its column says is left as it is.
+     *
+     * @param  array<int, mixed> $row
+     * @return array<int, mixed>
+     */
+    private function typeRow(array $row): array
+    {
+        $spreadsheet = $this->isSpreadsheet();
+
+        foreach ($this->cellTypes as $index => $type) {
+            if ($type === null || ! array_key_exists($index, $row) || $row[$index] === null || $row[$index] === '') {
+                continue;
+            }
+
+            $value = $row[$index];
+
+            $typed = match ($type['type']) {
+                CellType::Text   => is_scalar($value) || $value instanceof Stringable ? (string) $value : $value,
+                CellType::Number => $this->toNumber($value)    ?? $value,
+                CellType::Date   => $this->toExcelDate($value) ?? $value,
+            };
+
+            if (! $spreadsheet && $type['type'] !== CellType::Text && $type['format'] !== null && (is_int($typed) || is_float($typed))) {
+                $typed = NumberFormat::toFormattedString($typed, $type['format']);
+            }
+
+            $row[$index] = $typed;
+        }
+
+        return $row;
+    }
+
+    private function toNumber(mixed $value): int|float|null
+    {
+        if (is_int($value) || is_float($value)) {
+            return $value;
+        }
+
+        return is_string($value) && is_numeric(trim($value)) ? trim($value) + 0 : null;
+    }
+
+    private function toExcelDate(mixed $value): ?float
+    {
+        if (! $value instanceof DateTimeInterface) {
+            if (! is_string($value) && ! $value instanceof Stringable) {
+                return null;
+            }
+
+            try {
+                $value = CarbonImmutable::parse((string) $value);
+            } catch (Throwable) {
+                return null;
+            }
+        }
+
+        return ExcelDate::dateTimeToExcel($value);
+    }
+
+    private function isSpreadsheet(): bool
+    {
+        return $this->format === 'xlsx' || $this->format === 'xls';
+    }
+
     public function close(): void
     {
         if ($this->format === 'csv') {
@@ -103,11 +205,40 @@ class FileWriter
 
         $spreadsheet = new Spreadsheet;
         $sheet       = $spreadsheet->getActiveSheet();
-        $sheet->fromArray($this->buffer, null, 'A1', true);
 
-        $writer = $this->format === 'xlsx'
-            ? new XlsxWriter($spreadsheet)
-            : new CsvWriter($spreadsheet);
+        foreach ($this->buffer as $rowIndex => $row) {
+            foreach (array_values($row) as $columnIndex => $value) {
+                if ($value === null) {
+                    continue;
+                }
+
+                $address = [$columnIndex + 1, $rowIndex + 1];
+                $type    = $rowIndex > 0 ? ($this->cellTypes[$columnIndex]['type'] ?? null) : null;
+
+                if ($type === CellType::Text) {
+                    $sheet->setCellValueExplicit($address, (string) $value, DataType::TYPE_STRING);
+                } elseif ($type !== null && (is_int($value) || is_float($value))) {
+                    $sheet->setCellValueExplicit($address, $value, DataType::TYPE_NUMERIC);
+                } else {
+                    $sheet->setCellValue($address, $value);
+                }
+            }
+        }
+
+        $lastRow = count($this->buffer);
+
+        foreach ($this->cellTypes as $columnIndex => $type) {
+            if ($type !== null && $type['format'] !== null && $lastRow > 1) {
+                $column = Coordinate::stringFromColumnIndex($columnIndex + 1);
+                $sheet->getStyle("{$column}2:{$column}{$lastRow}")->getNumberFormat()->setFormatCode($type['format']);
+            }
+        }
+
+        $writer = match ($this->format) {
+            'xlsx'  => new XlsxWriter($spreadsheet),
+            'xls'   => new XlsWriter($spreadsheet),
+            default => new CsvWriter($spreadsheet),
+        };
 
         $writer->save($this->absolutePath);
         $spreadsheet->disconnectWorksheets();
