@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.272.1] - 2026-10-30
+
+### Fixed
+
+- `pint --test` passes again: a multi-line condition in
+  `AddressPicker::normalize()` made Pint re-align it on every run. No behavior
+  change.
+
 ## [0.272.0] - 2026-10-30
 
 ### Added

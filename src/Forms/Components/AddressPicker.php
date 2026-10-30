@@ -296,10 +296,15 @@ class AddressPicker extends Field
         $neighborhoodId            = is_scalar($value['neighborhoodId'] ?? null) && (string) $value['neighborhoodId'] !== '' ? (string) $value['neighborhoodId'] : null;
         $address['neighborhoodId'] = null;
 
+        if ($neighborhoodId === null || $address['cityId'] === null) {
+            return $address;
+        }
+
         // The neighborhood's name and its code come from the provider: a
         // neighborhood has one postal code, whatever was typed.
-        if ($neighborhoodId                                                                                                                                                                                                                                                                                                                                                                           !== null && $address['cityId'] !== null
-                                                                                                                                                                                                                                                                              && ($found = $postalCodes->neighborhood($address['country'], $address['stateId'], $address['cityId'], $neighborhoodId)) !== null) {
+        $found = $postalCodes->neighborhood($address['country'], $address['stateId'], $address['cityId'], $neighborhoodId);
+
+        if ($found !== null) {
             $address['neighborhood']   = $found['label'];
             $address['neighborhoodId'] = $neighborhoodId;
             $address['postalCode']     = $found['postalCode'];
