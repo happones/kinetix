@@ -99,7 +99,15 @@ class ContactImporter extends Importer
 |---|---|
 | `getColumns(): array` | The target columns (required) |
 | `protected static $model` | The model written to (or override `resolveRecord()`) |
-| `resolveRecord(array $data): ?Model` | Return an existing record for upsert; `null` inserts |
+| `resolveRecord(array $data): ?Model` | Return an existing record for upsert; `null` inserts (default: looks up `$matchBy`) |
+| `protected array $importModes = []` | What the import may do with existing records, offered in the dialog (see [Import modes](#import-modes)) |
+| `protected ?ImportMode $defaultImportMode = null` | The preselected mode (null = the first of `$importModes`) |
+| `protected array $matchBy = []` | Columns that identify the existing record a row is about (`['sku']`) |
+| `protected ?string $activeColumn = null` | Flag Replace sets to false (null = soft deletes, else `active` / `is_active`) |
+| `query(): Builder` | The records the importer may touch — **scope it per tenant** |
+| `deactivate(Builder $records): int` | How Replace deactivates a batch of records (override for model events, a status column…) |
+| `authorizeMode(?Authenticatable $user, ImportMode $mode): bool` | Refuse a mode for a user (checked when the import starts) |
+| `getImportModeLabel/Description(ImportMode $mode): string` | Say a mode in the model's terms |
 | `record(array $data): ?Model` | The record the current row updates, resolved **once** per row — read it in a custom `importRow()` |
 | `importRow(array $data): void` | Per-row handler (override for custom logic) |
 | `prepareRow(array $row): array` | Normalize a row before it is validated (see [Validating rows](#validating-rows)) |
@@ -263,6 +271,84 @@ re-upload them. Mark a column `->sensitive()` and its cell is left **blank**
 there — a password or PIN typed into a spreadsheet isn't handed back in a
 download (the user types it again). Hide the dialog's sample table too with
 `protected ?bool $preview = false;`.
+
+### Import modes
+
+By default an import adds every row (or updates what a custom `resolveRecord()`
+returns). An importer can instead let the user choose, in the review step, what
+happens to the records already there:
+
+| Mode | Matching row | New row | Records missing from the file |
+|---|---|---|---|
+| `ImportMode::Create` | fails ("already exists") | created | untouched |
+| `ImportMode::Upsert` | updated | created | untouched |
+| `ImportMode::Update` | updated | fails ("no match") | untouched |
+| `ImportMode::Replace` | updated **and reactivated** | created | **deactivated** |
+
+It is opt-in per importer: list the modes the dialog offers. One mode is applied
+without a choice (and still shown); none keeps the behaviour above.
+
+```php
+use Happones\Kinetix\Imports\ImportMode;
+
+// A product catalog: update what exists, add the rest.
+class ProductImporter extends Importer
+{
+    protected static ?string $model = Product::class;
+
+    protected array $importModes = [ImportMode::Upsert, ImportMode::Create, ImportMode::Update];
+
+    protected array $matchBy = ['sku'];
+}
+
+// A customer list: the file IS the list — whoever isn't in it is deactivated.
+class CustomerImporter extends Importer
+{
+    protected static ?string $model = Customer::class; // uses SoftDeletes, or has an `active` column
+
+    protected array $importModes = [ImportMode::Create, ImportMode::Replace];
+
+    protected ?ImportMode $defaultImportMode = ImportMode::Replace;
+
+    protected array $matchBy = ['email'];
+
+    // Multi-tenant: REQUIRED. The worker has no request, and an unscoped
+    // Replace deactivates every tenant's customers.
+    protected function query(): Builder
+    {
+        return Customer::query()->where('team_id', $this->context['team_id']);
+    }
+
+    public function authorizeMode(?Authenticatable $user, ImportMode $mode): bool
+    {
+        return $mode !== ImportMode::Replace || (bool) $user?->can('deleteAny', Customer::class);
+    }
+}
+```
+
+- **Matching.** `$matchBy` looks a row's values up in `query()`; a row with any
+  of those cells blank matches nothing (it creates). Override `resolveRecord()`
+  for anything else — `Upsert` and `Update` need one of the two, and offering
+  them without either throws a `LogicException` when the dialog opens.
+- **How Replace deactivates.** A model using `SoftDeletes` is soft deleted;
+  otherwise `$activeColumn`, or an `active` / `is_active` column the table has,
+  is set to `false`. A model with neither can't offer Replace (`LogicException`).
+  Matching rows bring their record back (restored, or flagged active again), so
+  nothing is erased and a customer who returns keeps their history. Records are
+  deactivated in batches by query — no model events; override `deactivate()` to
+  do it another way.
+- **Replace is safe to interrupt.** Nothing is deactivated until the last row
+  has been imported: the job remembers which records were active when it began,
+  and at the end deactivates those that no row matched — so the records the file
+  creates are never swept, and a job that dies half way deactivates nothing.
+  A row that matched a record but then failed keeps that record as it was. If
+  **no** row imported (a wrong mapping, every row invalid) the list is left
+  alone. The keys of the active list are held in memory for the sweep.
+- **The notification** adds how many records were deactivated, and `Create` /
+  `Update` rows that were turned down are in the failed-rows file with the
+  reason.
+- **The choice is checked on the server**: the `start` endpoint only accepts a
+  mode the importer offers (422 otherwise) that `authorizeMode()` allows (403).
 
 ### Authorization
 

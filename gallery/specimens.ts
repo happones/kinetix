@@ -60,6 +60,7 @@ import KinetixConfidentialUnlock from '@/components/KinetixConfidentialUnlock.vu
 import ImporterOptions from '@/components/Importer/ImporterOptions.vue';
 import KinetixPageFooter from '@/components/KinetixPageFooter.vue';
 import ImporterMapping from '@/components/Importer/ImporterMapping.vue';
+import ImporterMode from '@/components/Importer/ImporterMode.vue';
 
 // The onboarding checklist's `sidebar` variant is sized for a navigation rail,
 // so the specimens frame it in a mock one — nav rows above, the account row
@@ -2459,6 +2460,46 @@ export const specimens: Specimen[] = [
             isExactMatch: false,
             unusedHeaders: ['notes'],
             missingRequired: [],
+        },
+    },
+    {
+        name: 'importer-mode',
+        title: 'Import — what to do with existing records (Replace chosen)',
+        component: ImporterMode,
+        frame: 'card',
+        width: 720,
+        props: {
+            value: 'replace',
+            modes: [
+                {
+                    value: 'create',
+                    label: 'Only add new records',
+                    description:
+                        'Every row creates a record. Rows that match an existing record are skipped.',
+                    destructive: false,
+                },
+                {
+                    value: 'upsert',
+                    label: 'Update and add',
+                    description:
+                        'Rows that match an existing record update it; the rest are added.',
+                    destructive: false,
+                },
+                {
+                    value: 'update',
+                    label: 'Only update',
+                    description:
+                        'Rows update the record they match. Rows that match nothing are skipped.',
+                    destructive: false,
+                },
+                {
+                    value: 'replace',
+                    label: 'Replace the current list',
+                    description:
+                        'Rows update or add records, and every active record missing from the file is deactivated.',
+                    destructive: true,
+                },
+            ],
         },
     },
     {

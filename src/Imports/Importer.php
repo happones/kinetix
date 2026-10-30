@@ -5,15 +5,21 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Imports;
 
 use Happones\Kinetix\Data\ImportColumnData;
+use Happones\Kinetix\Data\ImportModeData;
 use Happones\Kinetix\Data\ImportSettingsData;
 use Happones\Kinetix\Support\Concerns\CarriesQueueContext;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator as ValidatorFacade;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
+use LogicException;
 use ReflectionMethod;
 use RuntimeException;
 
@@ -98,6 +104,37 @@ abstract class Importer
     protected ?bool $transactionPerRow = null;
 
     /**
+     * What the import may do with the records already there, offered as a
+     * choice in the dialog ({@see ImportMode}). Empty = no choice, rows go
+     * through resolveRecord() as they always have. One mode = applied without
+     * asking.
+     *
+     * @var array<int, ImportMode>
+     */
+    protected array $importModes = [];
+
+    /**
+     * The mode preselected in the dialog. Null = the first of $importModes.
+     */
+    protected ?ImportMode $defaultImportMode = null;
+
+    /**
+     * The columns that identify the existing record a row is about — `['sku']`,
+     * `['team_id', 'code']` — looked up in {@see query()}. A row missing any
+     * of them matches nothing. Override resolveRecord() for anything else.
+     *
+     * @var array<int, string>
+     */
+    protected array $matchBy = [];
+
+    /**
+     * The boolean column Replace sets to false on records missing from the
+     * file. Null = soft deletes when the model uses them, otherwise an
+     * `active` or `is_active` column when the table has one.
+     */
+    protected ?string $activeColumn = null;
+
+    /**
      * The user who started the import (set on the worker), for
      * {@see getUser()} and a FormRequest's `$this->user()`.
      */
@@ -121,6 +158,30 @@ abstract class Importer
      * @var array<string, bool>
      */
     private array $overrides = [];
+
+    /**
+     * The mode this run imports in (set on the worker), null when the
+     * importer offers none.
+     */
+    private ?ImportMode $mode = null;
+
+    /**
+     * Replace: the keys of the records active when the import began, and of
+     * those a row of the file matched — the difference is deactivated at the end.
+     *
+     * @var array<int|string, true>
+     */
+    private array $activeBefore = [];
+
+    /**
+     * @var array<int|string, true>
+     */
+    private array $kept = [];
+
+    /**
+     * @var 'soft-delete'|'column'|null|false false = not resolved yet
+     */
+    private string|null|false $deactivation = false;
 
     /**
      * Define the target columns the file can be mapped onto.
@@ -321,7 +382,99 @@ abstract class Importer
             fullscreenThreshold: $this->getFullscreenThreshold(),
             maxUploadSize: $this->getMaxUploadSize(),
             template: $this->hasDownloadableTemplate() ? $this->getTemplateDownloadName() : null,
+            modes: $this->importModeOptions(),
+            defaultMode: $this->getDefaultImportMode()?->value,
         );
+    }
+
+    /**
+     * The modes this importer offers, checked against what the model can do.
+     *
+     * @throws LogicException when a mode can't work for this importer
+     *
+     * @return array<int, ImportMode>
+     */
+    public function getImportModes(): array
+    {
+        foreach ($this->importModes as $mode) {
+            if ($mode->requiresMatching() && $this->matchBy === [] && ! $this->overrides('resolveRecord')) {
+                throw new LogicException(static::class." offers the {$mode->name} import mode but has no way to match a row to its record: set \$matchBy or override resolveRecord().");
+            }
+
+            if ($mode === ImportMode::Replace && $this->deactivationStrategy() === null) {
+                throw new LogicException(static::class.' offers the Replace import mode but '.static::getModel().' can\'t be deactivated: use SoftDeletes, add an `active` column or set $activeColumn.');
+            }
+        }
+
+        return array_values($this->importModes);
+    }
+
+    /**
+     * The mode the dialog preselects (null when the importer offers none).
+     */
+    public function getDefaultImportMode(): ?ImportMode
+    {
+        if ($this->importModes === []) {
+            return null;
+        }
+
+        return in_array($this->defaultImportMode, $this->importModes, true)
+            ? $this->defaultImportMode
+            : $this->importModes[0];
+    }
+
+    /**
+     * The dialog's label for a mode. Override to say it in the model's terms
+     * ("Replace the customer list").
+     */
+    public function getImportModeLabel(ImportMode $mode): string
+    {
+        return $mode->label();
+    }
+
+    public function getImportModeDescription(ImportMode $mode): string
+    {
+        return $mode->description();
+    }
+
+    /**
+     * Whether the given user may run the import in this mode — checked when
+     * the import starts, after {@see authorize()}. Replace deactivates
+     * records, so an app may want more than `create` for it:
+     *
+     *     return $mode !== ImportMode::Replace || $user?->can('deleteAny', Customer::class);
+     */
+    public function authorizeMode(?Authenticatable $user, ImportMode $mode): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<int, ImportModeData>
+     */
+    protected function importModeOptions(): array
+    {
+        return array_map(fn (ImportMode $mode): ImportModeData => new ImportModeData(
+            value: $mode->value,
+            label: $this->getImportModeLabel($mode),
+            description: $this->getImportModeDescription($mode),
+            destructive: $mode === ImportMode::Replace,
+        ), $this->getImportModes());
+    }
+
+    /**
+     * Set the mode this run imports in (the queued job does this).
+     */
+    public function withMode(?ImportMode $mode): static
+    {
+        $this->mode = $mode;
+
+        return $this;
+    }
+
+    public function getMode(): ?ImportMode
+    {
+        return $this->mode;
     }
 
     public function hasDownloadableTemplate(): bool
@@ -357,13 +510,170 @@ abstract class Importer
     }
 
     /**
-     * Resolve an existing record for upsert behaviour. Return null to always insert.
+     * Resolve the existing record a row is about (null = the row creates
+     * one). By default it looks the row's {@see $matchBy} columns up in
+     * {@see query()} — soft-deleted records included in Replace, which brings
+     * them back; with no $matchBy every row creates.
      *
      * @param array<string, mixed> $data
      */
     public function resolveRecord(array $data): ?Model
     {
+        if ($this->matchBy === []) {
+            return null;
+        }
+
+        $query = $this->query();
+
+        if ($this->mode === ImportMode::Replace && $this->deactivationStrategy() === 'soft-delete') {
+            $query->withoutGlobalScope(SoftDeletingScope::class);
+        }
+
+        foreach ($this->matchBy as $column) {
+            $value = $data[$column] ?? null;
+
+            // A blank key matches nothing — `where(col, null)` would be a
+            // whereNull and pick an unrelated record.
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            $query->where($query->qualifyColumn($column), $value);
+        }
+
+        return $query->first();
+    }
+
+    /**
+     * The records this importer may touch: where {@see $matchBy} looks rows
+     * up and what Replace deactivates. A multi-tenant app MUST scope it with
+     * the captured context — the worker has no request, and an unscoped
+     * Replace deactivates every tenant's records:
+     *
+     *     protected function query(): Builder
+     *     {
+     *         return Customer::query()->where('team_id', $this->context['team_id']);
+     *     }
+     *
+     * @return Builder<Model>
+     */
+    protected function query(): Builder
+    {
+        return static::getModel()::query();
+    }
+
+    /**
+     * How Replace deactivates: 'soft-delete', 'column' ({@see $activeColumn})
+     * or null when the model can't be deactivated.
+     *
+     * @return 'soft-delete'|'column'|null
+     */
+    protected function deactivationStrategy(): ?string
+    {
+        if ($this->deactivation !== false) {
+            return $this->deactivation;
+        }
+
+        if ($this->activeColumn === null && in_array(SoftDeletes::class, class_uses_recursive(static::getModel()), true)) {
+            return $this->deactivation = 'soft-delete';
+        }
+
+        return $this->deactivation = $this->activeColumn() !== null ? 'column' : null;
+    }
+
+    /**
+     * The active flag Replace writes to: $activeColumn, else `active` or
+     * `is_active` when the table has one.
+     */
+    protected function activeColumn(): ?string
+    {
+        if ($this->activeColumn !== null) {
+            return $this->activeColumn;
+        }
+
+        $model = new (static::getModel());
+        $table = $model->getConnection()->getSchemaBuilder();
+
+        foreach (['active', 'is_active'] as $column) {
+            if ($table->hasColumn($model->getTable(), $column)) {
+                return $this->activeColumn = $column;
+            }
+        }
+
         return null;
+    }
+
+    /**
+     * Deactivate the records Replace found missing from the file — one call
+     * per batch of keys. Runs as a query (no model events); override to
+     * deactivate another way.
+     *
+     * @param  Builder<Model> $records
+     * @return int            records deactivated
+     */
+    protected function deactivate(Builder $records): int
+    {
+        if ($this->deactivationStrategy() === 'soft-delete') {
+            return (int) $records->delete();
+        }
+
+        return $records->update([(string) $this->activeColumn() => false]);
+    }
+
+    /**
+     * Before the first row (the queued job calls it): Replace remembers which
+     * records are active now, so the ones the file creates are never swept.
+     */
+    public function beginImport(): void
+    {
+        $this->activeBefore = [];
+        $this->kept         = [];
+
+        if ($this->mode !== ImportMode::Replace) {
+            return;
+        }
+
+        $query = $this->query();
+
+        if ($this->deactivationStrategy() === 'column') {
+            $query->where($query->qualifyColumn((string) $this->activeColumn()), true);
+        }
+
+        $model = $query->getModel();
+
+        foreach ($query->toBase()->lazyById(2000, $model->getQualifiedKeyName(), $model->getKeyName()) as $row) {
+            $this->activeBefore[$row->{$model->getKeyName()}] = true;
+        }
+    }
+
+    /**
+     * After the last row (the queued job calls it): Replace deactivates the
+     * records that were active before and that no row of the file matched.
+     * Skipped when nothing was imported — a file whose every row failed (a
+     * wrong mapping, say) must not empty the list.
+     *
+     * @return int records deactivated
+     */
+    public function finishImport(int $imported): int
+    {
+        if ($this->mode !== ImportMode::Replace || $imported === 0) {
+            return 0;
+        }
+
+        $missing = array_keys(array_diff_key($this->activeBefore, $this->kept));
+
+        $this->activeBefore = [];
+        $this->kept         = [];
+
+        return DB::transaction(function () use ($missing): int {
+            $deactivated = 0;
+
+            foreach (array_chunk($missing, 1000) as $keys) {
+                $deactivated += $this->deactivate($this->query()->whereKey($keys));
+            }
+
+            return $deactivated;
+        });
     }
 
     /**
@@ -507,13 +817,56 @@ abstract class Importer
 
         try {
             $mapped = array_keys($row);
-            $row    = $this->validateRow($this->prepareRow($row), $mapped);
+            $row    = $this->prepareRow($row);
+
+            $this->applyMode($row);
+
+            $row = $this->validateRow($row, $mapped);
 
             $this->importRow($row);
         } finally {
             $this->processingRow     = false;
             $this->rowRecordResolved = false;
             $this->rowRecord         = null;
+        }
+    }
+
+    /**
+     * Hold the row to the run's mode before it is validated: Create turns
+     * down a row whose record exists, Update one whose record doesn't, and
+     * Replace keeps (and reactivates) the record a row matches — even when
+     * the row then fails, its record stays as it was rather than being swept.
+     *
+     * @param array<string, mixed> $row
+     */
+    protected function applyMode(array $row): void
+    {
+        if ($this->mode === null) {
+            return;
+        }
+
+        $record = $this->record($row);
+
+        if ($this->mode === ImportMode::Create && $record !== null) {
+            $this->reject((string) __('kinetix.import_row_exists'));
+        }
+
+        if ($this->mode === ImportMode::Update && $record === null) {
+            $this->reject((string) __('kinetix.import_row_not_found'));
+        }
+
+        if ($this->mode !== ImportMode::Replace || $record === null) {
+            return;
+        }
+
+        $this->kept[$record->getKey()] = true;
+
+        // Set, not saved: importRow()'s save brings the record back with the
+        // row's values, and a row that fails leaves it untouched.
+        if ($this->deactivationStrategy() === 'soft-delete') {
+            $record->setAttribute(method_exists($record, 'getDeletedAtColumn') ? $record->getDeletedAtColumn() : 'deleted_at', null);
+        } else {
+            $record->setAttribute((string) $this->activeColumn(), true);
         }
     }
 

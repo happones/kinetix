@@ -1599,6 +1599,19 @@ export interface KinetixImportOptions {
     enclosure: string;
     skipLines: number;
     hasHeader: boolean;
+    /** What to do with existing records (sent on start only) */
+    mode?: KinetixImportModeValue | null;
+}
+
+export type KinetixImportModeValue = 'create' | 'upsert' | 'update' | 'replace';
+
+export interface KinetixImportMode {
+    value: KinetixImportModeValue;
+    label: string;
+    /** What the mode does to the records already there */
+    description: string;
+    /** It deactivates records — the dialog warns */
+    destructive: boolean;
 }
 
 export interface KinetixImportPreview {
@@ -1634,6 +1647,10 @@ export interface KinetixImportSettings {
     maxUploadSize: number;
     /** Template filename, or null when the importer offers none */
     template?: string;
+    /** What to do with existing records (empty = the importer offers no modes; one = applied without a choice) */
+    modes?: KinetixImportMode[];
+    /** The preselected mode (null when the importer has none) */
+    defaultMode?: KinetixImportModeValue | null;
 }
 
 export interface KinetixInfolistEntry {

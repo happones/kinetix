@@ -15,5 +15,7 @@ class ImportOptionsData extends Data
         public string $enclosure = '"',
         public int $skipLines = 0,
         public bool $hasHeader = true,
+        /** An ImportMode value — what to do with existing records (start only). */
+        public ?string $mode = null,
     ) {}
 }

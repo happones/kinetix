@@ -16,6 +16,7 @@ import type {
 } from '@/types/kinetix';
 import ImporterDropzone from './Importer/ImporterDropzone.vue';
 import ImporterMapping from './Importer/ImporterMapping.vue';
+import ImporterMode from './Importer/ImporterMode.vue';
 import ImporterOptions from './Importer/ImporterOptions.vue';
 import ImporterPreview from './Importer/ImporterPreview.vue';
 import ImporterSteps from './Importer/ImporterSteps.vue';
@@ -24,7 +25,8 @@ import ScrollArea from './primitives/ScrollArea.vue';
 
 /**
  * The import wizard: choose a file → confirm the column mapping → review and
- * start.
+ * start. When the importer offers import modes, the review step is also where
+ * the user says what happens to the records already there.
  *
  * Why three steps: a single scrolling panel had to hold the parse options, one
  * select per target column and a preview table at once, so a file with twenty
@@ -113,6 +115,8 @@ const {
     errorMessage,
     step,
     settings,
+    modes,
+    mode,
     templateUrl,
     headers,
     columnCount,
@@ -311,6 +315,12 @@ const summaryRows = computed(() => {
 
                 <!-- Step 3: review, then start. -->
                 <template v-else-if="step === 'review' && preview">
+                    <ImporterMode
+                        v-if="modes.length > 0"
+                        v-model:value="mode"
+                        :modes="modes"
+                    />
+
                     <dl
                         class="p-4 gap-3 sm:grid-cols-4 rounded-xl grid grid-cols-2 border border-border"
                     >

@@ -217,6 +217,75 @@ describe('KinetixImporter — the wizard', () => {
         expect(w.emitted('started')).toEqual([['Queued']]);
     });
 
+    it('sends no mode for an importer that offers none', async () => {
+        fetchMock.mockResolvedValueOnce(preview(2, { isExactMatch: true }));
+        fetchMock.mockResolvedValueOnce({ status: 'queued' });
+        const w = mountWith();
+
+        await chooseFile(w);
+        await clickPrimary(w);
+
+        expect(w.findComponent({ name: 'ImporterMode' }).exists()).toBe(false);
+
+        await clickPrimary(w);
+
+        expect(fetchMock.mock.lastCall?.[1].body).not.toHaveProperty('mode');
+    });
+
+    it('asks what to do with existing records and sends the choice', async () => {
+        const modes = [
+            {
+                value: 'upsert',
+                label: 'Update and add',
+                description: 'Matches update; the rest are added.',
+                destructive: false,
+            },
+            {
+                value: 'replace',
+                label: 'Replace the current list',
+                description: 'Records missing from the file are deactivated.',
+                destructive: true,
+            },
+        ];
+        fetchMock.mockResolvedValueOnce(
+            preview(2, {
+                isExactMatch: true,
+                settings: settings({
+                    modes,
+                    defaultMode: 'upsert',
+                }) as KinetixImportPreview['settings'],
+            }),
+        );
+        fetchMock.mockResolvedValueOnce({ status: 'queued' });
+        const w = mountWith();
+
+        await chooseFile(w);
+        await clickPrimary(w);
+
+        const picker = w.findComponent({ name: 'ImporterMode' });
+        expect(picker.findAll('[role="radio"]')).toHaveLength(2);
+        expect(
+            w
+                .find('[data-test="import-mode-upsert"]')
+                .attributes('aria-checked'),
+        ).toBe('true');
+        expect(picker.text()).not.toContain(
+            'kinetix.import_mode_replace_warning',
+        );
+
+        await w.find('[data-test="import-mode-replace"]').trigger('click');
+        await flushPromises();
+
+        // Choosing the mode that deactivates records says so before starting.
+        expect(picker.text()).toContain('kinetix.import_mode_replace_warning');
+
+        await clickPrimary(w);
+
+        expect(fetchMock.mock.lastCall?.[1].body).toMatchObject({
+            mode: 'replace',
+        });
+    });
+
     it('omits the preview table for an importer that disables it', async () => {
         fetchMock.mockResolvedValue(
             preview(2, {

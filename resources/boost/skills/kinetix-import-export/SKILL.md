@@ -137,6 +137,34 @@ class EmployeeImporter extends Importer
 }
 ```
 
+### 1d. Import modes — what happens to existing records
+
+```php
+use Happones\Kinetix\Imports\ImportMode;
+
+class CustomerImporter extends Importer
+{
+    protected static ?string $model = \App\Models\Customer::class; // SoftDeletes or an `active` column
+
+    // Opt-in: the review step offers these. Create = only add (matches fail),
+    // Upsert = update matches + add, Update = only update (no match fails),
+    // Replace = upsert + reactivate matches, then deactivate every record the file left out.
+    protected array $importModes = [ImportMode::Upsert, ImportMode::Replace];
+
+    protected ?ImportMode $defaultImportMode = ImportMode::Upsert;
+
+    protected array $matchBy = ['email']; // or override resolveRecord()
+
+    protected function query(): \Illuminate\Database\Eloquent\Builder
+    {
+        // REQUIRED when multi-tenant: Replace sweeps whatever this returns.
+        return \App\Models\Customer::query()->where('team_id', $this->context['team_id']);
+    }
+}
+```
+
+Replace deactivates only at the end (never when no row imported), restores what comes back, and never erases. `authorizeMode()` can refuse a mode per user.
+
 ### 2. Exporter + download notification
 
 ```php

@@ -154,10 +154,30 @@ class ImportController
 
         $user = $request->user();
 
+        // Only a mode the importer offers; none asked for = its default.
+        $mode = $request->filled('mode')
+            ? ImportMode::tryFrom($request->string('mode')->toString())
+            : $importer->getDefaultImportMode();
+
+        if ($mode !== null && ! in_array($mode, $importer->getImportModes(), true)) {
+            $mode = null;
+        }
+
+        if ($request->filled('mode') && $mode === null) {
+            return response()->json(['message' => __('kinetix.import_mode_invalid')], 422);
+        }
+
+        if ($mode !== null && ! $importer->authorizeMode($user, $mode)) {
+            return response()->json(['message' => __('kinetix.import_forbidden')], 403);
+        }
+
+        $options       = $this->optionsFromRequest($request);
+        $options->mode = $mode?->value;
+
         $pending = ImportProcessor::dispatch(
             $importer::class,
             $path,
-            $this->optionsFromRequest($request)->toArray(),
+            $options->toArray(),
             $mapping,
             $user !== null ? $user::class : null,
             $user?->getKey(),

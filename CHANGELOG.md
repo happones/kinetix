@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.267.0] - 2026-10-30
+
+### Added
+
+- **Import modes: choose what an import does with existing records.** An
+  importer lists the modes its dialog offers (`$importModes`) and the user picks
+  one in the review step (published): **Create** (only add; rows that match an
+  existing record fail), **Upsert** (update what matches, add the rest),
+  **Update** (only update; rows that match nothing fail) and **Replace** (the
+  file becomes the active list: matches are updated and reactivated, new rows
+  added, and every active record missing from the file is deactivated — soft
+  deleted, or its `active` / `is_active` / `$activeColumn` set to false). Opt-in:
+  an importer without modes imports exactly as before.
+- `$matchBy` identifies the record a row is about (the default
+  `resolveRecord()` looks it up; a blank key matches nothing), `query()` scopes
+  what the importer may match and deactivate (scope it per tenant),
+  `deactivate()`, `authorizeMode()` and `getImportModeLabel/Description()`.
+- Replace deactivates only after the last row, only records that were active
+  when the import began and that no row matched, and never when no row
+  imported. The completion notification says how many were deactivated.
+- `ImportSettingsData` carries `modes` and `defaultMode`; `ImportOptionsData`
+  carries the chosen `mode`. The `start` endpoint rejects a mode the importer
+  doesn't offer (422) or `authorizeMode()` refuses (403).
+
 ## [0.266.0] - 2026-10-29
 
 ### Added

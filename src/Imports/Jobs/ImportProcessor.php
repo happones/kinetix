@@ -10,6 +10,7 @@ use Happones\Kinetix\Exports\DownloadToken;
 use Happones\Kinetix\Exports\FileWriter;
 use Happones\Kinetix\Imports\FileReader;
 use Happones\Kinetix\Imports\Importer;
+use Happones\Kinetix\Imports\ImportMode;
 use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Support\KinetixDisk;
@@ -122,15 +123,20 @@ class ImportProcessor implements ShouldQueue
 
     public function handle(): void
     {
+        $options = ImportOptionsData::from($this->options);
+
         /** @var Importer $importer */
-        $importer = (new $this->importerClass)->withContext($this->context)->forUser($this->actingUser());
-        $options  = ImportOptionsData::from($this->options);
+        $importer = (new $this->importerClass)
+            ->withContext($this->context)
+            ->forUser($this->actingUser())
+            ->withMode($options->mode !== null ? ImportMode::from($options->mode) : null);
 
         $disk                 = KinetixDisk::privateName();
         [$localPath, $isTemp] = KinetixDisk::localReadablePath($disk, $this->path);
 
-        $imported = 0;
-        $failed   = 0;
+        $imported    = 0;
+        $failed      = 0;
+        $deactivated = 0;
 
         // Row number as the user sees it in their file, so a reported failure can
         // actually be found and fixed. A header row occupies line 1.
@@ -152,6 +158,8 @@ class ImportProcessor implements ShouldQueue
             $chunkSize = max(1, $importer->chunkSize());
             $buffer    = [];
 
+            $importer->beginImport();
+
             // The file is STREAMED, one row at a time — memory is bounded by
             // the chunk size, never by the row count, so a million-row import
             // costs the same as a thousand-row one.
@@ -169,13 +177,15 @@ class ImportProcessor implements ShouldQueue
             if ($buffer !== []) {
                 $this->processChunk($buffer, $importer, $imported, $failed, $failures, $rowNumber);
             }
+
+            $deactivated = $importer->finishImport($imported);
         } finally {
             KinetixDisk::discardTemp($localPath, $isTemp);
         }
 
         Storage::disk($disk)->delete($this->path);
 
-        $this->notify($importer, $imported, $failed, $failures, $this->publishFailureLog());
+        $this->notify($importer, $imported, $failed, $failures, $this->publishFailureLog(), $deactivated);
     }
 
     /**
@@ -403,7 +413,7 @@ class ImportProcessor implements ShouldQueue
      *
      * @param array<int, string> $failures
      */
-    protected function notify(Importer $importer, int $imported, int $failed, array $failures = [], ?string $failedRowsUrl = null): void
+    protected function notify(Importer $importer, int $imported, int $failed, array $failures = [], ?string $failedRowsUrl = null, int $deactivated = 0): void
     {
         $recipient = $this->recipient();
 
@@ -412,6 +422,10 @@ class ImportProcessor implements ShouldQueue
         }
 
         $body = $importer->getCompletedNotificationBody($imported, $failed);
+
+        if ($deactivated > 0) {
+            $body .= "\n".__('kinetix.import_deactivated', ['count' => $deactivated]);
+        }
 
         if ($failures !== []) {
             $body .= "\n".implode("\n", $failures);

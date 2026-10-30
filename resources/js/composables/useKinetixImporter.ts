@@ -2,6 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import type { Ref } from 'vue';
 import { kinetixFetch } from '@/composables/useKinetixHttp';
 import type {
+    KinetixImportModeValue,
     KinetixImportPreview,
     KinetixImportSettings,
 } from '@/types/kinetix';
@@ -71,12 +72,32 @@ export function useKinetixImporter(options: UseKinetixImporterOptions) {
     });
 
     /**
+     * What the import does with existing records. Null = the importer's
+     * default (or no modes at all); the server checks it against the modes
+     * the importer offers.
+     */
+    const chosenMode = ref<KinetixImportModeValue | null>(null);
+
+    /**
      * The importer's own settings once a preview exists, the caller-supplied
      * ones until then.
      */
     const settings = computed<KinetixImportSettings>(
         () => preview.value?.settings ?? options.settings(),
     );
+
+    const modes = computed(() => settings.value.modes ?? []);
+
+    const mode = computed<KinetixImportModeValue | null>({
+        get: () =>
+            chosenMode.value ??
+            settings.value.defaultMode ??
+            modes.value[0]?.value ??
+            null,
+        set: (value) => {
+            chosenMode.value = value;
+        },
+    });
 
     const templateUrl = computed(() =>
         settings.value.template
@@ -274,6 +295,7 @@ export function useKinetixImporter(options: UseKinetixImporterOptions) {
         preview.value = null;
         errorMessage.value = null;
         step.value = 'file';
+        chosenMode.value = null;
         Object.keys(mapping).forEach((key) => delete mapping[key]);
     };
 
@@ -300,6 +322,7 @@ export function useKinetixImporter(options: UseKinetixImporterOptions) {
                     fileToken: preview.value.fileToken,
                     mapping,
                     ...parseOptions,
+                    ...(modes.value.length > 0 ? { mode: mode.value } : {}),
                 },
             });
 
@@ -331,6 +354,8 @@ export function useKinetixImporter(options: UseKinetixImporterOptions) {
         step,
         // derived
         settings,
+        modes,
+        mode,
         templateUrl,
         headers,
         columnCount,
