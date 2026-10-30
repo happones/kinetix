@@ -152,14 +152,7 @@ class DatabaseLocationProvider implements LocationProvider
         $key  = $this->column($level, 'key', 'id');
         $name = $this->column($level, 'name', 'name');
 
-        if (trim($search) !== '') {
-            // Wildcards in the term are escaped (with KinetixQuery's `!`): a
-            // bare `%` must not match every row.
-            $query->whereRaw(
-                $query->getGrammar()->wrap($name)." like ? escape '!'",
-                ['%'.KinetixQuery::escapeLike(trim($search)).'%'],
-            );
-        }
+        $this->whereNameContains($query, $name, $search);
 
         $options = [];
 
@@ -168,6 +161,23 @@ class DatabaseLocationProvider implements LocationProvider
         }
 
         return $options;
+    }
+
+    /**
+     * Rows whose $column contains $search (all when it is blank). Wildcards
+     * in the term are escaped (with KinetixQuery's `!`): a bare `%` must not
+     * match every row.
+     */
+    protected function whereNameContains(Builder $query, string $column, string $search): Builder
+    {
+        if (trim($search) === '') {
+            return $query;
+        }
+
+        return $query->whereRaw(
+            $query->getGrammar()->wrap($column)." like ? escape '!'",
+            ['%'.KinetixQuery::escapeLike(trim($search)).'%'],
+        );
     }
 
     /**

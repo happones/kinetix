@@ -1,9 +1,12 @@
 import { kinetixFetch } from '@/composables/useKinetixHttp';
-import type { KinetixLocationList } from '@/types/kinetix';
+import type {
+    KinetixLocationList,
+    KinetixPostalCodeMatch,
+} from '@/types/kinetix';
 
 /**
- * States and cities for an AddressPicker in locations mode, from the
- * `forms/locations` endpoint.
+ * States, cities, neighborhoods and postal codes for an AddressPicker in
+ * locations mode, from the `forms/locations` endpoint.
  *
  * Answers are kept for the page's lifetime in one cache shared by every
  * picker — a repeater of twenty addresses asks for Mexico's states once — and
@@ -14,15 +17,17 @@ import type { KinetixLocationList } from '@/types/kinetix';
 
 export interface KinetixLocationQuery {
     token: string;
-    level: 'states' | 'cities';
+    level: 'states' | 'cities' | 'neighborhoods';
     country: string;
     state?: string | null;
+    /** The city whose neighborhoods to list. */
+    city?: string | null;
     q?: string;
 }
 
 const MAX_ENTRIES = 300;
 
-const cache = new Map<string, Promise<KinetixLocationList>>();
+const cache = new Map<string, Promise<unknown>>();
 
 const EMPTY: KinetixLocationList = { options: [], complete: true };
 
@@ -40,19 +45,51 @@ export function fetchKinetixLocations(
         params.set('state', query.state);
     }
 
+    if (query.city) {
+        params.set('city', query.city);
+    }
+
     if (query.q) {
         params.set('q', query.q);
     }
 
-    const url = `/${prefix}/forms/locations?${params.toString()}`;
-    const cached = cache.get(url);
+    return cached(
+        `/${prefix}/forms/locations?${params.toString()}`,
+        (result: KinetixLocationList | null) => result ?? EMPTY,
+    );
+}
 
-    if (cached) {
-        return cached;
+/**
+ * What a postal code tells (state, city, neighborhoods), or null when no
+ * place has it.
+ */
+export function fetchKinetixPostalCode(
+    prefix: string,
+    query: { token: string; country: string; code: string },
+): Promise<KinetixPostalCodeMatch | null> {
+    const params = new URLSearchParams({
+        token: query.token,
+        level: 'postal-code',
+        country: query.country,
+        code: query.code,
+    });
+
+    return cached(
+        `/${prefix}/forms/locations?${params.toString()}`,
+        (result: { match: KinetixPostalCodeMatch | null } | null) =>
+            result?.match ?? null,
+    );
+}
+
+function cached<R, T>(url: string, read: (result: R | null) => T): Promise<T> {
+    const hit = cache.get(url);
+
+    if (hit) {
+        return hit as Promise<T>;
     }
 
-    const request = kinetixFetch<KinetixLocationList>(url)
-        .then((result) => result ?? EMPTY)
+    const request = kinetixFetch<R>(url)
+        .then(read)
         .catch((error: unknown) => {
             // A failed answer isn't kept: the next open tries again.
             cache.delete(url);

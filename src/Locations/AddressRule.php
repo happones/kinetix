@@ -9,9 +9,10 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
  * Validates an AddressPicker value: its shape, the parts marked required, and
- * — with a location provider — that the state belongs to the country and the
- * city to the state. A state or city typed as text is accepted only where the
- * provider has none to choose from (a country without states, say).
+ * — with a location provider — that the state belongs to the country, the
+ * city to the state and (from a {@see PostalCodeProvider}) the neighborhood
+ * to the city. A part typed as text is accepted only where the provider has
+ * none to choose from (a country without states, say).
  */
 class AddressRule implements ValidationRule
 {
@@ -39,7 +40,7 @@ class AddressRule implements ValidationRule
             return;
         }
 
-        foreach ([...$this->fields, 'stateId', 'cityId'] as $part) {
+        foreach ([...$this->fields, 'stateId', 'cityId', 'neighborhoodId'] as $part) {
             $part = $value[$part] ?? null;
 
             if ($part !== null && (! is_scalar($part) || mb_strlen((string) $part) > 255)) {
@@ -103,7 +104,29 @@ class AddressRule implements ValidationRule
 
             if ($cityId === null && ! self::blank($value['city'] ?? null) && $this->provider->cities($country, $stateId, '', 1) !== []) {
                 $fail(__('kinetix.address_city_pick'));
+
+                return;
             }
+        } else {
+            $cityId = null;
+        }
+
+        if (! $this->provider instanceof PostalCodeProvider || ! in_array('neighborhood', $this->fields, true)) {
+            return;
+        }
+
+        $neighborhoodId = self::blank($value['neighborhoodId'] ?? null) ? null : (string) $value['neighborhoodId'];
+
+        if ($neighborhoodId !== null) {
+            if ($cityId === null || $this->provider->neighborhood($country, $stateId, $cityId, $neighborhoodId) === null) {
+                $fail(__('kinetix.address_neighborhood_invalid'));
+            }
+
+            return;
+        }
+
+        if ($cityId !== null && ! self::blank($value['neighborhood'] ?? null) && $this->provider->neighborhoods($country, $stateId, $cityId, '', 1) !== []) {
+            $fail(__('kinetix.address_neighborhood_pick'));
         }
     }
 

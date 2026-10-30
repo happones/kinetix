@@ -115,6 +115,10 @@ class FormFieldData extends Data
         public ?array $addressRequired = null,
         // AddressPicker — signed token of the location provider (locations mode).
         public ?string $addressLocations = null,
+        // AddressPicker — the provider lists neighborhoods (a postal-code provider).
+        public bool $addressNeighborhoods = false,
+        // AddressPicker — typing the postal code fills state, city and neighborhoods.
+        public bool $addressPostalCodeLookup = false,
         // RichEditor — which editor driver to render (basic|tiptap|markdown).
         public ?string $editor = null,
         // NumberField / Slider — {min,max,step,format,currency,decimals,locale}.

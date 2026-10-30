@@ -1611,23 +1611,38 @@ export interface KinetixOption {
     label: string;
 }
 
-/** An AddressPicker value (`stateId` / `cityId` in locations mode). */
+/** An AddressPicker value (`stateId` / `cityId` / `neighborhoodId` in locations mode). */
 export interface KinetixAddress {
     line1?: string | null;
     line2?: string | null;
+    neighborhood?: string | null;
     city?: string | null;
     state?: string | null;
     postalCode?: string | null;
     country?: string | null;
     stateId?: string | null;
     cityId?: string | null;
+    neighborhoodId?: string | null;
 }
 
-/** A page of states or cities from the locations endpoint. */
+/** A page of states, cities or neighborhoods from the locations endpoint. */
 export interface KinetixLocationList {
     options: KinetixOption[];
     /** The whole set (filter it locally) rather than the first page of it */
     complete: boolean;
+}
+
+/** A neighborhood (colonia, barrio…) and the postal code it uses. */
+export interface KinetixNeighborhoodOption extends KinetixOption {
+    postalCode: string;
+}
+
+/** What a postal code tells: its state and city, and the neighborhoods it serves. */
+export interface KinetixPostalCodeMatch {
+    /** Null when the code spans more than one. */
+    state: KinetixOption | null;
+    city: KinetixOption | null;
+    neighborhoods: KinetixNeighborhoodOption[];
 }
 
 export type KinetixImportModeValue = 'create' | 'upsert' | 'update' | 'replace';

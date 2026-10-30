@@ -9,14 +9,17 @@ use Happones\Kinetix\Locations\AddressParts;
 use Happones\Kinetix\Locations\AddressRule;
 use Happones\Kinetix\Locations\KinetixLocations;
 use Happones\Kinetix\Locations\LocationProvider;
+use Happones\Kinetix\Locations\PostalCodeProvider;
 use Happones\Kinetix\Support\Countries;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
+use LogicException;
 
 /**
  * A structured address field storing `{line1, line2, city, state, postalCode,
- * country}` — plus `stateId` / `cityId` in locations mode. Persist the value to
- * a JSON-cast column (or split it in dehydrateStateUsing).
+ * country}` — plus `stateId` / `cityId` in locations mode, and `neighborhood`
+ * (`neighborhoodId`) when shown. Persist the value to a JSON-cast column (or
+ * split it in dehydrateStateUsing).
  *
  * Two modes:
  *  - free text (default): text inputs for each part plus a searchable country
@@ -33,15 +36,31 @@ use Illuminate\Database\Eloquent\Model;
  *     AddressPicker::make('address')->except('country'); // hide one or more parts
  *     AddressPicker::make('address')->requiredFields(['line1', 'city', 'country']);
  *     AddressPicker::make('address')->countries(['US' => 'United States', 'MX' => 'Mexico']);
+ *     AddressPicker::make('address')->locations('sepomex')->postalCodeFirst();  // code → state, city, colonias
  */
 class AddressPicker extends Field
 {
-    public const FIELDS = AddressParts::FIELDS;
+    /**
+     * The parts shown by default, in order.
+     */
+    public const FIELDS = ['line1', 'line2', 'city', 'state', 'postalCode', 'country'];
+
+    /**
+     * Every part a picker can show ({@see fields()}), `neighborhood` included.
+     */
+    public const PARTS = AddressParts::FIELDS;
+
+    /**
+     * The order {@see postalCodeFirst()} gives a picker whose parts weren't chosen.
+     */
+    public const POSTAL_CODE_FIRST_FIELDS = ['country', 'postalCode', 'state', 'city', 'neighborhood', 'line1', 'line2'];
 
     /**
      * @var array<int, string>
      */
     protected array $fields = self::FIELDS;
+
+    protected bool $postalCodeLookup = false;
 
     /**
      * @var array<int, string>
@@ -70,7 +89,7 @@ class AddressPicker extends Field
      */
     public function fields(array $fields): static
     {
-        $this->fields = array_values(array_intersect($fields, self::FIELDS));
+        $this->fields = array_values(array_intersect($fields, self::PARTS));
 
         return $this;
     }
@@ -98,7 +117,7 @@ class AddressPicker extends Field
      */
     public function requiredFields(array $fields): static
     {
-        $this->requiredFields = array_values(array_intersect($fields, self::FIELDS));
+        $this->requiredFields = array_values(array_intersect($fields, self::PARTS));
 
         return $this;
     }
@@ -139,6 +158,24 @@ class AddressPicker extends Field
         return $this;
     }
 
+    /**
+     * Address by postal code (locations mode, from a provider that knows
+     * postal codes — {@see PostalCodeProvider}): typing the code fills the
+     * state and city and lists the neighborhoods it serves; picking a
+     * neighborhood fills the code. Unless fields() chose the parts, they
+     * become country, postal code, state, city, neighborhood, lines.
+     */
+    public function postalCodeFirst(bool $condition = true): static
+    {
+        $this->postalCodeLookup = $condition;
+
+        if ($condition && $this->fields === self::FIELDS) {
+            $this->fields = self::POSTAL_CODE_FIRST_FIELDS;
+        }
+
+        return $this;
+    }
+
     public function usesLocations(): bool
     {
         return $this->locations !== null;
@@ -147,6 +184,14 @@ class AddressPicker extends Field
     public function getLocationProvider(): ?LocationProvider
     {
         return $this->locations !== null ? app(KinetixLocations::class)->provider($this->locations) : null;
+    }
+
+    /**
+     * The location provider, when it knows postal codes and neighborhoods.
+     */
+    public function getPostalCodeProvider(): ?PostalCodeProvider
+    {
+        return $this->locations !== null ? app(KinetixLocations::class)->postalCodes($this->locations) : null;
     }
 
     /**
@@ -205,8 +250,9 @@ class AddressPicker extends Field
         }
 
         $address = [];
+        $parts   = in_array('neighborhood', $this->fields, true) ? [...self::FIELDS, 'neighborhood'] : self::FIELDS;
 
-        foreach (self::FIELDS as $part) {
+        foreach ($parts as $part) {
             $partValue      = $value[$part] ?? null;
             $address[$part] = is_scalar($partValue) && trim((string) $partValue) !== '' ? trim((string) $partValue) : null;
         }
@@ -241,6 +287,24 @@ class AddressPicker extends Field
             $address['cityId'] = $cityId;
         }
 
+        $postalCodes = $this->getPostalCodeProvider();
+
+        if ($postalCodes === null || ! in_array('neighborhood', $this->fields, true)) {
+            return $address;
+        }
+
+        $neighborhoodId            = is_scalar($value['neighborhoodId'] ?? null) && (string) $value['neighborhoodId'] !== '' ? (string) $value['neighborhoodId'] : null;
+        $address['neighborhoodId'] = null;
+
+        // The neighborhood's name and its code come from the provider: a
+        // neighborhood has one postal code, whatever was typed.
+        if ($neighborhoodId                                                                                                                                                                                                                                                                                                                                                                           !== null && $address['cityId'] !== null
+                                                                                                                                                                                                                                                                              && ($found = $postalCodes->neighborhood($address['country'], $address['stateId'], $address['cityId'], $neighborhoodId)) !== null) {
+            $address['neighborhood']   = $found['label'];
+            $address['neighborhoodId'] = $neighborhoodId;
+            $address['postalCode']     = $found['postalCode'];
+        }
+
         return $address;
     }
 
@@ -259,6 +323,13 @@ class AddressPicker extends Field
         if ($this->locations !== null) {
             $data->addressLocations = SignedDescriptor::seal(['locations' => $this->locations]);
         }
+
+        if ($this->postalCodeLookup && $this->getPostalCodeProvider() === null) {
+            throw new LogicException("AddressPicker [{$this->name}]: postalCodeFirst() needs locations() from a provider that implements ".PostalCodeProvider::class.'.');
+        }
+
+        $data->addressNeighborhoods    = $this->getPostalCodeProvider() !== null && in_array('neighborhood', $this->fields, true);
+        $data->addressPostalCodeLookup = $this->postalCodeLookup                 && in_array('postalCode', $this->fields, true);
 
         return $data;
     }

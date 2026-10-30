@@ -176,6 +176,8 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
             disabled: c.isDisabled,
             locationsToken: c.addressLocations ?? null,
             required: c.addressRequired ?? [],
+            neighborhoods: c.addressNeighborhoods ?? false,
+            postalCodeLookup: c.addressPostalCodeLookup ?? false,
         }),
     },
     'date-range-picker': {

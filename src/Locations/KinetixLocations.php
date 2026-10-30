@@ -10,9 +10,12 @@ use InvalidArgumentException;
  * Resolves the location providers named in `kinetix.locations.providers`
  * (one cached instance per name and request).
  *
- * An entry's `driver` is `database` ({@see DatabaseLocationProvider}) or the
- * class of a {@see LocationProvider}, built through the container with the
- * entry as `$config`. A provider class may also be named directly.
+ * An entry's `driver` is `database` ({@see DatabaseLocationProvider}, or
+ * {@see DatabasePostalCodeProvider} when the entry maps a `postal_codes`
+ * table) or the class of a {@see LocationProvider}, built through the
+ * container with the entry as `$config`. A provider class may also be named
+ * directly. A provider that implements {@see PostalCodeProvider} comes back as
+ * a {@see CachedPostalCodeProvider}.
  */
 class KinetixLocations
 {
@@ -33,11 +36,26 @@ class KinetixLocations
     {
         $name ??= $this->defaultName();
 
-        return $this->resolved[$name] ??= new CachedLocationProvider(
-            $this->make($name),
-            $name,
-            (int) config('kinetix.locations.cache_ttl', 86400),
-        );
+        if (isset($this->resolved[$name])) {
+            return $this->resolved[$name];
+        }
+
+        $provider = $this->make($name);
+        $ttl      = (int) config('kinetix.locations.cache_ttl', 86400);
+
+        return $this->resolved[$name] = $provider instanceof PostalCodeProvider
+            ? new CachedPostalCodeProvider($provider, $name, $ttl)
+            : new CachedLocationProvider($provider, $name, $ttl);
+    }
+
+    /**
+     * The provider, when it knows postal codes and neighborhoods.
+     */
+    public function postalCodes(?string $name = null): ?CachedPostalCodeProvider
+    {
+        $provider = $this->provider($name);
+
+        return $provider instanceof CachedPostalCodeProvider ? $provider : null;
     }
 
     /**
@@ -64,7 +82,9 @@ class KinetixLocations
         $driver = $config['driver'] ?? 'database';
 
         if ($driver === 'database') {
-            return new DatabaseLocationProvider($config);
+            return is_array($config['postal_codes'] ?? null)
+                ? new DatabasePostalCodeProvider($config)
+                : new DatabaseLocationProvider($config);
         }
 
         if (is_string($driver) && class_exists($driver) && is_subclass_of($driver, LocationProvider::class)) {

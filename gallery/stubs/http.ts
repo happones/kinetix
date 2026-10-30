@@ -86,6 +86,46 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
             ],
         },
     },
+    {
+        match: /\/forms\/locations\?.*level=neighborhoods.*city=1401/,
+        data: {
+            complete: true,
+            options: [
+                { value: '44160-1', label: 'Americana', postalCode: '44160' },
+                {
+                    value: '44160-2',
+                    label: 'Arcos Vallarta',
+                    postalCode: '44160',
+                },
+                { value: '44150-1', label: 'Lafayette', postalCode: '44150' },
+            ],
+        },
+    },
+    {
+        match: /\/forms\/locations\?.*level=postal-code.*code=44160/,
+        data: {
+            match: {
+                state: { value: '14', label: 'Jalisco' },
+                city: { value: '1401', label: 'Guadalajara' },
+                neighborhoods: [
+                    {
+                        value: '44160-1',
+                        label: 'Americana',
+                        postalCode: '44160',
+                    },
+                    {
+                        value: '44160-2',
+                        label: 'Arcos Vallarta',
+                        postalCode: '44160',
+                    },
+                ],
+            },
+        },
+    },
+    {
+        match: /\/forms\/locations\?.*level=postal-code/,
+        data: { match: null },
+    },
     { match: /\/forms\/locations\?/, data: { complete: true, options: [] } },
     {
         match: /\/imports\/(upload|preview)/,

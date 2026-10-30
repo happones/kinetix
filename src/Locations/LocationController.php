@@ -10,9 +10,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * The states of a country and the cities of a state, for an AddressPicker
- * in locations mode. The field's signed token names the provider, so only
- * a provider a form declared can be queried.
+ * The states of a country, the cities of a state and — from a provider that
+ * knows postal codes — the neighborhoods of a city and what a postal code
+ * tells, for an AddressPicker in locations mode. The field's signed token
+ * names the provider, so only a provider a form declared can be queried.
  *
  * `complete` says whether the list is the whole set (fewer than the limit):
  * the picker then filters it locally instead of searching on every keystroke.
@@ -42,10 +43,30 @@ class LocationController
         $level   = (string) $request->query('level');
         $country = strtoupper(substr((string) $request->query('country'), 0, 3));
         $state   = $request->filled('state') ? substr((string) $request->query('state'), 0, 64) : null;
+        $city    = $request->filled('city') ? substr((string) $request->query('city'), 0, 64) : null;
         $search  = mb_substr(trim((string) $request->query('q', '')), 0, 100);
 
-        if (! in_array($level, ['states', 'cities'], true) || $country === '') {
+        if (! in_array($level, ['states', 'cities', 'neighborhoods', 'postal-code'], true) || $country === '') {
             return response()->json(['message' => __('kinetix.locations_invalid_request')], 422);
+        }
+
+        if ($level === 'neighborhoods' || $level === 'postal-code') {
+            $postalCodes = $locations->postalCodes($name);
+
+            if ($postalCodes === null || ($level === 'neighborhoods' && $city === null)) {
+                return response()->json(['message' => __('kinetix.locations_invalid_request')], 422);
+            }
+
+            if ($level === 'postal-code') {
+                $code = mb_strtoupper(mb_substr(trim((string) $request->query('code', '')), 0, 16));
+
+                return $this->cacheable(['match' => $code === '' ? null : $postalCodes->postalCode($country, $code)]);
+            }
+
+            $limit   = max(1, (int) config('kinetix.locations.neighborhoods_limit', 200));
+            $options = $postalCodes->neighborhoods($country, $state, (string) $city, $search, $limit);
+
+            return $this->cacheable(['options' => $options, 'complete' => $search === '' && count($options) < $limit]);
         }
 
         $provider = $locations->provider($name);
@@ -57,11 +78,19 @@ class LocationController
             ? $provider->states($country, $search, $limit)
             : $provider->cities($country, $state, $search, $limit);
 
+        return $this->cacheable([
+            'options'  => $options,
+            'complete' => $search === '' && count($options) < $limit,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function cacheable(array $payload): JsonResponse
+    {
         return response()
-            ->json([
-                'options'  => $options,
-                'complete' => $search === '' && count($options) < $limit,
-            ])
+            ->json($payload)
             ->header('Cache-Control', 'private, max-age='.max(0, (int) config('kinetix.locations.browser_cache', 3600)));
     }
 }

@@ -2380,6 +2380,45 @@ const AddressLocationsDemo = defineComponent({
     },
 });
 
+/** AddressPicker addressing by postal code: the code fills state, city and colonia. */
+const AddressPostalCodeDemo = defineComponent({
+    name: 'AddressPostalCodeDemo',
+    setup() {
+        const value = ref<Record<string, string | null>>({
+            country: 'MX',
+            postalCode: '44160',
+            stateId: '14',
+            state: 'Jalisco',
+            cityId: '1401',
+            city: 'Guadalajara',
+            neighborhoodId: '44160-2',
+            neighborhood: 'Arcos Vallarta',
+            line1: 'Av. Chapultepec 15',
+        });
+
+        return () =>
+            h(KinetixAddressPicker, {
+                value: value.value,
+                fields: [
+                    'country',
+                    'postalCode',
+                    'state',
+                    'city',
+                    'neighborhood',
+                    'line1',
+                ],
+                required: ['postalCode', 'neighborhood', 'line1'],
+                countries: { MX: 'Mexico' },
+                locationsToken: 'gallery-locations',
+                neighborhoods: true,
+                postalCodeLookup: true,
+                'onUpdate:value': (next: Record<string, string | null>) => {
+                    value.value = next;
+                },
+            });
+    },
+});
+
 /** The import dialog with a button that opens it, as ImportAction does. */
 const ImporterLauncher = defineComponent({
     name: 'ImporterLauncher',
@@ -3060,6 +3099,13 @@ export const specimens: Specimen[] = [
         name: 'address-picker-locations',
         title: 'Address picker — country → state → city (locations mode)',
         component: AddressLocationsDemo,
+        frame: 'card',
+        width: 560,
+    },
+    {
+        name: 'address-picker-postal-code',
+        title: 'Address picker — postal code first (state, city and neighborhood)',
+        component: AddressPostalCodeDemo,
         frame: 'card',
         width: 560,
     },

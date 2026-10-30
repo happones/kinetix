@@ -29,6 +29,10 @@ const i18n = createI18n({
                 address_country: 'Country',
                 address_choose_country_first: 'Choose a country first',
                 address_choose_state_first: 'Choose a state first',
+                address_choose_city_first: 'Choose a city first',
+                address_neighborhood: 'Neighborhood',
+                address_postal_code_not_found: 'No place has that postal code.',
+                address_postal_code_found: '{place}. Choose the neighborhood.',
                 spotlight_placeholder: 'Search…',
                 spotlight_empty: 'No results.',
             },
@@ -227,5 +231,168 @@ describe('KinetixAddressPicker — locations mode', () => {
                 url.includes('level=states'),
             ),
         ).toHaveLength(1);
+    });
+});
+
+describe('KinetixAddressPicker — postal codes', () => {
+    const neighborhoods = [
+        { value: '10', label: 'Americana', postalCode: '44160' },
+        { value: '11', label: 'Lafayette', postalCode: '44150' },
+    ];
+
+    const respond = (url: string) => {
+        if (url.includes('level=states')) {
+            return {
+                options: [{ value: '14', label: 'Jalisco' }],
+                complete: true,
+            };
+        }
+
+        if (url.includes('level=cities')) {
+            return {
+                options: [{ value: '39', label: 'Guadalajara' }],
+                complete: true,
+            };
+        }
+
+        if (url.includes('level=neighborhoods')) {
+            return { options: neighborhoods, complete: true };
+        }
+
+        return url.includes('code=44160')
+            ? {
+                  match: {
+                      state: { value: '14', label: 'Jalisco' },
+                      city: { value: '39', label: 'Guadalajara' },
+                      neighborhoods: [neighborhoods[0]],
+                  },
+              }
+            : { match: null };
+    };
+
+    // Wired like v-model: what the picker emits comes back as its value.
+    const picker = (value: Record<string, unknown>, lookup = true) => {
+        const w = mountWith({
+            value,
+            fields: ['country', 'postalCode', 'state', 'city', 'neighborhood'],
+            countries: { MX: 'Mexico' },
+            locationsToken: 'tok',
+            neighborhoods: true,
+            postalCodeLookup: lookup,
+            'onUpdate:value': (next: Record<string, unknown>) =>
+                w.setProps({ value: next }),
+        });
+
+        return w;
+    };
+
+    const lastValue = (w: ReturnType<typeof mountWith>) => {
+        const events = w.emitted('update:value')!;
+
+        return events[events.length - 1][0] as Record<string, unknown>;
+    };
+
+    beforeEach(() => {
+        fetchMock.mockReset();
+        fetchMock.mockImplementation((url: string) =>
+            Promise.resolve(respond(url)),
+        );
+        clearKinetixLocationsCache();
+    });
+
+    it("lists the city's neighborhoods, and picking one fills the postal code", async () => {
+        const w = picker(
+            {
+                country: 'MX',
+                stateId: '14',
+                state: 'Jalisco',
+                cityId: '39',
+                city: 'Guadalajara',
+            },
+            false,
+        );
+        await flushPromises();
+
+        expect(
+            fetchMock.mock.calls.some(([url]) =>
+                url.includes('level=neighborhoods&country=MX&state=14&city=39'),
+            ),
+        ).toBe(true);
+
+        const select = w
+            .findAllComponents({ name: 'KinetixCombobox' })
+            .find((c) => c.props('id')?.endsWith('-neighborhood'));
+        select!.vm.$emit('update:value', '11');
+
+        expect(lastValue(w)).toMatchObject({
+            neighborhoodId: '11',
+            neighborhood: 'Lafayette',
+            postalCode: '44150',
+        });
+    });
+
+    it('waits for a city before listing neighborhoods', async () => {
+        const w = picker({ country: 'MX' }, false);
+        await flushPromises();
+
+        expect(
+            w.find('[data-test="address-neighborhood-waiting"]').text(),
+        ).toContain('Choose a city first');
+    });
+
+    it('fills the state, city and only neighborhood from a typed postal code', async () => {
+        vi.useFakeTimers();
+
+        try {
+            const w = picker({ country: 'MX' });
+            await flushPromises();
+
+            await w.find('[id$="-postalCode"]').setValue('44160');
+            await vi.advanceTimersByTimeAsync(400);
+            await flushPromises();
+
+            expect(
+                fetchMock.mock.calls.some(([url]) =>
+                    url.includes('level=postal-code&country=MX&code=44160'),
+                ),
+            ).toBe(true);
+            expect(lastValue(w)).toMatchObject({
+                postalCode: '44160',
+                stateId: '14',
+                state: 'Jalisco',
+                cityId: '39',
+                city: 'Guadalajara',
+                neighborhoodId: '10',
+                neighborhood: 'Americana',
+            });
+            expect(
+                w.find('[data-test="address-postal-code-status"]').text(),
+            ).toBe('Guadalajara, Jalisco. Choose the neighborhood.');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('says so when no place has the code, and leaves the levels alone', async () => {
+        vi.useFakeTimers();
+
+        try {
+            const w = picker({ country: 'MX' });
+            await flushPromises();
+
+            await w.find('[id$="-postalCode"]').setValue('99999');
+            await vi.advanceTimersByTimeAsync(400);
+            await flushPromises();
+
+            expect(lastValue(w)).toEqual({
+                country: 'MX',
+                postalCode: '99999',
+            });
+            expect(
+                w.find('[data-test="address-postal-code-status"]').text(),
+            ).toBe('No place has that postal code.');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

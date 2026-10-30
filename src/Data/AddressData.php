@@ -13,12 +13,15 @@ class AddressData extends Data
     public function __construct(
         public ?string $line1 = null,
         public ?string $line2 = null,
+        public ?string $neighborhood = null,
         public ?string $city = null,
         public ?string $state = null,
         public ?string $postalCode = null,
         public ?string $country = null,
-        // Locations mode: the provider's keys for the chosen state and city.
+        // Locations mode: the provider's keys for the chosen state, city and
+        // neighborhood.
         public ?string $stateId = null,
         public ?string $cityId = null,
+        public ?string $neighborhoodId = null,
     ) {}
 }

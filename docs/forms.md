@@ -1183,6 +1183,10 @@ A structured address field with two modes:
   cities from a **location provider** — nnjeim/world, altwaireb/laravel-countries,
   your own tables or any other source. Stores the same keys plus `stateId` and
   `cityId` (the provider's keys); `state` and `city` hold the provider's names.
+- **Postal code first** — `->locations(…)->postalCodeFirst()`, from a provider
+  that knows postal codes: typing the code fills the state and city and lists the
+  **neighborhoods** (colonias, barrios) it serves; picking a neighborhood fills the
+  code. See [Addressing by postal code](#addressing-by-postal-code).
 
 <Screenshot name="address-picker" alt="Address picker" />
 
@@ -1199,6 +1203,9 @@ AddressPicker::make('address')->requiredFields(['line1', 'city', 'country']);
 AddressPicker::make('address')->locations();                 // kinetix.locations.default
 AddressPicker::make('address')->locations('countries');      // a named provider
 AddressPicker::make('address')->locations()->countries(['MX' => 'México', 'US' => 'USA']); // only these
+
+AddressPicker::make('address')->locations('sepomex')->postalCodeFirst(); // CP → estado, municipio, colonia
+AddressPicker::make('address')->fields(['line1', 'neighborhood', 'city', 'state', 'postalCode']); // `neighborhood` is opt-in
 ```
 
 Persist the value to a JSON-cast column, or split it into separate columns in a
@@ -1278,6 +1285,77 @@ class GeoApiProvider implements LocationProvider
     public function cityLabel(string $country, ?string $state, string $city): ?string { /* … */ }
 }
 ```
+
+#### Addressing by postal code
+
+Where an address is entered by postal code (Mexico and many others), the code
+decides the state and city, and the person only picks the neighborhood — the
+*colonia* — among the ones it serves:
+
+```php
+AddressPicker::make('address')
+    ->locations('sepomex')
+    ->postalCodeFirst()
+    ->countries(['MX' => 'México'])
+    ->default(['country' => 'MX'])
+    ->requiredFields(['postalCode', 'neighborhood', 'line1']);
+```
+
+- Parts become country, postal code, state, city, neighborhood, address lines
+  (unless `fields()` chose them). The value adds `neighborhood` and
+  `neighborhoodId`.
+- Typing the code (3+ characters, debounced) looks it up: the state and city
+  fill in, and the neighborhood list narrows to the code's — a code with one
+  neighborhood picks it. An unknown code says so under the field and leaves the
+  levels to choose by hand.
+- Without typing a code, state → city → neighborhood works as a chain, and
+  picking a neighborhood fills its code.
+- Validation: the neighborhood must be in the chosen city; a typed one is only
+  accepted where the city has none to choose. On save, the neighborhood's name
+  **and postal code** come from the provider.
+- Any picker in locations mode can show the `neighborhood` level (add it to
+  `fields()`) when its provider knows postal codes; `postalCodeFirst()` adds the
+  lookup. Asking for `postalCodeFirst()` from a provider that doesn't throws a
+  `LogicException`.
+
+The `database` driver knows postal codes when its entry maps a `postal_codes`
+table — one row per neighborhood, with its code and the keys of its state and
+city in the provider's own tables (the shape of a SEPOMEX import):
+
+```php
+'sepomex' => [
+    'driver'       => 'database',
+    'countries'    => ['table' => 'countries', 'code' => 'iso2', 'name' => 'name'],
+    'states'       => ['table' => 'states', 'name' => 'name', 'country' => 'country_id'],
+    'cities'       => ['table' => 'municipalities', 'name' => 'name', 'country' => 'country_id', 'state' => 'state_id'],
+    'postal_codes' => ['table' => 'postal_codes', 'key' => 'id', 'code' => 'code', 'name' => 'name', 'state' => 'state_id', 'city' => 'municipality_id'],
+],
+```
+
+Index `postal_codes.code` and the city column. Any other source implements
+`Happones\Kinetix\Locations\PostalCodeProvider` (a `LocationProvider` plus three
+methods):
+
+```php
+use Happones\Kinetix\Locations\PostalCodeProvider;
+
+class SepomexApiProvider extends GeoApiProvider implements PostalCodeProvider
+{
+    // ['state' => ['value' => '14', 'label' => 'Jalisco'], 'city' => [...] or null,
+    //  'neighborhoods' => [['value' => '…', 'label' => 'Americana', 'postalCode' => '44160'], …]], or null
+    public function postalCode(string $country, string $code): ?array { /* … */ }
+
+    // [['value' => '…', 'label' => 'Americana', 'postalCode' => '44160'], …]
+    public function neighborhoods(string $country, ?string $state, string $city, string $search = '', int $limit = 200): array { /* … */ }
+
+    // ['label' => 'Americana', 'postalCode' => '44160'], or null when it isn't in $city
+    public function neighborhood(string $country, ?string $state, string $city, string $neighborhood): ?array { /* … */ }
+}
+```
+
+Each code's answer, each city's neighborhoods and every neighborhood lookup are
+cached like the other levels; a city with more than `neighborhoods_limit` (200)
+neighborhoods is searched on the server.
 
 #### Performance
 

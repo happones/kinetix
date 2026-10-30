@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.272.0] - 2026-10-30
+
+### Added
+
+- **Addressing by postal code.** `AddressPicker::locations(…)->postalCodeFirst()`:
+  typing the postal code fills the state and city and lists the neighborhoods
+  (colonias, barrios) it serves; a code with one neighborhood picks it, and an
+  unknown code says so under the field. Picking a neighborhood — from the code's
+  list or from the city's — fills the code.
+- **`neighborhood` address part** (opt-in through `fields()`; `postalCodeFirst()`
+  adds it). In locations mode, from a provider that knows postal codes, it is a
+  fourth chained level (city → neighborhood); the value adds `neighborhood` and
+  `neighborhoodId`. Validated against the city; on save the name and the postal
+  code come from the provider.
+- `Locations\PostalCodeProvider` (`postalCode()`, `neighborhoods()`,
+  `neighborhood()`). The `database` driver implements it when its entry maps a
+  `postal_codes` table (one row per neighborhood: code, name, state, city — a
+  SEPOMEX import fits as is). Answers are cached like the other levels
+  (`CachedPostalCodeProvider`); `KinetixLocations::postalCodes()` resolves one.
+- The locations endpoint answers `level=postal-code` and `level=neighborhoods`;
+  `kinetix.locations.neighborhoods_limit` (200) pages large cities.
+- Gallery specimen `address-picker-postal-code`; strings in all seven locales.
+
+### Changed
+
+- `KinetixAddressPicker.vue`, `useKinetixLocations.ts`, `KinetixFormField.vue`
+  and `types/kinetix.ts` (published) gained the neighborhood level and the
+  postal-code lookup. Pickers without `neighborhood` behave and store exactly as
+  before.
+
 ## [0.271.0] - 2026-10-30
 
 ### Added

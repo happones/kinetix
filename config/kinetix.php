@@ -1657,6 +1657,9 @@ return [
         'states_limit' => (int) env('KINETIX_LOCATIONS_STATES_LIMIT', 1000),
         'cities_limit' => (int) env('KINETIX_LOCATIONS_CITIES_LIMIT', 100),
 
+        // Neighborhoods (postal-code providers) come this many at a time per city.
+        'neighborhoods_limit' => (int) env('KINETIX_LOCATIONS_NEIGHBORHOODS_LIMIT', 200),
+
         'providers' => [
             // nnjeim/world (rename the tables if you changed world.migrations.*.table_name).
             'world' => [
@@ -1675,6 +1678,11 @@ return [
                 'states'     => ['table' => 'states', 'key' => 'id', 'name' => 'name', 'country' => 'country_id', 'active' => 'is_active', 'soft_deletes' => true],
                 'cities'     => ['table' => 'cities', 'key' => 'id', 'name' => 'name', 'country' => 'country_id', 'state' => 'state_id', 'active' => 'is_active', 'soft_deletes' => true],
             ],
+
+            // Addressing by postal code (AddressPicker::postalCodeFirst()): map a
+            // table with one row per neighborhood, its code, state and city:
+            // 'sepomex' => [..., 'postal_codes' => ['table' => 'postal_codes', 'key' => 'id',
+            //     'code' => 'code', 'name' => 'name', 'state' => 'state_id', 'city' => 'city_id']],
 
             // Your own source:
             // 'geo' => ['driver' => \App\Locations\GeoApiProvider::class, 'key' => env('GEO_API_KEY')],
