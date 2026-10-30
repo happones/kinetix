@@ -62,6 +62,31 @@ const importFields = [
 ];
 
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
+    // AddressPicker locations mode: Mexico's states, then Jalisco's cities.
+    {
+        match: /\/forms\/locations\?.*level=states.*country=MX/,
+        data: {
+            complete: true,
+            options: [
+                { value: '1', label: 'Aguascalientes' },
+                { value: '9', label: 'Ciudad de México' },
+                { value: '14', label: 'Jalisco' },
+                { value: '19', label: 'Nuevo León' },
+            ],
+        },
+    },
+    {
+        match: /\/forms\/locations\?.*level=cities.*state=14/,
+        data: {
+            complete: true,
+            options: [
+                { value: '1401', label: 'Guadalajara' },
+                { value: '1402', label: 'Tlaquepaque' },
+                { value: '1403', label: 'Zapopan' },
+            ],
+        },
+    },
+    { match: /\/forms\/locations\?/, data: { complete: true, options: [] } },
     {
         match: /\/imports\/(upload|preview)/,
         data: {

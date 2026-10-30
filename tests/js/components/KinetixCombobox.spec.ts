@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
@@ -56,6 +56,48 @@ describe('KinetixCombobox', () => {
         expect(wrapper.get('#status').attributes('aria-label')).toBe(
             'Filter by status',
         );
+        wrapper.unmount();
+    });
+
+    it('keeps the order of a list whose values are numeric ids', async () => {
+        const wrapper = mount(KinetixCombobox, {
+            props: {
+                options: [
+                    { value: '20', label: 'Aguascalientes' },
+                    { value: '3', label: 'Jalisco' },
+                ],
+            },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+
+        await wrapper.get('button').trigger('click');
+        await flushPromises();
+
+        const labels = [
+            ...document.body.querySelectorAll('[role="option"]'),
+        ].map((option) => option.textContent?.trim());
+        expect(labels).toEqual(['Aguascalientes', 'Jalisco']);
+        wrapper.unmount();
+    });
+
+    it('loads from its own source when opened, and shows a known label', async () => {
+        const fetchOptions = vi
+            .fn()
+            .mockResolvedValue([{ value: '7', label: 'Zapopan' }]);
+        const wrapper = mount(KinetixCombobox, {
+            props: { value: '9', valueLabel: 'Guadalajara', fetchOptions },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+
+        expect(wrapper.get('button').text()).toContain('Guadalajara');
+
+        await wrapper.get('button').trigger('click');
+        await flushPromises();
+
+        expect(fetchOptions).toHaveBeenCalledWith('');
+        expect(document.body.textContent).toContain('Zapopan');
         wrapper.unmount();
     });
 });

@@ -17,5 +17,8 @@ class AddressData extends Data
         public ?string $state = null,
         public ?string $postalCode = null,
         public ?string $country = null,
+        // Locations mode: the provider's keys for the chosen state and city.
+        public ?string $stateId = null,
+        public ?string $cityId = null,
     ) {}
 }

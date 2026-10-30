@@ -1631,6 +1631,58 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Locations (AddressPicker country → state → city)
+    |--------------------------------------------------------------------------
+    |
+    | Where `AddressPicker::make()->locations()` reads countries, states and
+    | cities. `world` and `countries` match the tables of nnjeim/world and
+    | altwaireb/laravel-countries; point one at your own tables, or set
+    | `driver` to a class implementing Happones\Kinetix\Locations\LocationProvider
+    | to read them from anywhere (an API, a file). Without ->locations() the
+    | picker stays free text.
+    |
+    */
+    'locations' => [
+        'default' => env('KINETIX_LOCATIONS', 'world'),
+
+        // Seconds the country list, each country's states, each state's first
+        // page of cities and every label lookup stay cached (0 = no cache).
+        'cache_ttl' => (int) env('KINETIX_LOCATIONS_CACHE_TTL', 86400),
+
+        // Seconds the browser may reuse an answer of the locations endpoint.
+        'browser_cache' => (int) env('KINETIX_LOCATIONS_BROWSER_CACHE', 3600),
+
+        // States are listed whole up to this many (then searched); cities come
+        // this many at a time, and a longer list is searched as the user types.
+        'states_limit' => (int) env('KINETIX_LOCATIONS_STATES_LIMIT', 1000),
+        'cities_limit' => (int) env('KINETIX_LOCATIONS_CITIES_LIMIT', 100),
+
+        'providers' => [
+            // nnjeim/world (rename the tables if you changed world.migrations.*.table_name).
+            'world' => [
+                'driver'     => 'database',
+                'connection' => null,
+                'countries'  => ['table' => 'countries', 'key' => 'id', 'code' => 'iso2', 'name' => 'name', 'active' => 'status'],
+                'states'     => ['table' => 'states', 'key' => 'id', 'name' => 'name', 'country' => 'country_id'],
+                'cities'     => ['table' => 'cities', 'key' => 'id', 'name' => 'name', 'country' => 'country_id', 'state' => 'state_id'],
+            ],
+
+            // altwaireb/laravel-countries.
+            'countries' => [
+                'driver'     => 'database',
+                'connection' => null,
+                'countries'  => ['table' => 'countries', 'key' => 'id', 'code' => 'iso2', 'name' => 'name', 'active' => 'is_active', 'soft_deletes' => true],
+                'states'     => ['table' => 'states', 'key' => 'id', 'name' => 'name', 'country' => 'country_id', 'active' => 'is_active', 'soft_deletes' => true],
+                'cities'     => ['table' => 'cities', 'key' => 'id', 'name' => 'name', 'country' => 'country_id', 'state' => 'state_id', 'active' => 'is_active', 'soft_deletes' => true],
+            ],
+
+            // Your own source:
+            // 'geo' => ['driver' => \App\Locations\GeoApiProvider::class, 'key' => env('GEO_API_KEY')],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Locale / Language switcher (optional)
     |--------------------------------------------------------------------------
     |

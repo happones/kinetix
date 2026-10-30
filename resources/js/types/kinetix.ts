@@ -1603,6 +1603,31 @@ export interface KinetixImportOptions {
     mode?: KinetixImportModeValue | null;
 }
 
+/** One choice of a select or combobox; a list of these keeps its order. */
+export interface KinetixOption {
+    value: string;
+    label: string;
+}
+
+/** An AddressPicker value (`stateId` / `cityId` in locations mode). */
+export interface KinetixAddress {
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+    stateId?: string | null;
+    cityId?: string | null;
+}
+
+/** A page of states or cities from the locations endpoint. */
+export interface KinetixLocationList {
+    options: KinetixOption[];
+    /** The whole set (filter it locally) rather than the first page of it */
+    complete: boolean;
+}
+
 export type KinetixImportModeValue = 'create' | 'upsert' | 'update' | 'replace';
 
 export interface KinetixImportMode {

@@ -1151,27 +1151,141 @@ callback. As a **table filter**, use `DateRangeFilter` (see
 ---
 
 ### `AddressPicker`
-A structured address field. Stores `{ line1, line2, city, state, postalCode,
-country }` and renders a text input per part plus a **searchable country select**
-sourced from a built-in ISO 3166-1 list. Limit/reorder the sub-fields with
-`->fields()`, hide one or more with `->except()`, or replace the country options
-with `->countries()`.
+A structured address field with two modes:
+
+- **Free text** *(default)* — a text input per part plus a **searchable country
+  select** sourced from a built-in ISO 3166-1 list. Stores `{ line1, line2, city,
+  state, postalCode, country }`.
+- **Locations** — `->locations()`: country → state → city **selects**, each
+  listing the children of the one before (changing the country clears the state
+  and city; changing the state clears the city). Reads countries, states and
+  cities from a **location provider** — nnjeim/world, altwaireb/laravel-countries,
+  your own tables or any other source. Stores the same keys plus `stateId` and
+  `cityId` (the provider's keys); `state` and `city` hold the provider's names.
 
 <Screenshot name="address-picker" alt="Address picker" />
 
 ```php
 use Happones\Kinetix\Forms\Components\AddressPicker;
 
-AddressPicker::make('address');                              // all six sub-fields
+AddressPicker::make('address');                              // free text, all six sub-fields
 AddressPicker::make('address')->fields(['line1', 'city', 'country']);
 AddressPicker::make('address')->except('country');           // hide the country select
 AddressPicker::make('address')->except(['line2', 'country']);
 AddressPicker::make('address')->countries(['US' => 'United States', 'MX' => 'Mexico']);
+AddressPicker::make('address')->requiredFields(['line1', 'city', 'country']);
+
+AddressPicker::make('address')->locations();                 // kinetix.locations.default
+AddressPicker::make('address')->locations('countries');      // a named provider
+AddressPicker::make('address')->locations()->countries(['MX' => 'México', 'US' => 'USA']); // only these
 ```
 
 Persist the value to a JSON-cast column, or split it into separate columns in a
 `dehydrateStateUsing()` callback. As a **table filter**, use `AddressFilter` (see
 [Tables → Filters](/tables#filters)).
+
+#### Validation
+
+The field validates itself — no rules to add:
+
+- the value is an address (only its parts are kept on save; anything else posted
+  is dropped), and every part in `->requiredFields()` is filled in once the
+  address is (`->required()` makes the address itself required);
+- the country is one of the selectable ones;
+- in locations mode, the state belongs to the country and the city to the
+  state. A state or city **typed** as text is only accepted where the provider
+  has nothing to choose from — a country with no states in the catalog falls
+  back to typing, so the address can always be completed;
+- on save, `state` and `city` are rewritten with the provider's names for
+  `stateId` / `cityId` — what the browser posted is never trusted as the name.
+
+#### Location providers
+
+Configure them in `config/kinetix.php` → `locations`. Two ship ready for the
+popular packages, as the `database` driver pointed at their tables:
+
+| Provider | Package | Countries | Disabled rows |
+| --- | --- | --- | --- |
+| `world` *(default)* | [nnjeim/world](https://github.com/nnjeim/world) | `countries.iso2` | `countries.status = 0` |
+| `countries` | [altwaireb/laravel-countries](https://github.com/altwaireb/laravel-countries) | `countries.iso2` | `is_active = 0`, soft deleted |
+
+```php
+'locations' => [
+    'default' => env('KINETIX_LOCATIONS', 'world'),
+    'providers' => [
+        'world' => [
+            'driver'     => 'database',
+            'connection' => null,
+            'countries'  => ['table' => 'countries', 'key' => 'id', 'code' => 'iso2', 'name' => 'name', 'active' => 'status'],
+            'states'     => ['table' => 'states', 'key' => 'id', 'name' => 'name', 'country' => 'country_id'],
+            'cities'     => ['table' => 'cities', 'key' => 'id', 'name' => 'name', 'country' => 'country_id', 'state' => 'state_id'],
+        ],
+        // Your own tables: same shape, your names.
+        'catalog' => [
+            'driver'    => 'database',
+            'countries' => ['table' => 'cat_paises', 'code' => 'clave', 'name' => 'nombre', 'active' => 'activo'],
+            'states'    => ['table' => 'cat_estados', 'name' => 'nombre', 'country' => 'pais_id', 'soft_deletes' => true],
+            'cities'    => ['table' => 'cat_municipios', 'name' => 'nombre', 'country' => 'pais_id', 'state' => 'estado_id'],
+        ],
+        // Any other source.
+        'geo' => ['driver' => \App\Locations\GeoApiProvider::class, 'key' => env('GEO_API_KEY')],
+    ],
+],
+```
+
+A provider of your own implements `Happones\Kinetix\Locations\LocationProvider`
+(it receives its config entry as `$config` when its constructor takes one) —
+an API, a JSON file, a tenant-specific catalog:
+
+```php
+use Happones\Kinetix\Locations\LocationProvider;
+
+class GeoApiProvider implements LocationProvider
+{
+    public function __construct(protected array $config = []) {}
+
+    public function countries(): array { /* ['MX' => 'Mexico', …] */ }
+
+    // [['value' => '14', 'label' => 'Jalisco'], …], names containing $search
+    public function states(string $country, string $search = '', int $limit = 1000): array { /* … */ }
+
+    // $state null = the whole country
+    public function cities(string $country, ?string $state, string $search = '', int $limit = 50): array { /* … */ }
+
+    // null when it doesn't exist or isn't in that country / state — this is what validation asks
+    public function stateLabel(string $country, string $state): ?string { /* … */ }
+    public function cityLabel(string $country, ?string $state, string $city): ?string { /* … */ }
+}
+```
+
+#### Performance
+
+Built for catalogs with hundreds of thousands of cities:
+
+- **Countries** (~250) ride in the form payload. **States** load whole for the
+  chosen country and filter in the browser. **Cities** load one page
+  (`cities_limit`, 100); a longer list is **searched on the server** as the user
+  types, so no list ever grows with the catalog.
+- Every unfiltered list and every name lookup is cached in the cache store
+  (`cache_ttl`, a day) and in memory for the request; searches are not cached.
+  Validation and save read from that cache, so a form with addresses costs no
+  location queries once warm.
+- The endpoint answers GET with `Cache-Control: private` (`browser_cache`, an
+  hour), and the browser keeps one shared cache for the page: a repeater of
+  twenty addresses asks for a country's states **once**, and a request already
+  in flight is reused.
+- The database driver uses the query builder (no models) on the foreign keys.
+  **nnjeim/world doesn't index them** — add the indexes:
+
+```php
+Schema::table('states', fn (Blueprint $t) => $t->index('country_id'));
+Schema::table('cities', fn (Blueprint $t) => $t->index(['state_id', 'name']));
+Schema::table('cities', fn (Blueprint $t) => $t->index('country_id'));
+```
+
+The endpoint (`GET {prefix}/forms/locations`) only answers a token the form
+minted for a declared provider, bound to the user, team and expiry like every
+other Kinetix descriptor.
 
 ---
 

@@ -111,6 +111,10 @@ class FormFieldData extends Data
         public ?int $weekStartsOn = null,
         // AddressPicker — which sub-fields to show, in order.
         public ?array $addressFields = null,
+        // AddressPicker — the sub-fields that can't be left blank.
+        public ?array $addressRequired = null,
+        // AddressPicker — signed token of the location provider (locations mode).
+        public ?string $addressLocations = null,
         // RichEditor — which editor driver to render (basic|tiptap|markdown).
         public ?string $editor = null,
         // NumberField / Slider — {min,max,step,format,currency,decimals,locale}.

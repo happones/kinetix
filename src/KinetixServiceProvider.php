@@ -124,6 +124,8 @@ use Happones\Kinetix\Kanban\KanbanMoveController;
 use Happones\Kinetix\Locale\LocaleController;
 use Happones\Kinetix\Locale\LocaleManager;
 use Happones\Kinetix\Locale\Middleware\SetKinetixLocale;
+use Happones\Kinetix\Locations\KinetixLocations;
+use Happones\Kinetix\Locations\LocationController;
 use Happones\Kinetix\Mail\MailTemplateController;
 use Happones\Kinetix\Markdown\Highlighting\CodeHighlighter;
 use Happones\Kinetix\Markdown\Highlighting\PhikiHighlighter;
@@ -244,6 +246,10 @@ class KinetixServiceProvider extends ServiceProvider
             return $registry;
         });
         $this->app->singleton(PdfTemplateRegistry::class);
+
+        // Scoped, not a singleton: it memoizes lookups, which must not outlive
+        // the request under Octane.
+        $this->app->scoped(KinetixLocations::class);
 
         // The settings store + page registry are app-wide singletons.
         $this->app->singleton(SettingsManager::class);
@@ -3348,6 +3354,11 @@ class KinetixServiceProvider extends ServiceProvider
             ->group(function () {
                 Route::post('search', SearchController::class)
                     ->name('kinetix.forms.search');
+
+                // States / cities for an AddressPicker in locations mode. GET
+                // so the browser can cache the answers.
+                Route::get('locations', LocationController::class)
+                    ->name('kinetix.forms.locations');
 
                 // Server-driven reactivity ($get/$set): rebuilds the form from
                 // its signed descriptor and returns the schema recomputed

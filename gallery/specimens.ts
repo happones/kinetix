@@ -1,5 +1,5 @@
 import { Folder, LayoutDashboard, Settings, Users } from '@lucide/vue';
-import { defineComponent, h, type Component } from 'vue';
+import { defineComponent, h, ref, type Component } from 'vue';
 import KinetixWizard from '@/components/KinetixWizard.vue';
 import KinetixImportModal from '@/components/KinetixImportModal.vue';
 import KinetixEmptyState from '@/components/KinetixEmptyState.vue';
@@ -2353,6 +2353,33 @@ const TourPage = defineComponent({
     },
 });
 
+/** AddressPicker in locations mode, holding its own value so the chain reacts. */
+const AddressLocationsDemo = defineComponent({
+    name: 'AddressLocationsDemo',
+    setup() {
+        const value = ref<Record<string, string | null>>({
+            line1: 'Av. Vallarta 1020',
+            country: 'MX',
+            stateId: '14',
+            state: 'Jalisco',
+            cityId: '1403',
+            city: 'Zapopan',
+        });
+
+        return () =>
+            h(KinetixAddressPicker, {
+                value: value.value,
+                fields: ['line1', 'country', 'state', 'city', 'postalCode'],
+                required: ['line1', 'country', 'state', 'city'],
+                countries: { MX: 'Mexico', MC: 'Monaco', US: 'United States' },
+                locationsToken: 'gallery-locations',
+                'onUpdate:value': (next: Record<string, string | null>) => {
+                    value.value = next;
+                },
+            });
+    },
+});
+
 /** The import dialog with a button that opens it, as ImportAction does. */
 const ImporterLauncher = defineComponent({
     name: 'ImporterLauncher',
@@ -3027,6 +3054,14 @@ export const specimens: Specimen[] = [
                 FR: 'France',
             },
         },
+    },
+
+    {
+        name: 'address-picker-locations',
+        title: 'Address picker — country → state → city (locations mode)',
+        component: AddressLocationsDemo,
+        frame: 'card',
+        width: 560,
     },
 
     // --- Form layouts ----------------------------------------------------------

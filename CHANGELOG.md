@@ -13,6 +13,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.268.0] - 2026-10-30
+
+### Added
+
+- **`AddressPicker::locations()`: country → state → city selects** from a
+  location provider (published). Choosing a country lists its states, choosing a
+  state lists its cities; changing a parent clears its children, and a level
+  with nothing in the catalog falls back to typing. Free text stays the default.
+- **Location providers** (`kinetix.locations`): `world` (nnjeim/world) and
+  `countries` (altwaireb/laravel-countries) ship as the `database` driver mapped
+  to their tables — map it to your own tables the same way — or set `driver` to
+  a class implementing `Happones\Kinetix\Locations\LocationProvider` to read
+  locations from an API or anywhere else.
+- **Address validation.** The field validates itself: the shape, the country
+  against the selectable list, the state against the country and the city
+  against the state, and `->requiredFields([...])`. On save only the address
+  parts are kept, and `state` / `city` are rewritten with the provider's names.
+  The value gains `stateId` / `cityId` in locations mode.
+- **Performance:** countries in the payload, states whole per country, cities
+  paged (`cities_limit`) and searched server-side past one page; lists and
+  labels cached (`cache_ttl`), endpoint answers browser-cacheable, one shared
+  client cache with in-flight dedupe (a repeater of addresses asks once).
+- `KinetixCombobox` takes `[{ value, label }]` options (keeps their order even
+  with numeric values), a `fetch-options` source of its own and `value-label`
+  (published).
+
+### Fixed
+
+- **The combobox search opened prefilled with the selected value** (a country
+  code, an id) instead of empty (published).
+- **Address picker ids repeated** across pickers on the same page (a repeater
+  of addresses), so a label could point at another picker's input (published).
+
 ## [0.267.0] - 2026-10-30
 
 ### Added
