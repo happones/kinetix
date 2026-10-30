@@ -125,6 +125,8 @@ return [
     'import_mode_replace_warning'       => 'À la fin de l’import, les enregistrements absents de ce fichier sont désactivés. Ils ne sont pas effacés et peuvent être restaurés.',
     'import_row_exists'                 => 'Un enregistrement avec cette clé existe déjà.',
     'import_row_not_found'              => 'Aucun enregistrement existant ne correspond à cette ligne.',
+    'import_related_not_found'          => 'Aucun enregistrement de :attribute ne correspond à « :value ».',
+    'import_related_ambiguous'          => '« :value » correspond à plusieurs enregistrements de :attribute.',
     'import_mode_invalid'               => 'Ce mode d’import n’est pas disponible.',
     'import_deactivated'                => ':count enregistrements absents du fichier ont été désactivés.',
     'import_parsed_announce'            => 'Fichier lu : :rows lignes et :columns colonnes détectées.',

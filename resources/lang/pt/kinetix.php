@@ -125,6 +125,8 @@ return [
     'import_mode_replace_warning'       => 'Ao terminar a importação, os registros ausentes deste arquivo são desativados. Eles não são apagados e podem ser restaurados.',
     'import_row_exists'                 => 'Já existe um registro com esta chave.',
     'import_row_not_found'              => 'Nenhum registro existente corresponde a esta linha.',
+    'import_related_not_found'          => 'Nenhum registro de :attribute corresponde a ":value".',
+    'import_related_ambiguous'          => '":value" corresponde a mais de um registro de :attribute.',
     'import_mode_invalid'               => 'Esse modo de importação não está disponível.',
     'import_deactivated'                => ':count registros ausentes do arquivo foram desativados.',
     'import_parsed_announce'            => 'Arquivo lido: :rows linhas e :columns colunas detectadas.',

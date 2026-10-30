@@ -92,6 +92,11 @@ class ContactImporter extends Importer
 | `->sensitive(bool = true)` | Blank this cell in the failed-rows download (passwords, PINs) |
 | `->castStateUsing(Closure)` | Transform the validated value before saving |
 | `->fillRecordUsing(Closure)` | Custom write onto the record (`fn ($record, $value, $row)`) |
+| `->relationship(string $relation, array\|string $matchBy = [])` | Fill a BelongsTo / BelongsToMany from the cell, looked up by each `$matchBy` column in turn (default: the related key) — see [Relationship columns](#relationship-columns) |
+| `->relationshipQuery(Closure)` | Bound what a cell may match: `fn (Builder $query, array $context)` — scope it per tenant |
+| `->createMissing(bool\|Closure = true)` | Create the related record a cell names when none matches (off by default) |
+| `->multiple(string $separator = ',')` | The cell lists several related records (BelongsToMany) |
+| `->caseSensitive(bool = true)` | Match text as cased (default: case-insensitive) |
 
 ### `Importer` API
 
@@ -271,6 +276,74 @@ re-upload them. Mark a column `->sensitive()` and its cell is left **blank**
 there — a password or PIN typed into a spreadsheet isn't handed back in a
 download (the user types it again). Hide the dialog's sample table too with
 `protected ?bool $preview = false;`.
+
+### Relationship columns
+
+A file rarely holds foreign keys. A relationship column takes what the user
+has — the id **or** the name (or a code, a SKU…) — and finds the related record:
+
+```php
+use Illuminate\Database\Eloquent\Builder;
+
+public static function getColumns(): array
+{
+    return [
+        ImportColumn::make('sku')->rules('required'),
+
+        // BelongsTo: "7", "Bebidas" and "bebidas" all find the category.
+        ImportColumn::make('category')
+            ->relationship('category', ['id', 'name'])
+            ->relationshipQuery(fn (Builder $query, array $context) => $query->where('team_id', $context['team_id'])),
+
+        // BelongsToMany: "Oferta, Nuevo" → the two tags, synced after save.
+        ImportColumn::make('tags')
+            ->relationship('tags', 'name')
+            ->multiple(','),
+
+        // Create brands nobody has registered yet (off by default).
+        ImportColumn::make('brand')
+            ->relationship('brand', ['code', 'name'])
+            ->createMissing(fn (string $name, array $context) => ['name' => $name, 'team_id' => $context['team_id']]),
+    ];
+}
+```
+
+- **Match order.** Each `$matchBy` column is tried in turn and the first that
+  matches wins; a value is only tried as the related key when it can be one (an
+  integer key never matches `"Bebidas"`). Where names look like ids (a category
+  called "2024"), put `name` first.
+- **Not found / ambiguous.** A cell that matches nothing — or matches **more
+  than one** record (two "Botanas") — fails its row, with the reason in the
+  failed-rows file: *No Category matches "Panadería".* A multiple cell fails if
+  any of its values does. A blank cell clears the relation (`null`, or an empty
+  sync).
+- **Case.** Text matches case-insensitively by default ("bebidas" finds
+  "Bebidas"). On a very large related table, `->caseSensitive()` lets the
+  database use the column's index.
+- **Tenancy.** `relationshipQuery()` receives the context captured at dispatch
+  ([Multi-tenancy](#multi-tenancy-carrying-the-request-context-into-the-queue)).
+  Without it a cell can match another tenant's category. The related model's
+  global scopes (soft deletes included) apply too.
+- **Creating.** `createMissing()` creates the record a cell names when none
+  matches: `true` sets the first non-key `$matchBy` column to the cell; a closure
+  returns the attributes (tenant included). It is created once and reused by the
+  following rows; if the row that created it fails, its savepoint rolls it back
+  and the next row creates it again.
+- **Writing.** The default `importRow()` sets the BelongsTo foreign key and,
+  after saving, **syncs** each BelongsToMany (the file is the record's list). A
+  custom `importRow()` finds the resolved key in `$data['category']` (keys, for a
+  `multiple()` column) and calls `$this->syncRelationships($record, $data)` after
+  saving. `fillRecordUsing()` still overrides the write; `castStateUsing()` runs
+  on the cell **before** the lookup, to clean up what is looked up.
+
+#### How it scales
+
+Lookups never run per row. Before each chunk (`chunkSize()`, 1000 rows) the job
+collects the chunk's **distinct** cells per relationship column and resolves them
+in one query per `$matchBy` column (batched 500 values at a time). Every answer —
+found, missing or ambiguous — is cached for the rest of the import, bounded at
+20,000 values. 100,000 products in 40 categories cost a handful of queries, not
+100,000. Index the `$matchBy` columns of the related table (`categories.name`).
 
 ### Import modes
 

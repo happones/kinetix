@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Imports;
 use Closure;
 use Happones\Kinetix\Data\ImportColumnData;
 use Happones\Kinetix\Support\AutoLabel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class ImportColumn
@@ -44,6 +45,28 @@ class ImportColumn
     protected ?Closure $fillRecordUsing = null;
 
     protected ?Closure $castStateUsing = null;
+
+    /**
+     * The owning model's relation this column fills (BelongsTo or
+     * BelongsToMany), null for a plain attribute.
+     */
+    protected ?string $relationship = null;
+
+    /**
+     * The related columns a cell is looked up by, in order — the first that
+     * matches wins.
+     *
+     * @var array<int, string>
+     */
+    protected array $relationshipMatchBy = [];
+
+    protected ?Closure $relationshipQuery = null;
+
+    protected Closure|bool $createMissing = false;
+
+    protected ?string $multipleSeparator = null;
+
+    protected bool $caseSensitive = false;
 
     public function __construct(string $name)
     {
@@ -162,6 +185,124 @@ class ImportColumn
         $this->castStateUsing = $callback;
 
         return $this;
+    }
+
+    /**
+     * Fill a relation from the cell: the related record is looked up by
+     * each of $matchBy in turn, so a file may hold the id OR the name.
+     *
+     *     ImportColumn::make('category')->relationship('category', ['id', 'name']);
+     *     ImportColumn::make('tags')->relationship('tags', ['name'])->multiple(',');
+     *
+     * A BelongsTo sets the foreign key; a BelongsToMany syncs the related
+     * keys once the record is saved. Lookups are batched per chunk of rows
+     * and cached for the import, so a file costs a handful of queries however
+     * many rows reference the same records. A cell that matches nothing — or
+     * more than one record — fails its row.
+     *
+     * @param array<int, string>|string $matchBy related columns, in order
+     *                                           (default: the related key)
+     */
+    public function relationship(string $name, array|string $matchBy = []): static
+    {
+        $this->relationship        = $name;
+        $this->relationshipMatchBy = array_values((array) $matchBy);
+
+        return $this;
+    }
+
+    /**
+     * Bound the records a cell may match — REQUIRED for a tenant-owned
+     * relation, since the worker has no request:
+     *
+     *     ->relationshipQuery(fn (Builder $query, array $context) => $query->where('team_id', $context['team_id']))
+     *
+     * @param Closure(Builder<Model>, array<string, mixed>): mixed $callback
+     */
+    public function relationshipQuery(Closure $callback): static
+    {
+        $this->relationshipQuery = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Create the related record a cell names when none matches (off by
+     * default: the row fails instead). Pass a closure to set its attributes —
+     * it receives the cell and the import's context:
+     *
+     *     ->createMissing(fn (string $name, array $context) => ['name' => $name, 'team_id' => $context['team_id']])
+     *
+     * true creates it with the first non-key $matchBy column set to the cell.
+     *
+     * @param bool|Closure(string, array<string, mixed>): array<string, mixed> $condition
+     */
+    public function createMissing(bool|Closure $condition = true): static
+    {
+        $this->createMissing = $condition;
+
+        return $this;
+    }
+
+    /**
+     * One cell lists several related records (`Ofertas, Nuevos`) — for a
+     * BelongsToMany.
+     */
+    public function multiple(string $separator = ','): static
+    {
+        $this->multipleSeparator = $separator === '' ? ',' : $separator;
+
+        return $this;
+    }
+
+    /**
+     * Match text exactly as cased. Off by default ("bebidas" finds
+     * "Bebidas"); turn it on so a large related table's index on the column
+     * is used.
+     */
+    public function caseSensitive(bool $condition = true): static
+    {
+        $this->caseSensitive = $condition;
+
+        return $this;
+    }
+
+    public function getRelationship(): ?string
+    {
+        return $this->relationship;
+    }
+
+    public function isRelationship(): bool
+    {
+        return $this->relationship !== null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getRelationshipMatchBy(): array
+    {
+        return $this->relationshipMatchBy;
+    }
+
+    public function getRelationshipQuery(): ?Closure
+    {
+        return $this->relationshipQuery;
+    }
+
+    public function getCreateMissing(): Closure|bool
+    {
+        return $this->createMissing;
+    }
+
+    public function getMultipleSeparator(): ?string
+    {
+        return $this->multipleSeparator;
+    }
+
+    public function isCaseSensitive(): bool
+    {
+        return $this->caseSensitive;
     }
 
     public function getName(): string

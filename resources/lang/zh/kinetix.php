@@ -125,6 +125,8 @@ return [
     'import_mode_replace_warning'             => '导入完成后，此文件中没有的记录将被停用。它们不会被删除，可以恢复。',
     'import_row_exists'                       => '已存在使用此键的记录。',
     'import_row_not_found'                    => '没有现有记录与此行匹配。',
+    'import_related_not_found'                => ':attribute 中没有与“:value”匹配的记录。',
+    'import_related_ambiguous'                => '“:value”与多个 :attribute 记录匹配。',
     'import_mode_invalid'                     => '该导入模式不可用。',
     'import_deactivated'                      => '已停用 :count 条文件中没有的记录。',
     'import_parsed_announce'                  => '已读取文件：检测到 :rows 行、:columns 列。',

@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.269.0] - 2026-10-30
+
+### Added
+
+- **Relationship columns in imports.** `ImportColumn::relationship('category',
+  ['id', 'name'])` fills a BelongsTo from a cell holding the id **or** the name
+  (or any column, tried in order); `->multiple(',')` fills a BelongsToMany
+  (synced after save). A cell that matches nothing or several records fails its
+  row with the reason ("No Category matches "Panadería"").
+- `->relationshipQuery(fn ($query, $context))` bounds the match per tenant,
+  `->createMissing()` (off by default) creates what a cell names, and
+  `->caseSensitive()` switches off the default case-insensitive match.
+- **Batched lookups:** each chunk resolves its distinct cells in one query per
+  match column, and every answer is cached for the import (bounded) — a file of
+  100,000 rows over 40 categories costs a handful of queries.
+- `Importer::syncRelationships($record, $data)` for custom `importRow()`s.
+
 ## [0.268.0] - 2026-10-30
 
 ### Added

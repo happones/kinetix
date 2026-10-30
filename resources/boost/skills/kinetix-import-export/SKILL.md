@@ -165,6 +165,19 @@ class CustomerImporter extends Importer
 
 Replace deactivates only at the end (never when no row imported), restores what comes back, and never erases. `authorizeMode()` can refuse a mode per user.
 
+### 1e. Relationship columns — id OR name in the file
+
+```php
+ImportColumn::make('category')
+    ->relationship('category', ['id', 'name'])            // BelongsTo: sets category_id; tries id, then name
+    ->relationshipQuery(fn (Builder $q, array $context) => $q->where('team_id', $context['team_id'])), // REQUIRED for tenant data
+ImportColumn::make('tags')->relationship('tags', 'name')->multiple(','), // BelongsToMany: synced after save
+// ->createMissing(fn (string $v, array $context) => ['name' => $v, 'team_id' => $context['team_id']])  (off by default)
+// ->caseSensitive()  (default insensitive)
+```
+
+Lookups are batched per chunk (distinct cells, one query per match column) and cached for the import; not found / ambiguous fails the row with the column label. Custom `importRow()`: `$data['category']` is the key (array for multiple) — call `$this->syncRelationships($record, $data)` after save.
+
 ### 2. Exporter + download notification
 
 ```php

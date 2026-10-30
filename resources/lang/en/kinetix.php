@@ -125,6 +125,8 @@ return [
     'import_mode_replace_warning'       => 'When the import finishes, the records missing from this file are deactivated. They are not erased and can be restored.',
     'import_row_exists'                 => 'A record with this key already exists.',
     'import_row_not_found'              => 'No existing record matches this row.',
+    'import_related_not_found'          => 'No :attribute matches ":value".',
+    'import_related_ambiguous'          => '":value" matches more than one :attribute.',
     'import_mode_invalid'               => 'That import mode is not available.',
     'import_deactivated'                => ':count records missing from the file were deactivated.',
     'import_parsed_announce'            => 'File read: :rows rows and :columns columns detected.',

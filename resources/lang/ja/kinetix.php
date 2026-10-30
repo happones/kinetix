@@ -125,6 +125,8 @@ return [
     'import_mode_replace_warning'             => 'インポート完了時、このファイルにないレコードは無効化されます。削除はされず、復元できます。',
     'import_row_exists'                       => 'このキーのレコードは既に存在します。',
     'import_row_not_found'                    => 'この行に一致する既存のレコードはありません。',
+    'import_related_not_found'                => ':attribute に「:value」と一致するものがありません。',
+    'import_related_ambiguous'                => '「:value」は :attribute の複数のレコードに一致します。',
     'import_mode_invalid'                     => 'このインポートモードは利用できません。',
     'import_deactivated'                      => 'ファイルになかった :count 件のレコードを無効化しました。',
     'import_parsed_announce'                  => 'ファイルを読み取りました: :rows 行、:columns 列を検出。',

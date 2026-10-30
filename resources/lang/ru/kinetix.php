@@ -125,6 +125,8 @@ return [
     'import_mode_replace_warning'             => 'По завершении импорта записи, которых нет в этом файле, будут деактивированы. Они не удаляются и могут быть восстановлены.',
     'import_row_exists'                       => 'Запись с этим ключом уже существует.',
     'import_row_not_found'                    => 'Ни одна существующая запись не совпадает с этой строкой.',
+    'import_related_not_found'                => 'Нет записи «:attribute», соответствующей «:value».',
+    'import_related_ambiguous'                => '«:value» соответствует нескольким записям «:attribute».',
     'import_mode_invalid'                     => 'Этот режим импорта недоступен.',
     'import_deactivated'                      => 'Деактивировано записей, отсутствующих в файле: :count.',
     'import_parsed_announce'                  => 'Файл прочитан: обнаружено строк — :rows, столбцов — :columns.',

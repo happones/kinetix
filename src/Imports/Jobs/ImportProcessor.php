@@ -210,10 +210,20 @@ class ImportProcessor implements ShouldQueue
     ): void {
         $perRow = $importer->usesTransactionPerRow();
 
-        DB::transaction(function () use ($chunk, $importer, $perRow, &$imported, &$failed, &$failures, &$rowNumber): void {
-            foreach ($chunk as $row) {
+        $mapped = array_map($this->mapRow(...), $chunk);
+
+        // One batched lookup per relationship column for the whole chunk,
+        // instead of one per row. A failure here is left to the rows.
+        try {
+            $importer->warmRelationships($mapped);
+        } catch (Throwable) {
+            // Each row resolves on its own and reports the error.
+        }
+
+        DB::transaction(function () use ($chunk, $mapped, $importer, $perRow, &$imported, &$failed, &$failures, &$rowNumber): void {
+            foreach ($chunk as $index => $row) {
                 $rowNumber++;
-                $data = $this->mapRow($row);
+                $data = $mapped[$index];
 
                 try {
                     $perRow

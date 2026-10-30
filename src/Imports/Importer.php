@@ -12,6 +12,8 @@ use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +24,7 @@ use Illuminate\Validation\Validator;
 use LogicException;
 use ReflectionMethod;
 use RuntimeException;
+use Throwable;
 
 abstract class Importer
 {
@@ -177,6 +180,18 @@ abstract class Importer
      * @var array<int|string, true>
      */
     private array $kept = [];
+
+    /**
+     * One resolver per relationship column, for the whole import.
+     *
+     * @var array<string, RelatedRecordResolver>
+     */
+    private array $relatedResolvers = [];
+
+    /**
+     * @var array<string, BelongsTo<Model, Model>|BelongsToMany<Model, Model>>
+     */
+    private array $relations = [];
 
     /**
      * @var 'soft-delete'|'column'|null|false false = not resolved yet
@@ -815,6 +830,10 @@ abstract class Importer
         $this->rowRecordResolved = false;
         $this->rowRecord         = null;
 
+        foreach ($this->relatedResolvers as $resolver) {
+            $resolver->beginRow();
+        }
+
         try {
             $mapped = array_keys($row);
             $row    = $this->prepareRow($row);
@@ -822,12 +841,136 @@ abstract class Importer
             $this->applyMode($row);
 
             $row = $this->validateRow($row, $mapped);
+            $row = $this->resolveRelationships($row);
 
             $this->importRow($row);
+        } catch (Throwable $e) {
+            foreach ($this->relatedResolvers as $resolver) {
+                $resolver->rollbackRow();
+            }
+
+            throw $e;
         } finally {
             $this->processingRow     = false;
             $this->rowRecordResolved = false;
             $this->rowRecord         = null;
+        }
+    }
+
+    /**
+     * Resolve a chunk's relationship cells in a few batched queries before its
+     * rows run (the queued job calls it) — without it every row looks its
+     * related records up on its own.
+     *
+     * @param array<int, array<string, mixed>> $rows mapped rows
+     */
+    public function warmRelationships(array $rows): void
+    {
+        foreach ($this->columns() as $column) {
+            if (! $column->isRelationship()) {
+                continue;
+            }
+
+            $name  = $column->getName();
+            $cells = [];
+
+            foreach ($rows as $row) {
+                if (! array_key_exists($name, $row)) {
+                    continue;
+                }
+
+                try {
+                    $cells[] = $column->castState($row[$name]);
+                } catch (Throwable) {
+                    // The row reports it when it runs.
+                }
+            }
+
+            if ($cells !== []) {
+                $this->relatedResolver($column)->warm($cells);
+            }
+        }
+    }
+
+    /**
+     * Swap each relationship cell for the related key (keys, for a
+     * multiple() column), after the row validated. castStateUsing() runs on
+     * the cell first, so it can clean up what is looked up.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @throws ValidationException when a cell matches nothing or several records
+     *
+     * @return array<string, mixed>
+     */
+    protected function resolveRelationships(array $row): array
+    {
+        foreach ($this->columns() as $column) {
+            if ($column->isRelationship() && array_key_exists($column->getName(), $row)) {
+                $row[$column->getName()] = $this->relatedResolver($column)->resolve($column->castState($row[$column->getName()]));
+            }
+        }
+
+        return $row;
+    }
+
+    protected function relatedResolver(ImportColumn $column): RelatedRecordResolver
+    {
+        return $this->relatedResolvers[$column->getName()] ??= new RelatedRecordResolver(
+            $this->relation($column)->getRelated(),
+            $column,
+            $this->context,
+        );
+    }
+
+    /**
+     * The owning model's relation a column fills.
+     *
+     * @throws LogicException for anything but a BelongsTo / BelongsToMany
+     *
+     * @return BelongsTo<Model, Model>|BelongsToMany<Model, Model>
+     */
+    protected function relation(ImportColumn $column): BelongsTo|BelongsToMany
+    {
+        return $this->relations[$column->getName()] ??= $this->makeRelation($column);
+    }
+
+    /**
+     * @return BelongsTo<Model, Model>|BelongsToMany<Model, Model>
+     */
+    private function makeRelation(ImportColumn $column): BelongsTo|BelongsToMany
+    {
+        $name  = (string) $column->getRelationship();
+        $owner = new (static::getModel());
+
+        $relation = method_exists($owner, $name) ? $owner->{$name}() : null;
+
+        if (! $relation instanceof BelongsTo && ! $relation instanceof BelongsToMany) {
+            throw new LogicException(static::class." imports the column [{$column->getName()}] into [{$name}], which isn't a BelongsTo or BelongsToMany relation of ".static::getModel().'.');
+        }
+
+        return $relation;
+    }
+
+    /**
+     * Sync the BelongsToMany columns of a row onto its saved record. The
+     * default importRow() calls it after saving; a custom importRow() calls
+     * it the same way.
+     *
+     * @param array<string, mixed> $data
+     */
+    protected function syncRelationships(Model $record, array $data): void
+    {
+        foreach ($this->columns() as $column) {
+            $name = $column->getName();
+
+            if (! $column->isRelationship() || ! array_key_exists($name, $data) || $this->relation($column) instanceof BelongsTo) {
+                continue;
+            }
+
+            if (! $column->fillRecord($record, $data[$name], $data)) {
+                $record->{(string) $column->getRelationship()}()->sync((array) $data[$name]);
+            }
         }
     }
 
@@ -981,6 +1124,17 @@ abstract class Importer
                 continue;
             }
 
+            if ($column->isRelationship()) {
+                $relation = $this->relation($column);
+
+                // A BelongsToMany needs the saved record: syncRelationships().
+                if ($relation instanceof BelongsTo && ! $column->fillRecord($record, $data[$name], $data)) {
+                    $record->setAttribute($relation->getForeignKeyName(), $data[$name]);
+                }
+
+                continue;
+            }
+
             $value = $column->castState($data[$name]);
 
             if (! $column->fillRecord($record, $value, $data)) {
@@ -989,6 +1143,8 @@ abstract class Importer
         }
 
         $record->save();
+
+        $this->syncRelationships($record, $data);
     }
 
     /**
