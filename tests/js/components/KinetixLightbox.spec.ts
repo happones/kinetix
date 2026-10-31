@@ -226,6 +226,78 @@ describe('KinetixLightbox', () => {
         expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false]);
     });
 
+    it('keeps the backdrop and controls hidden while it fades out after flying home', async () => {
+        const origin = document.createElement('img');
+        const rect = (width: number) =>
+            ({
+                x: 0,
+                y: 0,
+                top: 0,
+                left: 0,
+                right: width,
+                bottom: width,
+                width,
+                height: width,
+            }) as DOMRect;
+
+        document.body.append(origin);
+        vi.spyOn(origin, 'getBoundingClientRect').mockReturnValue(rect(40));
+        vi.spyOn(
+            HTMLElement.prototype,
+            'getBoundingClientRect',
+        ).mockReturnValue(rect(400));
+        Object.defineProperty(HTMLElement.prototype, 'animate', {
+            configurable: true,
+            value: () => ({
+                finished: Promise.resolve(),
+                finish: () => undefined,
+                cancel: () => undefined,
+            }),
+        });
+
+        // An exit animation keeps the closed dialog mounted, as in a browser.
+        const computed = window.getComputedStyle;
+        vi.spyOn(window, 'getComputedStyle').mockImplementation(
+            (node, pseudo) => {
+                const style = computed(node, pseudo);
+                const state = (node as Element).getAttribute?.('data-state');
+
+                return state
+                    ? ({
+                          ...style,
+                          animationName: state === 'closed' ? 'exit' : 'enter',
+                      } as CSSStyleDeclaration)
+                    : style;
+            },
+        );
+
+        const wrapper = await open({
+            animation: 'zoom',
+            items: [{ url: '/a.jpg', caption: 'Alpha', origin }],
+            index: 0,
+        });
+
+        document.body
+            .querySelector('img[data-lightbox-media]')
+            ?.dispatchEvent(new Event('load'));
+        await flushPromises();
+
+        await (wrapper.vm as unknown as { close: () => Promise<void> }).close();
+        await flushPromises();
+
+        const overlay =
+            document.body.querySelector<HTMLElement>('.bg-black\\/80');
+
+        expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false]);
+        expect(overlay?.getAttribute('data-state')).toBe('closed');
+        expect(overlay?.style.opacity).toBe('0');
+        expect(
+            viewer()?.querySelector('.transition-opacity:not(.opacity-0)'),
+        ).toBeNull();
+
+        delete (HTMLElement.prototype as { animate?: unknown }).animate;
+    });
+
     it('shows a download card for files it cannot render', async () => {
         await open({
             items: [{ url: '/report.zip', downloadLabel: 'Get the zip' }],
