@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.272.2] - 2026-10-30
+
+### Fixed
+
+- **(published)** `KinetixLightbox`: closing no longer flickers. Once the image
+  had flown back into its thumbnail, the backdrop and the controls came back
+  for the dialog's fade-out; they now stay hidden until it's gone.
+
 ## [0.272.1] - 2026-10-30
 
 ### Fixed

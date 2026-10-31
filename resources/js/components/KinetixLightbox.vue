@@ -510,7 +510,9 @@ watch(
             return;
         }
 
-        closing.value = false;
+        // `closing` stays set until the next opening: the dialog fades out
+        // after this, and clearing it would bring the backdrop and the
+        // controls back for that fade.
         playing.value = false;
     },
     { immediate: true },
