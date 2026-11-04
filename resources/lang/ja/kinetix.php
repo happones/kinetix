@@ -911,14 +911,15 @@ return [
     'search_expired'                => '検索セッションが期限切れです。ページを再読み込みしてください。',
 
     // Reports center, repeater rows and permission guardrails
-    'repeater_row_not_found'              => '行が見つかりません。',
-    'form_session_expired'                => 'フォームのセッションが期限切れです。ページを再読み込みしてください。',
-    'report_invalid'                      => 'レポートが無効です。',
-    'report_run_not_cancellable'          => 'この実行はもうキャンセルできません。',
-    'report_run_not_retryable'            => 'この実行は再試行できません。',
-    'permissions_cannot_grant_unheld'     => '自分が持っていない権限は付与できません: :permissions',
-    'permissions_would_revoke_own_access' => 'この変更により、自分自身のロール管理権限が失われます。',
-    'permissions_role_in_use'             => ':role ロールはこのチームの :count 人のメンバーに割り当てられています。削除する前に再割り当てしてください。',
+    'repeater_row_not_found'                => '行が見つかりません。',
+    'form_session_expired'                  => 'フォームのセッションが期限切れです。ページを再読み込みしてください。',
+    'report_invalid'                        => 'レポートが無効です。',
+    'report_run_not_cancellable'            => 'この実行はもうキャンセルできません。',
+    'report_run_not_retryable'              => 'この実行は再試行できません。',
+    'permissions_cannot_grant_unheld'       => '自分が持っていない権限は付与できません: :permissions',
+    'permissions_platform_super_admin_only' => 'プラットフォームレベルの権限を付与・取り消しできるのはスーパー管理者のみです: :permissions',
+    'permissions_would_revoke_own_access'   => 'この変更により、自分自身のロール管理権限が失われます。',
+    'permissions_role_in_use'               => ':role ロールはこのチームの :count 人のメンバーに割り当てられています。削除する前に再割り当てしてください。',
 
     // Value generator presets (KinetixGenerator's picker).
     'generator_preset'                    => '種類',

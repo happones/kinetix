@@ -65,4 +65,59 @@ class PermissionRegistryTest extends TestCase
 
         $this->assertSame([], $registry->allPermissions());
     }
+
+    public function test_feature_of_names_the_declaring_feature(): void
+    {
+        $registry = new PermissionRegistry;
+        $registry->feature('billing')->ability('manage');
+        $registry->resource(RegistryPostResource::class);
+
+        $this->assertSame('billing', $registry->featureOf('billing.manage'));
+        $this->assertSame('posts', $registry->featureOf('posts.update'));
+        $this->assertNull($registry->featureOf('posts.publish'));
+        $this->assertNull($registry->featureOf('update'));
+    }
+
+    public function test_platform_keys_follow_whole_feature_and_named_marks(): void
+    {
+        $registry = new PermissionRegistry;
+        $registry->feature('users')->ability('impersonate')->ability('export')->platform('impersonate');
+        $registry->feature('tenants')->crud()->platform();
+
+        $this->assertTrue($registry->isPlatform('users.impersonate'));
+        $this->assertFalse($registry->isPlatform('users.export'));
+        $this->assertTrue($registry->isPlatform('tenants.delete'));
+        $this->assertFalse($registry->isPlatform('tenants.publish'));
+    }
+
+    public function test_the_lookup_is_rebuilt_after_a_feature_is_added_post_has(): void
+    {
+        $registry = new PermissionRegistry;
+        $registry->feature('billing')->ability('manage');
+
+        $this->assertTrue($registry->has('billing.manage'));
+        $this->assertFalse($registry->has('users.impersonate'));
+        $this->assertFalse($registry->isPlatform('users.impersonate'));
+
+        $registry->feature('users')->ability('impersonate')->platform('impersonate');
+
+        $this->assertTrue($registry->has('users.impersonate'));
+        $this->assertSame('users', $registry->featureOf('users.impersonate'));
+        $this->assertTrue($registry->isPlatform('users.impersonate'));
+    }
+
+    public function test_flush_lookup_picks_up_a_platform_mark_on_a_held_feature(): void
+    {
+        $registry = new PermissionRegistry;
+        $feature  = $registry->feature('users')->ability('impersonate');
+
+        $this->assertFalse($registry->isPlatform('users.impersonate'));
+
+        // A feature object held past the first lookup changes behind the
+        // registry's back; flushLookup() is the documented way to resync.
+        $feature->platform('impersonate');
+        $registry->flushLookup();
+
+        $this->assertTrue($registry->isPlatform('users.impersonate'));
+    }
 }

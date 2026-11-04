@@ -129,6 +129,10 @@ fails silently:
    (`permissions.protected_roles`, `super-admin` by default) belong to the team
    owner and are stripped from the allow-list whatever it says — provisioning or
    changing a member to them is a 422. Don't work around it.
+8. **Expecting an owner to hand out a platform role.** A role holding a
+   platform-level ability (`users.impersonate`) is assignable only by a
+   super-admin: for anyone else (owners included) it is dropped from the picker
+   and the provision / role-change endpoints answer 422.
 
 ## Configuration
 

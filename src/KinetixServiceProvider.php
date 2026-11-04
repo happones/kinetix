@@ -905,16 +905,20 @@ class KinetixServiceProvider extends ServiceProvider
 
         // "The team owner can do everything" — opt-in, because ownership lives
         // in the host's team schema rather than in a role (see TeamOwner). The
-        // `kinetix_permissions` Inertia prop picks these dynamic grants up
-        // automatically, so the SPA stays in sync with the server.
+        // `kinetix_permissions` Inertia prop applies the same scope predicate,
+        // so the SPA stays in sync with the server.
         //
         // Scoped to the REGISTERED permission keys on purpose: a blanket
         // `return true` would also short-circuit model policies, letting the
         // owner of one team pass `update`/`delete` checks on another team's
-        // records. Policies keep running; only the feature abilities are granted.
+        // records. Policies keep running; only the feature abilities in the
+        // configured `only`/`except` scope are granted, and never a platform
+        // ability (`users.impersonate`), which crosses the tenant boundary.
+        // The scope is checked first, so a policy or unregistered ability never
+        // triggers team resolution.
         if (TeamOwner::enabled()) {
-            Gate::before(function ($user, string $ability): ?bool {
-                if (! app(PermissionRegistry::class)->has($ability)) {
+            Gate::before(static function ($user, string $ability): ?bool {
+                if (! TeamOwner::grants($ability)) {
                     return null;
                 }
 
@@ -1274,9 +1278,12 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
+        // Platform-level: impersonation resolves its target by global id, so a
+        // team owner must never get it from the owner bypass.
         app(PermissionRegistry::class)->feature('users')
             ->label('kinetix.permission_feature_users')
-            ->ability('impersonate', 'kinetix.permission_ability_impersonate');
+            ->ability('impersonate', 'kinetix.permission_ability_impersonate')
+            ->platform('impersonate');
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
         $middleware = config('kinetix.middleware', ['web', 'auth']);
@@ -3032,10 +3039,12 @@ class KinetixServiceProvider extends ServiceProvider
      *
      * Modes (`kinetix.permissions.dynamic_grants`):
      *
-     *  - `auto` (default) — the owner bypass answered ONCE (it grants every
-     *    registered ability or none, so one verdict settles the whole catalog),
-     *    plus any ability the app explicitly defined on the Gate. This covers
-     *    every dynamic grant Kinetix itself documents, in O(1).
+     *  - `auto` (default) — the owner bypass answered ONCE (one ownership
+     *    verdict, then {@see TeamOwner::filter()} picks the abilities in its
+     *    scope with no Gate call), plus any ability the app explicitly defined
+     *    on the Gate — which is how an ability the scope excludes, or a
+     *    platform ability, can still reach the SPA. This covers every dynamic
+     *    grant Kinetix itself documents, scoped bypass included.
      *  - `sweep` — additionally ask the Gate about every registered ability.
      *    Needed only when the app registers its OWN `Gate::before` over
      *    registry keys — which the permissions docs advise against, because a
@@ -3060,28 +3069,36 @@ class KinetixServiceProvider extends ServiceProvider
             return [];
         }
 
-        // The documented dynamic grant: the owner bypass is scoped to registry
-        // keys, so its verdict is the same for all of them. One check, not N.
+        // The documented dynamic grant: one ownership verdict, then the same
+        // scope predicate the owner Gate::before applies. Abilities outside the
+        // scope fall through to the regular discovery below.
+        $owned = [];
+
         if (TeamOwner::enabled() && TeamOwner::check($user)) {
-            return $candidates;
+            $owned      = TeamOwner::filter($candidates);
+            $candidates = array_values(array_diff($candidates, $owned));
+
+            if ($candidates === []) {
+                return $owned;
+            }
         }
 
         $gate = Gate::forUser($user);
 
         if ($mode === 'sweep') {
-            return array_values(array_filter(
+            return [...$owned, ...array_values(array_filter(
                 $candidates,
                 static fn (string $ability): bool => $gate->allows($ability),
-            ));
+            ))];
         }
 
         // `auto`: only abilities the app actually defined can still differ from
         // the stored set — `Gate::has()` is an array lookup, so the expensive
         // `allows()` runs for a handful of keys instead of the whole catalog.
-        return array_values(array_filter(
+        return [...$owned, ...array_values(array_filter(
             $candidates,
             static fn (string $ability): bool => Gate::has($ability) && $gate->allows($ability),
-        ));
+        ))];
     }
 
     /**

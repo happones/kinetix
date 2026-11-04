@@ -976,14 +976,15 @@ return [
     'search_expired'                => 'La sesión de búsqueda expiró. Recarga la página.',
 
     // Reports center, repeater rows and permission guardrails
-    'repeater_row_not_found'              => 'Fila no encontrada.',
-    'form_session_expired'                => 'La sesión del formulario expiró. Recarga la página.',
-    'report_invalid'                      => 'Informe no válido.',
-    'report_run_not_cancellable'          => 'Esta ejecución ya no se puede cancelar.',
-    'report_run_not_retryable'            => 'Esta ejecución no se puede reintentar.',
-    'permissions_cannot_grant_unheld'     => 'No puedes otorgar permisos que no posees: :permissions',
-    'permissions_would_revoke_own_access' => 'Este cambio revocaría tu propio acceso a la gestión de roles.',
-    'permissions_role_in_use'             => 'El rol :role sigue asignado a :count miembro(s) de este equipo. Reasígnalos antes de eliminarlo.',
+    'repeater_row_not_found'                => 'Fila no encontrada.',
+    'form_session_expired'                  => 'La sesión del formulario expiró. Recarga la página.',
+    'report_invalid'                        => 'Informe no válido.',
+    'report_run_not_cancellable'            => 'Esta ejecución ya no se puede cancelar.',
+    'report_run_not_retryable'              => 'Esta ejecución no se puede reintentar.',
+    'permissions_cannot_grant_unheld'       => 'No puedes otorgar permisos que no posees: :permissions',
+    'permissions_platform_super_admin_only' => 'Solo un superadministrador puede otorgar o revocar permisos de nivel de plataforma: :permissions',
+    'permissions_would_revoke_own_access'   => 'Este cambio revocaría tu propio acceso a la gestión de roles.',
+    'permissions_role_in_use'               => 'El rol :role sigue asignado a :count miembro(s) de este equipo. Reasígnalos antes de eliminarlo.',
 
     // Value generator presets (KinetixGenerator's picker).
     'generator_preset'                    => 'Tipo',

@@ -65,4 +65,40 @@ class PermissionFeatureTest extends TestCase
     {
         $this->assertNull(PermissionFeatureData::fromFeature((new Feature('posts'))->crud())->group);
     }
+
+    public function test_no_ability_is_platform_level_by_default(): void
+    {
+        $feature = (new Feature('posts'))->crud();
+
+        $this->assertFalse($feature->isPlatform('update'));
+    }
+
+    public function test_named_platform_marks_cover_only_those_abilities(): void
+    {
+        $feature = (new Feature('users'))->ability('impersonate')->ability('export')->platform('impersonate');
+
+        $this->assertTrue($feature->isPlatform('impersonate'));
+        $this->assertFalse($feature->isPlatform('export'));
+    }
+
+    public function test_a_named_mark_may_precede_the_ability(): void
+    {
+        $feature = (new Feature('users'))->platform('impersonate');
+
+        // Not declared yet: nothing to be platform-level about.
+        $this->assertFalse($feature->isPlatform('impersonate'));
+
+        $feature->ability('impersonate');
+
+        $this->assertTrue($feature->isPlatform('impersonate'));
+    }
+
+    public function test_a_whole_feature_mark_covers_abilities_declared_later(): void
+    {
+        $feature = (new Feature('tenants'))->ability('switch')->platform()->crud();
+
+        $this->assertTrue($feature->isPlatform('switch'));
+        $this->assertTrue($feature->isPlatform('delete'));
+        $this->assertFalse($feature->isPlatform('undeclared'));
+    }
 }

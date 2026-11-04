@@ -12,6 +12,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Orchestra\Testbench\Attributes\DefineEnvironment;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
@@ -221,6 +222,128 @@ class PermissionManagementTest extends TestCase
         $this->actingAs($owner)
             ->putJson("/_kinetix/permissions/roles/{$role->id}", ['permissions' => ['posts.view']])
             ->assertOk();
+    }
+
+    /**
+     * The real owner bypass (its Gate::before registers at boot) plus the
+     * platform-level `users.impersonate`.
+     *
+     * @param Application $app
+     */
+    protected function withOwnerBypass($app): void
+    {
+        $app['config']->set('kinetix.permissions.owner_bypass', ['using' => [OwnerBypassStub::class, 'check']]);
+        $app['config']->set('kinetix.impersonation.enabled', true);
+    }
+
+    #[DefineEnvironment('withOwnerBypass')]
+    public function test_an_owner_cannot_grant_a_platform_ability_through_a_role(): void
+    {
+        // The bypass hands the owner `roles.manage`, but never the platform
+        // `users.impersonate` — so the anti-escalation guard (which asks the
+        // Gate) refuses to let them put it in a role, on create and on update.
+        $owner = PermUser::create(['name' => 'Owner']);
+
+        $this->actingAs($owner)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'support',
+                'permissions' => ['posts.view', 'users.impersonate'],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('roles', ['name' => 'support']);
+
+        $role = Role::findOrCreate('readers', 'web');
+        $role->syncPermissions(['posts.view']);
+
+        $this->actingAs($owner)
+            ->putJson("/_kinetix/permissions/roles/{$role->id}", ['permissions' => ['posts.view', 'users.impersonate']])
+            ->assertForbidden();
+
+        $this->assertSame(['posts.view'], $role->fresh()?->permissions->pluck('name')->all());
+    }
+
+    #[DefineEnvironment('withOwnerBypass')]
+    public function test_holding_a_platform_ability_is_not_enough_to_grant_or_revoke_it(): void
+    {
+        // A full role-admin who holds `users.impersonate` as a stored row: the
+        // Gate says they hold it, but a platform ability is super-admin-only.
+        $manager = $this->actingAsManager();
+        $this->assertTrue(Gate::forUser($manager)->allows('users.impersonate'));
+
+        $this->actingAs($manager)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'support',
+                'permissions' => ['posts.view', 'users.impersonate'],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('roles', ['name' => 'support']);
+
+        $role = Role::findOrCreate('support', 'web');
+        $role->syncPermissions(['posts.view', 'users.impersonate']);
+
+        // Revoking is a platform decision too…
+        $this->actingAs($manager)
+            ->putJson("/_kinetix/permissions/roles/{$role->id}", ['permissions' => ['posts.view']])
+            ->assertForbidden();
+
+        $this->assertEqualsCanonicalizing(['posts.view', 'users.impersonate'], $role->fresh()?->permissions->pluck('name')->all());
+
+        // …while the rest of the role stays theirs to edit.
+        $this->actingAs($manager)
+            ->putJson("/_kinetix/permissions/roles/{$role->id}", ['permissions' => ['posts.view', 'posts.update', 'users.impersonate']])
+            ->assertOk();
+    }
+
+    #[DefineEnvironment('withOwnerBypass')]
+    public function test_a_super_admin_may_grant_and_revoke_a_platform_ability(): void
+    {
+        $root = PermUser::create(['name' => 'Root']);
+        $root->assignRole(Role::findOrCreate('super-admin', 'web'));
+
+        $this->actingAs($root)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'support',
+                'permissions' => ['users.impersonate'],
+            ])
+            ->assertCreated();
+
+        $role = Role::where('name', 'support')->firstOrFail();
+
+        $this->actingAs($root)
+            ->putJson("/_kinetix/permissions/roles/{$role->id}", ['permissions' => []])
+            ->assertOk();
+
+        $this->assertSame([], $role->fresh()?->permissions->pluck('name')->all());
+    }
+
+    #[DefineEnvironment('withOwnerBypass')]
+    public function test_an_owner_cannot_grant_an_ability_the_scope_excludes(): void
+    {
+        config()->set('kinetix.permissions.owner_bypass', [
+            'using'  => [OwnerBypassStub::class, 'check'],
+            'except' => ['posts.delete'],
+        ]);
+
+        $owner = PermUser::create(['name' => 'Owner']);
+
+        $this->actingAs($owner)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'cleaners',
+                'permissions' => ['posts.view', 'posts.delete'],
+            ])
+            ->assertForbidden();
+
+        // What the scope does grant is still grantable.
+        $this->actingAs($owner)
+            ->postJson('/_kinetix/permissions/roles', [
+                'name'        => 'readers',
+                'permissions' => ['posts.view', 'posts.update'],
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseMissing('roles', ['name' => 'cleaners']);
     }
 
     /**

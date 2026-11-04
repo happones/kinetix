@@ -59,14 +59,23 @@ class PermissionRegistry
     protected array $scannedPaths = [];
 
     /**
-     * `array_flip()` of `allPermissions()`, for O(1) `has()` lookups on the hot
-     * path (the owner bypass runs it on every Gate check). Invalidated whenever
-     * a feature is touched — `feature()` is the entry point for every
-     * declaration, including abilities added to an existing feature.
+     * Every registered permission key => the name of the feature declaring
+     * it, for O(1) `has()` / `featureOf()` lookups on the hot path (the owner
+     * bypass runs them on every Gate check). Invalidated whenever a feature is
+     * touched — `feature()` is the entry point for every declaration,
+     * including abilities added to an existing feature.
      *
-     * @var array<string, int>|null
+     * @var array<string, string>|null
      */
     protected ?array $permissionLookup = null;
+
+    /**
+     * The platform-level permission keys ({@see Feature::platform()}), built in
+     * the same pass as {@see $permissionLookup} and invalidated with it.
+     *
+     * @var array<string, true>
+     */
+    protected array $platformLookup = [];
 
     /**
      * Declare (or fetch) a feature by name.
@@ -159,9 +168,40 @@ class PermissionRegistry
      */
     public function has(string $ability): bool
     {
-        $this->permissionLookup ??= array_flip($this->allPermissions());
+        return isset($this->lookup()[$ability]);
+    }
 
-        return isset($this->permissionLookup[$ability]);
+    /**
+     * The name of the feature that declares a registered permission key
+     * (`'users'` for `'users.impersonate'`), or null for a key nobody
+     * registered.
+     */
+    public function featureOf(string $ability): ?string
+    {
+        return $this->lookup()[$ability] ?? null;
+    }
+
+    /**
+     * Whether a registered permission key is platform-level — see
+     * {@see Feature::platform()}. An unregistered key never is.
+     */
+    public function isPlatform(string $ability): bool
+    {
+        $this->lookup();
+
+        return isset($this->platformLookup[$ability]);
+    }
+
+    /**
+     * Every platform-level permission key ({@see Feature::platform()}).
+     *
+     * @return array<int, string>
+     */
+    public function platformPermissions(): array
+    {
+        $this->lookup();
+
+        return array_keys($this->platformLookup);
     }
 
     /**
@@ -173,6 +213,37 @@ class PermissionRegistry
         $this->permissionLookup = null;
 
         return $this;
+    }
+
+    /**
+     * Build (once) the key => feature map and the platform set.
+     *
+     * @return array<string, string>
+     */
+    protected function lookup(): array
+    {
+        if ($this->permissionLookup !== null) {
+            return $this->permissionLookup;
+        }
+
+        $lookup   = [];
+        $platform = [];
+
+        foreach ($this->features() as $feature) {
+            $prefix = strlen($feature->name) + 1;
+
+            foreach ($feature->permissionKeys() as $key) {
+                $lookup[$key] ??= $feature->name;
+
+                if ($feature->isPlatform(substr($key, $prefix))) {
+                    $platform[$key] = true;
+                }
+            }
+        }
+
+        $this->platformLookup = $platform;
+
+        return $this->permissionLookup = $lookup;
     }
 
     protected function resolveResources(): void

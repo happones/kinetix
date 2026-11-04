@@ -1002,14 +1002,15 @@ return [
     'search_expired'                => 'This search session expired. Please reload the page.',
 
     // Reports center, repeater rows and permission guardrails
-    'repeater_row_not_found'              => 'Row not found.',
-    'form_session_expired'                => 'This form session expired. Please reload the page.',
-    'report_invalid'                      => 'Invalid report.',
-    'report_run_not_cancellable'          => 'This run can no longer be cancelled.',
-    'report_run_not_retryable'            => 'This run cannot be retried.',
-    'permissions_cannot_grant_unheld'     => 'You cannot grant permissions you do not hold: :permissions',
-    'permissions_would_revoke_own_access' => 'This change would revoke your own role-management access.',
-    'permissions_role_in_use'             => 'The :role role is still assigned to :count member(s) in this team. Reassign them before deleting it.',
+    'repeater_row_not_found'                => 'Row not found.',
+    'form_session_expired'                  => 'This form session expired. Please reload the page.',
+    'report_invalid'                        => 'Invalid report.',
+    'report_run_not_cancellable'            => 'This run can no longer be cancelled.',
+    'report_run_not_retryable'              => 'This run cannot be retried.',
+    'permissions_cannot_grant_unheld'       => 'You cannot grant permissions you do not hold: :permissions',
+    'permissions_platform_super_admin_only' => 'Only a super-admin can grant or revoke platform-level permissions: :permissions',
+    'permissions_would_revoke_own_access'   => 'This change would revoke your own role-management access.',
+    'permissions_role_in_use'               => 'The :role role is still assigned to :count member(s) in this team. Reassign them before deleting it.',
 
     // Value generator presets (KinetixGenerator's picker).
     'generator_preset'                    => 'Preset',

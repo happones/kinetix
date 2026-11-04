@@ -52,6 +52,32 @@ class AssignableRoles
     }
 
     /**
+     * The roles visible in the team that carry a platform-level permission
+     * ({@see Feature::platform()}, e.g. `users.impersonate`), in ONE query.
+     * Handing one out crosses the tenant boundary, so only a super-admin may
+     * assign them; membership removes these names for everyone else.
+     *
+     * @return array<int, string>
+     */
+    public static function platformRoleNames(int|string|null $teamId = null): array
+    {
+        $platform = app(PermissionRegistry::class)->platformPermissions();
+
+        if ($platform === []) {
+            return [];
+        }
+
+        return static::query($teamId)
+            ->whereHas('permissions', static function (Builder $permissions) use ($platform): void {
+                $permissions->whereIn($permissions->getModel()->qualifyColumn('name'), $platform);
+            })
+            ->pluck('name')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * The visibility scope itself (guard + team-or-global), for hosts that
      * want to build their own allow-list on top of it.
      *

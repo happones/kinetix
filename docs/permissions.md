@@ -80,9 +80,13 @@ Enable permissions in your `config/kinetix.php` file:
     // the role-management UI. Defaults to [super_admin_role].
     'protected_roles'  => null,
 
-    // Grant a team's OWNER every ability (see §3). true | [Class, 'method'] |
-    // invokable class-string | null (off)
-    'owner_bypass'     => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
+    // Grant a team's OWNER the registered abilities (see §3).
+    'owner_bypass'     => [
+        // true | [Class, 'method'] | invokable class-string | null (off)
+        'using'  => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
+        'only'   => null,   // null = every registered ability, or patterns
+        'except' => [],     // patterns removed from the grant
+    ],
 
     // The guard permissions are registered under
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
@@ -205,6 +209,30 @@ class KinetixServiceProvider extends ServiceProvider
     }
 }
 ```
+
+#### Platform-level abilities (`->platform()`)
+
+Some abilities are not about *a team* at all — they act on the whole platform.
+`users.impersonate` is the built-in one: it resolves its target by global id, so
+whoever holds it can log in as a user of **any** tenant. Mark such abilities as
+platform-level and the [team-owner bypass](#team-owners) will never grant them,
+whatever its `only` list says:
+
+```php
+KinetixPermissions::feature('tenants')
+    ->abilities(['switch', 'suspend', 'view'])
+    ->platform('switch', 'suspend');   // named abilities
+
+KinetixPermissions::feature('system')
+    ->ability('maintenance')
+    ->platform();                      // the whole feature, incl. abilities added later
+```
+
+A platform mark only takes the ability out of the owner bypass. A stored
+permission row, an explicit `Gate::define()` and the super-admin bypass still
+grant it as usual. `KinetixPermissions::registry()->isPlatform('users.impersonate')`
+and `KinetixPermissions::registry()->featureOf('users.impersonate')` (`'users'`)
+answer in O(1).
 
 ### C. Mapping real-world permission shapes
 
@@ -342,8 +370,8 @@ modals, and any relation manager over the model — no separate permissions
 exist anywhere.
 
 > **`owner_bypass` and policies.** With `owner_bypass` on, the team owner
-> passes `$user->can('{feature}.{ability}')` for every REGISTERED ability
-> (Kinetix's `Gate::before` is scoped to registry keys on purpose) — **but
+> passes `$user->can('{feature}.{ability}')` for the REGISTERED abilities in
+> its scope (Kinetix's `Gate::before` is scoped to registry keys on purpose) — **but
 > model policies still run**, so the bypass can never cross the tenancy
 > boundary into another team's records. Keep the explicit
 > `$user->ownsTeam(...)` clause anyway: it keeps the policy correct when the
@@ -475,8 +503,14 @@ one config line:
 
 ```php
 // config/kinetix.php → permissions
-'owner_bypass' => true,   // uses the host's $user->ownsTeam($team)
+'owner_bypass' => [
+    'using' => true,   // uses the host's $user->ownsTeam($team)
+],
 ```
+
+(`KINETIX_PERMISSIONS_OWNER_BYPASS=true` in `.env` does the same with the
+shipped config. The older bare form, `'owner_bypass' => true` or a callable,
+keeps working and means "unscoped".)
 
 With `true`, Kinetix resolves the team the request is scoped to (the
 `{current_team}` segment via `SetPermissionsTeam`, falling back to the user's
@@ -486,8 +520,8 @@ and the resolved team — as a **callable array** or an invokable class-string, 
 a closure:
 
 ```php
-'owner_bypass' => [\App\Kinetix\OwnerBypass::class, 'check'],   // check($user, $team): bool
-'owner_bypass' => \App\Kinetix\OwnerBypass::class,              // __invoke($user, $team): bool
+'owner_bypass' => ['using' => [\App\Kinetix\OwnerBypass::class, 'check']],   // check($user, $team): bool
+'owner_bypass' => ['using' => \App\Kinetix\OwnerBypass::class],              // __invoke($user, $team): bool
 ```
 
 ::: danger A closure here makes the app undeployable
@@ -495,7 +529,7 @@ A `Closure` in a config file breaks `php artisan config:cache`:
 
 ```
 Your configuration files could not be serialized because the value at
-"kinetix.permissions.owner_bypass" is non-serializable.
+"kinetix.permissions.owner_bypass.using" is non-serializable.
 ```
 
 Both serializable forms above are resolved through the container (an instance
@@ -508,6 +542,152 @@ The verdict is memoized per user × team (`Gate::before` fires on *every* check)
 and it is picked up by the frontend automatically: the `kinetix_permissions`
 prop includes registered abilities the Gate grants dynamically, so an owner's UI
 matches what the server authorizes without them holding a single permission row.
+
+#### Scoping the bypass (`only` / `except`)
+
+"The owner can do everything" usually has exceptions — billing settings that
+only staff touch, a user directory owners should not manage. Scope the bypass
+instead of writing your own `Gate::before`:
+
+```php
+'owner_bypass' => [
+    'using'  => true,
+    'only'   => null,                    // null = every registered ability
+    'except' => ['users', 'settings'],   // …minus these
+],
+```
+
+Patterns follow the registry's structure — they are not globs:
+
+| Pattern | Matches |
+| --- | --- |
+| `'settings'` | every ability of the `settings` feature |
+| `'settings.*'` | the same |
+| `'users.impersonate'` | exactly that key |
+| `'*'`, `'u*'`, `'posts.*.view'` | nothing |
+
+The owner is granted `(only ?? every registered ability) − except − platform
+abilities − unregistered keys`, so `except` wins over `only`, a pattern naming
+an unregistered ability grants nothing, and `only: []` grants nothing. The
+server `Gate::before` and the `kinetix_permissions` prop apply this same
+predicate (`TeamOwner::grants()` / `TeamOwner::filter()`), so the SPA's can()
+map matches what the server authorizes — no host `Gate::before`, prop override
+or patched file needed. `kinetix:doctor` states how many abilities the bypass
+grants and **warns about every pattern that matches no registered feature or
+key**: a typo in `except` would otherwise leave that ability granted to every
+owner.
+
+An ability outside the scope is not denied — it simply falls through to the
+normal checks. A stored permission row or an explicit `Gate::define()` still
+grants it, and the prop still shares it.
+
+::: warning App-wide modules belong in `except`
+The bypass grants *abilities*; it knows nothing about whose data a module
+holds. A module running with `kinetix.{module}.teams = false` — Settings,
+Activity, Webhooks, Channels / Conversations / Flows — keeps **app-wide** data,
+and so do roles when `permissions.teams` is off. An owner granted those
+abilities through the bypass acts on every tenant's rows, not just their own.
+List their features in `except` unless the module is team-scoped in your app.
+The feature names are `settings`, `activity`, `webhooks`, `channels`,
+`conversations`, `flows` and `roles`:
+
+```php
+'except' => ['settings', 'activity', 'webhooks', 'channels', 'conversations', 'flows', 'roles'],
+```
+:::
+
+#### Platform abilities and the impersonation recipe
+
+[Platform-level abilities](#platform-level-abilities-platform) are never part of
+the grant, even when `only` names them. Out of the box that is
+`users.impersonate`, so with `owner_bypass` on a team owner can **not** start an
+impersonation. If owners should be able to log in as members of *their own*
+team, grant it explicitly and keep the target inside the team:
+
+```php
+// App\Providers\KinetixServiceProvider::boot()
+Gate::define('users.impersonate', [\App\Kinetix\OwnerImpersonation::class, 'allows']);
+
+// config/kinetix.php → impersonation
+'can_impersonate' => [\App\Kinetix\OwnerImpersonation::class, 'sameTeam'],
+```
+
+```php
+namespace App\Kinetix;
+
+use Happones\Kinetix\Impersonation\ImpersonationManager;
+use Happones\Kinetix\Permissions\SuperAdmin;
+use Happones\Kinetix\Permissions\TeamOwner;
+use Happones\Kinetix\Support\KinetixTeams;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
+
+class OwnerImpersonation
+{
+    /**
+     * `Gate::define('users.impersonate', …)`: owners of the team in the URL.
+     */
+    public function allows(Authenticatable $user): bool
+    {
+        return TeamOwner::check($user);
+    }
+
+    /**
+     * `impersonation.can_impersonate`. It REPLACES the built-in guards, so it
+     * runs them first and only ever narrows their verdict. Only a super-admin
+     * crosses teams.
+     */
+    public static function sameTeam(Authenticatable $impersonator, Authenticatable $target): bool
+    {
+        // No super-admin target unless you are one; no target holding a
+        // protected permission (`roles.manage`) you don't hold.
+        if (! app(ImpersonationManager::class)->passesBuiltInGuards($impersonator, $target)) {
+            return false;
+        }
+
+        // A super-admin is the only impersonator who crosses teams.
+        if (SuperAdmin::check($impersonator)) {
+            return true;
+        }
+
+        // Everyone else (an owner, or a stored permission or role, which is
+        // itself team-scoped) stays inside the team in the URL.
+        $team = KinetixTeams::currentTeamKey();
+
+        return $team !== null && $target instanceof Model && KinetixTeams::userBelongsTo($target, $team);
+    }
+}
+```
+
+Why each step is there:
+
+- **`can_impersonate` replaces every built-in check.** Without the
+  `passesBuiltInGuards()` call, an owner whose team includes platform staff
+  could log in as a super-admin, or as someone holding `roles.manage` and so
+  launder impersonation into role management. Any `can_impersonate` callback
+  you write must keep that verdict (call `passesBuiltInGuards()` first, as
+  here) or re-implement both the super-admin and the protected-permission rule.
+  `passesBuiltInGuards()` also counts a platform-wide (teamless) super-admin
+  assignment.
+- **Only a super-admin crosses teams.** Every other impersonator — an owner,
+  or someone holding `users.impersonate` through a stored permission or a
+  role — stays inside the team in the URL. Under team scoping a stored
+  permission or role is itself team-scoped, so it can't be read as "platform
+  staff": exempting it would let an owner who can manage roles hand the
+  ability to a second account and reach other tenants through it. (Kinetix
+  also refuses to let anyone but a super-admin add `users.impersonate` to a
+  role — see [Guardrails](#guardrails-against-privilege-escalation) — but the
+  recipe must not depend on that.) Platform staff who need to reach every
+  tenant are super-admins.
+- **The team is the one in the URL**, resolved by `KinetixTeams::currentTeamKey()`
+  (the `{current_team}` segment, membership-checked), never
+  `$impersonator->currentTeam`, which can point at a different team than the
+  request.
+
+The owner `Gate::before` returns `null` for platform keys, so your
+`Gate::define` decides; the default `auto` dynamic-grants mode shares
+`Gate::define` abilities with the SPA, so the impersonate button shows up too.
+This exact class is the fixture of `tests/Feature/ImpersonationTest.php`.
 
 ::: warning A naive owner `Gate::before` is a cross-tenant hole
 This is the trap to know about if you write the bypass yourself:
@@ -523,13 +703,16 @@ owner of team A can edit team B's records — the tenancy boundary is gone.
 
 Kinetix's `owner_bypass` only grants abilities **registered in the
 `PermissionRegistry`** (`posts.update`, `reports.access`, …). Policy abilities
-(`update`, `delete` with a record) fall through and your policy still decides. If
-you roll your own, scope it the same way:
+(`update`, `delete` with a record) fall through and your policy still decides.
+Need exceptions? Use `only` / `except` above rather than a hand-written
+`Gate::before`: Kinetix can't see inside one, so the SPA needs the costly
+`sweep` mode to stay in sync (§7). If you roll your own anyway, scope it the
+same way:
 
 ```php
 Gate::before(function ($user, string $ability) {
-    if (! app(\Happones\Kinetix\Permissions\PermissionRegistry::class)->has($ability)) {
-        return null;   // let policies run
+    if (! \Happones\Kinetix\Permissions\TeamOwner::grants($ability)) {
+        return null;   // let policies, unregistered and platform abilities run
     }
 
     return $user->ownsTeam(currentTeam()) ? true : null;
@@ -546,7 +729,9 @@ is the whole contract, and every cell is pinned by a test
 
 | | Super admin | Team owner (`owner_bypass`) |
 | --- | --- | --- |
-| Registered ability (`posts.update`) | ✅ granted | ✅ granted |
+| Registered ability (`posts.update`) | ✅ granted | ✅ granted (within `only` / `except`) |
+| Registered ability outside `only` / in `except` | ✅ granted | ❌ untouched — stored rows / `Gate::define` decide |
+| **Platform** ability (`users.impersonate`) | ✅ granted | ❌ never, even if `only` names it |
 | Ability **outside** the Kinetix registry | ✅ granted | ❌ untouched |
 | **Model policy** (`update` with a record) | ✅ **short-circuited** | ❌ policy still runs |
 | Crosses the tenancy boundary | ✅ yes, by design | ❌ never |
@@ -838,7 +1023,8 @@ createInertiaApp({
 ```
 
 > Prefer `<KinetixCan>` when you need a fallback slot or role checks; `v-can` is a
-> minimal `display` toggle.
+> minimal `display` toggle. Like `useKinetixCan`, it honors the prop's
+> `isSuperAdmin` flag, so a super-admin sees every `v-can` element.
 
 ---
 
@@ -959,19 +1145,28 @@ your own (`php artisan kinetix:routes` prints the resolved URIs):
 #### Guardrails against privilege escalation
 
 `roles.manage` lets a user administer roles, but the endpoints stop a manager
-from escalating past their own level (all three checks are **bypassed for a
+from escalating past their own level (these checks are **bypassed for a
 super-admin**):
 
 - **Allowlist** — submitted permission keys are validated against the registry
   (`allPermissions()`), so an unknown or arbitrary key is rejected (`422`) before
   it can reach `syncPermissions()`.
+- **Platform abilities are super-admin only** — a
+  [platform-level](#platform-level-abilities-platform) ability
+  (`users.impersonate`) can be added to or removed from a role only by a
+  super-admin (`403` otherwise), whatever the Gate says: holding it inside one
+  team — through a stored row, or a `Gate::define` granting it to owners —
+  does not let a manager hand it to someone else.
+- **Roles holding a platform ability are assignable only by a super-admin** —
+  the [member picker](membership.md#dynamic-allow-list) leaves them out and the
+  members endpoints answer `422` for anyone else, owners included.
 - **Grant only what you hold — in both directions** — a manager can only
   **add or remove** permissions they themselves have; touching one they lack is
   refused (`403`). The guard evaluates the *delta* against the role's current
   permissions, so a limited manager can neither escalate a role nor strip a
   more privileged role's abilities (a rename with no permission changes stays
-  allowed). The seeded `admin` role (all permissions) and any super-admin can
-  manage anything.
+  allowed). The seeded `admin` role (all permissions) can manage everything
+  but platform abilities; a super-admin can manage anything.
 - **Protected roles & self-lockout** — the roles in `permissions.protected_roles`
   (default: just the super-admin role) can't be created, renamed to, edited or
   deleted here; and any edit/delete that would revoke the actor's **own**
@@ -991,7 +1186,7 @@ super-admin**):
 Previously any `roles.manage` holder could grant **any** registered permission.
 The "grant only what you hold" guard now restricts that. Give your role
 administrators the seeded `admin` role (or super-admin) so they can manage the
-full catalog.
+full catalog; platform-level abilities always need a super-admin.
 :::
 
 Need a custom flow? Compose `KinetixPermissionMatrix` (the feature-grouped grid,
@@ -1003,7 +1198,10 @@ Need a custom flow? Compose `KinetixPermissionMatrix` (the feature-grouped grid,
 
 `KinetixRolesSeeder` layers a classic RBAC preset on top of the registry —
 `super-admin` (bypasses every gate), `admin` (all permissions), `editor`
-(everything except `delete`/`forceDelete`) and `viewer` (read-only):
+(everything except `delete`/`forceDelete`) and `viewer` (read-only). No preset
+carries a [platform-level ability](#platform-level-abilities-platform)
+(`users.impersonate`): the presets are global roles handed out per team, so a
+super-admin grants those to platform staff deliberately.
 
 ```bash
 php artisan kinetix:permissions:sync   # materialize permissions first
@@ -1072,18 +1270,20 @@ What to get right for that to hold at scale:
 
   | Mode | Discovers | Cost on a 280-key catalog |
   | --- | --- | --- |
-  | `auto` *(default)* | the owner bypass (one verdict — it grants every registered ability or none) + abilities defined with `Gate::define()` | ~0.4ms |
+  | `auto` *(default)* | the owner bypass (one ownership verdict, then its `only` / `except` scope applied without a Gate call) + abilities defined with `Gate::define()` | ~0.4ms |
   | `sweep` | additionally every ability, by asking the Gate | ~41ms |
   | `off` | stored rows only | ~0.2ms |
 
-  `auto` covers every dynamic grant documented on this page. Choose `sweep`
-  only if your app registers its **own** `Gate::before` over registry keys —
-  which §3 advises against anyway, since a hand-written blanket bypass also
-  short-circuits model policies. The failure mode of guessing wrong is safe
+  `auto` covers every dynamic grant documented on this page, a scoped owner
+  bypass included, at the same cost as an unscoped one. Choose `sweep` only if
+  your app registers its **own** `Gate::before` over registry keys — which §3
+  advises against anyway, since a hand-written blanket bypass also
+  short-circuits model policies, and `only` / `except` cover the usual reason
+  to write one. The failure mode of guessing wrong is safe
   (the UI hides something the server would allow, never the reverse).
 
-  Super-admins skip all of this: they hold the *role*, and `useKinetixCan`
-  short-circuits on the `isSuperAdmin` flag.
+  Super-admins skip all of this: they hold the *role*, and `useKinetixCan` /
+  `v-can` short-circuit on the `isSuperAdmin` flag.
 - **Octane / long-running workers.** The super-admin and owner checks memoize
   per user object via a `WeakMap`, so they never leak across requests; if a
   worker mutates a user's role or ownership mid-process, call

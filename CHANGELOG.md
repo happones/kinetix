@@ -13,6 +13,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.273.0] - 2026-11-04
+
+### Added
+
+- **Scoped owner bypass.** `permissions.owner_bypass` takes a structured form
+  — `['using' => true, 'only' => null, 'except' => ['users', 'settings']]` —
+  so team owners pass every module ability except the ones you list. A
+  pattern is a feature name, `feature.*` or an exact key; `except` wins over
+  `only`. The owner `Gate::before` and the shared `kinetix_permissions` prop
+  answer from the same check (`TeamOwner::grants()`), so the server and the
+  SPA always agree, and the prop still costs no Gate call per ability.
+- `Feature::platform(...$abilities)` marks abilities that never follow team
+  ownership, whatever `owner_bypass` says; `Feature::isPlatform()`,
+  `PermissionRegistry::featureOf()` / `isPlatform()`, `TeamOwner::grants()` /
+  `filter()`.
+- `ImpersonationManager::passesBuiltInGuards()`: the super-admin and
+  protected-permission guards, for a `can_impersonate` callback to keep.
+- `PermissionRegistry::platformPermissions()` and
+  `AssignableRoles::platformRoleNames()`.
+- `kinetix:doctor` reports what the owner bypass grants ("N of M registered
+  abilities (platform: …; except: …)"), warns about `only` / `except` patterns
+  that match nothing (a typo in `except` over-grants), and flags a closure in
+  `owner_bypass.using`.
+
+### Security
+
+- `users.impersonate` is platform-level: a team owner no longer gets it from
+  `owner_bypass`, in any form. Before, any owner could impersonate users of
+  other teams, and could add `users.impersonate` to a team role.
+- Only a super-admin can add or remove a platform ability on a role, whatever
+  the Gate says: holding `users.impersonate`, or passing a host `Gate::define`
+  for it, is not enough to hand it out.
+- Only a super-admin can assign a role that carries a platform ability: the
+  member picker leaves it out and inviting or changing a member to it is
+  refused ("Role is not assignable."), whatever `membership.assignable_roles`
+  returns.
+- `KinetixRolesSeeder`'s `admin` and `editor` presets no longer include
+  platform abilities. They used to include `users.impersonate` whenever
+  impersonation was on, so every team admin and editor could impersonate users
+  of other teams. **Databases seeded earlier keep that grant — see the upgrade
+  notes.**
+- The built-in impersonation guard now recognises a platform-wide (teamless)
+  super-admin target inside a team request (`SuperAdmin::check()` instead of a
+  team-scoped `hasRole()`), so it can no longer be impersonated from a team. In
+  turn, a teamless super-admin may impersonate a super-admin who holds the role
+  only in that team.
+
+### Fixed
+
+- **(published)** `v-can` shows its element to a super-admin, like
+  `useKinetixCan()` and `<KinetixCan>`; both now share one permission check.
+
+### Upgrade notes
+
+- **Owners lose implicit impersonation.** To let owners impersonate their own
+  members, follow the recipe in the permissions docs (`Gate::define` plus a
+  `can_impersonate` callback that starts with `passesBuiltInGuards()`, lets
+  only a super-admin cross teams and keeps everyone else inside the team in
+  the URL).
+- **Seeded roles in existing databases — act on this.** `admin` and `editor`
+  rows seeded with impersonation on still carry `users.impersonate`: every
+  holder, in every team, can impersonate users of any tenant until you remove
+  it, and owners no longer find those roles in the Members picker. Run
+  `kinetix:doctor`, which lists every assigned role carrying a platform
+  permission, then remove it as a super-admin on the Roles screen, or with
+  `setPermissionsTeamId(null); Role::findByName('admin')->revokePermissionTo('users.impersonate');`
+  (and the same for `editor`), unless you mean them to be platform roles.
+  Re-running `KinetixRolesSeeder` also removes it, but it re-syncs all three
+  presets and drops any permission you changed on them.
+- **Invitations** keep the role they were created with at activation; only the
+  invite and later role changes are checked.
+- **Audit stored grants.** Owners with `roles.manage` could add
+  `users.impersonate` to team roles before this release; those rows survive
+  the upgrade and still let their holders impersonate anyone. Review and remove
+  them. From now on an owner can only grant what the scoped bypass gives them,
+  and platform abilities can only be granted or revoked by a super-admin.
+- **Config.** A published `true` or callable keeps working ("every registered
+  ability except platform ones"). To scope the bypass, convert it to the
+  structured form; `KINETIX_PERMISSIONS_OWNER_BYPASS` now feeds `using`.
+  Without a published config, `config('kinetix.permissions.owner_bypass')` is
+  an array, truthy even when off: read `TeamOwner::enabled()` instead.
+- **App-wide modules.** A module with `kinetix.{module}.teams = false` (and
+  roles when `permissions.teams` is off) holds data shared by every team; put
+  it in `except` so owners don't manage it.
+- **Drop the workarounds.** A hand-written owner `Gate::before`, a
+  `kinetix_permissions` prop override and local edits to
+  `kinetixPermissions.ts` / `useKinetixCan.ts` are no longer needed;
+  `dynamic_grants: sweep` isn't either. Re-publish the components with
+  `--force`: plugins **and** composables together, since
+  `plugins/kinetixPermissions.ts` now imports from
+  `composables/useKinetixCan.ts`.
+- **`can_impersonate` replaces the built-in guard.** An existing callback
+  should start with `app(ImpersonationManager::class)->passesBuiltInGuards()`.
+
 ## [0.272.3] - 2026-10-30
 
 No code changes: re-release of 0.272.2 after rewording its commit message.

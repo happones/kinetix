@@ -976,14 +976,15 @@ return [
     'search_expired'                => 'Cette session de recherche a expiré. Veuillez recharger la page.',
 
     // Reports center, repeater rows and permission guardrails
-    'repeater_row_not_found'              => 'Ligne introuvable.',
-    'form_session_expired'                => 'La session de ce formulaire a expiré. Veuillez recharger la page.',
-    'report_invalid'                      => 'Rapport invalide.',
-    'report_run_not_cancellable'          => 'Cette exécution ne peut plus être annulée.',
-    'report_run_not_retryable'            => 'Cette exécution ne peut pas être relancée.',
-    'permissions_cannot_grant_unheld'     => 'Vous ne pouvez pas accorder des permissions que vous ne détenez pas : :permissions',
-    'permissions_would_revoke_own_access' => 'Ce changement révoquerait votre propre accès à la gestion des rôles.',
-    'permissions_role_in_use'             => 'Le rôle :role est encore attribué à :count membre(s) de cette équipe. Réattribuez-les avant de le supprimer.',
+    'repeater_row_not_found'                => 'Ligne introuvable.',
+    'form_session_expired'                  => 'La session de ce formulaire a expiré. Veuillez recharger la page.',
+    'report_invalid'                        => 'Rapport invalide.',
+    'report_run_not_cancellable'            => 'Cette exécution ne peut plus être annulée.',
+    'report_run_not_retryable'              => 'Cette exécution ne peut pas être relancée.',
+    'permissions_cannot_grant_unheld'       => 'Vous ne pouvez pas accorder des permissions que vous ne détenez pas : :permissions',
+    'permissions_platform_super_admin_only' => 'Seul un super-administrateur peut accorder ou révoquer des permissions de niveau plateforme : :permissions',
+    'permissions_would_revoke_own_access'   => 'Ce changement révoquerait votre propre accès à la gestion des rôles.',
+    'permissions_role_in_use'               => 'Le rôle :role est encore attribué à :count membre(s) de cette équipe. Réattribuez-les avant de le supprimer.',
 
     // Value generator presets (KinetixGenerator's picker).
     'generator_preset'                    => 'Type',

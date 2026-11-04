@@ -976,14 +976,15 @@ return [
     'search_expired'                => 'A sessão de busca expirou. Recarregue a página.',
 
     // Reports center, repeater rows and permission guardrails
-    'repeater_row_not_found'              => 'Linha não encontrada.',
-    'form_session_expired'                => 'A sessão deste formulário expirou. Recarregue a página.',
-    'report_invalid'                      => 'Relatório inválido.',
-    'report_run_not_cancellable'          => 'Esta execução já não pode ser cancelada.',
-    'report_run_not_retryable'            => 'Esta execução não pode ser repetida.',
-    'permissions_cannot_grant_unheld'     => 'Você não pode conceder permissões que não possui: :permissions',
-    'permissions_would_revoke_own_access' => 'Esta alteração revogaria o seu próprio acesso à gestão de funções.',
-    'permissions_role_in_use'             => 'A função :role ainda está atribuída a :count membro(s) desta equipe. Reatribua-os antes de excluí-la.',
+    'repeater_row_not_found'                => 'Linha não encontrada.',
+    'form_session_expired'                  => 'A sessão deste formulário expirou. Recarregue a página.',
+    'report_invalid'                        => 'Relatório inválido.',
+    'report_run_not_cancellable'            => 'Esta execução já não pode ser cancelada.',
+    'report_run_not_retryable'              => 'Esta execução não pode ser repetida.',
+    'permissions_cannot_grant_unheld'       => 'Você não pode conceder permissões que não possui: :permissions',
+    'permissions_platform_super_admin_only' => 'Apenas um superadministrador pode conceder ou revogar permissões de nível de plataforma: :permissions',
+    'permissions_would_revoke_own_access'   => 'Esta alteração revogaria o seu próprio acesso à gestão de funções.',
+    'permissions_role_in_use'               => 'A função :role ainda está atribuída a :count membro(s) desta equipe. Reatribua-os antes de excluí-la.',
 
     // Value generator presets (KinetixGenerator's picker).
     'generator_preset'                    => 'Tipo',

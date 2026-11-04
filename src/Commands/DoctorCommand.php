@@ -48,6 +48,15 @@ class DoctorCommand extends Command
     /** How many list items are printed before the rest is summarized (--json always has them all). */
     protected const ITEM_LIMIT = 10;
 
+    /**
+     * Config sections whose keys are all optional: leaving one out is a
+     * supported shape, not a key that never arrived (`owner_bypass` may be
+     * just `['using' => true]`).
+     *
+     * @var list<string>
+     */
+    protected const OPTIONAL_KEY_SECTIONS = ['permissions.owner_bypass'];
+
     /** @var array<int, array{section: string, level: string, message: string, hint: string|null, items: array<int, string>}> */
     protected array $findings = [];
 
@@ -167,8 +176,116 @@ class DoctorCommand extends Command
             $this->ok('Permissions', 'enabled (no team scoping)');
         }
 
-        if (TeamOwner::enabled()) {
-            $this->ok('Permissions', 'owner bypass on — grants registry abilities only, policies still run');
+        $this->checkOwnerBypass();
+        $this->checkAssignedPlatformRoles();
+    }
+
+    /**
+     * A role (outside `protected_roles`) that carries a platform-level
+     * permission and is held by someone. Only a super-admin may hand such a
+     * role out; one that predates that rule — the seeded `admin` / `editor`
+     * presets used to include `users.impersonate` — still reaches every tenant
+     * through whoever holds it. One query, every team.
+     */
+    protected function checkAssignedPlatformRoles(): void
+    {
+        $platform = app(PermissionRegistry::class)->platformPermissions();
+
+        if ($platform === [] || ! static::permissionTablesExist()) {
+            return;
+        }
+
+        /** @var class-string<Model> $roleClass */
+        $roleClass = config('permission.models.role', Role::class);
+        $pivot     = (string) config('permission.table_names.model_has_roles', 'model_has_roles');
+        $roleKey   = (string) (config('permission.column_names.role_pivot_key') ?? 'role_id');
+        $roleId    = (new $roleClass)->getQualifiedKeyName();
+
+        $names = $roleClass::query()
+            ->whereNotIn('name', SuperAdmin::protectedRoles())
+            ->whereHas('permissions', static function ($permissions) use ($platform): void {
+                $permissions->whereIn($permissions->getModel()->qualifyColumn('name'), $platform);
+            })
+            ->whereExists(static function ($assigned) use ($pivot, $roleKey, $roleId): void {
+                $assigned->selectRaw('1')->from($pivot)->whereColumn("{$pivot}.{$roleKey}", $roleId);
+            })
+            ->pluck('name')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($names === []) {
+            return;
+        }
+
+        $first = (string) $names[0];
+
+        $this->warn_('Permissions', count($names).' assigned role(s) carry a platform-level permission ('.implode(', ', $platform).')',
+            'Whoever holds them reaches every tenant (e.g. impersonating users of other teams). As a super-admin, remove '
+            .'the permission on the Roles screen, or run setPermissionsTeamId(null); '
+            ."Role::findByName('{$first}')->revokePermissionTo('{$platform[0]}'); for each role. Re-running "
+            .'KinetixRolesSeeder also strips it from admin/editor/viewer, but resets any edits you made to those presets.',
+            array_map('strval', $names));
+    }
+
+    /**
+     * Whether spatie's role/permission tables are migrated.
+     */
+    protected static function permissionTablesExist(): bool
+    {
+        foreach (['roles', 'permissions', 'role_has_permissions', 'model_has_roles'] as $table) {
+            if (! Schema::hasTable((string) config("permission.table_names.{$table}", $table))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * State what the owner bypass actually grants — a scope is only as good as
+     * its patterns, and a typo in `except` silently over-grants.
+     */
+    protected function checkOwnerBypass(): void
+    {
+        if (! TeamOwner::enabled()) {
+            return;
+        }
+
+        $registry   = app(PermissionRegistry::class);
+        $registered = $registry->allPermissions();
+        $granted    = TeamOwner::filter($registered);
+        $scope      = TeamOwner::scope();
+        $platform   = array_values(array_filter($registered, $registry->isPlatform(...)));
+
+        $details = [];
+
+        if ($platform !== []) {
+            $details[] = 'platform: '.implode(', ', $platform);
+        }
+
+        if ($scope['only'] !== null) {
+            $details[] = 'only: '.($scope['only'] === [] ? '(none)' : implode(', ', $scope['only']));
+        }
+
+        if ($scope['except'] !== []) {
+            $details[] = 'except: '.implode(', ', $scope['except']);
+        }
+
+        $this->ok('Permissions', sprintf(
+            'owner bypass on — %d of %d registered abilities%s; policies still run',
+            count($granted),
+            count($registered),
+            $details === [] ? '' : ' ('.implode('; ', $details).')',
+        ));
+
+        $unmatched = TeamOwner::unmatchedPatterns();
+
+        if ($unmatched !== []) {
+            $this->warn_('Permissions', count($unmatched).' owner_bypass pattern(s) match no registered feature or ability',
+                'Patterns are a feature name (\'settings\' or \'settings.*\') or an exact key (\'users.impersonate\'); '
+                .'other wildcards match nothing. A typo in `except` leaves that ability granted to every team owner.',
+                $unmatched);
         }
     }
 
@@ -843,6 +960,7 @@ class DoctorCommand extends Command
     {
         $options = [
             'kinetix.permissions.owner_bypass',
+            'kinetix.permissions.owner_bypass.using',
             'kinetix.membership.assignable_roles',
             'kinetix.membership.attach_member',
             'kinetix.membership.detach_member',
@@ -908,7 +1026,10 @@ class DoctorCommand extends Command
 
     /**
      * Dot paths of `$defaults` missing from `$app`, walking nested sections
-     * (not lists, which are values).
+     * (not lists, which are values). An app value that is a non-empty list
+     * where the package now ships a map is an older, still-supported shape
+     * (`permissions.owner_bypass => [Class::class, 'method']`), not a
+     * partial copy, so it is not walked.
      *
      * @param  array<array-key, mixed> $defaults
      * @param  array<array-key, mixed> $app
@@ -927,12 +1048,32 @@ class DoctorCommand extends Command
 
             if (! array_key_exists($key, $app)) {
                 $missing[] = $path;
-            } elseif (is_array($value) && $value !== [] && is_array($app[$key]) && ! static::isChosenMap($value, $app[$key])) {
+            } elseif (! in_array($path, self::OPTIONAL_KEY_SECTIONS, true) && static::walksInto($value, $app[$key])) {
                 $missing = [...$missing, ...static::missingKeys($value, $app[$key], $path)];
             }
         }
 
         return $missing;
+    }
+
+    /**
+     * Whether a nested default section should be walked against the app's
+     * value.
+     *
+     * @phpstan-assert-if-true array<array-key, mixed> $default
+     * @phpstan-assert-if-true array<array-key, mixed> $app
+     */
+    protected static function walksInto(mixed $default, mixed $app): bool
+    {
+        if (! is_array($default) || $default === [] || ! is_array($app)) {
+            return false;
+        }
+
+        if ($app !== [] && array_is_list($app) && ! array_is_list($default)) {
+            return false;
+        }
+
+        return ! static::isChosenMap($default, $app);
     }
 
     /**

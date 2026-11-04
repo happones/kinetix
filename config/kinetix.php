@@ -470,12 +470,17 @@ return [
     | - `teams`: scope roles/permissions per team. When true, Kinetix wires
     |   spatie's team id to the starter-kit `currentTeam` via middleware.
     | - `super_admin_role`: a role that bypasses every gate check (Gate::before).
-    | - `owner_bypass`: grant a team's OWNER every REGISTERED ability (model
+    | - `owner_bypass`: grant a team's OWNER the REGISTERED abilities (model
     |   policies still run, so the bypass can't cross the tenancy boundary).
     |   Ownership lives in your team schema, not in a role, so it needs its own
-    |   switch: `true` uses the host's `$user->ownsTeam($team)`; a callback
-    |   receives `($user, $team)`. Write callbacks as `[Class::class, 'method']`
-    |   or an invokable class-string — a closure here breaks `config:cache`.
+    |   switch. `using`: `true` uses the host's `$user->ownsTeam($team)`; a
+    |   callback receives `($user, $team)`; null = off. Write callbacks as
+    |   `[Class::class, 'method']` or an invokable class-string — a closure
+    |   here breaks `config:cache`. `only` / `except` scope the grant with a
+    |   feature name (`'settings'` = `'settings.*'`) or an exact key
+    |   (`'users.impersonate'`); no other wildcards. Platform-level abilities
+    |   (`Feature::platform()`, e.g. `users.impersonate`) are never granted.
+    |   The legacy bare form (`'owner_bypass' => true`) still works, unscoped.
     | - `guard`: the auth guard permissions are registered under.
     |
     */
@@ -483,20 +488,25 @@ return [
         'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
         'teams'            => env('KINETIX_PERMISSIONS_TEAMS'), // null = inherit kinetix.teams
         'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
-        // true | [Class, 'method'] | invokable class-string | null (off).
-        // (A closure works but breaks `config:cache` — prefer the callables.)
-        'owner_bypass' => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
-        'guard'        => env('KINETIX_PERMISSIONS_GUARD', 'web'),
+        'owner_bypass'     => [
+            // true | [Class, 'method'] | invokable class-string | null (off).
+            'using' => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
+            // null = every registered ability, or a list of patterns.
+            'only' => null,
+            // Patterns removed from the grant, e.g. ['users', 'settings'].
+            'except' => [],
+        ],
+        'guard' => env('KINETIX_PERMISSIONS_GUARD', 'web'),
 
         // How the `kinetix_permissions` prop discovers abilities the Gate
         // grants WITHOUT a stored row, so the SPA's can() map matches what the
         // server would authorize:
         //
-        //   'auto'  (default) — the owner bypass answered once (it grants every
-        //           registered ability or none, so one verdict settles the
-        //           catalog), plus abilities the app defined with
+        //   'auto'  (default) — the owner bypass answered once (one
+        //           ownership verdict, then its only/except scope applied
+        //           without a Gate call), plus abilities the app defined with
         //           Gate::define(). Covers every dynamic grant Kinetix
-        //           documents, at O(1).
+        //           documents, scoped bypass included.
         //   'sweep' — additionally ask the Gate about EVERY registered ability.
         //           Needed only when the app registers its OWN Gate::before
         //           over registry keys (which the permissions docs advise
@@ -1866,7 +1876,10 @@ return [
         'redirect_to'   => env('KINETIX_IMPERSONATION_REDIRECT', '/'),
         'redirect_back' => env('KINETIX_IMPERSONATION_REDIRECT_BACK', '/'),
 
-        // Optional override: fn (Authenticatable $impersonator, Authenticatable $target): bool
+        // Optional REPLACEMENT of the built-in escalation guard: a callable
+        // array [Class::class, 'method'] receiving ($impersonator, $target)
+        // and returning a bool. Start it with ImpersonationManager::
+        // passesBuiltInGuards() and only narrow that verdict (docs/impersonation.md).
         'can_impersonate' => null,
 
         // Permissions that make a user off-limits to impersonate unless the

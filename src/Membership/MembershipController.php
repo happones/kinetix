@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -287,7 +288,7 @@ class MembershipController
         // between provisioning and the person clicking the link. The activation
         // route carries no `{current_team}` segment, so the allow-list is
         // resolved against the team the provision was created for.
-        $this->assertAssignable($provision->role, $provision->team_id);
+        $this->assertAssignable($provision->role, $provision->team_id, forActor: false);
 
         $userModel = $this->userModel();
 
@@ -333,18 +334,54 @@ class MembershipController
      *
      * Whatever the source, the protected roles (super-admin by default) are
      * removed: that role belongs to the team owner and is never handed out
-     * through membership, even by a host list that names it.
+     * through membership, even by a host list that names it. So are roles that
+     * carry a platform-level permission (`users.impersonate`), unless the
+     * acting user is a super-admin: such a role crosses the tenant boundary,
+     * and a team owner (who passes `members.update` through the owner bypass)
+     * must not be able to hand it out.
+     *
+     * `$forActor` is false only where no actor of the provisioning is in the
+     * request (activation): the provisioner was checked when the role was
+     * chosen.
      *
      * @return array<int, string>
      */
-    protected function assignableRoles(int|string|null $teamId = null): array
+    protected function assignableRoles(int|string|null $teamId = null, bool $forActor = true): array
     {
         $reserved = SuperAdmin::protectedRoles();
 
-        return array_values(array_filter(
+        $roles = array_values(array_filter(
             array_keys($this->roleCatalog($teamId)),
             static fn (string $role): bool => $role !== '' && ! in_array($role, $reserved, true),
         ));
+
+        return $forActor ? $this->withoutPlatformRoles($roles, $teamId) : $roles;
+    }
+
+    /**
+     * Drop the roles carrying a platform-level permission, for anyone but a
+     * super-admin. Name-based and in one query, so it also covers a static or
+     * app-computed allow-list naming a Roles-screen role.
+     *
+     * @param  array<int, string> $roles
+     * @return array<int, string>
+     */
+    protected function withoutPlatformRoles(array $roles, int|string|null $teamId): array
+    {
+        if ($roles === [] || ! $this->followsRolesScreen() || SuperAdmin::check(auth()->user())) {
+            return $roles;
+        }
+
+        // Role tables not migrated yet: no stored role can carry anything.
+        // Any other failure propagates — this is a security filter, so it never
+        // answers "nothing to remove" because a query broke.
+        foreach (['roles', 'permissions', 'role_has_permissions'] as $table) {
+            if (! Schema::hasTable((string) config("permission.table_names.{$table}", $table))) {
+                return $roles;
+            }
+        }
+
+        return array_values(array_diff($roles, AssignableRoles::platformRoleNames($teamId)));
     }
 
     /**
@@ -479,9 +516,9 @@ class MembershipController
         );
     }
 
-    protected function assertAssignable(string $role, int|string|null $teamId = null): void
+    protected function assertAssignable(string $role, int|string|null $teamId = null, bool $forActor = true): void
     {
-        abort_unless(in_array($role, $this->assignableRoles($teamId), true), 422, 'Role is not assignable.');
+        abort_unless(in_array($role, $this->assignableRoles($teamId, $forActor), true), 422, 'Role is not assignable.');
     }
 
     protected function teamId(Request $request): int|string|null

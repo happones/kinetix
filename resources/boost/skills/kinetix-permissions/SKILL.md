@@ -42,15 +42,22 @@ fails silently:
    merged **over** the package's shared props, so returning your own
    `kinetix_permissions` key silently replaces it and every `can()` turns false.
    Share your data under your own key. (Kinetix logs a warning in `local` when it
-   detects the override.)
-3. **Assuming the owner bypass exists.** Team ownership is not a role, so no role
-   grants it. Set `permissions.owner_bypass => true` (uses the host's
-   `$user->ownsTeam($team)`) or pass a callback as a callable array
+   detects the override.) If the reason for overriding it is "owners should not
+   get everything", scope the bypass with `owner_bypass.except` / `only`
+   instead — the prop follows the same scope automatically.
+3. **Assuming the owner bypass exists — or hand-writing one.** Team ownership is
+   not a role, so no role grants it. Set `permissions.owner_bypass.using => true`
+   (uses the host's `$user->ownsTeam($team)`) or a callable array
    (`[OwnerBypass::class, 'check']`). Without it a team owner with no role holds
-   **no** permissions. Do **not** hand-write a blanket
+   **no** permissions. Need exceptions ("owners can do everything except users
+   and settings")? Scope it: `'owner_bypass' => ['using' => true, 'except' =>
+   ['users', 'settings']]` (patterns: a feature name, `feature.*`, or an exact
+   key; nothing else matches). Do **not** hand-write a
    `Gate::before(fn ($user) => $user->ownsTeam(...) ? true : null)`: it also
-   short-circuits model policies, so the owner of team A passes `update` on team
-   B's records. Kinetix's bypass only grants registry abilities.
+   short-circuits model policies (the owner of team A passes `update` on team
+   B's records), and it forces the costly `sweep` dynamic-grants mode. Kinetix's
+   bypass only grants registry abilities, never a platform one
+   (`users.impersonate`).
 4. **Seeding roles without team context.** Under team scoping a role created with
    no team id is *global*: visible in every team, editable by super-admins only.
    Pin the team first (`setPermissionsTeamId($team->id)`).
@@ -86,8 +93,9 @@ public function update(User $user, Post $post): bool
 - The **policy owns the tenancy boundary** (`belongsToTeam`) — permissions
   never encode which team a record belongs to.
 - **`owner_bypass` semantics**: when on, the team OWNER passes
-  `$user->can('{feature}.{ability}')` for every REGISTERED ability (a scoped
-  `Gate::before` on registry keys) — but **model policies still run**, so the
+  `$user->can('{feature}.{ability}')` for the REGISTERED abilities in its
+  `only` / `except` scope (a scoped `Gate::before` on registry keys) — but
+  **model policies still run**, so the
   bypass can never cross the tenancy boundary. Keep the explicit
   `$user->ownsTeam(...)` clause anyway: it keeps the policy correct with the
   bypass off, and reads as intent.
@@ -113,10 +121,15 @@ Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, defaul
     'enabled'          => env('KINETIX_PERMISSIONS_ENABLED', false),
     'teams'            => env('KINETIX_PERMISSIONS_TEAMS', false),
     'super_admin_role' => env('KINETIX_SUPER_ADMIN_ROLE', 'super-admin'),
-    // Owner-can-do-everything bypass: true (uses $user->ownsTeam($team)),
-    // [Class::class, 'method'], an invokable class-string, or null.
-    // Grants only REGISTRY abilities — model policies still run.
-    'owner_bypass'     => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
+    // Owner-can-do-everything bypass. Grants only REGISTRY abilities, never a
+    // platform one — model policies still run.
+    'owner_bypass'     => [
+        // true (uses $user->ownsTeam($team)), [Class::class, 'method'],
+        // an invokable class-string, or null (off). Never a closure.
+        'using'  => env('KINETIX_PERMISSIONS_OWNER_BYPASS'),
+        'only'   => null, // null = every registered ability; or ['posts', 'reports.access']
+        'except' => [],   // e.g. ['users', 'settings'] — wins over `only`
+    ],
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
     'protected_roles'  => null, // null = protect the super_admin_role; or ['super-admin', 'owner']
     // How `kinetix_permissions` finds abilities the Gate grants with no stored
@@ -135,10 +148,11 @@ scans the user's permission collection per call, and an unsynced ability costs
 a thrown exception — measured at **~40ms per full page load on a 280-key
 catalog**.
 
-- `auto` (default, ~0.4ms) — the owner bypass answered ONCE (it is scoped to
-  registry keys, so it grants all or none) plus abilities the app declared with
-  `Gate::define()` (`Gate::has()` is an array lookup). Covers every dynamic
-  grant this skill documents.
+- `auto` (default, ~0.4ms) — the owner bypass answered ONCE (one ownership
+  verdict, then `TeamOwner::filter()` applies its `only` / `except` scope with
+  no Gate call) plus abilities the app declared with `Gate::define()`
+  (`Gate::has()` is an array lookup). Covers every dynamic grant this skill
+  documents, a scoped bypass included.
 - `sweep` (~41ms) — the exhaustive check. Needed ONLY when the app registers
   its own `Gate::before` over registry keys — which mistake #3 below tells you
   not to do.
@@ -151,10 +165,37 @@ never the reverse.
 
 Ownership lives in the host's team schema, not in `model_has_roles` — so it can
 never be granted by a role and needs its own `Gate::before`. Kinetix registers it
-when `permissions.owner_bypass` is set, resolving the team from the
+when `permissions.owner_bypass.using` is set, resolving the team from the
 `{current_team}` segment (falling back to `currentTeam`) and memoizing the verdict
-per user × team. The `kinetix_permissions` prop picks these dynamic grants up, so
-the SPA matches the server without the owner holding a permission row.
+per user × team. The legacy bare form (`'owner_bypass' => true` / a callable)
+still works, unscoped.
+
+- **Granted** = (`only` ?? every registered ability) − `except` − platform
+  abilities − unregistered keys. Patterns: `'settings'` = `'settings.*'` (whole
+  feature) or an exact key (`'users.impersonate'`); `'*'` / `'u*'` match nothing.
+- **One predicate, two consumers**: the server `Gate::before` calls
+  `TeamOwner::grants($ability)` before resolving ownership, and the
+  `kinetix_permissions` prop calls `TeamOwner::filter($candidates)` — so the SPA
+  matches the server without the owner holding a permission row.
+- **Outside the scope is not denied**: stored rows and `Gate::define()` still
+  grant (and the prop still shares) an excluded or platform ability.
+- **Platform abilities** — `Feature::platform()` (whole feature) or
+  `->platform('impersonate')` (named) — cross the tenant boundary and are never
+  granted to owners, even when `only` names them. Kinetix marks
+  `users.impersonate`. Owners impersonating their own members =
+  `Gate::define('users.impersonate', [OwnerImpersonation::class, 'allows'])`
+  (`TeamOwner::check($user)`) + an `impersonation.can_impersonate` that first calls
+  `ImpersonationManager::passesBuiltInGuards()` (it REPLACES them), then lets only
+  a super-admin cross teams — everyone else (owner, stored row, role) is limited to
+  `KinetixTeams::currentTeamKey()` members. Copy the recipe in `docs/permissions.md`,
+  don't improvise it.
+- **App-wide modules belong in `except`**: with `kinetix.{module}.teams = false`
+  (settings, activity, webhooks, channels / conversations / flows), or roles with
+  `permissions.teams` off, the data is app-wide and an owner granted the feature
+  acts on every tenant's rows.
+- `kinetix:doctor` prints "owner bypass on — N of M registered abilities
+  (platform: …; except: …)" and **warns on every pattern that matches nothing**
+  — a typo in `except` silently over-grants.
 
 ### Teams: `HasTeams` × `HasRoles` trait collision
 
@@ -222,6 +263,13 @@ escalating past their own level — **all bypassed for a super-admin**:
    otherwise); a rename with no permission changes stays allowed. Behavior
    change: previously any `roles.manage` holder could grant anything. Give role
    admins the seeded `admin` role (or super-admin) to manage the full catalog.
+   **Platform abilities** (`Feature::platform()`, e.g. `users.impersonate`) are
+   the exception: only a super-admin may add or remove them, whatever the Gate
+   says — an owner granted one by `Gate::define` cannot launder it into a role.
+   Likewise a role **holding** a platform ability is assignable through
+   membership only by a super-admin (dropped from the picker, 422 on the
+   members endpoints — `AssignableRoles::platformRoleNames()`), and
+   `KinetixRolesSeeder`'s presets never carry one.
 3. **Protected roles & self-lockout** — roles in `permissions.protected_roles`
    (default: the super-admin role) can't be created/renamed/edited/deleted here,
    and any change that would revoke the actor's own `roles.manage` is rolled back

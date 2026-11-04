@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Permissions\KinetixPermissions;
+use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Tests\Concerns\CreatesPermissionTables;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\PermissionServiceProvider;
@@ -135,6 +139,157 @@ class DoctorCommandTest extends TestCase
         $this->artisan('kinetix:doctor')
             ->doesntExpectOutputToContain('closure(s) in Kinetix config')
             ->assertSuccessful();
+    }
+
+    public function test_a_closure_as_the_owner_bypass_rule_is_an_error(): void
+    {
+        config()->set('kinetix.permissions.owner_bypass', ['using' => fn (): bool => true, 'except' => []]);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('closure(s) in Kinetix config')
+            ->expectsOutputToContain('kinetix.permissions.owner_bypass.using')
+            ->assertFailed();
+    }
+
+    public function test_the_owner_bypass_summary_states_what_it_grants(): void
+    {
+        $this->enableOwnerBypass(['using' => true, 'except' => ['settings']]);
+
+        $total = count(app(PermissionRegistry::class)->allPermissions());
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain(sprintf(
+                'owner bypass on — %d of %d registered abilities (platform: users.impersonate; except: settings)',
+                $total - 2,
+                $total,
+            ))
+            ->doesntExpectOutputToContain('match no registered feature or ability')
+            ->assertSuccessful();
+    }
+
+    public function test_the_legacy_owner_bypass_is_summarized_without_a_scope(): void
+    {
+        $this->enableOwnerBypass(true);
+
+        $total = count(app(PermissionRegistry::class)->allPermissions());
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain(sprintf(
+                'owner bypass on — %d of %d registered abilities (platform: users.impersonate)',
+                $total - 1,
+                $total,
+            ))
+            ->assertSuccessful();
+    }
+
+    public function test_owner_bypass_patterns_that_match_nothing_are_a_warning(): void
+    {
+        $this->enableOwnerBypass(['using' => true, 'only' => ['posts', 'reprots'], 'except' => ['setings', 'posts.*', '*']]);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('3 owner_bypass pattern(s) match no registered feature or ability')
+            ->expectsOutputToContain('reprots')
+            ->expectsOutputToContain('setings')
+            ->assertSuccessful();
+    }
+
+    public function test_a_published_legacy_owner_bypass_is_not_a_missing_key(): void
+    {
+        $package                                = require __DIR__.'/../../config/kinetix.php';
+        $package['permissions']['owner_bypass'] = [CallbackTarget::class, 'instanceMethod'];
+        File::put(config_path('kinetix.php'), '<?php return '.var_export($package, true).';');
+
+        try {
+            $this->artisan('kinetix:doctor')
+                ->expectsOutputToContain('config/kinetix.php has every key the package knows')
+                ->doesntExpectOutputToContain('permissions.owner_bypass.using')
+                ->assertSuccessful();
+        } finally {
+            File::delete(config_path('kinetix.php'));
+        }
+    }
+
+    public function test_a_published_minimal_owner_bypass_is_not_a_missing_key(): void
+    {
+        $package                                = require __DIR__.'/../../config/kinetix.php';
+        $package['permissions']['owner_bypass'] = ['using' => true];
+        File::put(config_path('kinetix.php'), '<?php return '.var_export($package, true).';');
+
+        try {
+            $this->artisan('kinetix:doctor')
+                ->expectsOutputToContain('config/kinetix.php has every key the package knows')
+                ->doesntExpectOutputToContain('permissions.owner_bypass.only')
+                ->doesntExpectOutputToContain('permissions.owner_bypass.except')
+                ->assertSuccessful();
+        } finally {
+            File::delete(config_path('kinetix.php'));
+        }
+    }
+
+    public function test_an_assigned_role_carrying_a_platform_permission_is_a_warning(): void
+    {
+        $this->seedPlatformRole('admin', assigned: true);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('1 assigned role(s) carry a platform-level permission (users.impersonate)')
+            ->expectsOutputToContain("Role::findByName('admin')->revokePermissionTo('users.impersonate')")
+            ->expectsOutputToContain('KinetixRolesSeeder')
+            ->assertSuccessful();
+    }
+
+    public function test_a_protected_role_carrying_a_platform_permission_is_not_flagged(): void
+    {
+        config()->set('kinetix.permissions.protected_roles', ['super-admin', 'admin']);
+        $this->seedPlatformRole('admin', assigned: true);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('carry a platform-level permission')
+            ->assertSuccessful();
+    }
+
+    public function test_an_unassigned_platform_role_is_not_flagged(): void
+    {
+        $this->seedPlatformRole('support', assigned: false);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('carry a platform-level permission')
+            ->assertSuccessful();
+    }
+
+    /**
+     * A role holding `users.impersonate`, as the pre-v0.273 seeder made the
+     * `admin` preset, optionally held by a user.
+     */
+    private function seedPlatformRole(string $name, bool $assigned): void
+    {
+        config()->set('kinetix.permissions.enabled', true);
+        config()->set('kinetix.permissions.teams', false);
+
+        $this->createPermissionTables();
+        KinetixPermissions::feature('users')->ability('impersonate')->platform('impersonate');
+
+        Permission::findOrCreate('users.impersonate', 'web');
+        $role = Role::findOrCreate($name, 'web');
+        $role->givePermissionTo('users.impersonate');
+
+        if ($assigned) {
+            DB::table('model_has_roles')->insert(['role_id' => $role->id, 'model_type' => 'App\\Models\\User', 'model_id' => 1]);
+        }
+    }
+
+    /**
+     * Permissions on at runtime, with the features the boot pass would have
+     * registered and a platform ability to report.
+     */
+    private function enableOwnerBypass(mixed $ownerBypass): void
+    {
+        config()->set('kinetix.permissions.enabled', true);
+        config()->set('kinetix.permissions.teams', false);
+        config()->set('kinetix.permissions.owner_bypass', $ownerBypass);
+
+        KinetixPermissions::feature('posts')->crud();
+        KinetixPermissions::feature('settings')->ability('manage');
+        KinetixPermissions::feature('users')->ability('impersonate')->platform('impersonate');
     }
 
     public function test_duplicate_route_names_are_an_error(): void

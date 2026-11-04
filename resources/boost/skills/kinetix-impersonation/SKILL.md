@@ -28,7 +28,7 @@ For full details, reference `docs/impersonation.md` (published at https://happon
     'enabled'       => env('KINETIX_IMPERSONATION_ENABLED', false),
     'redirect_to'   => env('KINETIX_IMPERSONATION_REDIRECT', '/'),
     'redirect_back' => env('KINETIX_IMPERSONATION_REDIRECT_BACK', '/'),
-    'can_impersonate' => null, // fn (Authenticatable $impersonator, Authenticatable $target): bool
+    'can_impersonate' => null, // [Class::class, 'method'] ($impersonator, $target): bool — REPLACES the built-in guards
 ],
 ```
 
@@ -52,9 +52,19 @@ KinetixImpersonation::stop();
 ```
 
 - **Authorization**: the `users.impersonate` ability (auto-registers with the
-  permission matrix). Grant only to admins.
-- **Escalation guard**: cannot impersonate a super-admin unless you are one;
-  override with the `can_impersonate` closure for finer rules.
+  permission matrix). Grant only to admins. It is marked **platform-level**
+  (`->platform('impersonate')`), so the team-owner bypass never grants it; for
+  owners impersonating their own members, `Gate::define('users.impersonate', [OwnerImpersonation::class, 'allows'])`
+  (`TeamOwner::check($user)`) + a `can_impersonate` that keeps the built-in guards and
+  keeps EVERY impersonator but a super-admin (`SuperAdmin::check`) inside
+  `KinetixTeams::currentTeamKey()` — a stored row/role is team-scoped, never "platform
+  staff". Copy the recipe in `docs/permissions.md` verbatim. Only a super-admin can add
+  or remove `users.impersonate` on a role (403 otherwise).
+- **Escalation guard**: cannot impersonate a super-admin unless you are one (teamless
+  assignment included), nor a user holding a `protected_permissions` entry you lack.
+  `can_impersonate` (a callable array, never a closure) **replaces** it: a callback must
+  start with `app(ImpersonationManager::class)->passesBuiltInGuards($impersonator, $target)`
+  and only narrow that verdict, or a "same team" rule lets an owner impersonate a super-admin.
 - **Protect sensitive routes** with the `kinetix.impersonation.protect` middleware
   (password/email/2FA/billing/account-deletion) — it 403s while impersonating.
   `kinetix.impersonation.protect:writes` blocks only changes (non-GET/HEAD/OPTIONS),

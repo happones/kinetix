@@ -911,14 +911,15 @@ return [
     'search_expired'                => '搜索会话已过期，请重新加载页面。',
 
     // Reports center, repeater rows and permission guardrails
-    'repeater_row_not_found'              => '未找到该行。',
-    'form_session_expired'                => '表单会话已过期，请重新加载页面。',
-    'report_invalid'                      => '报表无效。',
-    'report_run_not_cancellable'          => '此运行已无法取消。',
-    'report_run_not_retryable'            => '此运行无法重试。',
-    'permissions_cannot_grant_unheld'     => '您无法授予自己不具备的权限：:permissions',
-    'permissions_would_revoke_own_access' => '此更改会撤销您自己的角色管理权限。',
-    'permissions_role_in_use'             => ':role 角色仍分配给该团队的 :count 名成员。请先重新分配后再删除。',
+    'repeater_row_not_found'                => '未找到该行。',
+    'form_session_expired'                  => '表单会话已过期，请重新加载页面。',
+    'report_invalid'                        => '报表无效。',
+    'report_run_not_cancellable'            => '此运行已无法取消。',
+    'report_run_not_retryable'              => '此运行无法重试。',
+    'permissions_cannot_grant_unheld'       => '您无法授予自己不具备的权限：:permissions',
+    'permissions_platform_super_admin_only' => '只有超级管理员才能授予或撤销平台级权限：:permissions',
+    'permissions_would_revoke_own_access'   => '此更改会撤销您自己的角色管理权限。',
+    'permissions_role_in_use'               => ':role 角色仍分配给该团队的 :count 名成员。请先重新分配后再删除。',
 
     // Value generator presets (KinetixGenerator's picker).
     'generator_preset'                    => '类型',

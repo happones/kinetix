@@ -24,6 +24,16 @@ class Feature
      */
     protected array $abilities = [];
 
+    /** Whether every ability of this feature is platform-level. */
+    protected bool $platformFeature = false;
+
+    /**
+     * Ability keys marked platform-level one by one.
+     *
+     * @var array<string, true>
+     */
+    protected array $platformAbilities = [];
+
     public function __construct(public readonly string $name) {}
 
     public function label(string $label): static
@@ -84,6 +94,46 @@ class Feature
         $this->abilities[$key] = $label ?? (string) str($key)->headline();
 
         return $this;
+    }
+
+    /**
+     * Mark abilities as **platform-level**: they cross the tenant boundary
+     * (e.g. impersonating any user of the app), so the team-owner bypass never
+     * grants them, whatever `owner_bypass.only` says. Owning a team says
+     * nothing about the rest of the platform. A stored permission row or an
+     * explicit `Gate::define()` still grants them as usual.
+     *
+     * With no arguments the whole feature is platform-level, including
+     * abilities declared after this call; otherwise only the named ability
+     * keys (`'impersonate'`, not `'users.impersonate'`).
+     */
+    public function platform(string ...$abilities): static
+    {
+        if ($abilities === []) {
+            $this->platformFeature = true;
+
+            return $this;
+        }
+
+        foreach ($abilities as $ability) {
+            $this->platformAbilities[$ability] = true;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Whether one of this feature's abilities (its short key, e.g.
+     * `'impersonate'`) is platform-level. An ability the feature does not
+     * declare is never platform-level.
+     */
+    public function isPlatform(string $ability): bool
+    {
+        if (! isset($this->abilities[$ability])) {
+            return false;
+        }
+
+        return $this->platformFeature || isset($this->platformAbilities[$ability]);
     }
 
     /**

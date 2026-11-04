@@ -911,14 +911,15 @@ return [
     'search_expired'                => 'Сессия поиска истекла. Обновите страницу.',
 
     // Reports center, repeater rows and permission guardrails
-    'repeater_row_not_found'              => 'Строка не найдена.',
-    'form_session_expired'                => 'Сессия формы истекла. Обновите страницу.',
-    'report_invalid'                      => 'Недействительный отчёт.',
-    'report_run_not_cancellable'          => 'Этот запуск больше нельзя отменить.',
-    'report_run_not_retryable'            => 'Этот запуск нельзя повторить.',
-    'permissions_cannot_grant_unheld'     => 'Нельзя выдать права, которых у вас нет: :permissions',
-    'permissions_would_revoke_own_access' => 'Это изменение лишит вас доступа к управлению ролями.',
-    'permissions_role_in_use'             => 'Роль :role всё ещё назначена :count участнику(ам) этой команды. Переназначьте их перед удалением.',
+    'repeater_row_not_found'                => 'Строка не найдена.',
+    'form_session_expired'                  => 'Сессия формы истекла. Обновите страницу.',
+    'report_invalid'                        => 'Недействительный отчёт.',
+    'report_run_not_cancellable'            => 'Этот запуск больше нельзя отменить.',
+    'report_run_not_retryable'              => 'Этот запуск нельзя повторить.',
+    'permissions_cannot_grant_unheld'       => 'Нельзя выдать права, которых у вас нет: :permissions',
+    'permissions_platform_super_admin_only' => 'Только суперадминистратор может выдавать или отзывать права уровня платформы: :permissions',
+    'permissions_would_revoke_own_access'   => 'Это изменение лишит вас доступа к управлению ролями.',
+    'permissions_role_in_use'               => 'Роль :role всё ещё назначена :count участнику(ам) этой команды. Переназначьте их перед удалением.',
 
     // Value generator presets (KinetixGenerator's picker).
     'generator_preset'                    => 'Тип',

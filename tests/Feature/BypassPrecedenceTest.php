@@ -418,6 +418,20 @@ class BypassPrecedenceTest extends TestCase
         $this->assertFalse(Gate::forUser($this->owner())->allows('unregistered.thing'));
     }
 
+    public function test_an_owner_never_passes_a_platform_ability(): void
+    {
+        // A platform ability crosses the tenant boundary (impersonating ANY
+        // user of the app), so owning one team never grants it — not even when
+        // the scope names it. A super-admin still does: theirs is the blanket
+        // platform bypass.
+        config()->set('kinetix.permissions.owner_bypass', ['using' => true, 'only' => ['users']]);
+        KinetixPermissions::feature('users')->ability('impersonate')->platform('impersonate');
+        Permission::findOrCreate('users.impersonate', 'web');
+
+        $this->assertFalse(Gate::forUser($this->owner())->allows('users.impersonate'));
+        $this->assertTrue(Gate::forUser($this->superAdmin())->allows('users.impersonate'));
+    }
+
     // -- Neither -------------------------------------------------------------
 
     public function test_a_plain_user_gets_nothing_from_either_bypass(): void

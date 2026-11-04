@@ -18,8 +18,8 @@ Enable it in `config/kinetix.php` (opt-in, default off):
     'redirect_to'   => env('KINETIX_IMPERSONATION_REDIRECT', '/'),       // after start
     'redirect_back' => env('KINETIX_IMPERSONATION_REDIRECT_BACK', '/'),  // after leaving
 
-    // Optional override of the escalation guard.
-    // fn (Authenticatable $impersonator, Authenticatable $target): bool
+    // Optional REPLACEMENT of the escalation guard (see §2): a callable array
+    // [Class::class, 'method'] receiving ($impersonator, $target): bool.
     'can_impersonate' => null,
 ],
 ```
@@ -104,10 +104,35 @@ This is the part that matters — impersonation done naively is a privilege-esca
 - **Who can impersonate** is the `users.impersonate` ability (registers with the
   permission matrix when [Permissions](/permissions) is on). Grant it only to
   admins.
+- **It is a platform-level ability.** The target is resolved by global id, so
+  holding `users.impersonate` means being able to log in as a user of *any*
+  tenant. Kinetix marks it with `Feature::platform()`, which keeps the
+  [team-owner bypass](/permissions#team-owners) from ever granting it: with
+  `owner_bypass` on, a team owner can **not** impersonate unless the ability is
+  granted some other way (a stored permission, a super-admin role, or a
+  `Gate::define`). To let owners impersonate the members of their own team,
+  follow the recipe in
+  [Platform abilities and the impersonation recipe](/permissions#platform-abilities-and-the-impersonation-recipe):
+  a `Gate::define('users.impersonate', …)` that checks `TeamOwner::check($user)`,
+  plus a `can_impersonate` rule that keeps the built-in guards and keeps every
+  impersonator but a super-admin inside the team in the URL (a stored
+  permission or role is team-scoped too, so it never means "platform staff").
+  Only a super-admin can add `users.impersonate` to a role.
 - **Escalation guard**: you cannot impersonate a **super-admin** unless you are
-  one (`kinetix.permissions.super_admin_role`). Tighten it further with the
-  `can_impersonate` closure — e.g. restrict to users in the same team, or with a
-  lower role rank.
+  one (`kinetix.permissions.super_admin_role`, a platform-wide assignment
+  included), nor a user holding a `protected_permissions` entry
+  (`roles.manage`) you don't hold.
+- **`can_impersonate` replaces the escalation guard — it does not add to it.**
+  A callback (a callable array, never a closure) that only checks "same team"
+  lets an owner impersonate a super-admin who belongs to their team. To narrow
+  the rule, call the built-in guard first and keep its verdict:
+
+  ```php
+  if (! app(\Happones\Kinetix\Impersonation\ImpersonationManager::class)->passesBuiltInGuards($impersonator, $target)) {
+      return false;
+  }
+  // …then your own, narrower rule (same team, lower role rank, …)
+  ```
 - **Block sensitive actions** while impersonating with the
   `kinetix.impersonation.protect` middleware. Apply it to anything that changes
   credentials or spends money so an admin acting as a user can't, say, change

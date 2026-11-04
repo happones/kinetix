@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Impersonation;
 
 use Happones\Kinetix\Activity\KinetixActivity;
+use Happones\Kinetix\Permissions\SuperAdmin;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Throwable;
@@ -73,12 +74,30 @@ class ImpersonationManager
             return (bool) $resolver($impersonator, $target);
         }
 
+        return $this->passesBuiltInGuards($impersonator, $target);
+    }
+
+    /**
+     * The built-in escalation guards: never impersonate a super-admin unless
+     * you are one, and never a target holding a protected permission
+     * (`impersonation.protected_permissions`) you don't hold. A
+     * `can_impersonate` callback REPLACES these, so a callback that narrows
+     * the rule should call this first and keep its verdict:
+     *
+     *     if (! app(ImpersonationManager::class)->passesBuiltInGuards($impersonator, $target)) {
+     *         return false;
+     *     }
+     */
+    public function passesBuiltInGuards(Authenticatable $impersonator, Authenticatable $target): bool
+    {
         // Built-in guard: never impersonate a super-admin unless you are one.
-        $superAdmin = (string) config('kinetix.permissions.super_admin_role', 'super-admin');
+        // Through SuperAdmin so a teamless (platform-wide) assignment counts
+        // too — a bare hasRole() is scoped to the current team under teams.
+        $superAdmin = SuperAdmin::role();
 
         if ($superAdmin !== '' && method_exists($target, 'hasRole')) {
-            if ($target->hasRole($superAdmin)) {
-                return method_exists($impersonator, 'hasRole') && $impersonator->hasRole($superAdmin);
+            if (SuperAdmin::check($target)) {
+                return SuperAdmin::check($impersonator);
             }
         } elseif ($superAdmin !== '' && config('kinetix.permissions.enabled', false)) {
             // Roles are in play for this app, yet this target can't be inspected

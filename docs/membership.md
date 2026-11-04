@@ -151,7 +151,7 @@ container.
 ## 2.1 Callback options (`config:cache`-safe)
 
 Four options here take a callback: `attach_member`, `detach_member`,
-`assignable_roles`, and (in Permissions) `owner_bypass`. **Never write them as a
+`assignable_roles`, and (in Permissions) `owner_bypass.using`. **Never write them as a
 closure.** A closure in a config file makes the config uncacheable, so the app
 cannot be deployed with `config:cache`:
 
@@ -229,6 +229,22 @@ removed from the member picker **whatever `assignable_roles` returns** — a
 fixed list or a callback that names it still can't hand it out, and the
 provision, role-change and activation endpoints reject it with a 422. The
 directory says so beside the role picker, so its absence isn't a mystery.
+:::
+
+::: warning Roles holding a platform ability are super-admin only
+A role carrying a [platform-level ability](/permissions#platform-level-abilities-platform)
+(`users.impersonate`, …) is assignable through membership **only by a
+super-admin**. For anyone else — a team owner included, who passes
+`members.update` through the owner bypass — it is left out of the picker and
+the provision and role-change endpoints reject it with a 422, whatever
+`assignable_roles` returns. Such a role crosses the tenant boundary, so a team
+owner must not be able to hand it to an account. The check is one query
+(`AssignableRoles::platformRoleNames($teamId)`). An invitation keeps the role
+it was created with at activation: only the invite itself and later role
+changes are checked against the acting user. Host code that calls
+`AssignableRoles::names()` for its own assignment flow must drop
+`AssignableRoles::platformRoleNames($teamId)` itself for non-super-admins.
+`kinetix:doctor` warns about assigned roles that already carry one.
 :::
 
 The picker also tells the person choosing what a role grants: each role comes
@@ -778,5 +794,8 @@ admin, never a stray personal team.
   create a duplicate).
 - **The allow-list is enforced twice** — at provision time and again at
   activation, so a later config change can't be exploited by an old link.
+- **Platform roles are super-admin only** — a role carrying a platform-level
+  ability (`users.impersonate`) can be assigned here only by a super-admin
+  (422 for anyone else, owners included).
 - **Audit** who provisioned/revoked whom (`invited_by`, timestamps) — this is a
   privileged, organization-shaping action.

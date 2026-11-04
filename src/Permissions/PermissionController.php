@@ -24,7 +24,9 @@ use Spatie\Permission\PermissionRegistrar;
  * Guardrails against a role-manager escalating past their own level (all
  * bypassed for a super-admin, whose Gate::before wins everything):
  *   1. Submitted permissions are allowlisted against the registry.
- *   2. A manager can only grant permissions they themselves hold.
+ *   2. A manager can only grant permissions they themselves hold, and only a
+ *      super-admin can add or remove a platform-level ability (one that
+ *      crosses the tenant boundary, e.g. `users.impersonate`).
  *   3. Protected roles (default: the super-admin role) can't be modified, and a
  *      change that would revoke the actor's own `roles.manage` is rolled back.
  *   4. Every query is scoped to the configured guard, and — with spatie teams
@@ -397,12 +399,28 @@ class PermissionController
      * permissions never exist as `model_has_permissions`/`role_has_permissions`
      * rows.
      *
+     * A **platform-level** ability ({@see Feature::platform()}, e.g.
+     * `users.impersonate`) is the exception: only a super-admin may add it to
+     * or remove it from a role, whatever the Gate says. It crosses the tenant
+     * boundary, so "holding" it inside one team — through a stored row, or an
+     * app `Gate::define` granting it to owners — must not let a manager hand
+     * it to someone else, mirroring the super-admin-only rule for global roles.
+     *
      * @param array<int, string> $permissions
      */
     protected function assertCanGrant(mixed $user, array $permissions): void
     {
         if ($permissions === [] || $user === null || SuperAdmin::check($user)) {
             return;
+        }
+
+        $platform = array_values(array_filter(
+            $permissions,
+            fn (string $permission): bool => $this->registry->isPlatform($permission),
+        ));
+
+        if ($platform !== []) {
+            abort(403, (string) __('kinetix.permissions_platform_super_admin_only', ['permissions' => implode(', ', $platform)]));
         }
 
         $gate = Gate::forUser($user);
