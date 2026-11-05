@@ -1020,6 +1020,48 @@ parent's relationship** — the export intersects your `query()` with the
 relation's keys, so it ships only the parent's related records. See
 [Relation Managers → Relation-scoped export](/relation-managers#relation-scoped-export).
 
+#### The relation scope is sealed {#relation-scoped-exports}
+
+The scope names a parent record and a relation method, so the export only
+honours one the server sealed. The export endpoint checks the relation
+manager's descriptor, then hands the job a `RelationScope` seal (encrypted,
+made for that one exporter class) in the `relation` parameter.
+`resolveExportQuery()` opens it, resolves the relation and requires its
+related model to be the exporter's model. A plain array, a forged value,
+another exporter's seal or any other encrypted payload exports **zero rows**.
+
+To narrow an export by a relation from your own code, seal it the same way:
+
+```php
+use Happones\Kinetix\Exports\RelationScope;
+
+(new TaskExporter)->export($user, [
+    'relation' => RelationScope::seal($project, 'tasks', TaskExporter::class),
+]);
+```
+
+Only a real relation method resolves, and nothing else is ever called: the
+method must be public, non-static and take no required argument; it must not
+be a framework method (`delete`, `save`, `forceDelete`, `restore`… are
+refused, even when your model overrides them); a declared return type must be
+a `Relation` (otherwise it is refused without being called); an untyped method
+is called and must return one. Exports queued before 0.274 with a relation
+scope export nothing; start them again.
+
+Relations that come from a **framework trait** are framework methods too, so
+they don't resolve: `Notifiable::notifications()`, `readNotifications()`,
+`unreadNotifications()`, `DatabaseNotification::notifiable()` and the like. A
+relation-scoped export over one, or an export column that reads through one
+(`notifications.data`), finds no relation. Declare your own method on the
+model and use that name:
+
+```php
+public function alerts(): MorphMany
+{
+    return $this->morphMany(DatabaseNotification::class, 'notifiable');
+}
+```
+
 ### Recipe (manual): export from a table — toolbar (all) + bulk (selected)
 
 When you need full control (custom route, applying the table's filters, extra options), wire it yourself: one **Export** button in the table toolbar that exports the whole table, and the **same** action as a bulk action that exports only the selected rows. The bulk invocation sends the selected `ids`; the exporter scopes its query to them.
@@ -1147,8 +1189,10 @@ public function with(): array
 }
 ```
 
-Only methods the model itself declares that return a `Relation` count as
-relations; anything else in a path (an accessor, a JSON key) is read as a value.
+Only methods that pass the same relation check as a sealed relation scope
+([above](#relation-scoped-exports)) count as relations: public, no required argument, not a framework
+method, and a `Relation` return. Anything else in a path (an accessor, a JSON
+key) is read as a value, and no other method is called.
 
 ### Authorization
 

@@ -100,6 +100,31 @@ use Happones\Kinetix\ReportsCenter\KinetixReportsCenter;
 KinetixReportsCenter::register(\App\Reports\SomeOtherReport::class);
 ```
 
+## Security (REQUIRED)
+
+- **Each report authorizes itself.** `viewKinetixReportsCenter` only opens the
+  module; the report's inherited `Exporter::authorize($user)` (the model's
+  `viewAny` policy, `ability()`, or an override) is enforced on launch, retry,
+  schedule create and run-now (403, the requester), by
+  `kinetix:report-schedules:dispatch-due` (the creator; skipped + logged, the
+  schedule still advances), and the `report-types` list hides what the viewer
+  can't run.
+- **Reserved parameter keys.** `ids` and `relation` are server-only
+  (`Report::RESERVED_PARAMETERS`); the launcher and schedule store/update drop
+  them via `Report::clientParameters()`. Never pass client `parameters` to a
+  run without it.
+- **A relation scope is a seal.** `resolveExportQuery()` honours `relation`
+  only as a `RelationScope::seal($parent, $name, $exporterClass)` string; a
+  plain array, a forged value or another purpose exports zero rows. Never call
+  a stored or client-supplied method name (`Model::isRelation()` is no guard:
+  it is true for `delete`).
+- **Runs follow the report's access.** The runs list only shows report
+  classes the viewer may run; download and cancel answer 403 otherwise. Retry
+  and run-now also require the user the run is launched as (the launcher /
+  the schedule's creator) to pass `authorize()` in the row's team, and the
+  scheduler judges the creator inside the schedule's team (spatie team id
+  pinned), so team roles count.
+
 ## Frontend
 
 ```vue
@@ -150,7 +175,8 @@ Schedule::command('kinetix:report-schedules:dispatch-due')->everyMinute();
 ```
 
 Each due schedule creates a new `ReportRun`, advances `next_run_at` per its
-frequency, and (for `once`) disables itself after firing.
+frequency, and (for `once`) disables itself after firing. A schedule whose
+creator fails the report's `authorize()` is skipped and logged.
 
 ## Pruning old runs
 

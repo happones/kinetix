@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Exports\ExportColumn;
+use Happones\Kinetix\ReportsCenter\Report;
 use Happones\Kinetix\ReportsCenter\ReportRun;
 use Happones\Kinetix\ReportsCenter\ReportRunStatus;
 use Happones\Kinetix\ReportsCenter\ReportSchedule;
@@ -41,6 +43,17 @@ class ScopedTeamUser extends Authenticatable
     public function teams(): BelongsToMany
     {
         return $this->belongsToMany(ScopedTeam::class, 'team_user', 'user_id', 'team_id');
+    }
+}
+
+/** A report anyone may run (its model has no policy). */
+class ScopedTeamReport extends Report
+{
+    protected static ?string $model = ScopedTeam::class;
+
+    public static function getColumns(): array
+    {
+        return [ExportColumn::make('id')];
     }
 }
 
@@ -173,7 +186,7 @@ class ReportsCenterTeamScopingTest extends TestCase
 
         $run = fn (int $teamId): ReportRun => ReportRun::create([
             'team_id'      => $teamId,
-            'report_class' => 'A',
+            'report_class' => ScopedTeamReport::class,
             'status'       => ReportRunStatus::Completed,
             'format'       => 'csv',
             'disk'         => 'public',

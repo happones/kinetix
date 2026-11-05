@@ -7,15 +7,14 @@ namespace Happones\Kinetix\Exports;
 use Closure;
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Support\Concerns\CarriesQueueContext;
+use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
-use ReflectionMethod;
 use RuntimeException;
 
 abstract class Exporter
@@ -132,8 +131,14 @@ abstract class Exporter
 
         $relation = $this->parameter('relation');
 
-        if (is_array($relation)) {
-            $this->applyRelationScope($query, $relation);
+        if ($relation !== null) {
+            $scope = RelationScope::open($relation, static::class);
+
+            if ($scope === null) {
+                $query->whereKey([]);
+            } else {
+                $this->applyRelationScope($query, $scope);
+            }
         }
 
         return $query;
@@ -141,10 +146,12 @@ abstract class Exporter
 
     /**
      * Narrow the export to a relation manager's parent relationship (validated
-     * server-side when the export was started): the query is INTERSECTED with
-     * the relation's keys via a sub-select, so the exporter's own query()
-     * boundary (e.g. tenant scoping) still applies in full. A parent deleted
-     * between start and run exports zero rows rather than falling open.
+     * server-side when the export was started, and only ever read from a
+     * {@see RelationScope} seal): the query is INTERSECTED with the relation's
+     * keys via a sub-select, so the exporter's own query() boundary (e.g.
+     * tenant scoping) still applies in full. A parent deleted between start
+     * and run, a name that is not a relation ({@see EloquentRelation}) or a
+     * relation to another model exports zero rows rather than falling open.
      *
      * @param Builder<Model>       $query
      * @param array<string, mixed> $relation
@@ -154,22 +161,21 @@ abstract class Exporter
         $parentClass  = $relation['parent'] ?? null;
         $relationName = $relation['name']   ?? null;
 
-        $parent = is_string($parentClass)
-            && class_exists($parentClass)
-            && is_subclass_of($parentClass, Model::class)
-            && is_string($relationName)
-            && method_exists($parentClass, $relationName)
-                ? $parentClass::query()->whereKey($relation['key'] ?? null)->first()
-                : null;
+        $relationObject = null;
 
-        if ($parent === null) {
+        if (is_string($parentClass) && is_subclass_of($parentClass, Model::class) && is_string($relationName)) {
+            $parent = $parentClass::query()->whereKey($relation['key'] ?? null)->first();
+
+            $relationObject = $parent instanceof Model ? EloquentRelation::resolve($parent, $relationName) : null;
+        }
+
+        if ($relationObject === null || $relationObject->getRelated()::class !== static::getModel()) {
             $query->whereKey([]);
 
             return;
         }
 
-        $relationObject = $parent->{$relationName}();
-        $related        = $relationObject->getRelated();
+        $related = $relationObject->getRelated();
 
         $query->whereIn(
             $query->getModel()->getQualifiedKeyName(),
@@ -244,8 +250,8 @@ abstract class Exporter
     /**
      * The relation segments at the start of a dot-notation path
      * (`product.category` of `product.category.slug`), or null when the path
-     * reads no relation (a plain or JSON attribute). Only methods the model
-     * itself declares are considered, and only a Relation counts.
+     * reads no relation (a plain or JSON attribute). Only a method
+     * {@see EloquentRelation} accepts counts, so no other method is called.
      *
      * @param array<int, string> $segments
      */
@@ -258,19 +264,9 @@ abstract class Exporter
                 continue;
             }
 
-            if (! method_exists($model, $segment)) {
-                break;
-            }
+            $relation = EloquentRelation::resolve($model, $segment);
 
-            $method = new ReflectionMethod($model, $segment);
-
-            if (! $method->isPublic() || $method->getNumberOfRequiredParameters() > 0 || $method->getDeclaringClass()->getName() === Model::class) {
-                break;
-            }
-
-            $relation = $model->{$segment}();
-
-            if (! $relation instanceof Relation) {
+            if ($relation === null) {
                 break;
             }
 

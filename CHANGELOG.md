@@ -13,6 +13,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.274.0] - 2026-11-05
+
+Security release. Every fix below closes a hole an audit of 0.273.0 proved
+with a test; upgrade promptly and read the upgrade notes — billing has a
+breaking change for team-billed apps.
+
+### Security
+
+- **Reports Center could call any method on any record (critical).** A user
+  with access to the Reports Center could send a `relation` report parameter
+  naming any model, record and method (`delete`, for instance), and the run
+  invoked it — across teams, and again on every scheduled run. A relation
+  scope now only counts when it is a sealed, purpose-bound value minted by
+  the server (`RelationScope::seal()`); anything else exports nothing, on
+  every path (launch, retry, run-now, the scheduler, queued export jobs).
+  Relation methods are resolved by a guard that refuses anything that
+  isn't a relation your model declares. `ids` and `relation` are
+  stripped from client report parameters.
+- **Reports honour their own `authorize()`.** The type list, the runs list,
+  launch, schedule creation, run-now, retry, cancel and download now check
+  each report's `authorize()`; the scheduler skips (and logs) schedules
+  whose creator may no longer run the report.
+- **Billing actions had no authorization.** Any member of a team-billed team
+  could change the plan, cancel, remove payment methods or download
+  invoices. Billing now has `billing.view` and `billing.manage` permissions
+  (see Breaking).
+- **A host-bound `{current_team}` model skipped the membership check.** When
+  the app registered `Route::bind`/`Route::model` for the team segment, a
+  non-member reached that team's data through every Kinetix module. A bound
+  team model is now checked like a plain key and answers 404 for
+  non-members.
+- **(published)** **Stored XSS in the default rich editor.** The basic
+  RichEditor inserted the stored HTML into the page as-is, so a saved
+  `<img onerror>` ran for whoever opened the edit form. Content is now
+  sanitized against an allowlist on load, paste and drop, and links only
+  keep `http`, `https`, `mailto` and relative URLs
+  (`useKinetixHtmlSanitizer`).
+- **(published)** The Markdown editor's preview didn't escape quotes, so a
+  stored link could inject attributes. Quotes are escaped and unsafe links
+  render as plain text.
+- **Confidential stored its raw data key in the app cache.** With the
+  database cache store that put the key next to the ciphertext. Unwrapped
+  keys now live only in process memory (bounded by `key_cache_ttl_minutes`);
+  the cache only holds wrapped key rows.
+- **Saving an edit form while confidential fields were locked replaced the
+  real value with its mask.** Forms no longer send confidential attributes
+  to the browser (blank means keep, like hidden attributes), and assigning
+  the current mask back to the attribute is a no-op.
+
+### Added
+
+- `billing` permission feature (`billing.view`, `billing.manage`),
+  `billing.authorize` config callback (`[$class, 'method']`, receives
+  `($user, $billable, string $ability)`), `BillingAbilitiesData` /
+  `KinetixBillingAbilities` and a `can` prop on the billing page.
+- **(published)** `canManage` prop on `KinetixPaymentMethods` and
+  `KinetixSubscriptionStatus`.
+- `RelationScope::seal()` / `open()`, `ConfidentialCast::appliesTo()`,
+  `ConfidentialManager::flushKeys()`.
+- `kinetix:doctor` warns when team billing has nobody who can manage it.
+
+### Breaking
+
+- **Team billing needs a permission.** With team billing on, a member needs
+  `billing.view` to see the billing page and invoices and `billing.manage`
+  to subscribe, cancel, resume or change payment methods. Without the
+  permissions module, members can view and the team owner (`ownsTeam()`)
+  manages. A user who is their own billable is unaffected. The billing page
+  gets `intent: null` when the viewer can't manage.
+
+### Upgrade notes
+
+- Re-publish the components: `php artisan vendor:publish
+  --tag=kinetix-components --force` (rich editor, Markdown editor, billing
+  components, sanitizer composable), and `types/kinetix.ts`.
+- **Billing:** run `php artisan kinetix:permissions:sync`, then grant
+  `billing.view`/`billing.manage` to the roles that need them (re-seeding
+  gives both to admin and editor and `billing.view` to viewer), turn on the
+  owner bypass for billing, or set `billing.authorize` to your own callable.
+  Re-run `php artisan kinetix:make-billing`, or add the `can:
+  KinetixBillingAbilities` prop to `pages/Billing/Index.vue` and pass
+  `:can-subscribe="!plansLocked && can.manage"` and
+  `:can-manage="can.manage"`.
+- **Confidential:** run `php artisan kinetix:confidential:rotate-key` once.
+  It purges the raw keys earlier versions cached
+  (`kinetix-confidential-dek:*`). It doesn't re-encrypt existing rows: if
+  your cache store may have been read by someone else, treat the old key as
+  exposed and rewrite your rows under the new key with the recipe in the
+  Confidential docs (assign each confidential column its revealed value,
+  then save; keep the old key row until every row is rewritten). The
+  `database` cache store never garbage-collects expired entries, so also
+  delete any leftover `%kinetix-confidential-dek:%` rows from the cache
+  table.
+- **Confidential values overwritten by their mask:** records saved through a
+  locked edit form before this release may hold the mask instead of the real
+  value. `docs/confidential.md` has a snippet that finds values containing
+  `•`; restore those from a backup.
+- **Exports and reports:** export jobs queued before the upgrade with a
+  relation scope export nothing; re-run them. Report runs and schedules that
+  stored a client-supplied `relation` parameter are inert — review
+  `kinetix_report_runs.parameters` / `kinetix_report_schedules.parameters`
+  for a `relation` key and delete those rows. Code that called
+  `withParameters(['relation' => [...]])` must pass
+  `RelationScope::seal($parent, $relation, $exporterClass)` instead.
+  Subclasses of `ExportController` overriding `relationScope()` now return
+  the sealed string.
+- **Teams:** if you bind the team route segment to a model, non-members now
+  get a 404 from Kinetix routes, as they already did with a plain key.
+- **Reports authorization:** each report's `authorize()` (its `ability()`,
+  or the model's `viewAny` policy) now gates the Reports Center. Users who
+  fail it no longer see the report type or its runs, and launching,
+  scheduling, downloading or cancelling it answers 403 — as does a run whose
+  report class no longer exists. Retry and run-now also require the user the
+  run is delivered to (the original launcher or the schedule's creator) to
+  still pass, so a colleague can't send a report to someone who lost access.
+  The scheduler checks each schedule's creator inside the schedule's team
+  (team-scoped roles count); a schedule that fails is skipped and logged,
+  and its `next_run_at` still advances, so a skipped `once` schedule doesn't
+  come back. When the creator or launcher no longer exists (a deleted user,
+  or a schedule seeded without `created_by_id`) and the report's model has a
+  policy, retry and run-now answer 403 and the scheduler skips the schedule.
+  Check your reports' abilities before upgrading.
+- **Relations from framework traits** (`Notifiable::notifications()`,
+  `readNotifications()`, `unreadNotifications()`,
+  `DatabaseNotification::notifiable()`) are no longer resolved by
+  relation-scoped exports or dot-notation export columns — only relation
+  methods your models declare. Declare your own relation method and use its
+  name; a relation-manager export over such a relation answers 422.
+- **Confidential fields in edit forms** are no longer prefilled, even while
+  unlocked, and a blank field keeps the stored value — so a confidential
+  value can't be cleared through a form. Clear it in code if you need to.
+- **`billing.resolve_billable`** given as `[Class::class, 'method']` with an
+  instance method used to be ignored (the user was billed); it now resolves
+  as documented, so the billable becomes the one your callable returns.
+- **`kinetix:doctor`** now reports a closure in `billing.resolve_billable`
+  as an error (it breaks `php artisan config:cache`), so doctor exits with a
+  failure for apps that followed the old closure example. Use a callable
+  array such as `[\App\Billing\Billables::class, 'forUser']` or an
+  invokable class-string.
+
 ## [0.273.0] - 2026-11-04
 
 ### Added

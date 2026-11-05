@@ -17,9 +17,10 @@ use RuntimeException;
 
 /**
  * Resolves whether confidential attributes should be revealed right now, and
- * caches the unwrapped Data Encryption Key(s) so a KMS-backed
- * {@see KeyManager} is called at most once per cache window, not once per
- * confidential value rendered.
+ * keeps the unwrapped Data Encryption Key(s) in process memory so a
+ * KMS-backed {@see KeyManager} is called at most once per
+ * `key_cache_ttl_minutes` window and process, not once per confidential value
+ * rendered. The shared cache only ever holds key rows (id + wrapped key).
  */
 class ConfidentialManager
 {
@@ -30,6 +31,19 @@ class ConfidentialManager
      * @var array<int, bool>
      */
     protected static array $overrideStack = [];
+
+    /**
+     * Prefix of the (shared) cache entries holding key ROWS — never raw keys.
+     */
+    protected const CACHE_PREFIX = 'kinetix-confidential:v2:';
+
+    /**
+     * The unwrapped Data Encryption Keys, by key id, each until it expires.
+     * Process memory only: a raw key is never written to the cache.
+     *
+     * @var array<string, array{raw: string, expiresAt: int}>
+     */
+    protected array $unwrapped = [];
 
     public function __construct(protected KeyManager $keyManager) {}
 
@@ -156,16 +170,15 @@ class ConfidentialManager
     }
 
     /**
-     * The current (not-retired) Data Encryption Key, unwrapped and cached.
+     * The current (not-retired) Data Encryption Key, unwrapped.
      *
      * @return array{0: string, 1: string} [keyId, rawKey]
      */
     public function currentKey(): array
     {
-        $row = Cache::remember(
-            'kinetix-confidential-current-key',
-            now()->addMinutes($this->keyCacheTtl()),
-            fn () => ConfidentialKey::query()->where('is_current', true)->first(),
+        $row = $this->keyRow(
+            self::CACHE_PREFIX.'current',
+            static fn (): ?ConfidentialKey => ConfidentialKey::query()->where('is_current', true)->first(),
         );
 
         if ($row === null) {
@@ -174,7 +187,7 @@ class ConfidentialManager
             );
         }
 
-        return [$row->key_id, $this->unwrappedKey($row->key_id, $row->wrapped_key)];
+        return [$row['key_id'], $this->unwrappedKey($row['key_id'], $row['wrapped_key'])];
     }
 
     /**
@@ -183,26 +196,92 @@ class ConfidentialManager
      */
     public function dataKeyFor(string $keyId): string
     {
-        $row = Cache::remember(
-            "kinetix-confidential-key:{$keyId}",
-            now()->addMinutes($this->keyCacheTtl()),
-            fn () => ConfidentialKey::query()->where('key_id', $keyId)->first(),
+        $row = $this->keyRow(
+            self::CACHE_PREFIX."key:{$keyId}",
+            static fn (): ?ConfidentialKey => ConfidentialKey::query()->where('key_id', $keyId)->first(),
         );
 
         if ($row === null) {
             throw new RuntimeException("Kinetix Confidential: unknown key_id [{$keyId}] — cannot decrypt.");
         }
 
-        return $this->unwrappedKey($row->key_id, $row->wrapped_key);
+        return $this->unwrappedKey($row['key_id'], $row['wrapped_key']);
     }
 
+    /**
+     * Forget the unwrapped keys this process holds, so the next read unwraps
+     * again (after a rotation, or to drop key material from a long-lived
+     * worker on demand).
+     */
+    public function flushKeys(): void
+    {
+        $this->unwrapped = [];
+    }
+
+    /**
+     * The cache keys (the shared cache, not this process) a key row may live
+     * under, legacy names included, for `kinetix:confidential:rotate-key` to
+     * purge.
+     *
+     * @param  array<int, string> $keyIds
+     * @return array<int, string>
+     */
+    public static function cacheKeys(array $keyIds): array
+    {
+        $keys = [self::CACHE_PREFIX.'current', 'kinetix-confidential-current-key'];
+
+        foreach ($keyIds as $keyId) {
+            $keys[] = self::CACHE_PREFIX."key:{$keyId}";
+            $keys[] = "kinetix-confidential-key:{$keyId}";
+            $keys[] = "kinetix-confidential-dek:{$keyId}";
+        }
+
+        return $keys;
+    }
+
+    /**
+     * A key row as cached: only its id and its WRAPPED key, as scalars. The
+     * raw key never goes to the cache, which is shared and often a database
+     * table; nor does a serialized model.
+     *
+     * @param  Closure(): ?ConfidentialKey                     $query
+     * @return array{key_id: string, wrapped_key: string}|null
+     */
+    protected function keyRow(string $cacheKey, Closure $query): ?array
+    {
+        $row = Cache::remember($cacheKey, now()->addMinutes($this->keyCacheTtl()), static function () use ($query): ?array {
+            $key = $query();
+
+            return $key === null ? null : ['key_id' => (string) $key->key_id, 'wrapped_key' => (string) $key->wrapped_key];
+        });
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * The raw key, unwrapped at most once per `key_cache_ttl_minutes` and
+     * held in this process only.
+     */
     protected function unwrappedKey(string $keyId, string $wrappedKey): string
     {
-        return Cache::remember(
-            "kinetix-confidential-dek:{$keyId}",
-            now()->addMinutes($this->keyCacheTtl()),
-            fn () => $this->keyManager->unwrap($wrappedKey),
-        );
+        $now    = now()->getTimestamp();
+        $cached = $this->unwrapped[$keyId] ?? null;
+
+        if ($cached !== null && $cached['expiresAt'] > $now) {
+            return $cached['raw'];
+        }
+
+        foreach ($this->unwrapped as $id => $entry) {
+            if ($entry['expiresAt'] <= $now) {
+                unset($this->unwrapped[$id]);
+            }
+        }
+
+        $raw = $this->keyManager->unwrap($wrappedKey);
+
+        $this->unwrapped[$keyId] = ['raw' => $raw, 'expiresAt' => now()->addMinutes($this->keyCacheTtl())->getTimestamp()];
+
+        return $raw;
     }
 
     protected function keyCacheTtl(): int

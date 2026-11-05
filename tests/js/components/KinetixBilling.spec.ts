@@ -4,6 +4,7 @@ import { i18n } from './i18n';
 
 config.global.plugins = [i18n];
 import KinetixInvoicesTable from '@/components/KinetixInvoicesTable.vue';
+import KinetixPaymentMethods from '@/components/KinetixPaymentMethods.vue';
 import KinetixPlanCard from '@/components/KinetixPlanCard.vue';
 import KinetixPricingTable from '@/components/KinetixPricingTable.vue';
 import KinetixSubscriptionStatus from '@/components/KinetixSubscriptionStatus.vue';
@@ -295,6 +296,97 @@ describe('KinetixSubscriptionStatus', () => {
 
         expect(wrapper.text()).toContain('No active subscription found.');
         expect(wrapper.find('button').exists()).toBe(false);
+    });
+});
+
+describe('billing controls for a viewer who cannot manage billing', () => {
+    const activeSubscription = {
+        active: true,
+        onGracePeriod: false,
+        status: 'active',
+        endsAt: null,
+        stripePrice: 'p',
+        onTrial: false,
+        trialEndsAt: null,
+        onGenericTrial: false,
+    };
+
+    it('hides cancel and resume on the subscription status', () => {
+        const managing = mount(KinetixSubscriptionStatus, {
+            props: { subscription: activeSubscription },
+        });
+        expect(managing.find('button').exists()).toBe(true);
+
+        const cancel = mount(KinetixSubscriptionStatus, {
+            props: { subscription: activeSubscription, canManage: false },
+        });
+        expect(cancel.find('button').exists()).toBe(false);
+
+        const resume = mount(KinetixSubscriptionStatus, {
+            props: {
+                subscription: {
+                    ...activeSubscription,
+                    onGracePeriod: true,
+                    endsAt: '2030-06-15T12:00:00Z',
+                },
+                canManage: false,
+            },
+        });
+        expect(resume.find('button').exists()).toBe(false);
+        expect(resume.text()).toContain('2030');
+    });
+
+    const card = {
+        id: 'pm_1',
+        brand: 'visa',
+        last4: '4242',
+        expMonth: 12,
+        expYear: 2030,
+    };
+
+    it('offers add and remove on payment methods by default', () => {
+        const wrapper = mount(KinetixPaymentMethods, {
+            props: {
+                paymentMethods: [card],
+                selectedId: 'pm_1',
+                publishableKey: 'pk_test',
+            },
+        });
+
+        expect(wrapper.findAll('[role="radio"]')).toHaveLength(2);
+        expect(wrapper.find('[aria-label="Remove card"]').exists()).toBe(true);
+    });
+
+    it('hides add and remove on payment methods with canManage=false', () => {
+        const wrapper = mount(KinetixPaymentMethods, {
+            props: {
+                paymentMethods: [card],
+                selectedId: 'pm_1',
+                publishableKey: 'pk_test',
+                setupClientSecret: 'seti_secret',
+                canManage: false,
+            },
+        });
+
+        const radios = wrapper.findAll('[role="radio"]');
+        expect(radios).toHaveLength(1);
+        expect(radios[0].text()).toContain('4242');
+        expect(wrapper.find('button').exists()).toBe(false);
+        expect(wrapper.text()).toContain(
+            "You can't change this team's billing.",
+        );
+
+        const empty = mount(KinetixPaymentMethods, {
+            props: {
+                paymentMethods: [],
+                selectedId: 'new',
+                publishableKey: 'pk_test',
+                setupClientSecret: 'seti_secret',
+                canManage: false,
+            },
+        });
+        expect(empty.find('[role="radio"]').exists()).toBe(false);
+        expect(empty.find('button').exists()).toBe(false);
     });
 });
 

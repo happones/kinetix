@@ -8,6 +8,7 @@ use Happones\Kinetix\Actions\ExportAction;
 use Happones\Kinetix\Exports\ExportColumn;
 use Happones\Kinetix\Exports\Exporter;
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
+use Happones\Kinetix\Exports\RelationScope;
 use Happones\Kinetix\Resources\RelationManager;
 use Happones\Kinetix\Tables\Columns\TextColumn;
 use Happones\Kinetix\Tables\Table;
@@ -276,7 +277,7 @@ class RelationScopedExportTest extends TestCase
         $titles = (new RseTaskExporter)
             ->withParameters([
                 'ids'      => [$keep->id, $foreign->id],
-                'relation' => ['parent' => RseProject::class, 'key' => $mine->id, 'name' => 'tasks'],
+                'relation' => RelationScope::seal($mine, 'tasks', RseTaskExporter::class),
             ])
             ->resolveExportQuery()
             ->pluck('title')
@@ -289,11 +290,11 @@ class RelationScopedExportTest extends TestCase
     {
         $project = RseProject::create(['name' => 'Kinetix']);
         $project->tasks()->create(['title' => 'Orphaned']);
-        $key = $project->getKey();
+        $sealed = RelationScope::seal($project, 'tasks', RseTaskExporter::class);
         $project->delete();
 
         $this->assertSame(0, (new RseTaskExporter)
-            ->withParameters(['relation' => ['parent' => RseProject::class, 'key' => $key, 'name' => 'tasks']])
+            ->withParameters(['relation' => $sealed])
             ->resolveExportQuery()
             ->count());
     }

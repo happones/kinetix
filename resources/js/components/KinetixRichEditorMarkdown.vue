@@ -2,6 +2,10 @@
 import { Eye, Pencil } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import {
+    escapeKinetixHtml,
+    isSafeKinetixHref,
+} from '@/composables/useKinetixHtmlSanitizer';
 import { markdownContentClass } from '@/composables/useKinetixShadcnVariants';
 
 /**
@@ -24,16 +28,32 @@ const emit = defineEmits<{ (e: 'update:value', value: string): void }>();
 const { t } = useI18n();
 const tab = ref<'write' | 'preview'>('write');
 
-function escapeHtml(text: string): string {
+/** Reverses escapeKinetixHtml, to judge a link target as the browser will read it. */
+function unescapeHtml(text: string): string {
     return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
 }
 
-/** Minimal, safe Markdown → HTML for the preview pane. */
+/** A link with a safe target; anything else keeps only its text. */
+function link(label: string, href: string): string {
+    if (!isSafeKinetixHref(unescapeHtml(href))) {
+        return label;
+    }
+
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+}
+
+/**
+ * Minimal, safe Markdown → HTML for the preview pane. The source is escaped
+ * first (quotes included, so nothing can break out of an attribute) and link
+ * targets are limited to http(s), mailto and relative URLs.
+ */
 function renderMarkdown(md: string): string {
-    const lines = escapeHtml(md).split('\n');
+    const lines = escapeKinetixHtml(md).split('\n');
     const html: string[] = [];
     let inList: 'ul' | 'ol' | null = null;
 
@@ -42,9 +62,8 @@ function renderMarkdown(md: string): string {
             .replace(/`([^`]+)`/g, '<code>$1</code>')
             .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
             .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-            .replace(
-                /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
-                '<a href="$2" target="_blank" rel="noopener">$1</a>',
+            .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label, href) =>
+                link(label, href),
             );
 
     const closeList = () => {

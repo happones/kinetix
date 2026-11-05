@@ -21,12 +21,11 @@ trait HasConfidentialAttributes
      */
     public static function confidentialColumns(): array
     {
-        $casts = (new static)->getCasts();
+        $model = new static;
 
-        return array_keys(array_filter(
-            $casts,
-            static fn (string $cast): bool => $cast === ConfidentialCast::class
-                || str_starts_with($cast, ConfidentialCast::class.':'),
+        return array_values(array_filter(
+            array_keys($model->getCasts()),
+            static fn (string $attribute): bool => ConfidentialCast::appliesTo($model, $attribute),
         ));
     }
 }

@@ -124,6 +124,9 @@ graph TD
 ### 1. Hydration
 Hydration extracts properties from a model or an array and binds them to the corresponding form fields. This occurs when you call `$form->fill($data)`.
 
+#### Withheld attributes: hidden and confidential
+Some attributes never reach the browser in an edit form: those the model keeps out of serialization (listed in `$hidden`, or left out of a `$visible` whitelist) and [confidential](./confidential.md) ones (cast with `ConfidentialCast`, masked or not, even while unlocked). A dotted field (`owner.password`, `owner.national_id`) is judged on the related model. On an edit they render empty, and coming back blank, off or unchanged means "keep the stored value", so neither validation nor `getState()` touches them; a new value is validated and saved as usual.
+
 #### Hydration Callbacks
 - **`afterStateHydrated(Closure $callback)`**: Executed immediately after a field is populated. The closure receives the raw state value, the field component instance, and the source record (if a Model was passed):
   ```php
@@ -1435,10 +1438,32 @@ shows an inline notice with these instructions.
 
 <Screenshot name="rich-editor-tiptap" alt="Rich editor — Tiptap driver" />
 
+#### What the `basic` editor keeps
+
+The `basic` driver sanitizes HTML in the browser, with an allowlist, whenever
+HTML enters the editor: the stored value on load (and when it changes from
+outside), a paste and a drop. The disabled rendering is sanitized too.
+
+- **Kept:** `p`, `br`, `div`, `b`, `strong`, `i`, `em`, `u`, `s`, `strike`,
+  `del`, `h1`, `h2`, `ul`, `ol`, `li`, `a`, `blockquote`, `code`.
+- **Dropped with everything inside:** `script`, `style`, `iframe`, `object`,
+  `embed`, `svg`, `math`, `template`, `noscript`, `form`, `input`, `textarea`,
+  `select`, `button`, `link`, `meta`, `base`.
+- **Unwrapped** (the tag goes, its text stays): every other tag.
+- **Attributes:** only `href` on `a`, and only an `http:`, `https:`,
+  `mailto:` or relative link; `rel="noopener noreferrer"` is forced. A link
+  with an unsafe or missing `href` becomes plain text. No `style`, no `on*`
+  handler, no `data:` URL survives. The link button refuses an unsafe URL.
+
+The `markdown` driver's preview escapes quotes in attributes and renders an
+unsafe link as plain text.
+
 ::: warning HTML is not sanitized server-side
-The `basic` / `tiptap` drivers store raw HTML. Kinetix does **not** sanitize it —
-escape or sanitize on output (Blade escapes by default; only `v-html` / `{!! !!}`
-render it raw). Run user HTML through a sanitizer (e.g. HTMLPurifier) if untrusted.
+The `basic` / `tiptap` drivers store HTML, and the browser-side allowlist
+above is no defence against a request crafted by hand. Kinetix does **not**
+sanitize it on the server: escape or sanitize on output (Blade escapes by
+default; only `v-html` / `{!! !!}` render it raw). Run user HTML through a
+sanitizer (e.g. HTMLPurifier) if untrusted.
 :::
 
 <Screenshot name="rich-editor-markdown" alt="Rich editor — Markdown driver" />

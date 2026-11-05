@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Membership;
 
+use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Support\ConfigCallback;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Static entry point for provisioned members, outside the members screen: an
@@ -103,21 +103,6 @@ class KinetixMembership
      */
     public static function withTeam(int|string|null $teamId, callable $callback): void
     {
-        if (! class_exists(PermissionRegistrar::class) || ! (bool) config('permission.teams', false)) {
-            $callback();
-
-            return;
-        }
-
-        $registrar = app(PermissionRegistrar::class);
-        $previous  = $registrar->getPermissionsTeamId();
-
-        $registrar->setPermissionsTeamId($teamId);
-
-        try {
-            $callback();
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-        }
+        PermissionTeam::run($teamId, $callback);
     }
 }

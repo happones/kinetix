@@ -21,6 +21,25 @@ use RuntimeException;
 abstract class Report extends Exporter
 {
     /**
+     * Parameter keys only the server sets: `ids` (a bulk selection) and
+     * `relation` (a sealed relation scope). They are dropped from every
+     * client-supplied parameter set ({@see clientParameters()}).
+     */
+    public const RESERVED_PARAMETERS = ['ids', 'relation'];
+
+    /**
+     * Client-supplied parameters (the launcher, the schedule editor) without
+     * the {@see RESERVED_PARAMETERS}, which the server alone may set.
+     *
+     * @param  array<array-key, mixed> $parameters
+     * @return array<array-key, mixed>
+     */
+    public static function clientParameters(array $parameters): array
+    {
+        return array_diff_key($parameters, array_flip(self::RESERVED_PARAMETERS));
+    }
+
+    /**
      * Display label in the launcher list / schedule editor.
      */
     public function label(): string

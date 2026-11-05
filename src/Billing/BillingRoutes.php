@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Billing;
 
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Support\Facades\Route;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Registers the billing endpoints. Call from a routes file for full control:
@@ -26,8 +27,13 @@ class BillingRoutes
             $prefix = '{team}/'.$prefix;
         }
         $name       = (string) config('kinetix.billing.route_name', 'billing.');
-        $middleware = config('kinetix.billing.middleware', ['web', 'auth']);
+        $middleware = (array) config('kinetix.billing.middleware', ['web', 'auth']);
         $controller = BillingController::class;
+
+        // Roles answer in the URL's team, as on every other team route.
+        if (config('kinetix.teams', false) && class_exists(PermissionRegistrar::class)) {
+            $middleware[] = 'kinetix.permissions.team';
+        }
 
         // With the team in the host the parameter keeps its `{team}` name, so
         // the URLs the host builds (`route('billing.index', ['team' => …])`)

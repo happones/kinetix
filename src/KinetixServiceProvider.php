@@ -3456,8 +3456,9 @@ class KinetixServiceProvider extends ServiceProvider
 
     /**
      * Register the optional Billing module: the `plan.feature` (dot-path) and
-     * `kinetix.plan` (capability, upsell-aware) middleware aliases and, when
-     * enabled, the bundled billing routes.
+     * `kinetix.plan` (capability, upsell-aware) middleware aliases, the
+     * `billing.view` / `billing.manage` abilities and, when enabled, the
+     * bundled billing routes.
      */
     protected function registerBilling(): void
     {
@@ -3465,6 +3466,13 @@ class KinetixServiceProvider extends ServiceProvider
         $router = $this->app['router'];
         $router->aliasMiddleware('plan.feature', PlanFeatureMiddleware::class);
         $router->aliasMiddleware('kinetix.plan', EnsurePlanCapability::class);
+
+        if (config('kinetix.billing.enabled', false)) {
+            app(PermissionRegistry::class)->feature('billing')
+                ->label('kinetix.permission_feature_billing')
+                ->ability('view', 'kinetix.permission_ability_view')
+                ->ability('manage', 'kinetix.permission_ability_manage_billing');
+        }
 
         if (config('kinetix.billing.enabled', false) && config('kinetix.billing.auto_routes', false)) {
             BillingRoutes::register();

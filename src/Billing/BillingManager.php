@@ -7,11 +7,14 @@ namespace Happones\Kinetix\Billing;
 use Happones\Kinetix\Billing\Exceptions\BillingActionException;
 use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Data\UsageMetricData;
+use Happones\Kinetix\Permissions\PermissionTeam;
+use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection as SupportCollection;
+use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 use Throwable;
 
@@ -89,7 +92,9 @@ class BillingManager
         $resolver = config('kinetix.billing.resolve_billable');
 
         if ($resolver) {
-            return is_callable($resolver) ? $resolver($user) : $user;
+            $callback = ConfigCallback::resolve($resolver) ?? (is_callable($resolver) ? $resolver : null);
+
+            return $callback !== null ? $callback($user) : $user;
         }
 
         if (KinetixTeams::enabledFor('billing') || config('kinetix.tenancy.subdomain') !== null) {
@@ -212,6 +217,59 @@ class BillingManager
         }
 
         return $modelClass::query()->where($column ?? (new $modelClass)->getRouteKeyName(), $value)->first();
+    }
+
+    // -------------------------------------------------------------------
+    // Authorization
+    // -------------------------------------------------------------------
+
+    /**
+     * Whether `$user` may `view` (plans, invoices) or `manage` (subscribe,
+     * payment methods, cancel, resume) the billing of `$billable`. Asked by
+     * the billing endpoints only; the manager's own methods never check it.
+     *
+     * Decided in this order:
+     *
+     * 1. `kinetix.billing.authorize` — a callable array or invokable class,
+     *    `($user, $billable, string $ability): bool` — rules alone when set;
+     * 2. a user billed as themselves is allowed;
+     * 3. with the Permissions module on, or a `billing.{ability}` Gate
+     *    definition, the Gate decides, inside the billed team's permission
+     *    context (a role held in another team never counts);
+     * 4. otherwise `view` is allowed (the billable is already one of the
+     *    user's teams) and `manage` needs `$user->ownsTeam($billable)`.
+     */
+    public static function allows(string $ability, ?Model $user, Model $billable): bool
+    {
+        $callback = ConfigCallback::resolve(config('kinetix.billing.authorize'));
+
+        if ($callback !== null) {
+            return $callback($user, $billable, $ability) === true;
+        }
+
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user::class === $billable::class && (string) $user->getKey() === (string) $billable->getKey()) {
+            return true;
+        }
+
+        if (config('kinetix.permissions.enabled', false) || Gate::has("billing.{$ability}")) {
+            // In the billed team's permission context: a role held in another
+            // team never counts.
+            return PermissionTeam::run(
+                $billable->getKey(),
+                static fn (): bool => Gate::forUser($user)->allows("billing.{$ability}"),
+                $user,
+            );
+        }
+
+        if ($ability === 'view') {
+            return true;
+        }
+
+        return method_exists($user, 'ownsTeam') && (bool) $user->ownsTeam($billable);
     }
 
     // -------------------------------------------------------------------

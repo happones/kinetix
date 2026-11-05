@@ -158,7 +158,8 @@ class KinetixTeams
      * route teams by slug/uuid — `Team::getRouteKeyName()`), so it must never
      * be stored as a team id directly. Resolution order:
      *
-     *  - a Model bound to the param (host-registered binding) → its key;
+     *  - a Model bound to the param (host-registered binding) → its key, once
+     *    the same teams relation confirms the user belongs to it (404 if not);
      *  - a scalar segment → looked up through the authenticated user's teams
      *    relation (`kinetix.team_switcher.teams_relation`, default `teams`)
      *    by the related model's route key name — which doubles as the
@@ -177,13 +178,13 @@ class KinetixTeams
         // page would silently fall back to the user's `currentTeam`.
         $param = $request->route('current_team') ?? $request->route('team');
 
-        if ($param instanceof Model) {
-            return $param->getKey();
-        }
-
         // Outside a routed HTTP request (queued jobs, console, unit tests) the
         // request has no user resolver — fall back to the auth guard.
         $user = $request->user() ?? auth()->user();
+
+        if ($param instanceof Model) {
+            return static::boundTeamKey($user, $param);
+        }
 
         if ($param !== null) {
             $relationName = (string) config('kinetix.team_switcher.teams_relation', 'teams');
@@ -211,6 +212,36 @@ class KinetixTeams
         }
 
         return $user?->currentTeam?->getKey();
+    }
+
+    /**
+     * The key of a team the host bound to the route segment itself
+     * (`Route::bind` / `Route::model`), held to the same membership check as
+     * a scalar segment: a bound team that isn't one of the user's aborts 404.
+     * Without a user or a teams relation the key is trusted, as the scalar
+     * path does.
+     */
+    protected static function boundTeamKey(mixed $user, Model $team): int|string
+    {
+        $relationName = (string) config('kinetix.team_switcher.teams_relation', 'teams');
+
+        if (! $user instanceof Model || ! method_exists($user, $relationName)) {
+            return $team->getKey();
+        }
+
+        $relation = $user->{$relationName}();
+
+        if (! $relation instanceof Relation) {
+            return $team->getKey();
+        }
+
+        $isMember = $relation->getQuery()
+            ->where($relation->getRelated()->getQualifiedKeyName(), $team->getKey())
+            ->exists();
+
+        abort_unless($isMember, 404);
+
+        return $team->getKey();
     }
 
     /**

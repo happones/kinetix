@@ -69,18 +69,20 @@ class ReportScheduleController
         $data = $this->validated($request);
 
         try {
-            Report::fromToken($data['report']);
+            $report = Report::fromToken($data['report']);
         } catch (Throwable) {
             return response()->json(['message' => __('kinetix.report_invalid')], 422);
         }
 
-        $reportClass = $this->classFromToken($data['report']);
+        abort_unless($report->authorize($request->user()), 403);
+
+        $reportClass = $report::class;
 
         $schedule = ReportSchedule::create([
             ...ReportSchedule::teamAttributes(),
             'report_class'         => $reportClass,
             'frequency'            => $data['frequency'],
-            'parameters'           => $data['parameters']           ?? [],
+            'parameters'           => Report::clientParameters($data['parameters'] ?? []),
             'enabled'              => $data['enabled']              ?? true,
             'notify_on_completion' => $data['notify_on_completion'] ?? false,
             'next_run_at'          => now(),
@@ -103,6 +105,10 @@ class ReportScheduleController
             'notify_on_completion' => ['boolean'],
         ]);
 
+        if (isset($data['parameters'])) {
+            $data['parameters'] = Report::clientParameters($data['parameters']);
+        }
+
         $schedule->update($data);
 
         return response()->json(ReportScheduleData::fromModel($schedule->fresh()));
@@ -122,9 +128,15 @@ class ReportScheduleController
         Gate::authorize('viewKinetixReportsCenter');
 
         $schedule = $this->findSchedule($request);
+        $report   = ReportAccess::instance($schedule->report_class);
+
+        // Both the requester and the creator the run is launched as (and
+        // delivered to) must still be allowed to run the report.
+        abort_unless($report !== null && $report->authorize($request->user()), 403);
+        abort_unless(ReportAccess::allowsInTeam($report, $schedule->createdBy, $schedule->team_id), 403);
 
         $run = $this->dispatcher->dispatch(
-            report: $schedule->report(),
+            report: $report,
             launchedBy: $schedule->createdBy,
             parameters: $schedule->parameters ?? [],
             reportScheduleId: $schedule->id,

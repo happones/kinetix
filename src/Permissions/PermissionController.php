@@ -165,20 +165,7 @@ class PermissionController
      */
     protected function withTeamId(int|string|null $teamId, callable $callback): mixed
     {
-        if (! $this->teamsActive()) {
-            return $callback();
-        }
-
-        $registrar = app(PermissionRegistrar::class);
-        $previous  = $registrar->getPermissionsTeamId();
-
-        $registrar->setPermissionsTeamId($teamId);
-
-        try {
-            return $callback();
-        } finally {
-            $registrar->setPermissionsTeamId($previous);
-        }
+        return PermissionTeam::run($teamId, $callback);
     }
 
     protected function currentTeamId(): int|string|null
@@ -335,8 +322,7 @@ class PermissionController
 
     protected function teamsActive(): bool
     {
-        return class_exists(PermissionRegistrar::class)
-            && (bool) config('permission.teams', false);
+        return PermissionTeam::active();
     }
 
     protected function teamsKey(): string

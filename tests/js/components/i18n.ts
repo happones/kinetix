@@ -84,6 +84,9 @@ export const i18n = createI18n({
                 billing_default: 'Default',
                 billing_payment_required:
                     'Please add a payment method before subscribing to a paid plan.',
+                billing_remove_card: 'Remove card',
+                billing_manage_forbidden:
+                    "You can't change this team's billing.",
                 // roles & permissions
                 save: 'Save',
                 select_all: 'Select all',

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Exports;
 
+use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -71,11 +71,11 @@ class ExportController
      * the queued exporter narrows by. The descriptor is user-bound and expiring
      * (same contract as every relation endpoint); the parent's `view` policy
      * rules (exporting children is reading the parent), and the relation's
-     * related model must be exactly what the exporter exports.
-     *
-     * @return array{parent: class-string<Model>, key: mixed, name: string}|JsonResponse
+     * related model must be exactly what the exporter exports. The scope is
+     * handed to the job as a {@see RelationScope} seal, the only form the
+     * exporter honours.
      */
-    protected function relationScope(Request $request, Exporter $exporter): array|JsonResponse
+    protected function relationScope(Request $request, Exporter $exporter): string|JsonResponse
     {
         $invalid = fn (): JsonResponse => response()->json(['message' => __('kinetix.export_invalid')], 422);
 
@@ -88,12 +88,11 @@ class ExportController
         $parentClass  = is_array($payload) ? ($payload['parent'] ?? null) : null;
         $relationName = is_array($payload) ? ($payload['relation'] ?? null) : null;
 
-        if (
-            ! is_string($parentClass) || ! class_exists($parentClass)
-                                      || ! is_subclass_of($parentClass, Model::class)
-                                      || ! is_string($relationName) || $relationName === ''
-                                      || ! method_exists($parentClass, $relationName)
-        ) {
+        if (! is_string($parentClass) || ! is_subclass_of($parentClass, Model::class)) {
+            return $invalid();
+        }
+
+        if (! is_string($relationName) || $relationName === '') {
             return $invalid();
         }
 
@@ -114,17 +113,13 @@ class ExportController
             return response()->json(['message' => __('kinetix.export_forbidden')], 403);
         }
 
-        $relation = $parent->{$relationName}();
+        $relation = EloquentRelation::resolve($parent, $relationName);
 
-        if (! $relation instanceof Relation || $relation->getRelated()::class !== $exporter::getModel()) {
+        if ($relation === null || $relation->getRelated()::class !== $exporter::getModel()) {
             return $invalid();
         }
 
-        return [
-            'parent' => $parentClass,
-            'key'    => $parent->getKey(),
-            'name'   => $relationName,
-        ];
+        return RelationScope::seal($parent, $relationName, $exporter::class);
     }
 
     /**

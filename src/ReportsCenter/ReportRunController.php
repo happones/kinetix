@@ -28,7 +28,7 @@ class ReportRunController
     {
         Gate::authorize('viewKinetixReportsCenter');
 
-        $table = Table::make(ReportRun::query()->forCurrentTeam()->latest())
+        $table = Table::make(ReportRun::query()->forCurrentTeam()->whereIn('report_class', $this->runnableClasses())->latest())
             ->columns([
                 TextColumn::make('report_class')
                     ->label((string) __('kinetix.report_runs_report_column'))
@@ -86,10 +86,12 @@ class ReportRunController
             return response()->json(['message' => __('kinetix.report_invalid')], 422);
         }
 
+        abort_unless($report->authorize($request->user()), 403);
+
         $run = $this->dispatcher->dispatch(
             report: $report,
             launchedBy: $request->user(),
-            parameters: (array) $request->input('parameters', []),
+            parameters: Report::clientParameters((array) $request->input('parameters', [])),
         );
 
         return response()->json(['status' => 'queued', 'run_id' => $run->id]);
@@ -100,6 +102,8 @@ class ReportRunController
         Gate::authorize('viewKinetixReportsCenter');
 
         $run = $this->findRun($request);
+
+        abort_unless(ReportAccess::allowsClass($run->report_class, $request->user()), 403);
 
         if (! $run->status->isCancellable()) {
             return response()->json(['message' => __('kinetix.report_run_not_cancellable')], 422);
@@ -123,12 +127,16 @@ class ReportRunController
             return response()->json(['message' => __('kinetix.report_run_not_retryable')], 422);
         }
 
-        if (! class_exists($run->report_class) || ! is_subclass_of($run->report_class, Report::class)) {
+        $report = ReportAccess::instance($run->report_class);
+
+        if ($report === null) {
             return response()->json(['message' => 'Unknown report class.'], 422);
         }
 
-        /** @var Report $report */
-        $report = new $run->report_class;
+        // Both the requester and the user the run is launched as (and
+        // delivered to) must still be allowed to run the report.
+        abort_unless($report->authorize($request->user()), 403);
+        abort_unless(ReportAccess::allowsInTeam($report, $run->launchedBy, $run->team_id), 403);
 
         $newRun = $this->dispatcher->dispatch(
             report: $report,
@@ -150,6 +158,7 @@ class ReportRunController
         $run = $this->findDownloadableRun($request);
 
         abort_unless($run->isDownloadable(), 404);
+        abort_unless($this->mayRunInItsTeam($run, $request), 403);
 
         /** @var string $disk */
         $disk = $run->disk;
@@ -157,6 +166,38 @@ class ReportRunController
         $path = $run->path;
 
         return Storage::disk($disk)->download($path, (string) $run->file_name);
+    }
+
+    /**
+     * The report classes among the current team's runs the viewer may run:
+     * a report whose own `authorize()` refuses them is not listed, as its
+     * download and cancel would 403.
+     *
+     * @return array<int, string>
+     */
+    protected function runnableClasses(): array
+    {
+        $user = request()->user();
+
+        return ReportRun::query()->forCurrentTeam()->distinct()->pluck('report_class')
+            ->filter(static fn (mixed $class): bool => is_string($class) && ReportAccess::allowsClass($class, $user))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The download link carries no team, so the viewer is judged in the
+     * run's own team (whose membership findDownloadableRun() checked).
+     */
+    protected function mayRunInItsTeam(ReportRun $run, Request $request): bool
+    {
+        if ($run->team_id === null) {
+            return ReportAccess::allowsClass($run->report_class, $request->user());
+        }
+
+        $report = ReportAccess::instance($run->report_class);
+
+        return $report !== null && ReportAccess::allowsInTeam($report, $request->user(), $run->team_id);
     }
 
     protected function findRun(Request $request): ReportRun

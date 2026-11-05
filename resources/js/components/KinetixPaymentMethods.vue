@@ -25,6 +25,12 @@ const props = withDefaults(
         /** SetupIntent client secret used to confirm a new card. */
         setupClientSecret?: string;
         loading?: boolean;
+        /**
+         * Whether the viewer may add and remove cards. Without it the saved
+         * cards stay selectable for display, but the add panel and remove
+         * buttons are gone. Presentation only: the server enforces it.
+         */
+        canManage?: boolean;
     }>(),
     {
         paymentMethods: () => [],
@@ -32,6 +38,7 @@ const props = withDefaults(
         defaultId: undefined,
         setupClientSecret: undefined,
         loading: false,
+        canManage: true,
     },
 );
 
@@ -56,7 +63,8 @@ const { ready, error, mount, confirmCardSetup } = useKinetixStripe({
  * without them the panel says so instead of an empty field and a dead button.
  */
 const cardsAvailable = computed(
-    () => !!props.publishableKey && !!props.setupClientSecret,
+    () =>
+        props.canManage && !!props.publishableKey && !!props.setupClientSecret,
 );
 
 /**
@@ -145,6 +153,7 @@ async function handleAdd(): Promise<void> {
 
         <CardContent>
             <div
+                v-if="canManage || paymentMethods.length > 0"
                 class="gap-4 sm:grid-cols-2 grid grid-cols-1"
                 role="radiogroup"
                 :aria-label="t('kinetix.billing_payment_method')"
@@ -198,7 +207,7 @@ async function handleAdd(): Promise<void> {
                     </div>
 
                     <button
-                        v-if="selectedId === pm.id"
+                        v-if="canManage && selectedId === pm.id"
                         type="button"
                         class="-right-2 -top-2 p-1 shadow-lg text-white absolute z-20 rounded-full bg-destructive dark:bg-destructive/60"
                         :aria-label="t('kinetix.billing_remove_card')"
@@ -210,6 +219,7 @@ async function handleAdd(): Promise<void> {
                 </div>
 
                 <div
+                    v-if="canManage"
                     role="radio"
                     :aria-checked="selectedId === 'new'"
                     tabindex="0"
@@ -230,7 +240,11 @@ async function handleAdd(): Promise<void> {
                 </div>
             </div>
 
-            <div v-show="selectedId === 'new'" class="mt-8 space-y-4">
+            <div
+                v-if="canManage"
+                v-show="selectedId === 'new'"
+                class="mt-8 space-y-4"
+            >
                 <template v-if="cardsAvailable">
                     <div class="rounded-lg p-4 border border-input bg-muted/40">
                         <div ref="cardMount"></div>
@@ -260,7 +274,14 @@ async function handleAdd(): Promise<void> {
             </div>
 
             <p
-                v-if="paymentMethods.length === 0 && selectedId !== 'new'"
+                v-if="!canManage"
+                data-test="payment-methods-manage-forbidden"
+                class="mt-4 p-3 text-xs rounded-md border border-border bg-muted/40 text-muted-foreground"
+            >
+                {{ t('kinetix.billing_manage_forbidden') }}
+            </p>
+            <p
+                v-else-if="paymentMethods.length === 0 && selectedId !== 'new'"
                 class="mt-4 p-3 text-xs rounded-md border border-border bg-muted/40 text-muted-foreground"
             >
                 {{ t('kinetix.billing_payment_required') }}

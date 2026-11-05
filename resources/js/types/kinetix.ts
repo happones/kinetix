@@ -1978,6 +1978,12 @@ export interface KinetixSubscriptionData {
     trialPlanName?: string | null;
 }
 
+/** What the viewer may do on the billing page (mirrors BillingAbilitiesData). */
+export interface KinetixBillingAbilities {
+    view: boolean;
+    manage: boolean;
+}
+
 /** One metered usage dimension (API calls, seats, storage, …) for <KinetixUsageMeters>. */
 export interface KinetixUsageMetricData {
     key: string;

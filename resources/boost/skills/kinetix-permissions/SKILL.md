@@ -353,13 +353,21 @@ For standalone modules or custom sections, register them in your `AppServiceProv
 ```php
 use Happones\Kinetix\Permissions\KinetixPermissions;
 
-KinetixPermissions::feature('billing')
-    ->label('Billing Management')
+KinetixPermissions::feature('payouts')
+    ->label('Payouts')
     ->abilities([
-        'manage' => 'Manage subscription plans',
-        'view-invoices' => 'View invoices',
+        'manage' => 'Manage payout accounts',
+        'view-statements' => 'View statements',
     ]);
 ```
+
+Built-in feature names are taken by the modules that register them: `roles`,
+`members`, `settings`, `activity`, `users` (`impersonate`, platform),
+`webhooks`, `channels`, `conversations`, `flows`, and `billing` (`view`,
+`manage`; registered when `billing.enabled`). `billing.view` guards the
+billing page and invoices, `billing.manage` subscribe, payment methods,
+cancel and resume — checked in the BILLED team's context by
+`BillingManager::allows()` (see the `kinetix-billing` skill).
 
 ### 3. Syncing Permissions to Spatie
 Run the sync command to persist permissions to your database:

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms;
 
+use Happones\Kinetix\Confidential\Casts\ConfidentialCast;
 use Happones\Kinetix\Data\FormData;
 use Happones\Kinetix\Forms\Components\Component;
 use Happones\Kinetix\Forms\Components\Field;
@@ -419,10 +420,10 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
-     * Whether `$name` is an attribute its model keeps out of serialization —
-     * listed in `$hidden`, or left out of a `$visible` whitelist — so the form
-     * never ships it either. A dotted name (`owner.password`) is judged on the
-     * related model that holds it, and through every relation on the way.
+     * Whether `$name` is an attribute the form withholds ({@see withholds()}):
+     * one its model keeps out of serialization, or a confidential one. A
+     * dotted name (`owner.password`) is judged on the related model that
+     * holds it, and through every relation on the way.
      */
     protected function isHiddenAttribute(Model $record, string $name): bool
     {
@@ -431,7 +432,7 @@ class Form implements Arrayable, JsonSerializable
         $owner     = $record;
 
         foreach ($segments as $segment) {
-            if (self::serializationHides($owner, $segment)) {
+            if (self::withholds($owner, $segment)) {
                 return true;
             }
 
@@ -445,11 +446,23 @@ class Form implements Arrayable, JsonSerializable
             $owner = $related;
         }
 
-        return self::serializationHides($owner, $attribute);
+        return self::withholds($owner, $attribute);
     }
 
-    private static function serializationHides(Model $model, string $attribute): bool
+    /**
+     * Whether an edit form must not ship `$attribute`, and must keep its
+     * stored value when it comes back blank or unchanged: it is listed in
+     * `$hidden`, left out of a `$visible` whitelist, or confidential
+     * ({@see ConfidentialCast}). A confidential value is withheld even while
+     * unlocked: its mask is not the value, and saving it back would replace
+     * the real one.
+     */
+    private static function withholds(Model $model, string $attribute): bool
     {
+        if (ConfidentialCast::appliesTo($model, $attribute)) {
+            return true;
+        }
+
         $visible = $model->getVisible();
 
         return in_array($attribute, $model->getHidden(), true)
@@ -457,7 +470,8 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
-     * A hidden attribute of an existing record keeps the value it has unless
+     * A withheld attribute (hidden or confidential) of an existing record
+     * keeps the value it has unless
      * the user entered a new one: the form rendered it empty, so coming back
      * blank, off, or as the field's empty state means "unchanged", not "clear
      * it". (Before, the hash itself made the round trip.)

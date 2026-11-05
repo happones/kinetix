@@ -1998,9 +1998,19 @@ return [
             'badge_label' => env('KINETIX_BILLING_LOCK_BADGE_LABEL'),
         ],
 
-        // Optionally resolve a different billable from the authenticated user
-        // (e.g. fn ($user) => $user->currentTeam). Null = the user itself.
+        // Optionally resolve a different billable from the authenticated user,
+        // as a callable array: [App\Billing\Billables::class, 'forUser'],
+        // receiving ($user). Null = the user itself.
         'resolve_billable' => null,
+
+        // Who may view and manage the billing page, as a callable array
+        // receiving ($user, $billable, string $ability) — 'view' or 'manage'
+        // — and returning bool: [App\Billing\BillingAccess::class, 'allows'].
+        // It replaces the built-in rules when set. Null = the built-in rules:
+        // a user billed as themselves may do anything; otherwise the
+        // `billing.view` / `billing.manage` permissions decide (Permissions
+        // module on), else any member views and the owner (ownsTeam()) manages.
+        'authorize' => null,
 
         // Route registration for the bundled BillingController.
         'auto_routes'  => env('KINETIX_BILLING_AUTO_ROUTES', false),

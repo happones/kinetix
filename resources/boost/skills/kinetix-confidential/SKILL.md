@@ -95,10 +95,27 @@ dialog (`require_password`) → opens the reveal window for
 ## Performance: one key, not one per row
 
 A KMS-backed key manager is called **at most once per `key_cache_ttl_minutes`
-window**, not once per confidential value rendered — `ConfidentialManager`
-caches the unwrapped Data Encryption Key. Rotate keys any time with
-`kinetix:confidential:rotate-key`; older data stays decryptable (each
-envelope embeds the `key_id` it was encrypted under).
+window and process**, not once per confidential value rendered —
+`ConfidentialManager` keeps the unwrapped Data Encryption Key in an instance
+memo (process memory). **Never write a raw key to `Cache`** (it is shared and
+often a DB table): the cache holds only scalar key rows
+(`{key_id, wrapped_key}` under `kinetix-confidential:v2:current` /
+`kinetix-confidential:v2:key:{id}`). `flushKeys()` drops the memo. Rotate
+keys any time with `kinetix:confidential:rotate-key`, which also purges the
+v2 rows and the legacy `kinetix-confidential-dek:{id}` /
+`kinetix-confidential-key:{id}` entries for every key id; older data stays
+decryptable (each envelope embeds the `key_id` it was encrypted under).
+
+## Forms withhold confidential attributes (REQUIRED)
+
+`Form` treats a confidential attribute (`ConfidentialCast::appliesTo($model,
+$attribute)`) like a `$hidden` one: never hydrated into an edit form (masked
+or not, even unlocked), dotted names included, and a blank or unchanged
+submission keeps the stored value (`Form::withholds()` /
+`keepsStoredValue()`). Never send a mask to a form: saving it back destroyed
+the real value before 0.274. Defence in depth: `ConfidentialCast::set()`
+keeps the stored ciphertext when the incoming value is exactly the mask of
+the stored one (`$m->ssn = $m->ssn` while locked).
 
 ## Limitations
 

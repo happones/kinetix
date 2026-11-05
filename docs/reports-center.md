@@ -126,6 +126,58 @@ use Happones\Kinetix\ReportsCenter\KinetixReportsCenter;
 KinetixReportsCenter::register(\App\Reports\SomeOtherReport::class);
 ```
 
+### Who may run a report
+
+The `viewKinetixReportsCenter` gate opens the Reports Center. Each report then
+answers for itself through the `authorize()` it inherits from `Exporter`: the
+`viewAny` policy of its model when the model has one, the ability `ability()`
+names, or your own override.
+
+```php
+use Illuminate\Contracts\Auth\Authenticatable;
+
+public function authorize(?Authenticatable $user): bool
+{
+    return $user?->can('invoices.export') ?? false;
+}
+```
+
+It is checked server-side on every path that starts a run:
+
+| Path | Who is checked | When refused |
+| ---- | -------------- | ------------ |
+| Launch (`report-runs/launch`) | the requester | 403 |
+| Retry (`report-runs/{run}/retry`) | the requester **and** the run's original launcher | 403 |
+| Schedule create (`report-schedules`) | the requester | 403 |
+| Run now (`report-schedules/{schedule}/run-now`) | the requester **and** the schedule's creator | 403 |
+| `kinetix:report-schedules:dispatch-due` | the schedule's creator | skipped and logged; the schedule still advances |
+| Download / cancel a run | the requester | 403 |
+
+A run is launched as (and its "report ready" notification sent to) the
+launcher or the schedule's creator, so that user must still be allowed too: a
+colleague can't deliver a report to someone who lost access to it. That user
+is judged inside the run's or the schedule's team, with spatie's team id
+pinned to it, so a role they hold in that team counts. The scheduler does the
+same: the console has no request team.
+
+The launcher's type list (`report-types`) only lists the reports the viewer
+may run, and the runs list only shows runs of those reports. A run whose
+report class no longer exists can't be downloaded or cancelled.
+
+### Reserved parameter keys
+
+`ids` (a bulk selection) and `relation` (a relation scope) narrow what an
+export reads, so only the server sets them. The launcher and the schedule
+editor drop both from the `parameters` a client sends
+(`Report::RESERVED_PARAMETERS`, applied by `Report::clientParameters()`);
+every other key reaches your report through `parameter()` as before.
+
+A relation scope only counts when it is a seal the server made
+(`Happones\Kinetix\Exports\RelationScope`, see
+[Import / Export](/import-export#relation-scoped-exports)). A plain array, a
+forged string or another exporter's seal exports zero rows, so a run or a
+schedule stored with a client-made `relation` before 0.274 is inert.
+
 ---
 
 ## 2. Mount the components
@@ -205,7 +257,9 @@ Schedule::command('kinetix:report-schedules:dispatch-due')->everyMinute();
 ```
 
 Each due schedule creates a new `ReportRun`, advances `next_run_at` per its
-frequency, and (for `once`) disables itself after firing.
+frequency, and (for `once`) disables itself after firing. A schedule whose
+creator may no longer run the report (its `authorize()` says no) is skipped
+with a warning in the log, and still advances.
 
 ---
 

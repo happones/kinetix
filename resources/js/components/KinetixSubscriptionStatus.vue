@@ -20,10 +20,16 @@ const props = withDefaults(
         subscription?: KinetixSubscriptionData | null;
         /** The plan a billable without a subscription is on, named in place of "no subscription". */
         currentPlanName?: string | null;
+        /**
+         * Whether the viewer may cancel or resume. Without it the status still
+         * shows, the actions do not. Presentation only: the server enforces it.
+         */
+        canManage?: boolean;
     }>(),
     {
         subscription: null,
         currentPlanName: null,
+        canManage: true,
     },
 );
 
@@ -89,7 +95,7 @@ const trialPlanName = computed(() => {
 const hasActions = computed(() => {
     const subscription = props.subscription;
 
-    if (!subscription || !subscription.status) {
+    if (!props.canManage || !subscription || !subscription.status) {
         return false;
     }
 

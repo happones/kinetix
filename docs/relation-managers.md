@@ -625,6 +625,11 @@ automatically **scoped to the parent's relationship**:
   action must be wired via `->exporter()` — anything else throws at
   serialize time.
 - A parent deleted between queueing and running exports zero rows.
+- The job receives the scope as a server-made seal, never as plain data; see
+  [Import / Export → The relation scope is sealed](/import-export#relation-scoped-exports).
+- The export only resolves a relation method your model declares. A relation
+  a framework trait provides (`Notifiable::notifications()`) is refused (the
+  export answers 422); declare your own method for it and manage that one.
 
 Declare the pivot columns on the relationship (`->withPivot('role')`) and
 address them through the pivot accessor:

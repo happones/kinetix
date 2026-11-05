@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Commands;
 
 use Happones\Kinetix\Confidential\ConfidentialKey;
+use Happones\Kinetix\Confidential\ConfidentialManager;
 use Happones\Kinetix\Confidential\KeyManagers\KeyManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -39,7 +40,15 @@ class ConfidentialRotateKeyCommand extends Command
             'is_current'  => true,
         ]);
 
-        Cache::forget('kinetix-confidential-current-key');
+        // Every cached key row (and any raw key a version before 0.274 left
+        // in the cache) goes, for every key id: the cache is shared.
+        $keyIds = ConfidentialKey::query()->pluck('key_id')->map(static fn ($id): string => (string) $id)->all();
+
+        foreach (ConfidentialManager::cacheKeys($keyIds) as $cacheKey) {
+            Cache::forget($cacheKey);
+        }
+
+        app(ConfidentialManager::class)->flushKeys();
 
         $this->info($previous === null
             ? 'Generated the initial Kinetix confidential-fields encryption key.'

@@ -47,12 +47,26 @@ class User extends Authenticatable
 }
 ```
 
-If the billable is **not** the authenticated user (e.g. the user's current team), point the resolver at it in `config/kinetix.php`:
+If the billable is **not** the authenticated user (e.g. the user's current team), point the resolver at it in `config/kinetix.php`. Use a callable array (or an invokable class-string), not a closure: a closure in a config file makes `php artisan config:cache` fail.
 
 ```php
 'billing' => [
-    'resolve_billable' => fn ($user) => $user->currentTeam,
+    'resolve_billable' => [\App\Billing\Billables::class, 'forUser'],
 ],
+```
+
+```php
+namespace App\Billing;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Billables
+{
+    public function forUser(?Model $user): ?Model
+    {
+        return $user?->currentTeam;
+    }
+}
 ```
 
 ### Team Billing Setup
@@ -206,7 +220,8 @@ Users get trial access immediately upon registration without providing their pay
 | `currency` / `currency_symbol` | `USD` / `$` | UI formatting |
 | `product` | `Subscription` | Label on downloaded invoices |
 | `view` | `Billing/Index` | Inertia page the controller renders |
-| `resolve_billable` | `null` | Closure to resolve a non-user billable |
+| `resolve_billable` | `null` | Callable array (or invokable class) receiving `($user)` that returns a non-user billable |
+| `authorize` | `null` | Callable array (or invokable class) receiving `($user, $billable, string $ability)` that decides `view` / `manage`; replaces the built-in rules ([Authorization](#authorization)) |
 | `auto_routes` | `false` | Auto-register the bundled routes |
 | `route_prefix` / `route_name` | `billing` / `billing.` | Route group prefix + name |
 | `middleware` | `['web', 'auth']` | Route group middleware |
@@ -689,7 +704,61 @@ Either flip `auto_routes` + `enabled` to `true`, or register explicitly in a rou
 \Happones\Kinetix\Billing\BillingRoutes::register();
 ```
 
-Registers (under the configured prefix/name): `index`, `subscribe`, `payment-methods.add`, `payment-methods.remove`, `invoices.download`, `cancel`, `resume`, all backed by `BillingController` → `BillingManager`.
+Registers (under the configured prefix/name): `index`, `subscribe`, `payment-methods.add`, `payment-methods.remove`, `invoices.download`, `cancel`, `resume`, all backed by `BillingController` → `BillingManager`. With `kinetix.teams` on and spatie/laravel-permission installed, the group also gets the `kinetix.permissions.team` middleware, so roles answer in the URL's team.
+
+### Authorization
+
+Every billing endpoint asks `BillingManager::allows($ability, $user, $billable)` before it does anything, and a refusal is a **403**:
+
+| Ability | Endpoints |
+|---|---|
+| `view` | `index` (the page), `invoices.download` |
+| `manage` | `subscribe`, `payment-methods.add`, `payment-methods.remove`, `cancel`, `resume` |
+
+The checks live on the HTTP boundary only: calling `BillingManager` from your own code is not checked, so your code decides.
+
+The answer is decided in this order; the first rule that applies wins:
+
+| # | Situation | `view` | `manage` |
+|---|---|---|---|
+| 1 | `billing.authorize` is set | what it returns (`true` only when it returns `true`) | same |
+| 2 | The billable is the user (user-level billing) | allowed | allowed |
+| 3 | The Permissions module is on, or you `Gate::define('billing.view' / 'billing.manage')` | the Gate, asked for `billing.view` in the **billed team's** permission context | the Gate, for `billing.manage` |
+| 4 | Otherwise | allowed (the team is already one of the user's) | `$user->ownsTeam($billable)` |
+
+With the Permissions module, `billing` is a built-in feature with two abilities, `billing.view` and `billing.manage` (run `kinetix:permissions:sync`). The seeded presets give `admin` and `editor` both and `viewer` only `billing.view`. The owner bypass (`permissions.owner_bypass`) grants them to team owners unless you scope them out. Under spatie teams the check pins the team id to the billed team for its duration, so a role held in team A never opens team B's billing.
+
+To decide yourself, point `billing.authorize` at a callable array:
+
+```php
+'billing' => [
+    'authorize' => [\App\Billing\BillingAccess::class, 'allows'],
+],
+```
+
+```php
+namespace App\Billing;
+
+use Illuminate\Database\Eloquent\Model;
+
+class BillingAccess
+{
+    public function allows(?Model $user, Model $billable, string $ability): bool
+    {
+        return $ability === 'view'
+            ? $user?->belongsToTeam($billable) ?? false
+            : $user?->ownsTeam($billable) ?? false;
+    }
+}
+```
+
+The page tells the UI what the viewer may do. `index` sends `can` (`BillingAbilitiesData`, `KinetixBillingAbilities` in TypeScript): `{ view: true, manage: boolean }`. Without `manage`, `intent` is `null`: no setup intent is created, so reading the page never makes the team a Stripe customer. The scaffolded `Billing/Index.vue` takes the `can` prop and passes `:can-subscribe="!plansLocked && can.manage"` to the pricing table (the disabled reason is `kinetix.billing_manage_forbidden`) and `:can-manage="can.manage"` to `KinetixPaymentMethods` and `KinetixSubscriptionStatus`.
+
+`kinetix:doctor` warns when team billing is on and nobody can manage it: with permissions on, no role carries `billing.manage` and the owner bypass doesn't grant it; with permissions off, the user model has no `ownsTeam()`. Setting `billing.authorize` silences both.
+
+::: warning Upgrading from 0.273 or earlier
+Team billing used to let **any member** change the plan, the cards and the subscription, and download invoices. After the upgrade a member needs `billing.view` to read and `billing.manage` to change (or ownership without the Permissions module). Grant them, or set `billing.authorize`, re-publish the components (`php artisan vendor:publish --tag=kinetix-components --force`, for `canManage`), and re-run `kinetix:make-billing` (it overwrites `pages/Billing/Index.vue`) or add the `can` prop to your own page. User-level billing is unchanged.
+:::
 
 ---
 
@@ -762,8 +831,8 @@ All components are token-only (shadcn semantic tokens) and take labels via props
 |---|---|
 | `KinetixPricingTable` | Responsive grid of plan cards + optional monthly/yearly toggle. `canSubscribe` (a boolean, or a function of the plan) disables the buttons; `disabledReason` says why, above the plans |
 | `KinetixPlanCard` | Single plan: price, highlighted features, capability rows via `featureLabels` |
-| `KinetixPaymentMethods` | Saved cards + add-card via Stripe Elements |
-| `KinetixSubscriptionStatus` | Status badge + cancel/resume (only for a Stripe subscription; a no-card trial has none) |
+| `KinetixPaymentMethods` | Saved cards + add-card via Stripe Elements. `canManage` (default `true`): when `false`, add/remove are hidden and `kinetix.billing_manage_forbidden` is shown as a note |
+| `KinetixSubscriptionStatus` | Status badge + cancel/resume (only for a Stripe subscription; a no-card trial has none). `canManage` (default `true`): when `false`, cancel/resume are hidden |
 | `KinetixInvoicesTable` | Invoice list with per-row download |
 | `KinetixUsageMeters` | Metered-usage progress bars (renders nothing when there's nothing to show) |
 | `KinetixPlanLock` | Plan-locked feature UI: card / overlay / banner / badge padlock + upgrade CTA |

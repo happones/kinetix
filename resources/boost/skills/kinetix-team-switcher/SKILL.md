@@ -64,6 +64,14 @@ You provide `teams.switch` (e.g. a controller calling `$user->switchTeam($team)`
   createUrl, switchMethod, labels }`. `url` is `null` when the switch route is
   missing (graceful). Empty for guests / when disabled.
 - Shared on every Inertia response as `kinetix_teams`.
+- **Membership (REQUIRED).** `KinetixTeams::currentTeamKey()` resolves the
+  `{current_team}` (or `{team}`) segment through `teams_relation` and aborts
+  404 for a team the user isn't in. A host `Route::bind` / `Route::model`
+  that binds the segment to a model goes through the SAME check
+  (`$relation->getQuery()->where(qualified key, $team->getKey())->exists()`);
+  no user or no relation → the key is trusted, like the scalar path. Never
+  return a bound model's key without it, and never use the `current_team_id`
+  fallback of `userBelongsTo()` for a URL segment.
 
 ## Frontend
 

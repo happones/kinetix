@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Billing;
 
 use Happones\Kinetix\Billing\Exceptions\BillingActionException;
+use Happones\Kinetix\Data\BillingAbilitiesData;
 use Happones\Kinetix\Data\PlanData;
 use Happones\Kinetix\Flash\KinetixFlash;
 use Illuminate\Http\Request;
@@ -28,9 +29,27 @@ class BillingController
         return BillingManager::resolve();
     }
 
-    public function index(Request $request): Response
+    /**
+     * The request's billing manager, once the user may `view` or `manage` its
+     * billable ({@see BillingManager::allows()}); a 403 otherwise. Every
+     * endpoint goes through here: a member who may read the billing page can
+     * still not change the plan, the card or the subscription.
+     */
+    protected function authorizedManager(Request $request, string $ability): BillingManager
     {
         $manager = $this->manager();
+
+        if (! BillingManager::allows($ability, $request->user(), $manager->billable())) {
+            abort(403, $ability === 'manage' ? (string) __('kinetix.billing_manage_forbidden') : '');
+        }
+
+        return $manager;
+    }
+
+    public function index(Request $request): Response
+    {
+        $manager   = $this->authorizedManager($request, 'view');
+        $canManage = BillingManager::allows('manage', $request->user(), $manager->billable());
 
         // Back from confirming a payment on Cashier's page, the subscription is
         // still `incomplete` here until Stripe's webhook says otherwise.
@@ -48,8 +67,11 @@ class BillingController
             'currentPlan' => $manager->currentPlan() !== null
                 ? PlanData::fromPlan($manager->currentPlan())
                 : null,
-            'preselectedPlanSlug'    => $preselectedPlanSlug,
-            'intent'                 => $manager->setupIntent(),
+            'preselectedPlanSlug' => $preselectedPlanSlug,
+            'can'                 => new BillingAbilitiesData(view: true, manage: $canManage),
+            // Only for someone who may add a card: creating the intent makes
+            // the billable a Stripe customer.
+            'intent'                 => $canManage ? $manager->setupIntent() : null,
             'paymentMethods'         => $manager->paymentMethods(),
             'defaultPaymentMethodId' => $manager->defaultPaymentMethodId(),
             'invoices'               => $manager->invoices(),
@@ -67,13 +89,15 @@ class BillingController
 
     public function subscribe(Request $request): HttpResponse
     {
+        $manager = $this->authorizedManager($request, 'manage');
+
         $validated = $request->validate([
             'plan_slug'      => ['required', 'string', 'exists:plans,slug'],
             'payment_method' => ['nullable', 'string'],
             'cycle'          => ['nullable', 'in:monthly,yearly'],
         ]);
 
-        return $this->attempt(fn () => $this->manager()->subscribe(
+        return $this->attempt(fn () => $manager->subscribe(
             $validated['plan_slug'],
             $validated['payment_method'] ?? null,
             $validated['cycle']          ?? 'monthly',
@@ -82,37 +106,45 @@ class BillingController
 
     public function addPaymentMethod(Request $request): HttpResponse
     {
+        $manager = $this->authorizedManager($request, 'manage');
+
         $validated = $request->validate([
             'payment_method' => ['required', 'string'],
         ]);
 
         return $this->attempt(
-            fn () => $this->manager()->addPaymentMethod($validated['payment_method']),
+            fn () => $manager->addPaymentMethod($validated['payment_method']),
             'kinetix.billing_payment_method_added',
         );
     }
 
     public function removePaymentMethod(Request $request): HttpResponse
     {
+        $manager = $this->authorizedManager($request, 'manage');
+
         return $this->attempt(
-            fn () => $this->manager()->removePaymentMethod((string) $request->route('id')),
+            fn () => $manager->removePaymentMethod((string) $request->route('id')),
             'kinetix.billing_payment_method_removed',
         );
     }
 
     public function downloadInvoice(Request $request): mixed
     {
-        return $this->manager()->downloadInvoice((string) $request->route('id'));
+        return $this->authorizedManager($request, 'view')->downloadInvoice((string) $request->route('id'));
     }
 
     public function cancel(Request $request): HttpResponse
     {
-        return $this->attempt(fn () => $this->manager()->cancel(), 'kinetix.billing_subscription_cancelled');
+        $manager = $this->authorizedManager($request, 'manage');
+
+        return $this->attempt(fn () => $manager->cancel(), 'kinetix.billing_subscription_cancelled');
     }
 
     public function resume(Request $request): HttpResponse
     {
-        return $this->attempt(fn () => $this->manager()->resume(), 'kinetix.billing_subscription_resumed');
+        $manager = $this->authorizedManager($request, 'manage');
+
+        return $this->attempt(fn () => $manager->resume(), 'kinetix.billing_subscription_resumed');
     }
 
     /**

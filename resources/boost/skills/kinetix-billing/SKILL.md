@@ -33,6 +33,9 @@ Full reference: [Kinetix Billing Documentation](https://happones.github.io/kinet
 - **Plans are read from a catalog, never re-queried.** `currentPlan()` is memoized per billable per request and answered from `PlanCatalog` (the whole `plans` table, loaded at most once). Gating a dozen things costs ONE query. Model writes and bulk `Plan::query()->update()` flush it automatically; raw `DB::table('plans')` writes do NOT — that's why `billing.cache.ttl` (the opt-in cross-request layer) defaults to null. Never add a plan query to a hot path: ask `HasPlan`. In a worker that changed a subscription mid-process, call `$billable->forgetCurrentPlan()`.
 - **Metered usage is customizable by design.** Kinetix cannot know how your app measures "used" — the billable defines `meteredUsage(?Plan $plan): array<UsageMetric>` (hybrid-detected via `method_exists`; implementing `Contracts\ProvidesUsageMetrics` is optional). The **limit** and **color** are each independently overridable per metric (`->limit()`, `->color(string|Closure)`) or left to fall back to the plan's `features.usage.{key}` and the default thresholds, respectively — don't hardcode either in the component.
 
+- **Authorize at the HTTP boundary (REQUIRED).** Every `BillingController` endpoint asks `BillingManager::allows($ability, $user, $billable)` first and answers 403: `view` for `index` + `invoices.download`, `manage` for `subscribe`, payment methods, `cancel`, `resume`. Order: `billing.authorize` callable array `($user, $billable, string $ability): bool` (rules alone; never a closure) → the user IS the billable → allow → Permissions on or `Gate::has("billing.$ability")` → the Gate in the BILLED team's spatie context (team id pinned to the billable key, `roles`/`permissions` relations dropped both ways, restored after) → else `view` allowed and `manage` = `ownsTeam($billable)`. Never put these checks inside `BillingManager`'s own methods. The `billing` feature (`view`, `manage`) is registered when billing is enabled; seeded admin/editor get both, viewer gets view.
+- **The page contract.** `index` sends `can: BillingAbilitiesData` (`KinetixBillingAbilities` `{ view, manage }`) and `intent: null` without manage (no `setupIntent()`, so no Stripe customer is created for a reader). `KinetixPaymentMethods` / `KinetixSubscriptionStatus` take `canManage` (default true); the scaffold passes `:can-subscribe="!plansLocked && can.manage"` (reason `kinetix.billing_manage_forbidden`) and `:can-manage="can.manage"`. `kinetix:doctor` warns when team billing has nobody who can manage.
+
 ## Usage Guide
 
 ### 1. Plan + feature gating
@@ -164,7 +167,7 @@ php artisan kinetix:make-billing --seeder
 
 - `src/Billing/Plan.php` · `Concerns/HasPlan.php` · `BillingManager.php` · `BillingController.php` · `BillingRoutes.php` · `Middleware/PlanFeatureMiddleware.php`
 - `src/Billing/UsageMetric.php` · `Contracts/ProvidesUsageMetrics.php`
-- `src/Data/PlanData.php` · `UsageMetricData.php`
+- `src/Data/PlanData.php` · `UsageMetricData.php` · `BillingAbilitiesData.php`
 - `resources/js/components/KinetixPricingTable|KinetixPlanCard|KinetixPaymentMethods|KinetixSubscriptionStatus|KinetixInvoicesTable|KinetixUsageMeters.vue`
 - `resources/js/components/KinetixPlanFeature|KinetixPlanGate|KinetixPlanLock|KinetixUpgradeModal.vue` · `components/Billing/PlanLockPanel|PlanLockCta.vue`
 - `resources/js/composables/useKinetixBilling.ts` · `useKinetixStripe.ts` · `useKinetixPlan.ts`

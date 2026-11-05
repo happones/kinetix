@@ -200,15 +200,33 @@ class KinetixServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        KinetixPermissions::feature('billing')
-            ->label('Billing & Subscriptions')
+        KinetixPermissions::feature('payouts')
+            ->label('Payouts')
             ->abilities([
-                'manage' => 'Manage subscription plans',
-                'view-invoices' => 'View invoices',
+                'manage' => 'Manage payout accounts',
+                'view-statements' => 'View statements',
             ]);
     }
 }
 ```
+
+#### Built-in features
+
+Kinetix registers the features of the modules you enable. Their names are
+taken, so don't register your own under them:
+
+| Feature | Abilities | Registered when | Guards |
+| ------- | --------- | --------------- | ------ |
+| `roles` | `manage` | `permissions.enabled` | The Roles screen and its endpoints |
+| `members` | `viewAny`, `provision`, `update`, `revoke`, `credentials` | `membership.enabled` | The Members screen |
+| `settings` | `manage` | `settings.enabled` | The settings pages |
+| `activity` | `view` | `activity.enabled` | The activity log |
+| `users` | `impersonate` (platform-level) | `impersonation.enabled` | Impersonation |
+| `webhooks` | `manage` | `webhooks.enabled` | Webhook endpoints |
+| `channels` | `manage` | `channels.enabled` | Messaging lines |
+| `conversations` | `view`, `view_all`, `quick_replies` | `inbox.enabled` and `channels.enabled` | The inbox |
+| `flows` | `manage` | `flows.enabled` (with inbox and channels) | Bot flows |
+| `billing` | `view`, `manage` | `billing.enabled` | The billing page and invoices (`view`); subscribe, payment methods, cancel and resume (`manage`). See [Billing → Authorization](./billing.md#authorization) |
 
 #### Platform-level abilities (`->platform()`)
 

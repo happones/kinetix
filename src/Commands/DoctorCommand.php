@@ -71,6 +71,7 @@ class DoctorCommand extends Command
         $this->checkPermissions();
         $this->checkPolicyDelegation();
         $this->checkEntitlements();
+        $this->checkBilling();
         $this->checkCredentials();
         $this->checkMembershipDelivery();
         $this->checkRoles();
@@ -953,6 +954,66 @@ class DoctorCommand extends Command
     }
 
     /**
+     * Team billing where nobody can change the plan: the billing endpoints ask
+     * for `billing.manage` (or ownership), and a setup that grants it to no
+     * one answers 403 to every subscribe, cancel and card change.
+     */
+    protected function checkBilling(): void
+    {
+        if (! config('kinetix.billing.enabled', false) || config('kinetix.billing.authorize') !== null) {
+            return;
+        }
+
+        if (! KinetixTeams::enabledFor('billing') && config('kinetix.tenancy.subdomain') === null) {
+            return;
+        }
+
+        if (Gate::has('billing.manage')) {
+            return;
+        }
+
+        if (config('kinetix.permissions.enabled', false)) {
+            if (TeamOwner::enabled() && TeamOwner::grants('billing.manage')) {
+                return;
+            }
+
+            if (! class_exists(PermissionRegistrar::class) || ! static::permissionTablesExist()) {
+                return;
+            }
+
+            /** @var class-string<Model> $roleClass */
+            $roleClass = config('permission.models.role', Role::class);
+
+            $granted = $roleClass::query()
+                ->whereHas('permissions', static function ($permissions): void {
+                    $permissions->where($permissions->getModel()->qualifyColumn('name'), 'billing.manage');
+                })
+                ->exists();
+
+            if (! $granted) {
+                $this->warn_('Billing', 'team billing is on but no role grants billing.manage',
+                    'Every member gets 403 on subscribe, payment methods, cancel and resume. Run '
+                    .'kinetix:permissions:sync and grant billing.manage to a role, turn on the owner bypass for it '
+                    ."(permissions.owner_bypass), or set billing.authorize to [Class::class, 'method'].");
+            }
+
+            return;
+        }
+
+        $guard     = (string) config('auth.defaults.guard', 'web');
+        $provider  = (string) config("auth.guards.{$guard}.provider", 'users');
+        $userModel = (string) config("auth.providers.{$provider}.model", 'App\Models\User');
+
+        if (class_exists($userModel) && method_exists($userModel, 'ownsTeam')) {
+            return;
+        }
+
+        $this->warn_('Billing', 'team billing is on but nobody can manage it',
+            "Without the Permissions module, billing.manage needs {$userModel}::ownsTeam(\$team), which the user "
+            ."model lacks. Add ownsTeam(), enable the Permissions module, or set billing.authorize to [Class::class, 'method'].");
+    }
+
+    /**
      * A closure in a config file makes `php artisan config:cache` abort, so the
      * app cannot deploy with a cached config. Catch it here rather than in CI.
      */
@@ -965,6 +1026,8 @@ class DoctorCommand extends Command
             'kinetix.membership.attach_member',
             'kinetix.membership.detach_member',
             'kinetix.membership.assign_role',
+            'kinetix.billing.authorize',
+            'kinetix.billing.resolve_billable',
         ];
 
         $closures = array_values(array_filter(

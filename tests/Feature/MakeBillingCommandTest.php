@@ -24,6 +24,12 @@ class MakeBillingCommandTest extends TestCase
         $this->assertStringContainsString('useKinetixBilling', $contents);
         // The page names itself: one <h1> screen readers jump to.
         $this->assertStringContainsString("<h1 class=\"text-2xl font-bold tracking-tight\">{{ t('kinetix.billing_page_title') }}</h1>", $contents);
+        // A member without billing.manage sees the page but none of its writes.
+        $this->assertStringContainsString('KinetixBillingAbilities', $contents);
+        $this->assertStringContainsString('can: KinetixBillingAbilities;', $contents);
+        $this->assertStringContainsString(':can-subscribe="!plansLocked && can.manage"', $contents);
+        $this->assertStringContainsString("t('kinetix.billing_manage_forbidden')", $contents);
+        $this->assertSame(2, substr_count($contents, ':can-manage="can.manage"'));
 
         File::deleteDirectory(resource_path('js/pages/Billing'));
     }

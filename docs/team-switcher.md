@@ -244,6 +244,29 @@ Two reasons to prefer it over hand-built strings:
 Unlike the switcher, linking only needs `kinetix.teams` — `team_switcher.enabled`
 is not required.
 
+## The team in the URL must be the user's
+
+Every team-scoped Kinetix endpoint resolves the `{current_team}` segment
+through the user's teams relation (`team_switcher.teams_relation`), and a team
+the user doesn't belong to answers **404**. That holds when your app binds the
+segment to its team model itself, too:
+
+```php
+Route::bind('current_team', fn (string $slug) => Team::where('slug', $slug)->firstOrFail());
+```
+
+The bound model is checked against the same relation before its key is used,
+so binding the segment never opens another team's data. Without a user or a
+teams relation, the key is used as is (membership is then your middleware's
+job), the same as for an unbound segment.
+
+::: warning Upgrading from 0.273 or earlier
+A bound `{current_team}` model used to skip the membership check, so a user
+could read another team's data by changing the URL. If your users reach teams
+they are not members of on purpose (support staff, say), they now get a 404
+there; add them to the relation, or handle those routes outside Kinetix.
+:::
+
 ## Teams on subdomains
 
 By default the team rides in the path (`/acme/projects`). To serve each team on

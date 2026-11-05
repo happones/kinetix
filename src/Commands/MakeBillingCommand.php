@@ -68,6 +68,7 @@ import KinetixSecurePayments from '@/components/kinetix/KinetixSecurePayments.vu
 import KinetixTrialNotice from '@/components/kinetix/KinetixTrialNotice.vue';
 import { useKinetixBilling } from '@/composables/useKinetixBilling';
 import type {
+  KinetixBillingAbilities,
   KinetixInvoice,
   KinetixPaymentMethod,
   KinetixPlanData,
@@ -95,6 +96,9 @@ const props = withDefaults(
     invoicesUseStripeUrl: boolean;
     // billing.lock_plans_during_trial: plans wait until the no-card trial ends.
     plansLocked?: boolean;
+    // What the viewer may do here. The server enforces it; this only hides
+    // the controls a read-only member could not use anyway.
+    can: KinetixBillingAbilities;
   }>(),
   { usage: () => [], plansLocked: false },
 );
@@ -145,8 +149,10 @@ const subscribe = (plan: KinetixPlanData) => {
       :currency-symbol="currencySymbol"
       :feature-labels="featureLabels"
       :loading="billing.processing.value"
-      :can-subscribe="!plansLocked"
-      :disabled-reason="plansLocked ? t('kinetix.billing_plans_locked_during_trial') : null"
+      :can-subscribe="!plansLocked && can.manage"
+      :disabled-reason="!can.manage
+        ? t('kinetix.billing_manage_forbidden')
+        : plansLocked ? t('kinetix.billing_plans_locked_during_trial') : null"
       @subscribe="subscribe"
       @update:cycle="cycle = $event"
     />
@@ -162,6 +168,7 @@ const subscribe = (plan: KinetixPlanData) => {
           :publishable-key="publishableKey"
           :setup-client-secret="intent?.client_secret"
           :loading="billing.processing.value"
+          :can-manage="can.manage"
           @select="selectedPaymentMethodId = $event"
           @remove="billing.removePaymentMethod"
           @added="billing.addPaymentMethod"
@@ -178,6 +185,7 @@ const subscribe = (plan: KinetixPlanData) => {
         <KinetixSubscriptionStatus
           :subscription="subscription"
           :current-plan-name="currentPlan?.name ?? null"
+          :can-manage="can.manage"
           @cancel="billing.cancel"
           @resume="billing.resume"
         />

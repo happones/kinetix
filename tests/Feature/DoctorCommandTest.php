@@ -292,6 +292,50 @@ class DoctorCommandTest extends TestCase
         KinetixPermissions::feature('users')->ability('impersonate')->platform('impersonate');
     }
 
+    public function test_team_billing_no_role_can_manage_is_a_warning(): void
+    {
+        config()->set('kinetix.billing.enabled', true);
+        config()->set('kinetix.permissions.enabled', true);
+        config()->set('kinetix.permissions.teams', false);
+        $this->createPermissionTables();
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('team billing is on but no role grants billing.manage')
+            ->assertSuccessful();
+
+        Permission::findOrCreate('billing.manage', 'web');
+        Role::findOrCreate('admin', 'web')->givePermissionTo('billing.manage');
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('no role grants billing.manage')
+            ->assertSuccessful();
+    }
+
+    public function test_team_billing_without_permissions_or_ownership_is_a_warning(): void
+    {
+        config()->set('kinetix.billing.enabled', true);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('team billing is on but nobody can manage it')
+            ->assertSuccessful();
+
+        config()->set('kinetix.billing.authorize', [DoctorMemberRoles::class, 'sync']);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('nobody can manage it')
+            ->assertSuccessful();
+    }
+
+    public function test_a_closure_billable_resolver_is_a_config_cache_error(): void
+    {
+        config()->set('kinetix.billing.resolve_billable', fn ($user) => $user);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('closure(s) in Kinetix config')
+            ->expectsOutputToContain('kinetix.billing.resolve_billable')
+            ->assertFailed();
+    }
+
     public function test_duplicate_route_names_are_an_error(): void
     {
         // Exactly the accident that makes a real endpoint look broken: the host
