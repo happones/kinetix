@@ -136,6 +136,7 @@ use Happones\Kinetix\NotificationPreferences\NotificationPreference;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
+use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Notifications\NotificationController;
 use Happones\Kinetix\Notifications\NotificationScope;
 use Happones\Kinetix\Onboarding\OnboardingController;
@@ -2498,7 +2499,12 @@ class KinetixServiceProvider extends ServiceProvider
                 // it fires requests the server answers with an empty payload.
                 'spotlight' => [
                     'min_chars' => SpotlightController::minChars(),
+                    // Off, the layout host never downloads the palette.
+                    'enabled' => (bool) config('kinetix.spotlight.enabled', false),
                 ],
+                // Whether the bell loads Echo at all: off, the client never
+                // downloads @laravel/echo-vue and stays on database polling.
+                'realtime'     => $this->realtimeEnabled(),
                 'broadcasting' => $this->getBroadcastingConfig(),
             ];
         });
@@ -2976,6 +2982,22 @@ class KinetixServiceProvider extends ServiceProvider
             $candidates,
             static fn (string $ability): bool => Gate::has($ability) && $gate->allows($ability),
         ))];
+    }
+
+    /**
+     * Whether notifications reach the browser in real time: Kinetix's own
+     * broadcast switch or Echo block is on, or the app broadcasts through a
+     * driver that delivers somewhere (`null` and `log` never reach a socket).
+     */
+    protected function realtimeEnabled(): bool
+    {
+        if (Notification::shouldBroadcast()) {
+            return true;
+        }
+
+        $connection = config('broadcasting.default');
+
+        return is_string($connection) && ! in_array($connection, ['', 'null', 'log'], true);
     }
 
     /**

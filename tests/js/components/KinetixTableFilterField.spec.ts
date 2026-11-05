@@ -1,11 +1,12 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
 import KinetixTableFilterField from '@/components/Table/KinetixTableFilterField.vue';
 import FilterAddressField from '@/components/Table/filters/FilterAddressField.vue';
 import FilterFormField from '@/components/Table/filters/FilterFormField.vue';
 import FilterNumberRangeField from '@/components/Table/filters/FilterNumberRangeField.vue';
 import FilterSelectField from '@/components/Table/filters/FilterSelectField.vue';
+import { preloadAllKinetixLazy } from '../support/lazyComponents';
 
 const i18n = createI18n({
     legacy: false,
@@ -46,6 +47,9 @@ const mountField = (f: any, value: unknown = null) =>
             },
         },
     });
+
+// Lazy field types, filters and modal bodies, loaded so mounts stay synchronous.
+beforeAll(preloadAllKinetixLazy);
 
 describe('the multi-select filter', () => {
     it('hands the checkbox list its Select all when the filter offers it', () => {

@@ -49,4 +49,43 @@ describe('useKinetixReportSchedules', () => {
         );
         expect(table.value).toEqual({ records: [{ id: 1 }] });
     });
+
+    it('keeps the same table object when the payload did not change', async () => {
+        fetchMock.mockResolvedValue({ records: [{ id: 1 }] });
+
+        const { table, load } = useKinetixReportSchedules();
+        await load();
+        const first = table.value;
+
+        await load();
+        expect(table.value).toBe(first);
+
+        fetchMock.mockResolvedValue({ records: [{ id: 2 }] });
+        await load();
+        expect(table.value).not.toBe(first);
+    });
+
+    it('does not poll while the tab is hidden', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockResolvedValue({ records: [] });
+        Object.defineProperty(document, 'hidden', {
+            configurable: true,
+            get: () => true,
+        });
+
+        try {
+            const { start, stop } = useKinetixReportSchedules();
+            start();
+            await vi.advanceTimersByTimeAsync(30_000);
+
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            stop();
+        } finally {
+            Object.defineProperty(document, 'hidden', {
+                configurable: true,
+                get: () => false,
+            });
+            vi.useRealTimers();
+        }
+    });
 });

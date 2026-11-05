@@ -62,7 +62,10 @@ It shows a Horizon **status badge** (running / paused / inactive, when Horizon i
 present), stat tiles for **per-minute throughput**, **recent jobs** (last hour),
 **pending** and **failed**, then a per-queue list with depth and wait time, and a
 **failed-jobs list with retry / delete actions**. It polls the endpoint on the
-configured interval and stops on unmount.
+configured interval and stops on unmount. The next poll is scheduled when the
+previous one finishes, so a slow endpoint is never hit twice at once, and
+polling pauses while the tab is hidden (it refreshes as soon as the tab is
+visible again).
 
 `useKinetixQueue()` exposes `{ snapshot, loading, failed, load, start, stop,
 retry, forget }` for a custom UI. Strings are localized (`queue_*`, en/es/fr/pt).

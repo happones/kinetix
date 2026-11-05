@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 const reloadMock = vi.fn();
@@ -45,6 +45,25 @@ beforeEach(() => {
 });
 
 describe('KinetixLanguageSwitcher', () => {
+    // The select variant is a lazy chunk: the first mount shows a hidden
+    // field skeleton, then the field; later mounts render it at once.
+    beforeAll(async () => {
+        const w = mount(KinetixLanguageSwitcher, {
+            props: { variant: 'select' },
+            global: { plugins: [i18n] },
+        });
+
+        expect(
+            w
+                .find('[data-kinetix-lazy-skeleton="field"]')
+                .attributes('aria-hidden'),
+        ).toBe('true');
+        await vi.waitFor(() =>
+            expect(w.find('[role="combobox"]').exists()).toBe(true),
+        );
+        w.unmount();
+    });
+
     it('renders an accessible trigger', () => {
         const w = mount(KinetixLanguageSwitcher, {
             global: { plugins: [i18n] },

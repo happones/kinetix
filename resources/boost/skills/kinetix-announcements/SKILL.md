@@ -164,6 +164,11 @@ narrowed past the shared shape (`levels`, or a `limit` other than
 `banner_limit`). Leave `limit` unset to follow `banner_limit` — change the
 rotation size in config, not on the component.
 
+`<KinetixAnnouncementBanner>` is a lazy shell: its body (carousel, CTA,
+dismissal) loads only when the shared feed has an entry, the feed isn't
+shared, or `levels`/`limit` narrow it (it must fetch), so an always-mounted
+banner costs nothing while the shared feed is empty.
+
 ## UUID / ULID Host Models
 
 This feature's migration builds `user_id` and `team_id` with

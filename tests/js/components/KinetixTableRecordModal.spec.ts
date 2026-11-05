@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { createI18n } from 'vue-i18n';
 
@@ -10,6 +10,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }));
 
 import KinetixTable from '@/components/KinetixTable.vue';
+import { preloadAllKinetixLazy } from '../support/lazyComponents';
 
 /**
  * The simple-resource record modal keeps its actions in the shell's PINNED
@@ -74,6 +75,9 @@ const table = {
         },
     },
 };
+
+// Lazy field types, filters and modal bodies, loaded so mounts stay synchronous.
+beforeAll(preloadAllKinetixLazy);
 
 describe('KinetixTable — the record modal pins its actions', () => {
     it('renders Cancel/Save in the modal footer, wired to the form by id', async () => {

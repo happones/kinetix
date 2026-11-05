@@ -4,6 +4,7 @@ import { ChevronDown } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import { kinetixComponentOf } from '@/composables/kinetixLazy';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixRelationManagerData,
@@ -11,7 +12,12 @@ import type {
 } from '@/types/kinetix';
 import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
-import KinetixForm from './KinetixForm.vue';
+import type KinetixFormComponent from './KinetixForm.vue';
+import {
+    KINETIX_LAZY_FORM,
+    kinetixModalFormHooks,
+    preloadKinetixModalForm,
+} from './kinetixModalBodyLoaders';
 import KinetixTable from './KinetixTable.vue';
 import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
@@ -93,6 +99,16 @@ const relationsUrl = computed(
 );
 
 // --- Attach pivot form (AttachAction::form()) --------------------------------
+
+// The pivot form downloads when the picker first opens with one. Read once
+// per instance, so the loading wrapper is never swapped mid-edit.
+const KinetixForm = kinetixComponentOf(
+    KINETIX_LAZY_FORM,
+) as typeof KinetixFormComponent;
+
+// The footer submit targets the pivot form by id: busy until it's mounted.
+const pivotFormMounted = ref(false);
+const pivotFormHooks = kinetixModalFormHooks(pivotFormMounted);
 
 // Cloned per open so edits/errors never leak into the shipped blueprint.
 const attachFormDto = ref<any>(null);
@@ -247,6 +263,11 @@ function openAttach(mode: PickerMode = 'attach'): void {
                   data: { ...(props.manager.attachForm.data ?? {}) },
               }
             : null;
+
+    if (attachFormDto.value) {
+        void preloadKinetixModalForm(attachFormDto.value.schema);
+    }
+
     isAttachOpen.value = true;
     void loadAttachable();
 }
@@ -519,6 +540,8 @@ onBeforeUnmount(() => {
                     :form="attachFormDto"
                     class="pt-3 border-t border-border"
                     flat
+                    @vue:mounted="pivotFormHooks.mounted"
+                    @vue:unmounted="pivotFormHooks.unmounted"
                     @submit="(values) => submitAttach(values)"
                 >
                     <template #default><span class="hidden"></span></template>
@@ -537,7 +560,7 @@ onBeforeUnmount(() => {
                     v-if="showPivotForm"
                     type="submit"
                     :form="attachFormId"
-                    :loading="attaching"
+                    :loading="attaching || !pivotFormMounted"
                     :disabled="attachSelected.size === 0"
                 >
                     {{ t(picker[pickerMode].title) }}

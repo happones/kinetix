@@ -6,11 +6,12 @@ import {
     PopoverRoot,
     PopoverTrigger,
 } from 'reka-ui';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixTableFilter } from '@/types/kinetix';
 import KinetixTableFilterField from './KinetixTableFilterField.vue';
+import { preloadKinetixTableFilters } from './kinetixTableFilterLoaders';
 
 const props = defineProps<{
     filters: KinetixTableFilter[];
@@ -26,6 +27,21 @@ const { t } = useI18n();
 
 const open = ref(false);
 
+/**
+ * The heavier filter inputs (calendars, pickers) download on intent: hovering
+ * or focusing the trigger, or opening the popover however it was opened. A
+ * table nobody filters never fetches them.
+ */
+const preloadInputs = (): void => {
+    void preloadKinetixTableFilters(props.filters);
+};
+
+watch(open, (isOpen) => {
+    if (isOpen) {
+        preloadInputs();
+    }
+});
+
 const activeCount = computed<number>(
     () => Object.keys(props.activeFilters).length,
 );
@@ -35,6 +51,8 @@ const activeCount = computed<number>(
     <PopoverRoot v-model:open="open">
         <PopoverTrigger as-child>
             <button
+                @pointerenter="preloadInputs"
+                @focusin="preloadInputs"
                 :class="[
                     buttonVariants({ variant: 'outline', size: 'sm' }),
                     activeCount > 0

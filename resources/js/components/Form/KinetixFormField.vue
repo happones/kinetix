@@ -3,37 +3,15 @@ import { computed } from 'vue';
 import type { Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dateBounds } from '@/composables/kinetixFieldConstraints';
-import KinetixAddressPicker from '../KinetixAddressPicker.vue';
-import KinetixBusinessHours from '../KinetixBusinessHours.vue';
-import KinetixCheckboxList from '../KinetixCheckboxList.vue';
-import KinetixDateRangePicker from '../KinetixDateRangePicker.vue';
-import KinetixFileUpload from '../KinetixFileUpload.vue';
-import KinetixGenerator from '../KinetixGenerator.vue';
-import KinetixJsonInput from '../KinetixJsonInput.vue';
-import KinetixKeyValue from '../KinetixKeyValue.vue';
-import KinetixMediaLibrary from '../KinetixMediaLibrary.vue';
-import KinetixNumberField from '../KinetixNumberField.vue';
-import KinetixPhoneInput from '../KinetixPhoneInput.vue';
-import KinetixPinInput from '../KinetixPinInput.vue';
-import KinetixRadioGroup from '../KinetixRadioGroup.vue';
-import KinetixRating from '../KinetixRating.vue';
-import KinetixRichEditor from '../KinetixRichEditor.vue';
-import KinetixSignaturePad from '../KinetixSignaturePad.vue';
-import KinetixSlider from '../KinetixSlider.vue';
-import KinetixSlugInput from '../KinetixSlugInput.vue';
-import KinetixTagsInput from '../KinetixTagsInput.vue';
+import { kinetixComponentOf } from '@/composables/kinetixLazy';
+import type { KinetixLazyComponent } from '@/composables/kinetixLazy';
 import CheckboxField from './fields/CheckboxField.vue';
-import ColorPickerField from './fields/ColorPickerField.vue';
-import DatePickerField from './fields/DatePickerField.vue';
-import DateTimePickerField from './fields/DateTimePickerField.vue';
 import HiddenField from './fields/HiddenField.vue';
-import PeriodPickerField from './fields/PeriodPickerField.vue';
 import SelectField from './fields/SelectField.vue';
-import TableRepeaterField from './fields/TableRepeaterField.vue';
 import TextareaField from './fields/TextareaField.vue';
 import TextInputField from './fields/TextInputField.vue';
-import TimePickerField from './fields/TimePickerField.vue';
 import ToggleField from './fields/ToggleField.vue';
+import { KINETIX_FORM_FIELD_LOADERS as LAZY } from './kinetixFormFieldLoaders';
 
 const props = defineProps<{
     comp: any;
@@ -55,20 +33,24 @@ const { t } = useI18n();
  *
  * Layout nodes and the recursive inline `repeater` are handled by
  * `KinetixFormSchema` directly (the repeater renders the schema recursively).
+ *
+ * Only the core types every form uses are imported here; the rest are lazy
+ * entries (see kinetixFormFieldLoaders) that KinetixForm starts downloading as
+ * soon as it sees them in the schema.
  */
-const DEDICATED_FIELDS: Record<string, Component> = {
+const DEDICATED_FIELDS: Record<string, Component | KinetixLazyComponent> = {
     'text-input': TextInputField,
     select: SelectField,
     checkbox: CheckboxField,
     toggle: ToggleField,
     textarea: TextareaField,
-    'date-picker': DatePickerField,
-    'datetime-picker': DateTimePickerField,
-    'time-picker': TimePickerField,
-    'month-picker': PeriodPickerField,
-    'year-picker': PeriodPickerField,
-    'week-picker': PeriodPickerField,
-    'color-picker': ColorPickerField,
+    'date-picker': LAZY['date-picker'],
+    'datetime-picker': LAZY['datetime-picker'],
+    'time-picker': LAZY['time-picker'],
+    'month-picker': LAZY['month-picker'],
+    'year-picker': LAZY['year-picker'],
+    'week-picker': LAZY['week-picker'],
+    'color-picker': LAZY['color-picker'],
     hidden: HiddenField,
 };
 
@@ -78,13 +60,13 @@ const DEDICATED_FIELDS: Record<string, Component> = {
  * rather than one wrapper file each.
  */
 type Delegate = {
-    component: Component;
+    component: Component | KinetixLazyComponent;
     props: (comp: any, values: Record<string, any>) => Record<string, unknown>;
 };
 
 const DELEGATE_FIELDS: Record<string, Delegate> = {
     'phone-input': {
-        component: KinetixPhoneInput,
+        component: LAZY['phone-input'],
         props: (c) => ({
             id: c.name,
             config: c.phoneConfig,
@@ -93,7 +75,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'slug-input': {
-        component: KinetixSlugInput,
+        component: LAZY['slug-input'],
         props: (c, values) => ({
             id: c.name,
             source: c.slugConfig?.from ? values[c.slugConfig.from] : null,
@@ -103,7 +85,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'generator-input': {
-        component: KinetixGenerator,
+        component: LAZY['generator-input'],
         props: (c, values) => ({
             id: c.name,
             config: c.generatorConfig,
@@ -114,7 +96,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'json-input': {
-        component: KinetixJsonInput,
+        component: LAZY['json-input'],
         props: (c) => ({
             id: c.name,
             disabled: c.isDisabled,
@@ -123,11 +105,11 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'signature-pad': {
-        component: KinetixSignaturePad,
+        component: LAZY['signature-pad'],
         props: (c) => ({ config: c.signatureConfig, disabled: c.isDisabled }),
     },
     slider: {
-        component: KinetixSlider,
+        component: LAZY['slider'],
         props: (c) => ({
             id: c.name,
             config: c.numberConfig,
@@ -135,11 +117,11 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     rating: {
-        component: KinetixRating,
+        component: LAZY['rating'],
         props: (c) => ({ config: c.ratingConfig, disabled: c.isDisabled }),
     },
     'pin-input': {
-        component: KinetixPinInput,
+        component: LAZY['pin-input'],
         props: (c) => ({
             id: c.name,
             config: c.pinConfig,
@@ -147,7 +129,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'number-field': {
-        component: KinetixNumberField,
+        component: LAZY['number-field'],
         props: (c) => ({
             id: c.name,
             config: c.numberConfig,
@@ -156,7 +138,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'rich-editor': {
-        component: KinetixRichEditor,
+        component: LAZY['rich-editor'],
         props: (c) => ({
             editor: c.editor,
             disabled: c.isDisabled,
@@ -164,7 +146,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'business-hours': {
-        component: KinetixBusinessHours,
+        component: LAZY['business-hours'],
         props: (c) => ({
             disabled: c.isDisabled,
             hour12: c.hour12 ?? true,
@@ -172,7 +154,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'address-picker': {
-        component: KinetixAddressPicker,
+        component: LAZY['address-picker'],
         props: (c) => ({
             fields: c.addressFields,
             countries: c.options,
@@ -184,7 +166,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'date-range-picker': {
-        component: KinetixDateRangePicker,
+        component: LAZY['date-range-picker'],
         props: (c) => ({
             id: c.name,
             native: !c.useCalendar,
@@ -203,7 +185,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     radio: {
-        component: KinetixRadioGroup,
+        component: LAZY['radio'],
         props: (c) => ({
             options: c.options,
             inline: c.isInline,
@@ -211,7 +193,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'checkbox-list': {
-        component: KinetixCheckboxList,
+        component: LAZY['checkbox-list'],
         props: (c) => ({
             options: c.options,
             inline: c.isInline,
@@ -222,7 +204,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'tags-input': {
-        component: KinetixTagsInput,
+        component: LAZY['tags-input'],
         props: (c) => ({
             id: c.name,
             disabled: c.isDisabled,
@@ -232,7 +214,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'key-value': {
-        component: KinetixKeyValue,
+        component: LAZY['key-value'],
         props: (c) => ({
             id: c.name,
             disabled: c.isDisabled,
@@ -240,7 +222,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'file-upload': {
-        component: KinetixFileUpload,
+        component: LAZY['file-upload'],
         props: (c) => ({
             uploadToken: c.uploadToken,
             isMultiple: c.isMultiple,
@@ -253,7 +235,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
         }),
     },
     'media-library': {
-        component: KinetixMediaLibrary,
+        component: LAZY['media-library'],
         props: (c) => ({
             uploadToken: c.uploadToken,
             acceptedFileTypes: c.acceptedFileTypes,
@@ -307,11 +289,29 @@ const fieldComp = computed(() => {
     return { ...comp, minValue: min, maxValue: max };
 });
 
-const dedicated = computed<Component | null>(
-    () => DEDICATED_FIELDS[props.comp.type] ?? null,
+/**
+ * Resolved from the TYPE alone: a lazy entry answers its loading wrapper until
+ * its code arrives and the real component after, so re-resolving on every
+ * `comp` change would swap the two mid-edit and remount the control. The type
+ * computed only notifies when the type string itself changes.
+ */
+const fieldType = computed<string>(() => props.comp.type);
+
+const tableRepeater = computed<Component | null>(() =>
+    fieldType.value === 'table-repeater'
+        ? kinetixComponentOf(LAZY['table-repeater'])
+        : null,
 );
+const dedicated = computed<Component | null>(() => {
+    const entry = DEDICATED_FIELDS[fieldType.value];
+
+    return entry ? kinetixComponentOf(entry) : null;
+});
 const delegate = computed<Delegate | null>(
-    () => DELEGATE_FIELDS[props.comp.type] ?? null,
+    () => DELEGATE_FIELDS[fieldType.value] ?? null,
+);
+const delegateComponent = computed<Component | null>(() =>
+    delegate.value ? kinetixComponentOf(delegate.value.component) : null,
 );
 
 /**
@@ -343,8 +343,9 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
 
 <template>
     <!-- Repeater with nested table columns (self-contained). -->
-    <TableRepeaterField
-        v-if="comp.type === 'table-repeater'"
+    <component
+        :is="tableRepeater"
+        v-if="tableRepeater"
         :comp="comp"
         :value="values[comp.name]"
         :errors="errors"
@@ -363,7 +364,7 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
 
     <!-- Straight passthroughs to an existing Kinetix control. -->
     <component
-        :is="delegate.component"
+        :is="delegateComponent"
         v-else-if="delegate"
         :value="values[comp.name]"
         v-bind="{ ...delegate.props(baseComp, values), ...errorA11yAttrs }"

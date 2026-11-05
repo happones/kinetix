@@ -20,6 +20,7 @@ import type {
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixTableCell from './Table/KinetixTableCell.vue';
+import { preloadKinetixTableCells } from './Table/kinetixTableCellLoaders';
 import KinetixTableColumnToggle from './Table/KinetixTableColumnToggle.vue';
 import KinetixTableHead from './Table/KinetixTableHead.vue';
 import KinetixTablePagination from './Table/KinetixTablePagination.vue';
@@ -38,6 +39,14 @@ import KinetixTablePagination from './Table/KinetixTablePagination.vue';
 const props = defineProps<{
     table: KinetixTableData;
 }>();
+
+// Input cells (number, select, toggle…) download on demand: start the ones
+// this table's columns use now, before the rows render them.
+watch(
+    () => props.table.columns,
+    (columns) => void preloadKinetixTableCells(columns),
+    { immediate: true },
+);
 
 const { t } = useI18n();
 

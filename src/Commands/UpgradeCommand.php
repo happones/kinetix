@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Commands;
 
 use Happones\Kinetix\Support\PublishedFiles;
+use Happones\Kinetix\Support\TailwindSourceExclusions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -69,6 +70,13 @@ class UpgradeCommand extends Command
         if (File::isDirectory($skillsPath.'/kinetix-permissions')) {
             $this->callSilently('vendor:publish', ['--tag' => 'kinetix-skills', '--force' => true]);
             $refreshed[] = 'agent skills';
+        }
+
+        // A skills directory that appeared since the install (another agent's
+        // `.agents/skills`) gets its exclusion too. Skipped silently when
+        // Tailwind is too old or the switch is off: install already said so.
+        if (TailwindSourceExclusions::ensure() !== []) {
+            $refreshed[] = 'Tailwind source exclusions';
         }
 
         if ($refreshed === []) {

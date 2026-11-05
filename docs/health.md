@@ -76,7 +76,9 @@ import KinetixHealthStatus from '@/components/kinetix/KinetixHealthStatus.vue';
 
 An overall **status badge** (Healthy / Warning / Failing — the worst of all
 checks) and a list of checks, each with a status icon and its short summary. It
-polls the endpoint on the configured interval and stops on unmount. When
+polls the endpoint on the configured interval and stops on unmount. Polls never
+overlap, and they pause while the tab is hidden (refreshing as soon as it's
+visible again). When
 spatie/laravel-health isn't installed (or no checks have run), it shows an
 "unavailable" message.
 

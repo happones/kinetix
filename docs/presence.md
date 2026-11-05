@@ -97,6 +97,18 @@ const { users, count, isOnline } = useKinetixPresence();
 It tracks Echo's `here` / `joining` / `leaving` events and leaves the channel on
 unmount.
 
+`@laravel/echo-vue` is imported the first time a channel is joined, not when the
+page loads, so a page that never shows presence never downloads it. The join
+happens right after mount, so members fill in a tick later. If Echo isn't
+configured, nothing is joined and nothing errors.
+
+Kinetix keeps its own join count per channel and calls `leave()` when the last
+Kinetix user of the channel releases it. If your own code joins the same
+presence channel, use `joinKinetixPresence()` from
+`@/composables/kinetixEcho` (it returns `{ channel, release }`, or `null` when
+Echo isn't configured) rather than echo-vue's `useEchoPresence`; otherwise
+Kinetix may leave the channel under you. See [Performance](/performance#notifications-and-presence).
+
 ---
 
 ## Shared prop

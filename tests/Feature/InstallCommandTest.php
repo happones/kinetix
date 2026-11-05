@@ -278,6 +278,91 @@ JS);
         $this->assertSame(1, substr_count(File::get($this->base.'/resources/css/app.css'), 'vue-sonner/style.css'));
     }
 
+    public function test_the_sonner_import_never_splits_a_multi_line_import_and_keeps_crlf(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "@import 'tailwindcss';\r\n@import 'tw-animate-css'\r\n    layer(base);\r\n\r\n:root { --success: red; }\r\n@theme { --color-success: green; }\r\n");
+
+        $this->runInstaller();
+
+        $css = File::get($this->base.'/resources/css/app.css');
+
+        $this->assertStringStartsWith(
+            "@import 'tailwindcss';\r\n@import 'tw-animate-css'\r\n    layer(base);\r\n@import 'vue-sonner/style.css';",
+            $css,
+        );
+        $this->assertSame(0, preg_match('/(?<!\r)\n/', $css));
+    }
+
+    public function test_the_sonner_import_goes_after_an_import_with_a_trailing_comment(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "@import 'tailwindcss'; /* base */\n@theme inline {\n    --color-success: green;\n}\n");
+
+        $this->runInstaller();
+
+        $this->assertStringStartsWith(
+            "@import 'tailwindcss'; /* base */\n@import 'vue-sonner/style.css';",
+            File::get($this->base.'/resources/css/app.css'),
+        );
+    }
+
+    public function test_an_install_without_a_safe_place_for_the_exclusions_prints_a_hint(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->seedTailwindProject('4.1.11');
+        File::put($this->base.'/resources/css/app.css', "@import 'tailwindcss'; .x { --color-success: red; }\n");
+
+        $tester = $this->runInstaller();
+
+        $this->assertStringNotContainsString('@source not', File::get($this->base.'/resources/css/app.css'));
+        $this->assertStringContainsString('no safe place', $tester->getDisplay());
+    }
+
+    public function test_the_sonner_import_keeps_a_byte_order_mark_first(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "\xEF\xBB\xBF@import 'tailwindcss';\n@theme { --color-success: green; }\n");
+
+        $this->runInstaller();
+
+        $this->assertStringStartsWith(
+            "\xEF\xBB\xBF@import 'tailwindcss';\n@import 'vue-sonner/style.css';",
+            File::get($this->base.'/resources/css/app.css'),
+        );
+    }
+
+    public function test_the_sonner_import_never_goes_above_a_leading_charset(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "@charset \"UTF-8\";\n@import 'tailwindcss';\n@theme { --color-success: green; }\n");
+
+        $this->runInstaller();
+
+        $this->assertStringStartsWith(
+            "@charset \"UTF-8\";\n@import 'tailwindcss';\n@import 'vue-sonner/style.css';",
+            File::get($this->base.'/resources/css/app.css'),
+        );
+    }
+
+    public function test_the_sonner_import_goes_below_a_charset_when_there_is_no_import(): void
+    {
+        $this->seedEntryFile('ts');
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "\xEF\xBB\xBF@charset \"UTF-8\";\n@theme { --color-success: green; }\n");
+
+        $this->runInstaller();
+
+        $this->assertStringStartsWith(
+            "\xEF\xBB\xBF@charset \"UTF-8\";\n@import 'vue-sonner/style.css';",
+            File::get($this->base.'/resources/css/app.css'),
+        );
+    }
+
     public function test_the_status_tokens_are_added_once_to_a_stylesheet_that_maps_none(): void
     {
         $this->seedEntryFile('ts');
@@ -317,6 +402,38 @@ JS);
             "@import 'vue-sonner/style.css';",
             File::get($this->base.'/resources/css/app.css'),
         );
+    }
+
+    public function test_the_agent_skills_are_kept_out_of_the_tailwind_scan(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->seedTailwindProject('4.1.11');
+
+        $tester = $this->runInstaller();
+
+        $this->assertStringContainsString("@source not '../../.claude/skills';", File::get($this->base.'/resources/css/app.css'));
+        $this->assertStringContainsString("Excluded the agent skills from Tailwind's scan", $tester->getDisplay());
+    }
+
+    public function test_an_older_tailwind_gets_a_hint_instead_of_the_exclusion(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->seedTailwindProject('4.0.17');
+
+        $tester = $this->runInstaller();
+
+        $this->assertStringNotContainsString('@source not', File::get($this->base.'/resources/css/app.css'));
+        $this->assertStringContainsString("Skipped excluding the agent skills from Tailwind's scan", $tester->getDisplay());
+        $this->assertStringContainsString("@source not '../../.claude/skills';", $tester->getDisplay());
+    }
+
+    private function seedTailwindProject(string $version): void
+    {
+        File::ensureDirectoryExists($this->base.'/resources/css');
+        File::put($this->base.'/resources/css/app.css', "@import 'tailwindcss';\n");
+        File::ensureDirectoryExists($this->base.'/node_modules/tailwindcss');
+        File::put($this->base.'/node_modules/tailwindcss/package.json', json_encode(['version' => $version]));
+        File::ensureDirectoryExists($this->base.'/.claude/skills/kinetix-tables');
     }
 
     public function test_a_missing_stylesheet_does_not_break_the_install(): void

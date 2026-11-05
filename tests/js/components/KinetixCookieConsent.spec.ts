@@ -1,5 +1,13 @@
-import { mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import {
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 const state = vi.hoisted(() => ({
@@ -11,6 +19,7 @@ vi.mock('@inertiajs/vue3', () => ({
 }));
 
 import KinetixCookieConsent from '@/components/KinetixCookieConsent.vue';
+import { useKinetixCookieConsent } from '@/composables/useKinetixCookieConsent';
 
 const i18n = createI18n({
     legacy: false,
@@ -55,6 +64,19 @@ const mountIt = () => {
 };
 
 describe('KinetixCookieConsent', () => {
+    // The bar is a lazy chunk: load it once, through the host, so the mounts
+    // below show it on the next tick as before.
+    beforeAll(async () => {
+        clearCookies();
+        state.props = { kinetix_cookie_consent: { enabled: true } };
+        const w = mountIt();
+        await vi.waitFor(() =>
+            expect(w.find('[role="region"]').exists()).toBe(true),
+        );
+        mounted.splice(0).forEach((wrapper) => wrapper.unmount());
+        document.body.innerHTML = '';
+    });
+
     beforeEach(() => {
         clearCookies();
         state.props = {};
@@ -224,5 +246,38 @@ describe('KinetixCookieConsent', () => {
 
             expect(document.body.style.paddingTop).toBe('');
         });
+    });
+
+    it('loads no bar for a visitor who already chose', async () => {
+        document.cookie = 'kinetix_cookie_consent=accepted;path=/';
+        state.props = { kinetix_cookie_consent: { enabled: true } };
+        // The shared `visible` state, as a fresh page has it.
+        useKinetixCookieConsent().checkConsent();
+
+        const w = mountIt();
+        await w.vm.$nextTick();
+
+        expect(w.findComponent({ name: 'CookieConsentBody' }).exists()).toBe(
+            false,
+        );
+    });
+
+    it('shows the bar again when the host asks, even after a choice', async () => {
+        document.cookie = 'kinetix_cookie_consent=accepted;path=/';
+        state.props = { kinetix_cookie_consent: { enabled: true } };
+        const consent = useKinetixCookieConsent();
+        consent.checkConsent();
+
+        const w = mountIt();
+        await w.vm.$nextTick();
+        expect(w.find('[role="region"]').exists()).toBe(false);
+
+        // e.g. a "Cookie settings" link in the footer.
+        consent.visible.value = true;
+        await vi.waitFor(() =>
+            expect(w.find('[role="region"]').exists()).toBe(true),
+        );
+        await flushPromises();
+        expect(w.find('[role="region"]').exists()).toBe(true);
     });
 });

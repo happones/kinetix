@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from './i18n';
 import KinetixTableCell from '@/components/Table/KinetixTableCell.vue';
 import CheckboxInputCell from '@/components/Table/cells/CheckboxInputCell.vue';
@@ -14,6 +14,10 @@ import TextCell from '@/components/Table/cells/TextCell.vue';
 import TextInputCell from '@/components/Table/cells/TextInputCell.vue';
 import ToggleInputCell from '@/components/Table/cells/ToggleInputCell.vue';
 import ViewCell from '@/components/Table/cells/ViewCell.vue';
+import { preloadAllKinetixLazy } from '../support/lazyComponents';
+
+// Lazy input cells (and the rest), loaded so mounts stay synchronous.
+beforeAll(preloadAllKinetixLazy);
 
 describe('KinetixTableCell progress mode', () => {
     it('renders the progress value and bar filled correctly', () => {

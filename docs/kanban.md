@@ -13,7 +13,8 @@ When a column holds more than ~40 cards, that column windows its card list via
 `@tanstack/vue-virtual` (only visible cards render); the column stays the drop
 target, so drag-and-drop is unaffected. Smaller columns render in full.
 `@tanstack/vue-virtual` is a required peer (installed by
-`php artisan kinetix:install`) — the board imports it at build time.
+`php artisan kinetix:install`), but it's only downloaded when a column first
+crosses the threshold; a board of short columns never loads it.
 :::
 
 ---

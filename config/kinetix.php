@@ -449,6 +449,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tailwind
+    |--------------------------------------------------------------------------
+    |
+    | Tailwind v4 scans every file git doesn't ignore, the published agent
+    | skills included, and turns the class names quoted in their examples into
+    | CSS your app never uses. With `exclude_agent_skills` on, kinetix:install
+    | and kinetix:upgrade add an `@source not` line to resources/css/app.css
+    | for each skills directory that holds Kinetix skills (`skills_path`,
+    | .claude/skills, .agents/skills). Needs Tailwind 4.1 or newer; older
+    | versions are skipped.
+    |
+    */
+    'tailwind' => [
+        'exclude_agent_skills' => env('KINETIX_TAILWIND_EXCLUDE_AGENT_SKILLS', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Middleware
     |--------------------------------------------------------------------------
     |

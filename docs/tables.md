@@ -440,6 +440,12 @@ track, so with any `cell-*` slot every row re-renders as before.
 
 All filters reside in the `Happones\Kinetix\Tables\Filters` namespace.
 
+Filter inputs load on demand: they download when the Filters button is
+hovered, focused or opened, so a plain table page doesn't carry the date
+pickers. Editable cells (`SelectColumn`, `ToggleColumn`, `TextInputColumn`,
+`NumberInputColumn`, `CheckboxColumn`) load their inputs when the table is set
+up, and only for the column types the table uses.
+
 ### 1. `Filter`
 Renders as a checkbox.
 - `label(string $label)`: Custom display label (defaults to the TitleCase headline of the filter name). Available on all filters.
@@ -1027,7 +1033,7 @@ Table-level methods control refresh, pagination, and row behavior:
   width.
 
 <Screenshot name="table-toolbar" alt="Table toolbar with search, actions, filters and column toggle" />
-- `recordModals(string $resource, ?string $source = null, ?string $width = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. `width` sizes the create/edit modal (`sm` … `7xl`, `2xl` by default). See [Resources → Simple Resource](/resources#_2-simple-resource-simple).
+- `recordModals(string $resource, ?string $source = null, ?string $width = null)`: Host create/edit/view modals inside the table itself, driven by the resource's `form()` and `infolist()`. Paired with actions flagged `->modal('create'|'edit'|'view'|'delete')`, a page becomes just `<KinetixTable :table>`. Edits fetch a fresh record from the server by default; pass `source: 'row'` (or set `kinetix.tables.record_source`) to prefill from the loaded row. `width` sizes the create/edit modal (`sm` … `7xl`, `2xl` by default). See [Resources → Simple Resource](/resources#_2-simple-resource-simple). The form and infolist these modals use (and the action modals' forms) download when a modal first opens, together with the field types its schema needs; meanwhile the modal shows a loading skeleton (`aria-busy`) and its submit button stays busy until the form has mounted. See [Performance](/performance#tables-and-forms).
 
 ### Eager loading relations — `with()`
 

@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick, reactive } from 'vue';
 import { createI18n } from 'vue-i18n';
 
@@ -60,6 +60,21 @@ const buttonWithLabel = (wrapper: ReturnType<typeof mountIt>, label: string) =>
     wrapper.findAll('button').find((b) => b.attributes('aria-label') === label);
 
 describe('KinetixAnnouncementBanner', () => {
+    // The banner body is a lazy chunk: load it once, through the host, so
+    // every mount below renders it synchronously as before.
+    beforeAll(async () => {
+        pageProps.kinetix_announcements = {
+            unread: 1,
+            bannerLimit: 3,
+            banner: [announcement(1, 'Warm-up')],
+        };
+        const w = mountIt();
+        await vi.waitFor(() =>
+            expect(w.find('[data-slot="alert"]').exists()).toBe(true),
+        );
+        w.unmount();
+    });
+
     beforeEach(() => {
         fetchMock.mockReset();
         pageProps.kinetix_announcements = undefined;
@@ -337,6 +352,50 @@ describe('KinetixAnnouncementBanner', () => {
         // Still on the entry it was showing when the user hit pause.
         expect(w.text()).toContain('Second');
         vi.useRealTimers();
+    });
+
+    it('mounts no banner body for an empty shared feed, and does once an entry arrives', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 0,
+            bannerLimit: 3,
+            banner: [],
+        };
+        const w = mountIt();
+        await flushPromises();
+
+        expect(
+            w.findComponent({ name: 'AnnouncementBannerBody' }).exists(),
+        ).toBe(false);
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        pageProps.kinetix_announcements = {
+            unread: 1,
+            bannerLimit: 3,
+            banner: [announcement(5, 'Arrived later')],
+        };
+        await flushPromises();
+
+        expect(w.text()).toContain('Arrived later');
+    });
+
+    it('forwards its props and attributes to the banner body', async () => {
+        pageProps.kinetix_announcements = {
+            unread: 1,
+            bannerLimit: 3,
+            banner: [announcement(6, 'Forwarded')],
+        };
+        const w = mount(KinetixAnnouncementBanner, {
+            props: { autoplay: 0, position: 'fixed-top' },
+            attrs: { 'data-testid': 'banner' },
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+
+        const body = w.findComponent({ name: 'AnnouncementBannerBody' });
+        expect(body.props('position')).toBe('fixed-top');
+        expect(body.props('dismissMode')).toBe('permanent');
+        expect(w.find('[data-testid="banner"]').exists()).toBe(true);
+        w.unmount();
     });
 
     it('renders on its first render, before any mount-time work', () => {

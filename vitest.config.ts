@@ -7,6 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./resources/js", import.meta.url)),
+      // echo-vue's peer, not installed here: see tests/js/fixtures/pusher-js.ts.
+      "pusher-js": fileURLToPath(
+        new URL("./tests/js/fixtures/pusher-js.ts", import.meta.url),
+      ),
     },
   },
   test: {
@@ -20,5 +24,12 @@ export default defineConfig({
     // ~1s yet exceed 5s while 160 other files share the CPU. That produced a
     // DIFFERENT spec failing on each full run — a timeout, never an assertion.
     testTimeout: 20000,
+    server: {
+      deps: {
+        // Inlined so a spec can run the real echo-vue with `vi.mock('pusher-js')`
+        // (an externalised package resolves its own imports, past the mock).
+        inline: ["@laravel/echo-vue"],
+      },
+    },
   },
 });

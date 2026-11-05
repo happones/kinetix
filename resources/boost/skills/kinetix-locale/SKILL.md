@@ -109,6 +109,8 @@ Without it the choice is still remembered in the session.
 `Languages` trigger → dropdown of locales (active marked). `useKinetixLocale()` →
 `{ locales, current, saving, setLocale }`. `setLocale` flips vue-i18n instantly,
 persists, then `router.reload()` (rolls back on failure). i18n `language`.
+`variant="select"` renders a labelled Select field instead; that variant's
+field is loaded on demand where it's used, the default dropdown stays static.
 
 > The host app owns the vue-i18n instance (`locale: page.props.locale`). When you
 > add a locale, re-run your translation compile step so its messages are loaded.

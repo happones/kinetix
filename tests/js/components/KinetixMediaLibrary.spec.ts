@@ -113,13 +113,19 @@ describe('KinetixMediaLibrary', () => {
         expect(w.findAll('[draggable="true"]')).toHaveLength(2);
     });
 
-    it('windows the grid into rows once the library grows past the threshold', () => {
+    it('windows the grid into rows once the library grows past the threshold', async () => {
         const many = Array.from({ length: 60 }, (_, i) => ({
             ...imageItem,
             id: i + 1,
             name: `img-${i}.jpg`,
         }));
         const w = mountIt(many);
+
+        // The virtualizer downloads on crossing the threshold; until then
+        // every tile renders.
+        await vi.waitFor(() =>
+            expect(w.find('.overflow-y-auto').exists()).toBe(true),
+        );
 
         // Virtualized: a scroll container with a sized spacer, and only a window
         // of tiles in the DOM rather than all 60.

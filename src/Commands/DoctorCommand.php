@@ -20,6 +20,7 @@ use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\HostKeyColumns;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\PublishedFiles;
+use Happones\Kinetix\Support\TailwindSourceExclusions;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -87,6 +88,7 @@ class DoctorCommand extends Command
         $this->checkGlobalData();
         $this->checkFrontend();
         $this->checkTheme();
+        $this->checkTailwindSources();
 
         $errors   = $this->countLevel('error');
         $warnings = $this->countLevel('warning');
@@ -1417,6 +1419,45 @@ class DoctorCommand extends Command
         $this->warn_('Theme', 'resources/css/app.css maps no status tokens (success · warning · info)',
             'Badges, alerts, stat chips and action colors render without their color. Copy them into app.css from '
             .'the docs (Installation → Theming → Status tokens); a new install gets them from kinetix:install.');
+    }
+
+    /**
+     * The published agent skills kept out of Tailwind's class scan. Silent
+     * when it doesn't apply: switched off, no Kinetix skills, no app.css, or
+     * a Tailwind without `@source not` (older than 4.1).
+     */
+    protected function checkTailwindSources(): void
+    {
+        if (TailwindSourceExclusions::skipReason() !== null) {
+            return;
+        }
+
+        $misplaced = TailwindSourceExclusions::misplaced();
+
+        if ($misplaced !== []) {
+            $this->warn_('Tailwind', 'resources/css/app.css has an @import/@source inside a block',
+                'Tailwind only accepts @import and @source at the top level of the stylesheet, so the build fails. '
+                .'Move these lines out of the block, after the stylesheet\'s @import lines.',
+                array_map(static fn (int $line): string => "line {$line}", $misplaced));
+
+            return;
+        }
+
+        $missing = TailwindSourceExclusions::missing();
+
+        if ($missing === []) {
+            $this->ok('Tailwind', 'agent skills excluded from the class scan');
+
+            return;
+        }
+
+        $problem = TailwindSourceExclusions::placementProblem();
+
+        $this->warn_('Tailwind', 'resources/css/app.css lets Tailwind scan the agent skills',
+            'Class names quoted in the skills\' examples become CSS the app ships and never uses. '
+            .($problem === null ? 'Run kinetix:upgrade, or add' : "kinetix:upgrade can't add them ({$problem}); add")
+            .' these lines at the top level, after the stylesheet\'s @import lines.',
+            array_map(static fn (string $path): string => "@source not '{$path}';", $missing));
     }
 
     // --------------------------------------------------------------- output

@@ -38,6 +38,13 @@ import KinetixTours from '@/components/kinetix/KinetixTours.vue';
 </template>
 ```
 
+The host is a light shell. Its default slot always renders; the tour runner
+(and driver.js) loads beside it only when tours are enabled and at least one
+tour is shared with the page, so otherwise nothing else loads. Attributes you
+put on `<KinetixTours>` go to the runner, not to the slot content. Calling the
+store's `start()` before the runner has loaded still runs the tour once it
+arrives. See [Performance](/performance).
+
 ## 2. Declaring tours
 
 One tour per module, from any service provider. Point steps at what Kinetix

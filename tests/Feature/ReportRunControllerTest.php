@@ -10,6 +10,7 @@ use Happones\Kinetix\ReportsCenter\Report;
 use Happones\Kinetix\ReportsCenter\ReportRun;
 use Happones\Kinetix\ReportsCenter\ReportRunStatus;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
@@ -35,6 +36,22 @@ class ReportRunControllerTestReport extends Report
     public static function getColumns(): array
     {
         return [ExportColumn::make('id')];
+    }
+}
+
+/** A report whose own `authorize()` refuses everyone. */
+class ReportRunControllerHiddenReport extends Report
+{
+    protected static ?string $model = Model::class;
+
+    public static function getColumns(): array
+    {
+        return [ExportColumn::make('id')];
+    }
+
+    public function authorize(?AuthenticatableContract $user): bool
+    {
+        return false;
     }
 }
 
@@ -219,6 +236,77 @@ class ReportRunControllerTest extends TestCase
      * Unlabeled, a column was headed by its attribute in English ("Status",
      * "Percent") whatever the reader's language.
      */
+    /**
+     * The client slows its polling to a crawl while nothing is queued or
+     * running, so the list says whether anything still is.
+     */
+    public function test_the_runs_list_reports_an_active_run(): void
+    {
+        $this->assertFalse($this->getJson(route('kinetix.report-runs.index'))->assertOk()->json('hasActive'));
+
+        foreach ([ReportRunStatus::Completed, ReportRunStatus::Failed, ReportRunStatus::Cancelled] as $status) {
+            ReportRun::create([
+                'report_class' => ReportRunControllerTestReport::class,
+                'status'       => $status,
+                'format'       => 'csv',
+            ]);
+        }
+
+        $this->assertFalse($this->getJson(route('kinetix.report-runs.index'))->assertOk()->json('hasActive'));
+
+        foreach ([ReportRunStatus::Pending, ReportRunStatus::Running] as $status) {
+            $run = ReportRun::create([
+                'report_class' => ReportRunControllerTestReport::class,
+                'status'       => $status,
+                'format'       => 'csv',
+            ]);
+
+            $this->getJson(route('kinetix.report-runs.index'))
+                ->assertOk()
+                ->assertJsonPath('hasActive', true)
+                ->assertJsonCount(4, 'records');
+
+            $run->delete();
+        }
+    }
+
+    /**
+     * A run of a report the viewer may not run is not listed, so it must not
+     * keep their list polling at full speed either.
+     */
+    public function test_an_unlisted_run_does_not_count_as_active(): void
+    {
+        ReportRun::create([
+            'report_class' => ReportRunControllerHiddenReport::class,
+            'status'       => ReportRunStatus::Running,
+            'format'       => 'csv',
+        ]);
+
+        $this->getJson(route('kinetix.report-runs.index'))
+            ->assertOk()
+            ->assertJsonPath('hasActive', false)
+            ->assertJsonCount(0, 'records');
+    }
+
+    /**
+     * Retrying puts a new run in the queue: the event tells the open runs list
+     * to poll at full speed again.
+     */
+    public function test_the_retry_action_tells_the_runs_list_a_run_is_coming(): void
+    {
+        ReportRun::create([
+            'report_class' => ReportRunControllerTestReport::class,
+            'status'       => ReportRunStatus::Failed,
+            'format'       => 'csv',
+        ]);
+
+        $actions = collect($this->getJson(route('kinetix.report-runs.index'))->assertOk()->json('records.0.actions'))
+            ->keyBy('name');
+
+        $this->assertSame('report-runs-changed', $actions['retry']['dispatchEvent']);
+        $this->assertNotNull($actions['retry']['httpRequest']);
+    }
+
     public function test_every_runs_column_is_headed_in_the_readers_language(): void
     {
         // What a host has once Kinetix's translations are published.

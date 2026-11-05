@@ -1,6 +1,14 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 const { pageState, driveMock, destroyMock, moveToMock, driverFactory } =
@@ -94,7 +102,13 @@ const share = () => {
     };
 };
 
-const mountHost = () => mount(KinetixTours, { global: { plugins: [i18n] } });
+const mountHost = async () => {
+    const wrapper = mount(KinetixTours, { global: { plugins: [i18n] } });
+    // The tour driver is a lazy chunk (warmed in beforeAll).
+    await flushPromises();
+
+    return wrapper;
+};
 
 type ToursShare = { tours: Array<Record<string, unknown>> } & Record<
     string,
@@ -110,12 +124,16 @@ const automate = (on: boolean) =>
     });
 
 const autoStarted = async () => {
-    mountHost();
+    await mountHost();
     vi.advanceTimersByTime(500);
     await flushPromises();
 
     return driverFactory.mock.calls.length > 0;
 };
+
+beforeAll(async () => {
+    await import('@/components/Tours/ToursBody.vue');
+});
 
 describe('KinetixTours', () => {
     beforeEach(() => {
@@ -129,7 +147,7 @@ describe('KinetixTours', () => {
     });
 
     it('auto-starts the matching unseen tour with mapped driver.js steps', async () => {
-        mountHost();
+        await mountHost();
 
         vi.advanceTimersByTime(500);
         await flushPromises();
@@ -169,7 +187,7 @@ describe('KinetixTours', () => {
     });
 
     it('highlights a target taller than the screen from its top down to what fits', async () => {
-        mountHost();
+        await mountHost();
         vi.advanceTimersByTime(500);
         await flushPromises();
 
@@ -201,7 +219,7 @@ describe('KinetixTours', () => {
     });
 
     it('marks the tour seen when driver.js tears down', async () => {
-        mountHost();
+        await mountHost();
         vi.advanceTimersByTime(500);
         await flushPromises();
 
@@ -213,7 +231,7 @@ describe('KinetixTours', () => {
 
     it('does not auto-start a tour that was already seen', async () => {
         localStorage.setItem('kinetix.tour.posts', '1');
-        mountHost();
+        await mountHost();
 
         vi.advanceTimersByTime(500);
         await flushPromises();
@@ -223,7 +241,7 @@ describe('KinetixTours', () => {
 
     it('runs a manual start requested through the store', async () => {
         localStorage.setItem('kinetix.tour.posts', '1'); // seen — manual ignores it
-        mountHost();
+        await mountHost();
         vi.advanceTimersByTime(500);
         await flushPromises();
         expect(driverFactory).not.toHaveBeenCalled();
@@ -244,6 +262,76 @@ describe('KinetixTours', () => {
         (driverFactory.mock.calls[0][0] as Record<string, any>).onDestroyed();
         expect(localStorage.getItem('kinetix.tour.posts@v2')).toBe('1');
         expect(useKinetixToursStore().hasSeen('posts')).toBe(true);
+    });
+});
+
+describe('KinetixTours host shell', () => {
+    beforeEach(() => {
+        setActivePinia(createPinia());
+        vi.clearAllMocks();
+        localStorage.clear();
+        automate(false);
+    });
+
+    it('renders only its slot and loads no driver while tours are off or empty', async () => {
+        for (const state of [
+            { enabled: false, driver: 'local', tours: [], seen: [] },
+            { enabled: true, driver: 'local', tours: [], seen: [] },
+        ]) {
+            pageState.props = { kinetix_tours: state };
+
+            const wrapper = mount(KinetixTours, {
+                global: { plugins: [i18n] },
+                slots: { default: '<p class="slotted">content</p>' },
+            });
+            await flushPromises();
+
+            expect(wrapper.find('.slotted').exists()).toBe(true);
+            expect(wrapper.findComponent({ name: 'ToursBody' }).exists()).toBe(
+                false,
+            );
+            wrapper.unmount();
+        }
+    });
+
+    it('keeps its own slot mounted while the driver loads and after', async () => {
+        share();
+        // A fresh host module: its driver has not loaded yet.
+        vi.resetModules();
+        const { default: FreshTours } =
+            await import('@/components/KinetixTours.vue');
+
+        const wrapper = mount(FreshTours, {
+            global: { plugins: [i18n] },
+            slots: { default: '<p class="slotted">content</p>' },
+        });
+        const slotted = wrapper.find('.slotted').element;
+
+        expect(wrapper.findComponent({ name: 'ToursBody' }).exists()).toBe(
+            false,
+        );
+        await vi.waitFor(() =>
+            expect(wrapper.findComponent({ name: 'ToursBody' }).exists()).toBe(
+                true,
+            ),
+        );
+
+        // The same element: never unmounted and remounted.
+        expect(wrapper.find('.slotted').element).toBe(slotted);
+        expect(slotted.parentNode).not.toBeNull();
+        wrapper.unmount();
+    });
+
+    it('runs a launch requested before the driver had mounted', async () => {
+        share();
+        localStorage.setItem('kinetix.tour.posts', '1');
+
+        const wrapper = mount(KinetixTours, { global: { plugins: [i18n] } });
+        useKinetixToursStore().start('posts');
+        await flushPromises();
+
+        expect(driverFactory).toHaveBeenCalledTimes(1);
+        wrapper.unmount();
     });
 });
 
@@ -285,7 +373,7 @@ describe('KinetixTours under test automation', () => {
     });
 
     it('still runs a manual launch', async () => {
-        mountHost();
+        await mountHost();
         useKinetixToursStore().start('posts');
         await flushPromises();
 

@@ -42,7 +42,8 @@ php artisan migrate
     'discover_path'      => app_path('Kinetix/Reports'),
     'discover_namespace' => 'App\\Kinetix\\Reports',
 
-    // Frontend poll interval (ms) for the runs/schedules widgets.
+    // Frontend poll interval (ms) for the runs/schedules widgets. The runs
+    // list drops to every 60 s while nothing is pending or running.
     'poll' => env('KINETIX_REPORTS_CENTER_POLL', 5000),
 
     // Days a completed run's row + generated file are kept before
@@ -205,6 +206,22 @@ are equally valid:
 
 All three take **zero props** — they self-fetch from the gated endpoints and
 poll on `kinetix.reports_center.poll`.
+
+Polling never overlaps a slow request and pauses while the tab is hidden (it
+refreshes as soon as the tab is visible again). The runs list also slows down
+when it has nothing to watch: `GET {prefix}/report-runs` returns the table plus
+`hasActive`, whether any listed run is still `pending` or `running` (over the
+same team-scoped, authorized rows the list shows). While it's `false` the list
+polls every 60 seconds instead. Launching a report, or retrying a run, fires a
+`kinetix:report-runs-changed` window event that puts it back to full speed
+straight away. Dispatch the same event if you queue runs from your own UI
+(the name is exported as `KINETIX_REPORT_RUNS_CHANGED`):
+
+```ts
+import { KINETIX_REPORT_RUNS_CHANGED } from '@/composables/useKinetixReportRuns';
+
+window.dispatchEvent(new CustomEvent(KINETIX_REPORT_RUNS_CHANGED));
+```
 
 ---
 

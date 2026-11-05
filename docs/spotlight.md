@@ -174,6 +174,15 @@ action — dispatches a `window` `CustomEvent` named by its `event` (listen for 
 to open a modal, etc.). The search is debounced; use `useKinetixSpotlight()` for
 a custom UI.
 
+`<KinetixSpotlight>` is a light shell. The palette downloads on the first
+`Cmd/Ctrl+K` (or `kinetix:spotlight` event): the shortcut is caught and its
+default prevented at once, and the palette opens as soon as it has loaded.
+While `kinetix.spotlight.enabled` is off (shared as
+`kinetix_config.spotlight.enabled`) the palette is never loaded,
+`Cmd/Ctrl+K` is left to the browser, and both `<KinetixSpotlight>` and
+`<KinetixSpotlightTrigger>` render nothing. See
+[Performance](/performance).
+
 ### Header trigger
 
 Not everyone knows the shortcut — add a visible launcher in your header (next to

@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises, mount } from '@vue/test-utils';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createI18n } from 'vue-i18n';
 
@@ -15,6 +15,17 @@ const state = {
     remainingSeconds: ref(0),
     dialogOpen: ref(false),
 };
+
+// The host decides from the page props; the widget from the composable.
+vi.mock('@inertiajs/vue3', () => ({
+    usePage: () => ({
+        props: {
+            get kinetix_confidential() {
+                return state.config.value;
+            },
+        },
+    }),
+}));
 
 vi.mock('@/composables/useKinetixConfidential', () => ({
     useKinetixConfidential: () => ({
@@ -50,6 +61,33 @@ const mountIt = () =>
     mount(KinetixConfidentialUnlock, { global: { plugins: [i18n] } });
 
 describe('KinetixConfidentialUnlock', () => {
+    // The widget is a lazy chunk: load it once, through the host, so the
+    // mounts below render it synchronously as before.
+    beforeAll(async () => {
+        const w = mountIt();
+        await vi.waitFor(() => expect(w.find('button').exists()).toBe(true));
+        w.unmount();
+    });
+
+    it('holds an icon-button-sized, hidden placeholder while the widget loads', async () => {
+        vi.resetModules();
+        const { default: Fresh } =
+            await import('@/components/KinetixConfidentialUnlock.vue');
+        const w = mount(Fresh, { global: { plugins: [i18n] } });
+
+        const placeholder = w.find(
+            '[data-kinetix-lazy-skeleton="icon-button"]',
+        );
+        expect(placeholder.exists()).toBe(true);
+        expect(placeholder.attributes('aria-hidden')).toBe('true');
+        expect(placeholder.classes()).toContain('size-8');
+
+        await vi.waitFor(() =>
+            expect(w.find('button[aria-label="Unlock"]').exists()).toBe(true),
+        );
+        w.unmount();
+    });
+
     beforeEach(() => {
         unlockMock.mockReset();
         lockMock.mockReset();
@@ -63,7 +101,7 @@ describe('KinetixConfidentialUnlock', () => {
         state.dialogOpen.value = false;
     });
 
-    it('renders nothing when the module is disabled', () => {
+    it('renders nothing when the module is disabled', async () => {
         state.config.value = {
             enabled: false,
             ttlMinutes: 5,
@@ -71,8 +109,13 @@ describe('KinetixConfidentialUnlock', () => {
         };
 
         const w = mountIt();
+        await flushPromises();
 
         expect(w.find('button').exists()).toBe(false);
+        expect(
+            w.findComponent({ name: 'ConfidentialUnlockBody' }).exists(),
+        ).toBe(false);
+        expect(w.find('[data-kinetix-lazy-skeleton]').exists()).toBe(false);
     });
 
     it('shows a locked trigger button when not unlocked', () => {

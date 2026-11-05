@@ -17,9 +17,9 @@ to any feature in the sidebar.
 | `vue-i18n` | `^11.0` |
 | `vue-sonner` | `^2.0` *(toasts)* |
 | `@lucide/vue` | `^1.0` *(icons)* |
-| `@laravel/echo-vue` | `^2.3` *(required — `KinetixNotifications` imports it at build time; inert until Echo is configured)* |
+| `@laravel/echo-vue` | `^2.3` *(required peer — loaded only when real-time notifications or presence are on; see [Performance](/performance#notifications-and-presence))* |
 | `@tanstack/vue-table` | `^8.0` *(only for client-side tables — `->clientSide()`)* |
-| `@tanstack/vue-virtual` | `^3.0` *(required — Comments / Kanban / Media Library import it at build time)* |
+| `@tanstack/vue-virtual` | `^3.0` *(required peer — Comments / Kanban / Media Library load it once a list passes the virtualization threshold)* |
 | shadcn-vue / Reka UI | any *(`components.json` present)* |
 
 ## 1. Install the package
@@ -173,9 +173,9 @@ php artisan kinetix:install --skip-provider
 It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are
 assumed from your starter kit): `pinia`, `vue-i18n`, `reka-ui`,
 `@internationalized/date`, `@lucide/vue`, `vue-sonner`,
-`@tanstack/vue-virtual` (Comments/Kanban/Media Library import it at build time)
-and `@laravel/echo-vue` (`KinetixNotifications` imports it at build time; it
-stays inert until you configure Echo — the old `--broadcasting` flag is now a
+`@tanstack/vue-virtual` (Comments/Kanban/Media Library load it for long lists)
+and `@laravel/echo-vue` (a required peer, loaded only when real-time
+notifications or presence are on; the old `--broadcasting` flag is now a
 no-op). The `--charts` and `--tanstack` flags add the optional, feature-specific
 packages (`--tanstack` covers `@tanstack/vue-table` for `->clientSide()`
 tables).
@@ -184,7 +184,9 @@ It also wires the pieces components depend on: vue-i18n + Pinia registration in
 `app.ts`, the `kinetix:upgrade` composer hook, formatter ignores for the
 published paths, **and `@import 'vue-sonner/style.css';` in
 `resources/css/app.css`** — without that import, toasts render as unstyled
-plain text (no container, animation, or colors).
+plain text (no container, animation, or colors). On Tailwind 4.1+ it also adds
+`@source not` lines that keep the published agent skills out of Tailwind's
+scan ([Theming → Tailwind and the agent skills](#tailwind-and-the-agent-skills)).
 
 > **Animations require `tw-animate-css`.** Kinetix surfaces (modals, menus,
 > popovers, tooltips) animate with the shadcn `animate-in`/`animate-out`
@@ -363,6 +365,12 @@ Modal-style components (`KinetixSheet`, `KinetixConfirmModal`, the table record
 modals) are **not** hosts — they're prop-driven, self-teleporting, and need no
 layout placement.
 
+Mounting a host you don't use costs little: each one is a small shell that
+downloads its body only when the feature is on, and the heavier ones (import,
+preview, spotlight, shortcuts) only on first use. Import the hosts, never the
+bodies they load (`KinetixImporter`, `KinetixLightbox`, …), from the layout, or
+those bodies land in every page. See [Performance](/performance).
+
 #### The header strip
 
 The header triggers are built to stand next to each other — one shared button
@@ -505,6 +513,40 @@ clear them. (Reka UI copies the popper content's **computed** z-index onto its
 positioning wrapper, so the variables resolve correctly there too; you never
 need `!important` against Kinetix's own layers.)
 
+### Tailwind and the agent skills
+
+Tailwind v4 scans every file git doesn't ignore, so the Markdown skills Kinetix
+publishes for coding agents would add CSS for every class quoted in their
+examples. On **Tailwind 4.1+**, `kinetix:install` and `kinetix:upgrade` add one
+line per skills directory that holds Kinetix skills (`kinetix.skills_path`,
+`.claude/skills`, `.agents/skills`) after the `@import` lines of
+`resources/css/app.css`:
+
+```css
+/* Kinetix: agent skills are documentation, not markup — keep them out of Tailwind's scan */
+@source not '../../.claude/skills';
+```
+
+On an older Tailwind the installer prints the lines to add once you upgrade.
+`kinetix:doctor` warns when one is missing, and
+`KINETIX_TAILWIND_EXCLUDE_AGENT_SKILLS=false` turns it off. Kinetix never
+touches other folders, so exclude your own `docs/` the same way if you keep
+Markdown there. Details in [Performance](/performance#tailwind-and-the-agent-skills).
+
+### Stale chunks after a deploy
+
+Kinetix loads optional bodies (the importer, the lightbox, rarer form fields…)
+on demand. A tab opened before a deploy can ask for a chunk the new build
+removed; Vite then fires `vite:preloadError`. Reload on it from
+`resources/js/app.ts`:
+
+```ts
+window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
+    window.location.reload();
+});
+```
+
 ## Configuration
 
 After publishing, edit `config/kinetix.php`. The most relevant keys:
@@ -533,6 +575,9 @@ return [
 
     'route_prefix' => env('KINETIX_ROUTE_PREFIX', '_kinetix'),
     'middleware'   => ['web', 'auth'],
+
+    // Keep the published agent skills out of Tailwind's scan (Tailwind 4.1+).
+    'tailwind' => ['exclude_agent_skills' => env('KINETIX_TAILWIND_EXCLUDE_AGENT_SKILLS', true)],
 ];
 ```
 
@@ -543,6 +588,7 @@ return [
 | `KINETIX_FILESYSTEM_DISK` | `public` | Disk for uploads / exports / imports / images |
 | `KINETIX_TEAMS_ENABLED` | `false` | Scope routes/queries to the current team |
 | `KINETIX_ROUTE_PREFIX` | `_kinetix` | Prefix for internal API routes |
+| `KINETIX_TAILWIND_EXCLUDE_AGENT_SKILLS` | `true` | Add `@source not` lines for the agent skills to `app.css` on install/upgrade |
 
 ### Gating a Kinetix module on the server
 
@@ -834,7 +880,8 @@ php artisan kinetix:doctor --json   # machine-readable, full lists
 ```
 
 It also checks that `resources/css/app.css` maps the
-[status tokens](#theming), and finds middleware
+[status tokens](#theming) and keeps the agent skills out of Tailwind's scan
+([on Tailwind 4.1+](#tailwind-and-the-agent-skills)), and finds middleware
 appended to a group (`web`), as the docs advise, not only on a route.
 
 Because it exits non-zero on errors it works as a deploy gate (`php artisan
@@ -889,3 +936,4 @@ Kinetix-authored `index.ts` is still present).
 - [**Tables**](/tables) · [**Forms**](/forms) · [**Infolists**](/infolists) · [**Actions**](/actions)
 - [**Import & Export**](/import-export) · [**Relation Managers**](/relation-managers)
 - [**Notifications**](/notifications) · [**Widgets**](/widgets) · [**Billing**](/billing)
+- [**Performance**](/performance) — what loads lazily and how to check your bundle.

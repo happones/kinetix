@@ -50,6 +50,9 @@ Zero props — mount once anywhere in the root layout. `useKinetixCookieConsent(
   reads the configured cookie (`cookie_name`); the bar shows only if it's
   absent. `accept()`/`decline()` write `accepted`/`declined` for `expiry_days`
   days — no server round-trip, no page reload.
+- `<KinetixCookieConsent>` is a lazy shell: the bar's body loads only while the
+  banner is enabled and the consent cookie is absent, or once
+  `useKinetixCookieConsent().visible.value = true` (a "Cookie settings" link).
 - To read consent server-side (e.g. to conditionally render a script tag):
   `request()->cookie(config('kinetix.cookie_consent.cookie_name')) === 'accepted'`.
 - i18n `cookie_consent_message`/`cookie_consent_policy_link`/

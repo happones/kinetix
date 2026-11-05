@@ -1,22 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Component } from 'vue';
+import { kinetixComponentOf } from '@/composables/kinetixLazy';
+import type { KinetixLazyComponent } from '@/composables/kinetixLazy';
 import type {
     KinetixTableCellColumn,
     KinetixTableCellRecord,
 } from '@/types/kinetix';
-import CheckboxInputCell from './cells/CheckboxInputCell.vue';
 import ColorCell from './cells/ColorCell.vue';
 import IconCell from './cells/IconCell.vue';
 import ImageCell from './cells/ImageCell.vue';
-import NumberInputCell from './cells/NumberInputCell.vue';
 import ProgressCell from './cells/ProgressCell.vue';
-import SelectInputCell from './cells/SelectInputCell.vue';
 import TextBadgeCell from './cells/TextBadgeCell.vue';
 import TextCell from './cells/TextCell.vue';
-import TextInputCell from './cells/TextInputCell.vue';
-import ToggleInputCell from './cells/ToggleInputCell.vue';
 import ViewCell from './cells/ViewCell.vue';
+import { KINETIX_TABLE_CELL_LOADERS as LAZY } from './kinetixTableCellLoaders';
 
 const props = defineProps<{
     col: KinetixTableCellColumn;
@@ -39,8 +37,11 @@ const emit = defineEmits<{
  * the hottest render path flat instead of re-evaluating every branch condition
  * per cell. Each cell shares the `{ col, record }` contract and re-emits
  * `update-cell`; copyable cells copy on their own (KinetixCopyable).
+ *
+ * The input cells are lazy entries (see kinetixTableCellLoaders) that
+ * KinetixTable starts downloading at setup for the column types it has.
  */
-const CELL_COMPONENTS: Record<string, Component> = {
+const CELL_COMPONENTS: Record<string, Component | KinetixLazyComponent> = {
     text: TextCell,
     'text-badge': TextBadgeCell,
     icon: IconCell,
@@ -48,11 +49,11 @@ const CELL_COMPONENTS: Record<string, Component> = {
     color: ColorCell,
     progress: ProgressCell,
     view: ViewCell,
-    'select-input': SelectInputCell,
-    'toggle-input': ToggleInputCell,
-    'text-input': TextInputCell,
-    'number-input': NumberInputCell,
-    'checkbox-input': CheckboxInputCell,
+    'select-input': LAZY['select-input'],
+    'toggle-input': LAZY['toggle-input'],
+    'text-input': LAZY['text-input'],
+    'number-input': LAZY['number-input'],
+    'checkbox-input': LAZY['checkbox-input'],
 };
 
 type CellDataGuard = (
@@ -79,6 +80,15 @@ const cellKey = computed<string>(() => {
     return props.col.type;
 });
 
+// Resolved from the key alone: a lazy input cell answers its loading wrapper
+// until its code arrives, and swapping it for the real component on a later
+// render would remount the input mid-edit.
+const resolvedCell = computed<Component | null>(() => {
+    const entry = CELL_COMPONENTS[cellKey.value];
+
+    return entry ? kinetixComponentOf(entry) : null;
+});
+
 const cellComponent = computed<Component | null>(() => {
     const key = cellKey.value;
 
@@ -92,7 +102,7 @@ const cellComponent = computed<Component | null>(() => {
         return null;
     }
 
-    return CELL_COMPONENTS[key] ?? null;
+    return resolvedCell.value;
 });
 
 const onUpdateCell = (

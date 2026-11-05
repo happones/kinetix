@@ -77,6 +77,7 @@ export default withMermaid(
           { text: "What is Kinetix?", link: "/" },
           { text: "Getting Started", link: "/installation" },
           { text: "With the Laravel starter kit", link: "/starter-kit" },
+          { text: "Performance", link: "/performance" },
         ],
       },
       {

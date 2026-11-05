@@ -122,7 +122,8 @@ import KinetixLanguageSwitcher from '@/components/kinetix/KinetixLanguageSwitche
 | `label` | `string \| null` | `null` | **Select only.** Overrides the label text (defaults to the translated `kinetix.language`) |
 
 Selecting a locale flips the SPA immediately and persists the choice, rolling
-back if the request fails. The locales come from the shared `kinetix_locale`
+back if the request fails. The `select` variant's field downloads where it's
+used; the default dropdown ships with the component. The locales come from the shared `kinetix_locale`
 Inertia prop — no extra wiring needed.
 
 ### Both variants at once

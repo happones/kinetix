@@ -732,7 +732,7 @@ $table->headerActions([
 <KinetixImportModal />
 ```
 
-Clicking the action fires `kinetix:open-importer` (with the importer as a signed token); `KinetixImportModal` catches it and renders `KinetixImporter` in a shadcn dialog. `ImportAction` is a normal `Action` (`->label()`/`->icon()`/`->authorize()`…). Give each a unique name when you have several: `ImportAction::make('importBrands')->importer(BrandImporter::class)`.
+Clicking the action fires `kinetix:open-importer` (with the importer as a signed token); `KinetixImportModal` catches it and renders `KinetixImporter` in a shadcn dialog. The modal itself is a light shell: it opens at once with a loading skeleton (`aria-busy`) and the importer's code downloads on that first import, so pages that never import don't pay for it. Add the [`vite:preloadError` handler](/performance#stale-chunks-after-a-deploy) so a tab opened before a deploy recovers. `ImportAction` is a normal `Action` (`->label()`/`->icon()`/`->authorize()`…). Give each a unique name when you have several: `ImportAction::make('importBrands')->importer(BrandImporter::class)`.
 
 The event carries the importer's resolved `settings`, so the dialog can present
 itself correctly before a file even exists.

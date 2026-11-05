@@ -81,6 +81,17 @@ before confirming — e.g. `Mexico City (UTC-06:00) · 12:34 AM`.
 
 ---
 
+## Cost on the page
+
+Formatting ~420 zones with their offsets is the expensive part, so it happens
+when a picker first opens and is cached for an hour: every picker on the page
+shares that list. A selected alias zone such as `US/Eastern` shows its label
+too. A closed picker only works out
+its own selected zone's offset, so a form with several pickers mounts as fast as
+one with none. See [Performance](/performance#timezone-picker).
+
+---
+
 ## Localization
 
 The search input, empty state, and region headings are all localized

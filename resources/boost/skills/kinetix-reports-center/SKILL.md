@@ -140,7 +140,18 @@ KinetixReportsCenter::register(\App\Reports\SomeOtherReport::class);
 ```
 
 All take zero props — they self-fetch from gated endpoints and poll on
-`kinetix.reports_center.poll`.
+`kinetix.reports_center.poll` through `useKinetixPolling` (no overlap, paused
+while hidden).
+
+`GET {prefix}/report-runs` returns the table plus `hasActive`
+(`KinetixReportRunsPayload`): whether any run in the SAME scoped query the list
+shows (`forCurrentTeam()` + the classes the viewer may run) is
+`ReportRunStatus::active()` (pending/running). While false, the runs list polls
+every 60 s. The retry action carries `->dispatch('report-runs-changed')` and the
+launcher dispatches `kinetix:report-runs-changed` after a launch (name exported
+as `KINETIX_REPORT_RUNS_CHANGED` from `@/composables/useKinetixReportRuns`);
+that event puts the list back to full speed. Dispatch it too from any custom UI
+that queues runs.
 
 ## Progress, cancellation, and retry
 

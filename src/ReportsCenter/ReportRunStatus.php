@@ -39,6 +39,16 @@ enum ReportRunStatus: string implements HasColor, HasLabel
         };
     }
 
+    /**
+     * The statuses of a run that has not finished yet: queued or processing.
+     *
+     * @return list<self>
+     */
+    public static function active(): array
+    {
+        return [self::Pending, self::Running];
+    }
+
     /** Whether a run in this status can still be cancelled. */
     public function isCancellable(): bool
     {

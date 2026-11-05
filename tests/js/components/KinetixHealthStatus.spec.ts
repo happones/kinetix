@@ -70,6 +70,26 @@ describe('useKinetixHealth', () => {
         expect(fetchMock).toHaveBeenCalledWith('/_kinetix/health');
         expect(vm.snapshot.status).toBe('warning');
     });
+
+    it('stops polling when the component unmounts', async () => {
+        vi.useFakeTimers();
+        pageProps.kinetix_health.poll = 1000;
+        fetchMock.mockResolvedValue(snapshot);
+
+        try {
+            const wrapper = mount(Harness, { global: { plugins: [i18n] } });
+            (wrapper.vm as any).start();
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            wrapper.unmount();
+            await vi.advanceTimersByTimeAsync(120_000);
+
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        } finally {
+            pageProps.kinetix_health.poll = 0;
+            vi.useRealTimers();
+        }
+    });
 });
 
 describe('KinetixHealthStatus', () => {

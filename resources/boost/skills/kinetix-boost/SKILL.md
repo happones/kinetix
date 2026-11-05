@@ -58,6 +58,13 @@ Activate this skill when:
 - Run tests via `composer test` to confirm everything remains green.
 - Do not add arbitrary debugger code, tinker scripts, or manual route files when unit/feature tests are available.
 
+### D. Keeping the browser lean
+- Mount the Kinetix layout hosts (`KinetixImportModal`, `KinetixFilePreview`, `KinetixSpotlight`, …), never the bodies they load lazily (`KinetixImporter`, `KinetixLightbox`, …): a static import of a body from a layout puts it in every page.
+- `@laravel/echo-vue` loads only when real-time is on (`kinetix_config.realtime`); don't import it from layout code unless the app really broadcasts.
+- Handle stale lazy chunks after a deploy with a `vite:preloadError` listener in `resources/js/app.ts` (`event.preventDefault(); window.location.reload();`).
+- `kinetix:install` / `kinetix:upgrade` add `@source not` lines for the published agent skills to `resources/css/app.css` (Tailwind 4.1+, `kinetix.tailwind.exclude_agent_skills`); `kinetix:doctor` warns when one is missing. Exclude other Markdown folders (`docs/`) yourself.
+- Details: `docs/performance.md`.
+
 ## 3. UUID / ULID Host Models (users, teams, or any referenced model)
 
 Kinetix migrations build every column that references a HOST model

@@ -401,6 +401,12 @@ Turn `share` off and the payload is `null`; both components fall back to
 fetching for themselves, exactly as before. That's the trade: a couple of
 indexed queries per Inertia response, or a round-trip per component mount.
 
+The banner is also cheap to download. `<KinetixAnnouncementBanner>` is a light
+shell, and its body (carousel, buttons, dismissal) loads only when the shared
+feed has an entry, the feed isn't shared (`share` off), or `levels` / `limit`
+narrow it so it has to fetch. A layout that mounts it on every page doesn't
+ship that code while the shared feed is empty ([Performance](/performance)).
+
 ---
 
 ## How "unread" works

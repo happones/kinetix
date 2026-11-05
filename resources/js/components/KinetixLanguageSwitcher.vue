@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useKinetixLocale } from '@/composables/useKinetixLocale';
+import { KINETIX_LANGUAGE_SELECT_BODY } from './kinetixLayoutBodyLoaders';
 import LanguageDropdown from './LanguageSwitcher/LanguageDropdown.vue';
-import LanguageSelect from './LanguageSwitcher/LanguageSelect.vue';
 
 /**
  * A self-service language switcher in two shapes:
@@ -15,6 +15,9 @@ import LanguageSelect from './LanguageSwitcher/LanguageSelect.vue';
  * stay in agreement. Switching flips the app language instantly (vue-i18n) and
  * persists the choice server-side. Works for guests too, so it can sit on the
  * login screen.
+ *
+ * The header dropdown ships with the component; the `select` field (and the
+ * Select primitive behind it) downloads only where a page renders it.
  */
 const props = withDefaults(
     defineProps<{
@@ -37,10 +40,14 @@ const { locales, current, saving, setLocale } = useKinetixLocale();
 const isSelect = computed(() => props.variant === 'select');
 
 const showLabel = computed(() => props.showLabel ?? isSelect.value);
+
+// Read once: the async wrapper keeps rendering the real field once loaded.
+const LanguageSelect = KINETIX_LANGUAGE_SELECT_BODY.component;
 </script>
 
 <template>
-    <LanguageSelect
+    <component
+        :is="LanguageSelect"
         v-if="isSelect"
         :locales="locales"
         :current="current"

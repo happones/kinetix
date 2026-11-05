@@ -49,6 +49,10 @@ users** focus the grip and press the arrow keys to move the tile one place
 earlier or later. The new position is announced. A disabled field shows no
 grip and can't be reordered.
 
+A long library windows its grid: past 12 rows of tiles only the visible rows
+render. `@tanstack/vue-virtual` (a required peer) downloads at that moment, so a
+field with a handful of files never loads it.
+
 ---
 
 ## Standalone (no spatie)

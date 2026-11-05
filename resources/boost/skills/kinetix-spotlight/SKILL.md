@@ -88,6 +88,12 @@ KinetixSpotlight::register([
 ```
 
 Owns `Cmd/Ctrl+K`. Built on Reka `Dialog` + `Combobox` (keyboard nav + selection).
+`KinetixSpotlight.vue` is a lazy shell: it prevents the shortcut synchronously,
+loads the palette body on the first `Cmd/Ctrl+K` / `kinetix:spotlight`, then
+opens it. While `kinetix_config.spotlight.enabled` is false (config
+`kinetix.spotlight.enabled`) the body is never loaded, `Cmd/Ctrl+K` is left
+alone, and both `<KinetixSpotlight>` and `<KinetixSpotlightTrigger>` render
+nothing.
 Selecting navigates to `url`, or dispatches a `window` `CustomEvent` named by the
 item's `event`. Debounced (200ms).
 

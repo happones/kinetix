@@ -17,6 +17,12 @@ import {
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { KinetixTimezoneDisplay } from '@/types/kinetix';
+import {
+    kinetixTimezoneBucket,
+    kinetixTimezoneOffsetFor,
+    kinetixTimezoneZones,
+} from './kinetixTimezoneZones';
+import type { KinetixZoneEntry } from './kinetixTimezoneZones';
 
 /**
  * A searchable timezone combobox (built on the same Reka Combobox primitives
@@ -27,6 +33,9 @@ import type { KinetixTimezoneDisplay } from '@/types/kinetix';
  * choose what each option shows (city name / UTC offset / both — `display`
  * lets you drop the name entirely and show just the offset), and optionally
  * preview the live current time in the selected zone.
+ *
+ * The zone list (one `Intl.DateTimeFormat` per zone) is built once per hour
+ * for every picker on the page, and only when a picker first opens.
  */
 const props = withDefaults(
     defineProps<{
@@ -70,30 +79,8 @@ const { t } = useI18n();
 const localeValue = computed(() => props.locale ?? undefined);
 const open = ref(false);
 
-interface TimezoneOption {
-    value: string;
-    region: string;
-    name: string;
-    offset: string;
-    offsetMinutes: number;
+interface TimezoneOption extends KinetixZoneEntry {
     display: string;
-}
-
-function offsetFor(tz: string): { label: string; minutes: number } {
-    const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: tz,
-        timeZoneName: 'longOffset',
-    }).formatToParts(new Date());
-    const raw =
-        parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+00:00';
-    const label = raw.replace('GMT', 'UTC');
-    const match = /UTC([+-])(\d{2}):(\d{2})/.exec(label);
-    const minutes = match
-        ? (match[1] === '-' ? -1 : 1) *
-          (Number(match[2]) * 60 + Number(match[3]))
-        : 0;
-
-    return { label: label === 'UTC' ? 'UTC+00:00' : label, minutes };
 }
 
 function nameFor(tz: string): string {
@@ -112,34 +99,25 @@ function renderLabel(name: string, offset: string): string {
     return `${name} (${offset})`;
 }
 
+const allowedRegion = (region: string): boolean =>
+    !props.regions || props.regions.includes(region);
+
+// The full list is built on the first open (and again on an open in a later
+// hour, when the shared cache has rolled over), never at mount: a closed
+// picker only needs the selected zone's label.
+const listBucket = ref<number | null>(null);
+
 const allZones = computed<TimezoneOption[]>(() => {
-    const zones =
-        typeof Intl.supportedValuesOf === 'function'
-            ? Intl.supportedValuesOf('timeZone')
-            : [];
+    if (listBucket.value === null) {
+        return [];
+    }
 
-    return zones
-        .filter(
-            (tz) => !props.regions || props.regions.includes(tz.split('/')[0]),
-        )
-        .map((tz): TimezoneOption => {
-            const { label: offset, minutes } = offsetFor(tz);
-            const name = nameFor(tz);
-
-            return {
-                value: tz,
-                region: tz.split('/')[0],
-                name,
-                offset,
-                offsetMinutes: minutes,
-                display: renderLabel(name, offset),
-            };
-        })
-        .sort(
-            (a, b) =>
-                a.offsetMinutes - b.offsetMinutes ||
-                a.name.localeCompare(b.name),
-        );
+    return kinetixTimezoneZones()
+        .filter((zone) => allowedRegion(zone.region))
+        .map((zone) => ({
+            ...zone,
+            display: renderLabel(zone.name, zone.offset),
+        }));
 });
 
 const regionLabel = (region: string): string =>
@@ -167,9 +145,38 @@ const groups = computed(() => {
         .map(([region, zones]) => ({ region, zones }));
 });
 
-const selected = computed(
-    () => allZones.value.find((z) => z.value === props.modelValue) ?? null,
-);
+const selected = computed<TimezoneOption | null>(() => {
+    const tz = props.modelValue;
+
+    if (!tz || !allowedRegion(tz.split('/')[0])) {
+        return null;
+    }
+
+    const offset = kinetixTimezoneOffsetFor(tz);
+
+    if (offset === null) {
+        return null;
+    }
+
+    const name = nameFor(tz);
+
+    return {
+        value: tz,
+        region: tz.split('/')[0],
+        name,
+        offset: offset.label,
+        offsetMinutes: offset.minutes,
+        display: renderLabel(name, offset.label),
+    };
+});
+
+function setOpen(value: boolean): void {
+    if (value) {
+        listBucket.value = kinetixTimezoneBucket();
+    }
+
+    open.value = value;
+}
 
 const now = ref(new Date());
 let timer: ReturnType<typeof setInterval> | undefined;
@@ -213,7 +220,7 @@ const triggerClass =
         :open="open"
         :model-value="modelValue ?? ''"
         :disabled="disabled"
-        @update:open="open = $event"
+        @update:open="setOpen"
         @update:model-value="onSelect"
     >
         <ComboboxAnchor as-child>

@@ -90,6 +90,46 @@ describe('useKinetixQueue', () => {
         expect(vm.failed).toBe(true);
     });
 
+    it('polls on the interval, pauses while hidden and stops on unmount', async () => {
+        vi.useFakeTimers();
+        pageProps.kinetix_queue.poll = 1000;
+        fetchMock.mockResolvedValue(snapshot);
+
+        try {
+            const wrapper = mount(Harness, { global: { plugins: [i18n] } });
+            (wrapper.vm as any).start();
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+
+            Object.defineProperty(document, 'hidden', {
+                configurable: true,
+                get: () => true,
+            });
+            document.dispatchEvent(new Event('visibilitychange'));
+            await vi.advanceTimersByTimeAsync(10_000);
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+
+            Object.defineProperty(document, 'hidden', {
+                configurable: true,
+                get: () => false,
+            });
+            document.dispatchEvent(new Event('visibilitychange'));
+            await vi.advanceTimersByTimeAsync(0);
+            expect(fetchMock).toHaveBeenCalledTimes(3);
+
+            wrapper.unmount();
+            await vi.advanceTimersByTimeAsync(10_000);
+            expect(fetchMock).toHaveBeenCalledTimes(3);
+        } finally {
+            pageProps.kinetix_queue.poll = 0;
+            Object.defineProperty(document, 'hidden', {
+                configurable: true,
+                get: () => false,
+            });
+            vi.useRealTimers();
+        }
+    });
+
     it('retries and forgets failed jobs via the endpoints', async () => {
         fetchMock.mockResolvedValue(snapshot);
         const vm = mount(Harness, { global: { plugins: [i18n] } }).vm as any;

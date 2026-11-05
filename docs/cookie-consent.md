@@ -62,6 +62,17 @@ client-side**: on mount, the component checks for the configured cookie
 **Decline** writes that cookie (`accepted` or `declined`) for `expiry_days`
 days and hides the bar — no request to the server, no page reload.
 
+The component is a light shell: the bar's code downloads only while the banner
+is enabled and the visitor hasn't chosen yet. Visitors who already chose, and
+apps with the banner off, never load it. To show the bar again (a "Cookie
+settings" link, for example), set it visible:
+
+```ts
+import { useKinetixCookieConsent } from '@/composables/useKinetixCookieConsent';
+
+useKinetixCookieConsent().visible.value = true;
+```
+
 If you need to know server-side whether a visitor has consented (e.g. to
 conditionally render a script tag), read the same cookie from the incoming
 request:

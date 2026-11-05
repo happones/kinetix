@@ -1,53 +1,50 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
-import {
-    ComboboxContent,
-    ComboboxEmpty,
-    ComboboxGroup,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxRoot,
-    DialogContent,
-    DialogDescription,
-    DialogOverlay,
-    DialogPortal,
-    DialogRoot,
-    DialogTitle,
-    VisuallyHidden,
-} from 'reka-ui';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useKinetixSpotlight } from '@/composables/useKinetixSpotlight';
-import type {
-    KinetixSpotlightGroup,
-    KinetixSpotlightItem,
-} from '@/types/kinetix';
+import { usePage } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { useKinetixLazyOnDemand } from '@/composables/useKinetixLazyHost';
+import type { KinetixSharedProps } from '@/types/kinetix';
+import { KINETIX_SPOTLIGHT_BODY } from './kinetixLayoutBodyLoaders';
 
 /**
- * Global Cmd/Ctrl+K command palette. Built on Reka Dialog + Combobox (keyboard
- * nav + selection for free). Searches the spotlight endpoint (debounced); server
- * results are already authorization-filtered. Mount once in your layout.
+ * Global Cmd/Ctrl+K command palette. Mount once in your layout. Searches the
+ * spotlight endpoint; server results are already authorization-filtered.
+ *
+ * This is the light host: it owns the shortcut and the `kinetix:spotlight`
+ * event (dispatched by `<KinetixSpotlightTrigger>` in a header),
+ * claims the keystroke at once, and downloads the palette on the first
+ * opening. With `kinetix.spotlight.enabled` off it listens to nothing and
+ * loads nothing.
  */
-const { t } = useI18n();
-const { loading, minChars, search } = useKinetixSpotlight();
+defineOptions({ inheritAttrs: false });
 
-const open = ref(false);
-const query = ref('');
-const groups = ref<KinetixSpotlightGroup[]>([]);
+const page = usePage<KinetixSharedProps>();
+const enabled = computed(
+    () => page.props.kinetix_config?.spotlight?.enabled !== false,
+);
 
-let debounce: ReturnType<typeof setTimeout> | undefined;
+const {
+    body,
+    open,
+    request: requestOpen,
+} = useKinetixLazyOnDemand(KINETIX_SPOTLIGHT_BODY, 'The command palette');
 
 function onKeydown(event: KeyboardEvent): void {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    if (
+        enabled.value &&
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 'k'
+    ) {
         event.preventDefault();
-        open.value = true;
+        requestOpen();
     }
 }
 
 // Allow an external trigger (e.g. <KinetixSpotlightTrigger> in the header) to
 // open the palette without coupling components.
 function onExternalOpen(): void {
-    open.value = true;
+    if (enabled.value) {
+        requestOpen();
+    }
 }
 
 onMounted(() => {
@@ -57,147 +54,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKeydown);
     window.removeEventListener('kinetix:spotlight', onExternalOpen);
-    clearTimeout(debounce);
 });
-
-function onOpenChange(value: boolean): void {
-    open.value = value;
-
-    if (!value) {
-        query.value = '';
-        groups.value = [];
-    }
-}
-
-function onInput(event: Event): void {
-    query.value = (event.target as HTMLInputElement).value;
-    clearTimeout(debounce);
-
-    // Below the threshold there is nothing worth fanning out for: `%a%` matches
-    // nearly every row of every source. The endpoint enforces the same floor.
-    if (query.value.length < minChars.value) {
-        groups.value = [];
-
-        return;
-    }
-
-    debounce = setTimeout(async () => {
-        const result = await search(query.value);
-
-        // `null` = this search was superseded by a newer keystroke. Painting it
-        // would show results for a query the reader already replaced.
-        if (result !== null) {
-            groups.value = result;
-        }
-    }, 200);
-}
-
-function onSelect(item: unknown): void {
-    const selected = item as KinetixSpotlightItem | undefined;
-
-    if (!selected) {
-        return;
-    }
-
-    onOpenChange(false);
-
-    if (selected.url) {
-        router.visit(selected.url);
-    } else if (selected.event) {
-        window.dispatchEvent(
-            new CustomEvent(selected.event, { detail: selected }),
-        );
-    }
-}
 </script>
 
 <template>
-    <DialogRoot :open="open" @update:open="onOpenChange">
-        <DialogPortal>
-            <DialogOverlay
-                class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 inset-0 bg-black/80 fixed z-[var(--kinetix-z-overlay,100)]"
-            />
-            <DialogContent
-                class="top-24 max-w-lg rounded-lg shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed left-1/2 z-[var(--kinetix-z-modal,100)] w-full -translate-x-1/2 overflow-hidden border border-border bg-popover text-popover-foreground duration-200"
-            >
-                <VisuallyHidden>
-                    <DialogTitle>{{
-                        t('kinetix.spotlight_placeholder')
-                    }}</DialogTitle>
-                    <DialogDescription>{{
-                        t('kinetix.spotlight_placeholder')
-                    }}</DialogDescription>
-                </VisuallyHidden>
-
-                <ComboboxRoot
-                    :open="true"
-                    :ignore-filter="true"
-                    @update:model-value="onSelect"
-                >
-                    <ComboboxInput
-                        auto-focus
-                        :placeholder="t('kinetix.spotlight_placeholder')"
-                        class="px-4 py-3 text-sm w-full border-b border-border bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-                        @input="onInput"
-                    />
-
-                    <ComboboxContent class="max-h-80 p-2 overflow-y-auto">
-                        <!-- A fan-out across many sources is not instant, and
-                             the empty state is a lie while it is running. -->
-                        <div
-                            v-if="loading"
-                            class="px-2 py-6 text-sm text-center text-muted-foreground"
-                            role="status"
-                            aria-live="polite"
-                        >
-                            {{ t('kinetix.spotlight_searching') }}
-                        </div>
-                        <div
-                            v-else-if="query.length < minChars"
-                            class="px-2 py-6 text-sm text-center text-muted-foreground"
-                        >
-                            {{
-                                t('kinetix.spotlight_min_chars', {
-                                    count: minChars,
-                                })
-                            }}
-                        </div>
-                        <ComboboxEmpty
-                            v-else
-                            class="px-2 py-6 text-sm text-center text-muted-foreground"
-                        >
-                            {{ t('kinetix.spotlight_empty') }}
-                        </ComboboxEmpty>
-
-                        <ComboboxGroup
-                            v-for="group in groups"
-                            :key="group.label"
-                            class="mb-1"
-                        >
-                            <div
-                                class="px-2 py-1 text-xs font-medium text-muted-foreground"
-                            >
-                                {{ group.label }}
-                            </div>
-
-                            <ComboboxItem
-                                v-for="(item, i) in group.items"
-                                :key="`${group.label}-${item.id ?? i}`"
-                                :value="item"
-                                class="gap-0.5 px-2 py-2 text-sm flex cursor-default flex-col rounded-md text-foreground outline-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
-                            >
-                                <span>{{ item.title }}</span>
-                                <span
-                                    v-if="item.subtitle"
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    {{ item.subtitle }}
-                                </span>
-                            </ComboboxItem>
-                        </ComboboxGroup>
-                    </ComboboxContent>
-                </ComboboxRoot>
-            </DialogContent>
-        </DialogPortal>
-    </DialogRoot>
+    <component :is="body" v-if="body" v-model:open="open" v-bind="$attrs" />
 </template>

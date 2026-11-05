@@ -50,6 +50,7 @@ register({ keys: 'c', label: 'Create', handler: openCreate }) // auto-cleanup on
 - **Grammar**: space-separated steps = a sequence; within a step `+`-join
   modifiers + one key (`mod+s`, `shift+?`). Sequences are plain keys only.
 - **Help overlay**: mount `<KinetixShortcuts>` once; `?` lists labelled shortcuts.
+  The host registers `?` on mount; the overlay body downloads on the first `?`.
 - **Bind an Action**: put the directive on the action button (`v-kinetix-hotkey="'e'"`).
 - **Per-user overrides**: `setHotkeyOverrides({ create: 'n' })`, persisted via the
   Settings module (`KinetixSettings::set('shortcuts.bindings', ...)`).

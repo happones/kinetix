@@ -4,7 +4,7 @@ import { nextTick, onBeforeUnmount, useId, watch } from 'vue';
  * Tab stops inside a dialog. Negative `tabindex` is excluded so the dialog panel
  * itself (which carries `tabindex="-1"` as a focus fallback) is never a stop.
  */
-const FOCUSABLE_SELECTOR = [
+export const FOCUSABLE_SELECTOR = [
     'a[href]',
     'area[href]',
     'button:not([disabled])',

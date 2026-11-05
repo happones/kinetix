@@ -55,5 +55,6 @@ Gate::define('viewKinetixQueue', fn ($user) => $user->isAdmin());
 ```
 
 Status badge + throughput / recent / pending / failed tiles + per-queue rows;
-polls on the shared interval, stops on unmount. `useKinetixQueue()` →
+polls on the shared interval via `useKinetixPolling` (no overlap, paused while
+the tab is hidden), stops on unmount. `useKinetixQueue()` →
 `{ snapshot, loading, failed, load, start, stop }`. i18n `queue_*`.

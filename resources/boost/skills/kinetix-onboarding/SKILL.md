@@ -141,6 +141,10 @@ KinetixTours::tour('employees')
   highlights the step's indicator.
 - `<KinetixTourTrigger />` replays the current page's tour (renders nothing
   without one); slot `{ start, label, tour }` for menu items.
+- `<KinetixTours />` is a lazy shell: the runner (and driver.js) load only when
+  `kinetix_tours.enabled` is on and at least one tour is shared. Its default
+  slot always renders; attributes on `<KinetixTours>` go to the runner, not
+  the slot content. A store `start()` before it loads still runs.
 - `kinetix.tours.skip_when_automated` (default true): no auto-start under
   `navigator.webdriver`; tests of the tour opt in with `?kinetix-tours=1` or
   `localStorage['kinetix.tours.automated'] = '1'`.

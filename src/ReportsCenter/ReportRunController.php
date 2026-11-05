@@ -28,7 +28,9 @@ class ReportRunController
     {
         Gate::authorize('viewKinetixReportsCenter');
 
-        $table = Table::make(ReportRun::query()->forCurrentTeam()->whereIn('report_class', $this->runnableClasses())->latest())
+        $runs = ReportRun::query()->forCurrentTeam()->whereIn('report_class', $this->runnableClasses());
+
+        $table = Table::make($runs->clone()->latest())
             ->columns([
                 TextColumn::make('report_class')
                     ->label((string) __('kinetix.report_runs_report_column'))
@@ -70,10 +72,21 @@ class ReportRunController
                     ->icon('rotate-ccw')
                     ->iconButton()
                     ->request(fn (ReportRun $run) => route('kinetix.report-runs.retry', $run))
+                    // A run is about to be queued: the open list polls at full
+                    // speed again (`kinetix:report-runs-changed`).
+                    ->dispatch('report-runs-changed')
                     ->visible(fn (ReportRun $run) => $run->status->isRetryable()),
             ]);
 
-        return response()->json($table->toArray());
+        return response()->json([
+            ...$table->toArray(),
+            // Over the same rows the list shows: while nothing is queued or
+            // running the client polls far less often.
+            'hasActive' => $runs->whereIn('status', array_map(
+                static fn (ReportRunStatus $status): string => $status->value,
+                ReportRunStatus::active(),
+            ))->exists(),
+        ]);
     }
 
     public function launch(Request $request): JsonResponse

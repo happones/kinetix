@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { KINETIX_IMPORT_SETTINGS_DEFAULTS } from '@/composables/useKinetixImporter';
+import { KINETIX_IMPORT_SETTINGS_DEFAULTS } from '@/composables/kinetixImportSettings';
 import type { KinetixImportSettings } from '@/types/kinetix';
-import KinetixImporter from './KinetixImporter.vue';
+import { KINETIX_IMPORTER_BODY } from './kinetixLayoutBodyLoaders';
 import KinetixSheet from './KinetixSheet.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
 
@@ -22,7 +22,13 @@ import KinetixModal from './primitives/KinetixModal.vue';
  * `KinetixModal`, just bigger, so the wizard is resized rather than remounted
  * and nothing the user has already done is lost. `'sheet'` is an explicit
  * opt-in only, since swapping the shell mid-flow WOULD lose that state.
+ *
+ * The importer wizard downloads on the first opening: the dialog opens at
+ * once with a busy skeleton and the wizard replaces it when its code arrives.
  */
+
+// Read once: the async wrapper keeps rendering the real wizard once loaded.
+const KinetixImporter = KINETIX_IMPORTER_BODY.component;
 
 const { t } = useI18n();
 const open = ref(false);
@@ -77,6 +83,10 @@ function onOpen(event: Event): void {
         ...(detail.template ? { template: detail.template } : {}),
     };
     open.value = true;
+    void KINETIX_IMPORTER_BODY.preload().catch(() => {
+        // The open wrapper retries on its own; if it gives up, it keeps the
+        // skeleton, and the next opening downloads again and swaps it in.
+    });
 }
 
 function close(): void {

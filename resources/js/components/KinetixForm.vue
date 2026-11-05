@@ -12,6 +12,7 @@ import {
 } from '@/composables/useKinetixFormReactivity';
 import { useKinetixPrecognition } from '@/composables/useKinetixPrecognition';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
+import { preloadKinetixFormFields } from './Form/kinetixFormFieldLoaders';
 import KinetixFormSchema from './KinetixFormSchema.vue';
 
 const props = defineProps<{
@@ -59,6 +60,13 @@ const formValues = ref<Record<string, any>>({ ...props.form.data });
 // visibility that needs the DB, etc.). Kept separate from props so a recompute
 // never has to wait for a full Inertia round-trip.
 const liveSchema = ref<any[]>(props.form.schema);
+
+// Every lazy field type the schema uses starts downloading at once, in
+// parallel, before the fields render — no waterfall of one field discovering
+// the next. A recompute that brings a new type in starts that one too.
+watch(liveSchema, (schema) => void preloadKinetixFormFields(schema), {
+    immediate: true,
+});
 
 // Field labels by name, for rules that name another field ("At least Min
 // price"). Nested layouts included; a field without a label reads as its

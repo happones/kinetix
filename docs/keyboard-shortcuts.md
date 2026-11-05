@@ -95,6 +95,10 @@ labelled shortcut:
 Only shortcuts registered with a `label` (directive arg, or `label` in the
 composable) appear.
 
+The host registers `?` as soon as it mounts, but the overlay itself downloads
+the first time `?` is pressed and opens as soon as it has loaded. Pages where
+nobody asks for the overlay never load it.
+
 ---
 
 ## 4. Per-user customization

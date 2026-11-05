@@ -99,11 +99,12 @@ return [
 | `notifications.database` | `false` | Persist notifications to the database via Laravel's `database` channel |
 | `notifications.broadcast` | `false` | Broadcast system notifications (export/import done, etc.) in real time. Drives `Notification::shouldBroadcast()`; enable it (env `KINETIX_NOTIFICATIONS_BROADCAST`) when you wired up Echo/Reverb yourself instead of filling the `broadcasting.echo` block |
 | `notifications.limit` | `15` | Max unread notifications loaded per page request |
-| `notifications.poll` | `30000` | Database-mode fallback poll interval in **ms** (`0` disables). Without Echo, this is what makes new notifications appear — badge update **and** toast/sound for genuinely new unread items — without a page navigation. With Echo it's redundant but harmless (partial reloads only) |
+| `notifications.poll` | `30000` | Database-mode fallback poll interval in **ms** (`0` disables). Without Echo, this is what makes new notifications appear — badge update **and** toast/sound for genuinely new unread items — without a page navigation. Paused while the tab is hidden. With Echo it's redundant but harmless (partial reloads only) |
 | `notifications.teams` | `null` | Scope the bell per team: `true`/`false` wins, `null` inherits the global `kinetix.teams` switch (see [Team-scoped notifications](#team-scoped-notifications)) |
 | `notifications.sound.enabled` | `true` | Play audio alert for incoming real-time notifications |
 | `notifications.sound.path` | `/vendor/kinetix/notification.wav` | Path to the audio file |
 | `broadcasting.echo` | `null` | Echo config for real-time WebSocket support |
+| *(shared)* `kinetix_config.realtime` | derived | Whether the bell loads Echo at all — see [When the bell listens](#when-the-bell-listens) |
 | `route_prefix` | `_kinetix` | Prefix for Kinetix internal API routes |
 | `middleware` | `['web', 'auth']` | Middleware applied to all internal routes |
 
@@ -216,7 +217,11 @@ navigation. The bell now **polls** on an interval (a partial Inertia reload of
 `kinetix_notifications` only) whenever database mode is on:
 
 - Configure with `kinetix.notifications.poll` (**milliseconds**, default
-  `30000`; `0` disables it). `usePoll` pauses in background tabs automatically.
+  `30000`; `0` disables it). The interval counts from the end of one reload to
+  the next, so a slow response is never overlapped. Polling pauses while the
+  tab is hidden and reloads once as soon as it's visible again. There's no
+  reload at mount: the page already carries the current list. The poll keeps
+  running even when a `before` listener of yours cancels one of its reloads.
 - A genuinely **new unread** notification found by a poll triggers the toast +
   sound, exactly like a broadcast arrival. The initial page load stays silent —
   persisted rows are old news.
@@ -346,8 +351,9 @@ Uncomment the `broadcasting.echo` section and fill in your credentials:
 ### 2. Install `@laravel/echo-vue`
 
 The host Laravel project must have `@laravel/echo-vue` installed —
-`kinetix:install` adds it automatically (the notifications component imports it
-at build time). If you skipped the installer:
+`kinetix:install` adds it automatically. It's a required peer: the bell imports
+it on demand, so the build must be able to resolve it. If you skipped the
+installer:
 
 ```bash
 npm install @laravel/echo-vue
@@ -377,11 +383,11 @@ configureEcho({
 });
 ```
 
-> **No `window.Echo` needed.** `KinetixNotifications` uses `useEcho` from `@laravel/echo-vue` internally, which picks up the `configureEcho` instance automatically.
+> **No `window.Echo` needed.** `KinetixNotifications` uses the `configureEcho` instance from `@laravel/echo-vue` automatically.
 
 ### 4. The Vue component auto-connects
 
-`KinetixNotifications.vue` uses `useEchoNotification` internally to subscribe to the authenticated user's private Laravel notification channel. The channel format is:
+`KinetixNotifications.vue` subscribes to the authenticated user's private Laravel notification channel. The channel format is:
 
 ```
 private-{channelModel}.{userId}
@@ -397,7 +403,28 @@ By default `channelModel` is `App.Models.User`, which matches Laravel's standard
 <KinetixNotifications channel-model="App.Models.Admin" />
 ```
 
-The component only connects when a user is authenticated (reads `page.props.auth.user.id` via `usePage`) and automatically disconnects on unmount.
+The component only connects when a user is authenticated (reads `page.props.auth.user.id` via `usePage`) and automatically disconnects on unmount. On unmount it stops listening for notifications but doesn't leave the private channel, because your own code may share it.
+
+#### When the bell listens
+
+`@laravel/echo-vue` is a required peer, but the bell imports it only when it
+listens in real time, after it has mounted. Whether it does comes from, in
+order:
+
+1. the `realtime` prop: `<KinetixNotifications :realtime="false" />` never
+   loads Echo, `:realtime="true"` always tries;
+2. the shared `kinetix_config.realtime`, which the server turns on when
+   `kinetix.notifications.broadcast` is on, the `broadcasting.echo` block is
+   filled, or `broadcasting.default` is a real driver (not `null` or `log`);
+3. on an older server without that flag, whether a `kinetix_config.broadcasting`
+   block is shared.
+
+Echo is loaded only when the bell listens **and** Echo is configured.
+
+When Echo isn't configured (`configureEcho()` never called), the bell skips the
+subscription and keeps polling. It never errors. Hosts without broadcasting
+don't download Echo or `pusher-js` at all. See
+[Performance](/performance#notifications-and-presence).
 
 ### 5. Trigger real-time from PHP
 
@@ -554,5 +581,5 @@ php artisan kinetix:send-notification "Alert" "CPU usage at 90%" --status=warnin
 
 1. **Session flash (local)** — Default. `send()` flashes to session; Inertia's `kinetix_notifications` shared prop delivers them on next page load.
 2. **Database persistence** — When `notifications.database = true`, notifications are written to the `notifications` table. The shared prop loads the latest unread records on every request.
-3. **Real-time broadcast** — `broadcast($user)` writes to the database AND fires via Laravel Echo. The Vue component listens on the user's private channel and triggers instant toasts + sound without a page reload.
+3. **Real-time broadcast** — `broadcast($user)` writes to the database AND fires via Laravel Echo. The Vue component listens on the user's private channel and triggers instant toasts + sound without a page reload. Echo is loaded on demand, only when [the bell listens](#when-the-bell-listens).
 4. **Background fetch** — All mark-as-read / delete calls use `fetch()` with a CSRF header to avoid triggering Inertia's JSON modal response. A subsequent `router.reload({ only: ['kinetix_notifications'] })` keeps UI in sync.

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { createI18n } from 'vue-i18n';
 import KinetixTimezonePicker from '@/components/KinetixTimezonePicker.vue';
@@ -24,12 +24,15 @@ const i18n = createI18n({
     },
 });
 
+const mounted: { unmount(): void }[] = [];
+
 const mountPicker = async (props: Record<string, unknown> = {}) => {
     const wrapper = mount(KinetixTimezonePicker, {
         props,
         global: { plugins: [i18n] },
         attachTo: document.body,
     });
+    mounted.push(wrapper);
     await nextTick();
 
     return wrapper;
@@ -42,6 +45,7 @@ const openPicker = async (w: Awaited<ReturnType<typeof mountPicker>>) => {
 
 describe('KinetixTimezonePicker', () => {
     afterEach(() => {
+        mounted.splice(0).forEach((wrapper) => wrapper.unmount());
         document.body.innerHTML = '';
     });
 
@@ -143,5 +147,85 @@ describe('KinetixTimezonePicker', () => {
     it('does not show a current time when showCurrentTime is false', async () => {
         const w = await mountPicker({ modelValue: 'America/Mexico_City' });
         expect(w.text()).not.toMatch(/\d{1,2}:\d{2}\s?(AM|PM)/);
+    });
+
+    describe('the shared zone list', () => {
+        // A distinct hour per test, so the module cache starts cold.
+        let hour = 600_000;
+
+        const freshHour = (): void => {
+            hour += 10;
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(hour * 3_600_000);
+        };
+
+        afterEach(() => {
+            vi.useRealTimers();
+            vi.restoreAllMocks();
+        });
+
+        it('is never built at mount, even with a selection', async () => {
+            freshHour();
+            const supported = vi.spyOn(Intl, 'supportedValuesOf');
+
+            for (let i = 0; i < 10; i++) {
+                await mountPicker({ modelValue: 'Europe/Madrid' });
+            }
+
+            expect(supported).not.toHaveBeenCalled();
+        });
+
+        it('is built once on the first open and shared within the hour', async () => {
+            freshHour();
+            const supported = vi.spyOn(Intl, 'supportedValuesOf');
+
+            const first = await mountPicker({ regions: ['America'] });
+            await openPicker(first);
+            expect(supported).toHaveBeenCalledTimes(1);
+
+            const second = await mountPicker({ regions: ['Europe'] });
+            await openPicker(second);
+            expect(supported).toHaveBeenCalledTimes(1);
+            // Per-instance region filtering over the shared list.
+            expect(
+                document.body.querySelectorAll('[role="listbox"]')[1]
+                    ?.textContent,
+            ).not.toContain('Mexico City');
+        });
+
+        it('is rebuilt on an open in a later hour', async () => {
+            freshHour();
+            const supported = vi.spyOn(Intl, 'supportedValuesOf');
+
+            const picker = await mountPicker({ regions: ['America'] });
+            await openPicker(picker);
+            expect(supported).toHaveBeenCalledTimes(1);
+
+            await openPicker(picker);
+            vi.setSystemTime((hour + 1) * 3_600_000);
+            await openPicker(picker);
+            expect(supported).toHaveBeenCalledTimes(2);
+        });
+
+        it('keeps the selected label right without the list', async () => {
+            freshHour();
+            const w = await mountPicker({
+                modelValue: 'America/Mexico_City',
+            });
+
+            expect(w.text()).toContain('Mexico City (UTC-06:00)');
+        });
+
+        it('shows no selection for an unknown zone or one outside the regions', async () => {
+            freshHour();
+            const unknown = await mountPicker({ modelValue: 'Mars/Olympus' });
+            expect(unknown.text()).toContain('Select a timezone…');
+
+            const filtered = await mountPicker({
+                modelValue: 'Europe/Madrid',
+                regions: ['America'],
+            });
+            expect(filtered.text()).toContain('Select a timezone…');
+        });
     });
 });

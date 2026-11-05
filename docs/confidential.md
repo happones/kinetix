@@ -202,6 +202,10 @@ unlocked it shows a live countdown and a "Lock now" action. A masked
 Table/Infolist cell built with `->confidential()` shows its own small
 padlock that opens the same dialog.
 
+The widget is a light shell: while confidential fields are disabled it renders
+nothing, loads nothing and runs no countdown timer. Enabled, it holds an icon-sized placeholder while the
+widget's code downloads, so the header doesn't shift.
+
 <Screenshot name="confidential-unlock" alt="The confidential-fields unlock dialog, prompting for the current password" />
 
 ---

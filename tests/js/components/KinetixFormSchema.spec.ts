@@ -1,7 +1,8 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
 import KinetixFormSchema from '@/components/KinetixFormSchema.vue';
+import { preloadAllKinetixLazy } from '../support/lazyComponents';
 
 const i18n = createI18n({
     legacy: false,
@@ -14,6 +15,9 @@ const mountSchema = (schema: any[], values: Record<string, any> = {}) =>
         props: { schema, values, errors: {} },
         global: { plugins: [i18n] },
     });
+
+// Lazy field types, filters and modal bodies, loaded so mounts stay synchronous.
+beforeAll(preloadAllKinetixLazy);
 
 describe('KinetixFormSchema', () => {
     it('renders a tokenized text input', () => {

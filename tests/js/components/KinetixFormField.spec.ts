@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
 import KinetixFormField from '@/components/Form/KinetixFormField.vue';
 import CheckboxField from '@/components/Form/fields/CheckboxField.vue';
@@ -7,6 +7,7 @@ import HiddenField from '@/components/Form/fields/HiddenField.vue';
 import SelectField from '@/components/Form/fields/SelectField.vue';
 import TextInputField from '@/components/Form/fields/TextInputField.vue';
 import { i18n as kinetixI18n } from './i18n';
+import { preloadAllKinetixLazy } from '../support/lazyComponents';
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} } });
 
@@ -23,6 +24,9 @@ const mountField = (comp: any, values: Record<string, any> = {}) =>
         props: { comp, values, errors: {} },
         global: { plugins: [i18n], stubs: STUBS },
     });
+
+// Lazy field types, filters and modal bodies, loaded so mounts stay synchronous.
+beforeAll(preloadAllKinetixLazy);
 
 describe('KinetixFormField dispatcher', () => {
     it('resolves dedicated field components by type', () => {

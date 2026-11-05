@@ -1,7 +1,9 @@
 /**
  * Minimal @laravel/echo-vue stub for the screenshot gallery. Presence
  * immediately reports a fixed set of online members so <KinetixOnlineUsers>
- * renders a populated facepile without a real WebSocket server.
+ * renders a populated facepile without a real WebSocket server. The Kinetix
+ * hosts reach it through a dynamic import (composables/kinetixEcho.ts), the
+ * inbox and channel linker through static ones.
  */
 const members = [
     { id: 1, name: 'Ada Lovelace', avatar: null },
@@ -43,13 +45,37 @@ export function useEcho() {
 
 export function configureEcho() {}
 
+// Configured, so the lazy Kinetix loader (composables/kinetixEcho.ts) takes
+// the realtime path: presence joins the stub channel above and the bell
+// registers a notification listener that never fires.
 export function echoIsConfigured() {
-    return false;
+    return true;
+}
+
+function privateChannel() {
+    const channel = {
+        listen() {
+            return channel;
+        },
+        stopListening() {
+            return channel;
+        },
+        notification() {
+            return channel;
+        },
+        stopListeningForNotification() {
+            return channel;
+        },
+    };
+
+    return channel;
 }
 
 export function echo() {
     return {
-        private: () => ({ listen() {} }),
+        private: () => privateChannel(),
+        join: () => presenceChannel(),
         leave() {},
+        leaveChannel() {},
     };
 }

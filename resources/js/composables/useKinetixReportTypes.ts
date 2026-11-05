@@ -1,12 +1,15 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import { KINETIX_REPORT_RUNS_CHANGED } from '@/composables/useKinetixReportRuns';
 import type { KinetixSharedProps, ReportTypeData } from '@/types/kinetix';
 
 /**
  * Report-type list for `<KinetixReportLauncher>` — no `Table`/row-actions
  * involved (this is a plain card list, not an Eloquent-backed grid), so it
- * self-fetches once and exposes a direct `launch()` call.
+ * self-fetches once and exposes a direct `launch()` call. A successful launch
+ * dispatches `kinetix:report-runs-changed` so a runs table on the page
+ * refreshes at once and resumes full-speed polling.
  */
 export function useKinetixReportTypes() {
     const page = usePage<KinetixSharedProps>();
@@ -36,10 +39,16 @@ export function useKinetixReportTypes() {
         token: string,
         parameters: Record<string, unknown> = {},
     ): Promise<{ status: string; run_id: number | string }> {
-        return (await kinetixFetch(`${base()}/report-runs/launch`, {
+        const result = (await kinetixFetch(`${base()}/report-runs/launch`, {
             method: 'POST',
             body: { report: token, parameters },
         })) as { status: string; run_id: number | string };
+
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent(KINETIX_REPORT_RUNS_CHANGED));
+        }
+
+        return result;
     }
 
     return { types, loading, failed, load, launch };

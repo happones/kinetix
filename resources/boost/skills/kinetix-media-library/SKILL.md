@@ -73,5 +73,8 @@ KinetixMedia::sync($product, 'images', $state['gallery'], directory: 'products')
 `<KinetixMediaLibrary>` is rendered automatically by `KinetixForm` for the
 `media-library` field type: thumbnail grid, drag-drop/click upload, drag-reorder,
 delete, preview. i18n `media_add`/`media_uploading`/`media_upload_failed`.
+The grid virtualizes past 12 tile rows through `useKinetixVirtualRows`;
+`@tanstack/vue-virtual` downloads only then. Like every non-core field type,
+the component itself is a lazy chunk of the form.
 
 Deferred: folders, native (non-spatie) image variants — use spatie conversions.

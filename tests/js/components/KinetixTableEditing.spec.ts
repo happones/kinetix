@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 const fetchMock = vi.fn();
@@ -21,6 +21,7 @@ vi.mock('@/composables/useKinetixHttp', async (importOriginal) => ({
 }));
 
 import KinetixTable from '@/components/KinetixTable.vue';
+import { preloadAllKinetixLazy } from '../support/lazyComponents';
 
 const i18n = createI18n({
     legacy: false,
@@ -84,6 +85,9 @@ const mountTable = (table: Record<string, unknown>) =>
         global: { plugins: [i18n] },
         attachTo: document.body,
     });
+
+// Lazy input cells (and the rest), loaded so mounts stay synchronous.
+beforeAll(preloadAllKinetixLazy);
 
 describe('KinetixTable editing and layout', () => {
     beforeEach(() => {

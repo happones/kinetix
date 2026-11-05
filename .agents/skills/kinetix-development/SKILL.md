@@ -102,6 +102,76 @@ these rules (e.g. `aria-sort` flips with the sort state, the error id matches
 `aria-describedby`, the icon-only button has a name) — cheap tests that keep
 the manifest enforced instead of aspirational.
 
+### Bundle & Loading Rules (REQUIRED — v0.276.0)
+
+A host mounts many Kinetix hosts and uses a few modules; the browser must only
+pay for what a page shows. Docs: `docs/performance.md`.
+
+1. **Heavy optional bodies go through `defineKinetixLazy` (`@/composables/kinetixLazy`),
+   defined at module scope in a loader `.ts` that has no static `.vue` imports.**
+   Loader files: form fields + wizard →
+   `components/Form/kinetixFormFieldLoaders.ts`; filters (ALL filter inputs,
+   preloaded on Filters-button intent) →
+   `components/Table/kinetixTableFilterLoaders.ts`; editable input cells
+   (select / toggle / text / number / checkbox, preloaded at table setup for the
+   column types present, `KinetixDataTable` too) →
+   `components/Table/kinetixTableCellLoaders.ts`; modal bodies (Form/Infolist
+   in tables and relation managers) → `components/kinetixModalBodyLoaders.ts`;
+   layout bodies → `components/kinetixLayoutBodyLoaders.ts`. Read `.component`
+   once per instance (a setup constant, or a computed over a stable key such as
+   the field type), never per render: swapping the wrapper for the real
+   component remounts it and loses what the user typed. The wrapper retries
+   failed downloads itself and recovers once a later download succeeds, so
+   don't add your own retry around it (stale chunks after a deploy are the
+   host's `vite:preloadError` handler's job). A template `ref` on a lazy
+   component reaches what the real component exposes once it has loaded;
+   before that, its members are `undefined`.
+   - Layout hosts are shells built on `useKinetixLazyOnDemand` (trigger-loaded)
+     / `useKinetixLazyWhenEnabled` (visible-now) from
+     `composables/useKinetixLazyHost.ts`: the public filename stays the shell,
+     the body lives in `components/<Domain>/<Name>Body.vue`, props live in a
+     co-located `.ts` shared by both, the shell declares no emits and forwards
+     `{ ...$props, ...$attrs }` and every slot. Trigger-loaded hosts handle the
+     trigger synchronously in the shell (preventDefault, record the intent),
+     `await preload()`, then mount the body.
+   - Field, filter and cell maps hold `KinetixLazyComponent` entries rendered
+     through `kinetixComponentOf()`, with `KinetixLazyFieldSkeleton` /
+     `KinetixLazyBlockSkeleton` (aria-hidden / `aria-busy`) as loading states.
+     Only the six core field types (`text-input`, `select`, `checkbox`,
+     `toggle`, `textarea`, `hidden`) stay static; no filter input or editable
+     cell is static. A modal's submit stays busy until its lazy form mounts; an
+     `autofocus` field takes focus on arrival unless the user moved focus.
+   - Specs `await` a preload in `beforeAll` (`preloadAllKinetixLazy()` from
+     `tests/js/support/lazyComponents.ts`), then mount synchronously.
+2. **Every poll goes through `useKinetixPolling()`** (`composables/useKinetixPolling.ts`):
+   chained `setTimeout` from the end of one run, never overlapping, paused
+   while `document.hidden`, refreshed on return, one `visibilitychange`
+   listener removed on stop/scope dispose, errors never stop the schedule,
+   `interval <= 0` never schedules. `immediate` (default true) runs once on
+   `start()`; pass `false` when the page props already carry the data (the
+   bell). `timeout` (ms, default `0` = wait) counts a run that hasn't settled
+   by then as finished, so a hung request can't stall the schedule. Never a bare `setInterval` or Inertia `usePoll` for a refresh loop.
+3. **No static value import of `@laravel/echo-vue` or `@tanstack/vue-virtual`**
+   from any file reachable from a layout host, `KinetixTable` or `KinetixForm`.
+   The icon registry (`useKinetixIcons`) is deliberately loaded in the entry;
+   don't make individual callers lazy — splitting it costs every page more.
+   Echo goes through `composables/kinetixEcho.ts` (`loadKinetixEcho`,
+   `listenForKinetixNotifications` — releases with
+   `stopListeningForNotification` only, never `leave()` —, `joinKinetixPresence`
+   with a refcount); the virtualizer through `useKinetixVirtualRows` (dynamic
+   import once over the threshold, `scope.run()` after the await; every row
+   renders until it loads). `import type` is fine. Known exception: the
+   Inbox/Channels composables still import echo-vue statically (module pages
+   only, never reached from a layout host).
+4. **Keep the bundle guards green**: `tests/js/bundleGuard.forms.spec.ts` and
+   `tests/js/bundleGuard.layout.spec.ts` walk the static import graph
+   (`tests/js/support/staticImportGraph.ts`). When you add a heavy body,
+   dependency or host, add it to the forbidden list instead of loosening one.
+5. **Server flags gate client downloads**: when a body only renders under a
+   server condition, share that condition (e.g. `kinetix_config.spotlight.enabled`,
+   `kinetix_config.realtime`) so the shell can skip the download, and add it to
+   `KinetixConfig` in `types/kinetix.ts`.
+
 ### Localization & Documentation Rules
 
 - **Shipped locales (v0.89.0)**: en, es, fr, pt, zh, ja, ru — EVERY new key must be added to all seven (`TranslationParityTest` enforces). Publishing is selective: `kinetix.translations.locales` (null = all; string 'en,ja' from env or array) drives `KinetixServiceProvider::translationPublishMap()` → per-locale dirs on the `kinetix-translations` tag (and therefore `kinetix:upgrade`). Tests `TranslationPublishTest`/`TranslationPublishAllTest` (reflection-clear `ServiceProvider::$publishes` statics before boot — they leak across tests).
@@ -162,6 +232,7 @@ Notification::make()
 
 ### Broadcasting system notifications
 - System notifications (export/import done) broadcast in real time when **`Notification::shouldBroadcast()`** is true = `kinetix.notifications.broadcast` (env `KINETIX_NOTIFICATIONS_BROADCAST`) **OR** the `kinetix.broadcasting.echo` block is set. When true the recipient is notified via channels `['database','broadcast']` (persisted AND pushed); otherwise database-only. Use the dedicated `notifications.broadcast` flag if you wired Echo/Reverb yourself (don't tie it to the kinetix echo frontend block). Real-time delivery also needs: server `BROADCAST_CONNECTION` set (reverb/pusher), the queue worker running (the Laravel notification is `ShouldQueue`), and `<KinetixNotifications />` mounted (it subscribes via `@laravel/echo-vue` to `private-App.Models.User.{id}`).
+- **Client-side realtime switch (v0.276.0)**: `kinetix_config.realtime` (provider `realtimeEnabled()`) = `Notification::shouldBroadcast()` OR `broadcasting.default` is a string other than `''`/`null`/`log`. The bell's effective value is `props.realtime ?? kinetix_config.realtime ?? (kinetix_config.broadcasting != null)`; only then does it `import('@laravel/echo-vue')` after mount (via `kinetixEcho.ts`, guarded by `echoIsConfigured()`). Setup never throws and DB polling (`useKinetixPolling` around `router.reload({ only: ['kinetix_notifications'], preserveErrors: true })`, paused while hidden) always starts. Tests: `RealtimeShareTest`, `KinetixNotifications.spec.ts` (real echo-vue, `pusher-js` mocked; never `vi.mock('@laravel/echo-vue')`).
 
 ---
 
@@ -583,6 +654,7 @@ Global search over models, navigation and actions, authorization-aware. **Off by
 - **Driver**: `SpotlightResource::usesScout()` = `config('kinetix.spotlight.driver')` (`auto`/`database`) + `trait_exists(Laravel\Scout\Searchable)` + `in_array(Searchable, class_uses_recursive($model))`. **Use `trait_exists`, NOT `class_exists`** (Searchable is a trait → class_exists returns false). Scout path: `$model::search($q)->take()->get()` (phpstan ignore for `Model::search()` by path, like cashier). LIKE path: `orWhere(col,'like',"%q%")` over `searchColumns`.
 - **Authorization (two layers, server-side)**: source-level `->authorize($ability)` (Gate::allows) hides the whole source; per-record `Gate::allows('view', $record)` when `Gate::getPolicyFor($model)` exists. Empty query → resources return `[]` (no DB dump); only links show.
 - **Controller/route**: `GET {prefix}/spotlight?q=` (team-aware) → `{groups:[{label, items: SpotlightItemData}]}`. `SpotlightItemData` = `{type, group, title, subtitle, url, event, icon, id}`.
+- **Lazy shell (v0.276.0)**: `KinetixSpotlight.vue` is the shell (handles Cmd/Ctrl+K preventDefault and the `kinetix:spotlight` listener synchronously, then `await preload()` and mounts `Spotlight/SpotlightBody.vue` with `v-model:open`); it never loads the body while `kinetix_config.spotlight.enabled` (= `kinetix.spotlight.enabled`) is false.
 - **Vue (published)**: `KinetixSpotlight` (owns Cmd/Ctrl+K AND a `window` `kinetix:spotlight` event listener so an external trigger can open it; Reka `DialogRoot` + `ComboboxRoot`(`:ignore-filter` since server-filtered) + `ComboboxInput`/`Content`/`Group`/`Item`/`Empty`; debounced 200ms with cleanup; select → `router.visit(url)` or `window.dispatchEvent(new CustomEvent(event))`; `VisuallyHidden` DialogTitle for a11y), `useKinetixSpotlight().search(q)`, types `KinetixSpotlightItem`/`KinetixSpotlightGroup`, i18n `spotlight_placeholder`/`spotlight_empty`.
 - **`KinetixSpotlightTrigger`** (published): header launcher (search-box style with `⌘K`/`Ctrl K` hint via `isMac()`, collapses to icon button below `sm`). Dispatches the `window` `kinetix:spotlight` event → opens `<KinetixSpotlight>` (decoupled; the keyboard shortcut still works independently). Pair next to `KinetixNotificationTrigger` in the header.
 - **Hardening (v0.172.0)** — from a multi-tenant HR platform running 18 sources:
@@ -603,6 +675,8 @@ Global search over models, navigation and actions, authorization-aware. **Off by
 ## Auto-upgrade hook (v0.87.0)
 
 `kinetix:upgrade` (UpgradeCommand) force-republishes ONLY adopted volatile tags — components when `resource_path('js/components/kinetix')` exists, translations when `lang_path('en/kinetix.php')` exists (+ runs `vue-i18n:generate` when registered in `Artisan::all()`); prints a rebuild reminder, no-op message otherwise. `kinetix:install` wires `@php artisan kinetix:upgrade` into the HOST's composer.json `post-autoload-dump` via `Support\ComposerHook::ensure($path,$event,$script)` (idempotent; composer only runs ROOT scripts — a package cannot self-register hooks; Filament pattern). Published copies become vendor-managed → docs tell hosts to customize via wrappers/config, or remove the hook if they edit published files. Tests `UpgradeCommandTest`.
+
+**Tailwind source exclusions (v0.276.0)**: `Support\TailwindSourceExclusions` writes `@source not '<path relative to resources/css>';` lines (single-quoted, under the `MARKER` comment written once, placed by `Support\StylesheetLines` — a small scanner that skips comments and strings, tracks `{}` depth and only anchors on the first clean top-level line after the last complete `@import`/`@source` statement; CRLF kept. No safe anchor, or a directive already nested in a block (`misplaced()`), → `placementProblem()`: nothing is written, install prints the lines, doctor warns. `ensureSonnerStylesheet` uses the same helper) into the host's `resources/css/app.css` for each existing skills dir holding a `kinetix-*` skill among `kinetix.skills_path`, `.claude/skills`, `.agents/skills`. `skipReason()` (flag `kinetix.tailwind.exclude_agent_skills` off → no Kinetix skills → no app.css → no `node_modules/tailwindcss/package.json` → version < `MIN_TAILWIND` 4.1.0) gates `ensure()`; an existing exclusion of the path or a parent counts. `kinetix:install` runs it after the stylesheet edits and prints the lines as a hint when it skips for a Tailwind/app.css reason; `kinetix:upgrade` runs it silently (adds `Tailwind source exclusions` to its summary when it wrote something); `kinetix:doctor` `checkTailwindSources()` → ok / warn (missing lines as items) / nothing when skipped. Never touch the host's `docs/` (theirs to exclude). Tests `TailwindSourceExclusionsTest`, `InstallCommandTest`.
 
 ## Kinetix PDF Templates (v0.88.0)
 
@@ -873,7 +947,7 @@ Roadmap v0.51.0. Config block `presence` (`enabled`, `channel`='kinetix-presence
 
 - **`PresenceManager`** (singleton): `channelName()` (team-suffixed `{channel}.{teamId}` when `kinetix.teams` on, resolved from `request()->route('current_team')` ?? `user->currentTeam->getKey()`), `channelPattern()` (auth pattern with `{team}` placeholder), `memberData($user)` → `{id (getKey), name, avatar}`, `state()` → `{enabled, channel}`.
 - **Provider**: `registerPresence()` in boot registers `Broadcast::channel($manager->channelPattern(), fn (Model $user) => $manager->memberData($user))` when enabled + Broadcast class exists (no `routes/channels.php` edit needed). Shares `kinetix_presence` = `state()`.
-- **Vue (published)**: `KinetixOnlineUsers` (facepile: up to `max`=5 avatars img/initials, `+N` overflow, green dot + `presence_online` count; props `max`/`showCount`/`channel`; renders nothing without a channel). `useKinetixPresence(channel?)` → `{users, count, isOnline, channel}` — joins via `useEchoPresence`, wires `getChannel().here/joining/leaving`, Map keyed by `String(id)`, `leave()` on unmount. TS types `KinetixPresenceUser`/`KinetixPresenceState`. i18n `presence_online {count}`.
+- **Vue (published)**: `KinetixOnlineUsers` (facepile: up to `max`=5 avatars img/initials, `+N` overflow, green dot + `presence_online` count; props `max`/`showCount`/`channel`; renders nothing without a channel). `useKinetixPresence(channel?)` → `{users, count, isOnline, channel}` — joins asynchronously through `joinKinetixPresence()` (`kinetixEcho.ts`: dynamic echo-vue import, module-level refcount, `leave()` at zero; release registered synchronously), wires `here/joining/leaving`, Map keyed by `String(id)`, releases on unmount (v0.276.0; was a static `useEchoPresence`). TS types `KinetixPresenceUser`/`KinetixPresenceState`. i18n `presence_online {count}`.
 - **Gallery**: needs `@laravel/echo-vue` aliased to `gallery/stubs/echo.ts` (pre-populates `here()`); `kinetix_presence` added to the inertia stub. Tests: `PresenceTest` (channel name ±teams, pattern, memberData ±avatar, state), `KinetixOnlineUsers.spec.ts` (mock echo-vue fake channel → here/joining/leaving membership + facepile overflow/count). Full guide: `docs/presence.md`.
 
 ---
@@ -964,7 +1038,8 @@ Standalone, publish-only Vue component — no PHP builder, no backend. `KinetixT
 - **Props**: `modelValue` (v-model, IANA id), `regions?: string[]|null` (filter to these region prefixes), `display?: 'name'|'offset'|'both'` (default `both` — `'offset'` drops the name entirely, e.g. just `UTC-06:00`), `groupByRegion?` (default `true`, region heading via `ComboboxLabel`), `showCurrentTime?` (default `false` — live clock next to the selection, `setInterval` 30s, cleared `onBeforeUnmount`), `locale?`, `placeholder?`, `disabled?`, `clearable?` (× button, stops propagation so it doesn't reopen the trigger). Sorted by UTC offset then name (within/across region groups).
 - **`ComboboxInput` gotcha**: pass `:display-value="(value) => allZones.find(z => z.value === value)?.display ?? ''"` — without it, reopening the combobox shows the raw IANA id (`America/Mexico_City`) in the search box instead of the friendly rendered label, since Reka's Combobox defaults to displaying the underlying value.
 - **Region names localized** via `t('kinetix.timezone_region_' + region.toLowerCase())` (10 keys, en/es/fr/pt/zh/ja/ru) — city/region NAMES themselves (`Mexico City`, `Buenos Aires`) are NOT translated (they come straight from the IANA identifier, matching how most real-world timezone pickers work).
-- Tests: `KinetixTimezonePicker.spec.ts` (display modes, region filter/grouping, selection emit, clear, current-time toggle). Full guide: `docs/timezone-picker.md`.
+- **Cost (v0.276.0)**: the zone list is a module-level cache bucketed by the hour (sorted `{value, region, name, offset, offsetMinutes}`), built only when a picker opens; region filter and display mapping stay per instance; `selected` comes from one `offsetFor(modelValue)`. Mounting N pickers calls `Intl.supportedValuesOf` zero times. No `ComboboxVirtualizer`.
+- Tests: `KinetixTimezonePicker.spec.ts` (display modes, region filter/grouping, selection emit, clear, current-time toggle, `Intl.supportedValuesOf` call counts). Full guide: `docs/timezone-picker.md`.
 
 ---
 
@@ -1088,6 +1163,18 @@ in the DB with live progress, cancellation, retry, and a downloadable file.
   (same + create/edit form), `KinetixReportsCenter` (thin Reka-tabs wrapper
   around all three — both standalone components AND the wrapper are shipped,
   either is a valid integration point). All three take zero props.
+- **Idle polling (v0.276.0)**: `ReportRunController@index` returns
+  `[...Table::toArray(), 'hasActive' => bool]` (TS `KinetixReportRunsPayload`).
+  `hasActive` runs on the SAME base query as the table (`forCurrentTeam()` +
+  `whereIn('report_class', runnableClasses())`) with
+  `whereIn('status', ReportRunStatus::active())->exists()` — never a separate,
+  unscoped query (another team's or a hidden report's run must not keep a list
+  polling). The retry row action carries `->dispatch('report-runs-changed')`
+  (fires before the request, client event `kinetix:report-runs-changed`);
+  `useKinetixReportTypes` dispatches it after a launch. `useKinetixReportRuns`
+  polls through `useKinetixPolling` at `max(poll, 60s)` while `hasActive` is
+  false (missing = active), full speed for 2 grace ticks after the event, and
+  only reassigns `table` when the JSON changed.
 - **Vitest gotchas hit while testing these**: a mock composable returning a
   plain `{value: [...]}` object (not a real `ref()`) breaks `v-for` — Vue's
   template unwrapping only recognizes genuine `Ref` instances. `vi.hoisted()`
@@ -1102,7 +1189,8 @@ in the DB with live progress, cancellation, retry, and a downloadable file.
   `DB::listen()` query-counting technique, cancel-before-pickup no-op, failure
   only via `failed()`), `ReportRegistryTest` (manual+discover dedup, rejects
   non-`Report` classes), `DispatchDueReportSchedulesCommandTest`,
-  `ReportRunControllerTest`. Full guide: `docs/reports-center.md`.
+  `ReportRunControllerTest` (incl. `hasActive` + retry dispatch),
+  `ReportsCenterTeamScopingTest` (`hasActive` per team). Full guide: `docs/reports-center.md`.
 
 ---
 

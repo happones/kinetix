@@ -207,6 +207,42 @@ class ReportsCenterTeamScopingTest extends TestCase
     }
 
     /**
+     * Whether any run is still active is asked of the team's own runs: a
+     * queued run in another team must not keep this team's list polling.
+     */
+    public function test_an_active_run_in_another_team_does_not_mark_the_list_active(): void
+    {
+        Gate::define('viewKinetixReportsCenter', fn () => true);
+        config()->set('permission', require __DIR__.'/../../vendor/spatie/laravel-permission/config/permission.php');
+
+        $user = ScopedTeamUser::query()->create(['id' => 1, 'name' => 'Member']);
+        ScopedTeam::query()->create(['id' => 1, 'name' => 'Team 1']);
+        ScopedTeam::query()->create(['id' => 2, 'name' => 'Team 2']);
+        $user->teams()->attach([1, 2]);
+
+        $run = fn (int $teamId, ReportRunStatus $status): ReportRun => ReportRun::create([
+            'team_id'      => $teamId,
+            'report_class' => ScopedTeamReport::class,
+            'status'       => $status,
+            'format'       => 'csv',
+        ]);
+
+        $run(1, ReportRunStatus::Completed);
+        $run(2, ReportRunStatus::Pending);
+
+        $this->actingAs($user)
+            ->getJson(route('kinetix.report-runs.index', ['current_team' => 1]))
+            ->assertOk()
+            ->assertJsonPath('hasActive', false)
+            ->assertJsonCount(1, 'records');
+
+        $this->actingAs($user)
+            ->getJson(route('kinetix.report-runs.index', ['current_team' => 2]))
+            ->assertOk()
+            ->assertJsonPath('hasActive', true);
+    }
+
+    /**
      * Authenticate a user who belongs to the team and put the team in the URL,
      * exactly as `{current_team}` does in a real request.
      */

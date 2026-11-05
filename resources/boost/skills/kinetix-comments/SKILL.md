@@ -71,6 +71,8 @@ Composer + threaded list (author avatar/initials, relative time, edited badge),
 inline reply, and edit/delete on the user's own comments.
 `useKinetixComments(null, null, reference)` (ref, getter or string; legacy
 `useKinetixComments(type, id)`) → `{ comments, loading, load, post, edit, remove }`. i18n `comment_*` (en/es/fr/pt).
+Threads over ~40 comments virtualize through `useKinetixVirtualRows`, which
+loads `@tanstack/vue-virtual` only when the threshold is crossed.
 
 ## UUID / ULID Host Models
 

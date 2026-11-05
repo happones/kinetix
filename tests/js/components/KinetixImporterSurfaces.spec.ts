@@ -1,5 +1,14 @@
 import { flushPromises, mount } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
+import { nextTick } from 'vue';
 import { createI18n } from 'vue-i18n';
 
 vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: {} }) }));
@@ -233,7 +242,60 @@ describe('KinetixModal — the fullscreen layout', () => {
     });
 });
 
+describe('KinetixImportModal — opens before the wizard has loaded', () => {
+    // Runs before anything below loads the wizard's chunk.
+    it('opens at once with a busy skeleton, then swaps in the wizard', async () => {
+        document.body.innerHTML = '';
+        const trigger = document.createElement('button');
+        document.body.appendChild(trigger);
+        trigger.focus();
+
+        const w = mount(KinetixImportModal, {
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+
+        window.dispatchEvent(
+            new CustomEvent('kinetix:open-importer', {
+                detail: { importer: 'token-123' },
+            }),
+        );
+        await nextTick();
+        await nextTick();
+
+        const dialog = document.body.querySelector('[role="dialog"]');
+        expect(dialog).not.toBeNull();
+        expect(
+            dialog!
+                .querySelector('[data-kinetix-lazy-skeleton="block"]')
+                ?.getAttribute('aria-busy'),
+        ).toBe('true');
+
+        await vi.waitFor(() =>
+            expect(w.findComponent({ name: 'KinetixImporter' }).exists()).toBe(
+                true,
+            ),
+        );
+        expect(
+            document.body.querySelector('[data-kinetix-lazy-skeleton]'),
+        ).toBeNull();
+        expect(dialog!.contains(document.activeElement)).toBe(true);
+
+        document.activeElement!.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+        );
+        await flushPromises();
+        await vi.waitFor(() => expect(document.activeElement).toBe(trigger));
+
+        w.unmount();
+    });
+});
+
 describe('KinetixImportModal — the shell follows the file', () => {
+    beforeAll(async () => {
+        await import('@/components/KinetixImporter.vue');
+    });
+
     const openImporter = async (settings: Record<string, unknown> = {}) => {
         const w = mount(KinetixImportModal, {
             attachTo: document.body,

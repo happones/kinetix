@@ -15,6 +15,10 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { KINETIX_DROP_PREVIEW_CLASS } from '@/composables/kinetixDragStyles';
+import {
+    kinetixComponentOf,
+    preloadKinetixLazy,
+} from '@/composables/kinetixLazy';
 import { useActionConfirmation } from '@/composables/useKinetixActions';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { useKinetixColumnVisibility } from '@/composables/useKinetixColumnVisibility';
@@ -43,11 +47,18 @@ import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixEmptyState from './KinetixEmptyState.vue';
-import KinetixForm from './KinetixForm.vue';
-import KinetixInfolist from './KinetixInfolist.vue';
+import type KinetixFormComponent from './KinetixForm.vue';
+import type KinetixInfolistComponent from './KinetixInfolist.vue';
+import {
+    KINETIX_LAZY_FORM,
+    KINETIX_LAZY_INFOLIST,
+    kinetixModalFormHooks,
+    preloadKinetixModalForm,
+} from './kinetixModalBodyLoaders';
 import KinetixModal from './primitives/KinetixModal.vue';
 import KinetixTableBulkBar from './Table/KinetixTableBulkBar.vue';
 import KinetixTableCell from './Table/KinetixTableCell.vue';
+import { preloadKinetixTableCells } from './Table/kinetixTableCellLoaders';
 import KinetixTableHead from './Table/KinetixTableHead.vue';
 import KinetixTablePagination from './Table/KinetixTablePagination.vue';
 import KinetixTableStats from './Table/KinetixTableStats.vue';
@@ -76,8 +87,27 @@ const KinetixDataTable = defineAsyncComponent(
     () => import('./KinetixDataTable.vue'),
 );
 
+// The modal bodies (form, infolist) download when a modal first opens: a
+// table nobody edits from never fetches them. Read once per instance — the
+// wrapper renders the real body as soon as it arrives, and swapping it for
+// the real component later would remount a form mid-edit.
+const KinetixForm = kinetixComponentOf(
+    KINETIX_LAZY_FORM,
+) as typeof KinetixFormComponent;
+const KinetixInfolist = kinetixComponentOf(
+    KINETIX_LAZY_INFOLIST,
+) as typeof KinetixInfolistComponent;
+
 const { t, locale } = useI18n();
 const slots = useSlots();
+
+// Input cells (number, select, toggle…) download on demand: start the ones
+// this table's columns use now, before the rows render them.
+watch(
+    () => props.table.columns,
+    (columns) => void preloadKinetixTableCells(columns),
+    { immediate: true },
+);
 const page = usePage();
 const routePrefix = computed(
     () => (page.props.kinetix_config as any)?.route_prefix ?? '_kinetix',
@@ -300,6 +330,35 @@ const {
 } = useKinetixFormActions({
     descriptor: () => props.table.formActionDescriptor,
     routePrefix: () => routePrefix.value,
+});
+
+// Opening a form modal starts the form's download and, once its schema is
+// known (a create blueprint at once, an edit when its record arrives), the
+// field types it uses, all in parallel.
+watch([isRecordFormOpen, isFormActionOpen], ([recordOpen, actionOpen]) => {
+    if (recordOpen || actionOpen) {
+        void preloadKinetixModalForm();
+    }
+});
+watch([recordForm, formActionForm], (forms) => {
+    for (const form of forms) {
+        if (form?.schema) {
+            void preloadKinetixModalForm(form.schema);
+        }
+    }
+});
+// Each modal's Save stays busy until its form is actually in the page: the
+// footer button submits the form by id, so before it mounts a click would do
+// nothing.
+const recordFormMounted = ref(false);
+const recordFormHooks = kinetixModalFormHooks(recordFormMounted);
+const formActionFormMounted = ref(false);
+const formActionFormHooks = kinetixModalFormHooks(formActionFormMounted);
+
+watch(isRecordInfolistOpen, (open) => {
+    if (open) {
+        void preloadKinetixLazy([KINETIX_LAZY_INFOLIST]);
+    }
 });
 
 // Unique per table instance: the form-action modal's PINNED footer submit
@@ -1163,6 +1222,8 @@ const totalColumnSpan = computed(
                     :id="recordFormId"
                     :form="recordForm"
                     flat
+                    @vue:mounted="recordFormHooks.mounted"
+                    @vue:unmounted="recordFormHooks.unmounted"
                     @submit="submitRecordForm"
                 >
                     <template #default><span class="hidden"></span></template>
@@ -1185,7 +1246,7 @@ const totalColumnSpan = computed(
                         type="submit"
                         size="sm"
                         :form="recordFormId"
-                        :loading="recordProcessing"
+                        :loading="recordProcessing || !recordFormMounted"
                     >
                         {{ t('kinetix.save') }}
                     </KinetixButton>
@@ -1222,6 +1283,8 @@ const totalColumnSpan = computed(
                     :id="formActionFormId"
                     :form="formActionForm"
                     flat
+                    @vue:mounted="formActionFormHooks.mounted"
+                    @vue:unmounted="formActionFormHooks.unmounted"
                     @submit="submitFormAction"
                 >
                     <template #default><span class="hidden"></span></template>
@@ -1244,7 +1307,9 @@ const totalColumnSpan = computed(
                         type="submit"
                         size="sm"
                         :form="formActionFormId"
-                        :loading="formActionProcessing"
+                        :loading="
+                            formActionProcessing || !formActionFormMounted
+                        "
                     >
                         {{
                             formActionAction?.modalSubmitActionLabel ||

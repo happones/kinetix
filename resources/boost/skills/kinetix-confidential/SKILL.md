@@ -94,7 +94,9 @@ php artisan kinetix:confidential:encrypt-existing "App\\Models\\Customer" --colu
 
 Zero props, mount once in the layout header. Padlock button → password
 dialog (`require_password`) → opens the reveal window for
-`reveal_ttl_minutes` with a live countdown + "Lock now".
+`reveal_ttl_minutes` with a live countdown + "Lock now". It's a lazy shell:
+disabled, it renders and loads nothing; enabled, an icon-button-sized
+placeholder holds the spot while the widget loads.
 
 ## Performance: one key, not one per row
 

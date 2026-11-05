@@ -7,6 +7,7 @@ import {
     requirementViolation,
 } from '@/composables/kinetixFieldConstraints';
 import type { Requirement } from '@/composables/kinetixFieldConstraints';
+import { kinetixComponentOf } from '@/composables/kinetixLazy';
 import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
 import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
 import './kinetix-grid.css';
@@ -19,8 +20,9 @@ import {
 import type { ResponsiveColumns } from '@/composables/useKinetixResponsiveGrid';
 import KinetixFieldRequirements from './Form/KinetixFieldRequirements.vue';
 import KinetixFormField from './Form/KinetixFormField.vue';
+import { KINETIX_FORM_FIELD_LOADERS } from './Form/kinetixFormFieldLoaders';
 import KinetixFormTabs from './KinetixFormTabs.vue';
-import KinetixFormWizard from './KinetixFormWizard.vue';
+import type KinetixFormWizardComponent from './KinetixFormWizard.vue';
 import KinetixLabel from './KinetixLabel.vue';
 
 const props = defineProps<{
@@ -41,6 +43,13 @@ const props = defineProps<{
 }>();
 
 const { t, locale } = useI18n();
+
+// The wizard layout downloads on first use. Read once per instance: the
+// wrapper renders the wizard as soon as it arrives, and swapping it for the
+// real component later would remount the steps.
+const KinetixFormWizard = kinetixComponentOf(
+    KINETIX_FORM_FIELD_LOADERS.wizard,
+) as typeof KinetixFormWizardComponent;
 
 const emit = defineEmits<{
     (e: 'update:value', name: string, value: any): void;

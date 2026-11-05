@@ -17,11 +17,12 @@ const FLOATING_TAGS =
 
 /**
  * Surfaces where a piece of the set legitimately doesn't apply:
- * - KinetixSpotlight: its ComboboxContent is INLINE inside the command
+ * - Spotlight/SpotlightBody (the palette KinetixSpotlight loads): its
+ *   ComboboxContent is INLINE inside the command
  *   palette dialog (always visible, never floats) — side-slide is meaningless;
  *   the dialog itself animates with the modal fade+zoom pair.
  */
-const ALLOWLIST = new Set(['KinetixSpotlight.vue']);
+const ALLOWLIST = new Set(['Spotlight/SpotlightBody.vue']);
 
 const REQUIRED = [
     'data-[state=open]:animate-in',

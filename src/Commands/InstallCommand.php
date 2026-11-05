@@ -7,6 +7,8 @@ namespace Happones\Kinetix\Commands;
 use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Happones\Kinetix\Support\ComposerHook;
 use Happones\Kinetix\Support\PublishedFiles;
+use Happones\Kinetix\Support\StylesheetLines;
+use Happones\Kinetix\Support\TailwindSourceExclusions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -73,13 +75,14 @@ class InstallCommand extends Command
             '@lucide/vue'             => '^1.0.0',
             'vue-sonner'              => '^2.0.0',
             // Long-list virtualization (Comments / Kanban / Media Library).
-            // Those components import it statically, so any app compiling the
-            // published components needs it at build time — a required peer.
+            // Loaded with a dynamic import once a list passes its threshold,
+            // but Vite still resolves dynamic specifiers at build time, so the
+            // host's build fails without it — a required peer.
             '@tanstack/vue-virtual' => '^3.0.0',
-            // KinetixNotifications.vue imports it statically, so it's required
-            // at BUILD time even when broadcasting is never configured —
-            // without it the host's Vite build fails on the published
-            // component. Runtime stays inert until Echo is configured.
+            // KinetixNotifications / useKinetixPresence import it dynamically,
+            // only when real-time is on and Echo is configured. Vite resolves
+            // that specifier at build time, so it stays a required peer even
+            // for apps that never broadcast.
             '@laravel/echo-vue' => '^2.3.0',
         ];
 
@@ -259,6 +262,7 @@ JS;
         $this->registerUpgradeHook();
         $this->ensureSonnerStylesheet();
         $this->ensureStatusTokens();
+        $this->excludeAgentSkillsFromTailwind();
         $this->protectPublishedPathsFromFormatters();
         $this->gitignoreGeneratedOutput();
 
@@ -444,21 +448,59 @@ JS;
         // appended: insert AFTER the last existing @import (loading after
         // Tailwind, the ordering KinetixToaster's variable overrides expect),
         // or at the very top when there are none.
-        $import = "@import 'vue-sonner/style.css'; /* Kinetix toasts — without this they render unstyled */";
-        $lines  = preg_split('/\R/', $existing) ?: [];
+        // A multi-line `@import … layer(base);` is never split, and the
+        // file's own line endings are kept.
+        $import  = "@import 'vue-sonner/style.css'; /* Kinetix toasts — without this they render unstyled */";
+        $updated = StylesheetLines::insertAfterLast($existing, [$import], ['@import']);
 
-        $lastImport = -1;
-        foreach ($lines as $i => $line) {
-            if (str_starts_with(trim($line), '@import')) {
-                $lastImport = $i;
-            }
+        if ($updated === null) {
+            $this->warn("Could not find a safe place for `@import 'vue-sonner/style.css';` in resources/css/app.css — add it after your other @import lines (toasts render unstyled without it).");
+
+            return;
         }
 
-        array_splice($lines, $lastImport + 1, 0, [$import]);
-
-        File::put($path, implode("\n", $lines));
+        File::put($path, $updated);
 
         $this->info("Added `@import 'vue-sonner/style.css';` to resources/css/app.css (toast container/animation styles).");
+    }
+
+    /**
+     * Keep the just-published agent skills out of Tailwind's class scan (see
+     * TailwindSourceExclusions). When it can't — Tailwind older than 4.1, no
+     * node_modules, no app.css — it says so, with the line to add later.
+     */
+    protected function excludeAgentSkillsFromTailwind(): void
+    {
+        $reason = TailwindSourceExclusions::skipReason();
+
+        if ($reason === null && TailwindSourceExclusions::missing() === []) {
+            return;
+        }
+
+        if ($reason === null) {
+            $reason = TailwindSourceExclusions::placementProblem();
+        }
+
+        if ($reason === null) {
+            $added = TailwindSourceExclusions::ensure();
+
+            $this->info('Excluded the agent skills from Tailwind\'s scan in resources/css/app.css ('.implode(', ', $added).').');
+
+            return;
+        }
+
+        // Nothing to say when it's turned off or there is nothing to exclude.
+        if (! (bool) config('kinetix.tailwind.exclude_agent_skills', true) || TailwindSourceExclusions::directories() === []) {
+            return;
+        }
+
+        $lines = array_map(
+            static fn (string $path): string => "@source not '{$path}';",
+            TailwindSourceExclusions::expected(),
+        );
+
+        $this->line("  <fg=gray>Skipped excluding the agent skills from Tailwind's scan: {$reason}.</>");
+        $this->line('  <fg=gray>Add them at the top level of resources/css/app.css, after its @import lines: '.implode(' ', $lines).'</>');
     }
 
     /**

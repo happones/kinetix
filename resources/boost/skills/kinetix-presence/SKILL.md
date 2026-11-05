@@ -55,3 +55,12 @@ const { users, count, isOnline } = useKinetixPresence();
 `useKinetixPresence(channel?)` joins the presence channel and tracks Echo's
 `here`/`joining`/`leaving`, returning `{ users, count, isOnline, channel }`;
 leaves on unmount. i18n `presence_online`.
+
+`@laravel/echo-vue` is imported dynamically on the first join
+(`joinKinetixPresence()` in `composables/kinetixEcho.ts`): the join is async,
+the release is registered synchronously, and joins of the same channel are
+ref-counted (`leave()` when the last one releases). Members fill in a tick
+after mount. Unconfigured Echo joins nothing and never throws. Host code that
+joins the same presence channel must use `joinKinetixPresence(name)` →
+`{ channel, release } | null` too, not echo-vue's `useEchoPresence`, or
+Kinetix's `leave()` may drop it. Do not import `@laravel/echo-vue` statically.

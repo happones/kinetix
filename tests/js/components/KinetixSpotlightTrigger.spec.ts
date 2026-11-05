@@ -1,6 +1,10 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
+
+const state = vi.hoisted(() => ({ props: {} as Record<string, unknown> }));
+vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: state.props }) }));
+
 import KinetixSpotlightTrigger from '@/components/KinetixSpotlightTrigger.vue';
 
 const i18n = createI18n({
@@ -30,5 +34,20 @@ describe('KinetixSpotlightTrigger', () => {
         });
         expect(wrapper.text()).toContain('Search…');
         expect(wrapper.find('kbd').exists()).toBe(true);
+    });
+
+    it('renders nothing while the palette is turned off', () => {
+        state.props = {
+            kinetix_config: { spotlight: { min_chars: 2, enabled: false } },
+        };
+
+        try {
+            const wrapper = mount(KinetixSpotlightTrigger, {
+                global: { plugins: [i18n] },
+            });
+            expect(wrapper.find('button').exists()).toBe(false);
+        } finally {
+            state.props = {};
+        }
     });
 });

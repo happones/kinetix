@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/vue3';
-import { onUnmounted, ref } from 'vue';
+import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import { useKinetixPolling } from '@/composables/useKinetixPolling';
 import type { KinetixQueueSnapshot, KinetixSharedProps } from '@/types/kinetix';
 
 /**
@@ -17,8 +18,6 @@ export function useKinetixQueue() {
     const loading = ref(false);
     const failed = ref(false);
 
-    let timer: ReturnType<typeof setInterval> | null = null;
-
     async function load(): Promise<void> {
         loading.value = true;
 
@@ -32,20 +31,9 @@ export function useKinetixQueue() {
         }
     }
 
-    function start(): void {
-        void load();
-
-        if (timer === null && interval > 0) {
-            timer = setInterval(() => void load(), interval);
-        }
-    }
-
-    function stop(): void {
-        if (timer !== null) {
-            clearInterval(timer);
-            timer = null;
-        }
-    }
+    const polling = useKinetixPolling(load, { interval });
+    const start = (): void => polling.start();
+    const stop = (): void => polling.stop();
 
     async function retry(id: number | string): Promise<void> {
         await kinetixFetch(`${base()}/retry`, { method: 'POST', body: { id } });
@@ -59,8 +47,6 @@ export function useKinetixQueue() {
         });
         await load();
     }
-
-    onUnmounted(stop);
 
     return { snapshot, loading, failed, load, start, stop, retry, forget };
 }

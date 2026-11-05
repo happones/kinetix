@@ -39,6 +39,14 @@ import KinetixFilePreview from "@/components/kinetix/KinetixFilePreview.vue";
 
 Without a host, a trigger opens its file in a new tab instead of doing nothing.
 
+The host is a small shell: the viewer itself downloads on the first preview.
+Hovering or focusing a `[data-kinetix-lightbox]` element starts that download
+early, so it's usually there before the click. The click is still handled at
+once, and the viewer opens as soon as it has loaded. Its fullscreen and
+visibility listeners are only attached after that first open. Add the
+[`vite:preloadError` handler](/performance#stale-chunks-after-a-deploy) so a tab
+opened before a deploy recovers.
+
 ### App-wide defaults
 
 The host's props are the defaults for every viewer it opens:
@@ -211,6 +219,10 @@ own its state:
 
 It takes the same options as the host, plus `title` (the accessible name when
 an item has none), and emits `change(index, item)`.
+
+Importing `KinetixLightbox` directly puts the whole viewer in that component's
+chunk. Do it in the page that owns the viewer, not in a layout, or every page
+pays for it (see [Performance](/performance)).
 
 ---
 

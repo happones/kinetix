@@ -13,6 +13,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.276.0] - 2026-11-05
+
+Browser performance. A host that uses a few Kinetix modules no longer
+downloads the rest: optional parts of the published components load the
+first time they are used. See the new [Performance](docs/performance.md)
+page.
+
+Measured on a starter-kit app with every module enabled (Vite 8, gzip,
+JavaScript on top of the initial load): a page with a table went from +135
+to +42 KB, a create form from +108 to +25 KB, a kanban board from +117 to
++36 KB and the Reports Center from +138 to +47 KB; the initial load went
+from 372 to 340 KB (314 KB on an app without broadcasting, where Echo and
+pusher-js are no longer downloaded).
+
+### Changed
+
+- **(published)** **Optional parts load on demand.**
+  - Layout hosts: the importer body and the lightbox load on first use (the
+    lightbox prefetches on hover or focus over `[data-kinetix-lightbox]`).
+    The spotlight palette and the shortcuts sheet load on their first
+    trigger — Cmd/Ctrl+K and `?` are still caught from the first press.
+    Tours, the announcement banner, the confidential unlock and the cookie
+    bar load only when there is something to show.
+  - Tables don't load the form or the infolist until a modal opens, and
+    date, period, address, multi-select and form filters load when the
+    Filters button is hovered, focused or opened. A modal's submit button
+    stays busy until its form has loaded.
+  - Forms ship text, select, checkbox, toggle, textarea and hidden fields
+    with the form (a select's searchable or plain control downloads with
+    the first select that needs it); every other field type and the wizard
+    download on first use, all of a form's types in parallel. Table filter
+    inputs load from the Filters button, and editable cells load only for
+    the column types a table has.
+  - A lazy part whose download fails retries twice; if it still fails it
+    keeps its skeleton, and the next use downloads again and swaps it in.
+  - Kanban, comments and the media library download the list virtualizer
+    only when a list passes its threshold.
+  - Nothing changes in your layout. Re-publish the components
+    (`kinetix:upgrade` does it).
+- **(published)** **Polling pauses in background tabs.** The queue, health,
+  report-runs and report-schedules widgets and the notification bell stop
+  while the tab is hidden, refresh as soon as it's visible again, and never
+  overlap a request still in flight. The report-runs table drops to one
+  request a minute while nothing is pending or running and returns to full
+  speed after a launch or retry.
+- **(published)** The timezone picker builds its zone list when it opens and
+  shares it across pickers for the hour, instead of computing ~400 zones on
+  every mount. Alias zones such as `US/Eastern` now show their label.
+- With `kinetix.spotlight.enabled` off, Cmd/Ctrl+K is no longer intercepted
+  and the spotlight trigger renders nothing.
+- **(published)** The language switcher's `select` variant downloads where
+  it is used; the default dropdown is unchanged.
+- **(published)** `<KinetixTours>` always renders its default slot itself,
+  with the tour driver beside it; attributes on `<KinetixTours>` now go to
+  the driver, not to the slot content.
+
+### Fixed
+
+- **(published)** `<KinetixNotifications>` aborted its setup when Echo wasn't
+  configured, so the bell never polled the database on apps without
+  broadcasting. It now always polls, and loads `@laravel/echo-vue` /
+  `pusher-js` only when real-time is on (`kinetix_config.realtime`: the
+  notification broadcast flag, `broadcasting.echo`, or a real
+  `broadcasting.default`) and Echo is configured.
+
+### Added
+
+- `kinetix_config.realtime` and `kinetix_config.spotlight.enabled` shared
+  props; a `realtime` prop on `<KinetixNotifications>`.
+- `GET …/report-runs` returns `hasActive` (`KinetixReportRunsPayload`); the
+  `kinetix:report-runs-changed` browser event (`KINETIX_REPORT_RUNS_CHANGED`)
+  brings an open runs list back to full speed.
+- **(published)** `defineKinetixLazy` (`composables/kinetixLazy.ts`),
+  `useKinetixPolling` (with an optional run `timeout`), and `joinKinetixPresence` / `listenForKinetixNotifications`
+  (`composables/kinetixEcho.ts`).
+- `kinetix.tailwind.exclude_agent_skills`: on Tailwind 4.1+, `kinetix:install`
+  and `kinetix:upgrade` add `@source not` lines for the agent skill folders
+  that hold Kinetix skills to `resources/css/app.css`, so Tailwind stops
+  generating classes from them; `kinetix:doctor` reports missing lines.
+- Bundle-guard specs that fail when a table, form or layout host statically
+  imports a lazy body again.
+
+- Optional host recommendation in the Performance docs: a Vite 8 /
+  Rolldown `codeSplitting` group that merges the authenticated entry's small
+  chunks without touching other entries (measured on the same app: initial
+  JavaScript 340 → 319 KB gzip in 10 requests instead of 53).
+
+### Upgrade notes
+
+- Re-publish the components with `--force` (or let `kinetix:upgrade` do it).
+- Add a `vite:preloadError` listener to `resources/js/app.ts` so a page
+  opened before a deploy reloads instead of keeping a skeleton when a
+  lazily loaded chunk no longer exists:
+  `window.addEventListener('vite:preloadError', (event) => { event.preventDefault(); window.location.reload(); });`
+- If you call `configureEcho()` yourself while none of the real-time sources
+  above is set, pass `:realtime="true"` to `<KinetixNotifications>`.
+- If your own code joins a presence channel Kinetix also uses, join it with
+  `joinKinetixPresence()` instead of echo-vue's `useEchoPresence`, or
+  Kinetix's `leave()` may drop your subscription.
+- A custom UI that queues report runs can dispatch
+  `kinetix:report-runs-changed` so an open runs list refreshes at once.
+- Specs in your app that mount Kinetix forms, tables or layout hosts need
+  `await flushPromises()` (or a preload) before asserting lazily loaded
+  parts.
+- Exclude your own `docs/` from Tailwind yourself if it holds Markdown.
+
 ## [0.275.0] - 2026-11-05
 
 Second security release from the 0.273.0 audit. Every hole below was

@@ -29,21 +29,9 @@ export const KINETIX_IMPORTER_STEPS: KinetixImporterStep[] = [
     'review',
 ];
 
-/**
- * Fallback settings used before the first upload answers with the importer's
- * real ones (and for a manually mounted `<KinetixImporter>` given none). They
- * mirror the `kinetix.imports` config defaults.
- */
-export const KINETIX_IMPORT_SETTINGS_DEFAULTS: KinetixImportSettings = {
-    hasPreview: true,
-    previewRows: 10,
-    previewColumns: 8,
-    layout: 'auto',
-    fullscreenThreshold: 12,
-    maxUploadSize: 102400,
-    // `template` is left unset: the real filename arrives with the importer's
-    // own settings (the `open-importer` event, or the first preview).
-};
+// Re-exported for existing imports: the defaults live in their own module so
+// the layout's import dialog can read them without this whole composable.
+export { KINETIX_IMPORT_SETTINGS_DEFAULTS } from '@/composables/kinetixImportSettings';
 
 export interface UseKinetixImporterOptions {
     importer: () => string;

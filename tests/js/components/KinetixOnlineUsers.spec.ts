@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h, nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
@@ -26,8 +26,12 @@ const fakeChannel = {
     },
 };
 const leaveMock = vi.fn();
-vi.mock('@laravel/echo-vue', () => ({
-    useEchoPresence: () => ({ channel: () => fakeChannel, leave: leaveMock }),
+const joinMock = vi.fn(async () => ({
+    channel: fakeChannel,
+    release: leaveMock,
+}));
+vi.mock('@/composables/kinetixEcho', () => ({
+    joinKinetixPresence: (name: string) => joinMock(name),
 }));
 
 import KinetixOnlineUsers from '@/components/KinetixOnlineUsers.vue';
@@ -46,6 +50,7 @@ beforeEach(() => {
     delete cb.joining;
     delete cb.leaving;
     leaveMock.mockReset();
+    joinMock.mockClear();
 });
 
 const Harness = defineComponent({
@@ -57,8 +62,11 @@ const Harness = defineComponent({
 const mountComposable = () => mount(Harness, { global: { plugins: [i18n] } });
 
 describe('useKinetixPresence', () => {
-    it('tracks here / joining / leaving membership', () => {
+    it('tracks here / joining / leaving membership', async () => {
         const vm = mountComposable().vm as any;
+        await flushPromises();
+
+        expect(joinMock).toHaveBeenCalledWith('kinetix-presence');
 
         cb.here([
             { id: 1, name: 'Ada', avatar: null },
@@ -75,6 +83,31 @@ describe('useKinetixPresence', () => {
         expect(vm.count).toBe(2);
         expect(vm.isOnline(1)).toBe(false);
     });
+
+    it('releases the channel on unmount', async () => {
+        const wrapper = mountComposable();
+        await flushPromises();
+
+        wrapper.unmount();
+        expect(leaveMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('releases a join that resolves after unmount', async () => {
+        const wrapper = mountComposable();
+        wrapper.unmount();
+        await flushPromises();
+
+        expect(leaveMock).toHaveBeenCalledTimes(1);
+        expect(cb.here).toBeUndefined();
+    });
+
+    it('stays empty when Echo is not configured', async () => {
+        joinMock.mockResolvedValueOnce(null as never);
+        const vm = mountComposable().vm as any;
+        await flushPromises();
+
+        expect(vm.count).toBe(0);
+    });
 });
 
 describe('KinetixOnlineUsers', () => {
@@ -83,6 +116,7 @@ describe('KinetixOnlineUsers', () => {
             props: { max: 2 },
             global: { plugins: [i18n] },
         });
+        await flushPromises();
 
         cb.here([
             { id: 1, name: 'Ada Lovelace', avatar: null },

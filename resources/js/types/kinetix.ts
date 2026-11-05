@@ -137,8 +137,19 @@ export interface KinetixConfig {
     motion?: 'full' | 'reduced';
     /** `kinetix.lightbox`: whether Markdown images open in the lightbox. */
     lightbox?: { markdown: boolean };
-    /** Palette settings the client has to agree with the endpoint on. */
-    spotlight?: { min_chars: number };
+    /**
+     * Palette settings the client has to agree with the endpoint on.
+     * `enabled` mirrors `kinetix.spotlight.enabled`: off, the layout host
+     * never loads the palette.
+     */
+    spotlight?: { min_chars: number; enabled?: boolean };
+    /**
+     * Whether the bell listens over Echo: on when
+     * `kinetix.notifications.broadcast` is on, `kinetix.broadcasting.echo` is
+     * filled, or `broadcasting.default` is a real driver (not `null`/`log`).
+     * Off, `@laravel/echo-vue` is never loaded. Absent on older servers.
+     */
+    realtime?: boolean;
     broadcasting: Record<string, unknown> | null;
 }
 
@@ -2003,6 +2014,14 @@ export interface ReportTypeData {
     label: string;
     description: string | null;
     format: string;
+}
+
+/**
+ * `GET {prefix}/report-runs`: the runs table plus whether any of the listed
+ * runs is still pending or running (the client slows its polling when not).
+ */
+export interface KinetixReportRunsPayload extends KinetixTableData {
+    hasActive: boolean;
 }
 
 /** A recurring/scheduled report definition, for <KinetixReportSchedules>. */

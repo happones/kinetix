@@ -66,4 +66,22 @@ describe('useKinetixReportTypes', () => {
         });
         expect(result).toEqual({ status: 'queued', run_id: 5 });
     });
+
+    it('launch() dispatches kinetix:report-runs-changed after a successful launch', async () => {
+        fetchMock.mockResolvedValue({ status: 'queued', run_id: 5 });
+        const listener = vi.fn();
+        window.addEventListener('kinetix:report-runs-changed', listener);
+
+        try {
+            const { launch } = useKinetixReportTypes();
+            await launch('tok1');
+            expect(listener).toHaveBeenCalledTimes(1);
+
+            fetchMock.mockRejectedValue(new Error('nope'));
+            await expect(launch('tok1')).rejects.toThrow('nope');
+            expect(listener).toHaveBeenCalledTimes(1);
+        } finally {
+            window.removeEventListener('kinetix:report-runs-changed', listener);
+        }
+    });
 });

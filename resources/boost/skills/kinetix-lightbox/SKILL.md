@@ -89,3 +89,7 @@ for a page that wants to own its state (slots `caption` and `actions`).
   same and app-wide options apply.
 - Give images real alt text — triggers are buttons named after it.
 - Pass a small `thumbnail` and the full-size `src` for large galleries.
+- `<KinetixFilePreview>` is a lazy shell: `KinetixLightbox` loads on the first
+  preview (prefetched on the first hover/focus of a `[data-kinetix-lightbox]`
+  element). Never import `KinetixLightbox` from a layout or other always-mounted
+  component; that puts the viewer back in every page.

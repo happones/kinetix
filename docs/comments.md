@@ -10,9 +10,9 @@ own**. A host `view` policy on the model is honored automatically.
 ::: tip Long threads virtualize automatically
 When a thread grows past ~40 top-level comments, the list windows its rows via
 `@tanstack/vue-virtual` (only the visible comments render). Shorter threads
-render in full — no change or overhead. Install the optional peer if you expect
-long threads: `npm install @tanstack/vue-virtual` (or `php artisan kinetix:install
---tanstack`).
+render in full and never download it. `@tanstack/vue-virtual` is a required peer,
+installed by `php artisan kinetix:install` (or `npm install @tanstack/vue-virtual`);
+it's fetched the first time a thread crosses the threshold.
 :::
 
 ---

@@ -61,5 +61,6 @@ Gate::define('viewKinetixHealth', fn ($user) => $user->isAdmin());
 ```
 
 Overall status badge + per-check rows (status icon + summary); polls on the
-shared interval, stops on unmount. `useKinetixHealth()` →
+shared interval via `useKinetixPolling` (no overlap, paused while the tab is
+hidden), stops on unmount. `useKinetixHealth()` →
 `{ snapshot, loading, failed, load, start, stop }`. i18n `health_*`.

@@ -466,6 +466,23 @@ Wizard::make()
 
 ## 4. Fields & Form Inputs API
 
+### Field types load on demand
+
+Six field types ship with every form: `TextInput`, `Select`, `Checkbox`,
+`Toggle`, `Textarea` and `Hidden`. Every other type (the date, time and period
+pickers, rich editors, `MediaLibrary`, repeaters, `KeyValue`, `Signature`, the
+wizard, …) lives in its own chunk.
+
+When a form mounts it walks its schema once and starts downloading every type it
+uses, all in parallel, so there is no waterfall. A field still loading shows a
+pulsing placeholder the height of an input, and its label is already in place.
+On the server (SSR) the real field is rendered. A field marked `autofocus` takes
+focus when it arrives, unless the user already moved focus. A form built only
+from the six core types loads no extra chunk, and rendering a field component
+directly yourself is unaffected. A `Select` field's control (the searchable
+combobox or the plain select) also downloads on first use, and the field shows
+the same placeholder meanwhile. See [Performance](/performance#tables-and-forms).
+
 ### What the rules ask for, before the server
 
 A field's validation rules show up in the form itself, so the user learns what

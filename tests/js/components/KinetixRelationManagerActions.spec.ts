@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { createI18n } from 'vue-i18n';
 
@@ -19,6 +19,7 @@ vi.mock('@inertiajs/vue3', () => ({
 import { router } from '@inertiajs/vue3';
 import KinetixRelationManager from '@/components/KinetixRelationManager.vue';
 import KinetixTable from '@/components/KinetixTable.vue';
+import { preloadAllKinetixLazy } from '../support/lazyComponents';
 
 const i18n = createI18n({
     legacy: false,
@@ -138,6 +139,9 @@ async function confirmDialog() {
     );
     await nextTick();
 }
+
+// Lazy field types, filters and modal bodies, loaded so mounts stay synchronous.
+beforeAll(preloadAllKinetixLazy);
 
 describe('relation manager row actions carry the record end-to-end', () => {
     afterEach(() => {

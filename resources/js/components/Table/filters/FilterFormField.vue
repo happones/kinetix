@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import type { KinetixTableFilter } from '@/types/kinetix';
+import { preloadKinetixFormFields } from '../../Form/kinetixFormFieldLoaders';
 import KinetixFormSchema from '../../KinetixFormSchema.vue';
 
 /**
@@ -27,6 +28,11 @@ const values = computed<Record<string, unknown>>(
 const schema = computed<unknown[]>(
     () => (props.filter.schema as unknown[]) ?? [],
 );
+
+// Start every lazy field type the filter's schema uses in one pass.
+watch(schema, (nodes) => void preloadKinetixFormFields(nodes), {
+    immediate: true,
+});
 
 const onUpdateValue = (name: string, fieldValue: unknown): void => {
     emit('update', { ...values.value, [name]: fieldValue });

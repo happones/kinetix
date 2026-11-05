@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
-import { useEchoPresence } from '@laravel/echo-vue';
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref } from 'vue';
+import { joinKinetixPresence } from '@/composables/kinetixEcho';
 import type {
     KinetixPresenceState,
     KinetixPresenceUser,
@@ -10,7 +10,9 @@ import type {
 /**
  * Live presence: join the (team-resolved) presence channel and track who's
  * online. Powers the <KinetixOnlineUsers> facepile and online dots elsewhere.
- * Requires broadcasting configured (`configureEcho`); no-ops without a channel.
+ * Requires broadcasting configured (`configureEcho`); no-ops without a channel
+ * or without a configured Echo. `@laravel/echo-vue` is imported lazily, only
+ * once there is a channel to join, so the members fill in a tick later.
  */
 export function useKinetixPresence(channelOverride?: string) {
     const page = usePage<KinetixSharedProps>();
@@ -33,28 +35,62 @@ export function useKinetixPresence(channelOverride?: string) {
         members.value = next;
     };
 
-    if (channel) {
-        const { channel: getChannel, leave } =
-            useEchoPresence<KinetixPresenceUser>(channel);
+    if (channel && typeof window !== 'undefined') {
+        let release: (() => void) | null = null;
+        let disposed = false;
 
-        getChannel()
-            .here((list: KinetixPresenceUser[]) => {
-                const next = new Map<string, KinetixPresenceUser>();
-                list.forEach((user) => next.set(String(user.id), user));
-                commit(next);
-            })
-            .joining((user: KinetixPresenceUser) => {
-                const next = new Map(members.value);
-                next.set(String(user.id), user);
-                commit(next);
-            })
-            .leaving((user: KinetixPresenceUser) => {
-                const next = new Map(members.value);
-                next.delete(String(user.id));
-                commit(next);
+        // Registered synchronously, so an unmount before the join resolves
+        // still releases it.
+        if (getCurrentScope()) {
+            onScopeDispose(() => {
+                disposed = true;
+                release?.();
+                release = null;
             });
+        }
 
-        onUnmounted(() => leave());
+        void joinKinetixPresence(channel).then((joined) => {
+            if (joined === null) {
+                return;
+            }
+
+            if (disposed) {
+                joined.release();
+
+                return;
+            }
+
+            release = joined.release;
+
+            joined.channel
+                .here((list: KinetixPresenceUser[]) => {
+                    if (disposed) {
+                        return;
+                    }
+
+                    const next = new Map<string, KinetixPresenceUser>();
+                    list.forEach((user) => next.set(String(user.id), user));
+                    commit(next);
+                })
+                .joining((user: KinetixPresenceUser) => {
+                    if (disposed) {
+                        return;
+                    }
+
+                    const next = new Map(members.value);
+                    next.set(String(user.id), user);
+                    commit(next);
+                })
+                .leaving((user: KinetixPresenceUser) => {
+                    if (disposed) {
+                        return;
+                    }
+
+                    const next = new Map(members.value);
+                    next.delete(String(user.id));
+                    commit(next);
+                });
+        });
     }
 
     return { users, count, isOnline, channel };

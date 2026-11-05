@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { usePage, router, usePoll } from '@inertiajs/vue3';
-import { useEchoNotification } from '@laravel/echo-vue';
+import { usePage, router } from '@inertiajs/vue3';
 import { storeToRefs } from 'pinia';
 import { computed, watch, onMounted, onUnmounted } from 'vue';
+import { listenForKinetixNotifications } from '@/composables/kinetixEcho';
+import { useKinetixPolling } from '@/composables/useKinetixPolling';
 import { useNotificationsStore } from '@/stores/kinetixNotifications';
 import type {
     KinetixAction,
@@ -18,9 +19,16 @@ import KinetixNotificationTrigger from './KinetixNotificationTrigger.vue';
 const props = withDefaults(
     defineProps<{
         channelModel?: string;
+        /**
+         * Listen over Echo. Unset, it follows the server's
+         * `kinetix_config.realtime` (older servers: whether a broadcasting
+         * config is shared). Off, `@laravel/echo-vue` is never loaded.
+         */
+        realtime?: boolean;
     }>(),
     {
         channelModel: 'App.Models.User',
+        realtime: undefined,
     },
 );
 
@@ -97,41 +105,90 @@ const onBroadcastNotification = (notification: Record<string, unknown>) => {
 };
 
 // --- Real-time Echo listener ---
-const { listen: echoListen, stopListening: echoStop } = useEchoNotification<
-    Record<string, unknown>
->(
-    echoChannel.value ?? `${props.channelModel}.0`,
-    onBroadcastNotification,
-    undefined,
-    [echoChannel],
+// echo-vue is imported lazily (and only when realtime is on), so a host
+// without broadcasting never downloads it, and an unconfigured Echo is a
+// no-op instead of an error.
+const realtime = computed<boolean>(
+    () =>
+        props.realtime ??
+        page.props.kinetix_config?.realtime ??
+        page.props.kinetix_config?.broadcasting != null,
 );
 
-// Only actively listen when a user is authenticated
-watch(
-    echoChannel,
-    (channel) => {
-        if (channel) {
-            echoListen();
+let releaseEcho: (() => void) | null = null;
+let subscription = 0;
+let mounted = false;
+let disposed = false;
 
-            return;
-        }
+async function subscribeToEcho(channel: string | null): Promise<void> {
+    const attempt = ++subscription;
 
-        echoStop();
-    },
-    { immediate: true },
-);
+    releaseEcho?.();
+    releaseEcho = null;
 
-// --- Database-mode fallback polling (Inertia usePoll) -----------------------
+    if (channel === null || !realtime.value) {
+        return;
+    }
+
+    const release = await listenForKinetixNotifications(
+        channel,
+        onBroadcastNotification,
+    );
+
+    // Unmounted, or the channel changed, while echo-vue was loading.
+    if (disposed || attempt !== subscription) {
+        release?.();
+
+        return;
+    }
+
+    releaseEcho = release;
+}
+
+watch([echoChannel, realtime], ([channel]) => {
+    if (mounted) {
+        void subscribeToEcho(channel);
+    }
+});
+
+// --- Database-mode fallback polling -----------------------------------------
 // Without Echo, this is what makes new database notifications appear (badge +
 // toast via the store's props sync) instead of waiting for the next visit.
-// Interval comes from `kinetix.notifications.poll` (ms, 0 = off); usePoll
-// pauses in background tabs and cleans up on unmount.
+// Interval comes from `kinetix.notifications.poll` (ms, 0 = off). The loop
+// pauses while the tab is hidden, refreshes when it comes back, never
+// overlaps a slow reload, and stops on unmount.
 const pollInterval = page.props.kinetix_config?.poll ?? 0;
-const poll = usePoll(
-    pollInterval || 60000,
-    { only: ['kinetix_notifications'] },
-    { autoStart: false },
-);
+const reloadNotifications = (): Promise<void> =>
+    new Promise<void>((resolve) => {
+        let started = false;
+
+        router.reload({
+            only: ['kinetix_notifications'],
+            preserveErrors: true,
+            onStart: () => {
+                started = true;
+            },
+            onFinish: () => resolve(),
+        });
+
+        // A `before` listener (the host's, or a global one) can cancel the
+        // visit outright, and then no callback ever fires: a sent request has
+        // started by now, so one that hasn't never will.
+        queueMicrotask(() => {
+            if (!started) {
+                resolve();
+            }
+        });
+    });
+
+const poll = useKinetixPolling(reloadNotifications, {
+    interval: pollInterval,
+    // The page props already carry the current list: the first reload waits
+    // a full interval.
+    immediate: false,
+    // A reload that never reports back must not stop the loop.
+    timeout: Math.max(30_000, pollInterval),
+});
 
 const shouldPoll = computed(
     () =>
@@ -173,6 +230,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
 onMounted(() => {
     window.addEventListener('keydown', handleKeyDown);
 
+    mounted = true;
+    void subscribeToEcho(echoChannel.value);
+
     if (!isDatabaseMode.value) {
         try {
             const savedNotifs = localStorage.getItem(
@@ -208,8 +268,12 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeyDown);
-    // Stop the Echo subscription so it doesn't leak past the component's life.
-    echoStop();
+    // Stop the Echo subscription so it doesn't leak past the component's life
+    // (including one still loading).
+    disposed = true;
+    subscription++;
+    releaseEcho?.();
+    releaseEcho = null;
     // Ensure scroll is unlocked when component unmounts
     document.body.style.overflow = '';
 });
