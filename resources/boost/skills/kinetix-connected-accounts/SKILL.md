@@ -40,6 +40,10 @@ php artisan migrate
     'redirect'                => '/settings/security',
     'login_redirect'          => '/dashboard',
     'login_failure_redirect'  => '/login',
+    'link_by_email'           => 'verified',              // verified | never | always
+    'verified_email_providers' => ['github', 'bitbucket'],
+    'email_verified'          => null,                    // [Class::class, 'method'] ($socialUser, $provider): bool — replaces list + claim
+    'two_factor_challenge'    => null,                    // [Class::class, 'method'] ($user, $request, $remember): ?Response
     'providers' => [
         'github' => ['label' => 'GitHub', 'icon' => 'github', 'color' => '#181717'],
         'google' => ['label' => 'Google', 'icon' => 'google', 'color' => '#4285F4'],
@@ -77,8 +81,24 @@ KinetixConnectedAccounts::createUserUsing(fn (object $socialUser, string $provid
   `POST password` (set/change — `current_password` only required when the user
   already `hasPassword`), `DELETE {account}` (unlink).
 - **Guest login** (only when `login_enabled`, `web` middleware, no team prefix):
-  `GET login/redirect/{provider}` + `GET login/callback/{provider}` →
-  find-or-create + link + `Auth::login(remember: true)`.
+  `GET login/redirect/{provider}` + `GET login/callback/{provider}`. Resolution
+  order: existing link (provider + provider id) → `resolveUserUsing()` callback
+  → user with the same email, **only if `link_by_email` allows** → create, only
+  for a verified (or absent) email unless `link_by_email = always`
+  (`connected_account_email_unverified` otherwise). Then
+  link + `Auth::login(remember: true)`, or the two-factor hand-off.
+- **`link_by_email`** (`KINETIX_CONNECTED_ACCOUNTS_LINK_BY_EMAIL`): `verified`
+  (default: `verified_email_providers` [`github`, `bitbucket`] OR provider
+  claim `email_verified === true`; a set `email_verified` callback REPLACES both), `never`,
+  `always` (legacy; doctor warns). Refused → `login_failure_redirect` with
+  `connected_account_sign_in_to_link`. Never link on an unverified email.
+- **Two-factor**: a user with `two_factor_secret` (+ `two_factor_confirmed_at`
+  when Fortify confirms) gets Fortify's hand-off (`login.id`,
+  `login.remember`, `url.intended`, `TwoFactorAuthenticationChallenged`,
+  redirect to `two-factor.login`) and stays a guest; no such route → refused
+  (`connected_account_two_factor_required`). `two_factor_challenge` callable
+  array `($user, Request, bool $remember): ?Response` replaces this.
+- Link/callback/password/unlink are blocked while impersonating (403).
 - **`ConnectedAccountManager`**: `link()` throws `AccountAlreadyLinkedException`
   when the identity belongs to another user; `unlink()` aborts 422 when removing
   the last sign-in method of a passwordless user (`prevent_lockout`).

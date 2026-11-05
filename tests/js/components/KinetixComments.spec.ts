@@ -10,6 +10,7 @@ vi.mock('@/composables/useKinetixHttp', () => ({
 }));
 vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { toast } from 'vue-sonner';
 import KinetixComments from '@/components/KinetixComments.vue';
 
 const i18n = createI18n({
@@ -88,5 +89,101 @@ describe('KinetixComments', () => {
             body: 'New one',
             parent_id: null,
         });
+    });
+});
+
+describe('KinetixComments sealed reference', () => {
+    const mountWithReference = () =>
+        mount(KinetixComments, {
+            props: { reference: 'sealed-comments-ref' },
+            global: { plugins: [i18n] },
+        });
+
+    it('loads by reference alone', async () => {
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValueOnce({ comments: [] });
+        mountWithReference();
+        await flushPromises();
+
+        const url = new URL(String(fetchMock.mock.calls[0][0]), 'http://x');
+        expect(url.pathname).toBe('/_kinetix/comments');
+        expect(Object.fromEntries(url.searchParams)).toEqual({
+            reference: 'sealed-comments-ref',
+        });
+    });
+
+    it('posts the reference instead of type + id', async () => {
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValueOnce({ comments: [] });
+        const w = mountWithReference();
+        await flushPromises();
+
+        fetchMock.mockResolvedValueOnce({ comments: [] });
+        await w.find('textarea').setValue('Sealed');
+        await w.find('form').trigger('submit');
+        await flushPromises();
+
+        const postCall = fetchMock.mock.calls.find(
+            (c) => c[1]?.method === 'POST',
+        );
+        expect(postCall![1].body).toEqual({
+            reference: 'sealed-comments-ref',
+            body: 'Sealed',
+            parent_id: null,
+        });
+    });
+
+    it('keeps the legacy type + id query without a reference', async () => {
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValueOnce({ comments: [] });
+        mountIt();
+        await flushPromises();
+
+        const url = new URL(String(fetchMock.mock.calls[0][0]), 'http://x');
+        expect(Object.fromEntries(url.searchParams)).toEqual({
+            commentable_type: 'App\\Models\\Post',
+            commentable_id: '7',
+        });
+    });
+});
+
+describe('KinetixComments refused load', () => {
+    it("shows the server's message instead of an empty thread", async () => {
+        fetchMock.mockReset();
+        vi.mocked(toast.error).mockClear();
+        fetchMock.mockRejectedValueOnce(
+            Object.assign(new Error('This action is unauthorized.'), {
+                status: 403,
+            }),
+        );
+        const w = mountIt();
+        await flushPromises();
+
+        expect(toast.error).toHaveBeenCalledWith(
+            'This action is unauthorized.',
+        );
+        expect(w.text()).not.toContain('kinetix.comment_empty');
+    });
+
+    it('keeps the shown thread when a reload after a delete is refused', async () => {
+        fetchMock.mockReset();
+        vi.mocked(toast.error).mockClear();
+        fetchMock.mockResolvedValueOnce({ comments: [comment()] });
+        const w = mountIt();
+        await flushPromises();
+        expect(w.text()).toContain('Hello there');
+
+        fetchMock.mockReset();
+        fetchMock
+            .mockResolvedValueOnce(null) // DELETE
+            .mockRejectedValueOnce(new Error('Please reload the page.')); // reload
+        const deleteButton = w
+            .findAll('button')
+            .find((b) => b.text().includes('kinetix.delete'));
+        await deleteButton!.trigger('click');
+        await flushPromises();
+
+        expect(toast.error).toHaveBeenCalledWith('Please reload the page.');
+        expect(w.text()).toContain('Hello there');
     });
 });

@@ -18,10 +18,19 @@ use Throwable;
  * could see. Without binding, the link works forever for anyone who obtains it
  * from a shared browser, a proxy log or a Referer header.
  *
- * @phpstan-type Payload array{disk: string, path: string, name: string, user: int|string|null, expires: int|null}
+ * It also names its purpose, so no other Kinetix payload that happens to
+ * carry a `path` (an import's file token, say) opens as a download. A token
+ * minted before the purpose existed is refused.
+ *
+ * @phpstan-type Payload array{purpose: string, disk: string, path: string, name: string, user: int|string|null, expires: int|null}
  */
 class DownloadToken
 {
+    /**
+     * Tells this payload apart from every other Crypt payload Kinetix makes.
+     */
+    private const PURPOSE = 'kinetix-download';
+
     /**
      * Mint a token for one recipient. A null recipient produces an unbound token
      * (any authenticated user may download it) — only for artifacts that aren't
@@ -36,6 +45,7 @@ class DownloadToken
         $ttl = config('kinetix.exports.download_ttl', 1440);
 
         return Crypt::encrypt([
+            'purpose' => self::PURPOSE,
             'disk'    => $disk,
             'path'    => $path,
             'name'    => $name,
@@ -60,7 +70,7 @@ class DownloadToken
             return null;
         }
 
-        if (! is_array($payload) || ! is_string($payload['path'] ?? null)) {
+        if (! is_array($payload) || ($payload['purpose'] ?? null) !== self::PURPOSE || ! is_string($payload['path'] ?? null)) {
             return null;
         }
 

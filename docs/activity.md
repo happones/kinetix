@@ -66,6 +66,15 @@ KinetixActivity::log('exported', $report, ['format' => 'csv']);
 KinetixActivity::log('published', $post, causer: $admin, description: 'Scheduled publish');
 ```
 
+::: tip Secrets never reach the log
+The diff keeps the key of every changed attribute, but the value of a hidden
+attribute (`$hidden`, e.g. `api_token`) or an encrypted one (the `encrypted*`
+casts, `AsEncryptedArrayObject` / `AsEncryptedCollection`, `ConfidentialCast`)
+is recorded as `[redacted]`, on both sides. Old values are the stored (raw)
+ones, never cast ones, because a cast would decrypt them. Rows logged before
+0.275 are not rewritten.
+:::
+
 Every record dispatches the `ActivityLogged` event (the spine) — listen to it to
 react to domain changes (the Webhooks module will fan these out).
 

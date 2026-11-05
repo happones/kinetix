@@ -137,7 +137,29 @@ GeneralSettingsPage::make()->save($input, KinetixSettings::global());
 
 Values keep their type (stored as JSON) — booleans, arrays and scalars round-trip
 faithfully. Encrypted values are transparently decrypted on read and never stored
-in clear.
+in clear — not in the table, and not in the cache either: the cache
+(`{cache_key}:v2:{scope}`) holds the rows as stored, and values are decrypted
+into a per-process memo.
+
+### Encrypted fields on a page
+
+A page's `encrypted()` fields are **write-only**
+([write-only fields](./forms.md#write-only-fields)):
+
+- Their value is never sent to the browser. The field renders empty; when a
+  value is saved it is flagged `isWithheld`, so it shows "Saved — leave blank
+  to keep" and a hint line.
+- Submitting it blank (or unchanged) keeps the saved value; a new value
+  replaces it.
+- On a team page the field reads only the **team's own** value, never the
+  global one it inherits: a team admin never receives (or learns whether a
+  value exists for) the platform's secret. A submitted secret is always stored
+  as the team's own, even when it equals the global one — it is never compared
+  with the inherited value, so the save can't be used to guess it.
+- The update endpoint's response leaves encrypted fields out.
+
+Runtime reads are unchanged: `KinetixSettings::get('mail.password')` in a team
+still falls back to the global value.
 
 ---
 

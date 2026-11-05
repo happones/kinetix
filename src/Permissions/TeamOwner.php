@@ -247,6 +247,23 @@ class TeamOwner
         return (string) (app(PermissionRegistrar::class)->getPermissionsTeamId() ?? 'none');
     }
 
+    /**
+     * Whether the user owns the given team: the `owner_bypass` ownership
+     * callback when one is configured, else the host's `ownsTeam($team)`.
+     * Independent of whether the bypass is on, so other guards (a takeover
+     * of a team owner) can ask it too.
+     */
+    public static function owns(Model $user, Model $team): bool
+    {
+        $callback = ConfigCallback::resolve(static::options()['using']);
+
+        if ($callback !== null) {
+            return $callback($user, $team) === true;
+        }
+
+        return method_exists($user, 'ownsTeam') && (bool) $user->ownsTeam($team);
+    }
+
     protected static function resolve(mixed $user): bool
     {
         $value    = static::options()['using'];
@@ -256,13 +273,13 @@ class TeamOwner
             return $callback($user, static::activeTeam($user)) === true;
         }
 
-        if ($value !== true || ! method_exists($user, 'ownsTeam')) {
+        if ($value !== true || ! $user instanceof Model) {
             return false;
         }
 
         $team = static::activeTeam($user);
 
-        return $team !== null && (bool) $user->ownsTeam($team);
+        return $team !== null && static::owns($user, $team);
     }
 
     /**

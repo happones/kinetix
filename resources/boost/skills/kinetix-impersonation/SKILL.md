@@ -60,12 +60,21 @@ KinetixImpersonation::stop();
   `KinetixTeams::currentTeamKey()` — a stored row/role is team-scoped, never "platform
   staff". Copy the recipe in `docs/permissions.md` verbatim. Only a super-admin can add
   or remove `users.impersonate` on a role (403 otherwise).
-- **Escalation guard**: cannot impersonate a super-admin unless you are one (teamless
-  assignment included), nor a user holding a `protected_permissions` entry you lack.
+- **Escalation guard** (shared with Members credentials, judged in EVERY team of the
+  target): no super-admin target unless you are one (teamless assignment included; a
+  super-admin crosses teams); with teams on, every team of the target must be yours
+  (`team_switcher.teams_relation`, else `current_team_id` — the relation must return
+  EVERY team incl. owned ones, e.g. expose Jetstream's `allTeams()` as a relation); in each, no
+  `protected_permissions` entry the target holds that you lack; a team owner target
+  needs an actor owning that team; an owning actor counts as holding protected P there
+  only if `TeamOwner::enabled() && TeamOwner::grants(P)` (bypass on, only/except, not platform).
   `can_impersonate` (a callable array, never a closure) **replaces** it: a callback must
   start with `app(ImpersonationManager::class)->passesBuiltInGuards($impersonator, $target)`
   and only narrow that verdict, or a "same team" rule lets an owner impersonate a super-admin.
-- **Protect sensitive routes** with the `kinetix.impersonation.protect` middleware
+- Kinetix's own credential routes are already protected: tokens/sessions/credentials
+  password/billing (`protect:writes`), connected-accounts link/callback/password/unlink,
+  GDPR and `members/{provision}/credential` (`protect`).
+- **Protect your sensitive routes** with the `kinetix.impersonation.protect` middleware
   (password/email/2FA/billing/account-deletion) — it 403s while impersonating.
   `kinetix.impersonation.protect:writes` blocks only changes (non-GET/HEAD/OPTIONS),
   so a whole group like billing stays viewable.

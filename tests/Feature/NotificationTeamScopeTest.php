@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -111,6 +112,51 @@ class NotificationTeamScopeTest extends TestCase
         $this->actingAs($user);
 
         $this->assertCount(2, $this->sharedNotifications());
+    }
+
+    public function test_clear_all_in_one_team_keeps_another_teams_notifications(): void
+    {
+        config()->set('kinetix.teams', true);
+
+        $user = TeamScopedUser::create(['name' => 'A']);
+        $this->seedNotification($user, ['title' => 'mine', 'team' => 7]);
+        $this->seedNotification($user, ['title' => 'other team', 'team' => 9]);
+        $this->seedNotification($user, ['title' => 'global']);
+
+        $this->actingAs($user)->deleteJson('/_kinetix/notifications/clear-all')->assertOk();
+
+        $this->assertSame(['other team'], $user->notifications()->get()->pluck('data.title')->all());
+    }
+
+    public function test_read_all_in_one_team_leaves_another_teams_unread(): void
+    {
+        config()->set('kinetix.teams', true);
+
+        $user = TeamScopedUser::create(['name' => 'A']);
+        $this->seedNotification($user, ['title' => 'mine', 'team' => 7]);
+        $this->seedNotification($user, ['title' => 'other team', 'team' => 9]);
+        $this->seedNotification($user, ['title' => 'global']);
+
+        $this->actingAs($user)->postJson('/_kinetix/notifications/read-all')->assertOk();
+
+        $this->assertSame(['other team'], $user->unreadNotifications()->get()->pluck('data.title')->all());
+    }
+
+    public function test_read_all_is_a_single_update(): void
+    {
+        $user = TeamScopedUser::create(['name' => 'A']);
+
+        for ($i = 0; $i < 500; $i++) {
+            $this->seedNotification($user, ['title' => "n{$i}"]);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs($user)->postJson('/_kinetix/notifications/read-all')->assertOk();
+
+        $this->assertLessThanOrEqual(3, count(DB::getQueryLog()));
+        $this->assertSame(0, $user->unreadNotifications()->count());
     }
 
     public function test_kinetix_config_shares_the_poll_interval_and_team_id(): void

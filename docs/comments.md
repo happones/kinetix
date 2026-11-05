@@ -48,7 +48,17 @@ pass either the class or its alias.
 
 ## The component
 
-Mount `KinetixComments` with the model's morph type and id:
+Hand the page a **signed reference** to the record, minted on the server, and
+mount `KinetixComments` with it:
+
+```php
+use Happones\Kinetix\Comments\KinetixComments;
+
+return inertia('Posts/Show', [
+    'post'               => $post->only('id', 'title'),
+    'comments_reference' => KinetixComments::reference($post),
+]);
+```
 
 ```vue
 <script setup lang="ts">
@@ -56,15 +66,25 @@ import KinetixComments from "@/components/kinetix/KinetixComments.vue";
 </script>
 
 <template>
-  <KinetixComments commentable-type="App\Models\Post" :commentable-id="post.id" />
+  <KinetixComments :reference="comments_reference" />
 </template>
 ```
+
+The reference names exactly that record. It is bound to the user and team it was
+minted for and expires with `kinetix.tables.token_ttl`, so mint it on every page
+render (never store it). The endpoints load the record from it, so the browser
+can't point them at another one.
+
+The legacy `commentable-type` + `:commentable-id` props still work while
+`comments.require_reference` allows a raw type + id (see
+[Authorization](#authorization)). Under teams they are refused by default.
 
 It renders a composer, the threaded list (with author avatars/initials and
 relative timestamps), inline **Reply**, and **Edit** / **Delete** on the user's
 own comments. The server returns the full tree after each change, so the list
-stays authoritative. `useKinetixComments(type, id)` exposes
-`{ comments, loading, load, post, edit, remove }` for a custom UI. All strings
+stays authoritative. `useKinetixComments(null, null, reference)` (the reference
+as a ref, a getter or a string) exposes `{ comments, loading, load, post, edit,
+remove }` for a custom UI; `useKinetixComments(type, id)` is the legacy form. All strings
 are localized (`comment_*`, en/es/fr/pt).
 
 ---
@@ -74,7 +94,24 @@ are localized (`comment_*`, en/es/fr/pt).
 - **Read / post**: any authenticated user who may view the commentable. When the
   model has a policy, Kinetix checks the `view` ability before allowing access.
 - **Edit / delete**: restricted to the comment's author (HTTP 403 otherwise).
-- **Allowlist**: a `commentable_type` that isn't registered returns 404.
+- **Allowlist**: a type that isn't registered returns 404, with a reference or
+  without.
+- **Signed reference**: a reference minted for another user or another team, an
+  expired one, or a tags reference answers 403; an unreadable one 400.
+- **Raw type + id** (`commentable_type` + `commentable_id`) names *any* record
+  of an allowlisted class, so `comments.require_reference` decides when it is
+  accepted:
+
+  | `require_reference` | Raw type + id                                                                  |
+  | ------------------- | ------------------------------------------------------------------------------ |
+  | `null` (default)    | refused (403) when `kinetix.teams` is on; accepted otherwise                   |
+  | `true`              | always refused                                                                 |
+  | `false`             | accepted; under teams the model **must have a policy** (403 without one)       |
+
+  Without teams a raw type + id behaves as before: the `view` policy is honoured
+  when the model has one, and the record is allowed otherwise. Under teams a
+  permission-only policy can't tell a record of your team from one of another
+  team, which is why the reference is required there.
 
 ---
 
@@ -89,6 +126,7 @@ Registered under your Kinetix prefix (team-aware when `kinetix.teams` is on):
 | `PUT`    | `{prefix}/comments/{id}`    | `kinetix.comments.update` |
 | `DELETE` | `{prefix}/comments/{id}`    | `kinetix.comments.destroy` |
 
-`index` / `store` take `commentable_type` + `commentable_id` (and `body` /
-`parent_id` for `store`); `store` returns the refreshed tree. Deleting a
+`index` / `store` take `reference` (or the legacy `commentable_type` +
+`commentable_id`), and `body` / `parent_id` for `store`; `store` returns the
+refreshed tree. Deleting a
 top-level comment removes its replies too.

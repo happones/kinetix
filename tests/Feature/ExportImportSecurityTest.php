@@ -11,11 +11,14 @@ use Happones\Kinetix\Exports\FileWriter;
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Imports\ImportColumn;
 use Happones\Kinetix\Imports\Importer;
+use Happones\Kinetix\Support\DescriptorAudience;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
@@ -194,6 +197,27 @@ class ExportImportSecurityTest extends TestCase
         $this->actingAs($user)
             ->get(route('kinetix.exports.download', ['token' => $token]))
             ->assertForbidden();
+    }
+
+    public function test_export_download_only_opens_a_download_token(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('kinetix-imports/upload.csv', 'name');
+
+        $user = GuardedRecordUser::create([]);
+        $this->actingAs($user);
+
+        // An import's file token carries a `path` too, bound to the same user.
+        $importToken = SignedDescriptor::seal(['path' => 'kinetix-imports/upload.csv'], DescriptorAudience::ImportFile);
+        $this->assertNull(DownloadToken::open($importToken, $user));
+
+        // So does a pre-upgrade download token without its purpose.
+        $legacy = Crypt::encrypt(['disk' => 'local', 'path' => 'kinetix-imports/upload.csv', 'name' => 'x.csv', 'user' => $user->getKey(), 'expires' => null]);
+        $this->assertNull(DownloadToken::open($legacy, $user));
+
+        $this->get(route('kinetix.exports.download', ['token' => $importToken]))->assertForbidden();
+
+        $this->assertNotNull(DownloadToken::open(DownloadToken::mint('local', 'kinetix-imports/upload.csv', 'x.csv', $user->getKey()), $user));
     }
 
     public function test_csv_cells_that_would_be_evaluated_as_formulas_are_neutralized(): void

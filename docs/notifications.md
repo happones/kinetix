@@ -241,6 +241,10 @@ When on:
 - **Filtering:** the bell lists only notifications stamped with the active team
   **plus unstamped (global) ones** — so `team(null)` deliberately means
   "visible in every team".
+- **Mark all as read / clear all** act on exactly what the bell shows: the
+  active team's notifications plus the global ones. Another team's stay
+  unread and are kept. "Mark all as read" is a single `UPDATE`, however many
+  notifications are unread.
 - **Broadcast:** the Echo channel stays per-user (`App.Models.User.{id}` —
   notifications are personal), so a notification for another team still
   arrives at the socket; the component suppresses its toast/sound when the

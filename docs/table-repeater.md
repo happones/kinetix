@@ -96,4 +96,25 @@ Registered under the tables group (team-aware), guarded by the field descriptor:
 | `DELETE` | `{prefix}/tables/table-repeater` | Delete a row |
 
 Each request carries the encrypted `token`; tampered or unsigned tokens are
-rejected (`400`), and only allowlisted columns are written.
+rejected (`400`), and only allowlisted columns are written. The token is bound
+to the user, the team and an expiry, and names this endpoint as its audience:
+a token minted for any other Kinetix endpoint (a relation manager's, a
+table's) is refused with `403`, even when its payload looks the same.
+
+### Authorization
+
+- Editing a row is editing the parent record, so the parent's `update` policy
+  (when its model has one) governs every request.
+- The row's own policy, when the related model has one, must also allow
+  `create` (on a new row, checked against the class), `update` or `delete`
+  (on the loaded row).
+- Rows are loaded and then saved or deleted as models, so their events and
+  observers fire. Deleting a row that isn't on the relation answers `404`.
+- The relation is resolved by name only when it is a real Eloquent relation
+  method of the parent (never a framework method such as `delete`).
+- A column that is `disabled()` (evaluated with the parent record when the
+  page renders) is left out of the signed allowlist, so the endpoint never
+  writes it — unless the column is `savedWhenDisabled()`.
+
+When the server refuses an autosave (a denied row policy, an expired page),
+the field shows the server's message, and a refused delete puts the row back.

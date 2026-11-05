@@ -17,6 +17,10 @@ Activate this skill when:
 The modern shadcn take on Jetstream's browser sessions, with a built-in
 user-agent parser (no `jenssegers/agent`).
 
+## While impersonating
+
+- While impersonating, "log out other sessions" answers 403 (`protect:writes`); the list still loads.
+
 ## Documentation
 
 For full details, reference `docs/sessions.md` (published at https://happones.github.io/kinetix/sessions).

@@ -48,8 +48,13 @@ TableRepeater::make('items')
 ```
 
 Each add/edit (debounced)/delete persists immediately. A signed descriptor
-(parent + relation + writable-column allowlist) guards the endpoint, so only the
-declared columns are written on that relation.
+(parent + relation + writable-column allowlist, audience `form.table-repeater`)
+guards the endpoint, so only the declared columns are written on that relation;
+a descriptor minted for any other endpoint (a relation manager's) is refused.
+The parent's `update` policy AND the row model's own policy (`create` /
+`update` / `delete`, when it has one) are enforced; rows are saved/deleted as
+models, so observers fire. The relation resolves only via
+`Support\EloquentRelation::resolve()`.
 
 ## Frontend
 

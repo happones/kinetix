@@ -30,6 +30,8 @@ php artisan migrate
     'max_steps'     => 50,   // loop guard
     'http_timeout'  => 10,   // API request steps, seconds
     'simulate_http' => true, // the test chat makes API calls for real
+    'follow_redirects'  => 0,      // redirects an API request may follow
+    'simulate_throttle' => '10,1', // test-chat runs per user: "attempts,minutes"
 ],
 ```
 
@@ -179,8 +181,14 @@ bodies and condition values.
 ### Calling your API
 
 API requests are checked against private and internal addresses (the same SSRF
-guard as webhooks). A refused URL, a timeout or a non-2xx answer follows the
-**Error** output.
+guard as webhooks: every IPv4 and IPv6 address of the host, special-use ranges
+included). The connection is pinned to the address that was checked, and
+redirects aren't followed unless `follow_redirects` allows some — each hop is
+checked again, and a hop to an internal address counts as refused. A refused
+URL, a timeout or a non-2xx answer follows the **Error** output.
+
+A step can't set the `Host`, `Content-Length`, `Transfer-Encoding`,
+`Connection` or any `Proxy-*` header: they are dropped from its list.
 
 Keep secrets out of flows. Point the step at an endpoint of your own app that
 holds them.
@@ -259,4 +267,5 @@ with one output.
 - The loop guard (`max_steps`) stops a run that goes through too many steps
   at once, with an error.
 - The test chat runs your real API requests (`simulate_http`). Turn that off
-  to skip them while testing.
+  to skip them while testing. It is rate limited per user
+  (`simulate_throttle`, 10 a minute by default; `429` beyond it).

@@ -35,6 +35,12 @@ class BillingRoutes
             $middleware[] = 'kinetix.permissions.team';
         }
 
+        // An admin impersonating someone may see their plan and invoices, but
+        // never subscribe, cancel or change how they pay. Then the host's own
+        // `kinetix.module_middleware.billing`.
+        $middleware[] = 'kinetix.impersonation.protect:writes';
+        $middleware   = [...$middleware, ...array_values((array) config('kinetix.module_middleware.billing', []))];
+
         // With the team in the host the parameter keeps its `{team}` name, so
         // the URLs the host builds (`route('billing.index', ['team' => …])`)
         // do not change with the tenancy mode.

@@ -192,6 +192,10 @@ export const i18n = createI18n({
                 pick_week: 'Pick a week',
                 pick_year: 'Pick a year',
                 week_of: 'Week {week}, {year}',
+                // withheld (write-only) form fields
+                form_withheld_hint:
+                    'A value is saved. Leave this blank to keep it.',
+                form_withheld_placeholder: 'Saved — leave blank to keep',
             },
         },
     },

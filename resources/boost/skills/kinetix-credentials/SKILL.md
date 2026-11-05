@@ -17,6 +17,10 @@ Activate this skill when:
 - Adding `NotAPreviousPassword` to a Fortify action.
 - Changing an app to sign in with `username` / `phone` instead of `email`.
 
+## While impersonating
+
+- While impersonating, a password change (every profile) and `members/{provision}/credential` answer 403; the password page still opens.
+
 ## Documentation
 
 For full details, reference `docs/credentials.md` (published at https://happones.github.io/kinetix/credentials).

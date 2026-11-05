@@ -8,6 +8,7 @@ use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
@@ -177,7 +178,7 @@ class RecordModalController
 
         abort_if($payload === null, 400, 'Invalid record descriptor.');
 
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::TableRecordModals);
         abort_if(
             $rejection !== null,
             403,

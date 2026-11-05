@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\ConnectedAccounts;
 
 use Happones\Kinetix\Data\ConnectedAccountData;
+use Happones\Kinetix\Support\ConfigCallback;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
@@ -105,18 +106,33 @@ class ConnectedAccountManager
     }
 
     /**
-     * Resolve the existing app user for a social identity (login flow). Honors a
-     * custom resolver; otherwise matches on email.
+     * Resolve the existing app user for a social identity (login flow), in
+     * this order:
+     *
+     * 1. the user who already linked this provider identity;
+     * 2. the custom resolver, when one is registered;
+     * 3. the user who owns the identity's email, when
+     *    `connected_accounts.link_by_email` allows linking on it.
+     *
+     * Null means nobody matched, so the caller creates the user.
+     *
+     * @throws SignInToLinkException when the email belongs to a user and linking on it is not allowed
      */
     public function resolveLoginUser(string $provider, object $socialUser): ?Authenticatable
     {
+        $linked = $this->linkedUser($provider, $socialUser);
+
+        if ($linked !== null) {
+            return $linked;
+        }
+
         if (($resolver = KinetixConnectedAccounts::userResolver()) !== null) {
             return $resolver($socialUser, $provider);
         }
 
         $email = $socialUser->getEmail();
 
-        if ($email === null) {
+        if (blank($email)) {
             return null;
         }
 
@@ -125,7 +141,107 @@ class ConnectedAccountManager
         /** @var Authenticatable|null $user */
         $user = $model::query()->where('email', $email)->first();
 
+        if ($user !== null && ! $this->mayLinkByEmail($provider, $socialUser)) {
+            throw new SignInToLinkException;
+        }
+
         return $user;
+    }
+
+    /**
+     * The user who already linked this provider identity, if any.
+     */
+    public function linkedUser(string $provider, object $socialUser): ?Authenticatable
+    {
+        $userId = ConnectedAccount::query()
+            ->where('provider', $provider)
+            ->where('provider_id', (string) $socialUser->getId())
+            ->value('user_id');
+
+        if ($userId === null) {
+            return null;
+        }
+
+        $model = $this->userModel();
+
+        /** @var Authenticatable|null $user */
+        $user = $model::query()->find($userId);
+
+        return $user;
+    }
+
+    /**
+     * Whether a provider login may link itself to the user that owns its
+     * email (`connected_accounts.link_by_email`): `always`, `never`, or
+     * `verified` (the default) when the provider vouches for the email.
+     */
+    public function mayLinkByEmail(string $provider, object $socialUser): bool
+    {
+        return match ((string) config('kinetix.connected_accounts.link_by_email', 'verified')) {
+            'always' => true,
+            'never'  => false,
+            default  => $this->emailIsVerified($provider, $socialUser),
+        };
+    }
+
+    /**
+     * Whether a provider login may create a new user. An account created on
+     * an email the provider never verified would belong to whoever controls
+     * that provider account, and it would be waiting for the real owner of
+     * the address when they sign up. So unless `link_by_email` is `always`,
+     * the email must be verified (or absent).
+     */
+    public function mayCreateLoginUser(string $provider, object $socialUser): bool
+    {
+        if ((string) config('kinetix.connected_accounts.link_by_email', 'verified') === 'always' || blank($socialUser->getEmail())) {
+            return true;
+        }
+
+        return $this->emailIsVerified($provider, $socialUser);
+    }
+
+    /**
+     * Whether the identity's email counts as verified. A configured
+     * `email_verified` callback decides alone (so a host can distrust a
+     * default provider); without one, the provider is listed in
+     * `verified_email_providers` or its own `email_verified` claim is true.
+     */
+    public function emailIsVerified(string $provider, object $socialUser): bool
+    {
+        $callback = ConfigCallback::resolve(config('kinetix.connected_accounts.email_verified'));
+
+        if ($callback !== null) {
+            return (bool) $callback($socialUser, $provider);
+        }
+
+        $trusted = config('kinetix.connected_accounts.verified_email_providers', []);
+
+        if (is_array($trusted) && in_array($provider, $trusted, true)) {
+            return true;
+        }
+
+        $raw   = $this->rawPayload($socialUser);
+        $claim = $raw['email_verified'] ?? $raw['verified_email'] ?? null;
+
+        return $claim === true || $claim === 'true';
+    }
+
+    /**
+     * The provider's raw user payload, as Socialite exposes it.
+     *
+     * @return array<string, mixed>
+     */
+    protected function rawPayload(object $socialUser): array
+    {
+        if (method_exists($socialUser, 'getRaw')) {
+            $raw = $socialUser->getRaw();
+
+            return is_array($raw) ? $raw : [];
+        }
+
+        $raw = property_exists($socialUser, 'user') ? $socialUser->user : null;
+
+        return is_array($raw) ? $raw : [];
     }
 
     /**

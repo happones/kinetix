@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms\Components;
 
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 
@@ -124,7 +125,7 @@ class FileUpload extends Field
             'maxSize'   => $this->maxSize,
             'image'     => $this->isImage,
             'multiple'  => $this->isMultiple,
-        ]);
+        ], DescriptorAudience::Upload);
 
         return $data;
     }

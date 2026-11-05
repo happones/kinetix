@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Forms\Components\AddressPicker;
 use Happones\Kinetix\Locations\KinetixLocations;
 use Happones\Kinetix\Locations\LocationProvider;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
@@ -230,10 +231,10 @@ class AddressLocationsTest extends TestCase
     {
         $this->getJson(route('kinetix.forms.locations', ['token' => 'forged', 'level' => 'states', 'country' => 'MX']))->assertStatus(400);
 
-        $unknown = SignedDescriptor::seal(['locations' => 'nope']);
+        $unknown = SignedDescriptor::seal(['locations' => 'nope'], DescriptorAudience::AddressLocations);
         $this->getJson(route('kinetix.forms.locations', ['token' => $unknown, 'level' => 'states', 'country' => 'MX']))->assertStatus(400);
 
-        $token = SignedDescriptor::seal(['locations' => 'world']);
+        $token = SignedDescriptor::seal(['locations' => 'world'], DescriptorAudience::AddressLocations);
         $this->getJson(route('kinetix.forms.locations', ['token' => $token, 'level' => 'users', 'country' => 'MX']))->assertStatus(422);
     }
 

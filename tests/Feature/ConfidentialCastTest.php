@@ -128,4 +128,43 @@ class ConfidentialCastTest extends TestCase
             ConfidentialCastTestCustomer::confidentialColumns(),
         );
     }
+
+    public function test_a_short_value_is_masked_entirely(): void
+    {
+        $this->assertSame('••••', Confidential::mask('1234'));
+        $this->assertSame('•', Confidential::mask('7'));
+        $this->assertSame('', Confidential::mask(''));
+    }
+
+    public function test_at_most_half_of_a_value_is_ever_shown(): void
+    {
+        $this->assertSame('•••45', Confidential::mask('12345'));
+        $this->assertSame('12•••', Confidential::mask('12345', 4, 'head'));
+        $this->assertSame('••••5678', Confidential::mask('12345678'));
+    }
+
+    public function test_masking_counts_characters_not_bytes(): void
+    {
+        $this->assertSame('••••úñ', Confidential::mask('ñandúñ', 2));
+        $this->assertSame('••••€€', Confidential::mask('€€€€€€', 2));
+    }
+
+    public function test_writing_back_the_mask_of_a_short_value_keeps_its_ciphertext(): void
+    {
+        $customer = ConfidentialCastTestCustomer::create(['national_id' => '1234']);
+        $customer->refresh();
+
+        $stored = $customer->getRawOriginal('national_id');
+
+        $this->assertSame('••••', $customer->national_id);
+
+        $customer->national_id = $customer->national_id;
+        $customer->save();
+
+        $this->assertSame($stored, $customer->fresh()?->getRawOriginal('national_id'));
+
+        Confidential::revealed(function () use ($customer): void {
+            $this->assertSame('1234', $customer->fresh()?->national_id);
+        });
+    }
 }

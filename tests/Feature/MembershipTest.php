@@ -281,4 +281,138 @@ class MembershipTest extends TestCase
         $this->assertFalse($member->fresh()->hasRole('editor'));
         $this->assertSame(1, $detached);
     }
+
+    public function test_re_provisioning_an_active_member_is_refused_and_leaves_the_row_alone(): void
+    {
+        Notification::fake();
+
+        $member = MemberUser::create(['name' => 'Member', 'email' => 'member@example.com']);
+        $member->assignRole('editor');
+
+        $provision = MemberProvision::create([
+            'email'        => 'member@example.com',
+            'role'         => 'editor',
+            'status'       => MemberProvisionStatus::Active,
+            'user_id'      => $member->id,
+            'activated_at' => now(),
+        ]);
+
+        $this->actingAs($this->actingAsManager())
+            ->postJson('/_kinetix/members', ['email' => 'member@example.com', 'role' => 'viewer'])
+            ->assertStatus(422)
+            ->assertJsonPath('message', __('kinetix.members_already_member'));
+
+        $fresh = $provision->fresh();
+        $this->assertSame(MemberProvisionStatus::Active, $fresh?->status);
+        $this->assertSame($member->id, (int) $fresh?->user_id);
+        $this->assertSame('editor', $fresh?->role);
+    }
+
+    public function test_re_provisioning_a_pending_invitation_still_refreshes_it(): void
+    {
+        Notification::fake();
+
+        MemberProvision::create([
+            'email'      => 'new@example.com',
+            'role'       => 'editor',
+            'status'     => MemberProvisionStatus::Pending,
+            'expires_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($this->actingAsManager())
+            ->postJson('/_kinetix/members', ['email' => 'new@example.com', 'role' => 'viewer'])
+            ->assertCreated();
+
+        $this->assertSame(1, MemberProvision::query()->count());
+        $this->assertSame('viewer', MemberProvision::query()->first()?->role);
+    }
+
+    public function test_the_doctor_flags_pending_provisions_of_existing_members(): void
+    {
+        MemberUser::create(['name' => 'Member', 'email' => 'member@example.com']);
+
+        $stale = MemberProvision::create(['email' => 'member@example.com', 'role' => 'editor', 'status' => MemberProvisionStatus::Pending]);
+        MemberProvision::create(['email' => 'new@example.com', 'role' => 'editor', 'status' => MemberProvisionStatus::Pending]);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('1 pending provision(s) name someone who is already a member')
+            ->expectsOutputToContain("#{$stale->id} member@example.com");
+    }
+
+    public function test_the_doctor_only_flags_a_team_provision_when_the_user_is_in_that_team(): void
+    {
+        config()->set('kinetix.membership.user_model', MemberTeamUser::class);
+
+        Schema::create('member_teams', function (Blueprint $table) {
+            $table->increments('id');
+        });
+        Schema::create('member_team_user', function (Blueprint $table) {
+            $table->unsignedInteger('team_id');
+            $table->unsignedInteger('user_id');
+        });
+
+        $team = MemberTeam::create();
+        $user = MemberTeamUser::create(['name' => 'Someone', 'email' => 'someone@example.com']);
+
+        MemberProvision::create(['team_id' => $team->id, 'email' => 'someone@example.com', 'role' => 'editor', 'status' => MemberProvisionStatus::Pending]);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('pending provision(s) name someone who is already a member');
+
+        $user->teams()->attach($team->id);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('1 pending provision(s) name someone who is already a member');
+    }
+
+    public function test_the_doctor_is_quiet_without_such_provisions(): void
+    {
+        MemberProvision::create(['email' => 'new@example.com', 'role' => 'editor', 'status' => MemberProvisionStatus::Pending]);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('pending provision(s) name someone who is already a member');
+    }
+
+    public function test_cancelling_an_invitation_never_touches_an_existing_user_with_that_email(): void
+    {
+        Notification::fake();
+        MembershipDetachSpy::$detached = [];
+        config()->set('kinetix.membership.detach_member', [MembershipDetachSpy::class, 'detach']);
+
+        // An existing user who holds `editor` from outside the members screen.
+        $victim = MemberUser::create(['name' => 'Victim', 'email' => 'victim@example.com']);
+        $victim->assignRole('editor');
+
+        $manager = $this->actingAsManager();
+
+        $this->actingAs($manager)
+            ->postJson('/_kinetix/members', ['email' => 'victim@example.com', 'role' => 'editor'])
+            ->assertCreated();
+
+        $provision = MemberProvision::query()->where('email', 'victim@example.com')->firstOrFail();
+
+        $this->actingAs($manager)
+            ->deleteJson("/_kinetix/members/{$provision->id}")
+            ->assertOk();
+
+        $this->assertSame(MemberProvisionStatus::Revoked, $provision->fresh()?->status);
+        $this->assertTrue($victim->fresh()?->hasRole('editor'));
+        $this->assertSame([], MembershipDetachSpy::$detached);
+    }
+}
+
+/**
+ * Records every `membership.detach_member` call.
+ */
+class MembershipDetachSpy
+{
+    /**
+     * @var list<string|null>
+     */
+    public static array $detached = [];
+
+    public static function detach(?Model $user, MemberProvision $provision): void
+    {
+        static::$detached[] = $user?->getAttribute('email');
+    }
 }

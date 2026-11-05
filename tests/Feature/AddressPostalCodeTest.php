@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Forms\Components\AddressPicker;
 use Happones\Kinetix\Locations\CachedPostalCodeProvider;
 use Happones\Kinetix\Locations\KinetixLocations;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Schema\Blueprint;
@@ -171,7 +172,7 @@ class AddressPostalCodeTest extends TestCase
         $this->getJson(route('kinetix.forms.locations', ['token' => $token, 'level' => 'neighborhoods', 'country' => 'MX']))
             ->assertStatus(422);
 
-        $world = SignedDescriptor::seal(['locations' => 'world']);
+        $world = SignedDescriptor::seal(['locations' => 'world'], DescriptorAudience::AddressLocations);
         $this->getJson(route('kinetix.forms.locations', ['token' => $world, 'level' => 'postal-code', 'country' => 'MX', 'code' => '44160']))
             ->assertStatus(422);
     }

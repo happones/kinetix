@@ -53,6 +53,7 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations   # needs kinetix-chan
 - **Recording**: listeners on `ChannelMessageReceived` / `ChannelMessageStatusUpdated` call `recordInbound` / `recordStatus`.
     - Dedupe by `external_id`.
     - Media goes through the queued `DownloadConversationMedia` → driver `DownloadsMedia`, onto the private disk.
+    - `InboxController::media` trusts no sender MIME: inline only for `image/{png,jpeg,gif,webp,avif,bmp}`, `audio/*`, `video/*` (no `xml`) and `application/pdf`; everything else is an `application/octet-stream` attachment. A sandbox CSP goes on every response but PDFs; `nosniff` on all.
     - Receipts only move forward (`MessageStatus::rank()`).
 - **Sending**: `InboxManager::send($conversation, $author, $text, $file, $replyTo, $note)`.
     - It stores the message first (pending), then `deliver()` → driver `SendsMessages::send(OutgoingMessage)` returns the external id.

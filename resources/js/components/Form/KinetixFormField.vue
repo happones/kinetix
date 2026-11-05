@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Component } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { dateBounds } from '@/composables/kinetixFieldConstraints';
 import KinetixAddressPicker from '../KinetixAddressPicker.vue';
 import KinetixBusinessHours from '../KinetixBusinessHours.vue';
@@ -43,6 +44,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
+
+const { t } = useI18n();
 
 /**
  * Field-type → component map. Resolving by lookup (O(1)) rather than a ~35-way
@@ -269,8 +272,26 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
  */
 const DATE_TYPES = ['date-picker', 'datetime-picker'];
 
+/**
+ * A withheld field has a stored value the server never sends (a secret, an
+ * encrypted setting): the control renders empty, so its placeholder says a value
+ * exists and that leaving it blank keeps it. A field's own placeholder wins.
+ */
+const withheld = computed<boolean>(
+    () => props.comp.isWithheld === true && props.comp.type !== 'hidden',
+);
+
+const baseComp = computed(() =>
+    withheld.value && !props.comp.placeholder
+        ? {
+              ...props.comp,
+              placeholder: t('kinetix.form_withheld_placeholder'),
+          }
+        : props.comp,
+);
+
 const fieldComp = computed(() => {
-    const comp = props.comp;
+    const comp = baseComp.value;
 
     if (!DATE_TYPES.includes(comp.type) || !comp.constraints?.dates?.length) {
         return comp;
@@ -296,7 +317,8 @@ const delegate = computed<Delegate | null>(
 /**
  * Describedby/error wiring for assistive tech: `aria-describedby` chains the
  * helper text (`<name>-help`) and the error (`<name>-error`) ids that
- * KinetixFormSchema renders, and `aria-invalid` flips the field into its
+ * KinetixFormSchema renders, plus the withheld hint (`<name>-withheld`) rendered
+ * here, and `aria-invalid` flips the field into its
  * destructive state (the shadcn input/textarea classes style it). Bound via
  * fallthrough attrs so every field type gets it without per-field plumbing.
  */
@@ -305,6 +327,7 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
 
     const describedBy = [
         props.comp.description ? `${props.comp.name}-help` : null,
+        withheld.value ? `${props.comp.name}-withheld` : null,
         props.describedBy ?? null,
         hasError ? `${props.comp.name}-error` : null,
     ]
@@ -343,7 +366,16 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
         :is="delegate.component"
         v-else-if="delegate"
         :value="values[comp.name]"
-        v-bind="{ ...delegate.props(comp, values), ...errorA11yAttrs }"
+        v-bind="{ ...delegate.props(baseComp, values), ...errorA11yAttrs }"
         @update:value="emit('update', $event)"
     />
+
+    <!-- A stored value exists but isn't sent: blank keeps it. -->
+    <p
+        v-if="withheld && (dedicated || delegate)"
+        :id="`${comp.name}-withheld`"
+        class="text-xs mt-1 text-muted-foreground"
+    >
+        {{ t('kinetix.form_withheld_hint') }}
+    </p>
 </template>

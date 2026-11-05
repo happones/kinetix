@@ -328,6 +328,60 @@ MD);
         $this->getJson(route('kinetix.help.search', ['q' => 'k']))->assertJsonCount(0, 'results');
     }
 
+    public function test_search_never_finds_a_gated_block_for_a_denied_user(): void
+    {
+        Gate::define('billing.manage', fn ($user): bool => $user->name === 'Owner');
+
+        $this->article('01-a.md', <<<'MD'
+# Guide
+
+<!-- kinetix:can billing.manage -->
+
+The wire transfer passphrase is zebracrossing.
+
+<!-- /kinetix:can -->
+
+Public outro about invoices.
+MD);
+
+        $this->getJson(route('kinetix.help.search', ['q' => 'zebracrossing']))
+            ->assertOk()
+            ->assertJsonCount(0, 'results');
+
+        $this->getJson(route('kinetix.help.search', ['q' => 'invoices']))
+            ->assertOk()
+            ->assertJsonCount(1, 'results')
+            ->assertJson(fn ($json) => $json->where('results.0.excerpt', fn ($e) => ! str_contains((string) $e, 'zebracrossing'))->etc());
+
+        $articles = $this->getJson(route('kinetix.help.index'))->json('articles');
+        $this->assertStringNotContainsString('zebracrossing', (string) json_encode($articles));
+
+        $this->actingAs(HelpUser::create(['name' => 'Owner']));
+
+        $this->getJson(route('kinetix.help.search', ['q' => 'zebracrossing']))
+            ->assertOk()
+            ->assertJsonCount(1, 'results')
+            ->assertJson(fn ($json) => $json->where('results.0.excerpt', fn ($e) => str_contains((string) $e, 'zebracrossing'))->etc());
+    }
+
+    public function test_search_asks_the_gate_once_per_ability(): void
+    {
+        $calls = 0;
+        Gate::define('ops.view', function () use (&$calls): bool {
+            $calls++;
+
+            return true;
+        });
+
+        foreach (['01-a', '02-b', '03-c'] as $slug) {
+            $this->article("{$slug}.md", "# {$slug}\n\n<!-- kinetix:can ops.view -->\nrunbook step\n<!-- /kinetix:can -->\n");
+        }
+
+        $this->getJson(route('kinetix.help.search', ['q' => 'runbook']))->assertOk()->assertJsonCount(3, 'results');
+
+        $this->assertSame(1, $calls);
+    }
+
     public function test_an_explicit_locale_is_served_without_touching_the_app_locale(): void
     {
         $this->article('01-a.md', "# English\n\nBase body.");

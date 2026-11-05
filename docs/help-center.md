@@ -160,8 +160,12 @@ Only users who may manage billing read this section.
 <!-- /kinetix:can -->
 ```
 
-Denied blocks are stripped from the markdown before rendering. Gates cannot be
-nested; an unclosed gate strips to the end of the document. Abilities are your
+Denied blocks are stripped from the markdown before rendering, and from search:
+the search index keeps an article's public text apart from its gated blocks, so
+a block's words are found (and shown in an excerpt) only for users who may read
+it, and an article's card excerpt never comes from a gated block. Each ability
+is asked once per search. Gates cannot be nested; an unclosed gate strips to
+the end of the document. Abilities are your
 host app's own Gate abilities (Spatie permissions, policies, `Gate::define` —
 anything `Gate::allows()` resolves).
 

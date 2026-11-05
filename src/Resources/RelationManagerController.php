@@ -8,7 +8,9 @@ use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -535,7 +537,7 @@ class RelationManagerController
         // The descriptor is bound to the user and team it was minted for, and
         // expires ({@see SignedDescriptor}), so it can't be lifted from another
         // user's page — or another team's — and replayed.
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::RelationManager);
         abort_if(
             $rejection !== null,
             403,
@@ -556,8 +558,8 @@ class RelationManagerController
             );
         }
 
-        abort_unless(method_exists($parent, $relationName), 400, 'Unknown relation.');
-        $relation = $parent->{$relationName}();
+        $relation = EloquentRelation::resolve($parent, $relationName);
+        abort_if($relation === null, 400, 'Unknown relation.');
 
         match ($type) {
             'belongsToMany' => abort_unless(

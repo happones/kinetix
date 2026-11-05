@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, toValue } from 'vue';
+import type { MaybeRefOrGetter } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type { KinetixSharedProps } from '@/types/kinetix';
 
@@ -7,10 +8,16 @@ import type { KinetixSharedProps } from '@/types/kinetix';
  * Self-service polymorphic tags for a taggable model: load the current tags,
  * autocomplete from existing tags, and sync the set. The server returns the
  * authoritative tag list after a sync.
+ *
+ * Target the model with its sealed `reference` (from
+ * `KinetixTags::reference($model)`), or with the legacy morph type + id. When a
+ * reference is given it is the only target sent; it is read on every request,
+ * so a getter keeps a reference refreshed by a reload current.
  */
 export function useKinetixTags(
-    taggableType: string,
-    taggableId: number | string,
+    taggableType?: string | null,
+    taggableId?: number | string | null,
+    reference?: MaybeRefOrGetter<string | null | undefined>,
 ) {
     const page = usePage<KinetixSharedProps>();
     const base = (): string => `/${kinetixRoutePrefix(page)}/tags`;
@@ -18,14 +25,24 @@ export function useKinetixTags(
     const tags = ref<string[]>([]);
     const loading = ref(false);
 
+    const target = (): Record<string, string | number | null | undefined> => {
+        const sealed = toValue(reference);
+
+        return sealed
+            ? { reference: sealed }
+            : { taggable_type: taggableType, taggable_id: taggableId };
+    };
+
     async function load(): Promise<void> {
         loading.value = true;
 
         try {
-            const q = new URLSearchParams({
-                taggable_type: taggableType,
-                taggable_id: String(taggableId),
-            });
+            const q = new URLSearchParams();
+
+            for (const [key, value] of Object.entries(target())) {
+                q.set(key, String(value ?? ''));
+            }
+
             const data = await kinetixFetch<{ tags: string[] }>(
                 `${base()}?${q.toString()}`,
             );
@@ -47,11 +64,7 @@ export function useKinetixTags(
     async function sync(next: string[]): Promise<void> {
         const data = await kinetixFetch<{ tags: string[] }>(`${base()}/sync`, {
             method: 'POST',
-            body: {
-                taggable_type: taggableType,
-                taggable_id: taggableId,
-                tags: next,
-            },
+            body: { ...target(), tags: next },
         });
         tags.value = data?.tags ?? next;
     }

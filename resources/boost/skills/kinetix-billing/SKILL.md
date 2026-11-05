@@ -17,6 +17,10 @@ Activate this skill when:
 - Gating routes with `plan.feature` middleware, or scaffolding via `kinetix:make-billing`.
 - Showing progress for **metered** Stripe prices (API calls, seats, storage, …) — `UsageMetric`, `BillingManager::usage()`/`reportUsage()`, `<KinetixUsageMeters>`.
 
+## While impersonating
+
+- Bundled billing routes carry `kinetix.impersonation.protect:writes`: while impersonating, reads work and every write answers 403. `kinetix.module_middleware.billing` is appended too.
+
 ## Documentation
 
 Full reference: [Kinetix Billing Documentation](https://happones.github.io/kinetix/billing).

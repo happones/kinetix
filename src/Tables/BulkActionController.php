@@ -6,7 +6,9 @@ namespace Happones\Kinetix\Tables;
 
 use Happones\Kinetix\Actions\BulkAction;
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -201,7 +203,7 @@ class BulkActionController
             ], 400);
         }
 
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::TableBulk);
 
         if ($rejection !== null) {
             return response()->json([
@@ -307,7 +309,7 @@ class BulkActionController
         $parent = $parentClass::query()->whereKey($relation['key'] ?? null)->first();
         abort_if($parent === null, 404, (string) __('kinetix.table_record_not_found'));
 
-        $relationObject = $parent->{$relationName}();
+        $relationObject = EloquentRelation::resolve($parent, $relationName);
 
         abort_unless($relationObject instanceof Relation, 400, 'Invalid relation.');
         abort_unless($relationObject->getRelated()::class === $modelClass, 400, 'Relation model mismatch.');

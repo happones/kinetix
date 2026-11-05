@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Calendar\Calendar;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -375,7 +376,7 @@ class CalendarMoveTest extends TestCase
             'endColumn'   => 'ends_at',
             'moveAbility' => null,
             'moveScope'   => [],
-        ]);
+        ], DescriptorAudience::CalendarMove);
         $event = CalendarMoveEvent::firstOrFail();
 
         $this->postJson('/_kinetix/tables/calendar-move', [

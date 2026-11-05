@@ -103,7 +103,9 @@ interface StepRequirement {
  * conditionally hidden field never blocks (the user can't see it) and a
  * `requiredWhen` field blocks only while its condition holds — the same
  * conditions the server applies on submit. An item list counts its own items
- * (`required()`, `minItems()`); the guard doesn't walk into them.
+ * (`required()`, `minItems()`); the guard doesn't walk into them. A withheld
+ * field already has a stored value the server keeps when it's left blank, so
+ * an empty one never blocks either.
  */
 function requirements(nodes: any[]): StepRequirement[] {
     const found: StepRequirement[] = [];
@@ -121,7 +123,9 @@ function requirements(nodes: any[]): StepRequirement[] {
                 walk(n.schema);
             }
 
-            const required = Boolean(effect.required ?? n.isRequired);
+            const required =
+                Boolean(effect.required ?? n.isRequired) &&
+                n.isWithheld !== true;
             const minItems = Math.max(
                 required ? 1 : 0,
                 isItemList ? (n.minItems ?? 0) : 0,

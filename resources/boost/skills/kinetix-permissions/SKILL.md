@@ -189,10 +189,15 @@ still works, unscoped.
   a super-admin cross teams — everyone else (owner, stored row, role) is limited to
   `KinetixTeams::currentTeamKey()` members. Copy the recipe in `docs/permissions.md`,
   don't improvise it.
-- **App-wide modules belong in `except`**: with `kinetix.{module}.teams = false`
-  (settings, activity, webhooks, channels / conversations / flows), or roles with
-  `permissions.teams` off, the data is app-wide and an owner granted the feature
-  acts on every tenant's rows.
+- **App-wide modules are platform-level**: with `kinetix.teams` on and a
+  module's `teams = false`, the provider marks its whole feature `->platform()`
+  (webhooks→`webhooks`; channels→`channels`, `conversations`, `flows`;
+  settings→`settings`; activity→`activity`; membership→`members`), so the owner
+  bypass never grants it and only a super-admin grants it on roles. Roles with
+  `permissions.teams` off are app-wide too — put `roles` in `except`.
+- `passesBuiltInGuards()` now carries the team limit (the target's teams must
+  all be the impersonator's; protected permissions and ownership checked per
+  team), so a `can_impersonate` recipe that starts with it inherits it.
 - `kinetix:doctor` prints "owner bypass on — N of M registered abilities
   (platform: …; except: …)" and **warns on every pattern that matches nothing**
   — a typo in `except` silently over-grants.

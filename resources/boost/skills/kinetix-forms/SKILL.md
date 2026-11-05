@@ -185,6 +185,19 @@ panel. `KinetixSheet` always pins.
   `'1'`, `null` = `''`; a list value matches when it contains the value). An
   unknown operator throws; `in`/`notIn` need a list. A conditionally hidden
   field is never validated nor persisted, on every path (FormRequest too).
+- `disabled()` / a holding `disabledWhen()` are enforced on the SERVER: the
+  submitted value is ignored (not validated, not saved). A record keeps its
+  stored value; a new one gets the filled value, else the default. A field the
+  page computes (a total, set by another field's hook) and must store needs
+  `->savedWhenDisabled()`. LIMIT: a disabled field INSIDE Repeater/TableRepeater
+  rows is browser-only (rows can't be matched to stored rows) — validate or
+  derive such values on the server. An autosave TableRepeater drops disabled
+  columns from its signed allowlist.
+- Secrets: `Form::writeOnly(['api_key'])` BEFORE `fill()` → never sent, rendered
+  empty with `isWithheld: true` when a value is stored, blank/unchanged on
+  submit = keep (skipped by rules and `getState()`). Hidden/confidential model
+  attributes get the same `isWithheld` flag when their raw value is set. Never
+  ship a secret back to fill a form.
 - `->live()` + `afterStateUpdated(fn (Set $set) => …)` + `options(fn (Get $get)
   => …)` need a reconstructible form (a `Form` subclass or a resource form).
   Only the changed live field's hook runs per recompute, so cascades work;

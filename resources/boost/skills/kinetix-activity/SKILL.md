@@ -63,6 +63,10 @@ class Product extends Model
 }
 ```
 
+Hidden (`$hidden`) and encrypted (`encrypted*`, `AsEncrypted*`, `ConfidentialCast`)
+attributes are logged as `[redacted]` (key kept, both sides); old values come from
+`getRawOriginal()` — never `getOriginal()`, which decrypts.
+
 Log manually / read for one record:
 
 ```php

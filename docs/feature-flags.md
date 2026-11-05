@@ -83,6 +83,11 @@ Or gate a route — inactive flags 404 (the route effectively doesn't exist):
 Route::get('/beta', BetaController::class)->middleware('kinetix.feature:beta-search');
 ```
 
+To put one of Kinetix's own modules behind a flag (its built-in endpoints
+too), list the middleware under
+[`kinetix.module_middleware`](/installation#gating-a-kinetix-module-on-the-server):
+`'flows' => ['kinetix.feature:bots']`.
+
 ---
 
 ## 3. Gating the frontend

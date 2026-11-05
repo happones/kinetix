@@ -6,10 +6,12 @@ namespace Happones\Kinetix\Forms;
 
 use Happones\Kinetix\Confidential\Casts\ConfidentialCast;
 use Happones\Kinetix\Data\FormData;
+use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Forms\Components\Component;
 use Happones\Kinetix\Forms\Components\Field;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
@@ -71,6 +73,30 @@ class Form implements Arrayable, JsonSerializable
      * non-reactive (its closures can't be rebuilt server-side).
      */
     protected ?string $reactiveResource = null;
+
+    /**
+     * Fields whose value never travels to the browser ({@see writeOnly()}).
+     *
+     * @var list<string>
+     */
+    protected array $writeOnly = [];
+
+    /**
+     * The write-only fields {@see fill()} found a stored value for.
+     *
+     * @var array<string, true>
+     */
+    protected array $storedWriteOnly = [];
+
+    /**
+     * Write-only fields whose value is inherited from elsewhere (a team
+     * settings page over a global secret): blank keeps inheriting it, so they
+     * are not required — but the value isn't this form's own, so they are not
+     * flagged as withheld either.
+     *
+     * @var array<string, true>
+     */
+    protected array $inheritedWriteOnly = [];
 
     /**
      * Opt a resource-built or inline form into the reactivity loop by naming
@@ -159,6 +185,41 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
+     * Make fields write-only: whatever value they have is never sent to the
+     * browser — they render empty, flagged `isWithheld` when a value is
+     * stored — and a submit that leaves them blank (or unchanged) keeps the
+     * stored value instead of clearing it. For secrets: API keys, passwords,
+     * tokens. Call it before {@see fill()}, which records which of them hold
+     * a value.
+     *
+     * @param list<string> $names
+     */
+    public function writeOnly(array $names): static
+    {
+        $this->writeOnly = array_values(array_unique([...$this->writeOnly, ...$names]));
+
+        return $this;
+    }
+
+    /**
+     * Mark write-only fields whose value is inherited from another scope: a
+     * blank submit keeps inheriting it (not validated, not written), while
+     * the field still renders as holding no value of its own.
+     *
+     * @internal used by settings pages
+     *
+     * @param list<string> $names
+     */
+    public function inheritingWriteOnly(array $names): static
+    {
+        foreach ($names as $name) {
+            $this->inheritedWriteOnly[$name] = true;
+        }
+
+        return $this;
+    }
+
+    /**
      * Fill the form data from array or Model.
      */
     public function fill(mixed $data = []): static
@@ -201,7 +262,36 @@ class Form implements Arrayable, JsonSerializable
             }
         }
 
+        $this->withholdWriteOnly($data);
+
         return $this;
+    }
+
+    /**
+     * Record which write-only fields hold a value in `$source`, then blank
+     * them so the value never leaves the server.
+     */
+    protected function withholdWriteOnly(mixed $source): void
+    {
+        if ($this->writeOnly === []) {
+            return;
+        }
+
+        $fields = $this->getFields();
+
+        foreach ($this->writeOnly as $name) {
+            $stored = $source instanceof Model
+                ? data_get($source, $name)
+                : (is_array($source) ? ($source[$name] ?? null) : null);
+
+            if (blank($stored)) {
+                unset($this->storedWriteOnly[$name]);
+            } else {
+                $this->storedWriteOnly[$name] = true;
+            }
+
+            $this->data[$name] = isset($fields[$name]) ? $fields[$name]->hydrate(null, $this->record) : null;
+        }
     }
 
     /**
@@ -282,6 +372,12 @@ class Form implements Arrayable, JsonSerializable
             // A hidden attribute left as it rendered keeps its stored value
             // (see keepsStoredValue()), so there is nothing to validate.
             if ($this->keepsStoredValue($field, $name, $data)) {
+                continue;
+            }
+
+            // A disabled field is never written, so nothing to validate
+            // either — unless it opted into being saved.
+            if ($this->ignoresDisabled($field, $data)) {
                 continue;
             }
 
@@ -412,6 +508,23 @@ class Form implements Arrayable, JsonSerializable
                 continue;
             }
 
+            // A disabled field takes no input: a record keeps what it has;
+            // otherwise the value the form was filled with (a settings page's
+            // current value), else the default. A submitted value is ignored.
+            if ($this->ignoresDisabled($field, $data)) {
+                if ($this->record !== null && $this->record->exists) {
+                    continue;
+                }
+
+                $state[$name] = $field->dehydrate($this->data[$name] ?? $field->getDefaultValue($this->record), $this->record);
+
+                continue;
+            }
+
+            if ($this->isBlankWriteOnly($field, $name, $data)) {
+                continue;
+            }
+
             $value        = $data[$name] ?? $field->getDefaultValue($this->record);
             $state[$name] = $field->dehydrate($value, $this->record);
         }
@@ -480,15 +593,146 @@ class Form implements Arrayable, JsonSerializable
      */
     protected function keepsStoredValue(Field $field, string $name, array $data): bool
     {
+        if (in_array($name, $this->writeOnly, true)) {
+            $keeps = $this->hasStoredWriteOnly($name) || isset($this->inheritedWriteOnly[$name]);
+
+            return $keeps && $this->isUnchangedWithheld($field, $name, $data);
+        }
+
         if ($this->record === null || ! $this->record->exists || ! $this->isHiddenAttribute($this->record, $name)) {
             return false;
         }
 
+        return $this->isUnchangedWithheld($field, $name, $data);
+    }
+
+    /**
+     * Whether a withheld field came back as it rendered: blank, off, or the
+     * field's empty state.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function isUnchangedWithheld(Field $field, string $name, array $data): bool
+    {
         $submitted = $data[$name] ?? null;
 
         return blank($submitted)
             || $submitted === false
             || $submitted == $field->hydrate(null, $this->record);
+    }
+
+    /**
+     * A write-only field with nothing stored that came back blank: there is
+     * nothing to keep and nothing to write.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function isBlankWriteOnly(Field $field, string $name, array $data): bool
+    {
+        return in_array($name, $this->writeOnly, true) && $this->isUnchangedWithheld($field, $name, $data);
+    }
+
+    /**
+     * Whether a write-only field has a stored value: what {@see fill()}
+     * recorded, or — for a form never filled — the record's attribute.
+     */
+    private function hasStoredWriteOnly(string $name): bool
+    {
+        if (isset($this->storedWriteOnly[$name])) {
+            return true;
+        }
+
+        return ! $this->isFilled && $this->record !== null && $this->record->exists && ! blank(data_get($this->record, $name));
+    }
+
+    /**
+     * Whether a disabled field's submitted value must be ignored: it is
+     * disabled for this submit and didn't opt into
+     * {@see Field::savedWhenDisabled()}.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function ignoresDisabled(Field $field, array $data): bool
+    {
+        return ! $field->isSavedWhenDisabled() && $field->isDisabledFor($data, $this->record);
+    }
+
+    /**
+     * The names whose stored value the form holds back: write-only fields
+     * with a value, and withheld model attributes (hidden or confidential)
+     * whose raw stored value is set.
+     *
+     * @return array<string, true>
+     */
+    protected function withheldNames(): array
+    {
+        $names = [];
+
+        foreach (array_keys($this->getFields()) as $name) {
+            if (in_array($name, $this->writeOnly, true)) {
+                if ($this->hasStoredWriteOnly($name)) {
+                    $names[$name] = true;
+                }
+
+                continue;
+            }
+
+            if ($this->record !== null && $this->record->exists && $this->isHiddenAttribute($this->record, $name) && $this->storedRawValue($this->record, $name) !== null) {
+                $names[$name] = true;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * The raw stored value behind `$name` (no casts: a confidential value is
+     * its ciphertext), walking a dotted name through its relations.
+     */
+    private function storedRawValue(Model $record, string $name): mixed
+    {
+        $segments  = explode('.', $name);
+        $attribute = array_pop($segments);
+        $owner     = $record;
+
+        foreach ($segments as $segment) {
+            $related = data_get($owner, $segment);
+
+            if (! $related instanceof Model) {
+                return data_get($record, $name);
+            }
+
+            $owner = $related;
+        }
+
+        return $owner->getAttributes()[$attribute] ?? null;
+    }
+
+    /**
+     * Flag the serialized fields whose stored value is held back. Descends
+     * into layout components only: a repeater's own rows are not this form's
+     * fields.
+     *
+     * @param array<int, mixed>   $components
+     * @param array<string, true> $names
+     */
+    private static function flagWithheld(array $components, array $names): void
+    {
+        foreach ($components as $component) {
+            if (! $component instanceof FormFieldData) {
+                continue;
+            }
+
+            if ($component->name !== null) {
+                $component->isWithheld = isset($names[$component->name]);
+
+                continue;
+            }
+
+            if (is_array($component->schema)) {
+                self::flagWithheld($component->schema, $names);
+            }
+        }
     }
 
     /**
@@ -651,6 +895,12 @@ class Form implements Arrayable, JsonSerializable
             }
         }
 
+        $withheld = $this->withheldNames();
+
+        if ($withheld !== []) {
+            self::flagWithheld($serializedSchema, $withheld);
+        }
+
         return new FormData(
             schema: $serializedSchema,
             data: $this->data,
@@ -703,7 +953,7 @@ class Form implements Arrayable, JsonSerializable
             'operation' => $this->operation,
             'model'     => $this->model,
             'recordId'  => $this->record?->getKey(),
-        ]);
+        ], DescriptorAudience::FormRecompute);
     }
 
     /**

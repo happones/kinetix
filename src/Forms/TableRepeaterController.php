@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Forms;
 
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -18,12 +19,19 @@ use Illuminate\Support\Facades\Gate;
  * guarded by the field's signed descriptor (parent model + relation + writable
  * column allowlist) so the client can only create/update/delete rows on the
  * bound relation, writing only the declared columns.
+ *
+ * Editing a row is editing the parent, so the parent's `update` policy
+ * governs every request; the row's own policy, when its model has one, also
+ * has to allow `create`, `update` or `delete`. Rows are loaded and saved or
+ * deleted as models, so their events and observers fire.
  */
 class TableRepeaterController
 {
     public function store(Request $request): JsonResponse
     {
         [$relation, $columns] = $this->resolve($request);
+
+        $this->authorizeRow($request, 'create', $relation->getRelated()::class);
 
         $row = $relation->create($this->values($request, $columns));
 
@@ -34,8 +42,9 @@ class TableRepeaterController
     {
         [$relation, $columns] = $this->resolve($request);
 
-        $row = $relation->getQuery()->whereKey($request->input('id'))->first();
-        abort_if($row === null, 404, (string) __('kinetix.repeater_row_not_found'));
+        $row = $this->row($relation, $request);
+
+        $this->authorizeRow($request, 'update', $row);
 
         $row->fill($this->values($request, $columns))->save();
 
@@ -46,7 +55,11 @@ class TableRepeaterController
     {
         [$relation] = $this->resolve($request);
 
-        $relation->getQuery()->whereKey($request->input('id'))->delete();
+        $row = $this->row($relation, $request);
+
+        $this->authorizeRow($request, 'delete', $row);
+
+        $row->delete();
 
         return response()->json(['status' => 'success']);
     }
@@ -55,31 +68,19 @@ class TableRepeaterController
      * Decode the signed descriptor, load the parent, and return its relation +
      * the writable-column allowlist.
      *
-     * @return array{0: HasOneOrMany, 1: array<int, string>}
+     * @return array{0: HasOneOrMany<Model, Model, mixed>, 1: array<int, string>}
      */
     protected function resolve(Request $request): array
     {
-        try {
-            $payload = Crypt::decrypt((string) $request->input('token'));
-        } catch (\Throwable) {
-            abort(400, 'Invalid descriptor.');
-        }
+        $payload = SignedDescriptor::open((string) $request->input('token'));
 
-        $parentClass  = is_array($payload) ? ($payload['parent'] ?? null) : null;
-        $relationName = is_array($payload) ? ($payload['relation'] ?? null) : null;
-        $columns      = is_array($payload) ? ($payload['columns'] ?? []) : [];
+        abort_if($payload === null, 400, 'Invalid descriptor.');
 
-        abort_unless(
-            is_string($parentClass) && class_exists($parentClass) && is_subclass_of($parentClass, Model::class),
-            400,
-            'Invalid parent model.',
-        );
-        abort_unless(is_string($relationName) && $relationName !== '', 400, 'Invalid relation.');
-
-        // The descriptor is bound to the user and team it was minted for, and
-        // expires ({@see SignedDescriptor}), so it can't be lifted from another
-        // user's page — or another team's — and replayed.
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        // The descriptor is bound to the user and team it was minted for,
+        // expires, and names this endpoint as its audience
+        // ({@see SignedDescriptor}), so it can't be lifted from another user's
+        // page — or another team's, or another endpoint's — and replayed.
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::TableRepeater);
         abort_if(
             $rejection !== null,
             403,
@@ -87,6 +88,18 @@ class TableRepeaterController
                 ? (string) __('kinetix.form_session_expired')
                 : (string) __('kinetix.table_write_forbidden'),
         );
+
+        $parentClass  = $payload['parent']   ?? null;
+        $relationName = $payload['relation'] ?? null;
+        $columns      = $payload['columns']  ?? null;
+
+        abort_unless(
+            is_string($parentClass) && class_exists($parentClass) && is_subclass_of($parentClass, Model::class),
+            400,
+            'Invalid parent model.',
+        );
+        abort_unless(is_string($relationName) && $relationName !== '', 400, 'Invalid relation.');
+        abort_unless(is_array($columns), 400, 'Invalid descriptor.');
 
         $parent = $parentClass::query()->whereKey($payload['key'] ?? null)->first();
         abort_if($parent === null, 404, 'Parent record not found.');
@@ -101,11 +114,45 @@ class TableRepeaterController
             );
         }
 
-        abort_unless(method_exists($parent, $relationName), 400, 'Unknown relation.');
-        $relation = $parent->{$relationName}();
+        $relation = EloquentRelation::resolve($parent, $relationName);
         abort_unless($relation instanceof HasOneOrMany, 400, 'Unsupported relation type.');
 
-        return [$relation, is_array($columns) ? array_values($columns) : []];
+        return [$relation, array_values(array_filter($columns, 'is_string'))];
+    }
+
+    /**
+     * The row the request names, loaded through the bound relation.
+     *
+     * @param HasOneOrMany<Model, Model, mixed> $relation
+     */
+    protected function row(HasOneOrMany $relation, Request $request): Model
+    {
+        $id = $request->input('id');
+
+        abort_unless(is_scalar($id), 404, (string) __('kinetix.repeater_row_not_found'));
+
+        $row = $relation->getQuery()->whereKey($id)->first();
+        abort_unless($row instanceof Model, 404, (string) __('kinetix.repeater_row_not_found'));
+
+        return $row;
+    }
+
+    /**
+     * Enforce the row model's own policy, when it has one.
+     *
+     * @param Model|class-string<Model> $row
+     */
+    protected function authorizeRow(Request $request, string $ability, Model|string $row): void
+    {
+        if (Gate::getPolicyFor($row) === null) {
+            return;
+        }
+
+        abort_unless(
+            Gate::forUser($request->user())->allows($ability, $row),
+            403,
+            'This action is unauthorized.',
+        );
     }
 
     /**

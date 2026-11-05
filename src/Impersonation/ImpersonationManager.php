@@ -6,9 +6,9 @@ namespace Happones\Kinetix\Impersonation;
 
 use Happones\Kinetix\Activity\KinetixActivity;
 use Happones\Kinetix\Permissions\SuperAdmin;
+use Happones\Kinetix\Permissions\TakeoverGuard;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
-use Throwable;
 
 /**
  * Drives "log in as user": swaps the authenticated user while remembering the
@@ -78,9 +78,11 @@ class ImpersonationManager
     }
 
     /**
-     * The built-in escalation guards: never impersonate a super-admin unless
-     * you are one, and never a target holding a protected permission
-     * (`impersonation.protected_permissions`) you don't hold. A
+     * The built-in escalation guards ({@see TakeoverGuard}): never impersonate
+     * a super-admin unless you are one; under teams, only a user whose every
+     * team is also yours; and never a target who, in any of their teams,
+     * holds a protected permission (`impersonation.protected_permissions`)
+     * you don't hold there, or owns a team you don't own. A
      * `can_impersonate` callback REPLACES these, so a callback that narrows
      * the rule should call this first and keep its verdict:
      *
@@ -90,61 +92,17 @@ class ImpersonationManager
      */
     public function passesBuiltInGuards(Authenticatable $impersonator, Authenticatable $target): bool
     {
-        // Built-in guard: never impersonate a super-admin unless you are one.
-        // Through SuperAdmin so a teamless (platform-wide) assignment counts
-        // too — a bare hasRole() is scoped to the current team under teams.
-        $superAdmin = SuperAdmin::role();
-
-        if ($superAdmin !== '' && method_exists($target, 'hasRole')) {
-            if (SuperAdmin::check($target)) {
-                return SuperAdmin::check($impersonator);
-            }
-        } elseif ($superAdmin !== '' && config('kinetix.permissions.enabled', false)) {
-            // Roles are in play for this app, yet this target can't be inspected
-            // for them — so the super-admin guard can't be evaluated at all. Fail
-            // closed instead of silently waving it through. (A host with no roles
-            // system has nothing to escalate, so it isn't affected.)
+        // Roles are in play for this app, yet this target can't be inspected
+        // for them — so the super-admin guard can't be evaluated at all. Fail
+        // closed instead of silently waving it through. (A host with no roles
+        // system has nothing to escalate, so it isn't affected.)
+        if (SuperAdmin::role() !== '' && ! method_exists($target, 'hasRole') && config('kinetix.permissions.enabled', false)) {
             return false;
         }
 
-        // Impersonating a session is inheriting it. If the target can grant roles
-        // and permissions and the impersonator cannot, impersonation becomes a
-        // laundering route from `users.impersonate` into full role management —
-        // so a privilege the impersonator lacks makes the target off-limits.
-        return $this->targetHoldsNoUnheldEscalation($impersonator, $target);
-    }
-
-    /**
-     * Whether the target is free of escalation-capable permissions the
-     * impersonator doesn't already hold.
-     */
-    protected function targetHoldsNoUnheldEscalation(Authenticatable $impersonator, Authenticatable $target): bool
-    {
         $protected = config('kinetix.impersonation.protected_permissions', ['roles.manage']);
 
-        if (! is_array($protected) || $protected === [] || ! method_exists($target, 'hasPermissionTo')) {
-            return true;
-        }
-
-        foreach ($protected as $permission) {
-            $permission = (string) $permission;
-
-            // A permission the host never registered can't be held by anyone;
-            // hasPermissionTo() throws on unknown names, so treat it as absent.
-            try {
-                if (! $target->hasPermissionTo($permission)) {
-                    continue;
-                }
-
-                if (! method_exists($impersonator, 'hasPermissionTo') || ! $impersonator->hasPermissionTo($permission)) {
-                    return false;
-                }
-            } catch (Throwable) {
-                continue;
-            }
-        }
-
-        return true;
+        return TakeoverGuard::allows($impersonator, $target, is_array($protected) ? $protected : []);
     }
 
     protected function log(string $event, Authenticatable $subject, Authenticatable $causer): void

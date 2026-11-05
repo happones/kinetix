@@ -156,6 +156,11 @@ redaction, retention).
 
 ## 4. The endpoints
 
+While an admin is impersonating the user, creating or revoking tokens answers
+`403` (the list still loads): an impersonating admin can't mint an API token
+that would outlive the session. See [Impersonation](/impersonation).
+
+
 The feature registers self-service routes under your Kinetix prefix
 (team-aware when `kinetix.teams` is on):
 

@@ -599,18 +599,27 @@ An ability outside the scope is not denied — it simply falls through to the
 normal checks. A stored permission row or an explicit `Gate::define()` still
 grants it, and the prop still shares it.
 
-::: warning App-wide modules belong in `except`
+::: info App-wide modules are platform-level
 The bypass grants *abilities*; it knows nothing about whose data a module
-holds. A module running with `kinetix.{module}.teams = false` — Settings,
-Activity, Webhooks, Channels / Conversations / Flows — keeps **app-wide** data,
-and so do roles when `permissions.teams` is off. An owner granted those
-abilities through the bypass acts on every tenant's rows, not just their own.
-List their features in `except` unless the module is team-scoped in your app.
-The feature names are `settings`, `activity`, `webhooks`, `channels`,
-`conversations`, `flows` and `roles`:
+holds. When the app has teams (`kinetix.teams`) but a module runs with
+`kinetix.{module}.teams = false`, its data is **app-wide**: one list every
+team shares. Kinetix then marks that module's whole feature platform-level,
+so the owner bypass never grants it and only a super-admin may grant its
+abilities on roles:
+
+| Module flag | Features made platform-level |
+|---|---|
+| `webhooks.teams` | `webhooks` |
+| `channels.teams` | `channels`, `conversations`, `flows` |
+| `settings.teams` | `settings` |
+| `activity.teams` | `activity` |
+| `membership.teams` | `members` |
+
+Roles are app-wide too when `permissions.teams` is off; list `roles` in
+`except` in that case:
 
 ```php
-'except' => ['settings', 'activity', 'webhooks', 'channels', 'conversations', 'flows', 'roles'],
+'except' => ['roles'],
 ```
 :::
 
@@ -686,7 +695,10 @@ Why each step is there:
   you write must keep that verdict (call `passesBuiltInGuards()` first, as
   here) or re-implement both the super-admin and the protected-permission rule.
   `passesBuiltInGuards()` also counts a platform-wide (teamless) super-admin
-  assignment.
+  assignment, and it carries the team limit: every team of the target must be
+  one of the impersonator's, and in each of them a protected permission the
+  target holds — or the target's ownership of that team — must be matched by
+  the impersonator.
 - **Only a super-admin crosses teams.** Every other impersonator — an owner,
   or someone holding `users.impersonate` through a stored permission or a
   role — stays inside the team in the URL. Under team scoping a stored

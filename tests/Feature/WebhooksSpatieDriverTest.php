@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Response;
+use Happones\Kinetix\Support\BlockedOutboundUrl;
 use Happones\Kinetix\Tests\TestCase;
+use Happones\Kinetix\Webhooks\HostResolver;
+use Happones\Kinetix\Webhooks\KinetixCallWebhookJob;
 use Happones\Kinetix\Webhooks\KinetixWebhooks;
 use Happones\Kinetix\Webhooks\WebhookDispatcher;
 use Happones\Kinetix\Webhooks\WebhookEndpoint;
@@ -13,7 +17,6 @@ use Happones\Kinetix\Webhooks\WebhookLog;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Schema;
-use Spatie\WebhookServer\CallWebhookJob;
 use Spatie\WebhookServer\Events\WebhookCallSucceededEvent;
 use Spatie\WebhookServer\WebhookServerServiceProvider;
 
@@ -94,7 +97,44 @@ class WebhooksSpatieDriverTest extends TestCase
 
         KinetixWebhooks::fire('order.created', ['id' => 1]);
 
-        Bus::assertDispatchedTimes(CallWebhookJob::class, 1);
+        Bus::assertDispatchedTimes(KinetixCallWebhookJob::class, 1);
+    }
+
+    public function test_spatie_deliveries_use_the_kinetix_job(): void
+    {
+        Bus::fake();
+
+        $this->endpoint();
+
+        KinetixWebhooks::fire('order.created', ['id' => 1]);
+
+        Bus::assertDispatched(KinetixCallWebhookJob::class);
+    }
+
+    public function test_the_kinetix_job_pins_the_address_and_never_redirects(): void
+    {
+        $this->app->instance(HostResolver::class, new FakeHostResolver(['hooks.example.test' => ['93.184.216.34']]));
+
+        $job             = new KinetixCallWebhookJob;
+        $job->webhookUrl = 'https://hooks.example.test/hook';
+
+        $client = (fn () => $this->getClient())->call($job);
+
+        $this->assertInstanceOf(Client::class, $client);
+        $this->assertFalse($client->getConfig('allow_redirects'));
+        $this->assertSame(['hooks.example.test:443:93.184.216.34'], $client->getConfig('curl')[CURLOPT_RESOLVE]);
+    }
+
+    public function test_the_kinetix_job_validates_the_url_again_when_it_runs(): void
+    {
+        $this->app->instance(HostResolver::class, new FakeHostResolver(['rebound.example.test' => ['127.0.0.1']]));
+
+        $job             = new KinetixCallWebhookJob;
+        $job->webhookUrl = 'https://rebound.example.test/hook';
+
+        $this->expectException(BlockedOutboundUrl::class);
+
+        (fn () => $this->getClient())->call($job);
     }
 
     public function test_spatie_events_are_logged_to_the_kinetix_dashboard(): void

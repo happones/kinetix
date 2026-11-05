@@ -22,13 +22,18 @@ use Throwable;
  *    one team can't be replayed against another team's endpoints, where the
  *    same user may hold a wider role;
  *  - an EXPIRY (`kinetix.tables.token_ttl` minutes): bounding the replay window
- *    of a token captured from a long-lived page.
+ *    of a token captured from a long-lived page;
+ *  - the AUDIENCE it was minted for ({@see DescriptorAudience}): a token minted
+ *    for one endpoint family is refused by every other, however similar its
+ *    payload looks.
  *
  * The team claim is checked against the team the request is ROUTED to, so it
  * applies to every `{current_team}`-prefixed endpoint; the few endpoints that
  * are deliberately not team-prefixed (exports) still check user and expiry.
  * A payload missing any claim predates them and is refused as expired, so the
  * page just reloads.
+ *
+ * @internal
  */
 final class SignedDescriptor
 {
@@ -37,9 +42,9 @@ final class SignedDescriptor
      *
      * @param array<string, mixed> $payload
      */
-    public static function seal(array $payload): string
+    public static function seal(array $payload, DescriptorAudience $audience): string
     {
-        return Crypt::encrypt(self::bind($payload));
+        return Crypt::encrypt(self::bind($payload, $audience));
     }
 
     /**
@@ -49,11 +54,11 @@ final class SignedDescriptor
      * @param  array<string, mixed> $payload
      * @return array<string, mixed>
      */
-    public static function bind(array $payload): array
+    public static function bind(array $payload, DescriptorAudience $audience): array
     {
         $ttl = config('kinetix.tables.token_ttl', 1440);
 
-        return $payload + [
+        return ['aud' => $audience->value] + $payload + [
             'user'    => auth()->id(),
             'team'    => self::team(request()),
             'expires' => is_numeric($ttl) && (int) $ttl > 0
@@ -81,12 +86,22 @@ final class SignedDescriptor
     /**
      * Why this request may not use the payload — null when it may.
      *
+     * A payload minted before descriptors carried an audience is refused as
+     * expired (the page reloads); one minted for an audience outside
+     * `$accepted` is foreign.
+     *
      * @param array<string, mixed> $payload
      */
-    public static function rejection(array $payload, Request $request): ?DescriptorRejection
+    public static function rejection(array $payload, Request $request, DescriptorAudience ...$accepted): ?DescriptorRejection
     {
-        if (! array_key_exists('user', $payload) || ! array_key_exists('team', $payload) || ! array_key_exists('expires', $payload)) {
+        if (! array_key_exists('aud', $payload) || ! array_key_exists('user', $payload) || ! array_key_exists('team', $payload) || ! array_key_exists('expires', $payload)) {
             return DescriptorRejection::Expired;
+        }
+
+        $audiences = array_map(static fn (DescriptorAudience $audience): string => $audience->value, $accepted);
+
+        if (! in_array($payload['aud'], $audiences, true)) {
+            return DescriptorRejection::ForeignAudience;
         }
 
         $mintedFor = $payload['user'];
@@ -126,7 +141,7 @@ final class SignedDescriptor
     {
         $payload = self::open($token);
 
-        if ($payload === null || self::rejection($payload, $request ?? request()) !== null) {
+        if ($payload === null || self::rejection($payload, $request ?? request(), DescriptorAudience::ClassToken) !== null) {
             return null;
         }
 

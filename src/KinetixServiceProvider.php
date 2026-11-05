@@ -137,11 +137,13 @@ use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\Notifications\NotificationController;
+use Happones\Kinetix\Notifications\NotificationScope;
 use Happones\Kinetix\Onboarding\OnboardingController;
 use Happones\Kinetix\Onboarding\OnboardingManager;
 use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
 use Happones\Kinetix\Pdf\PdfTemplateController;
 use Happones\Kinetix\Pdf\PdfTemplateRegistry;
+use Happones\Kinetix\Permissions\Feature;
 use Happones\Kinetix\Permissions\Middleware\SetPermissionsTeam;
 use Happones\Kinetix\Permissions\PermissionController;
 use Happones\Kinetix\Permissions\PermissionRegistry;
@@ -940,17 +942,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('permissions');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            // The alias only exists when spatie is installed; pushing it
-            // unconditionally makes these routes throw on a teams-enabled host
-            // that doesn't use the permissions module.
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1034,7 +1029,11 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerCredentialsRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('credentials', teamRouted: false);
+
+        // Changing the password while impersonating would take the account
+        // over: reads only.
+        $middleware = [...$middleware, 'kinetix.impersonation.protect:writes'];
 
         Route::middleware($middleware)
             ->prefix("{$prefix}/password")
@@ -1118,7 +1117,7 @@ class KinetixServiceProvider extends ServiceProvider
             );
         }
 
-        app(PermissionRegistry::class)->feature('members')
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('members'), 'membership')
             ->label('kinetix.permission_feature_members')
             ->abilities([
                 'viewAny'   => 'kinetix.permission_ability_view_members',
@@ -1140,14 +1139,10 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerMembershipRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('membership');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1159,7 +1154,10 @@ class KinetixServiceProvider extends ServiceProvider
                     ->name('kinetix.members.store');
                 Route::post('{provision}/resend', [MembershipController::class, 'resend'])
                     ->name('kinetix.members.resend');
+                // Issuing a member's temporary password while impersonating
+                // would let the admin take that member over.
                 Route::post('{provision}/credential', [MembershipController::class, 'credential'])
+                    ->middleware('kinetix.impersonation.protect')
                     ->name('kinetix.members.credential');
                 Route::put('{provision}', [MembershipController::class, 'update'])
                     ->name('kinetix.members.update');
@@ -1188,7 +1186,7 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        app(PermissionRegistry::class)->feature('settings')
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('settings'), 'settings')
             ->label('kinetix.permission_feature_settings')
             ->ability('manage', 'kinetix.permission_ability_manage_settings');
 
@@ -1210,14 +1208,10 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerSettingsRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('settings');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1242,19 +1236,15 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        app(PermissionRegistry::class)->feature('activity')
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('activity'), 'activity')
             ->label('kinetix.permission_feature_activity')
             ->ability('view', 'kinetix.permission_ability_view_activity');
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('activity');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1286,14 +1276,10 @@ class KinetixServiceProvider extends ServiceProvider
             ->platform('impersonate');
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('impersonation');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1344,14 +1330,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('tours');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1383,14 +1365,10 @@ class KinetixServiceProvider extends ServiceProvider
         $this->app->singleton(HelpManager::class);
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('help');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1467,14 +1445,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('spotlight');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         // One request fans out to every authorized source, so a held-down key
@@ -1504,7 +1478,7 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        app(PermissionRegistry::class)->feature('webhooks')
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('webhooks'), 'webhooks')
             ->label('kinetix.permission_feature_webhooks')
             ->ability('manage', 'kinetix.permission_ability_manage_webhooks');
 
@@ -1518,28 +1492,27 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('webhooks');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
+
+        // Sending a test or a redelivery fires a request on demand: throttled.
+        $throttle = array_filter([self::throttleMiddleware(config('kinetix.webhooks.test_throttle', '6,1'), 'kinetix-webhook-test')]);
 
         KinetixTeams::routes($middleware)
             ->prefix("{$prefix}/webhooks")
-            ->group(function () {
+            ->group(function () use ($throttle) {
                 Route::get('/', [WebhookController::class, 'index'])->name('kinetix.webhooks.index');
                 Route::post('/', [WebhookController::class, 'store'])->name('kinetix.webhooks.store');
                 Route::put('{endpoint}', [WebhookController::class, 'update'])->name('kinetix.webhooks.update');
                 Route::delete('{endpoint}', [WebhookController::class, 'destroy'])->name('kinetix.webhooks.destroy');
                 Route::post('{endpoint}/rotate', [WebhookController::class, 'rotate'])->name('kinetix.webhooks.rotate');
-                Route::post('{endpoint}/test', [WebhookController::class, 'test'])->name('kinetix.webhooks.test');
+                Route::post('{endpoint}/test', [WebhookController::class, 'test'])->middleware($throttle)->name('kinetix.webhooks.test');
                 Route::get('logs', [WebhookController::class, 'allLogs'])->name('kinetix.webhooks.all-logs');
                 Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
-                Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->name('kinetix.webhooks.redeliver');
+                Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->middleware($throttle)->name('kinetix.webhooks.redeliver');
             });
     }
 
@@ -1555,13 +1528,13 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        app(PermissionRegistry::class)->feature('channels')
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('channels'), 'channels')
             ->label('kinetix.permission_feature_channels')
             ->ability('manage', 'kinetix.permission_ability_manage_channels');
 
         $base       = config('kinetix.route_prefix', '_kinetix');
         $prefix     = $base;
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('channels');
 
         Route::middleware((array) config('kinetix.channels.webhook_middleware', []))
             ->post("{$base}/channels/webhook/{channel}", ChannelWebhookController::class)
@@ -1569,10 +1542,6 @@ class KinetixServiceProvider extends ServiceProvider
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1611,7 +1580,7 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        app(PermissionRegistry::class)->feature('conversations')
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('conversations'), 'channels')
             ->label('kinetix.permission_feature_conversations')
             ->ability('view', 'kinetix.permission_ability_view_conversations')
             ->ability('view_all', 'kinetix.permission_ability_view_all_conversations')
@@ -1623,14 +1592,10 @@ class KinetixServiceProvider extends ServiceProvider
         $this->app['events']->listen(ChannelMessageStatusUpdated::class, [RecordInboxActivity::class, 'statusUpdated']);
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('inbox');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1686,7 +1651,7 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        app(PermissionRegistry::class)->feature('flows')
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('flows'), 'channels')
             ->label('kinetix.permission_feature_flows')
             ->ability('manage', 'kinetix.permission_ability_manage_flows');
 
@@ -1701,19 +1666,18 @@ class KinetixServiceProvider extends ServiceProvider
         });
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('flows');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
+
+        // The simulator runs HTTP nodes for real (simulate_http): throttled.
+        $throttle = array_filter([self::throttleMiddleware(config('kinetix.flows.simulate_throttle', '10,1'), 'kinetix-flow-simulate')]);
 
         KinetixTeams::routes($middleware)
             ->prefix("{$prefix}/flows")
-            ->group(function () {
+            ->group(function () use ($throttle) {
                 Route::get('/', [FlowController::class, 'index'])->name('kinetix.flows.index');
                 Route::post('/', [FlowController::class, 'store'])->name('kinetix.flows.store');
                 Route::get('{flow}', [FlowController::class, 'show'])->name('kinetix.flows.show');
@@ -1723,7 +1687,7 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('{flow}/activate', [FlowController::class, 'activate'])->name('kinetix.flows.activate');
                 Route::post('{flow}/deactivate', [FlowController::class, 'deactivate'])->name('kinetix.flows.deactivate');
                 Route::post('{flow}/duplicate', [FlowController::class, 'duplicate'])->name('kinetix.flows.duplicate');
-                Route::post('{flow}/simulate', [FlowController::class, 'simulate'])->name('kinetix.flows.simulate');
+                Route::post('{flow}/simulate', [FlowController::class, 'simulate'])->middleware($throttle)->name('kinetix.flows.simulate');
                 Route::get('{flow}/stats', [FlowController::class, 'stats'])->name('kinetix.flows.stats');
             });
 
@@ -1802,17 +1766,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('pdf');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            // The alias only exists when spatie is installed; pushing it
-            // unconditionally makes these routes throw on a teams-enabled host
-            // that doesn't use the permissions module.
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1846,17 +1803,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('api_logs');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            // The alias only exists when spatie is installed; pushing it
-            // unconditionally makes these routes throw on a teams-enabled host
-            // that doesn't use the permissions module.
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1878,17 +1828,15 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('tokens');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
-        KinetixTeams::routes($middleware)
+        // An admin impersonating someone may look, but never mint or revoke
+        // their API tokens.
+        KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect:writes'])
             ->prefix("{$prefix}/tokens")
             ->group(function () {
                 Route::get('/', [TokenController::class, 'index'])->name('kinetix.tokens.index');
@@ -1908,14 +1856,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('onboarding');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1943,14 +1887,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('wizards');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -1973,17 +1913,14 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('gdpr');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
-        KinetixTeams::routes($middleware)
+        // Exporting or deleting someone's account is theirs alone to do.
+        KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect'])
             ->prefix("{$prefix}/gdpr")
             ->group(function () {
                 Route::post('export', [GdprController::class, 'export'])->name('kinetix.gdpr.export');
@@ -2002,14 +1939,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('accessibility');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2044,15 +1977,11 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $base       = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('connected_accounts');
         $prefix     = $base;
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($base);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         // Guest login/registration via a provider (opt-in, no team prefix —
@@ -2071,10 +2000,13 @@ class KinetixServiceProvider extends ServiceProvider
             ->prefix("{$prefix}/connected-accounts")
             ->group(function () {
                 Route::get('/', [ConnectedAccountController::class, 'index'])->name('kinetix.connected-accounts.index');
-                Route::get('redirect/{provider}', [ConnectedAccountController::class, 'redirect'])->name('kinetix.connected-accounts.redirect');
-                Route::get('callback/{provider}', [ConnectedAccountController::class, 'callback'])->name('kinetix.connected-accounts.callback');
-                Route::post('password', [ConnectedAccountController::class, 'password'])->name('kinetix.connected-accounts.password');
-                Route::delete('{account}', [ConnectedAccountController::class, 'destroy'])->name('kinetix.connected-accounts.destroy');
+                // Linking a provider (the redirect and callback are GETs that
+                // change the account), setting a password or unlinking would
+                // hand an impersonating admin a way back in: blocked.
+                Route::get('redirect/{provider}', [ConnectedAccountController::class, 'redirect'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.redirect');
+                Route::get('callback/{provider}', [ConnectedAccountController::class, 'callback'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.callback');
+                Route::post('password', [ConnectedAccountController::class, 'password'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.password');
+                Route::delete('{account}', [ConnectedAccountController::class, 'destroy'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.destroy');
             });
     }
 
@@ -2089,17 +2021,14 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('sessions');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
-        KinetixTeams::routes($middleware)
+        // Logging the user's other devices out is theirs alone to do.
+        KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect:writes'])
             ->prefix("{$prefix}/sessions")
             ->group(function () {
                 Route::get('/', [SessionController::class, 'index'])->name('kinetix.sessions.index');
@@ -2118,14 +2047,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('comments');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2149,14 +2074,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('tags');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2179,14 +2100,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('notification_preferences');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2208,14 +2125,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('saved_views');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2246,14 +2159,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('announcements');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2349,14 +2258,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('queue');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2384,14 +2289,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('mail_templates');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2422,14 +2323,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('health');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -2457,14 +2354,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('reports_center');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)->prefix("{$prefix}")->group(function () {
@@ -2508,14 +2401,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('confidential');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)->prefix("{$prefix}")->group(function () {
@@ -2669,23 +2558,11 @@ class KinetixServiceProvider extends ServiceProvider
             $limit      = (int) config('kinetix.notifications.limit', 15);
 
             if ($isDatabase && auth()->check()) {
-                $query = auth()->user()->notifications()->latest();
-
                 // Team-scoped bell: only notifications stamped with the active
-                // team (via Notification::team()) plus global unstamped ones.
-                // Route prefixing alone is NOT data isolation — this is the
-                // actual filter.
-                if (KinetixTeams::enabledFor('notifications')) {
-                    $teamKey = KinetixTeams::currentTeamKey();
-
-                    $query->where(function ($q) use ($teamKey): void {
-                        $q->whereNull('data->team');
-
-                        if ($teamKey !== null) {
-                            $q->orWhere('data->team', $teamKey);
-                        }
-                    });
-                }
+                // team plus global unstamped ones (the same filter "mark all as
+                // read" and "clear all" apply).
+                $query = auth()->user()->notifications()->latest();
+                NotificationScope::apply($query);
 
                 return $query
                     ->take($limit)
@@ -3152,14 +3029,10 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('dismissals');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -3175,16 +3048,10 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerNotificationRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('notifications');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            // Same bridge as every other team-prefixed group: policy checks on
-            // these endpoints must see spatie's team-scoped roles/permissions.
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -3210,16 +3077,10 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerTableRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('tables');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            // Same bridge as every other team-prefixed group: policy checks on
-            // these endpoints must see spatie's team-scoped roles/permissions.
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -3308,16 +3169,10 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerImportRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('imports');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            // Same bridge as every other team-prefixed group: policy checks on
-            // these endpoints must see spatie's team-scoped roles/permissions.
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -3343,16 +3198,10 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerUploadRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('uploads');
 
         if (config('kinetix.teams', false)) {
             $prefix = KinetixTeams::routePrefix($prefix);
-
-            // Same bridge as every other team-prefixed group: policy checks on
-            // these endpoints must see spatie's team-scoped roles/permissions.
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
-            }
         }
 
         KinetixTeams::routes($middleware)
@@ -3366,7 +3215,7 @@ class KinetixServiceProvider extends ServiceProvider
             });
 
         // Remote options for searchable Select fields (token-guarded).
-        KinetixTeams::routes($middleware)
+        KinetixTeams::routes($this->moduleMiddleware('forms'))
             ->prefix("{$prefix}/forms")
             ->group(function () {
                 Route::post('search', SearchController::class)
@@ -3390,6 +3239,46 @@ class KinetixServiceProvider extends ServiceProvider
                     $recompute->middleware($throttle);
                 }
             });
+    }
+
+    /**
+     * Mark a module's feature platform-level ({@see Feature::platform()}) when
+     * the app has teams but the module is kept app-wide
+     * (`kinetix.{module}.teams` = false): its data is then one list shared by
+     * every team, so a team owner must not manage it through the owner bypass,
+     * and only a super-admin may grant its abilities.
+     */
+    private function platformWhenAppWide(Feature $feature, string $module): Feature
+    {
+        if (config('kinetix.teams', false) && ! KinetixTeams::enabledFor($module)) {
+            $feature->platform();
+        }
+
+        return $feature;
+    }
+
+    /**
+     * The middleware a module's authenticated routes carry: the configured
+     * `kinetix.middleware` stack; `kinetix.permissions.team` when the routes
+     * are team-prefixed, teams are on and spatie is installed (policy checks
+     * must see the URL team's roles); then the host's own
+     * `kinetix.module_middleware.{module}` — the hook that gates a module on
+     * a plan, a feature flag or any check of the host's, on the server.
+     *
+     * Guest and signed routes (activation links, inbound channel webhooks,
+     * public docs, social login) don't use it.
+     *
+     * @return list<string>
+     */
+    private function moduleMiddleware(string $module, bool $teamRouted = true): array
+    {
+        $middleware = array_values((array) config('kinetix.middleware', ['web', 'auth']));
+
+        if ($teamRouted && config('kinetix.teams', false) && class_exists(PermissionRegistrar::class)) {
+            $middleware[] = 'kinetix.permissions.team';
+        }
+
+        return [...$middleware, ...array_values((array) config("kinetix.module_middleware.{$module}", []))];
     }
 
     /**
@@ -3497,7 +3386,7 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerExportRoutes(): void
     {
         $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = config('kinetix.middleware', ['web', 'auth']);
+        $middleware = $this->moduleMiddleware('exports', teamRouted: false);
 
         // Deliberately NOT team-prefixed, unlike every other module: the
         // download URL is generated inside queued jobs (ExportProcessor,

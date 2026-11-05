@@ -66,6 +66,11 @@ Route::get('/beta', ...)->middleware('kinetix.feature:beta-search'); // 404 when
   plan is memoized per request (`kinetix-billing` skill), but keep resolvers
   cheap: no queries of your own inside one.
 
+- Put a built-in Kinetix module behind a flag on the server with
+  `kinetix.module_middleware`: `'flows' => ['kinetix.feature:bots']` (appended to
+  that module's authenticated routes; core groups: tables, forms, uploads,
+  imports, exports).
+
 > **Flag AND plan AND role?** Once a feature needs two or more layers, declare
 > an **entitlement** instead of chaining them — one name, one evaluation, and a
 > denial that says WHICH layer refused (flag → 404, plan → upsell, permission →

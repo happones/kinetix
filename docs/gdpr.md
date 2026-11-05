@@ -119,6 +119,11 @@ configured `redirect`. `useKinetixGdpr()` exposes `exportData()` and
 
 ## Endpoints
 
+Both endpoints answer `403` while an admin is impersonating the user:
+exporting or deleting an account is the account holder's own act. See
+[Impersonation](/impersonation).
+
+
 | Method | Route                    | Name                  |
 | ------ | ------------------------ | --------------------- |
 | `POST` | `{prefix}/gdpr/export`   | `kinetix.gdpr.export` |

@@ -17,6 +17,7 @@ use Happones\Kinetix\Data\RelationManagerData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Support\AutoLabel;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Contracts\Support\Arrayable;
@@ -605,7 +606,7 @@ abstract class RelationManager implements Arrayable, JsonSerializable
             'key'      => $this->parent->getKey(),
             'relation' => static::$relationship,
             'manager'  => static::class,
-        ]);
+        ], DescriptorAudience::RelationManager);
     }
 
     /**

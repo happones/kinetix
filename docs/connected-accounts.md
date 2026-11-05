@@ -153,9 +153,30 @@ title-cased label, so any Socialite driver still works.
 <a href="/_kinetix/connected-accounts/login/redirect/github">Continue with GitHub</a>
 ```
 
-On callback Kinetix finds the user by email (or creates a passwordless one),
-links the identity, and logs them in. Customize resolution / creation — e.g. to
-also create a personal team — from a service provider:
+On callback Kinetix resolves the user in this order:
+
+1. the user who already linked this provider identity (matched by provider +
+   provider id, so a changed email still signs the owner in);
+2. your custom resolver (`KinetixConnectedAccounts::resolveUserUsing()`), when
+   you registered one;
+3. the user who owns the identity's email, **only when** `link_by_email` allows
+   it (below) — otherwise the person is sent back to `login_failure_redirect`
+   with "An account with this email already exists. Sign in, then connect
+   {provider} from your profile.";
+4. otherwise a new passwordless user, **only when** the email is verified (or
+   `link_by_email` is `always`, or the provider sent no email). Otherwise the
+   person is sent back with "This provider didn't confirm your email address.
+   Sign up with your email first, then connect {provider} from your profile.":
+   an account created on an unverified address would belong to whoever
+   controls that provider account, waiting for the address's real owner.
+   This check runs before a custom user creator too: if your creator
+   verifies emails itself, report that through the `email_verified`
+   callback.
+
+It then links the identity and signs the user in, or hands them to the
+two-factor challenge first (see [Two-factor](#two-factor-authentication)).
+Customize resolution / creation — e.g. to also create a personal team — from a
+service provider:
 
 ```php
 use Happones\Kinetix\ConnectedAccounts\KinetixConnectedAccounts;
@@ -175,6 +196,63 @@ KinetixConnectedAccounts::createUserUsing(function (object $socialUser, string $
 
 > Already have your own OAuth login controller? Leave `login_enabled` off and use
 > only the authenticated link/unlink management — the two coexist cleanly.
+
+### Linking by email
+
+Some providers return an email they never verified (Microsoft multi-tenant
+apps, Discord, X, a self-hosted GitLab). Linking on that email alone would let
+anyone who registers a provider account with your user's address sign in as
+them, so `link_by_email` decides:
+
+| Value                  | A provider login whose email already has an account…                                  |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `verified` (default)   | links and signs in only when the email is verified; otherwise "sign in, then connect"  |
+| `never`                | always asks the person to sign in first and connect the provider from their profile    |
+| `always`               | links on the email alone — the pre-0.275 behaviour; only safe when every provider verifies emails |
+
+An email counts as verified when:
+
+- the provider is listed in `verified_email_providers` (default `github`,
+  `bitbucket`: they only return verified addresses), or
+- the provider's own `email_verified` claim is `true` (Google and other OpenID
+  Connect providers send it).
+
+Set an `email_verified` callback to decide yourself: when it is set, its answer
+is final and the list and the claim are not consulted, so it can also distrust
+a provider the defaults trust.
+
+```php
+'connected_accounts' => [
+    'link_by_email'            => env('KINETIX_CONNECTED_ACCOUNTS_LINK_BY_EMAIL', 'verified'),
+    'verified_email_providers' => ['github', 'bitbucket'],
+
+    // A callable array receiving ($socialiteUser, string $provider): bool.
+    'email_verified' => [\App\Kinetix\SocialEmails::class, 'verified'],
+],
+```
+
+`kinetix:doctor` warns when provider login is on with `link_by_email = always`.
+
+### Two-factor authentication
+
+A provider login never skips two-factor. When the resolved user has it turned on
+(a `two_factor_secret`, plus `two_factor_confirmed_at` when Fortify requires
+confirmation), Kinetix does what Fortify's password login does: it puts
+`login.id` and `login.remember` in the session, sets the intended URL to
+`login_redirect`, fires Fortify's `TwoFactorAuthenticationChallenged` event when
+Fortify is installed, and redirects to the `two-factor.login` route. The user
+stays a guest until they pass the challenge. When the app has no
+`two-factor.login` route, the login is refused with "This account uses
+two-factor authentication. Sign in with your password instead."
+
+Using another two-factor system? Point `two_factor_challenge` at a callable
+array receiving `($user, Request $request, bool $remember)`. Return a response
+(your challenge) or `null` to sign the user in straight away; it replaces the
+built-in check.
+
+```php
+'two_factor_challenge' => [\App\Kinetix\SocialTwoFactor::class, 'challenge'],
+```
 
 ---
 
@@ -202,6 +280,10 @@ guest-accessible and only registered when `login_enabled` is true.
 | `DELETE` | `{prefix}/connected-accounts/{account}`            | `kinetix.connected-accounts.destroy`       |
 | `GET`    | `{prefix}/connected-accounts/login/redirect/{provider}` | `kinetix.connected-accounts.login.redirect` |
 | `GET`    | `{prefix}/connected-accounts/login/callback/{provider}` | `kinetix.connected-accounts.login.callback` |
+
+While an admin is impersonating someone, the link round-trip (`redirect`,
+`callback`), `password` and `destroy` answer 403: an impersonator can't attach
+their own provider to the account or change how it signs in.
 
 Access / refresh tokens are stored **encrypted** and never serialized to the
 client. `index` returns the caller's accounts, the provider catalog (with a

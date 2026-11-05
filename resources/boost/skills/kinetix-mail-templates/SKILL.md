@@ -53,9 +53,12 @@ KinetixMail::mailableFor($team, 'digest', [...]); // a Mailable, e.g. for toMail
 `send()` returns false if the template is missing/disabled. It reads the team
 from the request: outside one (a queued job, a console command) use
 `sendFor($team, ...)`, or the global default goes out instead of the team's
-override. Variable values are
-HTML-escaped in Markdown bodies; HTML templates render as-is; the subject is
-plain text.
+override. `{{ var }}` values are escaped in BOTH formats (`e()` for HTML;
+every ASCII punctuation backslash-escaped for Markdown, so values can't inject
+links/emphasis/HTML); `{!! var !!}` inserts raw (trusted markup only). Markdown
+bodies render with `allow_unsafe_links => false` (raw HTML in the template
+itself stays). The subject is plain text. The editor preview is a script-less
+sandboxed iframe (`srcdoc`), never `v-html`.
 
 > i18n note: never put literal `{{ }}` or `@` in vue-i18n translation strings —
 > both are reserved (nested placeholder / linked message) and crash compilation.

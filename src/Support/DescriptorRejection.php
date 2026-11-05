@@ -17,4 +17,7 @@ enum DescriptorRejection
 
     /** Past its expiry, or minted before descriptors carried their binding claims. */
     case Expired;
+
+    /** Minted for a different endpoint family ({@see DescriptorAudience}). */
+    case ForeignAudience;
 }

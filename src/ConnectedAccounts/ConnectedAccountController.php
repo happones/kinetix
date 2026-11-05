@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Happones\Kinetix\ConnectedAccounts;
 
 use Happones\Kinetix\Data\ConnectedAccountData;
+use Happones\Kinetix\Support\ConfigCallback;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirect;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Connected Accounts / social auth. Two flows:
@@ -117,9 +121,10 @@ class ConnectedAccountController
     }
 
     /**
-     * Login callback: find-or-create the user, link the identity, log in.
+     * Login callback: resolve or create the user, link the identity, then
+     * sign in, or hand off to the two-factor challenge first.
      */
-    public function loginCallback(Request $request): RedirectResponse
+    public function loginCallback(Request $request): SymfonyResponse
     {
         // By name: under the team prefix (`{current_team}`) a positional
         // argument would receive the team, not the provider.
@@ -137,16 +142,103 @@ class ConnectedAccountController
             return redirect($failure)->with('error', __('kinetix.connected_account_failed'));
         }
 
-        $user = $this->manager->resolveLoginUser($provider, $socialUser)
-            ?? $this->manager->createLoginUser($provider, $socialUser);
+        $label = app(ConnectedAccountProviderRegistry::class)->all()[$provider]['label'] ?? $provider;
+
+        try {
+            $user = $this->manager->resolveLoginUser($provider, $socialUser);
+        } catch (SignInToLinkException) {
+            return redirect($failure)->with('error', __('kinetix.connected_account_sign_in_to_link', ['provider' => $label]));
+        }
+
+        if ($user === null) {
+            if (! $this->manager->mayCreateLoginUser($provider, $socialUser)) {
+                return redirect($failure)->with('error', __('kinetix.connected_account_email_unverified', ['provider' => $label]));
+            }
+
+            $user = $this->manager->createLoginUser($provider, $socialUser);
+        }
 
         if ($user instanceof Model) {
-            $this->manager->link($user, $provider, $socialUser);
+            try {
+                $this->manager->link($user, $provider, $socialUser);
+            } catch (AccountAlreadyLinkedException) {
+                return redirect($failure)->with('error', __('kinetix.connected_account_taken'));
+            }
+        }
+
+        $challenge = $this->twoFactorChallenge($request, $user, $redirect);
+
+        if ($challenge !== null) {
+            return $challenge;
         }
 
         Auth::login($user, remember: true);
 
         return redirect()->intended($redirect);
+    }
+
+    /**
+     * The two-factor hand-off for a provider login, or null when the user
+     * signs in straight away. A `connected_accounts.two_factor_challenge`
+     * callback owns the decision; otherwise a user with two-factor enabled
+     * goes through the host's `two-factor.login` challenge, exactly as a
+     * password login would, and is refused when there is no such route.
+     */
+    protected function twoFactorChallenge(Request $request, Authenticatable $user, string $redirect): ?SymfonyResponse
+    {
+        $callback = ConfigCallback::resolve(config('kinetix.connected_accounts.two_factor_challenge'));
+
+        if ($callback !== null) {
+            $response = $callback($user, $request, true);
+
+            return $response instanceof SymfonyResponse ? $response : null;
+        }
+
+        if (! $this->usesTwoFactor($user)) {
+            return null;
+        }
+
+        $failure = (string) config('kinetix.connected_accounts.login_failure_redirect', '/login');
+
+        if (! Route::has('two-factor.login')) {
+            return redirect($failure)->with('error', __('kinetix.connected_account_two_factor_required'));
+        }
+
+        $request->session()->put([
+            'login.id'       => $user->getAuthIdentifier(),
+            'login.remember' => true,
+        ]);
+
+        if (! $request->session()->has('url.intended')) {
+            $request->session()->put('url.intended', url($redirect));
+        }
+
+        $event = 'Laravel\Fortify\Events\TwoFactorAuthenticationChallenged';
+
+        if (class_exists($event)) {
+            event(new $event($user));
+        }
+
+        return redirect()->route('two-factor.login');
+    }
+
+    /**
+     * Whether the user has two-factor authentication turned on: a stored
+     * secret, and a confirmation when the host's Fortify requires one.
+     */
+    protected function usesTwoFactor(Authenticatable $user): bool
+    {
+        if (! $user instanceof Model || blank($user->getAttribute('two_factor_secret'))) {
+            return false;
+        }
+
+        $confirms = ['Laravel\Fortify\Fortify', 'confirmsTwoFactorAuthentication'];
+
+        if (is_callable($confirms) && (bool) call_user_func($confirms)) {
+            return $user->getAttribute('two_factor_confirmed_at') !== null;
+        }
+
+        return true;
     }
 
     /**

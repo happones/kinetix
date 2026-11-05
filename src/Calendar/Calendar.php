@@ -8,6 +8,7 @@ use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Data\CalendarData;
 use Happones\Kinetix\Data\CalendarEventData;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\KinetixTimezone;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
@@ -309,7 +310,7 @@ class Calendar
             'moveScope'   => $this->moveScope,
             // The wall clock a move shifts the end on.
             'timezone' => $this->resolveTimezone(),
-        ]);
+        ], DescriptorAudience::CalendarMove);
     }
 
     /**

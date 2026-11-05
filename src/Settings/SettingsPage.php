@@ -81,6 +81,11 @@ abstract class SettingsPage
     /**
      * Field names whose values should be stored encrypted (e.g. API keys).
      *
+     * They are write-only on the page: never sent to the browser (the field
+     * renders empty, flagged as holding a value), kept when submitted blank,
+     * and — in a team — never filled from the global value the team
+     * inherits. `KinetixSettings::get()` still reads the inherited value.
+     *
      * @return array<int, string>
      */
     public function encrypted(): array
@@ -90,7 +95,7 @@ abstract class SettingsPage
 
     public function form(): Form
     {
-        return Form::make()->schema($this->schema())->operation('edit');
+        return Form::make()->schema($this->schema())->operation('edit')->writeOnly(array_values($this->encrypted()));
     }
 
     /**
@@ -113,12 +118,72 @@ abstract class SettingsPage
     }
 
     /**
+     * What the form is filled with: {@see currentValues()}, except that an
+     * encrypted field reads only the scope's OWN value — a team page must not
+     * be filled (not even as "a value is set") from the platform's global
+     * secret.
+     *
+     * @return array<string, mixed>
+     */
+    protected function formValues(SettingsManager $settings): array
+    {
+        $values    = $this->currentValues($settings);
+        $encrypted = $this->encrypted();
+
+        if ($encrypted === []) {
+            return $values;
+        }
+
+        $own = $settings->own();
+
+        foreach ($encrypted as $name) {
+            if (array_key_exists($name, $values)) {
+                $values[$name] = $own[$this->prefixed($name)] ?? null;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * The encrypted fields this scope doesn't set itself but inherits a value
+     * for (a team page over a global secret): left blank, they keep
+     * inheriting it, so a required one doesn't block the save.
+     *
+     * @return list<string>
+     */
+    protected function inheritedSecrets(SettingsManager $settings): array
+    {
+        $own       = $settings->own();
+        $inherited = $settings->inherited();
+
+        $names = [];
+
+        foreach ($this->encrypted() as $name) {
+            $key = $this->prefixed($name);
+
+            if (array_key_exists($key, $own)) {
+                continue;
+            }
+
+            if (($inherited[$key] ?? null) !== null) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
      * Validate the input through the form and persist each field under its
      * prefixed key. Returns the dehydrated state that was saved.
      *
      * In a team, a value equal to the global one it inherits is not stored,
      * and a stored one set back to it is forgotten: the team keeps following
-     * the global value until it really changes it.
+     * the global value until it really changes it. An encrypted value is never
+     * compared with the inherited one (the comparison would tell whoever
+     * submits it whether they guessed the global secret): a submitted secret
+     * is always stored as the team's own.
      *
      * @param  array<string, mixed> $input
      * @return array<string, mixed>
@@ -127,7 +192,9 @@ abstract class SettingsPage
     {
         $settings ??= KinetixSettings::manager();
 
-        $form = $this->form()->fill($this->currentValues($settings));
+        $form = $this->form()
+            ->inheritingWriteOnly($this->inheritedSecrets($settings))
+            ->fill($this->formValues($settings));
 
         $form->validate($input);
         $state = $form->getState($input);
@@ -139,7 +206,9 @@ abstract class SettingsPage
         foreach ($state as $name => $value) {
             $key = $this->prefixed($name);
 
-            if (array_key_exists($key, $inherited) && $inherited[$key] === $value) {
+            $isEncrypted = in_array($name, $encrypted, true);
+
+            if (! $isEncrypted && array_key_exists($key, $inherited) && $inherited[$key] === $value) {
                 if (array_key_exists($key, $own)) {
                     $settings->forget($key);
                 }
@@ -147,7 +216,7 @@ abstract class SettingsPage
                 continue;
             }
 
-            $settings->set($key, $value, in_array($name, $encrypted, true));
+            $settings->set($key, $value, $isEncrypted);
         }
 
         return $state;
@@ -169,7 +238,7 @@ abstract class SettingsPage
             'key'   => $this->key(),
             'title' => $this->title(),
             'icon'  => $this->navigationIcon(),
-            'form'  => $this->form()->fill($this->currentValues())->toArray(),
+            'form'  => $this->form()->fill($this->formValues(KinetixSettings::manager()))->toArray(),
         ];
     }
 }

@@ -13,6 +13,7 @@ use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
 use Happones\Kinetix\NotificationPreferences\KinetixNotificationPreferences;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Builder;
@@ -512,7 +513,7 @@ class ImportExportNotificationTest extends TestCase
 
         $this->postJson(route('kinetix.imports.start'), [
             'importer'  => CustomMessageImporter::token(),
-            'fileToken' => SignedDescriptor::seal(['path' => 'kinetix-imports/widgets.csv']),
+            'fileToken' => SignedDescriptor::seal(['path' => 'kinetix-imports/widgets.csv'], DescriptorAudience::ImportFile),
             'mapping'   => ['name' => 0],
         ])->assertOk()->assertJson([
             'status'  => 'queued',

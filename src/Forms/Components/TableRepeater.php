@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms\Components;
 
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 
@@ -125,12 +127,20 @@ class TableRepeater extends Repeater
                 $data->schema ?? [],
             )));
 
+            // A disabled column takes no input: leave it out of the allowlist
+            // the endpoint writes, unless it opted into being saved.
+            $fields  = Form::fieldsIn($this->schema);
+            $columns = array_values(array_filter(
+                $columns,
+                static fn (string $column): bool => ! isset($fields[$column]) || $fields[$column]->isSavedWhenDisabled() || ! $fields[$column]->isDisabledForRecord($record),
+            ));
+
             $data->autosaveToken = SignedDescriptor::seal([
                 'parent'   => $record::class,
                 'key'      => $record->getKey(),
                 'relation' => $this->relationship,
                 'columns'  => $columns,
-            ]);
+            ], DescriptorAudience::TableRepeater);
         }
 
         return $data;

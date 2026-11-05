@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms;
 
 use Closure;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Http\JsonResponse;
@@ -102,7 +103,7 @@ class UploadController
             return response()->json(['message' => __('kinetix.upload_invalid_field')], 422);
         }
 
-        $rejection = SignedDescriptor::rejection($config, $request);
+        $rejection = SignedDescriptor::rejection($config, $request, DescriptorAudience::Upload);
 
         if ($rejection !== null) {
             return response()->json([

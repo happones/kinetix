@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
@@ -35,6 +35,11 @@ vi.mock('@/components/KinetixFormSchema.vue', () => ({
                 });
         },
     }),
+}));
+
+const toastError = vi.fn();
+vi.mock('vue-sonner', () => ({
+    toast: { error: (m: string) => toastError(m) },
 }));
 
 import KinetixTableRepeater from '@/components/KinetixTableRepeater.vue';
@@ -76,6 +81,7 @@ beforeEach(() => {
     createMock.mockClear();
     updateMock.mockClear();
     removeMock.mockClear();
+    toastError.mockClear();
 });
 
 describe('KinetixTableRepeater', () => {
@@ -152,5 +158,95 @@ describe('KinetixTableRepeater', () => {
             .trigger('click');
 
         expect(createMock).toHaveBeenCalledWith('tok', expect.any(Object));
+    });
+
+    describe('refused autosaves', () => {
+        const expired = 'This form session expired. Please reload the page.';
+        const autosaveComp = {
+            ...baseComp,
+            autosave: true,
+            autosaveToken: 'tok',
+        };
+
+        // Controlled component: feed every update:modelValue back as the prop.
+        const mountControlled = (rows: any[]) => {
+            const w = mount(KinetixTableRepeater, {
+                props: {
+                    comp: autosaveComp,
+                    modelValue: rows,
+                    errors: {},
+                    'onUpdate:modelValue': (value: any[]) =>
+                        w.setProps({ modelValue: value }),
+                },
+                global: { plugins: [i18n] },
+            });
+
+            return w;
+        };
+
+        it('puts a row back and says why when the delete is refused', async () => {
+            removeMock.mockRejectedValueOnce(new Error(expired));
+            const w = mountControlled([
+                { id: 1, name: 'A', qty: 2 },
+                { id: 2, name: 'B', qty: 3 },
+            ]);
+
+            await w.find('tbody tr [aria-label="Remove"]').trigger('click');
+            await flushPromises();
+
+            expect(removeMock).toHaveBeenCalledWith('tok', 1);
+            expect(toastError).toHaveBeenCalledWith(expired);
+            expect((w.props('modelValue') as any[]).map((r) => r.name)).toEqual(
+                ['A', 'B'],
+            );
+        });
+
+        it('keeps a row removed when the server says it is already gone', async () => {
+            removeMock.mockRejectedValueOnce(
+                Object.assign(new Error('Not Found'), { status: 404 }),
+            );
+            const w = mountControlled([
+                { id: 1, name: 'A', qty: 2 },
+                { id: 2, name: 'B', qty: 3 },
+            ]);
+
+            await w.find('tbody tr [aria-label="Remove"]').trigger('click');
+            await flushPromises();
+
+            expect(removeMock).toHaveBeenCalledWith('tok', 1);
+            expect(toastError).not.toHaveBeenCalled();
+            expect((w.props('modelValue') as any[]).map((r) => r.name)).toEqual(
+                ['B'],
+            );
+        });
+
+        it('does not add a row the server refused to create', async () => {
+            createMock.mockRejectedValueOnce(new Error(expired));
+            const w = mountControlled([{ id: 1, name: 'A', qty: 2 }]);
+
+            await w
+                .findAll('button')
+                .find((b) => b.text().includes('Add item'))!
+                .trigger('click');
+            await flushPromises();
+
+            expect(toastError).toHaveBeenCalledWith(expired);
+            expect(w.props('modelValue')).toHaveLength(1);
+        });
+
+        it('says why a refused cell save failed', async () => {
+            vi.useFakeTimers();
+            updateMock.mockRejectedValueOnce(new Error(expired));
+            const w = mountControlled([{ id: 5, name: 'A', qty: 1 }]);
+
+            const input = w.find('input.cell');
+            (input.element as HTMLInputElement).value = 'B';
+            await input.trigger('input');
+            vi.runAllTimers();
+            vi.useRealTimers();
+            await flushPromises();
+
+            expect(toastError).toHaveBeenCalledWith(expired);
+        });
     });
 });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables;
 
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Http\JsonResponse;
@@ -35,7 +36,7 @@ class AggregatesController
             return response()->json(['message' => __('kinetix.table_invalid_signature')], 400);
         }
 
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::TableAggregates);
 
         if ($rejection !== null) {
             return response()->json([

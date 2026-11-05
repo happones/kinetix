@@ -152,21 +152,24 @@ class ConfidentialManager
     }
 
     /**
-     * Mask a plaintext value, keeping `$visible` real trailing (or leading)
-     * characters. Does not preserve separators/format (e.g. dashes in an
-     * SSN) — a v1 simplification.
+     * Mask a plaintext value, keeping up to `$visible` real trailing (or
+     * leading) characters, and never more than half of them: a value no
+     * longer than `$visible` is masked entirely. Counts characters, not
+     * bytes. Does not preserve separators/format (e.g. dashes in an SSN) — a
+     * v1 simplification.
      */
     public function mask(string $plaintext, ?int $visible = null, ?string $position = null): string
     {
-        $length  = strlen($plaintext);
-        $visible = max(0, min($visible ?? (int) config('kinetix.confidential.mask_visible', 4), $length));
+        $length  = mb_strlen($plaintext);
+        $visible = max(0, $visible ?? (int) config('kinetix.confidential.mask_visible', 4));
+        $visible = $length <= $visible ? 0 : min($visible, intdiv($length, 2));
         $hidden  = str_repeat('•', $length - $visible);
 
         if ($position === 'head') {
-            return ($visible > 0 ? substr($plaintext, 0, $visible) : '').$hidden;
+            return ($visible > 0 ? mb_substr($plaintext, 0, $visible) : '').$hidden;
         }
 
-        return $hidden.($visible > 0 ? substr($plaintext, -$visible) : '');
+        return $hidden.($visible > 0 ? mb_substr($plaintext, -$visible) : '');
     }
 
     /**

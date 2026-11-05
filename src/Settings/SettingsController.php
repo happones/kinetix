@@ -53,9 +53,14 @@ class SettingsController
 
     public function update(Request $request): JsonResponse
     {
-        $state = $this->resolve($request)->save($request->all());
+        $page  = $this->resolve($request);
+        $state = $page->save($request->all());
 
-        return response()->json(['status' => 'success', 'data' => $state]);
+        // Secrets go in, never back out.
+        return response()->json([
+            'status' => 'success',
+            'data'   => array_diff_key($state, array_flip($page->encrypted())),
+        ]);
     }
 
     /**

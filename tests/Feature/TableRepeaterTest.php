@@ -7,6 +7,8 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Forms\Components\NumberField;
 use Happones\Kinetix\Forms\Components\TableRepeater;
 use Happones\Kinetix\Forms\Components\TextInput;
+use Happones\Kinetix\Support\DescriptorAudience;
+use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +16,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 
 class TROrder extends Model
@@ -37,6 +40,24 @@ class TROrderItem extends Model
     public $timestamps = false;
 
     protected $guarded = [];
+}
+
+class TROrderItemDenyDeletePolicy
+{
+    public function create(): bool
+    {
+        return true;
+    }
+
+    public function update(): bool
+    {
+        return true;
+    }
+
+    public function delete(): bool
+    {
+        return false;
+    }
 }
 
 class TRUser extends Authenticatable
@@ -76,6 +97,7 @@ class TableRepeaterTest extends TestCase
             $table->string('name')->nullable();
             $table->integer('qty')->nullable();
             $table->string('secret')->nullable();
+            $table->string('code')->nullable();
         });
     }
 
@@ -170,5 +192,96 @@ class TableRepeaterTest extends TestCase
                 'values' => ['name' => 'x'],
             ])
             ->assertStatus(400);
+    }
+
+    public function test_the_row_policy_is_enforced(): void
+    {
+        Gate::policy(TROrderItem::class, TROrderItemDenyDeletePolicy::class);
+
+        $order = TROrder::create([]);
+        $token = $this->field()->toData('edit', $order)->autosaveToken;
+        $item  = $order->items()->create(['name' => 'Kept', 'qty' => 1]);
+
+        $this->actingAs(TRUser::create([]))
+            ->deleteJson('/_kinetix/tables/table-repeater', ['token' => $token, 'id' => $item->getKey()])
+            ->assertForbidden();
+
+        $this->assertNotNull($item->fresh());
+
+        // The same policy still lets rows be added and edited.
+        $this->putJson('/_kinetix/tables/table-repeater', ['token' => $token, 'id' => $item->getKey(), 'values' => ['qty' => 4]])
+            ->assertOk();
+        $this->assertSame(4, (int) $item->fresh()->qty);
+    }
+
+    public function test_deleting_a_row_fires_its_model_events(): void
+    {
+        $deleted = [];
+        TROrderItem::deleted(static function (TROrderItem $item) use (&$deleted): void {
+            $deleted[] = $item->getKey();
+        });
+
+        $order = TROrder::create([]);
+        $token = $this->field()->toData('edit', $order)->autosaveToken;
+        $item  = $order->items()->create(['name' => 'Gone']);
+
+        $this->actingAs(TRUser::create([]))
+            ->deleteJson('/_kinetix/tables/table-repeater', ['token' => $token, 'id' => $item->getKey()])
+            ->assertOk();
+
+        $this->assertSame([$item->getKey()], $deleted);
+    }
+
+    public function test_deleting_a_missing_row_is_not_found(): void
+    {
+        $order = TROrder::create([]);
+        $token = $this->field()->toData('edit', $order)->autosaveToken;
+
+        $this->actingAs(TRUser::create([]))
+            ->deleteJson('/_kinetix/tables/table-repeater', ['token' => $token, 'id' => 999])
+            ->assertNotFound();
+    }
+
+    public function test_a_descriptor_without_a_column_allowlist_is_refused(): void
+    {
+        $order = TROrder::create([]);
+        $token = SignedDescriptor::seal([
+            'parent'   => TROrder::class,
+            'key'      => $order->getKey(),
+            'relation' => 'items',
+        ], DescriptorAudience::TableRepeater);
+
+        $this->actingAs(TRUser::create([]))
+            ->postJson('/_kinetix/tables/table-repeater', ['token' => $token, 'values' => ['name' => 'x']])
+            ->assertStatus(400);
+
+        $this->assertSame(0, TROrderItem::query()->count());
+    }
+
+    public function test_disabled_columns_are_left_out_of_the_autosave_allowlist(): void
+    {
+        $order = TROrder::create([]);
+        $field = TableRepeater::make('items')
+            ->relationship('items')
+            ->autosave()
+            ->columns([
+                TextInput::make('name'),
+                NumberField::make('qty')->disabled(),
+                TextInput::make('secret')->disabled(static fn (?Model $record): bool => $record !== null),
+                TextInput::make('code')->disabled()->savedWhenDisabled(),
+            ]);
+
+        $token = $field->toData('edit', $order)->autosaveToken;
+
+        $this->assertSame(['name', 'code'], Crypt::decrypt($token)['columns']);
+
+        $this->actingAs(TRUser::create([]))
+            ->postJson('/_kinetix/tables/table-repeater', ['token' => $token, 'values' => ['name' => 'Ok', 'qty' => 99, 'secret' => 'x']])
+            ->assertOk();
+
+        $item = $order->items()->firstOrFail();
+        $this->assertSame('Ok', $item->name);
+        $this->assertNull($item->qty);
+        $this->assertNull($item->secret);
     }
 }

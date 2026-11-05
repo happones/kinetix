@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Exports;
 
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
@@ -98,7 +99,7 @@ class ExportController
 
         // Bound to the user it was minted for, and expiring. The export routes
         // aren't team-prefixed, so the team claim has nothing to compare to.
-        if (SignedDescriptor::rejection($payload, $request) !== null) {
+        if (SignedDescriptor::rejection($payload, $request, DescriptorAudience::RelationManager) !== null) {
             return response()->json(['message' => __('kinetix.export_forbidden')], 403);
         }
 

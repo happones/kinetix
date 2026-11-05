@@ -8,6 +8,7 @@ use Happones\Kinetix\Actions\ImportAction;
 use Happones\Kinetix\Imports\ImportColumn;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -59,7 +60,7 @@ class ImportStartTest extends TestCase
 {
     private function fileToken(): string
     {
-        return SignedDescriptor::seal(['path' => 'kinetix-imports/sample.csv']);
+        return SignedDescriptor::seal(['path' => 'kinetix-imports/sample.csv'], DescriptorAudience::ImportFile);
     }
 
     public function test_valid_mapping_dispatches_the_import_job(): void

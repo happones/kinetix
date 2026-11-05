@@ -2,6 +2,7 @@
 import { Download, Plus, Trash2 } from '@lucide/vue';
 import { computed, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTableRepeater } from '@/composables/useKinetixTableRepeater';
 import KinetixFormSchema from './KinetixFormSchema.vue';
@@ -50,6 +51,16 @@ const canAdd = computed(
 const token = computed<string | null>(() => props.comp.autosaveToken ?? null);
 const isAutosave = computed(() => !!props.comp.autosave && !!token.value);
 
+/**
+ * A refused autosave says why: the server's message (an expired descriptor
+ * asks for a reload, a denied policy says so), else a generic one.
+ */
+function refused(error: unknown, fallback: string): void {
+    toast.error(
+        error instanceof Error && error.message ? error.message : t(fallback),
+    );
+}
+
 // Debounced per-row autosave accumulator.
 const pending = new Map<number | string, Record<string, unknown>>();
 const timers = new Map<number | string, ReturnType<typeof setTimeout>>();
@@ -60,7 +71,9 @@ function flush(id: number | string): void {
     timers.delete(id);
 
     if (values && token.value) {
-        void autosaveApi.update(token.value, id, values);
+        autosaveApi
+            .update(token.value, id, values)
+            .catch((error: unknown) => refused(error, 'kinetix.save_failed'));
     }
 }
 
@@ -120,24 +133,43 @@ async function addRow(): Promise<void> {
     const row = buildBlankRow();
 
     if (isAutosave.value && token.value) {
-        const id = await autosaveApi.create(token.value, row);
+        try {
+            const id = await autosaveApi.create(token.value, row);
 
-        if (id != null) {
-            row.id = id;
+            if (id != null) {
+                row.id = id;
+            }
+        } catch (error) {
+            refused(error, 'kinetix.save_failed');
+
+            return;
         }
     }
 
     emit('update:modelValue', [...rows.value, row]);
 }
 
-function removeRow(index: number): void {
+async function removeRow(index: number): Promise<void> {
     const row = rows.value[index];
     const next = [...rows.value];
     next.splice(index, 1);
     emit('update:modelValue', next);
 
     if (isAutosave.value && row?.id != null && token.value) {
-        void autosaveApi.remove(token.value, row.id);
+        try {
+            await autosaveApi.remove(token.value, row.id);
+        } catch (error) {
+            // Already gone (another tab, a double click): the delete holds.
+            if ((error as { status?: number } | null)?.status === 404) {
+                return;
+            }
+
+            // The server kept the row, so the table shows it again.
+            const restored = [...rows.value];
+            restored.splice(Math.min(index, restored.length), 0, row);
+            emit('update:modelValue', restored);
+            refused(error, 'kinetix.delete_failed');
+        }
     }
 }
 

@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables\Filters;
 
 use Closure;
 use Happones\Kinetix\Support\Contracts\HasLabel;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -247,7 +248,7 @@ class SelectFilter extends Filter
                 'label'   => $this->searchLabelColumn,
                 'columns' => $this->searchColumns,
                 'value'   => $this->searchValueColumn,
-            ]);
+            ], DescriptorAudience::Search);
         }
 
         return $data;

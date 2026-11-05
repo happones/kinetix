@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Webhooks;
 
+use Happones\Kinetix\Support\BlockedOutboundUrl;
+use Happones\Kinetix\Support\OutboundHttp;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,8 +17,11 @@ use RuntimeException;
 
 /**
  * Delivers one event to one endpoint: re-checks SSRF, signs the body with the
- * endpoint secret (HMAC-SHA256, `X-Kinetix-Signature`), POSTs it, and logs the
- * attempt. Non-2xx / transport errors throw so the queue retries with backoff.
+ * endpoint secret (HMAC-SHA256, `X-Kinetix-Signature`), POSTs it — pinned to
+ * the validated address, following redirects only up to
+ * `kinetix.webhooks.follow_redirects`, each one re-checked
+ * ({@see OutboundHttp}) — and logs the attempt. Non-2xx / transport errors
+ * throw so the queue retries with backoff; a refused URL is logged and dropped.
  */
 class DispatchWebhookJob implements ShouldQueue
 {
@@ -67,13 +72,22 @@ class DispatchWebhookJob implements ShouldQueue
         $signature = hash_hmac('sha256', $body, $endpoint->secret);
 
         try {
-            $response = Http::timeout((int) config('kinetix.webhooks.timeout', 10))
-                ->withHeaders([
-                    'X-Kinetix-Event'     => $this->event,
-                    'X-Kinetix-Signature' => $signature,
-                ])
-                ->withBody($body, 'application/json')
-                ->post($endpoint->url);
+            $response = OutboundHttp::send(
+                Http::timeout((int) config('kinetix.webhooks.timeout', 10))
+                    ->withHeaders([
+                        'X-Kinetix-Event'     => $this->event,
+                        'X-Kinetix-Signature' => $signature,
+                    ])
+                    ->withBody($body, 'application/json'),
+                'POST',
+                $endpoint->url,
+                [],
+                max(0, (int) config('kinetix.webhooks.follow_redirects', 0)),
+            );
+        } catch (BlockedOutboundUrl $e) {
+            $this->log($endpoint, null, false, $attempt, $e->getMessage());
+
+            return; // do not retry a blocked URL
         } catch (\Throwable $e) {
             $this->log($endpoint, null, false, $attempt, Str::limit($e->getMessage(), 1000));
 

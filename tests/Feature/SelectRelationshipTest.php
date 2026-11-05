@@ -8,6 +8,7 @@ use Happones\Kinetix\Forms\Components\CheckboxList;
 use Happones\Kinetix\Forms\Components\Radio;
 use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -238,7 +239,7 @@ class SelectRelationshipTest extends TestCase
             'columns'  => ['name'],
             'value'    => 'id',
             'modifier' => ActiveAuthorsOnly::class,
-        ]);
+        ], DescriptorAudience::Search);
 
         $options = $this->postJson('/_kinetix/forms/search', ['token' => $token])
             ->assertOk()

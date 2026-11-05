@@ -13,6 +13,194 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.275.0] - 2026-11-05
+
+Second security release from the 0.273.0 audit. Every hole below was
+reproduced with a test before it was fixed. Several fixes change behaviour
+host apps may rely on — each one has an upgrade note and, where it makes
+sense, a config switch back.
+
+### Security
+
+- **Signed endpoint tokens carry an audience.** A token minted for one
+  Kinetix endpoint was accepted by any other endpoint whose payload shape it
+  matched: a read-only relation manager's token deleted rows through the
+  table-repeater endpoint (skipping the row policy and model events), and an
+  inline-edit table's token opened full create/update/delete through the
+  record modal. Every token now names the endpoint family it was minted for,
+  and every endpoint refuses the others. The table-repeater endpoint also
+  enforces the row model's policy, requires its column allowlist and deletes
+  rows as models.
+- **Outbound HTTP (webhooks, flow HTTP nodes) could reach internal
+  services.** Redirects were followed, only IPv4 records were checked,
+  hostnames were resolved twice (DNS rebinding) and CGNAT/cloud-metadata
+  ranges were allowed — and the response could be read back from webhook
+  logs or the flow simulator. Every A/AAAA record is now validated, the
+  connection is pinned to the validated address, redirects are not followed
+  unless you opt in (each hop re-validated), the blocked ranges cover the
+  special-use IPv4/IPv6 blocks, flow HTTP nodes can't set `Host` or
+  hop-by-hop headers, and the webhook test/redeliver and flow simulator
+  endpoints are throttled.
+- **Social login could take over an account by email.** When
+  `connected_accounts.login_enabled` was on, a provider login whose email
+  matched an existing user signed in as that user without checking that the
+  provider verified the email, and skipped two-factor authentication. An
+  existing provider link is now honoured first, an email match only links
+  when the email is verified, and users with two-factor auth go through the
+  challenge.
+- **Comments and tags reached other teams' records** by type and id. Under
+  teams, the components now take a signed reference to their record.
+- **Settings pages sent decrypted secrets to the browser**, and a team page
+  also received — and could probe — the platform's own secret. `encrypted()`
+  settings are now write-only, and the settings cache holds ciphertext.
+- **Impersonation and member credentials ignored other teams.** A stored
+  `users.impersonate` (or `members.credentials`) holder could take over users
+  of teams they don't belong to, including team owners. The target's teams
+  must now all be the actor's, protected permissions are checked in each of
+  them, and owners are protected.
+- **App-wide modules followed team ownership.** With teams on and a module's
+  `teams` set to `false` (webhooks, channels, settings, activity,
+  membership), every team owner managed the single app-wide copy. Those
+  abilities are now platform-level.
+- **Disabled fields were only disabled in the browser.** `disabled()` and
+  `disabledWhen()` are now enforced on the server.
+- **Kinetix's own credential endpoints weren't protected while
+  impersonating**: an impersonator could mint an API token, link an OAuth
+  account or change the password of the target. They are now blocked during
+  impersonation.
+- **(published)** **Mail templates**: variables were inserted unescaped in
+  HTML templates, Markdown values could add links, and the editor preview
+  ran stored HTML in the admin's page. Values are escaped in both formats,
+  Markdown bodies drop unsafe links, and the preview renders in a sandboxed
+  iframe.
+- **Inbox files were served inline with the sender's content type**, so an
+  external contact could send an HTML/SVG "document" that ran script when an
+  agent opened it. Only image, audio, video and PDF types render inline; the
+  rest download, and every file gets a sandboxing CSP.
+- The activity log stored decrypted old values and hidden attributes; Help
+  Center search and excerpts leaked text from `kinetix:can` blocks; the
+  Confidential mask showed short values in full; re-provisioning an active
+  member made a later revoke remove nothing.
+
+### Added
+
+- `Field::savedWhenDisabled()`, `Form::writeOnly([...])`, and an
+  `isWithheld` flag on serialized fields (rendered as "Saved — leave blank to
+  keep" with a hint).
+- `KinetixComments::reference($model)`, `KinetixTags::reference($model,
+  editable: true)` and a `reference` prop on `KinetixComments` /
+  `KinetixTags` and their composables.
+- `kinetix.module_middleware`: per-module middleware for gating a module's
+  endpoints on the server (plans, feature flags) — see "Gating a Kinetix
+  module on the server" in the installation docs.
+- Config: `webhooks.follow_redirects`, `webhooks.test_throttle`,
+  `flows.follow_redirects`, `flows.simulate_throttle`,
+  `connected_accounts.link_by_email`, `verified_email_providers`,
+  `email_verified`, `two_factor_challenge`, `comments.require_reference`,
+  `tags.require_reference`, `membership.protected_permissions`.
+- `TeamOwner::owns()`, `WebhookUrlGuard::target()`, and
+  `KinetixCallWebhookJob` as the extension point for spatie deliveries.
+- **(published)** The table repeater shows a refused autosave and puts back
+  a row whose delete was refused; comments and tags show a refused request
+  instead of failing silently.
+
+### Fixed
+
+- Notifications "mark all read" and "clear all" acted on every team's
+  notifications while the bell shows the current team's; both are now
+  team-scoped, and "mark all read" is a single query instead of one per
+  notification.
+- `kinetix:doctor` warns when social login links accounts by email
+  unconditionally.
+
+### Upgrade notes
+
+- Re-publish the components with `--force` (mail templates, form field,
+  wizard, table repeater, comments, tags).
+- **Open pages reload once:** tokens minted before the upgrade are refused
+  as expired.
+- **Table repeater:** the row model's policy (`create`/`update`/`delete`) now
+  applies on top of the parent's `update` policy; deleting fires model
+  events; deleting a row that isn't on the relation answers 404.
+- **Webhooks and flow HTTP nodes no longer follow redirects.** Set
+  `webhooks.follow_redirects` / `flows.follow_redirects` to a hop count to
+  allow re-validated redirects (the spatie driver never follows them). Host
+  names need `ext-curl` for address pinning. More address ranges are
+  blocked (CGNAT, IPv4-mapped IPv6, ULA, documentation, benchmarking).
+  Behind an HTTP(S) proxy, egress filtering is the proxy's job. A followed
+  redirect to another origin drops the caller's headers (Authorization,
+  Cookie, a flow node's own headers). With the spatie driver,
+  `webhook-server.webhook_job` must be `KinetixCallWebhookJob` or a subclass
+  of it — any other job class is replaced; an override of `getClient()`
+  must keep `parent::getClient()`.
+- **Export and report download links** minted before the upgrade stop
+  working (download tokens now carry a purpose); run the export again.
+- **Social login** (only with `connected_accounts.login_enabled`): an email
+  that matches an existing user links only when it's verified — the provider
+  is in `verified_email_providers` (github, bitbucket) or its
+  `email_verified` claim is true; a `connected_accounts.email_verified`
+  callback replaces both checks. Otherwise the user is asked to sign in and
+  connect the provider from their profile. `link_by_email => 'always'`
+  (`KINETIX_CONNECTED_ACCOUNTS_LINK_BY_EMAIL=always`) restores the old
+  behaviour. Users with two-factor auth are sent to `two-factor.login`, or
+  refused when that route doesn't exist; `two_factor_challenge` takes over
+  that step. A provider login also no longer creates an account from an
+  email the provider didn't verify: the person signs up with their email
+  first, then connects the provider. This check runs before a custom user
+  creator too — if yours verifies emails itself, tell Kinetix through the
+  `email_verified` callback.
+- **Comments and Tags under teams:** pass `KinetixComments::reference($model)`
+  / `KinetixTags::reference($model)` to `:reference`. With `kinetix.teams` on,
+  the raw type + id props answer 403 unless `comments.require_reference` /
+  `tags.require_reference` is `false`, and then the model needs a policy.
+  Apps without teams are unchanged.
+- **Encrypted settings are write-only:** they render empty with a "saved"
+  hint and a blank field keeps the stored value; team pages no longer show
+  or inherit the platform's secrets in the form (runtime
+  `KinetixSettings::get()` still inherits). On a team page, a secret the
+  team doesn't set itself can be left blank and keeps inheriting the global
+  value, so a `required()` secret doesn't block the save. The settings cache
+  key changed; the first load after the upgrade deletes the old entry,
+  which held decrypted values.
+- **Impersonation and member credentials:** the target's teams must all be
+  the actor's; protected permissions are checked in each team; only an
+  owner of a team can take over that team's owner. Owning a team counts as
+  holding a protected permission there only when the owner bypass grants it.
+  Super-admins still cross teams, and `can_impersonate` callbacks that start
+  with `passesBuiltInGuards()` inherit this. Issuing member credentials
+  applies the same guard with `membership.protected_permissions`.
+- **App-wide modules** (`teams => false` while `kinetix.teams` is on) now
+  register platform-level abilities: run `kinetix:doctor` and remove them
+  from team roles.
+- **Disabled fields are not saved from the client.** Fields whose value the
+  page computes in the browser must add `->savedWhenDisabled()`. An autosave
+  `TableRepeater` also leaves disabled columns out of what it may write.
+  Disabled fields inside `Repeater` / `TableRepeater` rows are still only
+  disabled in the browser — validate or derive those values on the server.
+- **Mail templates escape `{{ var }}` in HTML templates too.** Use
+  `{!! var !!}` for trusted markup. In Markdown templates, values are
+  backslash-escaped, so a variable can no longer form a link, an autolink
+  (`<{{ url }}>`) or a code span; put the Markdown syntax in the template
+  and only the value in the variable, or use `{!! var !!}`.
+- **Impersonation now blocks** API token writes, connected-account link /
+  callback / password / unlink, password change, GDPR export and delete,
+  session revocation, member credentials and billing writes.
+- **Membership:** provisioning someone who's already an active member
+  answers 422 instead of resetting their row to pending (the reset dropped
+  the row's user, so a later revoke left their role in place). Revoking a
+  pending invitation still only marks it revoked. `kinetix:doctor` warns
+  about pending provisions whose identifier belongs to an existing member
+  of that team — rows left by the old reset; review each one.
+- **Activity:** hidden and encrypted attributes are logged as `[redacted]`
+  and old values are the stored ones. Existing rows aren't rewritten;
+  consider pruning old activity.
+- **Help Center:** the index cache key changed.
+- **Confidential:** the mask never shows more than half of a value.
+- **Inbox:** files other than images, audio, video and PDF download as
+  attachments.
+- Notifications "mark all read" and "clear all" act on the current team
+  only, and "mark all read" no longer fires per-notification model events.
+
 ## [0.274.0] - 2026-11-05
 
 Security release. Every fix below closes a hole an audit of 0.273.0 proved

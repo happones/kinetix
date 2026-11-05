@@ -148,5 +148,9 @@ class FormFieldData extends Data
         // = not persisted), and each Tab / Step's key in it.
         public ?string $queryParam = null,
         public ?string $urlKey = null,
+        // A stored value exists that the server deliberately doesn't send (a
+        // write-only field, a hidden or confidential attribute): the field
+        // renders empty, and leaving it blank keeps the stored value.
+        public bool $isWithheld = false,
     ) {}
 }

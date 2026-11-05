@@ -169,7 +169,19 @@ class InboxController
         return response()->json(['message' => $this->presentMessages(new Collection([$message->refresh()]))[0]]);
     }
 
-    /** A message's file, streamed (`?download=1` to save it). */
+    /**
+     * The sandbox every inline file but a PDF is served under: no script, no
+     * plugin, no request but its own media.
+     */
+    protected const MEDIA_CSP = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox";
+
+    /**
+     * A message's file, streamed (`?download=1` to save it).
+     *
+     * Its type comes from whoever sent it, so it is shown inline only when a
+     * browser cannot run it: raster images, audio, video and PDFs. Anything
+     * else (HTML, SVG, XML…) is downloaded as `application/octet-stream`.
+     */
     public function media(Request $request): Response
     {
         $message = $this->findMessage($request);
@@ -178,11 +190,37 @@ class InboxController
         abort_if($message->media_path === null || ! $disk->exists($message->media_path), 404);
 
         $name    = $message->media_name ?: basename($message->media_path);
-        $headers = ['Content-Type' => $message->media_mime ?? 'application/octet-stream', 'X-Content-Type-Options' => 'nosniff'];
+        $mime    = $this->normalizedMime($message->media_mime);
+        $inline  = $this->isInlineMime($mime);
+        $headers = [
+            'Content-Type'           => $inline ? $mime : 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
+        ];
 
-        return $request->boolean('download')
+        if ($mime !== 'application/pdf') {
+            $headers['Content-Security-Policy'] = self::MEDIA_CSP;
+        }
+
+        return $request->boolean('download') || ! $inline
             ? $disk->download($message->media_path, $name, $headers)
             : $disk->response($message->media_path, $name, $headers);
+    }
+
+    /**
+     * The declared MIME type, lowercased and without parameters.
+     */
+    protected function normalizedMime(?string $mime): string
+    {
+        return strtolower(trim(explode(';', (string) $mime, 2)[0]));
+    }
+
+    protected function isInlineMime(string $mime): bool
+    {
+        if ($mime === 'application/pdf' || in_array($mime, ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp'], true)) {
+            return true;
+        }
+
+        return (str_starts_with($mime, 'audio/') || str_starts_with($mime, 'video/')) && ! str_contains($mime, 'xml');
     }
 
     public function read(Request $request): JsonResponse

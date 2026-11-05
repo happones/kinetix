@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms;
 
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
@@ -35,7 +36,7 @@ class FormRecomputeController
             return response()->json(['message' => __('kinetix.form_session_expired')], 400);
         }
 
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::FormRecompute);
 
         if ($rejection !== null) {
             return response()->json([

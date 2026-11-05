@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Crypt;
  * teams are off / no current team). Values are JSON-encoded; secrets can be
  * stored encrypted. A whole scope is loaded once and cached, and the cache is
  * invalidated on every write — so `KinetixSettings::get()` is cheap to call.
+ * The cache holds the stored rows as they are in the table (an encrypted value
+ * stays ciphertext); values are decoded into a per-process memo.
  *
  * A team inherits the global values: it reads its own value for a key, else
  * the global one. Writing in a team only ever writes that team's value, and
@@ -137,6 +139,8 @@ class SettingsManager
 
         if ($this->cacheEnabled()) {
             Cache::forget($this->cacheKey($scope));
+            // The pre-0.275 entry held decrypted values.
+            Cache::forget($this->legacyCacheKey($scope));
         }
     }
 
@@ -153,36 +157,55 @@ class SettingsManager
             return $this->memo[$scope];
         }
 
-        $loader = fn (): array => $this->load($team);
+        $loader = fn (): array => $this->rows($team);
 
-        $values = $this->cacheEnabled()
-            ? Cache::rememberForever($this->cacheKey($scope), $loader)
+        // A cache entry is whatever the store hands back: checked, not trusted.
+        /** @var mixed $rows */
+        $rows = $this->cacheEnabled()
+            ? Cache::rememberForever($this->cacheKey($scope), function () use ($loader, $scope): array {
+                // First load under the v2 key: drop the pre-0.275 entry, which
+                // held this scope's values decrypted.
+                Cache::forget($this->legacyCacheKey($scope));
+
+                return $loader();
+            })
             : $loader();
+
+        $values = [];
+
+        foreach (is_array($rows) ? $rows : [] as $key => $row) {
+            $values[$key] = is_array($row) ? $this->decodeRaw($row[0] ?? null, (bool) ($row[1] ?? false)) : null;
+        }
 
         return $this->memo[$scope] = $values;
     }
 
     /**
-     * @return array<string, mixed>
+     * One scope's rows as stored: `key => [value, encrypted]`.
+     *
+     * @return array<string, array{0: string|null, 1: bool}>
      */
-    protected function load(int|string|null $team): array
+    protected function rows(int|string|null $team): array
     {
         return Setting::query()
             ->where('team_id', $team)
             ->get()
-            ->mapWithKeys(fn (Setting $setting): array => [$setting->key => $this->decode($setting)])
+            ->mapWithKeys(static fn (Setting $setting): array => [$setting->key => [$setting->value, (bool) $setting->encrypted]])
             ->all();
     }
 
     protected function decode(Setting $setting): mixed
     {
-        $raw = $setting->value;
+        return $this->decodeRaw($setting->value, (bool) $setting->encrypted);
+    }
 
+    protected function decodeRaw(?string $raw, bool $encrypted): mixed
+    {
         if ($raw === null) {
             return null;
         }
 
-        if ($setting->encrypted) {
+        if ($encrypted) {
             $raw = Crypt::decryptString($raw);
         }
 
@@ -204,6 +227,11 @@ class SettingsManager
     }
 
     protected function cacheKey(string $scope): string
+    {
+        return ((string) config('kinetix.settings.cache_key', 'kinetix.settings')).':v2:'.$scope;
+    }
+
+    protected function legacyCacheKey(string $scope): string
     {
         return ((string) config('kinetix.settings.cache_key', 'kinetix.settings')).':'.$scope;
     }

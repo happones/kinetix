@@ -69,7 +69,9 @@ Only users allowed to delete products read this.
 
 Gating is enforced server-side: a gated ARTICLE disappears from the index and
 search and its URL 404s (never 403 — existence isn't leaked); a gated BLOCK is
-stripped from the markdown before rendering. Rendering uses
+stripped from the markdown before rendering AND from search (the index stores
+`{public, gated: [{ability, text}]}` per article; search adds only the segments the
+user passes, one Gate call per ability; card excerpts come from public text only). Rendering uses
 `html_input=strip` + `allow_unsafe_links=false`.
 
 Bodies render through `MarkdownRenderer` (shared with docs): GitHub alerts

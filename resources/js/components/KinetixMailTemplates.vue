@@ -31,6 +31,45 @@ const blank = (): KinetixMailTemplate => ({
 const draft = ref<KinetixMailTemplate>(blank());
 const previewHtml = ref('');
 const previewSubject = ref('');
+const previewHeight = ref(160);
+
+/**
+ * The rendered body is template output, so it never touches the host document:
+ * it is parsed inside a sandboxed frame with no script permission, behind its own
+ * restrictive policy. `allow-same-origin` only lets the host read the frame's
+ * height; without `allow-scripts` nothing inside it can run.
+ */
+const previewPolicy = [
+    "default-src 'none'",
+    'img-src https: http: data:',
+    "style-src 'unsafe-inline'",
+    'font-src https: data:',
+].join('; ');
+
+const previewDocument = computed(
+    () =>
+        '<!doctype html><html><head><meta charset="utf-8">' +
+        `<meta http-equiv="Content-Security-Policy" content="${previewPolicy}">` +
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+        '<style>' +
+        'html{color-scheme:light}' +
+        'body{margin:0;padding:4px;font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;color:#18181b;background:#fff;overflow-wrap:anywhere}' +
+        'h1,h2,h3{line-height:1.3;margin:1em 0 .5em}p,ul,ol,table{margin:0 0 1em}' +
+        'a{color:#2563eb}img{max-width:100%;height:auto}' +
+        'table{border-collapse:collapse;max-width:100%}' +
+        '</style></head><body>' +
+        previewHtml.value +
+        '</body></html>',
+);
+
+function fitPreview(event: Event): void {
+    const frame = event.target as HTMLIFrameElement;
+    const height = frame.contentDocument?.documentElement?.scrollHeight;
+
+    if (height) {
+        previewHeight.value = Math.max(height, 80);
+    }
+}
 const testEmail = ref('');
 const saving = ref(false);
 
@@ -291,10 +330,14 @@ async function test(): Promise<void> {
                     {{ t('kinetix.mail_preview') }} —
                     <span class="text-foreground">{{ previewSubject }}</span>
                 </div>
-                <!-- eslint-disable-next-line vue/no-v-html -- server-rendered preview of an admin-authored template body -->
-                <div
-                    class="prose prose-sm dark:prose-invert max-w-none"
-                    v-html="previewHtml"
+                <iframe
+                    sandbox="allow-same-origin"
+                    referrerpolicy="no-referrer"
+                    :title="t('kinetix.mail_preview')"
+                    :srcdoc="previewDocument"
+                    class="bg-white block w-full rounded-md border-0"
+                    :style="{ height: `${previewHeight}px` }"
+                    @load="fitPreview"
                 />
             </div>
 

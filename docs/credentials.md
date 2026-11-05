@@ -538,6 +538,12 @@ defineProps<{
 
 ## 7. Security
 
+While an admin is impersonating someone, the change-password endpoint (every
+profile's) answers `403` for a submit (the page still opens), and so does a
+member's temporary-password issue (`members/{provision}/credential`). See
+[Impersonation](/impersonation).
+
+
 - **Only hashes are stored.** The history table exists to answer "have you used
   this before?" without anyone — including an operator with database access —
   being able to read what the old passwords were.

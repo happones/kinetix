@@ -35,6 +35,8 @@ abstract class Field extends Component
 
     protected bool $isSaved = true;
 
+    protected bool $savedWhenDisabled = false;
+
     protected ?string $minValue = null;
 
     protected ?string $maxValue = null;
@@ -128,8 +130,10 @@ abstract class Field extends Component
 
     /**
      * Disable this field while another field's value satisfies the condition.
-     * Purely a UI affordance (a disabled input still round-trips its current
-     * value); pair with {@see visibleWhen()} to also drop it from the payload.
+     * For a field of the form itself it is enforced on the server too: while
+     * the condition holds on the submitted data, a value sent for the field
+     * is ignored — not validated, not saved (see {@see disabled()}, including
+     * its Repeater limit). Opt out with {@see savedWhenDisabled()}.
      */
     public function disabledWhen(string $field, mixed $value = true, string $operator = FieldCondition::EQUALS): static
     {
@@ -262,11 +266,65 @@ abstract class Field extends Component
         return $this;
     }
 
+    /**
+     * Disable the field: `true`, or a closure receiving the record. For a
+     * field of the form itself it is enforced on the server too: a value
+     * submitted for it is ignored — an existing record keeps what it has, a
+     * new one gets the value the form was filled with, else the default. Opt
+     * out with {@see savedWhenDisabled()}. Inside Repeater rows it is a UI
+     * affordance only (rows can't be matched to stored rows); an autosave
+     * TableRepeater leaves disabled columns out of its signed allowlist.
+     */
     public function disabled(mixed $condition = true): static
     {
         $this->isDisabled = $condition;
 
         return $this;
+    }
+
+    /**
+     * Save the submitted value even while the field is disabled — for a
+     * field the page itself fills in (a computed total, a value set by
+     * another field's `afterStateUpdated()`), which the user can't type into
+     * but whose value must be stored.
+     */
+    public function savedWhenDisabled(bool $condition = true): static
+    {
+        $this->savedWhenDisabled = $condition;
+
+        return $this;
+    }
+
+    public function isSavedWhenDisabled(): bool
+    {
+        return $this->savedWhenDisabled;
+    }
+
+    /**
+     * Whether {@see disabled()} disables the field for `$record` (a closure is
+     * evaluated with it) — the part that doesn't depend on submitted data.
+     */
+    public function isDisabledForRecord(?Model $record = null): bool
+    {
+        return $this->isDisabled instanceof Closure
+            ? (bool) $this->evaluate($this->isDisabled, $record)
+            : (bool) $this->isDisabled;
+    }
+
+    /**
+     * Whether the field is disabled for this submit: {@see disabled()} (a
+     * closure is evaluated with the record), or a {@see disabledWhen()}
+     * condition that holds on the submitted data.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function isDisabledFor(array $data, ?Model $record = null): bool
+    {
+        if ($this->isDisabledForRecord($record)) {
+            return true;
+        }
+
+        return isset($this->conditions['disabled']) && $this->conditions['disabled']->passes($data);
     }
 
     public function placeholder(mixed $placeholder): static
@@ -653,8 +711,8 @@ abstract class Field extends Component
     }
 
     /**
-     * Call a user closure injecting the arguments it asks for BY TYPE or NAME,
-     * Filament-style: a parameter typed {@see Get} or named `$get` receives the
+     * Call a user closure injecting the arguments it asks for BY TYPE or NAME:
+     * a parameter typed {@see Get} or named `$get` receives the
      * state reader, `Set`/`$set` the state writer, `Model`/`$record` the record.
      *
      * Backward compatible: a legacy single-parameter closure (`fn ($record) =>

@@ -9,22 +9,47 @@ import { useKinetixVirtualRows } from '@/composables/useKinetixVirtualRows';
 import type { KinetixComment } from '@/types/kinetix';
 
 /**
- * Drop-in threaded comments for any commentable model. Pass the model's morph
- * type + id; the component loads, posts, replies, edits and deletes through the
- * Kinetix comments endpoints.
+ * Drop-in threaded comments for any commentable model. Pass the model's sealed
+ * `reference` (`KinetixComments::reference($model)`), or the legacy morph
+ * type + id; the component loads, posts, replies, edits and deletes through
+ * the Kinetix comments endpoints.
  */
 const props = defineProps<{
-    commentableType: string;
-    commentableId: number | string;
+    /** Sealed target from the server; when set, type + id are not sent. */
+    reference?: string;
+    commentableType?: string;
+    commentableId?: number | string;
 }>();
 
 const { t } = useI18n();
 const { comments, loading, load, post, edit, remove } = useKinetixComments(
     props.commentableType,
     props.commentableId,
+    () => props.reference,
 );
 
-onMounted(load);
+/**
+ * A refused load (a denied policy, an expired reference) says why and keeps
+ * whatever thread was already shown; the empty state stays hidden so it
+ * doesn't invite a post the server would refuse too.
+ */
+const loadFailed = ref(false);
+
+async function loadThread(): Promise<void> {
+    try {
+        await load();
+        loadFailed.value = false;
+    } catch (e) {
+        loadFailed.value = true;
+        toast.error(
+            e instanceof Error && e.message
+                ? e.message
+                : t('kinetix.action_failed'),
+        );
+    }
+}
+
+onMounted(loadThread);
 
 // Long comment threads window their top-level list; short ones (the common
 // case + tests) render in full via the threshold gate.
@@ -194,7 +219,7 @@ async function onDelete(comment: KinetixComment): Promise<void> {
 
         <!-- List -->
         <p
-            v-if="!loading && comments.length === 0"
+            v-if="!loading && !loadFailed && comments.length === 0"
             class="text-sm text-muted-foreground"
         >
             {{ t('kinetix.comment_empty') }}

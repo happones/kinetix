@@ -44,6 +44,10 @@ php artisan migrate                          # creates kinetix_confidential_keys
 php artisan kinetix:confidential:rotate-key  # generate the first encryption key (required once)
 ```
 
+Mask rule (`Confidential::mask()`, multibyte): shows `min(visible, floor(len/2))`
+real characters, and none when `len <= visible` (`1234` → `••••`, `12345` → `•••45`).
+The cast's write-back guard compares against `mask()`, so keep them in step.
+
 ## Key design: masking is enforced in the cast, not the UI
 
 `ConfidentialCast` decrypts and masks/reveals the attribute wherever it's

@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Imports;
 use Happones\Kinetix\Data\ImportOptionsData;
 use Happones\Kinetix\Data\ImportPreviewData;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\KinetixDisk;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -229,7 +230,7 @@ class ImportController
             settings: $importer->settings(),
             autoMapping: $autoMapping,
             isExactMatch: $importer::isExactMatch($parsed['headers'], $autoMapping),
-            fileToken: SignedDescriptor::seal(['path' => $path]),
+            fileToken: SignedDescriptor::seal(['path' => $path], DescriptorAudience::ImportFile),
             totalRows: $total,
         );
     }
@@ -243,7 +244,7 @@ class ImportController
         $payload = SignedDescriptor::open($token);
         $path    = $payload['path'] ?? null;
 
-        if ($payload === null || ! is_string($path) || SignedDescriptor::rejection($payload, request()) !== null) {
+        if ($payload === null || ! is_string($path) || SignedDescriptor::rejection($payload, request(), DescriptorAudience::ImportFile) !== null) {
             throw new \RuntimeException('Invalid file token.');
         }
 

@@ -96,6 +96,13 @@ ones follow while you're at the bottom.
 - Images open in the app's [file preview](tables.md) when it's mounted, and in
   a new tab otherwise.
 - Videos and voice notes play in place. Documents download.
+- A file's type is whatever the sender declared, so the media endpoint shows a
+  file inline only when a browser can't run it: PNG, JPEG, GIF, WebP, AVIF and
+  BMP images, audio, video and PDFs. Anything else (HTML, SVG, XML, office
+  files…) is served as a download, `application/octet-stream`. Every file but
+  a PDF also carries a sandboxing `Content-Security-Policy`, and all of them
+  `X-Content-Type-Options: nosniff`, so a contact can't send a page that runs
+  in your app.
 
 **The composer.**
 

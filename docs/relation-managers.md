@@ -372,6 +372,12 @@ That's the whole implementation — render the manager on the parent page as in
 - Every request carries the manager's **signed descriptor** (parent model +
   key + relationship + manager class, bound to the user and team it was minted
   for, expiring per `kinetix.tables.token_ttl`). The client never names a class.
+  The descriptor names the relation-manager endpoints as its audience: no
+  other Kinetix endpoint accepts it (a table repeater's autosave, a table's
+  record modals), however close its payload looks, and they in turn refuse
+  each other's tokens. The relationship name only resolves when it is a real
+  Eloquent relation method of the parent (never a framework method such as
+  `delete`); anything else answers `400`.
 - **Create goes THROUGH the relationship** — `HasMany`/`MorphMany` stamp the
   foreign key (and morph type); `BelongsToMany` creates the record **and**
   attaches it. A submitted FK is ignored.

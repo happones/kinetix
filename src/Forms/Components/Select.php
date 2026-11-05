@@ -9,6 +9,7 @@ use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -297,7 +298,7 @@ class Select extends Field implements ResolvesRelationships
      */
     protected function bindDescriptor(array $descriptor): array
     {
-        return SignedDescriptor::bind($descriptor + ['scope' => $this->searchScope]);
+        return SignedDescriptor::bind($descriptor + ['scope' => $this->searchScope], DescriptorAudience::Search);
     }
 
     /**

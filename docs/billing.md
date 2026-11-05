@@ -698,6 +698,11 @@ BillingManager::for($team)->reportUsage(1, $meteredPriceId);
 
 ## 6. Routes
 
+While an admin is impersonating someone, the bundled billing routes stay
+readable (plan, invoices) but every write — subscribe, cancel, resume,
+payment methods — answers `403`. See [Impersonation](/impersonation).
+
+
 Either flip `auto_routes` + `enabled` to `true`, or register explicitly in a routes file:
 
 ```php

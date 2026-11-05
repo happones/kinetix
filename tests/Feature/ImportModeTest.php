@@ -8,6 +8,7 @@ use Happones\Kinetix\Imports\ImportColumn;
 use Happones\Kinetix\Imports\Importer;
 use Happones\Kinetix\Imports\ImportMode;
 use Happones\Kinetix\Imports\Jobs\ImportProcessor;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -427,7 +428,7 @@ class ImportModeTest extends TestCase
     {
         return $this->postJson(route('kinetix.imports.start'), [
             'importer'  => $importerToken,
-            'fileToken' => SignedDescriptor::seal(['path' => 'kinetix-imports/sample.csv']),
+            'fileToken' => SignedDescriptor::seal(['path' => 'kinetix-imports/sample.csv'], DescriptorAudience::ImportFile),
             'mapping'   => ['email' => 0],
             ...$extra,
         ]);

@@ -35,21 +35,32 @@ class NotificationController
     }
 
     /**
-     * Mark every unread notification as read.
+     * Mark every unread notification the bell shows as read, in one query.
+     * With team-scoped notifications, another team's stay unread
+     * ({@see NotificationScope}).
      */
     public function readAll(Request $request): JsonResponse
     {
-        $request->user()?->unreadNotifications->markAsRead();
+        $user = $request->user();
+
+        if ($user !== null && method_exists($user, 'unreadNotifications')) {
+            NotificationScope::apply($user->unreadNotifications())->update(['read_at' => now()]);
+        }
 
         return response()->json(['status' => 'success']);
     }
 
     /**
-     * Delete every notification.
+     * Delete every notification the bell shows. With team-scoped
+     * notifications, another team's are kept ({@see NotificationScope}).
      */
     public function clearAll(Request $request): JsonResponse
     {
-        $request->user()?->notifications()->delete();
+        $user = $request->user();
+
+        if ($user !== null && method_exists($user, 'notifications')) {
+            NotificationScope::apply($user->notifications())->delete();
+        }
 
         return response()->json(['status' => 'success']);
     }

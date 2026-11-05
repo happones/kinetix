@@ -228,6 +228,11 @@ public function store(Request $request): RedirectResponse
 }
 ```
 
+To gate a whole Kinetix module the same way (its built-in endpoints too, not
+just your routes), list the middleware under
+[`kinetix.module_middleware`](/installation#gating-a-kinetix-module-on-the-server):
+`'webhooks' => ['kinetix.entitled:webhooks.manage']`.
+
 Both take the upsell path for a plan/limit denial: a redirect to
 `kinetix.billing.upgrade_url` carrying a toast, falling back to a plain 403 when
 no upgrade page is configured (and always a 403 for JSON requests) — the same

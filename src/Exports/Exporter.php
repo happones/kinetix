@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Exports;
 use Closure;
 use Happones\Kinetix\Exports\Jobs\ExportProcessor;
 use Happones\Kinetix\Support\Concerns\CarriesQueueContext;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -33,7 +34,7 @@ abstract class Exporter
      */
     public static function token(): string
     {
-        return SignedDescriptor::seal(['class' => static::class]);
+        return SignedDescriptor::seal(['class' => static::class], DescriptorAudience::ClassToken);
     }
 
     /**

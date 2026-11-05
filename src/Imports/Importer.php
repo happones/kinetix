@@ -8,6 +8,7 @@ use Happones\Kinetix\Data\ImportColumnData;
 use Happones\Kinetix\Data\ImportModeData;
 use Happones\Kinetix\Data\ImportSettingsData;
 use Happones\Kinetix\Support\Concerns\CarriesQueueContext;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
@@ -221,7 +222,7 @@ abstract class Importer
      */
     public static function token(): string
     {
-        return SignedDescriptor::seal(['class' => static::class]);
+        return SignedDescriptor::seal(['class' => static::class], DescriptorAudience::ClassToken);
     }
 
     /**

@@ -118,10 +118,27 @@ This is the part that matters — impersonation done naively is a privilege-esca
   impersonator but a super-admin inside the team in the URL (a stored
   permission or role is team-scoped too, so it never means "platform staff").
   Only a super-admin can add `users.impersonate` to a role.
-- **Escalation guard**: you cannot impersonate a **super-admin** unless you are
-  one (`kinetix.permissions.super_admin_role`, a platform-wide assignment
-  included), nor a user holding a `protected_permissions` entry
-  (`roles.manage`) you don't hold.
+- **Escalation guard**: impersonating someone is inheriting everything they
+  hold, in every team they belong to, so the guard judges the target in all of
+  them:
+  - you cannot impersonate a **super-admin** unless you are one
+    (`kinetix.permissions.super_admin_role`, a platform-wide assignment
+    included); a super-admin may impersonate anyone else, across teams;
+  - with teams on, **every team of the target must be one of yours** (through
+    `kinetix.team_switcher.teams_relation`, falling back to `current_team_id`).
+    That relation must return every team a user belongs to, owned teams
+    included: a Jetstream-style `allTeams()` has to be exposed as a relation
+    and named in `teams_relation`, or the teams it misses are never checked.
+    A `users.impersonate` grant held in team A never reaches a user who is only
+    in team B, even through the bound team in the URL;
+  - in **each** of the target's teams, they may not hold a
+    `protected_permissions` entry (`roles.manage`) that you don't hold there;
+  - a target who **owns** one of their teams needs an impersonator who owns it
+    too (ownership follows the `owner_bypass` rule, or `ownsTeam()`);
+  - owning one of the target's teams counts as holding a protected permission
+    there only when the [owner bypass](/permissions#team-owners) grants it
+    (on, inside `only`, outside `except`, not platform-level). With the bypass
+    off, or the permission excluded, an owner needs it like anyone else.
 - **`can_impersonate` replaces the escalation guard — it does not add to it.**
   A callback (a callable array, never a closure) that only checks "same team"
   lets an owner impersonate a super-admin who belongs to their team. To narrow
@@ -133,7 +150,20 @@ This is the part that matters — impersonation done naively is a privilege-esca
   }
   // …then your own, narrower rule (same team, lower role rank, …)
   ```
-- **Block sensitive actions** while impersonating with the
+- **Kinetix's own credential routes are blocked while impersonating** (403):
+  - API tokens: listing stays readable, creating or revoking a token is
+    blocked (`protect:writes`);
+  - connected accounts: the link round-trip, setting a password and
+    unlinking (`protect`);
+  - the password-update endpoints of [Credentials](/credentials)
+    (`protect:writes`);
+  - GDPR export and deletion (`protect`);
+  - browser sessions: listing stays readable, signing sessions out is blocked
+    (`protect:writes`);
+  - issuing a member's credential (`members/{provision}/credential`,
+    `protect`);
+  - the billing routes (`protect:writes`).
+- **Block your own sensitive actions** while impersonating with the
   `kinetix.impersonation.protect` middleware. Apply it to anything that changes
   credentials or spends money so an admin acting as a user can't, say, change
   their password or buy a plan:

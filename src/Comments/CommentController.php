@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Comments;
 
+use Happones\Kinetix\Support\DescriptorAudience;
+use Happones\Kinetix\Support\RecordReference;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 
 /**
  * Self-service comments. Anyone who may view a commentable can read and post
  * comments on it; each user may edit and delete only their own. The commentable
- * model must be allowlisted via KinetixComments::for([...]).
+ * model must be allowlisted via KinetixComments::for([...]), and is named by a
+ * signed reference (KinetixComments::reference($model)).
  */
 class CommentController
 {
@@ -93,23 +95,34 @@ class CommentController
     }
 
     /**
-     * Resolve + authorize the commentable from the request (type + id).
+     * Resolve + authorize the commentable from the request: a signed
+     * `reference` ({@see KinetixComments::reference()}), or the legacy
+     * `commentable_type` + `commentable_id` when `comments.require_reference`
+     * allows it.
      */
     protected function commentable(Request $request): Model
     {
-        $type = (string) $request->input('commentable_type');
-        $id   = $request->input('commentable_id');
+        $reference = $request->input('reference');
 
-        $class = $this->registry->resolve($type);
+        if (is_string($reference) && $reference !== '') {
+            $model = RecordReference::open($reference, $request, DescriptorAudience::Comments, $this->registry->resolve(...))['record'];
+
+            RecordReference::authorize($model, 'view');
+
+            return $model;
+        }
+
+        abort_if(RecordReference::required('comments'), 403, __('kinetix.table_write_forbidden'));
+
+        $class = $this->registry->resolve((string) $request->input('commentable_type'));
         abort_if($class === null, 404);
 
-        $model = $class::query()->find($id);
+        $model = $class::query()->find($request->input('commentable_id'));
         abort_if(! $model instanceof Model, 404);
 
-        // Respect a host 'view' policy when one is defined for the model.
-        if (Gate::getPolicyFor($model) !== null && Gate::denies('view', $model)) {
-            abort(403);
-        }
+        // A raw type + id names any record of the class, so under teams only a
+        // policy can tell whether this one belongs to the caller's team.
+        RecordReference::authorize($model, 'view', policyRequired: (bool) config('kinetix.teams', false));
 
         return $model;
     }

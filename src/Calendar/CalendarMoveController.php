@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Calendar;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\KinetixTimezone;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -139,7 +140,7 @@ class CalendarMoveController
         // The descriptor is bound to the user and team it was minted for, and
         // expires ({@see SignedDescriptor}). Anyone else presenting it is
         // replaying a leaked token.
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::CalendarMove);
 
         if ($rejection !== null) {
             return $this->error($rejection === DescriptorRejection::Expired

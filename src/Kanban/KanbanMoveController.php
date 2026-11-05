@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Kanban;
 
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\ManualOrder;
 use Happones\Kinetix\Support\ManualOrderRefused;
@@ -67,7 +68,7 @@ class KanbanMoveController
         // The descriptor is bound to the user and team it was minted for, and
         // expires ({@see SignedDescriptor}). Anyone else presenting it is
         // replaying a leaked token.
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::KanbanMove);
 
         if ($rejection !== null) {
             return response()->json([

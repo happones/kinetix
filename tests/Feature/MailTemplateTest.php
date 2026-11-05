@@ -116,6 +116,58 @@ class MailTemplateTest extends TestCase
         $this->assertSame('<p>Hello Ada</p>', $template->render(['name' => 'Ada'])['html']);
     }
 
+    public function test_an_html_template_escapes_its_variables(): void
+    {
+        $template = $this->template(['format' => 'html', 'body' => '<p>Hello {{ name }}</p>']);
+
+        $html = $template->render(['name' => '<script>alert(1)</script>'])['html'];
+
+        $this->assertSame('<p>Hello &lt;script&gt;alert(1)&lt;/script&gt;</p>', $html);
+    }
+
+    public function test_raw_placeholders_insert_the_value_as_is(): void
+    {
+        $template = $this->template(['format' => 'html', 'body' => '<div>{!! banner !!}</div><p>{{ banner }}</p>']);
+
+        $html = $template->render(['banner' => '<b>Sale</b>'])['html'];
+
+        $this->assertSame('<div><b>Sale</b></div><p>&lt;b&gt;Sale&lt;/b&gt;</p>', $html);
+    }
+
+    public function test_a_markdown_variable_cannot_inject_markdown(): void
+    {
+        $html = $this->template(['body' => 'Hello {{ name }}'])
+            ->render(['name' => '[click me](javascript:alert(1)) **bold** <img src=x onerror=alert(1)>'])['html'];
+
+        $this->assertStringNotContainsString('<a', $html);
+        $this->assertStringNotContainsString('<strong>', $html);
+        $this->assertStringNotContainsString('<img', $html);
+        $this->assertStringContainsString('[click me](javascript:alert(1))', $html);
+        $this->assertStringContainsString('**bold**', $html);
+    }
+
+    public function test_a_variable_url_still_works_as_a_markdown_link(): void
+    {
+        $html = $this->template(['body' => '[Activate]({{ url }})'])->render(['url' => 'https://example.com/a?b=1&c=2'])['html'];
+
+        $this->assertStringContainsString('<a href="https://example.com/a?b=1&amp;c=2">Activate</a>', $html);
+    }
+
+    public function test_a_markdown_body_drops_unsafe_links(): void
+    {
+        $html = $this->template(['body' => '[Pay now](javascript:alert(1)) and [docs](https://example.com)'])->render([])['html'];
+
+        $this->assertStringNotContainsString('javascript:', $html);
+        $this->assertStringContainsString('href="https://example.com"', $html);
+    }
+
+    public function test_the_subject_stays_plain_text(): void
+    {
+        $subject = $this->template(['subject' => 'Hi {{ name }}'])->render(['name' => 'Ada & <b>Bob</b>'])['subject'];
+
+        $this->assertSame('Hi Ada & Bob', $subject);
+    }
+
     public function test_kinetix_mail_send_dispatches_the_mailable(): void
     {
         Mail::fake();

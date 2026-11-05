@@ -141,6 +141,34 @@ class DoctorCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    public function test_social_login_linking_on_any_email_is_a_warning(): void
+    {
+        config()->set('kinetix.connected_accounts.enabled', true);
+        config()->set('kinetix.connected_accounts.login_enabled', true);
+        config()->set('kinetix.connected_accounts.link_by_email', 'always');
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('links to any account with the same email');
+    }
+
+    public function test_social_login_linking_on_verified_emails_is_not_flagged(): void
+    {
+        config()->set('kinetix.connected_accounts.enabled', true);
+        config()->set('kinetix.connected_accounts.login_enabled', true);
+
+        $this->artisan('kinetix:doctor')
+            ->doesntExpectOutputToContain('links to any account with the same email');
+    }
+
+    public function test_a_closure_as_a_social_login_callback_is_an_error(): void
+    {
+        config()->set('kinetix.connected_accounts.email_verified', fn (): bool => true);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('kinetix.connected_accounts.email_verified')
+            ->assertFailed();
+    }
+
     public function test_a_closure_as_the_owner_bypass_rule_is_an_error(): void
     {
         config()->set('kinetix.permissions.owner_bypass', ['using' => fn (): bool => true, 'except' => []]);

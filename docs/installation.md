@@ -544,6 +544,37 @@ return [
 | `KINETIX_TEAMS_ENABLED` | `false` | Scope routes/queries to the current team |
 | `KINETIX_ROUTE_PREFIX` | `_kinetix` | Prefix for internal API routes |
 
+### Gating a Kinetix module on the server
+
+`middleware` applies to every Kinetix route. `module_middleware` appends your
+own middleware to **one module's** authenticated routes, keyed by the module's
+config name — the place to gate a module on a plan, a feature flag or any
+check of yours, on the server and not just in the UI:
+
+```php
+'module_middleware' => [
+    'webhooks' => ['kinetix.entitled:webhooks.manage'],
+    'flows'    => ['kinetix.feature:bots'],
+    'exports'  => ['kinetix.plan:exports'],
+],
+```
+
+- Keys are the module names in `config/kinetix.php` (`webhooks`, `channels`,
+  `inbox`, `flows`, `tokens`, `reports_center`, `api_logs`, `billing`, …). The
+  core endpoint groups answer to `tables` (table writes, bulk and form actions,
+  record modals, relation managers, table repeaters), `forms` (search,
+  locations, live recompute), `uploads`, `imports` and `exports`.
+- The entries run after `middleware` and the team bridge, so a check sees the
+  authenticated user and the URL team.
+- Guest and signed routes never get them: member activation links, inbound
+  channel webhooks, public docs and the social-login redirect/callback.
+- Gating `impersonation` gates its whole group, the "leave impersonation"
+  route included: a gate that refuses the impersonated user would trap the
+  admin in the session. Let the leave route through (or gate on the
+  impersonator) before listing anything there.
+- Empty by default. See [Entitlements](/entitlements) and
+  [Feature flags](/feature-flags) for the gates to put here.
+
 ### Team scoping: one switch, per-module overrides
 
 `kinetix.teams` is the single switch for team scoping — besides prefixing

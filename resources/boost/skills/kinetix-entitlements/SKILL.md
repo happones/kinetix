@@ -113,6 +113,10 @@ Route::get('reports', ...)->middleware('kinetix.entitled:reports.view,billing.vi
 KinetixEntitlements::authorize('projects.create');
 ```
 
+Gate a whole built-in Kinetix module (its own endpoints) with
+`kinetix.module_middleware`: `'webhooks' => ['kinetix.entitled:webhooks.manage']`
+— appended to that module's authenticated routes only.
+
 Plan/limit denials take the upsell redirect to `kinetix.billing.upgrade_url`
 (403 for JSON, or when no upgrade URL is set) — shared with `kinetix.plan`, so
 the two can never behave differently.

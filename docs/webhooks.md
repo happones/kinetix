@@ -25,6 +25,10 @@ php artisan migrate
     'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
     'tries'          => env('KINETIX_WEBHOOKS_TRIES', 3),
     'retention_days' => env('KINETIX_WEBHOOKS_RETENTION_DAYS', 30),
+    // Redirects a native delivery may follow (0 = none), each one re-checked.
+    'follow_redirects' => 0,
+    // Rate limit of "send test" and "redeliver", "attempts,minutes" per user.
+    'test_throttle'    => '6,1',
 ],
 ```
 
@@ -115,9 +119,25 @@ The body is `{"event": "...", "data": { ... }}`.
 ## 4. Security & reliability
 
 - **SSRF protection**: customer URLs are validated (`WebhookUrlGuard`) at save time
-  **and** again before each delivery — non-HTTP(S) schemes and hosts resolving to
-  private / loopback / link-local / reserved IPs (incl. cloud metadata
-  `169.254.169.254`) are rejected. Set `allow_private = true` only locally.
+  **and** again before each delivery — non-HTTP(S) schemes and hosts with any
+  address (every A **and** AAAA record) in a private, loopback, link-local,
+  carrier-grade NAT (`100.64.0.0/10`), documentation, benchmarking, multicast
+  or reserved range are rejected, IPv4-mapped IPv6 (`::ffff:127.0.0.1`)
+  included. That covers cloud metadata endpoints (`169.254.169.254`,
+  `100.100.100.200`). Set `allow_private = true` only locally.
+- **No DNS rebinding**: the connection is pinned to the address that was
+  validated (curl's `CURLOPT_RESOLVE`), so the name can't resolve elsewhere
+  between the check and the request. A host name can't be pinned without
+  ext-curl, so without it such deliveries are refused.
+- **Redirects are not followed** (a `302` is logged as the answer). Set
+  `follow_redirects` above 0 to follow up to that many: each `Location` is
+  validated and pinned again; `307`/`308` keep the method and body,
+  `301`/`302`/`303` continue as a `GET`. A refused hop is logged as blocked and
+  not retried.
+- **On-demand deliveries are throttled**: "send test" and "redeliver" share
+  `test_throttle` (6 a minute per user by default; `429` beyond it).
+- **Behind an HTTP(S) proxy** (`HTTP_PROXY`/`HTTPS_PROXY`) the proxy makes the
+  connection, so the pin doesn't apply: filtering egress is the proxy's job.
 - **Retries**: failed deliveries (non-2xx or transport error) retry on the queue
   with backoff (`tries`, default 3). Every attempt is logged.
 - **Retention**: schedule `kinetix:webhooks:prune` so `kinetix_webhook_logs` stays
@@ -200,6 +220,15 @@ before every delivery**. Two driver-specific differences to know:
   raw body — verify against whichever your driver sends.
 - **Retries/timeout**: with the spatie driver these come from spatie's own config
   (`webhook-server.tries` / `timeout_in_seconds`), not `kinetix.webhooks.*`.
+- **Redirects**: the spatie driver never follows them (`follow_redirects` only
+  applies to the native job). Kinetix dispatches its own job class,
+  `Happones\Kinetix\Webhooks\KinetixCallWebhookJob` (a `CallWebhookJob`),
+  which validates the URL again when the job runs and pins the connection to
+  the validated address. To customise spatie deliveries, set
+  `webhook-server.webhook_job` to a subclass of `KinetixCallWebhookJob` — it is
+  kept; any other job class is replaced by Kinetix's. If you override
+  `getClient()`, call `parent::getClient()` (or keep `allow_redirects => false`
+  and the `CURLOPT_RESOLVE` pin), or the SSRF protection is gone.
 
 Kinetix logs spatie's per-attempt outcomes by listening to its
 `WebhookCallSucceeded`/`WebhookCallFailed` events (correlated by a `meta` tag), so

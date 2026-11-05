@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Locations;
 
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,7 @@ class LocationController
             return response()->json(['message' => __('kinetix.search_invalid_token')], 400);
         }
 
-        $rejection = SignedDescriptor::rejection($descriptor, $request);
+        $rejection = SignedDescriptor::rejection($descriptor, $request, DescriptorAudience::AddressLocations);
 
         if ($rejection !== null) {
             return response()->json([

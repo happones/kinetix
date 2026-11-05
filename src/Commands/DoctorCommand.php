@@ -9,6 +9,8 @@ use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Entitlements\Entitlement;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Membership\MemberActivationNotification;
+use Happones\Kinetix\Membership\MemberProvision;
+use Happones\Kinetix\Membership\MemberProvisionStatus;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\Permissions\AssignableRoles;
 use Happones\Kinetix\Permissions\PermissionRegistry;
@@ -73,6 +75,7 @@ class DoctorCommand extends Command
         $this->checkEntitlements();
         $this->checkBilling();
         $this->checkCredentials();
+        $this->checkSocialLogin();
         $this->checkMembershipDelivery();
         $this->checkRoles();
         $this->checkMembership();
@@ -474,6 +477,27 @@ class DoctorCommand extends Command
     }
 
     /**
+     * Provider login that links on the email alone lets anyone who controls
+     * a provider account with a victim's (unverified) address sign in as them.
+     */
+    protected function checkSocialLogin(): void
+    {
+        if (! config('kinetix.connected_accounts.enabled', false) || ! config('kinetix.connected_accounts.login_enabled', false)) {
+            return;
+        }
+
+        if ((string) config('kinetix.connected_accounts.link_by_email', 'verified') !== 'always') {
+            return;
+        }
+
+        $this->warn_(
+            'Connected accounts',
+            'provider sign-in links to any account with the same email, verified or not',
+            "Set `connected_accounts.link_by_email` to 'verified' (the default) unless every provider you offer verifies emails.",
+        );
+    }
+
+    /**
      * Credential profiles get the whole lifecycle, but only with their columns
      * on THEIR table, the history kept apart, and a guard that reaches the
      * change screen. Each gap fails silently for that profile's users.
@@ -813,6 +837,7 @@ class DoctorCommand extends Command
         }
 
         $this->checkAssignableRoles(config('kinetix.membership.assignable_roles'));
+        $this->checkPendingProvisionsOfMembers();
 
         // Role tables scope by the PERMISSIONS flag; membership routes scope by
         // the MEMBERSHIP flag. When they disagree, provisions and the roles they
@@ -822,6 +847,75 @@ class DoctorCommand extends Command
                 'Provisions are scoped by membership.teams while role rows are scoped by permissions.teams — '
                 .'role assignments may land in the wrong tenant. Align both flags (or leave both null to inherit kinetix.teams).');
         }
+    }
+
+    /**
+     * Pending provisions whose identifier belongs to someone who is already a
+     * member of that team (any existing user, without teams). Before 0.275,
+     * provisioning an active member reset their row to pending and dropped
+     * its user, so revoking it later left their role in place. Kinetix never
+     * guesses who such a row meant: the operator reviews them.
+     */
+    protected function checkPendingProvisionsOfMembers(): void
+    {
+        $userModel = (string) config('kinetix.membership.user_model', 'App\\Models\\User');
+
+        if (! Schema::hasTable('kinetix_member_provisions') || ! class_exists($userModel) || ! is_subclass_of($userModel, Model::class)) {
+            return;
+        }
+
+        $usersTable = (new $userModel)->getTable();
+        $fields     = array_values(array_filter(
+            ['email', 'username', 'phone'],
+            static fn (string $field): bool => Schema::hasColumn('kinetix_member_provisions', $field) && Schema::hasColumn($usersTable, $field),
+        ));
+
+        if ($fields === []) {
+            return;
+        }
+
+        $suspects = [];
+
+        MemberProvision::query()
+            ->where('status', MemberProvisionStatus::Pending)
+            ->whereNull('user_id')
+            ->lazyById(500)
+            ->each(function (MemberProvision $provision) use ($userModel, $fields, &$suspects): void {
+                foreach ($fields as $field) {
+                    $value = $provision->getAttribute($field);
+
+                    if (blank($value)) {
+                        continue;
+                    }
+
+                    $user = $userModel::query()->where($field, $value)->first();
+
+                    if ($user === null) {
+                        return;
+                    }
+
+                    if ($provision->team_id !== null && ! KinetixTeams::userBelongsTo($user, $provision->team_id)) {
+                        return;
+                    }
+
+                    $suspects[] = "#{$provision->getKey()} {$value}".($provision->team_id !== null ? " (team {$provision->team_id})" : '');
+
+                    return;
+                }
+            });
+
+        if ($suspects === []) {
+            return;
+        }
+
+        $this->warn_(
+            'Membership',
+            count($suspects).' pending provision(s) name someone who is already a member',
+            'Rows like these come from re-provisioning an active member before 0.275: revoking them now removes '
+            .'nothing, so that member keeps their role. Review each one — remove the member from their own row, '
+            .'or cancel the invitation if it was a mistake.',
+            $suspects,
+        );
     }
 
     /**
@@ -1028,6 +1122,8 @@ class DoctorCommand extends Command
             'kinetix.membership.assign_role',
             'kinetix.billing.authorize',
             'kinetix.billing.resolve_billable',
+            'kinetix.connected_accounts.email_verified',
+            'kinetix.connected_accounts.two_factor_challenge',
         ];
 
         $closures = array_values(array_filter(

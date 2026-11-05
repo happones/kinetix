@@ -15,6 +15,10 @@ Activate this skill when:
 - Mounting `<KinetixGdprPanel>` / using `useKinetixGdpr`.
 - Configuring account anonymization/deletion.
 
+## While impersonating
+
+- Export and delete answer 403 while impersonating (full `kinetix.impersonation.protect`).
+
 ## Documentation
 
 For full details, reference `docs/gdpr.md` (published at https://happones.github.io/kinetix/gdpr).

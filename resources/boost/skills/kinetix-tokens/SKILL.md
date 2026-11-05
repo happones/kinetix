@@ -16,6 +16,10 @@ Activate this skill when:
 - Enforcing token abilities on API routes (`auth:sanctum`, `ability:`).
 - Logging/auditing token-authenticated API requests (`kinetix.api-log` middleware, `<KinetixIntegrationLogs>`).
 
+## While impersonating
+
+- While impersonating, token create/revoke answer 403 (`kinetix.impersonation.protect:writes` on the group); listing still works.
+
 ## Documentation
 
 For full details, reference `docs/tokens.md` (published at https://happones.github.io/kinetix/tokens).

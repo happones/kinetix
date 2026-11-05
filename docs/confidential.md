@@ -135,6 +135,11 @@ helper, `Customer::confidentialColumns()`, useful for your own audit tooling.
 many real characters to show, and from which end. Omit them to use the
 config default (`mask_visible`, tail).
 
+The mask never shows more than half of a value, and a value no longer than
+`visible` is masked entirely: with the default 4, `1234` masks to `••••`,
+`12345` to `•••45` and `123-45-6789` to `•••••••6789`. Lengths count
+characters, not bytes, so accented and other multibyte values mask cleanly.
+
 ### Edit forms withhold confidential fields
 
 A Kinetix `Form` never sends a confidential attribute to the browser, masked

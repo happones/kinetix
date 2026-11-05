@@ -2,6 +2,7 @@
 import { X } from '@lucide/vue';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import { tagRemoveButtonClass } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTags } from '@/composables/useKinetixTags';
 
@@ -9,19 +10,35 @@ import { useKinetixTags } from '@/composables/useKinetixTags';
  * Drop-in polymorphic tag editor for a taggable model. Shows the current tags as
  * removable chips, autocompletes from existing tags, and creates new ones on
  * Enter. Every change is synced to the server, which returns the canonical set.
+ * Pass the model's sealed `reference` (`KinetixTags::reference($model)`), or
+ * the legacy morph type + id.
  */
 const props = defineProps<{
-    taggableType: string;
-    taggableId: number | string;
+    /** Sealed target from the server; when set, type + id are not sent. */
+    reference?: string;
+    taggableType?: string;
+    taggableId?: number | string;
 }>();
 
 const { t } = useI18n();
 const { tags, load, suggest, sync } = useKinetixTags(
     props.taggableType,
     props.taggableId,
+    () => props.reference,
 );
 
-onMounted(load);
+/** A refused request says why; the chips keep the last set the server sent. */
+function refused(e: unknown, fallback: string): void {
+    toast.error(e instanceof Error && e.message ? e.message : t(fallback));
+}
+
+onMounted(async () => {
+    try {
+        await load();
+    } catch (e) {
+        refused(e, 'kinetix.action_failed');
+    }
+});
 
 const input = ref('');
 const suggestions = ref<string[]>([]);
@@ -42,7 +59,8 @@ function onInput(): void {
     }
 
     debounce = setTimeout(async () => {
-        const found = await suggest(q);
+        // Autocomplete is a convenience: a failed lookup just offers nothing.
+        const found = await suggest(q).catch(() => [] as string[]);
         suggestions.value = found.filter((s) => !tags.value.includes(s));
         open.value = suggestions.value.length > 0;
     }, 200);
@@ -60,12 +78,24 @@ async function add(name: string): Promise<void> {
     input.value = '';
     suggestions.value = [];
     open.value = false;
-    await sync([...tags.value, value]);
+
+    try {
+        await sync([...tags.value, value]);
+    } catch (e) {
+        // Not saved: hand the typed tag back so it isn't lost.
+        input.value = value;
+        refused(e, 'kinetix.save_failed');
+    }
 }
 
 async function removeAt(index: number): Promise<void> {
     const next = tags.value.filter((_, i) => i !== index);
-    await sync(next);
+
+    try {
+        await sync(next);
+    } catch (e) {
+        refused(e, 'kinetix.save_failed');
+    }
 }
 
 function onBackspace(): void {

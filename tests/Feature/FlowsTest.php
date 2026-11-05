@@ -463,6 +463,113 @@ class FlowsTest extends TestCase
             ->assertJsonPath('entries.0.text', 'No pude consultar');
     }
 
+    public function test_an_http_node_cannot_set_transport_headers_and_is_pinned(): void
+    {
+        $seen = [];
+        Http::fake(function ($request, array $options) use (&$seen) {
+            $seen[] = [$request->headers(), $options];
+
+            return Http::response(['ok' => true]);
+        });
+
+        $flow  = $this->flow(['x' => ['message', ['text' => 'saved']]]);
+        $graph = [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'api', 'type' => 'http', 'data' => ['method' => 'POST', 'url' => 'https://93.184.216.34/hook', 'body' => '{"a":1}', 'headers' => [
+                    ['key' => 'Host', 'value' => 'metadata.google.internal'],
+                    ['key' => 'Proxy-Authorization', 'value' => 'x'],
+                    ['key' => 'Transfer-Encoding', 'value' => 'chunked'],
+                    ['key' => 'X-Api-Key', 'value' => 'k'],
+                ]]],
+            ],
+            'edges' => [['source' => 'start', 'target' => 'api']],
+        ];
+
+        $this->actingAs($this->builder())->postJson("/_kinetix/flows/{$flow->id}/simulate", ['graph' => $graph])->assertOk();
+
+        $this->assertCount(1, $seen);
+        [$headers, $options] = $seen[0];
+        $this->assertSame(['k'], $headers['X-Api-Key']);
+        $this->assertNotSame(['metadata.google.internal'], $headers['Host'] ?? null);
+        $this->assertArrayNotHasKey('Proxy-Authorization', $headers);
+        $this->assertArrayNotHasKey('Transfer-Encoding', $headers);
+        $this->assertFalse($options['allow_redirects']);
+    }
+
+    public function test_an_http_node_does_not_follow_a_redirect_to_a_private_address(): void
+    {
+        config()->set('kinetix.flows.follow_redirects', 3);
+        Http::fake(['*' => Http::response('', 302, ['Location' => 'http://169.254.169.254/latest/meta-data'])]);
+
+        $flow  = $this->flow(['x' => ['message', ['text' => 'saved']]]);
+        $graph = [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'], ['id' => 'api', 'type' => 'http', 'data' => ['url' => 'https://93.184.216.34/r']],
+                ['id'                                       => 'ok', 'type' => 'message', 'data' => ['text' => 'ok']], ['id' => 'err', 'type' => 'message', 'data' => ['text' => 'refused']],
+            ],
+            'edges' => [['source' => 'start', 'target' => 'api'], ['source' => 'api', 'target' => 'ok'], ['source' => 'api', 'sourceHandle' => 'error', 'target' => 'err']],
+        ];
+
+        $this->actingAs($this->builder())->postJson("/_kinetix/flows/{$flow->id}/simulate", ['graph' => $graph])
+            ->assertJsonPath('entries.0.text', 'refused');
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_a_cross_origin_redirect_drops_the_nodes_headers(): void
+    {
+        config()->set('kinetix.flows.follow_redirects', 3);
+        $seen = [];
+
+        Http::fake(function ($request) use (&$seen) {
+            $seen[] = $request->headers();
+
+            return match (count($seen)) {
+                1       => Http::response('', 307, ['Location' => '/same-site']),
+                2       => Http::response('', 307, ['Location' => 'https://93.184.216.35/elsewhere']),
+                default => Http::response(['ok' => true]),
+            };
+        });
+
+        $flow  = $this->flow(['x' => ['message', ['text' => 'saved']]]);
+        $graph = [
+            'nodes' => [
+                ['id' => 'start', 'type' => 'start'],
+                ['id' => 'api', 'type' => 'http', 'data' => ['method' => 'GET', 'url' => 'https://93.184.216.34/start', 'headers' => [
+                    ['key' => 'Authorization', 'value' => 'Bearer secret'],
+                    ['key' => 'Cookie', 'value' => 'session=1'],
+                    ['key' => 'X-Api-Key', 'value' => 'k'],
+                ]]],
+            ],
+            'edges' => [['source' => 'start', 'target' => 'api']],
+        ];
+
+        $this->actingAs($this->builder())->postJson("/_kinetix/flows/{$flow->id}/simulate", ['graph' => $graph])->assertOk();
+
+        $this->assertCount(3, $seen);
+        // A same-origin hop keeps them…
+        $this->assertSame(['Bearer secret'], $seen[1]['Authorization']);
+        // …another origin gets none of them, only content negotiation.
+        $this->assertArrayNotHasKey('Authorization', $seen[2]);
+        $this->assertArrayNotHasKey('Cookie', $seen[2]);
+        $this->assertArrayNotHasKey('X-Api-Key', $seen[2]);
+        $this->assertSame(['application/json'], $seen[2]['Accept']);
+    }
+
+    public function test_the_simulator_is_rate_limited(): void
+    {
+        $flow    = $this->flow(['x' => ['message', ['text' => 'saved']]]);
+        $builder = $this->builder();
+        $graph   = ['nodes' => [['id' => 'start', 'type' => 'start']], 'edges' => []];
+
+        for ($i = 1; $i <= 10; $i++) {
+            $this->actingAs($builder)->postJson("/_kinetix/flows/{$flow->id}/simulate", ['graph' => $graph])->assertOk();
+        }
+
+        $this->actingAs($builder)->postJson("/_kinetix/flows/{$flow->id}/simulate", ['graph' => $graph])->assertStatus(429);
+    }
+
     public function test_business_hours_branch_open_or_closed(): void
     {
         $this->flow(

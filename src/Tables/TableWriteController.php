@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables;
 
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\EloquentRelation;
 use Happones\Kinetix\Support\ManualOrder;
 use Happones\Kinetix\Support\ManualOrderRefused;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -358,7 +360,7 @@ class TableWriteController
         // The descriptor is bound to the user and team it was minted for, and
         // expires ({@see SignedDescriptor}). Anyone else presenting it is
         // replaying a leaked token.
-        $rejection = SignedDescriptor::rejection($payload, $request);
+        $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::TableWrite);
 
         if ($rejection !== null) {
             return response()->json([
@@ -516,7 +518,7 @@ class TableWriteController
         $parent = $parentClass::query()->whereKey($relation['key'] ?? null)->first();
         abort_if($parent === null, 404, (string) __('kinetix.table_record_not_found'));
 
-        $relationObject = $parent->{$relationName}();
+        $relationObject = EloquentRelation::resolve($parent, $relationName);
 
         abort_unless(
             $relationObject instanceof Relation,

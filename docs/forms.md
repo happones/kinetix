@@ -127,6 +127,20 @@ Hydration extracts properties from a model or an array and binds them to the cor
 #### Withheld attributes: hidden and confidential
 Some attributes never reach the browser in an edit form: those the model keeps out of serialization (listed in `$hidden`, or left out of a `$visible` whitelist) and [confidential](./confidential.md) ones (cast with `ConfidentialCast`, masked or not, even while unlocked). A dotted field (`owner.password`, `owner.national_id`) is judged on the related model. On an edit they render empty, and coming back blank, off or unchanged means "keep the stored value", so neither validation nor `getState()` touches them; a new value is validated and saved as usual.
 
+When such an attribute has a stored value, the field is serialized with `isWithheld: true`. `KinetixForm` then shows it empty with the placeholder "Saved — leave blank to keep" (unless the field sets its own placeholder) and a hint line under it, "A value is saved. Leave this blank to keep it.", whose id (`{name}-withheld`) is chained into the control's `aria-describedby`. A withheld field that is required doesn't block a wizard step: leaving it blank keeps the saved value.
+
+#### Write-only fields
+For a secret that isn't a model attribute (an API key in a settings array, a token kept elsewhere), make the field write-only on the form:
+
+```php
+Form::make()
+    ->schema([TextInput::make('api_key')->revealable()])
+    ->writeOnly(['api_key'])
+    ->fill($currentValues);
+```
+
+Call `writeOnly()` before `fill()`: `fill()` notes which of the fields hold a value, then blanks them, so the value never reaches the browser. The field is flagged `isWithheld` (and rendered as above) when a value is stored. On submit, blank or unchanged means "keep it": the field is neither validated nor returned by `getState()`. A new value is validated and saved. When nothing is stored, the field's rules apply as usual, so a required write-only field must be filled the first time. [Settings pages](./settings.md) make their `encrypted()` fields write-only this way.
+
 #### Hydration Callbacks
 - **`afterStateHydrated(Closure $callback)`**: Executed immediately after a field is populated. The closure receives the raw state value, the field component instance, and the source record (if a Model was passed):
   ```php
@@ -523,7 +537,10 @@ Fields reside in the `Happones\Kinetix\Forms\Components` namespace. They all inh
 ### Shared Field Methods
 - `label(string|Closure $label)`: Customizes field title. If omitted, Kinetix translates the column name into a TitleCase Headline. Wrap an explicit label in `__()` to keep it translatable — `->label(__('posts.fields.title'))` (see [Localizing labels](/locale#translating-labels-you-declare-in-php-schemas)).
 - `default(mixed $value|Closure $value)`: Set initial fallback state.
-- `disabled(bool|Closure $condition = true)`: Prevent input mutations.
+- `disabled(bool|Closure $condition = true)`: Disable the field. A closure receives the record. For a field of the form itself, the server enforces it as well: a value submitted for a disabled field is ignored, neither validated nor saved. An existing record keeps the value it has; a new one gets the value the form was filled with, else the field's default.
+  - **Limit — fields inside `Repeater` / `TableRepeater` rows:** a disabled child field is enforced in the browser only. Rows are saved as submitted, because a submitted row can't be matched reliably to a stored one (rows are added, removed and reordered). Don't rely on `disabled()` to protect a value inside rows; validate it, or derive it on the server (`dehydrateStateUsing()`, `mutateFormDataBeforeSave()`).
+  - An **autosave** `TableRepeater` leaves disabled columns (`disabled()` evaluated with the parent record when the page renders) out of the column allowlist it signs, so its endpoint never writes them — unless the column is `savedWhenDisabled()`.
+- `savedWhenDisabled(bool $condition = true)`: Save the submitted value even while the field is disabled — for a value the page computes (a total, a field set by another field's `afterStateUpdated()`) that the user can't type but that must be stored.
 - `placeholder(string|Closure $placeholder)`: Visual watermark.
 - `helperText(string|Closure $text)`: Hint rendered under the field. Wired for
   assistive tech: it gets an addressable id (`{name}-help`) and the control's
@@ -557,8 +574,10 @@ Operators: `equals`, `notEquals`, `in`, `notIn`, `truthy`, `falsy`, `filled`,
 ships as plain data (not a closure), so `KinetixForm` re-evaluates it instantly
 as the user types. The server mirrors it: a conditionally **hidden** field is
 excluded from validation and never persisted (a smuggled value never reaches
-the model), and a conditionally **required** one gains `required` on submit —
-the client is a UX layer, not the guard.
+the model), a conditionally **required** one gains `required` on submit, and a
+conditionally **disabled** one (`disabledWhen` holding on the submitted data)
+is treated like `disabled()`: its value is ignored unless the field is
+`savedWhenDisabled()` — the client is a UX layer, not the guard.
 
 The browser and the server compare values the same way:
 

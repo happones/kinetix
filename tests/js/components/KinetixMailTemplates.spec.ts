@@ -120,3 +120,80 @@ describe('KinetixMailTemplates', () => {
         expect(saveCall).toBeTruthy();
     });
 });
+
+describe('KinetixMailTemplates preview isolation', () => {
+    const hostile =
+        '<p>Hi</p><img src="x" onerror="window.__kinetixMailXss = 1"><script>window.__kinetixMailXss = 2</script>';
+
+    async function mountWithPreview(html: string) {
+        fetchMock.mockImplementation((url: string) => {
+            if (url.endsWith('/mail-templates')) {
+                return Promise.resolve({ templates: [template] });
+            }
+            if (url.endsWith('/preview')) {
+                return Promise.resolve({ subject: 'Hi Ada', html });
+            }
+
+            return Promise.resolve({});
+        });
+
+        const w = mount(KinetixMailTemplates, {
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+        await new Promise((r) => setTimeout(r, 450));
+        await flushPromises();
+
+        return w;
+    }
+
+    it('never parses the rendered body into the host document', async () => {
+        delete (window as unknown as Record<string, unknown>).__kinetixMailXss;
+        const w = await mountWithPreview(hostile);
+
+        // The hostile markup only lives inside the iframe's srcdoc attribute.
+        expect(w.find('img').exists()).toBe(false);
+        expect(w.find('script').exists()).toBe(false);
+        expect(document.querySelector('[onerror]')).toBeNull();
+        expect(
+            (window as unknown as Record<string, unknown>).__kinetixMailXss,
+        ).toBeUndefined();
+
+        const frame = w.find('iframe');
+        expect(frame.exists()).toBe(true);
+        expect(frame.attributes('srcdoc')).toContain(hostile);
+        w.unmount();
+    });
+
+    it('sandboxes the preview frame without scripts', async () => {
+        const w = await mountWithPreview('<p>Hello Ada</p>');
+        const frame = w.find('iframe');
+
+        expect(frame.attributes('sandbox')).toBe('allow-same-origin');
+        expect(frame.attributes('sandbox')).not.toContain('allow-scripts');
+        expect(frame.attributes('referrerpolicy')).toBe('no-referrer');
+        expect(frame.attributes('title')).toBe('kinetix.mail_preview');
+
+        const srcdoc = frame.attributes('srcdoc') ?? '';
+        expect(srcdoc.startsWith('<!doctype html>')).toBe(true);
+        expect(srcdoc).toContain('<meta charset="utf-8">');
+        expect(srcdoc).toContain('Content-Security-Policy');
+        expect(srcdoc).toContain('<p>Hello Ada</p>');
+        w.unmount();
+    });
+
+    it('grows the frame to the rendered height on load', async () => {
+        const w = await mountWithPreview('<p>Hello Ada</p>');
+        const frame = w.find('iframe');
+
+        Object.defineProperty(frame.element, 'contentDocument', {
+            configurable: true,
+            value: { documentElement: { scrollHeight: 420 } },
+        });
+        await frame.trigger('load');
+
+        expect(frame.attributes('style')).toContain('height: 420px');
+        w.unmount();
+    });
+});

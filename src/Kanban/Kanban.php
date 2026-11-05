@@ -9,6 +9,7 @@ use Closure;
 use Happones\Kinetix\Data\KanbanCardData;
 use Happones\Kinetix\Data\KanbanColumnData;
 use Happones\Kinetix\Data\KanbanData;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -204,7 +205,7 @@ class Kanban
             'moveAbility'  => $this->moveAbility,
             'moveScope'    => $this->moveScope,
             'orderColumn'  => $this->orderColumn,
-        ]);
+        ], DescriptorAudience::KanbanMove);
     }
 
     /**

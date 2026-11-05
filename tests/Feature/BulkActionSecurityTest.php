@@ -8,6 +8,7 @@ use Closure;
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\BulkAction;
 use Happones\Kinetix\Actions\Unsealed;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Table;
 use Happones\Kinetix\Tests\TestCase;
@@ -466,7 +467,7 @@ class BulkActionSecurityTest extends TestCase
             'scope'    => [],
             'relation' => null,
             'ability'  => null,
-        ]);
+        ], DescriptorAudience::TableBulk);
 
         $this->runBulk($descriptor, [1])->assertForbidden();
         $this->assertFalse(BulkWidgetRecord::find(1)->archived);

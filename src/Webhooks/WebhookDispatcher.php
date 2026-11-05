@@ -69,7 +69,7 @@ class WebhookDispatcher
             return;
         }
 
-        WebhookCall::create()
+        $this->webhookCall()
             ->url($endpoint->url)
             ->payload(['event' => $event, 'data' => $payload])
             ->useSecret($endpoint->secret)
@@ -78,6 +78,32 @@ class WebhookDispatcher
                 'kinetix_event'       => $event,
             ])
             ->dispatch();
+    }
+
+    /**
+     * A spatie call carrying the Kinetix job, which re-validates the URL when
+     * it runs, pins the connection to the validated address and never follows
+     * a redirect ({@see KinetixCallWebhookJob}). A host job class extending it
+     * is kept.
+     *
+     * The job is chosen through spatie's `webhook_job` config for this one
+     * call: `useJob()` after `create()` would drop the configured defaults
+     * (verb, timeout, tries…) applied to the original job.
+     */
+    protected function webhookCall(): WebhookCall
+    {
+        $configured = config('webhook-server.webhook_job');
+        $job        = is_string($configured) && is_a($configured, KinetixCallWebhookJob::class, true)
+            ? $configured
+            : KinetixCallWebhookJob::class;
+
+        config()->set('webhook-server.webhook_job', $job);
+
+        try {
+            return WebhookCall::create();
+        } finally {
+            config()->set('webhook-server.webhook_job', $configured);
+        }
     }
 
     public function usesWebhookServer(): bool

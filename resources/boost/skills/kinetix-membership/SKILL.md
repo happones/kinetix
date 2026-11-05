@@ -44,7 +44,14 @@ Two axes, BOTH defaulting to today's behavior:
   always REGENERATES (the old one stops working). Never add a "reveal" that
   retrieves.
 - **`members.credentials` is a separate ability** from `members.provision` —
-  handing over a credential means being able to become that person.
+  handing over a credential means being able to become that person. A new
+  password for an existing member also passes the impersonation escalation
+  guard: 403 `members_credential_forbidden` for a
+  super-admin target, a target in a team the actor isn't in, a target holding
+  a `membership.protected_permissions` entry (default `roles.manage`) the
+  actor lacks in any of their teams (via `team_switcher.teams_relation`, which
+  must return EVERY team incl. owned ones), or a target owning a team the actor
+  doesn't own. Blocked while impersonating.
 - **`direct` requires `credentials.enabled`**, or the forced first-login change
   never happens and the admin-chosen password works forever. Boot warning +
   `kinetix:doctor`.
@@ -54,8 +61,10 @@ Two axes, BOTH defaulting to today's behavior:
 - **Identifiers are normalized** through the same resolver the login uses
   (`KinetixIdentity::normalize`), so one phone number cannot become two
   provisions.
-- **`store()` stays `updateOrCreate`** whatever the mode: a repeat on a known
-  identifier must look identical, or provisioning becomes a membership oracle.
+- **`store()` stays `updateOrCreate`** for pending/revoked rows. An existing
+  Active row (or one with a `user_id`) is a 422 `members_already_member` —
+  never reset an active member to pending (it drops `user_id` and breaks
+  revoke).
 - **Use `identifier` for display**, not `email` — it is whichever field carries
   it. `email`/`username`/`phone` travel alongside.
 
@@ -210,7 +219,11 @@ your own** (`php artisan kinetix:routes members` prints the resolved URIs):
 
 Outside the members screen (admin panel, console, job), revoke with
 `KinetixMembership::revoke($provision)`: role removed in the provision's team,
-`detach_member` runs, provision kept as `revoked`. It checks no ability.
+`detach_member` runs, provision kept as `revoked`. It checks no ability. A row
+without `user_id` (a pending invite) is only marked revoked — NEVER look a user
+up by its email (an invite to an existing user's address would strip their
+role). `kinetix:doctor` warns about pending rows naming an existing team member
+(pre-0.275 corruption) for the operator to review.
 
 Activation endpoints are public but protected by a temporary signed URL (GET shows
 the page, POST completes it — both share the same path so one signature covers both):

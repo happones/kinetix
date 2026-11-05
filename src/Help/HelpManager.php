@@ -47,9 +47,15 @@ class HelpManager
     /**
      * Per-request index memo, keyed by locale.
      *
-     * @var array<string, array{articles: array<int, HelpArticle>, bodies: array<string, string>}>
+     * @var array<string, array{articles: array<int, HelpArticle>, bodies: array<string, array{public: string, gated: list<array{ability: string, text: string}>}>}>
      */
     protected array $indexes = [];
+
+    /**
+     * A `<!-- kinetix:can ability -->…<!-- /kinetix:can -->` region (an
+     * unclosed one runs to the end of the document).
+     */
+    protected const BLOCK_GATE = '/<!--\s*kinetix:can\s+([\w.\-]+)\s*-->(.*?)(?:<!--\s*\/kinetix:can\s*-->|\z)/s';
 
     /**
      * The articles directory.
@@ -248,8 +254,11 @@ class HelpManager
         $bodies  = $this->index($locale)['bodies'];
         $results = [];
 
+        /** @var array<string, bool> $verdicts the Gate's answer per ability, for this search */
+        $verdicts = [];
+
         foreach ($this->articles($user, $locale) as $article) {
-            $body = $bodies[$article->slug] ?? '';
+            $body = $this->searchableBody($bodies[$article->slug] ?? null, $user, $verdicts);
 
             $inTitle = mb_stripos($article->title, $query) !== false;
             $atBody  = mb_stripos($body, $query);
@@ -271,6 +280,33 @@ class HelpManager
         }
 
         return $results;
+    }
+
+    /**
+     * The text of an article this user may search: its public text plus the
+     * gated (`kinetix:can`) segments the user may see. Gate verdicts are
+     * memoized per ability in `$verdicts` for the whole search.
+     *
+     * @param array{public: string, gated: list<array{ability: string, text: string}>}|null $body
+     * @param array<string, bool>                                                           $verdicts
+     */
+    protected function searchableBody(?array $body, ?Authenticatable $user, array &$verdicts): string
+    {
+        if ($body === null) {
+            return '';
+        }
+
+        $text = $body['public'];
+
+        foreach ($body['gated'] as $segment) {
+            $verdicts[$segment['ability']] ??= $this->allows($user, $segment['ability']);
+
+            if ($verdicts[$segment['ability']] && $segment['text'] !== '') {
+                $text .= ' '.$segment['text'];
+            }
+        }
+
+        return trim($text);
     }
 
     /**
@@ -342,13 +378,15 @@ class HelpManager
 
     /**
      * The locale's article index: ordered metadata plus the plain-text body of
-     * each article, built with a single pass over the files. Memoized per
+     * each article, built with a single pass over the files. A body keeps its
+     * public text apart from its gated (`kinetix:can`) segments, so the index
+     * is the same for every user and search adds only what each one may see. Memoized per
      * request and optionally cached (`kinetix.help.cache`) — keyed on the
      * locale plus, for the default `fingerprint` strategy, the file set and
      * mtimes, so edits invalidate automatically. Set the strategy to `ttl` in
      * production to skip the per-request stat of every file.
      *
-     * @return array{articles: array<int, HelpArticle>, bodies: array<string, string>}
+     * @return array{articles: array<int, HelpArticle>, bodies: array<string, array{public: string, gated: list<array{ability: string, text: string}>}>}
      */
     protected function index(string $locale): array
     {
@@ -377,8 +415,8 @@ class HelpManager
     }
 
     /**
-     * @param  array<int, string>                                                      $files
-     * @return array{articles: array<int, HelpArticle>, bodies: array<string, string>}
+     * @param  array<int, string>                                                                                                                        $files
+     * @return array{articles: array<int, HelpArticle>, bodies: array<string, array{public: string, gated: list<array{ability: string, text: string}>}>}
      */
     protected function cachedIndex(array $files, string $locale, ?string $memoKey): array
     {
@@ -386,9 +424,9 @@ class HelpManager
             return $this->buildIndex($files, $locale);
         }
 
-        /** @var array{articles: array<int, HelpArticle>, bodies: array<string, string>} $index */
+        /** @var array{articles: array<int, HelpArticle>, bodies: array<string, array{public: string, gated: list<array{ability: string, text: string}>}>} $index */
         $index = Cache::remember(
-            'kinetix.help.index.'.($memoKey ?? $locale.'@ttl'),
+            'kinetix.help.index.v2.'.($memoKey ?? $locale.'@ttl'),
             (int) config('kinetix.help.cache.ttl', 3600),
             fn (): array => $this->buildIndex($files, $locale),
         );
@@ -409,8 +447,8 @@ class HelpManager
     }
 
     /**
-     * @param  array<int, string>                                                      $files
-     * @return array{articles: array<int, HelpArticle>, bodies: array<string, string>}
+     * @param  array<int, string>                                                                                                                        $files
+     * @return array{articles: array<int, HelpArticle>, bodies: array<string, array{public: string, gated: list<array{ability: string, text: string}>}>}
      */
     protected function buildIndex(array $files, string $locale): array
     {
@@ -424,6 +462,7 @@ class HelpManager
             $markdown       = (string) file_get_contents($resolved['path']);
             $meta           = $this->parseFrontMatter($markdown);
             $body           = $this->stripFrontMatter($markdown);
+            $public         = $this->withoutBlockGates($body);
 
             $articles[] = new HelpArticle(
                 slug: $slug,
@@ -432,12 +471,12 @@ class HelpManager
                 icon: $meta['icon']   ?? null,
                 order: isset($meta['order']) ? (int) $meta['order'] : PHP_INT_MAX,
                 permission: $meta['permission'] ?? null,
-                excerpt: $this->firstParagraph($body),
+                excerpt: $this->firstParagraph($public),
                 locale: $resolvedLocale,
                 isFallback: $resolvedLocale !== $locale,
             );
 
-            $bodies[$slug] = $this->plainText($body);
+            $bodies[$slug] = ['public' => $this->plainText($public), 'gated' => $this->gatedSegments($body)];
         }
 
         usort($articles, static function (HelpArticle $a, HelpArticle $b): int {
@@ -514,10 +553,37 @@ class HelpManager
     protected function applyBlockGates(string $markdown, ?Authenticatable $user): string
     {
         return (string) preg_replace_callback(
-            '/<!--\s*kinetix:can\s+([\w.\-]+)\s*-->(.*?)(?:<!--\s*\/kinetix:can\s*-->|\z)/s',
+            self::BLOCK_GATE,
             fn (array $matches): string => $this->allows($user, $matches[1]) ? $matches[2] : '',
             $markdown,
         );
+    }
+
+    /**
+     * The markdown as a user denied every gate sees it: every `kinetix:can`
+     * region removed. The source of the index's public text and excerpts.
+     */
+    protected function withoutBlockGates(string $markdown): string
+    {
+        return (string) preg_replace(self::BLOCK_GATE, '', $markdown);
+    }
+
+    /**
+     * The plain text of each `kinetix:can` region, with its ability.
+     *
+     * @return list<array{ability: string, text: string}>
+     */
+    protected function gatedSegments(string $markdown): array
+    {
+        preg_match_all(self::BLOCK_GATE, $markdown, $matches, PREG_SET_ORDER);
+
+        $segments = [];
+
+        foreach ($matches as $match) {
+            $segments[] = ['ability' => $match[1], 'text' => $this->plainText($match[2])];
+        }
+
+        return $segments;
     }
 
     // -------------------------------------------------------------------

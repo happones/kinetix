@@ -63,9 +63,18 @@ KinetixWebhooks::fireFor($order->team_id, 'order.created', [...]); // jobs, cons
   the event reaches the platform's endpoints instead of the record's team.
 - **Signing**: `X-Kinetix-Signature: hmac_sha256(rawBody, secret)`, `X-Kinetix-Event`.
   Body = `{"event": "...", "data": {...}}`. Secret shown once (create/rotate).
-- **SSRF** (`WebhookUrlGuard`): rejects non-HTTP(S) + private/loopback/link-local/
-  reserved IPs (incl. `169.254.169.254`), at save time and before each delivery.
-  `allow_private=true` permits local hosts.
+- **SSRF** (`WebhookUrlGuard::target()`): rejects non-HTTP(S) + any A/AAAA
+  address in a special-use range (private, loopback, link-local, CGNAT
+  `100.64/10`, IPv4-mapped IPv6, ULA, documentation…), at save time and before
+  each delivery. Names resolve through the container-bound `HostResolver`
+  (swap it in tests). Deliveries go through `Support\OutboundHttp`: pinned to the
+  validated IP (CURLOPT_RESOLVE), no redirects unless `follow_redirects` > 0
+  (each hop re-validated). The spatie driver dispatches `KinetixCallWebhookJob`
+  (re-validates when it runs, pins, never redirects) — the extension point:
+  a host `webhook-server.webhook_job` must EXTEND it (other classes are
+  replaced) and keep `parent::getClient()`. `test` + `redeliver` are
+  throttled (`test_throttle`, `6,1`). Never call `Http::post($customerUrl)`
+  directly — use `OutboundHttp::send()`. `allow_private=true` permits local hosts.
 - **Driver** (`WebhookDispatcher::usesWebhookServer()`): `auto` uses
   `spatie/laravel-webhook-server` when installed (its retries/backoff), else the
   native job. With spatie, deliveries are logged via a listener on its

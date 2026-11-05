@@ -10,6 +10,7 @@ use Happones\Kinetix\Credentials\KinetixPasswords;
 use Happones\Kinetix\Data\MemberProvisionData;
 use Happones\Kinetix\Permissions\AssignableRoles;
 use Happones\Kinetix\Permissions\SuperAdmin;
+use Happones\Kinetix\Permissions\TakeoverGuard;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\HostKeys;
 use Happones\Kinetix\Support\KinetixTeams;
@@ -111,9 +112,24 @@ class MembershipController
 
         $this->assertAssignable($validated['role'], $teamId);
 
-        // `updateOrCreate` on purpose: a repeat on a known identifier has to
-        // look exactly like a fresh one, or provisioning becomes a way to test
-        // whether somebody is already a member.
+        // Someone who is already in this team is changed from their row (role,
+        // credential, remove), never re-provisioned: resetting the row to
+        // pending would drop its user, and with it the revoke that removes
+        // their role. The provisioner sees the team's members anyway.
+        $existing = MemberProvision::query()
+            ->when($teamId !== null, fn ($query) => $query->where('team_id', $teamId))
+            ->when($teamId === null, fn ($query) => $query->whereNull('team_id'))
+            ->where($field, $identifier)
+            ->first();
+
+        abort_if(
+            $existing !== null && ($existing->status === MemberProvisionStatus::Active || $existing->user_id !== null),
+            422,
+            __('kinetix.members_already_member'),
+        );
+
+        // `updateOrCreate` on purpose: a repeat invitation (pending or revoked)
+        // on a known identifier refreshes it instead of adding a second row.
         $provision = MemberProvision::updateOrCreate(
             ['team_id' => $teamId, $field => $identifier],
             [
@@ -157,11 +173,39 @@ class MembershipController
             'This member was revoked; provision them again instead.',
         );
 
+        if ($provision->user_id !== null) {
+            $this->assertMayTakeOver($request, $this->resolveUser($provision->user_id));
+        }
+
         $credential = $provision->user_id !== null
             ? $this->issueTemporaryPassword($provision, $request)
             : $this->issueActivation($provision, force: true);
 
         return response()->json($this->payload($provision, $credential));
+    }
+
+    /**
+     * A temporary password lets its issuer sign in as the member, so it is a
+     * takeover like impersonation ({@see TakeoverGuard}): refused for a
+     * super-admin, a member of a team the actor isn't in, an owner of a team
+     * the actor doesn't own, or a member holding a protected permission
+     * (`membership.protected_permissions`) the actor lacks.
+     */
+    protected function assertMayTakeOver(Request $request, ?Model $target): void
+    {
+        $actor = $request->user();
+
+        if ($target === null || ! $actor instanceof Authenticatable || ! $target instanceof Authenticatable) {
+            return;
+        }
+
+        $protected = config('kinetix.membership.protected_permissions', ['roles.manage']);
+
+        abort_unless(
+            TakeoverGuard::allows($actor, $target, is_array($protected) ? $protected : []),
+            403,
+            __('kinetix.members_credential_forbidden'),
+        );
     }
 
     public function resend(Request $request): JsonResponse

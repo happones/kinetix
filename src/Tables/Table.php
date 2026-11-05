@@ -24,6 +24,7 @@ use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
@@ -1675,7 +1676,7 @@ class Table implements Arrayable, JsonSerializable
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
             'relation' => $this->writeRelation,
             'ability'  => $this->writeAbility,
-        ]);
+        ], DescriptorAudience::TableWrite);
     }
 
     /**
@@ -1698,7 +1699,7 @@ class Table implements Arrayable, JsonSerializable
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
             'relation' => $this->writeRelation,
             'ability'  => $this->writeAbility,
-        ]);
+        ], DescriptorAudience::TableBulk);
     }
 
     /**
@@ -1951,7 +1952,7 @@ class Table implements Arrayable, JsonSerializable
             'scope'    => $this->writeScope ?? $this->captureWriteScope(),
             'relation' => $this->writeRelation,
             'ability'  => $this->writeAbility,
-        ]);
+        ], DescriptorAudience::TableFormAction);
     }
 
     /**
@@ -1968,7 +1969,7 @@ class Table implements Arrayable, JsonSerializable
         return SignedDescriptor::seal([
             'resource'    => $this->recordModalsResource,
             'queryPrefix' => $this->queryPrefix,
-        ]);
+        ], DescriptorAudience::TableAggregates);
     }
 
     /**
@@ -2261,7 +2262,7 @@ class Table implements Arrayable, JsonSerializable
             token: SignedDescriptor::seal([
                 'model'    => $modelClass,
                 'resource' => $resource,
-            ]),
+            ], DescriptorAudience::TableRecordModals),
             source: $source === 'row' ? 'row' : 'server',
             hasForm: $hasForm,
             hasInfolist: $hasInfolist,

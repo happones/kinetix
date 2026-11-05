@@ -98,6 +98,19 @@ describe('KinetixFormWizard step guard', () => {
         );
     });
 
+    // A withheld secret is kept by the server when left blank, so an empty
+    // one must not trap the user on the step.
+    it('lets a required withheld field stay blank', () => {
+        const secret = field('api_key', { isRequired: true, isWithheld: true });
+
+        expect(canLeaveFirstStep({ type: 'person' }, [secret])).toBe(true);
+        expect(
+            canLeaveFirstStep({ type: 'person' }, [
+                { ...secret, isWithheld: false },
+            ]),
+        ).toBe(false);
+    });
+
     // The guard walked into the items' schema and looked for `qty` among the
     // form's own values: "Next" never unblocked.
     it('counts a repeater by its items, not its sub-fields', () => {

@@ -47,8 +47,13 @@ Only allowlisted models can be commented on (unregistered types 404).
   tree of `CommentData` (`editable` = author is the current user); `create`,
   `update`, `delete` (delete cascades replies).
 - **`CommentController`** (self-service, team-aware `{prefix}/comments`):
-  `index`/`store` resolve + authorize the commentable via the registry and an
-  optional `view` policy; `update`/`destroy {comment}` are restricted to the
+  `index`/`store` take `reference` = `KinetixComments::reference($model)`
+  (signed, audience `comments`, bound to user + team + expiry; 403 when
+  foreign/expired, 400 unreadable), then the registry allowlist and an optional
+  `view` policy. Legacy `commentable_type` + `commentable_id`:
+  `comments.require_reference` null = refused under teams (403), true = always
+  refused, false = accepted but under teams the model MUST have a policy. Teams
+  off = unchanged (policy if any, else allowed); `update`/`destroy {comment}` are restricted to the
   author (403). Replies must target a top-level comment of the same commentable.
 - `Comment` model: `morphTo commentable`, `hasMany replies`, `belongsTo author`.
 
@@ -57,12 +62,15 @@ Only allowlisted models can be commented on (unregistered types 404).
 ## Frontend
 
 ```vue
-<KinetixComments commentable-type="App\Models\Post" :commentable-id="post.id" />
+<!-- controller: 'comments_reference' => KinetixComments::reference($post) (mint per render) -->
+<KinetixComments :reference="comments_reference" />
+<!-- legacy (refused under teams by default): commentable-type + :commentable-id -->
 ```
 
 Composer + threaded list (author avatar/initials, relative time, edited badge),
-inline reply, and edit/delete on the user's own comments. `useKinetixComments(type, id)`
-→ `{ comments, loading, load, post, edit, remove }`. i18n `comment_*` (en/es/fr/pt).
+inline reply, and edit/delete on the user's own comments.
+`useKinetixComments(null, null, reference)` (ref, getter or string; legacy
+`useKinetixComments(type, id)`) → `{ comments, loading, load, post, edit, remove }`. i18n `comment_*` (en/es/fr/pt).
 
 ## UUID / ULID Host Models
 

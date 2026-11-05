@@ -140,8 +140,29 @@ KinetixMail::send($user->email, 'welcome', [
 - `KinetixMail::test(string $key, string $to, array $data = []): bool` — sends a
   `[TEST]` email using the template's sample data.
 
-Variable values are **HTML-escaped** in Markdown templates; HTML templates are
-rendered as-is (you control the markup). The subject is always plain text.
+Variable values are **escaped for the body's format**, in both formats:
+
+- in an **HTML** template, <code v-pre>{{ name }}</code> is HTML-escaped, so a
+  value like `<script>` shows as text;
+- in a **Markdown** template, every punctuation character of the value is
+  backslash-escaped, so a value can't add a link, emphasis or raw HTML: it
+  always reads as the text it is. A variable still works as a link target,
+  e.g. <code v-pre>[Activate]({{ url }})</code>;
+- <code v-pre>{!! name !!}</code> inserts the value **as-is**, for markup your own
+  code builds (never for user input).
+
+Markdown bodies may carry raw HTML you write in the template, but links with an
+unsafe scheme (`javascript:`, `vbscript:`, `file:`, non-image `data:`) are
+dropped. The subject is always plain text (tags stripped).
+
+::: warning Upgrading from before 0.275
+HTML templates used to insert variables unescaped. A host that passed markup in
+a variable must switch that placeholder to <code v-pre>{!! name !!}</code>.
+:::
+
+The editor's live preview renders in a sandboxed `<iframe>` with no script and
+its own content security policy, so a template body can't run code in the page
+of whoever opens it. Remote images in the body still load.
 
 The email goes out inside your app's markdown mail layout (`<x-mail::message>`),
 so it carries the same header, footer and theme as the rest of your mail —

@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Exports\ExportColumn;
 use Happones\Kinetix\Exports\Exporter;
 use Happones\Kinetix\Imports\Importer;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -86,7 +87,7 @@ class SignedDescriptorTest extends TestCase
 
             return $payload === null
                 ? 'unreadable'
-                : (SignedDescriptor::rejection($payload, $request)->name ?? 'ok');
+                : (SignedDescriptor::rejection($payload, $request, DescriptorAudience::TableWrite)->name ?? 'ok');
         };
 
         $router->post('{current_team}/probe', $probe);
@@ -125,9 +126,10 @@ class SignedDescriptorTest extends TestCase
     {
         $this->freezeTime();
 
-        $payload = SignedDescriptor::open(SignedDescriptor::seal(['model' => 'x']));
+        $payload = SignedDescriptor::open(SignedDescriptor::seal(['model' => 'x'], DescriptorAudience::TableWrite));
 
         $this->assertSame([
+            'aud'     => 'table.write',
             'model'   => 'x',
             'user'    => $this->member->id,
             'team'    => 'alpha',
@@ -137,17 +139,17 @@ class SignedDescriptorTest extends TestCase
 
     public function test_the_minting_user_may_use_it_in_the_same_team(): void
     {
-        $this->assertSame('ok', $this->probe(SignedDescriptor::seal([])));
+        $this->assertSame('ok', $this->probe(SignedDescriptor::seal([], DescriptorAudience::TableWrite)));
     }
 
     public function test_a_descriptor_minted_in_one_team_is_refused_in_another(): void
     {
-        $this->assertSame('ForeignTeam', $this->probe(SignedDescriptor::seal([]), 'beta'));
+        $this->assertSame('ForeignTeam', $this->probe(SignedDescriptor::seal([], DescriptorAudience::TableWrite), 'beta'));
     }
 
     public function test_another_user_cannot_replay_it(): void
     {
-        $token = SignedDescriptor::seal([]);
+        $token = SignedDescriptor::seal([], DescriptorAudience::TableWrite);
 
         $this->actingAs(SignedDescriptorUser::create(['current_team_id' => 1]));
 
@@ -156,11 +158,25 @@ class SignedDescriptorTest extends TestCase
 
     public function test_it_expires(): void
     {
-        $token = SignedDescriptor::seal([]);
+        $token = SignedDescriptor::seal([], DescriptorAudience::TableWrite);
 
         $this->travel(61)->minutes();
 
         $this->assertSame('Expired', $this->probe($token));
+    }
+
+    public function test_a_descriptor_minted_for_another_audience_is_refused(): void
+    {
+        $this->assertSame('ForeignAudience', $this->probe(SignedDescriptor::seal([], DescriptorAudience::TableBulk)));
+    }
+
+    public function test_a_payload_without_an_audience_is_refused_as_expired(): void
+    {
+        $this->assertSame('Expired', $this->probe(Crypt::encrypt([
+            'user'    => $this->member->id,
+            'team'    => 'alpha',
+            'expires' => null,
+        ])));
     }
 
     public function test_a_payload_without_binding_claims_is_refused(): void
@@ -170,7 +186,7 @@ class SignedDescriptorTest extends TestCase
 
     public function test_a_route_without_a_team_segment_checks_user_and_expiry_only(): void
     {
-        $token = SignedDescriptor::seal([]);
+        $token = SignedDescriptor::seal([], DescriptorAudience::TableWrite);
 
         $this->assertSame('ok', $this->probe($token, null));
 
@@ -183,7 +199,7 @@ class SignedDescriptorTest extends TestCase
     {
         config()->set('kinetix.teams', false);
 
-        $this->assertNull(SignedDescriptor::open(SignedDescriptor::seal([]))['team']);
+        $this->assertNull(SignedDescriptor::open(SignedDescriptor::seal([], DescriptorAudience::TableWrite))['team']);
     }
 
     public function test_class_tokens_are_bound_and_expire(): void

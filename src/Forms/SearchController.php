@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Forms;
 
 use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\OptionList;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -39,7 +40,7 @@ class SearchController
         // The descriptor is bound to the user and team it was minted for, and
         // expires ({@see SignedDescriptor}), so it can't be lifted from
         // someone else's payload and replayed.
-        $rejection = SignedDescriptor::rejection($descriptor, $request);
+        $rejection = SignedDescriptor::rejection($descriptor, $request, DescriptorAudience::Search);
 
         if ($rejection !== null) {
             return response()->json([

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Forms\Components\Select;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
@@ -103,7 +104,7 @@ class SelectSearchableTest extends TestCase
             'label'   => 'name',
             'columns' => ['name'],
             'value'   => 'id',
-        ]);
+        ], DescriptorAudience::Search);
 
         $this->postJson('/_kinetix/forms/search', ['token' => $token, 'q' => 'ada'])
             ->assertOk()

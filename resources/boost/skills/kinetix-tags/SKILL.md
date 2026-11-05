@@ -54,8 +54,12 @@ Tags are deduped by slug and team-scoped automatically when `kinetix.teams` is o
 - `TagManager`: `for($taggable)`, `suggest($q, $teamId)`, `sync($taggable, $names, $teamId)`
   (find-or-create), `all($teamId)`.
 - `TagController` (self-service, team-aware `{prefix}/tags`): `index`, `suggest`,
-  `sync` — taggable resolved + allowlisted via `TagRegistry`; host `view`/`update`
-  policy honored.
+  `sync` — taggable from `reference` = `KinetixTags::reference($model, editable: true)`
+  (signed, audience `tags`, user + team + expiry; `editable: false` →
+  sync 403; a comments reference → 403), allowlisted via `TagRegistry`; host
+  `view`/`update` policy honored. Legacy `taggable_type` + `taggable_id`:
+  `tags.require_reference` null = refused under teams, true = always refused,
+  false = accepted but under teams the model MUST have a policy.
 - `TagFilter` (table): multi-select of existing tags → `whereHas('tags')`.
 
 ---
@@ -63,11 +67,14 @@ Tags are deduped by slug and team-scoped automatically when `kinetix.teams` is o
 ## Frontend
 
 ```vue
-<KinetixTags taggable-type="App\Models\Post" :taggable-id="post.id" />
+<!-- controller: 'tags_reference' => KinetixTags::reference($post) (mint per render) -->
+<KinetixTags :reference="tags_reference" />
+<!-- legacy (refused under teams by default): taggable-type + :taggable-id -->
 ```
 
 Removable chips + autocomplete from existing tags + create-on-Enter; syncs each
-change. `useKinetixTags(type, id)` → `{ tags, loading, load, suggest, sync }`.
+change. `useKinetixTags(null, null, reference)` (ref, getter or string; legacy
+`useKinetixTags(type, id)`) → `{ tags, loading, load, suggest, sync }`.
 i18n `tag_*` (en/es/fr/pt).
 
 ## UUID / ULID Host Models

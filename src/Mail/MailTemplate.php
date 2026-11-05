@@ -11,8 +11,8 @@ use Illuminate\Support\Str;
 
 /**
  * An editable email template — a subject + Markdown/HTML body with `{{ var }}`
- * placeholders. `render($data)` interpolates the variables (HTML-escaped) and
- * compiles Markdown bodies to HTML.
+ * placeholders (escaped) and `{!! var !!}` placeholders (raw). `render($data)`
+ * interpolates the variables and compiles Markdown bodies to HTML.
  *
  * @property int|string|null                       $team_id
  * @property string                                $key
@@ -88,17 +88,21 @@ class MailTemplate extends Model
 
     /**
      * Render the template with the given data into a subject + HTML body.
+     * Body variables are escaped for the body's format (`{!! key !!}` opts
+     * one out); the subject is plain text. Markdown bodies may carry raw
+     * HTML, but never an unsafe (`javascript:`…) link.
      *
      * @param  array<string, mixed>                 $data
      * @return array{subject: string, html: string}
      */
     public function render(array $data = []): array
     {
-        $subject = static::interpolate($this->subject, $data, escape: false);
-        $body    = static::interpolate($this->body, $data, escape: $this->format === 'markdown');
+        $markdown = $this->format === 'markdown';
+        $subject  = static::interpolate($this->subject, $data, escape: false);
+        $body     = static::interpolate($this->body, $data, escape: true, format: $markdown ? 'markdown' : 'html');
 
-        $html = $this->format === 'markdown'
-            ? Str::markdown($body)
+        $html = $markdown
+            ? Str::markdown($body, ['allow_unsafe_links' => false])
             : $body;
 
         return [
@@ -123,20 +127,38 @@ class MailTemplate extends Model
     }
 
     /**
-     * Replace `{{ key }}` placeholders with values from $data.
+     * Replace `{{ key }}` placeholders with values from $data, escaped for
+     * the template's format when `$escape` is on: HTML-escaped for `html`,
+     * every ASCII punctuation character backslash-escaped for `markdown` (so
+     * a value is shown as text, never read as Markdown or HTML). A
+     * `{!! key !!}` placeholder inserts its value as-is.
      *
      * @param array<string, mixed> $data
      */
-    public static function interpolate(string $template, array $data, bool $escape = true): string
+    public static function interpolate(string $template, array $data, bool $escape = true, string $format = 'html'): string
     {
         return (string) preg_replace_callback(
-            '/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/',
-            static function (array $m) use ($data, $escape): string {
-                $value = (string) ($data[$m[1]] ?? '');
+            '/\{!!\s*([a-zA-Z0-9_.]+)\s*!!\}|\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/',
+            static function (array $m) use ($data, $escape, $format): string {
+                $raw   = ($m[2] ?? '') === '';
+                $value = (string) ($data[$raw ? $m[1] : $m[2]] ?? '');
 
-                return $escape ? e($value) : $value;
+                if ($raw || ! $escape) {
+                    return $value;
+                }
+
+                return $format === 'markdown' ? self::escapeMarkdown($value) : e($value);
             },
             $template,
         );
+    }
+
+    /**
+     * Backslash-escape every ASCII punctuation character, which CommonMark
+     * then renders as that literal character.
+     */
+    protected static function escapeMarkdown(string $value): string
+    {
+        return (string) preg_replace('/([!-\/:-@\[-`{-~])/', '\\\\$1', $value);
     }
 }

@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionServiceProvider;
 use Spatie\Permission\Traits\HasRoles;
@@ -198,6 +199,51 @@ class InboxTest extends TestCase
             ->get("/_kinetix/inbox/messages/{$message->id}/media")
             ->assertOk()
             ->assertHeader('Content-Type', 'image/jpeg');
+    }
+
+    /**
+     * The sender declares a file's type, so only media a browser cannot run
+     * is shown inline; everything is sandboxed except PDFs.
+     *
+     * @return array<string, array{0: string, 1: string, 2: string, 3: bool}>
+     */
+    public static function mediaTypes(): array
+    {
+        return [
+            'html'            => ['text/html', 'application/octet-stream', 'attachment', true],
+            'svg'             => ['image/svg+xml', 'application/octet-stream', 'attachment', true],
+            'xml audio'       => ['audio/xml', 'application/octet-stream', 'attachment', true],
+            'png'             => ['image/png', 'image/png', 'inline', true],
+            'params and case' => ['IMAGE/PNG; name=x.png', 'image/png', 'inline', true],
+            'mp4'             => ['video/mp4', 'video/mp4', 'inline', true],
+            'pdf'             => ['application/pdf', 'application/pdf', 'inline', false],
+        ];
+    }
+
+    #[DataProvider('mediaTypes')]
+    public function test_inbox_media_is_served_inline_only_when_it_cannot_run_script(string $declared, string $served, string $disposition, bool $sandboxed): void
+    {
+        Storage::fake('local');
+
+        $this->inbound('IMG1', '', ['message' => ['conversation' => null, 'imageMessage' => ['mimetype' => 'image/jpeg']], 'messageType' => 'imageMessage']);
+
+        $message = ConversationMessage::query()->sole();
+        $message->update(['media_mime' => $declared, 'media_name' => 'file.bin']);
+
+        $response = $this->actingAs($this->admin())
+            ->get("/_kinetix/inbox/messages/{$message->id}/media")
+            ->assertOk()
+            ->assertHeader('Content-Type', $served)
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $this->assertStringStartsWith($disposition, (string) $response->headers->get('Content-Disposition'));
+
+        if ($sandboxed) {
+            $this->assertStringContainsString('sandbox', (string) $response->headers->get('Content-Security-Policy'));
+            $this->assertStringContainsString("default-src 'none'", (string) $response->headers->get('Content-Security-Policy'));
+        } else {
+            $this->assertNull($response->headers->get('Content-Security-Policy'));
+        }
     }
 
     public function test_agents_see_only_the_lines_they_answer(): void

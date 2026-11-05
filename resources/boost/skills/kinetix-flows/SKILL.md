@@ -62,7 +62,11 @@ The canvas needs Vue Flow, registered by the host with `registerKinetixFlowEdito
 - **Options**:
   - Telegram sends inline buttons (callback_query parsed as a text message).
   - WhatsApp sends a numbered menu (`OutgoingMessage::textWithOptions()`).
-- **HTTP step**: guarded by `WebhookUrlGuard` (SSRF). Errors follow `error`.
+- **HTTP step**: sent through `OutboundHttp` (SSRF guard on every A/AAAA
+  address, pinned connection, redirects only up to `flows.follow_redirects`,
+  each re-checked). Host/Content-Length/Transfer-Encoding/Connection/Proxy-*
+  headers are dropped. Errors (incl. a refused URL or hop) follow `error`. The
+  simulator is throttled (`flows.simulate_throttle`, `10,1`).
 - **Custom step**:
   - Implement `FlowNode`: `outputs()`, `execute()` → `NodeOutcome::next|waitReply|waitUntil|stop`, `receive()`, `problem()`.
   - Register it with `KinetixFlows::node()`.

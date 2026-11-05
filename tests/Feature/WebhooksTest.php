@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Permissions\KinetixPermissions;
 use Happones\Kinetix\Tests\TestCase;
 use Happones\Kinetix\Webhooks\DispatchWebhookJob;
+use Happones\Kinetix\Webhooks\HostResolver;
 use Happones\Kinetix\Webhooks\KinetixWebhooks;
 use Happones\Kinetix\Webhooks\WebhookEndpoint;
 use Happones\Kinetix\Webhooks\WebhookLog;
@@ -31,6 +32,19 @@ class WebhookUser extends Authenticatable
     protected $guarded = [];
 
     protected $guard_name = 'web';
+}
+
+class FakeHostResolver extends HostResolver
+{
+    /**
+     * @param array<string, list<string>> $records
+     */
+    public function __construct(public array $records = []) {}
+
+    public function resolve(string $host): array
+    {
+        return $this->records[$host] ?? [];
+    }
 }
 
 class WebhooksTest extends TestCase
@@ -335,5 +349,126 @@ class WebhooksTest extends TestCase
                 'events' => ['order.created'],
             ])
             ->assertStatus(422);
+    }
+
+    private function resolver(array $records): void
+    {
+        $this->app->instance(HostResolver::class, new FakeHostResolver($records));
+    }
+
+    public function test_every_address_of_a_host_is_checked_ipv6_included(): void
+    {
+        $this->resolver([
+            'dual.example.test'   => ['93.184.216.34', '::1'],
+            'public.example.test' => ['93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946'],
+        ]);
+
+        $this->assertFalse(WebhookUrlGuard::isAllowed('https://dual.example.test/hook'));
+        $this->assertTrue(WebhookUrlGuard::isAllowed('https://public.example.test/hook'));
+        $this->assertFalse(WebhookUrlGuard::isAllowed('https://unresolvable.example.test/hook'));
+    }
+
+    public function test_special_use_ranges_are_blocked(): void
+    {
+        foreach ([
+            'http://100.100.100.200/latest/meta-data',  // CGNAT (a cloud metadata service lives here)
+            'http://[::ffff:127.0.0.1]/x',              // IPv4-mapped loopback
+            'http://[::1]/x',
+            'http://[fd00::1]/x',
+            'http://198.18.0.1/x',
+            'http://[64:ff9b:1::a00:1]/x',              // local-use IPv4/IPv6 translation
+            'http://0.0.0.0/x',
+        ] as $url) {
+            $this->assertFalse(WebhookUrlGuard::isAllowed($url), $url);
+        }
+
+        $this->assertTrue(WebhookUrlGuard::isAllowed('http://[2606:2800:220:1:248:1893:25c8:1946]/x'));
+    }
+
+    public function test_delivery_is_pinned_to_the_validated_address_and_never_redirects(): void
+    {
+        $this->resolver(['hooks.example.test' => ['93.184.216.34']]);
+        $seen = [];
+
+        Http::fake(function ($request, array $options) use (&$seen) {
+            $seen[] = $options;
+
+            return Http::response('ok', 200);
+        });
+
+        $endpoint = $this->endpoint(['url' => 'https://hooks.example.test/hook']);
+        (new DispatchWebhookJob($endpoint->id, 'order.created', []))->handle();
+
+        $this->assertCount(1, $seen);
+        $this->assertFalse($seen[0]['allow_redirects']);
+        $this->assertSame(['hooks.example.test:443:93.184.216.34'], $seen[0]['curl'][CURLOPT_RESOLVE]);
+    }
+
+    public function test_a_redirect_is_not_followed_by_default(): void
+    {
+        Http::fake(['*' => Http::response('', 302, ['Location' => 'http://10.0.0.1/admin'])]);
+
+        $endpoint = $this->endpoint();
+
+        try {
+            (new DispatchWebhookJob($endpoint->id, 'order.created', []))->handle();
+        } catch (\RuntimeException) {
+            // A non-2xx answer is retried by the queue.
+        }
+
+        Http::assertSentCount(1);
+        $this->assertSame(302, WebhookLog::firstOrFail()->status_code);
+    }
+
+    public function test_a_followed_redirect_is_validated_again(): void
+    {
+        config()->set('kinetix.webhooks.follow_redirects', 2);
+        Http::fake(['*' => Http::response('', 307, ['Location' => 'http://10.0.0.1/admin'])]);
+
+        $endpoint = $this->endpoint();
+        (new DispatchWebhookJob($endpoint->id, 'order.created', []))->handle();
+
+        Http::assertSentCount(1);
+        $log = WebhookLog::firstOrFail();
+        $this->assertFalse($log->success);
+        $this->assertStringContainsString('Blocked', (string) $log->response);
+    }
+
+    public function test_a_followed_redirect_keeps_the_method_on_307_and_is_pinned(): void
+    {
+        config()->set('kinetix.webhooks.follow_redirects', 2);
+        $this->resolver(['next.example.test' => ['93.184.216.34']]);
+        $seen = [];
+
+        Http::fake(function ($request, array $options) use (&$seen) {
+            $seen[] = [$request->method(), $request->url(), $options['curl'][CURLOPT_RESOLVE] ?? null, $request->body()];
+
+            return count($seen) === 1
+                ? Http::response('', 307, ['Location' => 'https://next.example.test/hook'])
+                : Http::response('ok', 200);
+        });
+
+        $endpoint = $this->endpoint();
+        (new DispatchWebhookJob($endpoint->id, 'order.created', ['id' => 1]))->handle();
+
+        $this->assertCount(2, $seen);
+        $this->assertSame('POST', $seen[1][0]);
+        $this->assertSame('https://next.example.test/hook', $seen[1][1]);
+        $this->assertSame(['next.example.test:443:93.184.216.34'], $seen[1][2]);
+        $this->assertSame($seen[0][3], $seen[1][3]);
+        $this->assertTrue(WebhookLog::firstOrFail()->success);
+    }
+
+    public function test_the_test_endpoint_is_rate_limited(): void
+    {
+        Bus::fake();
+        $endpoint = $this->endpoint();
+        $manager  = $this->manager();
+
+        for ($i = 1; $i <= 6; $i++) {
+            $this->actingAs($manager)->postJson("/_kinetix/webhooks/{$endpoint->id}/test")->assertOk();
+        }
+
+        $this->actingAs($manager)->postJson("/_kinetix/webhooks/{$endpoint->id}/test")->assertStatus(429);
     }
 }

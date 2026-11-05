@@ -82,7 +82,14 @@ KinetixSettings::forTeam($team)->get('general.site_name');    // jobs, console, 
 ```
 
 - Values keep their type (bool/array/scalar). Encrypted values decrypt on read,
-  never stored in clear.
+  never stored in clear (the cache, `{cache_key}:v2:{scope}`, holds the stored
+  ciphertext; decryption happens into a per-process memo).
+- A page's `encrypted()` fields are WRITE-ONLY (`Form::writeOnly`): never sent to
+  the browser (empty + `isWithheld` when set), blank = keep, left out of the
+  update response. On a team page they read only the team's OWN value — never
+  the inherited global secret — and a submitted secret is always stored as the
+  team's own (never compared with the global one). Runtime `get()` still
+  inherits.
 - Scope: `settings.teams=true` → scoped to `currentTeam` (null = global), cached
   per scope, cache invalidated on write. A team **inherits** the global values:
   `get()` returns its own value, else the global one; `forget()` in a team

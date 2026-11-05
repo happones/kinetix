@@ -448,6 +448,30 @@ credential means being able to become that person — a bigger privilege than
 adding them to the directory. Every issue is written to the
 [Activity log](activity.md) with who did it; the credential itself never is.
 
+A new password for an existing member is a takeover, so it follows the same
+guard as [impersonation](impersonation.md#_2-safety). The endpoint answers 403
+("You can't issue credentials for this member.") when the member:
+
+- is a super-admin and you are not;
+- also belongs to a team you are not in (with teams on);
+- holds, in any of their teams, a `membership.protected_permissions` entry
+  (default `roles.manage`) that you don't hold there;
+- owns one of their teams and you don't.
+
+The guard reads a member's teams through `kinetix.team_switcher.teams_relation`
+(default `teams`), which must return **every** team the user belongs to, owned
+teams included. If your app keeps owned teams elsewhere (a Jetstream-style
+`allTeams()` that merges `ownedTeams` and `teams`), expose them as one relation
+and point `teams_relation` at it; otherwise teams the relation misses are never
+checked. Without a relation, only `current_team_id` is.
+
+Owning a team counts as holding `roles.manage` there only when the owner
+bypass grants it, so an owner can issue a new password to their own admins
+with the bypass on, but not when it is off or excludes `roles.manage`.
+
+It is also blocked while impersonating. A new activation link for a pending
+member (no account yet) is not affected.
+
 ::: warning `direct` needs the Credentials module
 The forced first-login change that makes a temporary password safe lives in
 [Credentials](credentials.md). With `credentials.enabled` off, the password an
@@ -571,6 +595,14 @@ with `KinetixMembership::revoke()`. It does what the `DELETE` endpoint does:
 the member's role in the provision's team goes, your `detach_member` callback
 runs, and the provision is kept as `revoked` for the audit trail. It checks no
 ability, so gate it yourself. Revoking a revoked member changes nothing.
+
+A pending row has no user yet, so revoking it only marks it revoked; it never
+looks a user up by email. Re-provisioning an active member before 0.275 reset
+their row to pending and dropped its user, so revoking such a row leaves their
+role in place. `kinetix:doctor` warns about pending provisions whose identifier
+belongs to someone who is already a member of that team (any existing user,
+without teams): review each one, then remove the member from their own row or
+cancel the invitation.
 
 ```php
 use Happones\Kinetix\Membership\KinetixMembership;
@@ -781,8 +813,12 @@ admin, never a stray personal team.
 
 - **Signed, expiring, single-use** activation links (Laravel signed URLs); never
   a plain incrementing id — validity is the signature plus the `pending` status.
-- **Don't leak existence** — provisioning re-uses `updateOrCreate`, so a repeat
-  on a known email looks the same as a fresh one.
+- **Re-provisioning** — a repeat on a pending or revoked invitation refreshes
+  it (`updateOrCreate`). Someone who is already an active member of the team
+  is refused with 422 ("This person is already a member of this team."):
+  change their role, issue a credential or remove them from their row instead.
+  Re-provisioning used to reset the row to pending and drop its user, so a
+  later revoke left their role in place.
 - **Rate-limit** the activation and resend endpoints in your app — the route
   names are `kinetix.membership.activate.show` / `kinetix.membership.activate`
   (public, signed) and `kinetix.membership.resend`; e.g. a

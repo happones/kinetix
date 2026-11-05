@@ -455,8 +455,19 @@ return [
     | The middleware stack applied to all Kinetix internal routes.
     | You can add your own middleware here (e.g., role-based access control).
     |
+    | `module_middleware` appends extra middleware to ONE module's
+    | authenticated routes, keyed by the module's config name — the place to
+    | gate a module on a plan, a feature flag or your own check on the
+    | server, e.g. 'webhooks' => ['kinetix.entitled:webhooks.manage']. The core
+    | route groups use the keys tables, forms, uploads, imports and exports.
+    | Guest and signed routes (activation links, inbound channel webhooks,
+    | public docs, social login) are never given these. Empty by default.
+    |
     */
     'middleware' => ['web', 'auth'],
+
+    // @var array<string, list<string>>
+    'module_middleware' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -705,6 +716,11 @@ return [
         // null $to removes, null $from grants. Kinetix then never touches
         // spatie for members.
         'assign_role' => null,
+
+        // Permissions that protect a member from having their password reset
+        // by someone who doesn't hold them too (and team owners from
+        // non-owners). Super-admins are always protected.
+        'protected_permissions' => ['roles.manage'],
     ],
 
     /*
@@ -770,6 +786,16 @@ return [
         'log_payloads'   => env('KINETIX_WEBHOOKS_LOG_PAYLOADS', true),
         'response_limit' => env('KINETIX_WEBHOOKS_RESPONSE_LIMIT', 1000),
         'retention_days' => env('KINETIX_WEBHOOKS_RETENTION_DAYS', 30),
+
+        // Redirects a native delivery may follow. 0 (default) never follows
+        // one; above 0 every hop is re-checked against the SSRF guard and
+        // pinned to the address it resolved to. The spatie driver never
+        // follows redirects.
+        'follow_redirects' => 0,
+
+        // Rate limit of the "send test" and "redeliver" endpoints (one shared
+        // counter), as "attempts,minutes" per user.
+        'test_throttle' => '6,1',
     ],
 
     /*
@@ -959,6 +985,13 @@ return [
         // calls for real (URLs are SSRF-checked either way).
         'http_timeout'  => 10,
         'simulate_http' => true,
+
+        // Redirects an HTTP node may follow. 0 (default) never follows one;
+        // above 0 every hop is re-checked against the SSRF guard.
+        'follow_redirects' => 0,
+
+        // Rate limit of the simulator, as "attempts,minutes" per user.
+        'simulate_throttle' => '10,1',
     ],
 
     /*
@@ -1257,6 +1290,33 @@ return [
         'login_redirect'         => env('KINETIX_CONNECTED_ACCOUNTS_LOGIN_REDIRECT', '/'),
         'login_failure_redirect' => env('KINETIX_CONNECTED_ACCOUNTS_LOGIN_FAILURE', '/login'),
 
+        // When a provider login brings an email that already belongs to a
+        // user with no link to that provider:
+        //   'verified' (default) — link and sign in only when the email is
+        //       verified (see below); otherwise the person signs in first and
+        //       connects the provider from their profile.
+        //   'never'  — always ask them to sign in first.
+        //   'always' — link on the email alone (the pre-0.275 behaviour). Only
+        //       safe when every provider verifies emails.
+        'link_by_email' => env('KINETIX_CONNECTED_ACCOUNTS_LINK_BY_EMAIL', 'verified'),
+
+        // Providers whose emails count as verified (they only return
+        // verified addresses).
+        'verified_email_providers' => ['github', 'bitbucket'],
+
+        // Your own verified-email check, as a callable array
+        // [\App\Kinetix\SocialEmails::class, 'verified'] receiving
+        // ($socialiteUser, string $provider) and returning bool. null uses
+        // `verified_email_providers` and the provider's `email_verified` claim.
+        'email_verified' => null,
+
+        // Your own two-factor hand-off for provider logins, as a callable array
+        // [\App\Kinetix\SocialTwoFactor::class, 'challenge'] receiving
+        // ($user, Request $request, bool $remember) and returning a Response
+        // (the challenge) or null (no challenge). null uses Fortify's
+        // two-factor challenge when the user has two-factor enabled.
+        'two_factor_challenge' => null,
+
         // Providers offered for linking / login. key => [label, icon, color].
         // 'icon' maps to a built-in brand glyph (github|google) the Vue
         // component knows, or any name you handle yourself.
@@ -1278,6 +1338,12 @@ return [
     */
     'comments' => [
         'enabled' => env('KINETIX_COMMENTS_ENABLED', false),
+
+        // Whether requests must name the record with a signed reference
+        // (KinetixComments::reference($model)) instead of a raw type + id.
+        // null (default) requires it when `kinetix.teams` is on. false keeps
+        // the raw type + id under teams, and then the model needs a policy.
+        'require_reference' => null,
     ],
 
     /*
@@ -1292,6 +1358,12 @@ return [
     */
     'tags' => [
         'enabled' => env('KINETIX_TAGS_ENABLED', false),
+
+        // Whether requests must name the record with a signed reference
+        // (KinetixTags::reference($model)) instead of a raw type + id.
+        // null (default) requires it when `kinetix.teams` is on. false keeps
+        // the raw type + id under teams, and then the model needs a policy.
+        'require_reference' => null,
     ],
 
     /*

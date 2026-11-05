@@ -84,6 +84,10 @@ request. This mirrors Jetstream's behavior without requiring the
 
 ## The endpoints
 
+While an admin is impersonating the user, "log out other sessions" answers
+`403` (the list still loads). See [Impersonation](/impersonation).
+
+
 Registered under your Kinetix prefix (team-aware when `kinetix.teams` is on):
 
 | Method   | Route                          | Name                            |

@@ -11,6 +11,7 @@ use Happones\Kinetix\Locations\KinetixLocations;
 use Happones\Kinetix\Locations\LocationProvider;
 use Happones\Kinetix\Locations\PostalCodeProvider;
 use Happones\Kinetix\Support\Countries;
+use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
@@ -326,7 +327,7 @@ class AddressPicker extends Field
         $data->options         = $this->getCountries();
 
         if ($this->locations !== null) {
-            $data->addressLocations = SignedDescriptor::seal(['locations' => $this->locations]);
+            $data->addressLocations = SignedDescriptor::seal(['locations' => $this->locations], DescriptorAudience::AddressLocations);
         }
 
         if ($this->postalCodeLookup && $this->getPostalCodeProvider() === null) {
