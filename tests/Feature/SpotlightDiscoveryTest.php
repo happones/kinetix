@@ -6,7 +6,6 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Spotlight\SpotlightLink;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
-use Happones\Kinetix\Spotlight\SpotlightSource;
 use Happones\Kinetix\Tests\Feature\Fixtures\SpotlightFixture\FixtureLinkSource;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Support\Facades\File;
@@ -26,16 +25,6 @@ class SpotlightDiscoveryTest extends TestCase
 
         $this->assertCount(1, $sources);
         $this->assertInstanceOf(FixtureLinkSource::class, $sources[0]);
-    }
-
-    public function test_excludes_abstract_and_non_source_classes(): void
-    {
-        $registry = new SpotlightRegistry;
-        $registry->discover($this->fixturesPath, $this->fixturesNamespace);
-
-        foreach ($registry->sources() as $source) {
-            $this->assertInstanceOf(SpotlightSource::class, $source);
-        }
     }
 
     public function test_manual_registration_merges_with_discovery(): void

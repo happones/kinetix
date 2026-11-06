@@ -89,22 +89,6 @@ class FieldConditionsTest extends TestCase
         $this->assertSame('person', $state['type']);
     }
 
-    public function test_field_condition_operators(): void
-    {
-        $this->assertTrue((new FieldCondition('t', FieldCondition::EQUALS, 'a'))->passes(['t' => 'a']));
-        $this->assertFalse((new FieldCondition('t', FieldCondition::EQUALS, 'a'))->passes(['t' => 'b']));
-
-        $this->assertTrue((new FieldCondition('t', FieldCondition::IN, ['a', 'b']))->passes(['t' => 'b']));
-        $this->assertFalse((new FieldCondition('t', FieldCondition::NOT_IN, ['a', 'b']))->passes(['t' => 'b']));
-
-        $this->assertTrue((new FieldCondition('t', FieldCondition::TRUTHY))->passes(['t' => 1]));
-        $this->assertTrue((new FieldCondition('t', FieldCondition::FALSY))->passes(['t' => 0]));
-
-        $this->assertTrue((new FieldCondition('t', FieldCondition::FILLED))->passes(['t' => 'x']));
-        $this->assertTrue((new FieldCondition('t', FieldCondition::BLANK))->passes(['t' => '']));
-        $this->assertTrue((new FieldCondition('t', FieldCondition::BLANK))->passes([]));
-    }
-
     /**
      * The browser and the server evaluate the same conditions, and must agree
      * — a field the browser shows but the server takes for hidden is dropped

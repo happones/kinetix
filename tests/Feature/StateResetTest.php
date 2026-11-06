@@ -159,7 +159,7 @@ class StateResetTest extends TestCase
         $this->seedMemos();
         app(PermissionRegistrar::class)->setPermissionsTeamId(5);
 
-        Event::dispatch(new JobProcessing('redis', $this->createMock(Job::class)));
+        Event::dispatch(new JobProcessing('redis', $this->createStub(Job::class)));
 
         $this->assertMemosAreEmpty();
         $this->assertNull(app(PermissionRegistrar::class)->getPermissionsTeamId());
@@ -170,7 +170,7 @@ class StateResetTest extends TestCase
         $this->seedMemos();
         app(PermissionRegistrar::class)->setPermissionsTeamId(5);
 
-        Event::dispatch(new JobProcessing('sync', $this->createMock(Job::class)));
+        Event::dispatch(new JobProcessing('sync', $this->createStub(Job::class)));
 
         $this->assertMemosAreEmpty();
         $this->assertSame(5, app(PermissionRegistrar::class)->getPermissionsTeamId());
@@ -183,7 +183,7 @@ class StateResetTest extends TestCase
         app(PermissionRegistrar::class)->setPermissionsTeamId(5);
 
         // Judged by the driver, not the name the app gave the connection.
-        Event::dispatch(new JobProcessing('inline', $this->createMock(Job::class)));
+        Event::dispatch(new JobProcessing('inline', $this->createStub(Job::class)));
 
         $this->assertMemosAreEmpty();
         $this->assertSame(5, app(PermissionRegistrar::class)->getPermissionsTeamId());
@@ -215,7 +215,7 @@ class StateResetTest extends TestCase
         cache()->flush();
         $this->assertSame('Before', KinetixSettings::get('site.name'));
 
-        Event::dispatch(new JobProcessing('redis', $this->createMock(Job::class)));
+        Event::dispatch(new JobProcessing('redis', $this->createStub(Job::class)));
 
         $this->assertSame('After', KinetixSettings::get('site.name'));
     }

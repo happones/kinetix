@@ -52,31 +52,88 @@ describe('Card primitives (new-york-v4 parity)', () => {
     });
 });
 
+/**
+ * Parity guard: these are the distinguishing tokens of the shadcn new-york-v4
+ * recipe, not a copy of the class strings. A restyle that keeps the contract
+ * (variant colour, size height, pill shape, focus ring) stays green; dropping
+ * one of them is a deliberate departure from v4 and should fail here.
+ */
 describe('shadcn variants (new-york-v4 parity)', () => {
-    it('buttonVariants default = primary + size default', () => {
-        const cls = buttonVariants();
-        expect(cls).toContain('bg-primary');
-        expect(cls).toContain('text-primary-foreground');
-        expect(cls).toContain('h-9');
-        expect(cls).toContain('focus-visible:ring-ring/50');
-    });
+    it.each([
+        [
+            'button default',
+            () => buttonVariants(),
+            [
+                'bg-primary',
+                'text-primary-foreground',
+                'h-9',
+                'focus-visible:ring-ring/50',
+            ],
+        ],
+        [
+            'button outline + sm',
+            () => buttonVariants({ variant: 'outline', size: 'sm' }),
+            ['border-input', 'h-8'],
+        ],
+        ['badge default', () => badgeVariants(), ['rounded-full']],
+        [
+            'badge secondary',
+            () => badgeVariants({ variant: 'secondary' }),
+            ['rounded-full', 'bg-secondary'],
+        ],
+        [
+            'input field',
+            () => inputClass,
+            ['h-9', 'border-input', 'focus-visible:ring-ring/50'],
+        ],
+    ] as const)('%s keeps its v4 tokens', (_name, build, tokens) => {
+        const classes = build().split(/\s+/);
 
-    it('buttonVariants outline + sm', () => {
-        const cls = buttonVariants({ variant: 'outline', size: 'sm' });
-        expect(cls).toContain('border-input');
-        expect(cls).toContain('h-8');
+        for (const token of tokens) {
+            expect(classes).toContain(token);
+        }
     });
+});
 
-    it('badgeVariants is a rounded-full pill', () => {
-        expect(badgeVariants()).toContain('rounded-full');
-        expect(badgeVariants({ variant: 'secondary' })).toContain(
-            'bg-secondary',
+describe('variant contract', () => {
+    const buttonVariantNames = [
+        'default',
+        'destructive',
+        'outline',
+        'secondary',
+        'ghost',
+        'link',
+        'success',
+        'warning',
+        'info',
+        'ghost-current',
+    ] as const;
+
+    it('every button variant and size selects a different class string', () => {
+        const byVariant = buttonVariantNames.map((variant) =>
+            buttonVariants({ variant }),
         );
+        const bySize = (
+            ['default', 'sm', 'lg', 'icon', 'icon-sm', 'icon-lg'] as const
+        ).map((size) => buttonVariants({ size }));
+
+        expect(new Set(byVariant).size).toBe(byVariant.length);
+        expect(new Set(bySize).size).toBe(bySize.length);
     });
 
-    it('inputClass matches the v4 field (h-9, border-input, ring)', () => {
-        expect(inputClass).toContain('h-9');
-        expect(inputClass).toContain('border-input');
-        expect(inputClass).toContain('focus-visible:ring-ring/50');
+    it('a variant swaps its own colour tokens and keeps the shared base', () => {
+        const destructive = buttonVariants({ variant: 'destructive' }).split(
+            /\s+/,
+        );
+
+        expect(destructive).toContain('bg-destructive');
+        expect(destructive).not.toContain('bg-primary');
+        expect(destructive).toEqual(
+            expect.arrayContaining([
+                'inline-flex',
+                'items-center',
+                'rounded-md',
+            ]),
+        );
     });
 });

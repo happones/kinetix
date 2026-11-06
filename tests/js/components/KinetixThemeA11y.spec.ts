@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
@@ -28,10 +28,33 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe('KinetixModeToggle', () => {
-    it('renders an icon trigger', () => {
-        const w = mount(KinetixModeToggle, opts);
-        expect(w.find('button').exists()).toBe(true);
-        expect(w.findAll('svg').length).toBeGreaterThanOrEqual(2); // Sun + Moon
+    it('has a labelled trigger whose Dark item flips html.dark and the stored appearance', async () => {
+        const w = mount(KinetixModeToggle, {
+            ...opts,
+            attachTo: document.body,
+        });
+        const trigger = w.get('button');
+        expect(trigger.attributes('aria-label')).toBe('kinetix.toggle_theme');
+
+        await trigger.trigger('pointerdown', {
+            button: 0,
+            pointerType: 'mouse',
+        });
+        await trigger.trigger('click');
+        await flushPromises();
+
+        const dark = Array.from(
+            document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+        ).find((el) => el.textContent?.includes('appearance_dark'));
+        expect(dark).toBeDefined();
+
+        dark!.click();
+        await flushPromises();
+
+        expect(localStorage.getItem('appearance')).toBe('dark');
+        expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+        w.unmount();
     });
 
     it("setAppearance persists to the starter-kit 'appearance' storage and toggles html.dark", async () => {
@@ -48,9 +71,40 @@ describe('KinetixModeToggle', () => {
 });
 
 describe('KinetixAccessibilityMenu', () => {
-    it('renders an accessibility trigger button', () => {
-        const w = mount(KinetixAccessibilityMenu, opts);
-        expect(w.find('button').exists()).toBe(true);
+    it('has a labelled trigger that opens the preference toggles, and a toggle sets the preference', async () => {
+        const w = mount(KinetixAccessibilityMenu, {
+            ...opts,
+            attachTo: document.body,
+        });
+        const trigger = w.get('button');
+        expect(trigger.attributes('aria-label')).toBe('kinetix.a11y_title');
+
+        await trigger.trigger('click');
+        await flushPromises();
+
+        const labels = Array.from(document.body.querySelectorAll('label')).map(
+            (el) => el.textContent?.trim(),
+        );
+        expect(labels).toEqual(
+            expect.arrayContaining([
+                'kinetix.a11y_reduced_motion',
+                'kinetix.a11y_high_contrast',
+                'kinetix.a11y_underline_links',
+                'kinetix.a11y_enhanced_focus',
+            ]),
+        );
+
+        const highContrast = Array.from(
+            document.body.querySelectorAll('label'),
+        ).find((el) => el.textContent?.includes('a11y_high_contrast'));
+        highContrast!.querySelector<HTMLElement>('[role="checkbox"]')!.click();
+        await flushPromises();
+
+        expect(
+            document.documentElement.classList.contains('kx-high-contrast'),
+        ).toBe(true);
+
+        w.unmount();
     });
 
     it('keeps preferences client-side even when the server persist fails (guest)', async () => {

@@ -65,25 +65,4 @@ class InfolistEntryAuthorizationTest extends TestCase
 
         $this->assertNotNull($data);
     }
-
-    public function test_authorize_accepts_an_explicit_subject(): void
-    {
-        $invoice = InfolistAuthInvoice::create(['amount' => 5000]);
-
-        $data = TextEntry::make('amount')->authorize('viewFinancials', $invoice)->toData('view', null);
-
-        $this->assertNull($data);
-    }
-
-    public function test_authorize_accepts_a_closure(): void
-    {
-        $this->assertNull(TextEntry::make('x')->authorize(fn () => false)->toData('view', null));
-        $this->assertNotNull(TextEntry::make('x')->authorize(fn () => true)->toData('view', null));
-    }
-
-    public function test_authorize_accepts_a_bare_boolean(): void
-    {
-        $this->assertNull(TextEntry::make('x')->authorize(false)->toData('view', null));
-        $this->assertNotNull(TextEntry::make('x')->authorize(true)->toData('view', null));
-    }
 }

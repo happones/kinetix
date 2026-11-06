@@ -38,6 +38,20 @@ const mountPicker = async (props: Record<string, unknown> = {}) => {
     return wrapper;
 };
 
+// A short list across three regions: the picker tests that only look at
+// grouping, filtering and selection need not render every IANA zone.
+const stubZones = (): void => {
+    vi.spyOn(Intl, 'supportedValuesOf').mockReturnValue([
+        'America/Bogota',
+        'America/Mexico_City',
+        'America/New_York',
+        'Asia/Kolkata',
+        'Asia/Tokyo',
+        'Europe/London',
+        'Europe/Madrid',
+    ]);
+};
+
 const openPicker = async (w: Awaited<ReturnType<typeof mountPicker>>) => {
     await w.find('button').trigger('click');
     await nextTick();
@@ -47,6 +61,7 @@ describe('KinetixTimezonePicker', () => {
     afterEach(() => {
         mounted.splice(0).forEach((wrapper) => wrapper.unmount());
         document.body.innerHTML = '';
+        vi.restoreAllMocks();
     });
 
     it('shows the placeholder when nothing is selected', async () => {
@@ -78,6 +93,7 @@ describe('KinetixTimezonePicker', () => {
     });
 
     it('restricts the option list to the given regions', async () => {
+        stubZones();
         const w = await mountPicker({ regions: ['America'] });
         await openPicker(w);
 
@@ -88,6 +104,7 @@ describe('KinetixTimezonePicker', () => {
     });
 
     it('groups options under region headings by default', async () => {
+        stubZones();
         const w = await mountPicker({ regions: ['America', 'Europe'] });
         await openPicker(w);
 
@@ -97,6 +114,7 @@ describe('KinetixTimezonePicker', () => {
     });
 
     it('renders a flat list without region headings when groupByRegion is false', async () => {
+        stubZones();
         const w = await mountPicker({
             regions: ['America'],
             groupByRegion: false,
@@ -109,6 +127,7 @@ describe('KinetixTimezonePicker', () => {
     });
 
     it('emits update:modelValue with the IANA id when an option is selected', async () => {
+        stubZones();
         const w = await mountPicker({ regions: ['America'] });
         await openPicker(w);
 

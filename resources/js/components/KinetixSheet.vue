@@ -129,7 +129,11 @@ const enterFromClass = computed(
                 leave-to-class="opacity-0"
                 appear
             >
-                <div class="inset-0 bg-black/80 absolute" @click="close" />
+                <div
+                    data-slot="sheet-overlay"
+                    class="inset-0 bg-black/80 absolute"
+                    @click="close"
+                />
             </Transition>
 
             <Transition
@@ -141,6 +145,8 @@ const enterFromClass = computed(
             >
                 <div
                     ref="panelEl"
+                    data-slot="sheet-content"
+                    :data-side="side"
                     tabindex="-1"
                     class="p-6 shadow-lg absolute flex flex-col overflow-hidden border-border bg-background outline-none"
                     :class="[positionClass, sizeClass]"

@@ -18,45 +18,6 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} } });
 describe('useKinetixFieldConditions', () => {
     const { passes, resolve } = useKinetixFieldConditions();
 
-    it('evaluates each operator', () => {
-        expect(
-            passes({ field: 't', operator: 'equals', value: 'a' }, { t: 'a' }),
-        ).toBe(true);
-        expect(
-            passes({ field: 't', operator: 'equals', value: 'a' }, { t: 'b' }),
-        ).toBe(false);
-        expect(
-            passes(
-                { field: 't', operator: 'notEquals', value: 'a' },
-                { t: 'b' },
-            ),
-        ).toBe(true);
-        expect(
-            passes(
-                { field: 't', operator: 'in', value: ['a', 'b'] },
-                { t: 'b' },
-            ),
-        ).toBe(true);
-        expect(
-            passes(
-                { field: 't', operator: 'notIn', value: ['a', 'b'] },
-                { t: 'c' },
-            ),
-        ).toBe(true);
-        expect(passes({ field: 't', operator: 'truthy' }, { t: 1 })).toBe(true);
-        expect(passes({ field: 't', operator: 'falsy' }, { t: 0 })).toBe(true);
-        expect(passes({ field: 't', operator: 'filled' }, { t: 'x' })).toBe(
-            true,
-        );
-        expect(passes({ field: 't', operator: 'blank' }, { t: '' })).toBe(true);
-    });
-
-    it('loosely compares (string/number)', () => {
-        expect(
-            passes({ field: 't', operator: 'equals', value: 1 }, { t: '1' }),
-        ).toBe(true);
-    });
-
     it('resolve returns visible/disabled/required flags', () => {
         const comp = {
             conditions: {

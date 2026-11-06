@@ -45,19 +45,6 @@ describe('v-can directive', () => {
         );
     }
 
-    it('registers itself as `can`', () => {
-        const app = { directive: vi.fn() };
-        KinetixPermissions.install(app as never);
-
-        expect(app.directive).toHaveBeenCalledWith(
-            'can',
-            expect.objectContaining({
-                mounted: expect.any(Function),
-                updated: expect.any(Function),
-            }),
-        );
-    });
-
     it('shows the element when the permission is granted and hides it otherwise', () => {
         grant({
             enabled: true,

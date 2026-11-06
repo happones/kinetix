@@ -11,16 +11,8 @@ class ActionShortcutTest extends TestCase
 {
     public function test_shortcut_is_serialized(): void
     {
-        $data = Action::make('create')->shortcut('c')->toData();
-
-        $this->assertSame('c', $data->shortcut);
-    }
-
-    public function test_shortcut_defaults_to_null(): void
-    {
-        $data = Action::make('edit')->toData();
-
-        $this->assertNull($data->shortcut);
+        $this->assertSame('c', Action::make('create')->shortcut('c')->toData()->shortcut);
+        $this->assertNull(Action::make('edit')->toData()->shortcut);
     }
 
     public function test_icon_button_is_serialized_and_defaults_off(): void

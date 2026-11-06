@@ -16,14 +16,11 @@ class CopyableTest extends TestCase
 
         $this->assertTrue($data->isCopyable);
         $this->assertTrue($data->isRevealable);
-    }
 
-    public function test_text_input_defaults_are_off(): void
-    {
-        $data = TextInput::make('name')->toData('create');
+        $default = TextInput::make('name')->toData('create');
 
-        $this->assertFalse($data->isCopyable);
-        $this->assertFalse($data->isRevealable);
+        $this->assertFalse($default->isCopyable);
+        $this->assertFalse($default->isRevealable);
     }
 
     public function test_text_column_is_copyable(): void

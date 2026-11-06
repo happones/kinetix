@@ -54,14 +54,18 @@ describe('KinetixSheet', () => {
 
     it('defaults to the right side', async () => {
         await mountSheet();
-        const panel = document.body.querySelector('[role="dialog"] .shadow-lg');
-        expect(panel?.className).toContain('right-0');
+        const panel = document.body.querySelector(
+            '[data-slot="sheet-content"]',
+        );
+        expect(panel?.getAttribute('data-side')).toBe('right');
     });
 
     it('slides from the requested side', async () => {
         await mountSheet({ side: 'left' });
-        const panel = document.body.querySelector('[role="dialog"] .shadow-lg');
-        expect(panel?.className).toContain('left-0');
+        const panel = document.body.querySelector(
+            '[data-slot="sheet-content"]',
+        );
+        expect(panel?.getAttribute('data-side')).toBe('left');
     });
 
     it('emits update:open and close when the close button is clicked', async () => {
@@ -90,7 +94,9 @@ describe('KinetixSheet', () => {
         expect(dialog.getAttribute('aria-labelledby')).toBe(heading.id);
         expect(heading.id).not.toBe('');
 
-        const panel = document.body.querySelector('[role="dialog"] .shadow-lg');
+        const panel = document.body.querySelector(
+            '[data-slot="sheet-content"]',
+        );
         expect(panel?.contains(document.activeElement)).toBe(true);
     });
 
@@ -116,7 +122,7 @@ describe('KinetixSheet', () => {
     it('closes when the overlay is clicked', async () => {
         const w = await mountSheet();
         const overlay = document.body.querySelector(
-            '[role="dialog"] .bg-black\\/80',
+            '[data-slot="sheet-overlay"]',
         ) as HTMLElement;
         overlay.click();
         await nextTick();

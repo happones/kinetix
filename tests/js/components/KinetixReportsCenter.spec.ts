@@ -31,12 +31,17 @@ const mountIt = () =>
     });
 
 describe('KinetixReportsCenter', () => {
-    it('renders a tab trigger for each of the three views', () => {
+    it('renders exactly three accessible tab triggers, one per view', () => {
         const w = mountIt();
 
-        expect(w.text()).toContain('Reports');
-        expect(w.text()).toContain('Report Runs');
-        expect(w.text()).toContain('Scheduled Reports');
+        const tabs = w.findAll('[role="tab"]');
+
+        expect(tabs).toHaveLength(3);
+        expect(tabs.map((el) => el.text())).toEqual([
+            'Reports',
+            'Report Runs',
+            'Scheduled Reports',
+        ]);
     });
 
     it('defaults to the launcher tab', () => {
@@ -53,13 +58,26 @@ describe('KinetixReportsCenter', () => {
         expect(w.findAll('[role="tab"]')).toHaveLength(3);
     });
 
-    it('does not throw when a tab trigger is clicked', async () => {
+    it('switches to the runs view when its tab is activated', async () => {
         const w = mountIt();
-
         const runsTrigger = w
             .findAll('[role="tab"]')
-            .find((el) => el.text() === 'Report Runs');
+            .find((el) => el.text() === 'Report Runs')!;
 
-        await expect(runsTrigger?.trigger('click')).resolves.not.toThrow();
+        expect(runsTrigger.attributes('aria-selected')).toBe('false');
+        expect(
+            w.findComponent({ name: 'KinetixReportRunsTable' }).exists(),
+        ).toBe(false);
+
+        // Reka's TabsTrigger activates on mousedown, not click.
+        await runsTrigger.trigger('mousedown', { button: 0 });
+
+        expect(runsTrigger.attributes('aria-selected')).toBe('true');
+        expect(
+            w.findComponent({ name: 'KinetixReportRunsTable' }).exists(),
+        ).toBe(true);
+        expect(
+            w.findComponent({ name: 'KinetixReportLauncher' }).exists(),
+        ).toBe(false);
     });
 });

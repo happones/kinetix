@@ -60,15 +60,14 @@ class MediaLibraryTest extends TestCase
 
         $this->assertFalse($manager->usesSpatie($record));
         $this->assertSame([], $manager->items($record, 'images'));
+        $this->assertSame([], KinetixMedia::items($record, 'images'));
 
-        // sync must not throw when spatie isn't available.
+        // sync must not throw when spatie isn't available, and writes nothing.
+        Storage::fake('public');
         $manager->sync($record, 'images', [['path' => 'uploads/x.jpg']]);
-        $this->assertTrue(true);
-    }
 
-    public function test_facade_delegates_to_the_manager(): void
-    {
-        $this->assertSame([], KinetixMedia::items(new MediaProduct(['id' => 1]), 'images'));
+        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertSame([], $manager->items($record, 'images'));
     }
 
     public function test_keep_accepts_only_the_users_own_uploads_and_rebuilds_them_from_the_disk(): void

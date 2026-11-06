@@ -54,11 +54,41 @@ describe('KinetixSavedViews', () => {
         expect(applied![0][0]).toEqual({ search: 'x' });
     });
 
-    it('renders the views trigger button', async () => {
+    it('lists the saved views from the trigger and applies the chosen one', async () => {
         fetchMock.mockResolvedValueOnce({ views: [view()] });
-        const w = mountIt();
+        const w = mount(KinetixSavedViews, {
+            props: { viewKey: 'App\\Models\\Post', currentState: {} },
+            global: { plugins: [i18n] },
+            attachTo: document.body,
+        });
         await flushPromises();
-        expect(w.find('button').exists()).toBe(true);
+        expect(w.emitted('apply')).toBeUndefined();
+
+        // Reka's dropdown opens on pointerdown; the content teleports to body.
+        const trigger = w.get('button');
+        await trigger.trigger('pointerdown', {
+            button: 0,
+            pointerType: 'mouse',
+        });
+        await trigger.trigger('click');
+        await flushPromises();
+
+        const items = Array.from(
+            document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+        );
+        const active = items.find((el) => el.textContent?.includes('Active'));
+        expect(active).toBeDefined();
+
+        active!.click();
+        await flushPromises();
+
+        expect(w.emitted('apply')).toHaveLength(1);
+        expect(w.emitted('apply')![0][0]).toEqual({
+            search: 'foo',
+            filters: { status: 'active' },
+        });
+
+        w.unmount();
     });
 });
 

@@ -68,6 +68,15 @@ describe('ImporterMapping — usable at any column count', () => {
         ...over,
     });
 
+    // Text-only checks need two columns, not 24 reka selects.
+    const small = (over: Record<string, unknown> = {}) =>
+        base({
+            columns: columns(2),
+            headers: ['header_1', 'header_2', 'header_21', 'header_22'],
+            mapping: { field_1: 0, field_2: 1 },
+            ...over,
+        });
+
     it('renders one labelled select per target column', () => {
         const w = mountWith(ImporterMapping, base());
 
@@ -85,13 +94,13 @@ describe('ImporterMapping — usable at any column count', () => {
     });
 
     it('names the columns the import would silently drop', () => {
-        const w = mountWith(ImporterMapping, base());
+        const w = mountWith(ImporterMapping, small());
 
         expect(w.text()).toContain('header_21');
     });
 
     it('states an exact match instead of asking for a mapping it already knows', () => {
-        const w = mountWith(ImporterMapping, base({ isExactMatch: true }));
+        const w = mountWith(ImporterMapping, small({ isExactMatch: true }));
 
         expect(w.text()).toContain('The file matches this importer exactly');
     });

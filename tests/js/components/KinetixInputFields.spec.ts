@@ -39,11 +39,33 @@ describe('KinetixRating', () => {
 });
 
 describe('KinetixPinInput', () => {
-    it('renders one box per length and seeds from the value', () => {
+    // Reka adds a binding input for form submission; the segments carry inputmode.
+    const boxes = (w: ReturnType<typeof mount>) =>
+        w.findAll<HTMLInputElement>('input[inputmode]');
+
+    it('seeds the leading boxes from the value and puts the field id on the first', () => {
+        const w = mount(KinetixPinInput, {
+            props: { id: 'code', value: '12', config: { length: 4 } },
+        });
+
+        const inputs = boxes(w);
+        expect(inputs.map((el) => el.element.value)).toEqual([
+            '1',
+            '2',
+            '',
+            '',
+        ]);
+        expect(inputs[0].attributes('id')).toBe('code');
+        expect(inputs[1].attributes('id')).toBeUndefined();
+    });
+
+    it('emits the joined value when a box is filled', async () => {
         const w = mount(KinetixPinInput, {
             props: { value: '12', config: { length: 4 } },
         });
-        // Reka adds a binding input for form submission; the 4 segments carry inputmode.
-        expect(w.findAll('input[inputmode]').length).toBe(4);
+
+        await boxes(w)[2].setValue('3');
+
+        expect(w.emitted('update:value')?.at(-1)).toEqual(['123']);
     });
 });

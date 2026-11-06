@@ -6,26 +6,31 @@ namespace Happones\Kinetix\Tests\Unit;
 
 use Happones\Kinetix\Forms\Components\RichEditor;
 use Happones\Kinetix\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class RichEditorTest extends TestCase
 {
-    public function test_serializes_with_type_and_config_default_driver(): void
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function configuredDrivers(): array
     {
-        config()->set('kinetix.forms.rich_editor', 'basic');
+        return [
+            'basic'    => ['basic'],
+            'tiptap'   => ['tiptap'],
+            'markdown' => ['markdown'],
+        ];
+    }
+
+    #[DataProvider('configuredDrivers')]
+    public function test_serializes_with_type_and_config_default_driver(string $driver): void
+    {
+        config()->set('kinetix.forms.rich_editor', $driver);
 
         $data = RichEditor::make('body')->toData('create', null);
 
         $this->assertSame('rich-editor', $data->type);
-        $this->assertSame('basic', $data->editor);
-    }
-
-    public function test_respects_the_configured_default_driver(): void
-    {
-        config()->set('kinetix.forms.rich_editor', 'tiptap');
-
-        $data = RichEditor::make('body')->toData('create', null);
-
-        $this->assertSame('tiptap', $data->editor);
+        $this->assertSame($driver, $data->editor);
     }
 
     public function test_per_field_override_wins_over_config(): void

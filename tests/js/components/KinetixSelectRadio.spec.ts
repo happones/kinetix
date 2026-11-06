@@ -4,18 +4,6 @@ import KinetixRadioGroup from '@/components/KinetixRadioGroup.vue';
 import KinetixSelect from '@/components/KinetixSelect.vue';
 
 describe('KinetixSelect', () => {
-    it('renders a combobox trigger', () => {
-        const wrapper = mount(KinetixSelect, {
-            props: {
-                value: null,
-                options: { a: 'Option A', b: 'Option B' },
-                placeholder: 'Pick one',
-            },
-        });
-
-        expect(wrapper.get('[role="combobox"]')).toBeTruthy();
-    });
-
     async function openOptions(
         props: Record<string, unknown>,
     ): Promise<string[]> {

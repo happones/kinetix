@@ -305,7 +305,8 @@ class BillingManagerTest extends TestCase
             }
         };
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(BillingActionException::class);
+        $this->expectExceptionMessage((string) __('kinetix.billing_payment_required'));
 
         BillingManager::for($billable)->subscribe('pro');
     }
@@ -679,10 +680,6 @@ class BillingManagerTest extends TestCase
             'trial_days'              => 14,
         ]);
 
-        $this->assertFalse($plan->isFree(), 'Plan should not be free');
-        $this->assertSame(14, $plan->trial_days, 'Plan should have trial days');
-        $this->assertTrue(config('kinetix.billing.trial_generic'), 'Trial generic should be enabled');
-
         BillingManager::for($billable)->subscribe('trial-plan-2');
 
         $this->assertSame('trial-plan-2', $billable->getAttribute('trial_plan'));
@@ -694,6 +691,7 @@ class BillingManagerTest extends TestCase
 
         $this->assertSame('trial-plan-2', $billable->getAttribute('trial_plan'));
         $this->assertNotNull($billable->getAttribute('trial_ends_at'));
+        $this->assertNotNull($billable->getAttribute('trial_taken_at'));
     }
 
     public function test_subscribe_to_free_plan_without_payment_method_does_not_throw(): void
@@ -772,7 +770,6 @@ class BillingManagerTest extends TestCase
             'stripe_monthly_price_id' => 'price_paid_m2',
         ]);
 
-        $this->expectException(RuntimeException::class);
         $this->expectException(BillingActionException::class);
         $this->expectExceptionMessage((string) __('kinetix.billing_payment_required'));
 
@@ -850,26 +847,6 @@ class BillingManagerTest extends TestCase
         $this->assertFalse($paidPlan->fresh()->isFree());
     }
 
-    public function test_generic_trial_sets_trial_taken_at(): void
-    {
-        config(['kinetix.billing.trial_generic' => true]);
-
-        $billable = FakeBillable::create();
-        $plan     = Plan::create([
-            'name'                    => 'Trial Plan',
-            'slug'                    => 'trial-taken',
-            'monthly_price'           => 19,
-            'stripe_monthly_price_id' => 'price_trial_taken',
-            'trial_days'              => 14,
-        ]);
-
-        BillingManager::for($billable)->subscribe('trial-taken');
-
-        $billable->refresh();
-
-        $this->assertNotNull($billable->getAttribute('trial_taken_at'));
-    }
-
     public function test_cannot_start_second_generic_trial(): void
     {
         config(['kinetix.billing.trial_generic' => true]);
@@ -897,7 +874,6 @@ class BillingManagerTest extends TestCase
             'trial_taken_at' => $billable->trial_taken_at,
         ]);
 
-        $this->expectException(RuntimeException::class);
         $this->expectException(BillingActionException::class);
         $this->expectExceptionMessage((string) __('kinetix.billing_trial_already_used'));
 
@@ -1182,7 +1158,6 @@ class BillingManagerTest extends TestCase
 
         $billable->save();
 
-        $this->expectException(RuntimeException::class);
         $this->expectException(BillingActionException::class);
         $this->expectExceptionMessage((string) __('kinetix.billing_payment_required'));
 

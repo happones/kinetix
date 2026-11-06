@@ -623,5 +623,35 @@
         "value": 1.5e-7,
         "actual": "1.5e-7",
         "expected": true
+    },
+    {
+        "operator": "in",
+        "value": ["a", "b"],
+        "actual": "b",
+        "expected": true
+    },
+    {
+        "operator": "falsy",
+        "value": null,
+        "actual": 0,
+        "expected": true
+    },
+    {
+        "operator": "filled",
+        "value": null,
+        "actual": "x",
+        "expected": true
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "actual": "",
+        "expected": true
+    },
+    {
+        "operator": "blank",
+        "value": null,
+        "missing": true,
+        "expected": true
     }
 ]

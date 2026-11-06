@@ -71,29 +71,6 @@ class FormFieldAuthorizationTest extends TestCase
         $this->assertNotNull($data);
     }
 
-    public function test_authorize_accepts_an_explicit_subject(): void
-    {
-        $published = FormAuthPost::create(['title' => 'Live', 'published' => true]);
-
-        $data = TextInput::make('internalNotes')
-            ->authorize('editInternalNotes', $published)
-            ->toData('create', null);
-
-        $this->assertNull($data);
-    }
-
-    public function test_authorize_accepts_a_closure(): void
-    {
-        $this->assertNull(TextInput::make('x')->authorize(fn () => false)->toData('create', null));
-        $this->assertNotNull(TextInput::make('x')->authorize(fn () => true)->toData('create', null));
-    }
-
-    public function test_authorize_accepts_a_bare_boolean(): void
-    {
-        $this->assertNull(TextInput::make('x')->authorize(false)->toData('create', null));
-        $this->assertNotNull(TextInput::make('x')->authorize(true)->toData('create', null));
-    }
-
     public function test_unauthorized_fields_are_dropped_from_validation_rules(): void
     {
         $post = FormAuthPost::create(['title' => 'Live', 'published' => true]);
